@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
     ragSources?: unknown;
     inferenceTemperature?: number | null;
     inferenceMaxTokens?: number | null;
+    isPlatform?: boolean;
   };
   try {
     body = await req.json();
@@ -120,6 +121,10 @@ export async function POST(req: NextRequest) {
     $set.inferenceMaxTokens = body.inferenceMaxTokens;
   } else if (body.inferenceMaxTokens === null) {
     $set.inferenceMaxTokens = null;
+  }
+  // Hub is source of truth for platform visibility.
+  if (typeof body.isPlatform === 'boolean') {
+    $set.isPlatform = body.isPlatform;
   }
 
   const hex = /^[a-f0-9]{24}$/i;

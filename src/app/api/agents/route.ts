@@ -75,6 +75,7 @@ export async function GET(req: NextRequest) {
       const $set: Record<string, unknown> = { name, description, systemPrompt, model };
       if (typeof hub.ragEnabled === 'boolean') $set.ragEnabled = hub.ragEnabled;
       if (hub.ragSources !== undefined) $set.ragSources = hub.ragSources;
+      if (typeof hub.isPlatform === 'boolean') $set.isPlatform = hub.isPlatform;
       const hex = /^[a-f0-9]{24}$/i;
       const parent = hub.landingParentClientAgentId;
       if (parent === null || hub.catalogAgentType === 'agent') {
@@ -88,11 +89,9 @@ export async function GET(req: NextRequest) {
         $set.widgetPublicToken = hub.widgetPublicToken.trim() || null;
       }
       $set.syncStatus = 'synced';
-      if (!isPlatform) {
-        await ClientAgent.updateOne({ _id: a._id }, { $set });
-        if ('type' in $set || 'parentAgentId' in $set) {
-          await repairSubAgentLinks(new mongoose.Types.ObjectId(String(a._id)));
-        }
+      await ClientAgent.updateOne({ _id: a._id }, { $set });
+      if ('type' in $set || 'parentAgentId' in $set) {
+        await repairSubAgentLinks(new mongoose.Types.ObjectId(String(a._id)));
       }
       return { ...a, ...$set } as typeof a;
     }),

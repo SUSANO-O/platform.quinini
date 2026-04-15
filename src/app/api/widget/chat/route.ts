@@ -54,6 +54,22 @@ export async function POST(req: NextRequest) {
   const base = getAgentflowhubBaseUrl();
   const body = await req.text();
   const origin = req.headers.get('origin') || '*';
+  const requestOrigin = req.nextUrl.origin;
+
+  // Evita recursión cuando AGENTFLOWHUB_URL apunta al mismo host de la landing.
+  if (base === requestOrigin) {
+    return NextResponse.json(
+      {
+        error: 'Configuración inválida: AGENTFLOWHUB_URL apunta a este mismo dominio.',
+        code: 'HUB_CHAT_PROXY_LOOP',
+        details:
+          'El endpoint /api/widget/chat está reenviando al mismo /api/widget/chat, causando un loop.',
+        hint:
+          'En producción, define AGENTFLOWHUB_URL al dominio real de AgentFlowhub (no al de la landing).',
+      },
+      { status: 500, headers: cors(origin) },
+    );
+  }
 
   let parsedAgentId = '';
   let parsedWidgetId = '';

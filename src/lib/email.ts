@@ -8,8 +8,16 @@ import { Resend } from 'resend';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
-const FROM = process.env.EMAIL_FROM || 'MatIAs<noreply@agentflowhub.com>';
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3201';
+/**
+ * Requiere dominio verificado en Resend cuando se usa EMAIL_FROM.
+ * Fallback seguro: dominio de pruebas de Resend para evitar 403 por dominio no verificado.
+ */
+const FROM = process.env.EMAIL_FROM?.trim() || 'MatIAs <onboarding@resend.dev>';
+// En servidor priorizamos APP_URL (no público) para enlaces de correo en producción.
+const APP_URL =
+  process.env.APP_URL?.trim() ||
+  process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+  'http://localhost:3201';
 
 // ── Template helpers ──────────────────────────────────────────────────────────
 
