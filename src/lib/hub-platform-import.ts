@@ -7,15 +7,17 @@ import { connectDB } from '@/lib/db/connection';
 import { ClientAgent, User } from '@/lib/db/models';
 import {
   fetchHubAgentsList,
+  hubCatalogStatusToLandingStatus,
   pushClientAgentToHubCatalog,
   type HubCatalogAgent,
 } from '@/lib/aibackhub-sync';
 
+/** Agente principal de catálogo marcado plataforma en el hub y operativo (se importa o promueve en landing). */
 function isHubMainPlatformAgent(h: HubCatalogAgent): boolean {
-  if (!h.isPlatform) return false;
+  if (h.isPlatform !== true) return false;
   if (h.catalogAgentType === 'sub-agent') return false;
-  const st = typeof h.status === 'string' ? h.status : '';
-  if (st && st !== 'Active') return false;
+  const st = typeof h.status === 'string' ? h.status.trim() : '';
+  if (st && st.toLowerCase() !== 'active') return false;
   const id = typeof h.id === 'string' ? h.id.trim() : '';
   return id.length > 0;
 }
@@ -53,7 +55,24 @@ export async function ensureHubPlatformAgentsInLanding(options?: {
 
     const hubSlug = h.id.trim();
     const existing = await ClientAgent.findOne({ agentHubId: hubSlug }).lean();
-    if (existing) continue;
+    const landingStatus = hubCatalogStatusToLandingStatus(h.status) ?? 'active';
+
+    if (existing) {
+      const ex = existing as { isPlatform?: boolean; status?: string };
+      if (!ex.isPlatform || ex.status !== landingStatus) {
+        await ClientAgent.updateOne(
+          { agentHubId: hubSlug },
+          {
+            $set: {
+              isPlatform: true,
+              status: landingStatus,
+              syncStatus: 'synced',
+            },
+          },
+        );
+      }
+      continue;
+    }
 
     const prompt =
       typeof h.prompt === 'string' && h.prompt.trim() !== ''

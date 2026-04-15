@@ -12,6 +12,7 @@ import { getAgentLimits } from '@/lib/agent-plans';
 import {
   canAttemptHubSync,
   fetchCatalogAgentFromHub,
+  hubCatalogStatusToLandingStatus,
   syncHubCatalogFromLandingAgentDoc,
 } from '@/lib/aibackhub-sync';
 import { repairSubAgentLinks } from '@/lib/repair-subagent-links';
@@ -54,7 +55,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     canAttemptHubSync() &&
     (String(agent.userId) === String(userId) || isPlatformAgent);
 
-  // Catálogo AIBackHub: fusionar en la respuesta para mostrar la verdad actual. En agentes de plataforma no persistimos en Mongo (solo AgentFlowHub edita el catálogo).
+  // Catálogo AIBackHub: fusionar con Mongo (incl. plataforma: nombre, modelo, `status` alineado al hub, etc.).
   if (canFetchHubCatalog) {
     const hub = await fetchCatalogAgentFromHub(hubId);
     if (hub) {
@@ -87,15 +88,21 @@ export async function GET(req: NextRequest, { params }: Params) {
         $set.widgetPublicToken = hub.widgetPublicToken.trim() || null;
       }
 
+      if (typeof hub.isPlatform === 'boolean') $set.isPlatform = hub.isPlatform;
+      const landingStatusFromHub = hubCatalogStatusToLandingStatus(hub.status);
+      const syncStatusFromHub =
+        hub.isPlatform === true || (isPlatformAgent && hub.isPlatform !== false);
+      if (landingStatusFromHub !== undefined && syncStatusFromHub) {
+        $set.status = landingStatusFromHub;
+      }
+
       // Hub alcanzable y agente existe en catálogo → alinear estado de sync en Mongo (corrige `failed` obsoleto).
       $set.syncStatus = 'synced';
 
-      if (!isPlatformAgent) {
-        const docId = String(agent._id);
-        await ClientAgent.updateOne({ _id: docId }, { $set });
-        if ('type' in $set || 'parentAgentId' in $set) {
-          await repairSubAgentLinks(new mongoose.Types.ObjectId(docId));
-        }
+      const docId = String(agent._id);
+      await ClientAgent.updateOne({ _id: docId }, { $set });
+      if ('type' in $set || 'parentAgentId' in $set) {
+        await repairSubAgentLinks(new mongoose.Types.ObjectId(docId));
       }
 
       agent = { ...agent, ...$set } as typeof agent;

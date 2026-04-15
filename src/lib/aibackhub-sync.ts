@@ -47,6 +47,20 @@ export function canAttemptHubSync(): boolean {
   return Boolean(getAibackhubBaseUrl());
 }
 
+/**
+ * Catálogo AIBackHub / AgentFlowhub: `Active` | `Inactive` | `Error`
+ * → `ClientAgent.status` en la landing (`active` | `disabled`).
+ */
+export function hubCatalogStatusToLandingStatus(
+  hubStatus: string | undefined,
+): 'active' | 'disabled' | undefined {
+  if (hubStatus == null || typeof hubStatus !== 'string') return undefined;
+  const s = hubStatus.trim();
+  if (s === 'Active') return 'active';
+  if (s === 'Inactive' || s === 'Error') return 'disabled';
+  return undefined;
+}
+
 /** Catálogo de agentes en AIBackHub (colección `agents`), alineado con AgentFlowhub + landing RAG/jerarquía. */
 export type HubCatalogAgent = {
   id: string;

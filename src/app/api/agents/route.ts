@@ -13,6 +13,7 @@ import {
   canAttemptHubSync,
   fetchCatalogAgentFromHub,
   getAibackhubBaseUrl,
+  hubCatalogStatusToLandingStatus,
   hubCreateHeaders,
   parseCreatedAgentId,
 } from '@/lib/aibackhub-sync';
@@ -76,6 +77,12 @@ export async function GET(req: NextRequest) {
       if (typeof hub.ragEnabled === 'boolean') $set.ragEnabled = hub.ragEnabled;
       if (hub.ragSources !== undefined) $set.ragSources = hub.ragSources;
       if (typeof hub.isPlatform === 'boolean') $set.isPlatform = hub.isPlatform;
+      const landingStatusFromHub = hubCatalogStatusToLandingStatus(hub.status);
+      const syncStatusFromHub =
+        hub.isPlatform === true || (isPlatform && hub.isPlatform !== false);
+      if (landingStatusFromHub !== undefined && syncStatusFromHub) {
+        $set.status = landingStatusFromHub;
+      }
       const hex = /^[a-f0-9]{24}$/i;
       const parent = hub.landingParentClientAgentId;
       if (parent === null || hub.catalogAgentType === 'agent') {
