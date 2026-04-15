@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useClientModels } from '@/hooks/use-client-models';
-import { TOOLS, getAgentLimits } from '@/lib/agent-plans';
-import { Bot, ChevronLeft, Loader2, Lock, KeyRound } from 'lucide-react';
+import { McpAvailablePanel } from '@/components/mcp/mcp-available-panel';
+import { McpConnectModal } from '@/components/mcp/mcp-connect-modal';
+import type { McpCatalogRow } from '@/lib/mcp-catalog-types';
+import { Bot, ChevronLeft, Loader2, KeyRound, Plug, X } from 'lucide-react';
 import Link from 'next/link';
 
 export default function NewAgentPage() {
@@ -15,36 +17,29 @@ export default function NewAgentPage() {
   const isAdmin = user?.role === 'admin';
   const { subscription } = useSubscription();
   const plan = subscription?.plan ?? 'free';
-  const limits = getAgentLimits(plan);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [model, setModel] = useState('gemini-2.5-flash');
   const [systemPrompt, setSystemPrompt] = useState('');
-  const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [widgetPublicToken, setWidgetPublicToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isPlatform, setIsPlatform] = useState(false);
   const [inferenceTemperature, setInferenceTemperature] = useState('');
   const [inferenceMaxTokens, setInferenceMaxTokens] = useState('');
+  /** Tras crear el agente, abrir modal de MCP en la ficha con esta integración. */
+  const [pendingMcp, setPendingMcp] = useState<{ key: string; name: string } | null>(null);
+  const [mcpInfoModal, setMcpInfoModal] = useState<McpCatalogRow | null>(null);
   const { models: clientModels, hubError: modelsHubError } = useClientModels(plan);
+
+  const hubUiBase = (process.env.NEXT_PUBLIC_AGENTFLOWHUB_URL || 'http://127.0.0.1:9010').replace(/\/$/, '');
 
   function generatePublicToken() {
     const bytes = new Uint8Array(18);
     crypto.getRandomValues(bytes);
     const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
     setWidgetPublicToken(`afhub_pub_${hex}`);
-  }
-
-  function toggleTool(toolId: string) {
-    setSelectedTools((prev) =>
-      prev.includes(toolId)
-        ? prev.filter((t) => t !== toolId)
-        : prev.length < limits.toolsPerAgent
-          ? [...prev, toolId]
-          : prev,
-    );
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -60,7 +55,7 @@ export default function NewAgentPage() {
       systemPrompt,
       model,
       type: 'agent',
-      tools: selectedTools.map((toolId) => ({ toolId, config: {} })),
+      tools: [],
       ...(isAdmin && isPlatform ? { isPlatform: true } : {}),
       ...(widgetPublicToken.trim()
         ? { widgetPublicToken: widgetPublicToken.trim().slice(0, 512) }
@@ -97,7 +92,10 @@ export default function NewAgentPage() {
     setLoading(false);
 
     if (!res.ok) { setError(data.error ?? 'Error al crear el agente.'); return; }
-    router.push(`/dashboard/agents/${data.agent._id}`);
+    const qs = pendingMcp
+      ? `?openMcp=${encodeURIComponent(pendingMcp.key)}`
+      : '';
+    router.push(`/dashboard/agents/${data.agent._id}${qs}`);
   }
 
   const inp: React.CSSProperties = {
@@ -109,6 +107,39 @@ export default function NewAgentPage() {
 
   return (
     <div style={{ padding: '32px', maxWidth: '700px' }}>
+      {mcpInfoModal && (
+        <McpConnectModal
+          open
+          title={`Conectar ${mcpInfoModal.name}`}
+          onClose={() => setMcpInfoModal(null)}
+        >
+          <p style={{ fontSize: '13px', lineHeight: 1.55, color: 'var(--foreground)', margin: '0 0 14px' }}>
+            Las credenciales MCP se guardan <strong>por agente</strong>. Completa el formulario de arriba y pulsa{' '}
+            <strong>Crear agente</strong>: te llevaremos a la ficha y se abrirá el formulario de conexión para{' '}
+            <strong>{mcpInfoModal.name}</strong> (podrás introducir usuario, tokens, etc.).
+          </p>
+          <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: '0 0 16px', lineHeight: 1.5 }}>
+            Puedes cerrar este aviso; seguirá recordado hasta que crees el agente o pulses quitar en la barra inferior.
+          </p>
+          <button
+            type="button"
+            onClick={() => setMcpInfoModal(null)}
+            style={{
+              padding: '10px 18px',
+              borderRadius: '10px',
+              fontWeight: 700,
+              fontSize: '13px',
+              background: '#6366f1',
+              color: '#fff',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            Entendido
+          </button>
+        </McpConnectModal>
+      )}
+
       <Link href="/dashboard/agents" style={{
         display: 'inline-flex', alignItems: 'center', gap: '4px',
         color: 'var(--muted-foreground)', fontSize: '12px', textDecoration: 'none', marginBottom: '20px',
@@ -132,6 +163,47 @@ export default function NewAgentPage() {
       </div>
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+        {pendingMcp && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              flexWrap: 'wrap',
+              padding: '10px 14px',
+              borderRadius: '10px',
+              border: '1px solid rgba(99,102,241,0.35)',
+              background: 'rgba(99,102,241,0.08)',
+              fontSize: '12px',
+              color: 'var(--foreground)',
+            }}
+          >
+            <span style={{ fontWeight: 700 }}>MCP:</span>
+            <span>
+              Tras crear el agente se abrirá la conexión para <strong>{pendingMcp.name}</strong>
+            </span>
+            <button
+              type="button"
+              onClick={() => setPendingMcp(null)}
+              style={{
+                marginLeft: 'auto',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 10px',
+                borderRadius: '8px',
+                border: '1px solid var(--border)',
+                background: 'var(--background)',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: 600,
+              }}
+            >
+              <X size={12} /> Quitar
+            </button>
+          </div>
+        )}
 
         {/* Siempre visible: solo admins pueden activarlo (API valida rol). */}
         <div
@@ -336,67 +408,51 @@ export default function NewAgentPage() {
           />
         </div>
 
-        {/* Tools */}
+        {/* MCP catalog (AIBackHub / BACKEND_URL) */}
         <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+            <Plug size={16} style={{ color: '#6366f1', flexShrink: 0 }} />
             <h2 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
-              Herramientas
+              Integraciones MCP (backend)
             </h2>
-            <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
-              {selectedTools.length}/{limits.toolsPerAgent} seleccionadas
-            </span>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {TOOLS.map((tool) => {
-              const available = limits.availableToolIds.includes(tool.id);
-              const selected = selectedTools.includes(tool.id);
-              const maxed = selectedTools.length >= limits.toolsPerAgent && !selected;
-              return (
-                <button
-                  key={tool.id}
-                  type="button"
-                  onClick={() => available && !maxed ? toggleTool(tool.id) : undefined}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px',
-                    borderRadius: '10px', textAlign: 'left', cursor: available && !maxed ? 'pointer' : 'not-allowed',
-                    border: `1px solid ${selected ? '#6366f1' : 'var(--border)'}`,
-                    background: selected ? 'rgba(99,102,241,0.08)' : 'transparent',
-                    opacity: !available || maxed ? 0.5 : 1,
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  <span style={{ fontSize: '20px', flexShrink: 0 }}>{tool.icon}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: '13px', fontWeight: 700, margin: 0, color: selected ? '#6366f1' : 'var(--foreground)' }}>
-                      {tool.name}
-                    </p>
-                    <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: 0 }}>
-                      {tool.description}
-                    </p>
-                  </div>
-                  {!available && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--muted-foreground)', flexShrink: 0 }}>
-                      <Lock size={10} /> {tool.minPlan}+
-                    </div>
-                  )}
-                  {selected && (
-                    <div style={{
-                      width: 18, height: 18, borderRadius: '50%', background: '#6366f1',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                    }}>
-                      <span style={{ color: '#fff', fontSize: '10px', fontWeight: 900 }}>✓</span>
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          {plan === 'free' && (
-            <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '10px' }}>
-              🔒 Más herramientas disponibles en planes pagos.{' '}
-              <Link href="/dashboard" style={{ color: '#6366f1', textDecoration: 'none', fontWeight: 700 }}>Ver planes →</Link>
+          <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '14px', lineHeight: 1.55 }}>
+            <p style={{ margin: '0 0 10px' }}>
+              <strong style={{ color: 'var(--foreground)' }}>Pulsa una integración</strong> para indicar que quieres conectarla después de crear el agente (se abrirá un aviso y el formulario de credenciales en la ficha).
+              El catálogo viene de AIBackHub (<code style={{ fontSize: '11px' }}>BACKEND_URL</code> →{' '}
+              <code style={{ fontSize: '11px' }}>/api/mcp/catalog</code>).
             </p>
-          )}
+            <p style={{ margin: '0 0 8px', fontWeight: 700, color: 'var(--foreground)', fontSize: '11px' }}>
+              Cómo conectar MCP a este agente (credenciales por agente)
+            </p>
+            <ol style={{ margin: 0, paddingLeft: '18px' }}>
+              <li style={{ marginBottom: '6px' }}>
+                (Opcional) Elige una integración abajo y luego pulsa <strong>Crear agente</strong>. Tras el sync con el hub tendrás <code style={{ fontSize: '11px' }}>agentHubId</code> y el modal de credenciales.
+              </li>
+              <li style={{ marginBottom: '6px' }}>
+                <strong>Opción A:</strong> en la ficha del agente → pestaña{' '}
+                <strong>Herramientas</strong> → formulario <strong>Conectar integración MCP</strong>.
+                Cada agente puede usar un login distinto para la misma integración.
+              </li>
+              <li style={{ marginBottom: '6px' }}>
+                <strong>Opción B:</strong> en <strong>AgentFlowHub</strong>{' '}
+                <a href={`${hubUiBase}/mcp`} target="_blank" rel="noopener noreferrer" style={{ color: '#6366f1', fontWeight: 700 }}>
+                  {hubUiBase}/mcp
+                </a>
+                {' '}(pestañas Conexiones / MCP estándar), elige el agente del hub y añade credenciales allí.
+              </li>
+              <li>
+                En la ficha → <strong>Herramientas</strong> marca qué tools MCP usa el agente (y el widget) y guarda.
+              </li>
+            </ol>
+          </div>
+          <McpAvailablePanel
+            compact
+            onConnectRequest={(row) => {
+              setPendingMcp({ key: row.key, name: row.name });
+              setMcpInfoModal(row);
+            }}
+          />
         </div>
 
         {/* Error */}

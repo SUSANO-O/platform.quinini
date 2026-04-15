@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
+import { canAttemptHubSync, syncHubCatalogFromLandingAgentDoc } from '@/lib/aibackhub-sync';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -53,8 +54,14 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     agent.ragSources = (agent.ragSources ?? []).filter((_: unknown, i: number) => i !== idx);
   }
 
-  if (agent.agentHubId) agent.syncStatus = 'pending';
   await agent.save();
+
+  const hubId = typeof agent.agentHubId === 'string' ? agent.agentHubId.trim() : '';
+  if (hubId && canAttemptHubSync()) {
+    const ok = await syncHubCatalogFromLandingAgentDoc(agent);
+    agent.syncStatus = ok ? 'synced' : 'failed';
+    await agent.save();
+  }
 
   return NextResponse.json({ ok: true, remaining: agent.ragSources?.length ?? 0 });
 }

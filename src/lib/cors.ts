@@ -1,6 +1,6 @@
 /**
  * CORS helpers for API routes that are called cross-origin
- * (widget SDK, embed scripts, etc.)
+ * (Widget API, embed scripts, etc.)
  */
 
 import { NextRequest, NextResponse } from 'next/server';

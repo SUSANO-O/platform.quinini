@@ -12,6 +12,7 @@ import { ClientAgent, Subscription } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
 import { processFile, getFileCategory } from '@/lib/rag-processor';
 import { getAgentLimits } from '@/lib/agent-plans';
+import { canAttemptHubSync, syncHubCatalogFromLandingAgentDoc } from '@/lib/aibackhub-sync';
 import crypto from 'crypto';
 
 type Params = { params: Promise<{ id: string }> };
@@ -135,10 +136,16 @@ export async function POST(req: NextRequest, { params }: Params) {
     uploadedAt: new Date(),
   };
 
-  // Append to ragSources and mark for re-sync
+  // Append to ragSources y empujar catálogo al hub (mismo criterio que PATCH agente).
   agent.ragSources = [...(agent.ragSources ?? []), newSource];
-  if (agent.agentHubId) agent.syncStatus = 'pending';
   await agent.save();
+
+  const hubId = typeof agent.agentHubId === 'string' ? agent.agentHubId.trim() : '';
+  if (hubId && canAttemptHubSync()) {
+    const ok = await syncHubCatalogFromLandingAgentDoc(agent);
+    agent.syncStatus = ok ? 'synced' : 'failed';
+    await agent.save();
+  }
 
   return NextResponse.json({
     ok: true,

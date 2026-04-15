@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
+import { Sparkles } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
 export default function RegisterPage() {
@@ -32,112 +34,92 @@ export default function RegisterPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--background)', padding: '24px' }}>
-      <div style={{ width: '100%', maxWidth: '440px' }}>
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <Link href="/">
-            <span style={{ fontSize: '28px', fontWeight: 800, background: 'linear-gradient(135deg, #0d9488, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              AgentFlow
-            </span>
+    <div className="landing-auth-wrap">
+      <div className="hero-glow" style={{ background: 'var(--gradient-start)', top: '-200px', right: '10%' }} />
+      <div className="hero-glow" style={{ background: 'var(--accent-warm)', top: '-80px', left: '5%' }} />
+      <div className="hero-glow" style={{ background: 'var(--accent-cyan)', top: '35%', left: '50%' }} />
+
+      <div className="relative w-full max-w-[440px]">
+        <div className="text-center mb-8">
+          <Link href="/" className="inline-flex flex-col items-center gap-3 no-underline">
+            <Image src="/t.jpg" alt="MatIAs" width={56} height={56} className="rounded-xl object-cover shadow-md" style={{ aspectRatio: '1/1' }} />
+            <span className="text-2xl font-bold gradient-text">MatIAs</span>
           </Link>
-          <p style={{ marginTop: '8px', color: 'var(--muted-foreground)', fontSize: '14px' }}>
+          <p className="mt-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
             Empieza tu prueba gratuita de 5 días
           </p>
         </div>
 
-        {/* Trial badge */}
-        <div style={{
-          background: 'linear-gradient(135deg, rgba(13,148,136,0.12), rgba(99,102,241,0.12))',
-          border: '1px solid rgba(13,148,136,0.25)',
-          borderRadius: '12px', padding: '12px 16px', marginBottom: '24px',
-          display: 'flex', alignItems: 'center', gap: '10px',
-        }}>
-          <span style={{ fontSize: '20px' }}>🎁</span>
+        <div
+          className="rounded-2xl px-4 py-3.5 mb-6 flex items-start gap-3 border"
+          style={{
+            background: 'linear-gradient(135deg, rgba(228,20,20,0.08), rgba(248,118,0,0.08))',
+            borderColor: 'rgba(228,20,20,0.22)',
+          }}
+        >
+          <Sparkles className="shrink-0 mt-0.5" size={18} style={{ color: 'var(--primary)' }} />
           <div>
-            <p style={{ fontWeight: 700, fontSize: '13px', margin: 0 }}>5 días gratis, sin tarjeta</p>
-            <p style={{ color: 'var(--muted-foreground)', fontSize: '12px', margin: 0 }}>
+            <p className="font-bold text-[13px] m-0">5 días gratis, sin tarjeta</p>
+            <p className="text-xs m-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
               Acceso completo al Widget Builder y todos los agentes
             </p>
           </div>
         </div>
 
-        {/* Card */}
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '32px' }}>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div className="landing-card p-8">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Nombre</label>
+              <label className="block text-[13px] font-semibold mb-1.5">Nombre</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Tu nombre"
-                style={{
-                  width: '100%', padding: '10px 14px', borderRadius: '10px',
-                  border: '1px solid var(--border)', background: 'var(--background)',
-                  color: 'var(--foreground)', fontSize: '14px', boxSizing: 'border-box', outline: 'none',
-                }}
+                className="landing-input"
               />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Email</label>
+              <label className="block text-[13px] font-semibold mb-1.5">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="tu@email.com"
-                style={{
-                  width: '100%', padding: '10px 14px', borderRadius: '10px',
-                  border: '1px solid var(--border)', background: 'var(--background)',
-                  color: 'var(--foreground)', fontSize: '14px', boxSizing: 'border-box', outline: 'none',
-                }}
+                className="landing-input"
               />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Contraseña</label>
+              <label className="block text-[13px] font-semibold mb-1.5">Contraseña</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 placeholder="Mínimo 6 caracteres"
-                style={{
-                  width: '100%', padding: '10px 14px', borderRadius: '10px',
-                  border: '1px solid var(--border)', background: 'var(--background)',
-                  color: 'var(--foreground)', fontSize: '14px', boxSizing: 'border-box', outline: 'none',
-                }}
+                className="landing-input"
               />
             </div>
 
             {error && (
-              <p style={{ color: '#ef4444', fontSize: '13px', background: 'rgba(239,68,68,0.08)', padding: '10px 14px', borderRadius: '8px' }}>
+              <p className="text-[13px] text-red-600 bg-red-500/10 px-3.5 py-2.5 rounded-lg border border-red-500/20">
                 {error}
               </p>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                padding: '12px', borderRadius: '10px', fontWeight: 700, fontSize: '14px',
-                background: 'linear-gradient(135deg, #0d9488, #6366f1)', color: '#fff',
-                border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.7 : 1, transition: 'opacity 0.2s',
-              }}
-            >
+            <button type="submit" disabled={loading} className="landing-btn-primary">
               {loading ? 'Creando cuenta...' : 'Crear cuenta gratis'}
             </button>
 
-            <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', textAlign: 'center', lineHeight: '1.5' }}>
+            <p className="text-[11px] text-center leading-relaxed m-0" style={{ color: 'var(--muted-foreground)' }}>
               Al registrarte aceptas los Términos de Servicio. Después de 5 días se requiere suscripción.
             </p>
           </form>
         </div>
 
-        <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '14px', color: 'var(--muted-foreground)' }}>
+        <p className="text-center mt-5 text-sm" style={{ color: 'var(--muted-foreground)' }}>
           ¿Ya tienes cuenta?{' '}
-          <Link href="/login" style={{ color: '#0d9488', fontWeight: 600, textDecoration: 'none' }}>
+          <Link href="/login" className="landing-link-accent">
             Iniciar sesión
           </Link>
         </p>

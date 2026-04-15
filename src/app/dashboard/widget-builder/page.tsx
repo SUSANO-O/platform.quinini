@@ -64,9 +64,14 @@ function computeOrbGradient(hex: string) {
   return `linear-gradient(155deg, rgba(255,255,255,.22) 0%, transparent 42%), linear-gradient(148deg, ${lHex} 0%, ${hex} 46%, ${dHex} 100%)`;
 }
 
-// ── Agent list (from API; widget agentId = hub catalog id) ───────────────────
+// ── Agent list (from API; widget.agentId = id estable del ClientAgent en landing) ──
 
 const AGENT_ICONS = ['🤖', '🧠', '💬', '✨', '📎', '🔮', '🛡️', '🌱', '📊'];
+
+/** Alineado con index / dashboard (marca) */
+const BRAND_R = '#e41414';
+const BRAND_O = '#f87600';
+const BRAND_B = '#00acf8';
 
 interface ClientAgentRow {
   _id: string;
@@ -80,12 +85,31 @@ interface ClientAgentRow {
   isPlatform?: boolean;
 }
 
-/** Id para el SDK: slug del hub, o para plataforma sin slug el _id Mongo del ClientAgent. */
+/**
+ * Id para el SDK y Mongo del widget: el `_id` hex del ClientAgent en landing.
+ * AIBackHub resuelve `GET /api/agents/:id` por `landingClientAgentId`; coincide con la URL
+ * `/dashboard/agents/[id]` y con MCP / `enabledMcpToolIds` guardados en ese agente.
+ * Si no hay `_id` válido, se usa `agentHubId` (slug) como respaldo.
+ */
 function effectiveWidgetAgentId(a: ClientAgentRow): string {
+  if (/^[a-fA-F0-9]{24}$/.test(a._id)) return a._id;
   const hub = typeof a.agentHubId === 'string' ? a.agentHubId.trim() : '';
   if (hub) return hub;
-  if (a.isPlatform && /^[a-f0-9]{24}$/i.test(a._id)) return a._id;
   return '';
+}
+
+/** Normaliza `widget.agentId` antiguo (slug hub) al `_id` landing actual cuando coincide un agente. */
+function resolveStoredWidgetAgentId(stored: string, list: ClientAgentRow[]): string {
+  const s = stored.trim();
+  if (!s) return '';
+  for (const a of list) {
+    const eff = effectiveWidgetAgentId(a);
+    if (eff && (eff === s || eff.toLowerCase() === s.toLowerCase())) return eff;
+    const hub = typeof a.agentHubId === 'string' ? a.agentHubId.trim() : '';
+    if (hub && (hub === s || hub.toLowerCase() === s.toLowerCase())) return eff;
+    if (a._id === s || a._id.toLowerCase() === s.toLowerCase()) return eff;
+  }
+  return s;
 }
 
 function sortAgentsForWidgetPicker(list: ClientAgentRow[]): ClientAgentRow[] {
@@ -121,6 +145,8 @@ interface WidgetConfig {
   subtitle: string;
   welcome: string;
   fabHint: string;
+  /** WhatsApp / teléfono con código de país (solo dígitos y símbolos al pegar). */
+  humanSupportPhone: string;
   avatar: string;
   position: string;
   theme: 'light' | 'dark';
@@ -131,8 +157,8 @@ interface WidgetConfig {
 const DEFAULT: WidgetConfig = {
   name: 'Mi Widget',
   agentId: '',
-  color: '#0d9488',
-  title: 'AgentFlow Assistant',
+  color: BRAND_R,
+  title: 'MatIAsAssistant',
   subtitle: 'Siempre aquí para ayudarte',
   welcome: '¡Hola! ¿En qué puedo ayudarte?',
   fabHint: '¿Necesitas ayuda?',
@@ -141,6 +167,7 @@ const DEFAULT: WidgetConfig = {
   theme: 'light',
   borderRadius: '16px',
   autoOpen: false,
+  humanSupportPhone: '',
 };
 
 // ── Mock preview ─────────────────────────────────────────────────────────────
@@ -207,19 +234,78 @@ function MockPreview({ cfg }: { cfg: WidgetConfig }) {
         }}>
           <div style={{ background: grad, padding: '12px', color: '#fff' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {cfg.avatar && <img src={cfg.avatar} alt="avatar" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
-              <div>
-                <p style={{ fontWeight: 700, fontSize: 11, margin: 0 }}>{cfg.title || 'AgentFlow'}</p>
+              {cfg.avatar && !headerAvatarFailed ? (
+                <img
+                  src={cfg.avatar}
+                  alt="avatar"
+                  style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }}
+                  onError={() => setHeaderAvatarFailed(true)}
+                />
+              ) : null}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontWeight: 700, fontSize: 11, margin: 0 }}>{cfg.title || 'MatIAs'}</p>
                 <p style={{ fontSize: 9, opacity: 0.85, margin: 0 }}>{cfg.subtitle || ''}</p>
               </div>
-              <button onClick={() => setChatOpen(false)} style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>✕</button>
+              <button onClick={() => setChatOpen(false)} style={{ marginLeft: 'auto', flexShrink: 0, background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>✕</button>
             </div>
           </div>
           <div style={{ flex: 1, padding: '10px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', gap: 6 }}>
             <div style={{ background: cfg.color + '22', borderRadius: '10px 10px 10px 2px', padding: '7px 10px', fontSize: 10, maxWidth: '85%' }}>
               {cfg.welcome || '¡Hola! ¿En qué puedo ayudarte?'}
             </div>
-            <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+            <div style={{ alignSelf: 'flex-end', maxWidth: '88%' }}>
+              <div style={{ background: cfg.color, color: '#fff', borderRadius: '10px 10px 2px 10px', padding: '6px 9px', fontSize: 10 }}>
+                ¿Hay atención humana?
+              </div>
+            </div>
+            {(() => {
+              const d = String(cfg.humanSupportPhone ?? '').replace(/\D/g, '');
+              const ok = d.length >= 8;
+              if (!ok) {
+                return (
+                  <p style={{ fontSize: 9, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.35 }}>
+                    Si el visitante escribe p. ej. «persona» o «atención humana» y hay número válido, aparece aquí un enlace a WhatsApp.
+                  </p>
+                );
+              }
+              return (
+                <div
+                  style={{
+                    alignSelf: 'stretch',
+                    fontSize: 9,
+                    padding: '6px 8px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(0,0,0,0.08)',
+                    background: cfg.theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                    color: 'var(--muted-foreground)',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <span>Atención humana por WhatsApp</span>
+                  <a
+                    href={`https://wa.me/${d}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      fontSize: 8,
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      padding: '2px 8px',
+                      borderRadius: 999,
+                      border: `1px solid ${cfg.color}44`,
+                      color: cfg.color,
+                      textDecoration: 'none',
+                    }}
+                  >
+                    WhatsApp
+                  </a>
+                </div>
+              );
+            })()}
+            <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
               <div style={{ flex: 1, height: 26, background: cfg.theme === 'dark' ? '#2d2d4e' : '#f1f5f9', borderRadius: 8 }} />
               <div style={{ width: 26, height: 26, background: cfg.color, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>➤</div>
             </div>
@@ -282,6 +368,8 @@ function generateSnippet(
   if (cfg.subtitle) lines.push(`    subtitle: '${cfg.subtitle}',`);
   if (cfg.welcome) lines.push(`    welcome: '${cfg.welcome}',`);
   if (cfg.fabHint) lines.push(`    fabHint: '${cfg.fabHint}',`);
+  const phone = String(cfg.humanSupportPhone ?? '').trim();
+  if (phone) lines.push(`    humanSupportPhone: ${JSON.stringify(phone)},`);
   if (cfg.avatar) lines.push(`    avatar: '${cfg.avatar}',`);
   lines.push(`    color: '${cfg.color}',`);
   lines.push(`    position: '${cfg.position}',`);
@@ -335,7 +423,14 @@ export default function WidgetBuilderPage() {
               const okIds = new Set(
                 list.map((a) => effectiveWidgetAgentId(a)).filter(Boolean),
               );
-              if (prev.agentId && okIds.has(prev.agentId)) return prev;
+              const normalized = prev.agentId
+                ? resolveStoredWidgetAgentId(prev.agentId, list)
+                : '';
+              if (normalized && okIds.has(normalized)) {
+                return normalized === prev.agentId
+                  ? prev
+                  : { ...prev, agentId: normalized };
+              }
               const first = firstSelectableWidgetAgentId(list);
               if (first) return { ...prev, agentId: first };
               return prev;
@@ -353,14 +448,16 @@ export default function WidgetBuilderPage() {
                 : 'YOUR_TOKEN';
             setSnippetToken(tok);
             const th = widget.theme === 'dark' ? 'dark' : 'light';
+            const rawAgent = String(widget.agentId ?? '');
             setCfg({
               name: String(widget.name ?? DEFAULT.name),
-              agentId: String(widget.agentId ?? ''),
+              agentId: resolveStoredWidgetAgentId(rawAgent, list) || rawAgent,
               color: String(widget.color ?? DEFAULT.color),
               title: String(widget.title ?? DEFAULT.title),
               subtitle: String(widget.subtitle ?? ''),
               welcome: String(widget.welcome ?? ''),
               fabHint: String(widget.fabHint ?? ''),
+              humanSupportPhone: String(widget.humanSupportPhone ?? ''),
               avatar: String(widget.avatar ?? ''),
               position: String(widget.position ?? 'bottom-right'),
               theme: th,
@@ -373,7 +470,12 @@ export default function WidgetBuilderPage() {
             const okIds = new Set(
               list.map((a) => effectiveWidgetAgentId(a)).filter(Boolean),
             );
-            if (prev.agentId && okIds.has(prev.agentId)) return prev;
+            const normalized = prev.agentId
+              ? resolveStoredWidgetAgentId(prev.agentId, list)
+              : '';
+            if (normalized && okIds.has(normalized)) {
+              return normalized === prev.agentId ? prev : { ...prev, agentId: normalized };
+            }
             const first = firstSelectableWidgetAgentId(list);
             if (first) return { ...prev, agentId: first };
             return prev;
@@ -459,27 +561,38 @@ export default function WidgetBuilderPage() {
   const fieldStyle: React.CSSProperties = { marginBottom: '14px' };
 
   return (
-    <div style={{ padding: '28px', display: 'flex', gap: '24px', minHeight: 'calc(100vh - 60px)' }}>
-      {/* Sidebar form */}
-      <div style={{ width: '340px', flexShrink: 0, overflowY: 'auto', maxHeight: 'calc(100vh - 80px)', paddingRight: '4px' }}>
-        <h1 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '4px' }}>
-          {editWidgetId ? 'Editar widget' : 'Widget Builder'}
-        </h1>
-        <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', marginBottom: editWidgetId ? '8px' : '24px' }}>
-          {editWidgetId
-            ? 'Cambios guardados con el mismo token de integración.'
-            : 'Diseña tu chat widget. El preview se actualiza en tiempo real.'}
-        </p>
-        {editWidgetId && (
-          <p style={{ marginBottom: '24px' }}>
-            <Link
-              href="/dashboard/widgets"
-              style={{ fontSize: '12px', fontWeight: 600, color: '#0d9488', textDecoration: 'none' }}
-            >
-              ← Volver a Mis widgets
-            </Link>
-          </p>
-        )}
+    <div className="relative overflow-hidden min-h-full">
+      <div className="hero-glow pointer-events-none" style={{ background: BRAND_R, top: '-200px', right: '-80px' }} />
+      <div className="hero-glow pointer-events-none" style={{ background: BRAND_B, top: '120px', left: '-100px' }} />
+
+      <div className="relative flex flex-col xl:flex-row gap-8 max-w-7xl mx-auto px-6 py-10">
+        {/* Formulario */}
+        <div className="w-full xl:w-[360px] shrink-0 xl:max-h-[calc(100vh-5rem)] overflow-y-auto pr-1">
+          <div className="card-texture rounded-2xl border p-6" style={{ borderColor: 'var(--border)' }}>
+            <div className="badge-primary mb-3 w-fit">Widget</div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight m-0 mb-1">
+              {editWidgetId ? (
+                <>
+                  Editar <span className="gradient-text">widget</span>
+                </>
+              ) : (
+                <>
+                  Widget <span className="gradient-text">Builder</span>
+                </>
+              )}
+            </h1>
+            <p className="text-[13px] m-0 mb-6" style={{ color: 'var(--muted-foreground)' }}>
+              {editWidgetId
+                ? 'Cambios guardados con el mismo token de integración.'
+                : 'Diseña tu chat widget. El preview se actualiza en tiempo real — misma estética que la landing.'}
+            </p>
+            {editWidgetId && (
+              <p className="mb-6 m-0">
+                <Link href="/dashboard/widgets" className="text-xs font-semibold landing-link-accent no-underline">
+                  ← Volver a Mis widgets
+                </Link>
+              </p>
+            )}
 
         {/* Widget name */}
         <div style={fieldStyle}>
@@ -487,7 +600,7 @@ export default function WidgetBuilderPage() {
           <input style={inputStyle} value={cfg.name} onChange={(e) => update({ name: e.target.value })} placeholder="Mi widget" />
         </div>
 
-        {/* Agent selector (ClientAgent con agentHubId = id en el hub para el widget) */}
+        {/* Agent selector (widget.agentId = ObjectId landing; el hub resuelve por landingClientAgentId) */}
         <div style={fieldStyle}>
           <label style={labelStyle}>Agente</label>
           {loadingInitial ? (
@@ -495,7 +608,9 @@ export default function WidgetBuilderPage() {
           ) : agents.length === 0 ? (
             <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', margin: 0 }}>
               No tienes agentes activos.{' '}
-              <a href="/dashboard/agents/new" style={{ color: cfg.color, fontWeight: 600 }}>Crear agente</a>
+              <Link href="/dashboard/agents/new" className="font-semibold landing-link-accent text-[13px]">
+                Crear agente
+              </Link>
             </p>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
@@ -515,7 +630,7 @@ export default function WidgetBuilderPage() {
                     title={
                       selectable
                         ? `${a.description || a.name}${a.isPlatform ? ' · Agente de plataforma' : ''}`
-                        : 'Sin ID de hub ni ID de plataforma usable. Sincroniza el agente con AIBackHub o revisa el dashboard.'
+                        : 'ID de agente no válido. Revisa que el agente exista y esté activo.'
                     }
                     style={{
                       padding: '8px 6px',
@@ -536,7 +651,7 @@ export default function WidgetBuilderPage() {
                           right: 2,
                           fontSize: 7,
                           fontWeight: 800,
-                          color: '#6366f1',
+                          color: BRAND_B,
                           lineHeight: 1,
                         }}
                         title="Plataforma"
@@ -563,7 +678,14 @@ export default function WidgetBuilderPage() {
           {!loadingInitial &&
             agents.some((a) => !effectiveWidgetAgentId(a)) && (
             <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '8px', marginBottom: 0 }}>
-              Los agentes atenuados no tienen aún slug en el hub (ni son plataforma con ID en catálogo). Sincroniza desde el dashboard o usa un agente de plataforma ya enlazado al hub.
+              Los agentes atenuados no tienen un <code style={{ fontSize: '10px' }}>_id</code> Mongo válido (24 hex) ni <code style={{ fontSize: '10px' }}>agentHubId</code>. Si acabas de crear el agente, abre{' '}
+              <Link href="/dashboard/agents" className="font-semibold landing-link-accent text-[11px]">Mis agentes</Link>
+              {' '}y pulsa sincronizar con el hub, o espera a que pase de estado pendiente a sincronizado.
+            </p>
+          )}
+          {!loadingInitial && agents.length > 0 && (
+            <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '8px', marginBottom: 0, lineHeight: 1.45 }}>
+              El snippet usará el <strong>ID de este agente en la landing</strong> (misma clave que en la URL al editarlo). El chat y el MCP del hub siguen resolviendo al catálogo vía <code style={{ fontSize: '10px' }}>landingClientAgentId</code>.
             </p>
           )}
         </div>
@@ -598,7 +720,7 @@ export default function WidgetBuilderPage() {
         {/* Texts */}
         <div style={fieldStyle}>
           <label style={labelStyle}>Título</label>
-          <input style={inputStyle} value={cfg.title} onChange={(e) => update({ title: e.target.value })} placeholder="AgentFlow Assistant" />
+          <input style={inputStyle} value={cfg.title} onChange={(e) => update({ title: e.target.value })} placeholder="MatIAsAssistant" />
         </div>
         <div style={fieldStyle}>
           <label style={labelStyle}>Subtítulo</label>
@@ -611,6 +733,18 @@ export default function WidgetBuilderPage() {
         <div style={fieldStyle}>
           <label style={labelStyle}>Mensaje FAB (hint)</label>
           <input style={inputStyle} value={cfg.fabHint} onChange={(e) => update({ fabHint: e.target.value })} placeholder="¿Necesitas ayuda?" />
+        </div>
+        <div style={fieldStyle}>
+          <label style={labelStyle}>WhatsApp — atención humana</label>
+          <input
+            style={inputStyle}
+            value={cfg.humanSupportPhone ?? ''}
+            onChange={(e) => update({ humanSupportPhone: e.target.value.slice(0, 48) })}
+            placeholder="+52 55 1234 5678 (con código de país)"
+          />
+          <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 6, marginBottom: 0, lineHeight: 1.45 }}>
+            Si el visitante escribe palabras como «persona», «humano» o «atención humana», aparece en el chat un acceso a WhatsApp (con número válido). Opcional.
+          </p>
         </div>
         <div style={fieldStyle}>
           <label style={labelStyle}>URL de avatar / orbe</label>
@@ -673,64 +807,89 @@ export default function WidgetBuilderPage() {
         </div>
 
         {/* Action buttons */}
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={copySnippet} style={{
-            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-            padding: '10px', borderRadius: '10px', fontWeight: 700, fontSize: '13px',
-            background: 'var(--muted)', border: '1px solid var(--border)', cursor: 'pointer', color: 'var(--foreground)',
-          }}>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={copySnippet}
+            className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-[13px] border transition-colors hover:bg-slate-50"
+            style={{ borderColor: 'var(--border)', background: 'var(--background)', color: 'var(--foreground)' }}
+          >
             {copied ? <Check size={14} style={{ color: '#22c55e' }} /> : <Copy size={14} />}
             {copied ? 'Copiado!' : 'Copiar código'}
           </button>
-          <button onClick={saveWidget} disabled={saving || loadingInitial} style={{
-            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-            padding: '10px', borderRadius: '10px', fontWeight: 700, fontSize: '13px',
-            background: saved ? '#22c55e' : cfg.color, color: '#fff', border: 'none', cursor: 'pointer',
-          }}>
+          <button
+            type="button"
+            onClick={saveWidget}
+            disabled={saving || loadingInitial}
+            className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-[13px] text-white border-0 transition-all hover:opacity-95 disabled:opacity-60"
+            style={{
+              background: saved ? '#22c55e' : `linear-gradient(135deg, ${BRAND_R}, ${BRAND_O})`,
+              boxShadow: saved ? undefined : '0 4px 18px rgba(228,20,20,0.28)',
+              cursor: saving || loadingInitial ? 'not-allowed' : 'pointer',
+            }}
+          >
             <Save size={14} />
             {saving ? 'Guardando...' : saved ? 'Guardado!' : editWidgetId ? 'Guardar cambios' : 'Guardar widget'}
           </button>
         </div>
-      </div>
+          </div>
+        </div>
 
       {/* Preview + snippet */}
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div className="flex-1 min-w-0 flex flex-col gap-5">
         {/* Live preview */}
         <div>
-          <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted-foreground)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Vista previa — haz clic en el botón para probar
+          <p className="text-xs font-bold uppercase tracking-widest m-0 mb-2" style={{ color: 'var(--muted-foreground)' }}>
+            Vista previa — prueba el botón
           </p>
-          <MockPreview cfg={cfg} />
+          <div className="rounded-2xl overflow-hidden border shadow-sm" style={{ borderColor: 'var(--border)', boxShadow: '0 8px 32px rgba(0,0,0,0.06)' }}>
+            <MockPreview cfg={cfg} />
+          </div>
         </div>
 
         {/* Code snippet */}
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden', flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
-            <span style={{ fontSize: '12px', fontWeight: 700, fontFamily: 'monospace' }}>Código de integración</span>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={copySnippet} style={{
-                display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px',
-                borderRadius: '6px', fontSize: '11px', fontWeight: 600,
-                background: 'var(--background)', border: '1px solid var(--border)', cursor: 'pointer',
-              }}>
+        <div className="rounded-2xl overflow-hidden border flex flex-col flex-1 min-h-0 card-texture" style={{ borderColor: 'var(--border)' }}>
+          <div
+            className="flex items-center justify-between gap-3 px-4 py-3 border-b"
+            style={{ background: 'var(--muted)', borderColor: 'var(--border)' }}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#ef4444' }} />
+                <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#f59e0b' }} />
+                <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#22c55e' }} />
+              </div>
+              <span className="text-xs font-bold font-mono truncate" style={{ color: 'var(--muted-foreground)' }}>
+                embed-snippet.html
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={copySnippet}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border cursor-pointer transition-colors hover:bg-white/80"
+                style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+              >
                 {copied ? <Check size={12} style={{ color: '#22c55e' }} /> : <Copy size={12} />}
                 {copied ? 'Copiado' : 'Copiar'}
               </button>
-              <a href="/widget" target="_blank" style={{
-                display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px',
-                borderRadius: '6px', fontSize: '11px', fontWeight: 600,
-                background: 'var(--background)', border: '1px solid var(--border)', textDecoration: 'none',
-                color: 'var(--foreground)',
-              }}>
+              <a
+                href="/widget"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border no-underline transition-colors hover:bg-white/80"
+                style={{ background: 'var(--card)', borderColor: 'var(--border)', color: BRAND_R }}
+              >
                 <ExternalLink size={12} />
                 Docs SDK
               </a>
             </div>
           </div>
-          <pre style={{ padding: '16px', fontSize: '12px', overflowX: 'auto', margin: 0, background: '#0f1729', color: '#e2e8f0', lineHeight: '1.6' }}>
+          <pre className="p-4 text-xs overflow-x-auto m-0 flex-1 min-h-[120px]" style={{ background: '#0f1729', color: '#e2e8f0', lineHeight: 1.6 }}>
             {generateSnippet(cfg, snippetToken, { includeToken: includeTokenInSnippet })}
           </pre>
         </div>
+      </div>
       </div>
     </div>
   );

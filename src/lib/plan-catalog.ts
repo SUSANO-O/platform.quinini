@@ -9,10 +9,37 @@ export const PLAN_DISPLAY: Record<
   { label: string; priceLabel: string; widgets: number }
 > = {
   free: { label: 'Free', priceLabel: '$0', widgets: 1 },
-  starter: { label: 'Starter', priceLabel: '$19/mes', widgets: 3 },
-  growth: { label: 'Growth', priceLabel: '$49/mes', widgets: 6 },
-  business: { label: 'Business', priceLabel: '$129/mes', widgets: 12 },
+  starter: { label: 'Starter', priceLabel: '$29/mes', widgets: 2 },
+  growth: { label: 'Growth', priceLabel: '$79/mes', widgets: 5 },
+  business: { label: 'Business', priceLabel: '$199/mes', widgets: 15 },
   enterprise: { label: 'Enterprise', priceLabel: 'Contacto', widgets: 999 },
+};
+
+/** Sub-agentes por agente orquestador según el plan. */
+export const PLAN_SUBAGENT_LIMITS: Record<string, number> = {
+  free:       0,
+  starter:    1,
+  growth:     3,
+  business:   10,
+  enterprise: 999,
+};
+
+/** Packs de conversaciones disponibles para compra one-time. */
+export const CONVERSATION_PACKS = [
+  { id: 'pack_s', label: 'Pack S', conversations: 1_000,  price: 4,  priceLabel: '$4' },
+  { id: 'pack_m', label: 'Pack M', conversations: 5_000,  price: 15, priceLabel: '$15' },
+  { id: 'pack_l', label: 'Pack L', conversations: 15_000, price: 39, priceLabel: '$39' },
+] as const;
+
+export type PackId = typeof CONVERSATION_PACKS[number]['id'];
+
+/** Límite mensual de conversaciones por plan (-1 = ilimitado). */
+export const PLAN_CONVERSATION_LIMITS: Record<string, number> = {
+  free:       50,
+  starter:    5_000,
+  growth:     25_000,
+  business:   100_000,
+  enterprise: -1,
 };
 
 export function planRank(plan: string): number {
@@ -29,22 +56,22 @@ export const PLAN_FEATURE_BULLETS: Record<
   string[]
 > = {
   starter: [
-    'Hasta 3 widgets embebidos',
-    'Unas 50.000 solicitudes al mes',
-    'Chat SDK y analíticas básicas',
-    'Ideal para validar en producción',
+    '2 widgets activos en tu sitio',
+    '5.000 conversaciones al mes (~167/día)',
+    '1 agente personalizado · Chat AI + analítica básica',
+    'Soporte por email (48 h)',
   ],
   growth: [
-    'Hasta 6 widgets',
-    'Unas 200.000 solicitudes al mes',
-    'Chat SDK, RAG y analíticas avanzadas',
-    'Soporte prioritario',
+    '5 widgets activos en tu sitio',
+    '25.000 conversaciones al mes (~833/día)',
+    'Agentes ilimitados + RAG + analítica avanzada',
+    'Soporte prioritario por chat (24 h)',
   ],
   business: [
-    'Hasta 12 widgets',
-    'Solicitudes ilimitadas en el plan',
-    'Todas las funciones y agentes personalizados',
-    'Soporte dedicado y SLA 99,9%',
+    '15 widgets activos en tu sitio',
+    '100.000 conversaciones al mes (~3.300/día)',
+    'Agentes + RAG + integraciones MCP',
+    'Soporte dedicado · SLA 99,9 % · Onboarding incluido',
   ],
 };
 

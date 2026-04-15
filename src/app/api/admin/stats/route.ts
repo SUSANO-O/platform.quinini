@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { User, Subscription, Widget, RequestLog } from '@/lib/db/models';
+import { PLAN_CONVERSATION_LIMITS } from '@/lib/plan-catalog';
 import { verifySessionToken } from '@/lib/auth';
 
 async function requireAdmin(req: NextRequest) {
@@ -52,19 +53,59 @@ export async function GET(req: NextRequest) {
   const active   = subs.filter((s) => s.status === 'active').length;
   const canceled = subs.filter((s) => s.status === 'canceled').length;
 
-  const MRR: Record<string, number> = { starter: 19, growth: 49, business: 129 };
+  const MRR: Record<string, number> = { starter: 29, growth: 79, business: 199 };
   const mrr = subs
     .filter((s) => s.status === 'active')
     .reduce((acc, s) => acc + (MRR[s.plan] || 0), 0);
 
-  // Per-user request summary this month
+  // Per-user request summary this month + quota analysis
   const month = new Date().toISOString().slice(0, 7);
-  const perUser = await RequestLog.aggregate([
-    { $match: { month } },
-    { $group: { _id: '$userId', total: { $sum: '$count' } } },
-    { $sort: { total: -1 } },
-    { $limit: 10 },
+
+  const [perUserRaw, allUsers] = await Promise.all([
+    RequestLog.aggregate([
+      { $match: { month } },
+      { $group: { _id: '$userId', total: { $sum: '$count' } } },
+      { $sort: { total: -1 } },
+      { $limit: 50 },
+    ]),
+    User.find({ role: { $ne: 'admin' } }, { _id: 1, email: 1, displayName: 1 }).lean() as Promise<
+      Array<{ _id: { toString(): string }; email: string; displayName?: string }>
+    >,
   ]);
+
+  // Build userId → email map
+  const userMap: Record<string, string> = {};
+  for (const u of allUsers) userMap[u._id.toString()] = u.email;
+
+  // Build userId → plan map
+  const subMap: Record<string, { plan: string; status: string }> = {};
+  for (const s of subs as Array<{ userId?: string; plan: string; status: string }>) {
+    if (s.userId) subMap[s.userId] = { plan: s.plan, status: s.status };
+  }
+
+  const perUser = perUserRaw.map((row: { _id: string; total: number }) => {
+    const uid = row._id;
+    const sub = subMap[uid];
+    const effectivePlan = sub && ['active', 'trialing'].includes(sub.status) ? sub.plan : 'free';
+    const limit = PLAN_CONVERSATION_LIMITS[effectivePlan] ?? 50;
+    const percent = limit === -1 ? 0 : Math.round((row.total / limit) * 100);
+    return {
+      userId: uid,
+      email: userMap[uid] || uid,
+      plan: effectivePlan,
+      used: row.total,
+      limit,
+      percent,
+    };
+  });
+
+  const usersOverQuota  = perUser.filter((u) => u.limit !== -1 && u.percent >= 100).length;
+  const usersNearQuota  = perUser.filter((u) => u.limit !== -1 && u.percent >= 80 && u.percent < 100).length;
+  const totalCapacity   = Object.values(subMap).reduce((acc, s) => {
+    const ep = ['active', 'trialing'].includes(s.status) ? s.plan : 'free';
+    const lim = PLAN_CONVERSATION_LIMITS[ep] ?? 50;
+    return acc + (lim === -1 ? 0 : lim);
+  }, 0);
 
   return NextResponse.json({
     totalUsers,
@@ -76,5 +117,8 @@ export async function GET(req: NextRequest) {
     requestsThisMonth,
     topWidgets,
     perUserRequests: perUser,
+    usersOverQuota,
+    usersNearQuota,
+    totalCapacity,
   });
 }

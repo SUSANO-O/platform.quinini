@@ -52,7 +52,7 @@ export function SubscriptionPlanPanel() {
         ? '1px solid var(--border)'
         : '1px solid rgba(239,68,68,0.22)';
     const bg = accent === 'up' ? 'var(--background)' : 'rgba(239,68,68,0.04)';
-    const chevron = accent === 'up' ? '#6366f1' : '#f87171';
+    const chevron = accent === 'up' ? '#00acf8' : '#f87171';
 
     return (
       <button
@@ -95,7 +95,7 @@ export function SubscriptionPlanPanel() {
         padding: '12px',
         borderRadius: '12px',
         border: '1px solid var(--border)',
-        background: 'linear-gradient(145deg, rgba(13,148,136,0.08), rgba(99,102,241,0.06))',
+        background: 'linear-gradient(145deg, rgba(228,20,20,0.06), rgba(0,172,248,0.06))',
       }}
     >
       <PlanChangeModal
@@ -121,11 +121,11 @@ export function SubscriptionPlanPanel() {
           Tu plan
         </span>
         {isRefreshing && (
-          <Loader2 size={12} style={{ color: '#0d9488', opacity: 0.8, animation: 'spin 0.8s linear infinite' }} />
+          <Loader2 size={12} style={{ color: 'var(--primary)', opacity: 0.8, animation: 'spin 0.8s linear infinite' }} />
         )}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-        <Crown size={16} style={{ color: '#0d9488', flexShrink: 0 }} />
+        <Crown size={16} style={{ color: 'var(--primary)', flexShrink: 0 }} />
         <div style={{ minWidth: 0 }}>
           <p style={{ fontSize: '14px', fontWeight: 800, margin: 0, textTransform: 'capitalize', lineHeight: 1.2 }}>
             {current.label}

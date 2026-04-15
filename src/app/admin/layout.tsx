@@ -4,10 +4,11 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useEffect } from 'react';
-import { LayoutDashboard, Users, LogOut, Shield, UserPlus } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Shield, UserPlus, BarChart3 } from 'lucide-react';
 
 const NAV = [
   { href: '/admin', label: 'Resumen', icon: LayoutDashboard },
+  { href: '/admin/widget-analytics', label: 'Widgets / uso', icon: BarChart3 },
   { href: '/admin/users', label: 'Usuarios', icon: Users },
   { href: '/admin/promote', label: 'Promover admin', icon: UserPlus },
 ];

@@ -123,7 +123,7 @@ export default function PlaygroundPage() {
           <div className="mb-10">
             <h1 className="text-3xl font-extrabold">API Playground</h1>
             <p style={{ color: 'var(--muted-foreground)' }}>
-              Test the AgentFlow API live. Enter your API key and try any endpoint.
+              Test theMatIAsAPI live. Enter your API key and try any endpoint.
             </p>
           </div>
 

@@ -5,41 +5,34 @@ import Link from 'next/link';
 
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    // Log to error tracking service here (Sentry, etc.)
     console.error('[GlobalError]', error);
   }, [error]);
 
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'var(--background)', padding: '24px', textAlign: 'center',
-    }}>
-      <div style={{ maxWidth: 460 }}>
-        <p style={{ fontSize: '64px', fontWeight: 900, margin: '0 0 8px' }}>⚠️</p>
-        <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '8px' }}>Algo salió mal</h1>
-        <p style={{ color: 'var(--muted-foreground)', fontSize: '14px', marginBottom: '24px' }}>
+    <div className="landing-auth-wrap">
+      <div className="hero-glow" style={{ background: 'var(--accent-warm)', top: '-180px', right: '12%' }} />
+      <div className="hero-glow" style={{ background: 'var(--gradient-start)', bottom: '-160px', left: '10%' }} />
+
+      <div className="relative text-center max-w-md px-4">
+        <p className="text-5xl mb-2 m-0" aria-hidden>
+          ⚠️
+        </p>
+        <h1 className="text-[22px] font-bold mb-2">Algo salió mal</h1>
+        <p className="text-sm mb-6" style={{ color: 'var(--muted-foreground)' }}>
           Ocurrió un error inesperado. Nuestro equipo ha sido notificado.
           {error.digest && (
-            <span style={{ display: 'block', marginTop: '8px', fontSize: '11px', fontFamily: 'monospace', opacity: 0.6 }}>
-              Ref: {error.digest}
-            </span>
+            <span className="block mt-2 text-[11px] font-mono opacity-60">Ref: {error.digest}</span>
           )}
         </p>
-        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button
-            onClick={reset}
-            style={{
-              padding: '10px 24px', borderRadius: '10px', background: '#6366f1', color: '#fff',
-              border: 'none', fontWeight: 700, fontSize: '14px', cursor: 'pointer',
-            }}
-          >
+        <div className="flex gap-3 justify-center flex-wrap">
+          <button type="button" onClick={reset} className="landing-btn-primary !w-auto px-6">
             Reintentar
           </button>
-          <Link href="/" style={{
-            display: 'inline-block', padding: '10px 24px', borderRadius: '10px',
-            border: '1px solid var(--border)', color: 'var(--foreground)', textDecoration: 'none',
-            fontWeight: 600, fontSize: '14px',
-          }}>
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center py-2.5 px-6 rounded-xl font-semibold text-sm no-underline border transition-colors hover:bg-slate-50"
+            style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
+          >
             ← Inicio
           </Link>
         </div>

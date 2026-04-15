@@ -46,12 +46,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (!canAttemptHubSync()) {
+    /** Telemetría opcional: 200 para que el SDK no marque error en red/consola. */
     return NextResponse.json(
-      {
-        error:
-          'Telemetría no configurada: define BACKEND_URL (AIBackHub) y revisa AIBACKHUB_API_KEY en .env.',
-      },
-      { status: 503, headers: corsHeaders() },
+      { ok: true, forwarded: false, reason: 'backend_url_missing' },
+      { status: 200, headers: corsHeaders() },
     );
   }
 
@@ -77,17 +75,22 @@ export async function POST(req: NextRequest) {
     });
 
     if (!res.ok) {
-      const t = await res.text().catch(() => '');
+      /** Telemetría best-effort: no devolver 502 al navegador (el SDK usa sendBeacon/fetch y no debe ensuciar la consola). */
       return NextResponse.json(
-        { error: 'No se pudo guardar el evento en el backend.', details: t.slice(0, 300) },
-        { status: 502, headers: corsHeaders() },
+        {
+          ok: true,
+          forwarded: false,
+          reason: 'hub_rejected',
+          status: res.status,
+        },
+        { status: 200, headers: corsHeaders() },
       );
     }
-    return NextResponse.json({ ok: true }, { headers: corsHeaders() });
+    return NextResponse.json({ ok: true, forwarded: true }, { headers: corsHeaders() });
   } catch {
     return NextResponse.json(
-      { error: 'Sin conexión con AIBackHub (BACKEND_URL).' },
-      { status: 502, headers: corsHeaders() },
+      { ok: true, forwarded: false, reason: 'hub_unreachable' },
+      { status: 200, headers: corsHeaders() },
     );
   }
 }

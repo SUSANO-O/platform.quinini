@@ -121,8 +121,8 @@ const methodColors: Record<string, string> = {
 
 const planBadge: Record<string, { bg: string; text: string }> = {
   free: { bg: 'rgba(34,197,94,0.1)', text: '#22c55e' },
-  pro: { bg: 'rgba(13,148,136,0.1)', text: '#0d9488' },
-  enterprise: { bg: 'rgba(245,158,11,0.1)', text: '#f59e0b' },
+  pro: { bg: 'rgba(228,20,20,0.1)', text: 'var(--primary)' },
+  enterprise: { bg: 'rgba(248,118,0,0.12)', text: 'var(--accent-warm)' },
 };
 
 export default function DocsPage() {
@@ -130,17 +130,35 @@ export default function DocsPage() {
     <div style={{ background: 'var(--background)', color: 'var(--foreground)' }}>
       <Navbar />
 
-      <div className="pt-28 pb-24 px-6">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl font-extrabold mb-2">API Documentation</h1>
-          <p className="text-lg mb-10" style={{ color: 'var(--muted-foreground)' }}>
-            Base URL: <code className="px-2 py-0.5 rounded-lg text-sm font-mono" style={{ background: 'var(--muted)', color: '#0d9488' }}>
+      <section className="relative pt-32 pb-12 px-6 overflow-hidden">
+        <div className="hero-glow" style={{ background: 'var(--gradient-start)', top: '-180px', left: '8%' }} />
+        <div className="hero-glow" style={{ background: 'var(--accent-warm)', top: '-80px', right: '4%' }} />
+        <div className="hero-glow" style={{ background: 'var(--accent)', top: '160px', left: '42%' }} />
+
+        <div className="relative max-w-4xl mx-auto text-center">
+          <div className="badge-primary mb-6 mx-auto w-fit">API · Gateway</div>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-tight">
+            Documentación <span className="gradient-text">REST</span>
+          </h1>
+          <p className="mt-4 text-lg max-w-2xl mx-auto" style={{ color: 'var(--muted-foreground)' }}>
+            Autenticación, endpoints del gateway y arranque rápido con curl — mismo lenguaje visual que la home.
+          </p>
+          <p className="mt-6 text-sm md:text-base" style={{ color: 'var(--muted-foreground)' }}>
+            Base URL:{' '}
+            <code
+              className="px-2.5 py-1 rounded-lg text-sm font-mono"
+              style={{ background: 'var(--muted)', color: 'var(--accent)', border: '1px solid var(--border)' }}
+            >
               https://api.agentflowhub.com
             </code>
           </p>
+        </div>
+      </section>
 
+      <div className="pb-24 px-6">
+        <div className="max-w-4xl mx-auto">
           {/* Auth */}
-          <div className="rounded-2xl p-7 mb-10" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+          <div className="rounded-2xl p-7 mb-10 card-texture" style={{ border: '1px solid var(--border)' }}>
             <h2 className="text-xl font-bold mb-4">Authentication</h2>
             <p className="text-sm mb-4" style={{ color: 'var(--muted-foreground)' }}>
               All requests require an API key. Send it in one of these headers:
@@ -153,7 +171,7 @@ X-API-Key: afhub_live_abc123`}
           </div>
 
           {/* Response format */}
-          <div className="rounded-2xl p-7 mb-10" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+          <div className="rounded-2xl p-7 mb-10 card-texture" style={{ border: '1px solid var(--border)' }}>
             <h2 className="text-xl font-bold mb-4">Response Format</h2>
             <p className="text-sm mb-4" style={{ color: 'var(--muted-foreground)' }}>
               All responses include gateway metadata in headers:
@@ -211,7 +229,7 @@ X-RateLimit-Reset: 1711540800`}
           </div>
 
           {/* Quick Start */}
-          <div className="mt-16 rounded-2xl p-7" id="sdks" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+          <div className="mt-16 rounded-2xl p-7 card-texture" id="sdks" style={{ border: '1px solid var(--border)' }}>
             <h2 className="text-xl font-bold mb-4">Quick Start</h2>
             <pre className="rounded-xl p-5 text-sm overflow-x-auto" style={{ background: '#0f1729', color: '#e2e8f0' }}>
 {`# 1. Get your API key from /dashboard
@@ -262,16 +280,17 @@ curl https://api.agentflowhub.com/api/gateway/usage \\
             </div>
           </div>
 
-          {/* Widget SDK */}
-          <div className="mt-8 rounded-2xl p-7" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-            <h2 className="text-xl font-bold mb-4">Chat Widget SDK</h2>
+          {/* Widget API */}
+          <div className="mt-8 rounded-2xl p-7 card-texture" style={{ border: '1px solid var(--border)' }}>
+            <h2 className="text-xl font-bold mb-2">Widget API — chat embebido</h2>
             <p className="text-sm mb-4" style={{ color: 'var(--muted-foreground)' }}>
-              Embed a conversational AI widget in any website:
+              Incrusta un widget de conversación en cualquier página HTML con el script y una llamada a{' '}
+              <code className="text-xs font-mono px-1 rounded" style={{ background: 'var(--muted)' }}>AgentFlowhub.init</code>.
             </p>
             <pre className="rounded-xl p-5 text-sm overflow-x-auto" style={{ background: '#0f1729', color: '#e2e8f0' }}>
-{`<script src="https://agentflowhub.com/widget.js"></script>
+{`<script src="https://hub.agentflowhub.com/widget.js"></script>
 <script>
-  AgentFlowhub.init({
+  window.AgentFlowhub.init({
     agentId: "YOUR_AGENT_ID",
     token: "YOUR_WIDGET_TOKEN",
     theme: "dark",

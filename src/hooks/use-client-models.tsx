@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CLIENT_MODELS, planMeetsModelMin } from '@/lib/agent-plans';
+import { planMeetsModelMin } from '@/lib/agent-plans';
 
 export type ClientModelOption = {
   id: string;
@@ -14,43 +14,43 @@ export type ClientModelOption = {
   deprecated?: boolean;
 };
 
-function staticFallback(): ClientModelOption[] {
-  return CLIENT_MODELS.map((m) => ({
-    id: m.id,
-    name: m.name,
-    provider: m.provider,
-    badge: m.badge,
-  }));
-}
-
-type AvailableGroup = {
-  provider?: string;
-  label?: string;
-  models?: Array<{
-    id: string;
-    name: string;
-    badge?: string;
-    description?: string;
-    maxTokens?: number;
-    minPlan?: string;
-    deprecated?: boolean;
-  }>;
+type CatalogDoc = {
+  modelId: string;
+  provider: string;
+  providerLabel?: string;
+  name: string;
+  category?: string;
+  maxTokens?: number;
+  description?: string;
+  badge?: string;
+  minPlan?: string;
+  deprecated?: boolean;
 };
 
+function publicModelId(m: Pick<CatalogDoc, 'modelId' | 'provider'>): string {
+  if (m.provider === 'huggingface' && !m.modelId.startsWith('hf/')) {
+    return `hf/${m.modelId}`;
+  }
+  if (m.provider === 'vertex' && !m.modelId.startsWith('vx/')) {
+    return `vx/${m.modelId}`;
+  }
+  return m.modelId;
+}
+
 /**
- * Modelos ofrecidos en formularios: GET /api/models/available (AIBackHub → Mongo).
- * Opcionalmente filtra por plan (`minPlan` del catálogo).
- * Si falla la red o el backend, usa CLIENT_MODELS como respaldo.
+ * Modelos para formularios de agentes: GET /api/models/catalog/for-agent-hub (AIBackHub).
+ * Respeta `offerForNewAgents` y `enabled`. Filtra por plan (`minPlan`).
+ * Lista vacía hasta recibir datos (no hay lista embebida con Gemini: evita mostrar modelos deshabilitados).
  */
 export function useClientModels(userPlan?: string) {
-  const [models, setModels] = useState<ClientModelOption[]>(staticFallback);
+  const [models, setModels] = useState<ClientModelOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [hubError, setHubError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setHubError(null);
-    fetch('/api/models/available')
+    fetch('/api/models/catalog/for-agent-hub')
       .then(async (r) => {
         if (!r.ok) {
           const j = (await r.json().catch(() => ({}))) as { error?: string };
@@ -58,51 +58,51 @@ export function useClientModels(userPlan?: string) {
             typeof j?.error === 'string'
               ? j.error
               : `No se pudo cargar el catálogo (${r.status}).`;
-          if (!cancelled) setHubError(msg);
+          if (!cancelled) {
+            setHubError(msg);
+            setModels([]);
+          }
           return null;
         }
         return r.json() as Promise<{
           success?: boolean;
-          data?: { groups?: AvailableGroup[] };
-          groups?: AvailableGroup[];
+          data?: { models?: CatalogDoc[] };
+          models?: CatalogDoc[];
         }>;
       })
       .then((body) => {
-        if (cancelled || !body) return;
+        if (cancelled) return;
+        if (!body) return;
+
         const data = body?.data ?? body;
-        const groups = data?.groups;
-        if (!Array.isArray(groups) || groups.length === 0) {
-          if (!cancelled) {
-            setHubError('El catálogo llegó vacío. Revisa AIBackHub y BACKEND_URL.');
-          }
+        const raw = data?.models;
+        if (!Array.isArray(raw) || raw.length === 0) {
+          setModels([]);
+          setHubError('El catálogo llegó vacío. Revisa AIBackHub y BACKEND_URL.');
           return;
         }
 
         const flat: ClientModelOption[] = [];
         const plan = userPlan ?? 'free';
-        for (const g of groups) {
-          const label = g.label || g.provider || '';
-          for (const m of g.models || []) {
-            if (!planMeetsModelMin(plan, m.minPlan)) continue;
-            flat.push({
-              id: m.id,
-              name: m.name,
-              provider: label,
-              badge: m.badge,
-              description: m.description,
-              maxTokens: m.maxTokens,
-              minPlan: m.minPlan,
-              deprecated: m.deprecated,
-            });
-          }
+        for (const m of raw) {
+          if (!planMeetsModelMin(plan, m.minPlan)) continue;
+          flat.push({
+            id: publicModelId(m),
+            name: m.name,
+            provider: m.providerLabel || m.provider,
+            badge: m.badge,
+            description: m.description,
+            maxTokens: m.maxTokens,
+            minPlan: m.minPlan,
+            deprecated: m.deprecated,
+          });
         }
-        if (flat.length > 0) {
-          setModels(flat);
-          setHubError(null);
-        }
+        setModels(flat);
+        setHubError(flat.length === 0 ? 'Ningún modelo disponible para tu plan o catálogo.' : null);
       })
       .catch((e) => {
         if (!cancelled) {
+          setModels([]);
           setHubError(
             e instanceof Error ? e.message : 'Error de red al cargar modelos.',
           );

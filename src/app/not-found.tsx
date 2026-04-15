@@ -2,22 +2,22 @@ import Link from 'next/link';
 
 export default function NotFound() {
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'var(--background)', padding: '24px', textAlign: 'center',
-    }}>
-      <div>
-        <p style={{ fontSize: '80px', fontWeight: 900, margin: '0 0 8px', background: 'linear-gradient(135deg,#0d9488,#6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+    <div className="landing-auth-wrap">
+      <div className="hero-glow" style={{ background: 'var(--gradient-start)', top: '-200px', left: '15%' }} />
+      <div className="hero-glow" style={{ background: 'var(--accent)', top: '10%', right: '5%' }} />
+
+      <div className="relative text-center max-w-md px-4">
+        <p
+          className="text-7xl md:text-8xl font-black m-0 mb-2 leading-none gradient-text"
+          style={{ fontFamily: "'Clash Display', sans-serif" }}
+        >
           404
         </p>
-        <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '8px' }}>Página no encontrada</h1>
-        <p style={{ color: 'var(--muted-foreground)', fontSize: '14px', marginBottom: '28px' }}>
+        <h1 className="text-[22px] font-bold mb-2">Página no encontrada</h1>
+        <p className="text-sm mb-8" style={{ color: 'var(--muted-foreground)' }}>
           La página que buscas no existe o fue movida.
         </p>
-        <Link href="/" style={{
-          display: 'inline-block', padding: '11px 28px', borderRadius: '10px',
-          background: '#6366f1', color: '#fff', textDecoration: 'none', fontWeight: 700, fontSize: '14px',
-        }}>
+        <Link href="/" className="landing-btn-primary no-underline !w-auto inline-flex px-8">
           ← Volver al inicio
         </Link>
       </div>

@@ -13,11 +13,11 @@ import {
 /* ──────────────────────────────── data ──────────────────────────────── */
 
 const PLANS = [
-  { name: 'Free',       slug: 'free',       widgets: 1,   msgs: 200,   price: '$0',    color: '#64748b' },
-  { name: 'Starter',    slug: 'starter',    widgets: 3,   msgs: 500,   price: '$19',   color: '#0d9488' },
-  { name: 'Growth',     slug: 'growth',     widgets: 6,   msgs: 2000,  price: '$49',   color: '#6366f1' },
-  { name: 'Business',   slug: 'business',   widgets: 12,  msgs: 10000, price: '$129',  color: '#a855f7' },
-  { name: 'Enterprise', slug: 'enterprise', widgets: Infinity, msgs: Infinity, price: 'Custom', color: '#f59e0b' },
+  { name: 'Free', slug: 'free', widgets: 1, msgs: 200, price: '$0', color: '#64748b' },
+  { name: 'Starter', slug: 'starter', widgets: 3, msgs: 500, price: '$19', color: '#00acf8' },
+  { name: 'Growth', slug: 'growth', widgets: 6, msgs: 2000, price: '$49', color: '#e41414' },
+  { name: 'Business', slug: 'business', widgets: 12, msgs: 10000, price: '$129', color: '#f87600' },
+  { name: 'Enterprise', slug: 'enterprise', widgets: Infinity, msgs: Infinity, price: 'Custom', color: '#bb1b14' },
 ];
 
 const STEPS = [
@@ -73,7 +73,7 @@ const STEPS = [
   data-agent-id="mi-agente-id"
   data-token="wt_yyyyyyyyyy..."
   data-title="Soporte Acme"
-  data-color="#6366f1"
+  data-color="#e41414"
   async
 ></script>`,
     response: null,
@@ -86,7 +86,7 @@ const ATTRIBUTES = [
   { attr: 'data-title',    default: 'Asistente', desc: 'Nombre en la cabecera del chat' },
   { attr: 'data-subtitle', default: 'En línea', desc: 'Subtítulo' },
   { attr: 'data-welcome',  default: 'Bienvenido...', desc: 'Mensaje inicial' },
-  { attr: 'data-color',    default: '#6366f1', desc: 'Color principal (hex)' },
+  { attr: 'data-color',    default: '#e41414', desc: 'Color principal (hex)' },
   { attr: 'data-theme',    default: 'light',   desc: 'light o dark' },
   { attr: 'data-position', default: 'right',   desc: 'right, left, center' },
   { attr: 'data-auto-open',default: 'false',   desc: 'Abrir automáticamente' },
@@ -134,8 +134,8 @@ function CodeBlock({ code, lang = 'bash' }: { code: string; lang?: string }) {
           onClick={copy}
           className="text-xs px-2.5 py-1 rounded-lg transition-all font-medium"
           style={{
-            background: copied ? 'rgba(13,148,136,0.15)' : 'var(--card)',
-            color: copied ? '#0d9488' : 'var(--muted-foreground)',
+            background: copied ? 'rgba(228,20,20,0.12)' : 'var(--card)',
+            color: copied ? 'var(--primary)' : 'var(--muted-foreground)',
             border: '1px solid var(--border)',
           }}
         >
@@ -209,16 +209,13 @@ export default function WidgetLandingPage() {
 
       {/* ── Hero ── */}
       <section className="relative pt-32 pb-20 overflow-hidden">
-        <div className="hero-glow" style={{ background: '#6366f1', top: '-180px', left: '5%' }} />
-        <div className="hero-glow" style={{ background: '#0d9488', top: '-80px', right: '10%' }} />
-        <div className="hero-glow" style={{ background: '#a855f7', top: '220px', left: '50%' }} />
+        <div className="hero-glow" style={{ background: 'var(--gradient-start)', top: '-180px', left: '5%' }} />
+        <div className="hero-glow" style={{ background: 'var(--accent-warm)', top: '-80px', right: '10%' }} />
+        <div className="hero-glow" style={{ background: 'var(--accent)', top: '220px', left: '50%' }} />
 
         <div className="relative max-w-5xl mx-auto px-6 text-center">
-          <div
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-8"
-            style={{ background: 'rgba(99,102,241,0.1)', color: '#6366f1', border: '1px solid rgba(99,102,241,0.25)' }}
-          >
-            <Sparkles size={14} /> Chat Widget SDK — Embed AI en 3 minutos
+          <div className="badge-primary mb-8 mx-auto w-fit">
+            <Sparkles size={13} /> Widget API — embed en minutos
           </div>
 
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight leading-[1.1]">
@@ -234,9 +231,12 @@ export default function WidgetLandingPage() {
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/dashboard"
+              href="/register"
               className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl text-white font-semibold text-sm transition-all hover:shadow-xl hover:scale-[1.02]"
-              style={{ background: 'linear-gradient(135deg, #6366f1, #a855f7)' }}
+              style={{
+                background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))',
+                boxShadow: '0 4px 20px rgba(228,20,20,0.28)',
+              }}
             >
               Crear cuenta gratis <ArrowRight size={16} />
             </Link>
@@ -258,7 +258,7 @@ export default function WidgetLandingPage() {
   data-agent-id="mi-agente-id"
   data-token="wt_yyyyyyyyyy..."
   data-title="Soporte"
-  data-color="#6366f1"
+  data-color="#e41414"
   async
 ></script>`}
             />
@@ -273,14 +273,14 @@ export default function WidgetLandingPage() {
             {FEATURES.map((f) => (
               <div
                 key={f.title}
-                className="rounded-2xl p-6 transition-all hover:shadow-md"
+                className="rounded-2xl p-6 transition-all card-hover"
                 style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
               >
                 <div
                   className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
-                  style={{ background: 'rgba(99,102,241,0.1)' }}
+                  style={{ background: 'rgba(228,20,20,0.1)', border: '1px solid rgba(228,20,20,0.2)' }}
                 >
-                  <f.icon size={18} style={{ color: '#6366f1' }} />
+                  <f.icon size={18} style={{ color: 'var(--primary)' }} />
                 </div>
                 <h3 className="text-sm font-bold mb-1">{f.title}</h3>
                 <p className="text-xs leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>{f.desc}</p>
@@ -308,12 +308,12 @@ export default function WidgetLandingPage() {
                   <div className="flex items-center gap-4 mb-4">
                     <div
                       className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 font-extrabold text-sm"
-                      style={{ background: 'linear-gradient(135deg, #6366f1, #a855f7)', color: '#fff' }}
+                      style={{ background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))', color: '#fff' }}
                     >
                       {s.step}
                     </div>
                     <div>
-                      <div className="text-xs font-semibold uppercase tracking-widest mb-0.5" style={{ color: '#6366f1' }}>
+                      <div className="text-xs font-semibold uppercase tracking-widest mb-0.5" style={{ color: 'var(--accent)' }}>
                         Paso {s.step}
                       </div>
                       <h3 className="text-xl font-bold">{s.title}</h3>
@@ -359,7 +359,7 @@ export default function WidgetLandingPage() {
       token:   'wt_yyyyyyyyyy...',
       host:    'https://agentflowhub.com',
       title:   'Soporte Acme',
-      color:   '#6366f1',
+      color:   '#e41414',
       theme:   'dark',
       onOpen:  function () { console.log('chat abierto'); },
       onMessageReceived: function (msg) { console.log('respuesta:', msg); },
@@ -403,7 +403,7 @@ export default function WidgetLandingPage() {
                   background: i % 2 === 0 ? 'var(--card)' : 'var(--background)',
                 }}
               >
-                <code className="text-xs font-mono" style={{ color: '#6366f1' }}>{a.attr}</code>
+                <code className="text-xs font-mono" style={{ color: 'var(--accent)' }}>{a.attr}</code>
                 <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{a.default}</span>
                 <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{a.desc}</span>
               </div>
@@ -438,7 +438,7 @@ export default function WidgetLandingPage() {
             <Link
               href="/pricing"
               className="inline-flex items-center gap-2 text-sm font-semibold"
-              style={{ color: '#6366f1' }}
+              style={{ color: 'var(--primary)' }}
             >
               Ver todos los detalles de precios <ArrowRight size={14} />
             </Link>
@@ -483,7 +483,7 @@ export default function WidgetLandingPage() {
                 >
                   <AlertCircle size={10} /> {e.code}
                 </span>
-                <code className="text-xs font-mono" style={{ color: '#6366f1' }}>{e.body}</code>
+                <code className="text-xs font-mono" style={{ color: 'var(--accent)' }}>{e.body}</code>
                 <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{e.cause}</span>
               </div>
             ))}
@@ -534,7 +534,7 @@ export default function WidgetLandingPage() {
             style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
           >
             <div className="flex items-center gap-2 mb-5">
-              <Terminal size={16} style={{ color: '#6366f1' }} />
+              <Terminal size={16} style={{ color: 'var(--primary)' }} />
               <span className="text-sm font-bold">Flujo completo en 3 líneas</span>
             </div>
             <div className="space-y-3">
@@ -546,7 +546,7 @@ export default function WidgetLandingPage() {
                 <div key={r.n} className="flex items-center gap-4">
                   <div
                     className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-extrabold shrink-0"
-                    style={{ background: 'linear-gradient(135deg, #6366f1, #a855f7)', color: '#fff' }}
+                    style={{ background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))', color: '#fff' }}
                   >
                     {r.n}
                   </div>
@@ -561,8 +561,8 @@ export default function WidgetLandingPage() {
 
       {/* ── CTA ── */}
       <section className="py-24 px-6 text-center relative overflow-hidden">
-        <div className="hero-glow" style={{ background: '#6366f1', bottom: '-200px', left: '15%' }} />
-        <div className="hero-glow" style={{ background: '#a855f7', bottom: '-100px', right: '15%' }} />
+        <div className="hero-glow" style={{ background: 'var(--gradient-start)', bottom: '-200px', left: '15%' }} />
+        <div className="hero-glow" style={{ background: 'var(--accent-warm)', bottom: '-100px', right: '15%' }} />
 
         <div className="relative max-w-2xl mx-auto">
           <h2 className="text-3xl md:text-5xl font-extrabold mb-6">
@@ -574,9 +574,12 @@ export default function WidgetLandingPage() {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/dashboard"
+              href="/register"
               className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white font-semibold transition-all hover:shadow-xl hover:scale-[1.02]"
-              style={{ background: 'linear-gradient(135deg, #6366f1, #a855f7)' }}
+              style={{
+                background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))',
+                boxShadow: '0 4px 24px rgba(228,20,20,0.28)',
+              }}
             >
               Crear cuenta gratis <ArrowRight size={18} />
             </Link>

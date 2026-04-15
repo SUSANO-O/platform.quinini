@@ -3,6 +3,10 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   serverExternalPackages: ['mongoose', 'stripe', 'bcryptjs', 'pdf-parse', 'mammoth'],
 
+  async redirects() {
+    return [{ source: '/favicon.ico', destination: '/favicon.svg', permanent: false }];
+  },
+
   async headers() {
     return [
       {
@@ -21,7 +25,7 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // unsafe-eval needed for Next.js dev
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com",
-              "font-src 'self' https://fonts.gstatic.com https://api.fontshare.com",
+              "font-src 'self' data: https://fonts.gstatic.com https://api.fontshare.com https://cdn.fontshare.com",
               "img-src 'self' data: blob: https:",
               "connect-src 'self' https://api.stripe.com https://checkout.stripe.com",
               "frame-src https://js.stripe.com https://hooks.stripe.com",
@@ -33,7 +37,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Allow widget SDK to be embedded in iframes on any origin
+        // Allow Widget API to be embedded in iframes on any origin
         source: '/widget/:path*',
         headers: [
           { key: 'X-Frame-Options', value: 'ALLOWALL' },

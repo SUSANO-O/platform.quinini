@@ -8,7 +8,7 @@ import { Resend } from 'resend';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
-const FROM = process.env.EMAIL_FROM || 'AgentFlow <noreply@agentflowhub.com>';
+const FROM = process.env.EMAIL_FROM || 'MatIAs<noreply@agentflowhub.com>';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3201';
 
 // ── Template helpers ──────────────────────────────────────────────────────────
@@ -28,7 +28,7 @@ function baseTemplate(title: string, bodyHtml: string): string {
         <!-- Header -->
         <tr>
           <td style="padding:28px 32px;background:linear-gradient(135deg,#0d9488,#6366f1);">
-            <span style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.5px;">AgentFlow</span>
+            <span style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.5px;">MatIAs</span>
           </td>
         </tr>
         <!-- Body -->
@@ -41,8 +41,8 @@ function baseTemplate(title: string, bodyHtml: string): string {
         <tr>
           <td style="padding:20px 32px;border-top:1px solid #334155;">
             <p style="margin:0;font-size:11px;color:#64748b;">
-              AgentFlow · <a href="${APP_URL}" style="color:#6366f1;text-decoration:none;">agentflowhub.com</a>
-              · Este email fue enviado porque tienes una cuenta en AgentFlow.
+             MatIAs· <a href="${APP_URL}" style="color:#6366f1;text-decoration:none;">agentflowhub.com</a>
+              · Este email fue enviado porque tienes una cuenta en MatIAs.
             </p>
           </td>
         </tr>
@@ -145,7 +145,7 @@ export async function sendPaidInvoiceEmail(
     title = 'Renovación — factura';
     lead = `Se ha procesado la renovación de tu suscripción (${planLabel}). Importe: <strong style="color:#f1f5f9;">${amountFormatted}</strong>.`;
   } else {
-    title = 'Factura de AgentFlow';
+    title = 'Factura de MatIAs';
     lead = `Nueva factura. Plan: ${planLabel}. Importe: ${amountFormatted}.`;
   }
 
@@ -157,13 +157,13 @@ export async function sendPaidInvoiceEmail(
     ${hostedInvoiceUrl ? p(`<a href="${hostedInvoiceUrl}" style="color:#6366f1;font-weight:600;">Ver factura en línea</a>`) : ''}
     ${btn('Ir al dashboard', `${APP_URL}/dashboard`, '#0d9488')}
   `;
-  const html = baseTemplate(`${invRef} — AgentFlow`, bodyHtml);
+  const html = baseTemplate(`${invRef} — MatIAs`, bodyHtml);
 
   if (pdfBuffer && pdfBuffer.length > 0) {
     const safeName = `factura-agentflow-${invoiceNumber || 'stripe'}.pdf`.replace(/[^a-zA-Z0-9._-]/g, '_');
-    await sendWithAttachments(to, `${invRef} — AgentFlow`, html, [{ filename: safeName, content: pdfBuffer }]);
+    await sendWithAttachments(to, `${invRef} — MatIAs`, html, [{ filename: safeName, content: pdfBuffer }]);
   } else {
-    await send(to, `${invRef} — AgentFlow`, html);
+    await send(to, `${invRef} — MatIAs`, html);
   }
 }
 
@@ -183,11 +183,11 @@ export async function sendVerificationEmail(
   const safeName = displayName.trim() || email.split('@')[0];
 
   if (variant === 'welcome') {
-    const subject = 'Bienvenido a AgentFlow — confirma tu correo';
+    const subject = 'Bienvenido aMatIAs— confirma tu correo';
     const html = baseTemplate(subject, `
       ${h1('Te damos la bienvenida')}
       ${p(`Hola <strong style="color:#f1f5f9;">${escapeHtml(safeName)}</strong>,`)}
-      ${p('Gracias por crear tu cuenta en AgentFlow. Estamos encantados de tenerte con nosotros.')}
+      ${p('Gracias por crear tu cuenta en MatIAs. Estamos encantados de tenerte con nosotros.')}
       ${p(
         'Para confirmar que este correo es real y es tuyo, solo tienes que pulsar el botón de abajo. Así activamos tu cuenta por completo y podrás disfrutar del <strong style="color:#f1f5f9;">periodo de prueba</strong> y del resto de funciones sin trabas.',
       )}
@@ -199,7 +199,7 @@ export async function sendVerificationEmail(
     return;
   }
 
-  const subject = 'Tu enlace de verificación — AgentFlow';
+  const subject = 'Tu enlace de verificación — MatIAs';
   const html = baseTemplate(subject, `
     ${h1('Confirma tu correo')}
     ${p(`Hola ${escapeHtml(safeName)},`)}
@@ -225,14 +225,14 @@ export async function sendPasswordResetEmail(
   token: string,
 ): Promise<void> {
   const url = `${APP_URL}/reset-password?token=${token}`;
-  const html = baseTemplate('Recupera tu contraseña — AgentFlow', `
+  const html = baseTemplate('Recupera tu contraseña — MatIAs', `
     ${h1('Recupera tu contraseña')}
     ${p(`Hola ${displayName}, recibimos una solicitud para restablecer la contraseña de tu cuenta.`)}
     ${p('Haz clic en el botón para crear una nueva contraseña. El enlace expira en 1 hora.')}
     ${btn('Restablecer contraseña', url, '#ef4444')}
     ${p('<br/>Si no solicitaste este cambio, ignora este mensaje. Tu contraseña no será modificada.')}
   `);
-  await send(email, 'Recupera tu contraseña — AgentFlow', html);
+  await send(email, 'Recupera tu contraseña — MatIAs', html);
 }
 
 /** Código de 6 dígitos para confirmar cambio de email (se envía al correo nuevo). */
@@ -241,20 +241,20 @@ export async function sendEmailChangeCodeEmail(
   displayName: string,
   code: string,
 ): Promise<void> {
-  const html = baseTemplate('Confirma tu nuevo email — AgentFlow', `
+  const html = baseTemplate('Confirma tu nuevo email — MatIAs', `
     ${h1('Código de verificación')}
-    ${p(`Hola ${displayName}, has solicitado usar esta dirección en tu cuenta AgentFlow.`)}
+    ${p(`Hola ${displayName}, has solicitado usar esta dirección en tu cuenta MatIAs.`)}
     ${p('Introduce este código en Ajustes (válido 15 minutos):')}
     <p style="margin:20px 0;font-size:28px;font-weight:800;letter-spacing:0.3em;color:#0d9488;text-align:center;">${code}</p>
     ${p('Si no has sido tú, ignora este mensaje. Tu cuenta actual no cambia hasta que confirmes el código.')}
   `);
-  await send(newEmail, `Tu código AgentFlow: ${code}`, html);
+  await send(newEmail, `Tu código MatIAs: ${code}`, html);
 }
 
 const PLAN_NAMES: Record<string, string> = {
-  starter: 'Starter ($19/mes)',
-  growth: 'Growth ($49/mes)',
-  business: 'Business ($129/mes)',
+  starter: 'Starter ($29/mes)',
+  growth: 'Growth ($79/mes)',
+  business: 'Business ($199/mes)',
   enterprise: 'Enterprise',
 };
 
@@ -283,7 +283,7 @@ export async function sendSubscriptionEmail(
   let bodyHtml: string;
 
   if (event === 'activated') {
-    subject = `¡Bienvenido al plan ${planName}! — AgentFlow`;
+    subject = `¡Bienvenido al plan ${planName}! — MatIAs`;
     bodyHtml = `
       ${h1('¡Suscripción activada!')}
       ${p(`Tu plan <strong style="color:#f1f5f9;">${planName}</strong> ya está activo.`)}
@@ -291,7 +291,7 @@ export async function sendSubscriptionEmail(
       ${btn('Ir al dashboard', dashUrl, '#22c55e')}
     `;
   } else if (event === 'canceled') {
-    subject = 'Tu suscripción ha sido cancelada — AgentFlow';
+    subject = 'Tu suscripción ha sido cancelada — MatIAs';
     bodyHtml = `
       ${h1('Suscripción cancelada')}
       ${p(`Tu plan <strong style="color:#f1f5f9;">${planName}</strong> ha sido cancelado.`)}
@@ -299,22 +299,45 @@ export async function sendSubscriptionEmail(
       ${btn('Reactivar suscripción', dashUrl, '#6366f1')}
     `;
   } else if (event === 'payment_failed') {
-    subject = 'Problema con tu pago — AgentFlow';
+    subject = 'Problema con tu pago — MatIAs';
     bodyHtml = `
       ${h1('Pago fallido')}
       ${p('No pudimos procesar el pago de tu suscripción.')}
-      ${p('Por favor actualiza tu método de pago para mantener el acceso a AgentFlow.')}
+      ${p('Por favor actualiza tu método de pago para mantener el acceso a MatIAs.')}
       ${btn('Actualizar método de pago', dashUrl, '#ef4444')}
     `;
   } else {
-    subject = 'Tu trial vence en 3 días — AgentFlow';
+    subject = 'Tu trial vence en 3 días — MatIAs';
     bodyHtml = `
       ${h1('Tu prueba vence pronto')}
-      ${p('Tu período de prueba gratuita de AgentFlow vence en 3 días.')}
+      ${p('Tu período de prueba gratuita deMatIAsvence en 3 días.')}
       ${p('Suscríbete ahora para mantener el acceso a tus agentes y widgets sin interrupciones.')}
       ${btn('Ver planes', dashUrl, '#f59e0b')}
     `;
   }
 
   await send(to, subject, baseTemplate(subject, bodyHtml));
+}
+
+/** Alerta cuando el usuario supera el 80 % de su cuota mensual de conversaciones. */
+export async function sendQuotaWarningEmail(
+  to: string,
+  displayName: string,
+  used: number,
+  limit: number,
+  plan: string,
+): Promise<void> {
+  const safeName = displayName.trim() || to.split('@')[0];
+  const percent = Math.round((used / limit) * 100);
+  const planLabel = PLAN_NAMES[plan] || plan;
+  const subject = `Has usado el ${percent} % de tus conversaciones este mes — MatIAs`;
+  const html = baseTemplate(subject, `
+    ${h1('Estás cerca del límite')}
+    ${p(`Hola <strong style="color:#f1f5f9;">${escapeHtml(safeName)}</strong>,`)}
+    ${p(`Has utilizado <strong style="color:#f87600;">${used.toLocaleString('es')} de ${limit.toLocaleString('es')} conversaciones</strong> de tu plan <strong style="color:#f1f5f9;">${planLabel}</strong> este mes.`)}
+    ${p('Cuando llegues al 100 %, el widget dejará de responder hasta que empiece el próximo ciclo de facturación o mejores tu plan.')}
+    ${btn('Mejorar plan ahora', `${APP_URL}/dashboard/settings`, '#e41414')}
+    ${p('<br/><span style="font-size:13px;color:#64748b;">Si no quieres recibir estos avisos, puedes ignorarlos — solo son informativos.</span>')}
+  `);
+  await send(to, subject, html);
 }

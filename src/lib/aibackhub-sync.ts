@@ -20,6 +20,9 @@ export function hubCreateHeaders(): Record<string, string> {
   const h: Record<string, string> = { 'Content-Type': 'application/json' };
   const apiKey = process.env.AIBACKHUB_API_KEY?.trim();
   if (apiKey) h['x-api-key'] = apiKey;
+  /** Mismo criterio que AgentFlowhub → /api/mcp/widget-chat (aislamiento multi-tenant en Mongo del hub). */
+  const tenantId = process.env.AIBACKHUB_TENANT_ID?.trim();
+  if (tenantId) h['x-tenant-id'] = tenantId;
   return h;
 }
 
@@ -110,6 +113,8 @@ export async function pushClientAgentToHubCatalog(agent: {
   /** Token público del widget (catálogo). Omitir si no está en Mongo para no pisar el hub. */
   widgetPublicToken?: string | null;
   isPlatform?: boolean;
+  /** IDs MCP del agente (mismo campo que `enabledToolIds` en el catálogo hub). */
+  enabledToolIds?: string[] | null;
 }): Promise<boolean> {
   const base = getAibackhubBaseUrl();
   const hid = String(agent.agentHubId || '').trim();
@@ -152,6 +157,9 @@ export async function pushClientAgentToHubCatalog(agent: {
     if (typeof agent.isPlatform === 'boolean') {
       payload.isPlatform = agent.isPlatform;
     }
+    if (Array.isArray(agent.enabledToolIds)) {
+      payload.enabledToolIds = agent.enabledToolIds;
+    }
     const res = await fetch(url, {
       method: 'PUT',
       headers: hubCreateHeaders(),
@@ -172,6 +180,142 @@ export async function pushClientAgentToHubCatalog(agent: {
   } catch (e) {
     console.warn('[aibackhub-sync] PUT catalog error', e);
     return false;
+  }
+}
+
+type LandingAgentDocLike = {
+  agentHubId?: string | null;
+  _id: { toString(): string };
+  name: string;
+  description?: string;
+  systemPrompt: string;
+  model: string;
+  inferenceTemperature?: number | null;
+  inferenceMaxTokens?: number | null;
+  ragEnabled?: boolean;
+  ragSources?: unknown[];
+  type?: string;
+  parentAgentId?: unknown;
+  widgetPublicToken?: unknown;
+  isPlatform?: boolean;
+  enabledMcpToolIds?: string[];
+};
+
+/**
+ * PUT catálogo en AIBackHub desde un ClientAgent ya persistido en Mongo (PATCH, RAG, etc.).
+ * Devuelve false si no hay `agentHubId`, sin BACKEND_URL, o falla la petición.
+ */
+export async function syncHubCatalogFromLandingAgentDoc(
+  agent: LandingAgentDocLike,
+): Promise<boolean> {
+  if (!canAttemptHubSync()) return false;
+  const hubId = typeof agent.agentHubId === 'string' ? agent.agentHubId.trim() : '';
+  if (!hubId) return false;
+  const parentRaw = agent.parentAgentId;
+  const parentAgentId =
+    parentRaw == null || parentRaw === ''
+      ? null
+      : typeof parentRaw === 'string'
+        ? parentRaw
+        : String(parentRaw);
+  const payload: Parameters<typeof pushClientAgentToHubCatalog>[0] = {
+    agentHubId: hubId,
+    name: agent.name,
+    description: (agent.description ?? '').trim(),
+    systemPrompt: agent.systemPrompt,
+    model: agent.model,
+    inferenceTemperature: agent.inferenceTemperature,
+    inferenceMaxTokens: agent.inferenceMaxTokens,
+    landingClientAgentMongoId: agent._id.toString(),
+    ragEnabled: agent.ragEnabled,
+    ragSources: agent.ragSources,
+    type: agent.type === 'sub-agent' ? 'sub-agent' : 'agent',
+    parentAgentId,
+    isPlatform: Boolean(agent.isPlatform),
+  };
+  if (agent.widgetPublicToken !== undefined) {
+    payload.widgetPublicToken =
+      agent.widgetPublicToken === null
+        ? null
+        : String(agent.widgetPublicToken).trim() || null;
+  }
+  if (Array.isArray(agent.enabledMcpToolIds)) {
+    payload.enabledToolIds = agent.enabledMcpToolIds;
+  }
+  return pushClientAgentToHubCatalog(payload);
+}
+
+/** Cuerpo para `POST /api/agents` en AIBackHub (alta desde landing). */
+export type CreateHubAgentFromLandingInput = {
+  _id: { toString(): string };
+  name: string;
+  description?: string;
+  systemPrompt: string;
+  model: string;
+  ragEnabled?: boolean;
+  ragSources?: unknown[];
+  type?: 'agent' | 'sub-agent' | string;
+  parentAgentId?: unknown;
+  widgetPublicToken?: string | null;
+  isPlatform?: boolean;
+};
+
+/**
+ * Crea el agente en el catálogo AIBackHub (`POST /api/agents`).
+ * Usado por sync por lotes y por reintento manual desde la UI.
+ */
+export async function postCreateLandingAgentOnHubCatalog(
+  agent: CreateHubAgentFromLandingInput,
+): Promise<{ success: boolean; hubId?: string }> {
+  if (!canAttemptHubSync()) {
+    return { success: false };
+  }
+  const baseUrl = getAibackhubBaseUrl();
+  const description = (agent.description ?? '').trim();
+  const wt = typeof agent.widgetPublicToken === 'string' ? agent.widgetPublicToken.trim() : '';
+  const payload: Record<string, unknown> = {
+    name: agent.name,
+    description,
+    prompt: agent.systemPrompt,
+    model: agent.model,
+    hasWidget: Boolean(wt),
+    source: 'landing',
+    landingClientAgentId: agent._id.toString(),
+    ragEnabled: Boolean(agent.ragEnabled),
+    ragSources: Array.isArray(agent.ragSources) ? agent.ragSources : [],
+    catalogAgentType: agent.type === 'sub-agent' ? 'sub-agent' : 'agent',
+  };
+  if (wt) payload.widgetPublicToken = wt;
+  const parentRaw = agent.parentAgentId;
+  const parentStr =
+    parentRaw == null || parentRaw === ''
+      ? ''
+      : typeof parentRaw === 'string'
+        ? parentRaw
+        : String(parentRaw);
+  if (agent.type === 'sub-agent' && parentStr && /^[a-f0-9]{24}$/i.test(parentStr)) {
+    payload.landingParentClientAgentId = parentStr;
+  }
+  if (agent.isPlatform === true) {
+    payload.isPlatform = true;
+  }
+
+  try {
+    const res = await fetch(`${baseUrl}/api/agents`, {
+      method: 'POST',
+      headers: hubCreateHeaders(),
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(15_000),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const hubId = parseCreatedAgentId(data);
+      return { success: true, hubId };
+    }
+    return { success: false };
+  } catch {
+    return { success: false };
   }
 }
 

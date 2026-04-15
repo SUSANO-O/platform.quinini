@@ -47,6 +47,8 @@ const SubscriptionSchema = new Schema({
   cancelAtPeriodEnd: { type: Boolean, default: false },
   trialStartedAt:   { type: Date, default: null },
   trialEndsAt:      { type: Date, default: null },
+  /** Mes ("YYYY-MM") en que se envió la alerta de 80% de cuota. Evita envíos repetidos. */
+  quotaWarningSentMonth: { type: String, default: null },
 }, { timestamps: true });
 
 SubscriptionSchema.index({ stripeCustomerId: 1 });
@@ -67,6 +69,8 @@ const WidgetSchema = new Schema({
   theme:        { type: String, enum: ['light', 'dark'], default: 'light' },
   borderRadius: { type: String, default: '16px' },
   autoOpen:     { type: Boolean, default: false },
+  /** Teléfono WhatsApp (con código de país); el SDK ofrece “Hablar con una persona”. */
+  humanSupportPhone: { type: String, default: '' },
   afhubToken:   { type: String, default: null },
   afhubWidgetId:{ type: String, default: null },
   orgId:        { type: String, default: null },
@@ -107,6 +111,8 @@ const ClientAgentSchema = new Schema({
     toolId:  { type: String, required: true },
     config:  { type: Schema.Types.Mixed, default: {} },
   }],
+  /** IDs `std:…` / `mcp:…` elegidas en la pestaña Herramientas; se sincronizan a AIBackHub como `enabledToolIds`. */
+  enabledMcpToolIds: { type: [String], default: undefined },
   ragEnabled:      { type: Boolean, default: false },
   ragSources: [{
     type:    { type: String, enum: ['url', 'text', 'file'], default: 'text' },
@@ -146,17 +152,34 @@ const PlatformUsageSchema = new Schema({
 
 PlatformUsageSchema.index({ userId: 1, month: 1 }, { unique: true });
 
+// ── CONVERSATION PACKS (one-time top-ups) ─────────────────────────────────────
+
+const ConversationPackSchema = new Schema({
+  userId:          { type: String, required: true },
+  packId:          { type: String, required: true },           // 'pack_s' | 'pack_m' | 'pack_l'
+  conversations:   { type: Number, required: true },           // total compradas
+  used:            { type: Number, default: 0 },               // consumidas
+  stripeSessionId: { type: String, default: null },            // checkout session para auditoría
+  /** Vencimiento: 90 días desde la compra (los packs no son mensuales). */
+  expiresAt:       { type: Date, required: true },
+  status:          { type: String, enum: ['active', 'exhausted', 'expired'], default: 'active' },
+}, { timestamps: true });
+
+ConversationPackSchema.index({ userId: 1, status: 1, expiresAt: 1 });
+ConversationPackSchema.index({ stripeSessionId: 1 }, { unique: true, sparse: true });
+
 // ── EXPORTS (safe for Next.js HMR) ───────────────────────────────────────────
 
 // Delete cached models in dev so schema changes take effect on hot reload
 if (process.env.NODE_ENV !== 'production') {
-  (['User', 'ClientAgent', 'Subscription', 'PlatformUsage'] as const).forEach((name) => {
+  (['User', 'ClientAgent', 'Subscription', 'PlatformUsage', 'ConversationPack'] as const).forEach((name) => {
     if (mongoose.models[name]) delete (mongoose.models as Record<string, unknown>)[name];
   });
 }
-export const User         = mongoose.models.User         || mongoose.model('User', UserSchema);
-export const Subscription = mongoose.models.Subscription || mongoose.model('Subscription', SubscriptionSchema);
-export const Widget       = mongoose.models.Widget       || mongoose.model('Widget', WidgetSchema);
-export const RequestLog   = mongoose.models.RequestLog   || mongoose.model('RequestLog', RequestLogSchema);
-export const ClientAgent  = mongoose.models.ClientAgent  || mongoose.model('ClientAgent', ClientAgentSchema);
-export const PlatformUsage = mongoose.models.PlatformUsage || mongoose.model('PlatformUsage', PlatformUsageSchema);
+export const User             = mongoose.models.User             || mongoose.model('User', UserSchema);
+export const Subscription     = mongoose.models.Subscription     || mongoose.model('Subscription', SubscriptionSchema);
+export const Widget           = mongoose.models.Widget           || mongoose.model('Widget', WidgetSchema);
+export const RequestLog       = mongoose.models.RequestLog       || mongoose.model('RequestLog', RequestLogSchema);
+export const ClientAgent      = mongoose.models.ClientAgent      || mongoose.model('ClientAgent', ClientAgentSchema);
+export const PlatformUsage    = mongoose.models.PlatformUsage    || mongoose.model('PlatformUsage', PlatformUsageSchema);
+export const ConversationPack = mongoose.models.ConversationPack || mongoose.model('ConversationPack', ConversationPackSchema);

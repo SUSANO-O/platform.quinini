@@ -1,26 +1,31 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/hooks/use-auth';
-import { AppToaster } from '@/components/ui/app-toaster';
+import { AppToasterLoader } from '@/components/ui/app-toaster-loader';
 
 export const metadata: Metadata = {
-  title: 'AgentFlow — AI Agents for Your App',
-  description: 'Integra agentes de IA especializados en tu producto. Chat widget SDK, RAG, embeddings y más — una sola API.',
+  title: 'MatIAs— AI Agents for Your App',
+  description: 'Integra agentes de IA especializados en tu producto. Chat Widget API, RAG, embeddings y más — una sola API.',
+  icons: {
+    icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+          href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&f[]=satoshi@400,500,700&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         <AuthProvider>
           {children}
-          <AppToaster />
+          <AppToasterLoader />
         </AuthProvider>
       </body>
     </html>

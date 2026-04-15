@@ -1,5 +1,5 @@
 /**
- * AgentFlowhub Embeddable Chat Widget SDK (v1)
+ * AgentFlowhub Embeddable Chat Widget API (v1)
  *
  * Backward-compatible script embed:
  *   <script src="https://your-app.com/widget.js" data-agent-id="my-agent"></script>
@@ -13,13 +13,14 @@
  *   - token: si el agente exige widget token (cabecera X-Widget-Token)
  *   - theme: "light" | "dark"
  *   - welcome / subtitle: textos claros; debug: false en prod
+ *   - humanSupportPhone: WhatsApp; si el usuario escribe palabras clave (persona, humano, atención humana…), se muestra en el chat un acceso a WhatsApp
  */
 (function () {
   'use strict';
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.4.6';
+  var VERSION = '1.5.2';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -77,6 +78,8 @@
     voiceEnabled: true,
     /** Idioma BCP-47 para STT/TTS, por defecto detecta del navegador */
     voiceLang: '',
+    /** WhatsApp: dígitos con código de país; menú ⋯ en la cabecera del chat */
+    humanSupportPhone: '',
     onOpen: null,
     onClose: null,
     onMessageSent: null,
@@ -148,6 +151,9 @@
     merged.orbLight = String(merged.orbLight == null ? '' : merged.orbLight).trim();
     merged.orbDeep = String(merged.orbDeep == null ? '' : merged.orbDeep).trim();
     merged.widgetId = String(merged.widgetId == null ? '' : merged.widgetId).trim();
+    merged.humanSupportPhone = String(merged.humanSupportPhone == null ? '' : merged.humanSupportPhone)
+      .trim()
+      .substring(0, 48);
     return merged;
   }
 
@@ -402,6 +408,84 @@
     headerInfo.innerHTML = '<h3>' + escapeHtml(cfg.title) + '</h3><p>' + escapeHtml(cfg.subtitle) + '</p>';
     header.appendChild(headerInfo);
 
+    function humanWaDigits() {
+      return String(cfg.humanSupportPhone || '').replace(/\D/g, '');
+    }
+
+    /** Normaliza tildes para buscar palabras clave (ES5). */
+    function normalizeForHumanKeywords(s) {
+      return String(s || '')
+        .toLowerCase()
+        .replace(/á/g, 'a')
+        .replace(/é/g, 'e')
+        .replace(/í/g, 'i')
+        .replace(/ó/g, 'o')
+        .replace(/ú/g, 'u')
+        .replace(/ü/g, 'u')
+        .replace(/ñ/g, 'n');
+    }
+
+    /** True si el usuario pide persona / humano / atención humana, etc. */
+    function messageAsksForHumanAgent(userText) {
+      var hay = normalizeForHumanKeywords(userText);
+      if (!hay || !hay.trim()) return false;
+      var keys = [
+        'persona',
+        'humano',
+        'humana',
+        'atencion humana',
+        'agente humano',
+        'hablar con alguien',
+        'operador',
+        'operadora',
+        'asesor humano',
+        'atencion de persona',
+        'persona real',
+        'quiero un humano',
+        'necesito un humano',
+        'me comunico con humano',
+        'atencion personal',
+        'hablar con persona',
+        'con una persona',
+        'del equipo humano',
+        'un humano',
+        'una persona'
+      ];
+      var i;
+      for (i = 0; i < keys.length; i++) {
+        if (hay.indexOf(keys[i]) !== -1) return true;
+      }
+      return false;
+    }
+
+    /** Oferta WhatsApp solo dentro del chat, si hay número y palabras clave. */
+    function appendHumanSupportOfferInChat(userText) {
+      var digits = humanWaDigits();
+      if (digits.length < 8) return;
+      if (!messageAsksForHumanAgent(userText)) return;
+      var row = document.createElement('div');
+      row.className = 'afhub-msg afhub-persona-offer';
+      row.setAttribute('role', 'status');
+      var inner = document.createElement('div');
+      inner.className = 'afhub-persona-offer-inner';
+      var hint = document.createElement('span');
+      hint.className = 'afhub-persona-offer-hint';
+      hint.textContent = 'Si prefieres atención humana, puedes escribirnos por WhatsApp.';
+      var a = document.createElement('a');
+      a.className = 'afhub-persona-tag';
+      a.href = 'https://wa.me/' + digits;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.textContent = 'WhatsApp';
+      a.title = 'Abrir WhatsApp';
+      inner.appendChild(hint);
+      inner.appendChild(document.createTextNode(' '));
+      inner.appendChild(a);
+      row.appendChild(inner);
+      messages.appendChild(row);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
     var closeBtn = document.createElement('button');
     closeBtn.className = 'afhub-close-btn';
     closeBtn.innerHTML = ICON_X;
@@ -463,12 +547,155 @@
     applyWidgetGeometry(root, chat, cfg);
     document.body.appendChild(root);
 
-    function addMessage(type, text) {
+    function shortMcpToolLabel(toolId) {
+      var s = String(toolId || '');
+      var mHub = /^mcp:[^:]+:(.+)$/.exec(s);
+      if (mHub) return mHub[1];
+      var mStd = /^std:[^:]+:(.+)$/.exec(s);
+      if (mStd) return mStd[1];
+      return s.replace(/^mcp:/, '');
+    }
+
+    function inferMcpTagFromToolIds(ids) {
+      if (!ids || !ids.length) return '';
+      var i;
+      var list = [];
+      for (i = 0; i < ids.length; i++) {
+        if (typeof ids[i] === 'string' && ids[i].length) list.push(ids[i]);
+      }
+      if (!list.length) return '';
+      function allStart(prefix) {
+        for (i = 0; i < list.length; i++) {
+          if (list[i].indexOf(prefix) !== 0) return false;
+        }
+        return true;
+      }
+      if (allStart('mcp:gmail:')) return 'Gmail (hub)';
+      if (allStart('mcp:googleCalendar:')) return 'Google Calendar (hub)';
+      if (allStart('mcp:hubspot:')) return 'HubSpot (hub)';
+      var allStd = true;
+      for (i = 0; i < list.length; i++) {
+        if (list[i].indexOf('std:') !== 0) {
+          allStd = false;
+          break;
+        }
+      }
+      if (allStd) return 'MCP remoto (conexión std)';
+      var allMcp = true;
+      for (i = 0; i < list.length; i++) {
+        if (list[i].indexOf('mcp:') !== 0) {
+          allMcp = false;
+          break;
+        }
+      }
+      if (allMcp) return 'MCP integración (hub)';
+      var hasStd = false;
+      var hasMcp = false;
+      for (i = 0; i < list.length; i++) {
+        if (list[i].indexOf('std:') === 0) hasStd = true;
+        if (list[i].indexOf('mcp:') === 0) hasMcp = true;
+      }
+      if (hasStd && hasMcp) return 'MCP mixto (hub + remoto)';
+      if (hasStd) return 'MCP remoto';
+      return 'MCP';
+    }
+
+    function addMessage(type, text, imgOpts) {
       var el = document.createElement('div');
       el.className = 'afhub-msg ' + type;
       if (type === 'bot') {
         el.className += ' afhub-msg-rich';
         el.innerHTML = formatBotHtml(text);
+        if (imgOpts && imgOpts.images && imgOpts.images.length) {
+          for (var j = 0; j < imgOpts.images.length; j++) {
+            var item = imgOpts.images[j];
+            var u = item && (item.dataUrl || item.url);
+            if (typeof u === 'string' && (/^data:image\//i.test(u) || /^https?:\/\//i.test(u))) {
+              var wrap = document.createElement('div');
+              wrap.className = 'afhub-img-wrap';
+              var frame = document.createElement('div');
+              frame.className = 'afhub-img-frame';
+              var im = document.createElement('img');
+              im.className = 'afhub-widget-img';
+              im.alt = 'Imagen generada';
+              im.loading = 'lazy';
+              im.referrerPolicy = 'no-referrer';
+              im.src = u;
+              frame.appendChild(im);
+              wrap.appendChild(frame);
+
+              function extFromMime(mime) {
+                var m = (mime && String(mime).toLowerCase()) || '';
+                if (m.indexOf('jpeg') >= 0 || m.indexOf('jpg') >= 0) return 'jpg';
+                if (m.indexOf('webp') >= 0) return 'webp';
+                if (m.indexOf('gif') >= 0) return 'gif';
+                if (m.indexOf('png') >= 0) return 'png';
+                return 'png';
+              }
+              var ext = extFromMime(item.mimeType);
+              if (!item.mimeType && /^data:image\/([^;]+);/i.test(u)) {
+                var mm = /^data:image\/([^;]+);/i.exec(u);
+                if (mm && mm[1]) ext = mm[1] === 'jpeg' ? 'jpg' : mm[1];
+              }
+              var fname = 'agentflow-imagen-' + (j + 1) + '.' + ext;
+
+              var dl = document.createElement('a');
+              dl.className = 'afhub-img-download';
+              dl.textContent = 'Descargar imagen';
+              dl.setAttribute('aria-label', 'Descargar imagen');
+              if (/^data:image\//i.test(u)) {
+                dl.href = u;
+                dl.setAttribute('download', fname);
+              } else {
+                dl.href = u;
+                dl.setAttribute('download', fname);
+                (function (url, fileName) {
+                  dl.addEventListener('click', function (ev) {
+                    ev.preventDefault();
+                    fetch(url, { mode: 'cors', credentials: 'omit' })
+                      .then(function (r) {
+                        return r.blob();
+                      })
+                      .then(function (blob) {
+                        var obj = URL.createObjectURL(blob);
+                        var a = document.createElement('a');
+                        a.href = obj;
+                        a.download = fileName;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(obj);
+                      })
+                      .catch(function () {
+                        window.open(url, '_blank', 'noopener,noreferrer');
+                      });
+                  });
+                })(u, fname);
+              }
+              wrap.appendChild(dl);
+              el.appendChild(wrap);
+            }
+          }
+        }
+        if (imgOpts && imgOpts.mcpTag && String(imgOpts.mcpTag).trim()) {
+          var routeChip = document.createElement('div');
+          routeChip.className = 'afhub-mcp-source-tag';
+          routeChip.setAttribute('aria-label', 'Origen MCP');
+          routeChip.textContent = String(imgOpts.mcpTag).trim();
+          el.appendChild(routeChip);
+        }
+        if (imgOpts && imgOpts.toolsUsed && imgOpts.toolsUsed.length) {
+          var tagRow = document.createElement('div');
+          tagRow.className = 'afhub-tool-tags';
+          tagRow.setAttribute('aria-label', 'Herramientas usadas');
+          for (var ti = 0; ti < imgOpts.toolsUsed.length; ti++) {
+            var tspan = document.createElement('span');
+            tspan.className = 'afhub-tool-tag';
+            tspan.textContent = shortMcpToolLabel(imgOpts.toolsUsed[ti]);
+            tagRow.appendChild(tspan);
+          }
+          el.appendChild(tagRow);
+        }
       } else {
         el.textContent = text;
       }
@@ -570,6 +797,7 @@
       }
 
       addMessage('user', text);
+      appendHumanSupportOfferInChat(text);
       history.push({ role: 'user', content: text });
       notify('onMessageSent', text);
       emitEvent('message_sent', { length: text.length });
@@ -593,10 +821,37 @@
         hideTyping();
         var reply = data.reply || data.response || data.text || 'Sin respuesta';
         resolvedAgentId = data.agentId || resolvedAgentId;
-        addMessage('bot', reply);
+        var imgs = data.images;
+        if ((!imgs || !imgs.length) && data.data && data.data.images && data.data.images.length) {
+          imgs = data.data.images;
+        }
+        var toolsUsed = data.toolsUsed;
+        if ((!toolsUsed || !toolsUsed.length) && data.data && data.data.toolsUsed && data.data.toolsUsed.length) {
+          toolsUsed = data.data.toolsUsed;
+        }
+        var mcpTag = typeof data.mcpTag === 'string' ? data.mcpTag.trim() : '';
+        if (!mcpTag && data.data && typeof data.data.mcpTag === 'string') {
+          mcpTag = data.data.mcpTag.trim();
+        }
+        if (!mcpTag && toolsUsed && toolsUsed.length) {
+          mcpTag = inferMcpTagFromToolIds(toolsUsed);
+        }
+        var botOpts = undefined;
+        if ((imgs && imgs.length) || (toolsUsed && toolsUsed.length) || mcpTag) {
+          botOpts = {};
+          if (imgs && imgs.length) botOpts.images = imgs;
+          if (toolsUsed && toolsUsed.length) botOpts.toolsUsed = toolsUsed;
+          if (mcpTag) botOpts.mcpTag = mcpTag;
+        }
+        addMessage('bot', reply, botOpts);
         history.push({ role: 'model', content: reply });
         notify('onMessageReceived', reply);
-        emitEvent('message_received', { length: String(reply || '').length, model: data.model || null });
+        emitEvent('message_received', {
+          length: String(reply || '').length,
+          model: data.model || null,
+          mcpTag: mcpTag || null,
+          toolsUsed: toolsUsed && toolsUsed.length ? toolsUsed : null
+        });
       } catch (e) {
         hideTyping();
         var msg = (e && e.message) ? e.message : 'Lo siento, ocurrio un error. Intenta de nuevo.';
@@ -750,8 +1005,8 @@
 
     // Intercepta la respuesta del bot para TTS en modo voz
     var _origAddMessage = addMessage;
-    function addMessageWithTTS(type, text) {
-      var el = _origAddMessage(type, text);
+    function addMessageWithTTS(type, text, imgOpts) {
+      var el = _origAddMessage(type, text, imgOpts);
       if (type === 'bot' && voiceActive) {
         setVoiceState('speaking');
         ttsSpeak(text, function() {
@@ -847,6 +1102,12 @@
       });
       var data = await res.json().catch(function () { return {}; });
       if (!res.ok) {
+        if (res.status === 429 && data.code === 'QUOTA_EXCEEDED') {
+          throw new Error('Este asistente ha alcanzado su límite de conversaciones por este mes. Por favor, inténtalo de nuevo el próximo mes o contacta con el soporte.');
+        }
+        if (res.status === 403 && data.code === 'SUBAGENT_LIMIT_EXCEEDED') {
+          throw new Error('Este agente no está disponible temporalmente. Por favor, contacta con el soporte.');
+        }
         throw new Error(data.error || data.message || ('HTTP ' + res.status));
       }
       return data;
@@ -874,7 +1135,8 @@
       debug: attr(script, 'data-debug', 'false') === 'true',
       theme: attr(script, 'data-theme', DEFAULTS.theme),
       voiceEnabled: attr(script, 'data-voice-enabled', 'true') !== 'false',
-      voiceLang: attr(script, 'data-voice-lang', '')
+      voiceLang: attr(script, 'data-voice-lang', ''),
+      humanSupportPhone: attr(script, 'data-human-support-phone', '')
     };
     try {
       init(config);
@@ -1013,6 +1275,9 @@
           '#' + rootId + ' .afhub-messages { background:linear-gradient(180deg,#16161e 0%,#13131a 100%); }' +
           '#' + rootId + ' .afhub-msg.bot { background:linear-gradient(145deg,#252530,#1e1e28); color:#ececf1; border:1px solid rgba(255,255,255,.06); }' +
           '#' + rootId + ' .afhub-msg.user { color:#fff; }' +
+          '#' + rootId + ' .afhub-persona-offer { border-color:rgba(255,255,255,.1); background:rgba(255,255,255,.05); }' +
+          '#' + rootId + ' .afhub-persona-offer-hint { color:#b8b8c8; }' +
+          '#' + rootId + ' .afhub-persona-tag { border-color:rgba(255,255,255,.12); background:rgba(255,255,255,.06); }' +
           '#' + rootId + ' .afhub-msg-rich .afhub-pre { background:#1a1a24; color:#e8e8ef; border-color:rgba(255,255,255,.08); }' +
           '#' + rootId + ' .afhub-msg-rich .afhub-code { background:#2a2a36; color:#e0e0ea; }' +
           '#' + rootId + ' .afhub-input-area { border-top-color:#2a2a34; background:#16161d; }' +
@@ -1022,7 +1287,9 @@
           '#' + rootId + ' .afhub-powered a { color:#9a9aaa; }' +
           '#' + rootId + ' .afhub-dot { background:#777; }' +
           '#' + rootId + ' .afhub-fab-hint { background:#252530; color:#ececf1; border-color:rgba(255,255,255,.06); }' +
-          '#' + rootId + ' .afhub-fab-hint::after { border-top-color:#252530 !important; }'
+          '#' + rootId + ' .afhub-fab-hint::after { border-top-color:#252530 !important; }' +
+          '#' + rootId + ' .afhub-tool-tag { background:rgba(255,255,255,.08); color:#a8a8b8; border-color:rgba(255,255,255,.12); }' +
+          '#' + rootId + ' .afhub-mcp-source-tag { background:rgba(255,255,255,.08); color:#c8c8d8; border-color:rgba(255,255,255,.12); }'
         : '';
     return '' +
       '#' + rootId + ' * { box-sizing:border-box; margin:0; padding:0; }' +
@@ -1060,13 +1327,14 @@
       '#' + rootId + ' .afhub-avatar { width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,.22); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; box-shadow:0 0 0 2px rgba(255,255,255,.2); }' +
       '#' + rootId + ' .afhub-avatar img { width:100%; height:100%; object-fit:cover; }' +
       '#' + rootId + ' .afhub-avatar svg { width:22px; height:22px; }' +
+      '#' + rootId + ' .afhub-header-info { flex:1; min-width:0; }' +
       '#' + rootId + ' .afhub-header-info h3 { font-size:15px; font-weight:600; letter-spacing:.01em; }' +
       '#' + rootId + ' .afhub-header-info p { font-size:11px; text-transform:uppercase; letter-spacing:.08em; opacity:.88; margin-top:3px; font-weight:500; }' +
-      '#' + rootId + ' .afhub-close-btn { margin-left:auto; background:none; border:none; color:#fff; cursor:pointer; padding:4px; opacity:.85; }' +
+      '#' + rootId + ' .afhub-close-btn { flex-shrink:0; margin-left:auto; background:none; border:none; color:#fff; cursor:pointer; padding:4px; opacity:.85; }' +
       '#' + rootId + ' .afhub-close-btn:hover { opacity:1; }' +
       '#' + rootId + ' .afhub-messages { flex:1; overflow-y:auto; padding:18px 16px; display:flex; flex-direction:column; gap:12px; scroll-behavior:smooth; background:linear-gradient(180deg,#fafbfc 0%,#f4f6f8 100%); font-size:14px; line-height:1.55; }' +
       '#' + rootId + ' .afhub-msg { max-width:88%; padding:11px 15px; border-radius:16px; font-size:14px; line-height:1.55; word-wrap:break-word; }' +
-      '#' + rootId + ' .afhub-msg.user { white-space:pre-wrap; }' +
+      '#' + rootId + ' .afhub-msg.user { white-space:pre-wrap; background:' + cfg.color + '; color:#fff; align-self:flex-end; border-bottom-right-radius:5px; box-shadow:0 2px 10px rgba(0,0,0,.14); }' +
       '#' + rootId + ' .afhub-msg-rich { white-space:normal; }' +
       '#' + rootId + ' .afhub-msg.bot { background:linear-gradient(180deg,#fff,#f0f2f5); color:#141428; align-self:flex-start; border-bottom-left-radius:5px; border:1px solid rgba(0,0,0,.06); box-shadow:0 1px 2px rgba(0,0,0,.04); }' +
       '#' + rootId + ' .afhub-msg-rich .afhub-p { margin:0 0 .55em; }' +
@@ -1077,7 +1345,21 @@
       '#' + rootId + ' .afhub-msg-rich .afhub-code { font-size:.9em; padding:2px 6px; border-radius:5px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:rgba(0,0,0,.07); }' +
       '#' + rootId + ' .afhub-msg-rich strong { font-weight:600; }' +
       '#' + rootId + ' .afhub-msg-rich em { font-style:italic; opacity:.95; }' +
-      '#' + rootId + ' .afhub-msg.user { background:' + cfg.color + '; color:#fff; align-self:flex-end; border-bottom-right-radius:5px; box-shadow:0 2px 10px rgba(0,0,0,.14); }' +
+      '#' + rootId + ' .afhub-mcp-source-tag { margin-top:8px; display:inline-block; font-size:10px; font-weight:600; letter-spacing:.04em; padding:3px 8px; border-radius:6px; color:' +
+        cfg.color +
+        '; background:rgba(0,0,0,.04); border:1px solid rgba(0,0,0,.1); }' +
+      '#' + rootId + ' .afhub-tool-tags { margin-top:8px; display:flex; flex-wrap:wrap; gap:4px; align-items:center; }' +
+      '#' + rootId + ' .afhub-msg-rich:has(.afhub-mcp-source-tag) .afhub-tool-tags { margin-top:6px; }' +
+      '#' + rootId + ' .afhub-tool-tag { font-size:10px; line-height:1.25; letter-spacing:.02em; padding:2px 6px; border-radius:6px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:rgba(0,0,0,.06); color:#5a5a6e; border:1px solid rgba(0,0,0,.08); }' +
+      '#' + rootId + ' .afhub-img-wrap { margin-top:10px; max-width:100%; display:flex; flex-direction:column; gap:8px; }' +
+      '#' + rootId + ' .afhub-img-frame { border-radius:12px; overflow:hidden; border:1px solid rgba(0,0,0,.08); }' +
+      '#' + rootId + ' .afhub-widget-img { display:block; width:100%; max-width:100%; height:auto; vertical-align:middle; }' +
+      '#' +
+        rootId +
+        ' .afhub-img-download { font-size:12px; font-weight:600; text-decoration:none; align-self:flex-start; padding:2px 0; color:' +
+        cfg.color +
+        '; }' +
+      '#' + rootId + ' .afhub-img-download:hover { text-decoration:underline; }' +
       '#' + rootId + ' .afhub-msg.typing { display:flex; gap:4px; padding:12px 18px; }' +
       '#' + rootId + ' .afhub-dot { width:8px; height:8px; background:#aaa; border-radius:50%; animation:afhub-bounce .6s infinite alternate; }' +
       '#' + rootId + ' .afhub-dot:nth-child(2) { animation-delay:.2s; }' +
@@ -1085,7 +1367,12 @@
       '#' + rootId + ' .afhub-powered { text-align:center; font-size:10px; letter-spacing:.04em; text-transform:uppercase; color:#aaa; padding:6px 0 4px; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-powered a { color:#888; text-decoration:none; }' +
       '#' + rootId + ' .afhub-powered a:hover { text-decoration:underline; }' +
-      '#' + rootId + ' .afhub-input-area { padding:12px 14px; border-top:1px solid #e8eaed; display:flex; gap:8px; flex-shrink:0; background:#fff; }' +
+      '#' + rootId + ' .afhub-persona-offer { align-self:flex-start; max-width:92%; padding:10px 14px; border-radius:12px; border:1px solid rgba(0,0,0,.08); background:rgba(0,0,0,.03); font-size:13px; line-height:1.45; }' +
+      '#' + rootId + ' .afhub-persona-offer-inner { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }' +
+      '#' + rootId + ' .afhub-persona-offer-hint { color:#5a5a6e; font-size:13px; }' +
+      '#' + rootId + ' .afhub-persona-tag { display:inline-flex; align-items:center; justify-content:center; padding:4px 11px; border-radius:999px; font-size:11px; font-weight:700; letter-spacing:.03em; text-decoration:none; border:1px solid rgba(0,0,0,.1); background:rgba(0,0,0,.03); color:' + cfg.color + '; cursor:pointer; font-family:inherit; transition:background .15s; }' +
+      '#' + rootId + ' .afhub-persona-tag:hover { background:rgba(0,0,0,.07); }' +
+      '#' + rootId + ' .afhub-input-area { padding:12px 14px 14px; border-top:1px solid #e8eaed; display:flex; gap:8px; flex-shrink:0; background:#fff; }' +
       '#' + rootId + ' .afhub-input { flex:1; border:1px solid #ddd; border-radius:22px; padding:10px 16px; font-size:14px; outline:none; resize:none; min-height:0; max-height:100px; line-height:1.45; font-family:inherit; }' +
       '#' + rootId + ' .afhub-input:focus { border-color:' + cfg.color + '; box-shadow:0 0 0 3px rgba(0,0,0,.08); }' +
       '#' + rootId + ' .afhub-send { width:40px; height:40px; border-radius:50%; border:none; cursor:pointer; background:' + cfg.color + '; color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:opacity .15s; }' +

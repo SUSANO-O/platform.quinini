@@ -28,6 +28,7 @@ const PATCHABLE = [
   'theme',
   'borderRadius',
   'autoOpen',
+  'humanSupportPhone',
 ] as const;
 
 type PatchableKey = (typeof PATCHABLE)[number];
@@ -86,6 +87,8 @@ export async function PATCH(
         const s = v.trim();
         if (!s) return NextResponse.json({ error: `${key} no puede estar vacío.` }, { status: 400 });
         $set[key] = s;
+      } else if (key === 'humanSupportPhone') {
+        $set.humanSupportPhone = v.trim().slice(0, 48);
       } else {
         $set[key] = v;
       }

@@ -87,6 +87,7 @@ export async function GET(req: NextRequest) {
       if (typeof hub.widgetPublicToken === 'string') {
         $set.widgetPublicToken = hub.widgetPublicToken.trim() || null;
       }
+      $set.syncStatus = 'synced';
       if (!isPlatform) {
         await ClientAgent.updateOne({ _id: a._id }, { $set });
         if ('type' in $set || 'parentAgentId' in $set) {

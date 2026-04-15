@@ -1,15 +1,17 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { SubscriptionProvider } from '@/hooks/use-subscription';
-import { useEffect } from 'react';
-import { LayoutDashboard, Boxes, Settings, LogOut, Cpu, Bot, ShieldAlert } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { LayoutDashboard, Boxes, Settings, LogOut, Cpu, Bot, ShieldAlert, Plug } from 'lucide-react';
 
 const NAV = [
   { href: '/dashboard', label: 'Inicio', icon: LayoutDashboard },
   { href: '/dashboard/agents', label: 'Mis Agentes', icon: Bot },
+  { href: '/dashboard/mcp', label: 'Integraciones MCP', icon: Plug },
   { href: '/dashboard/widget-builder', label: 'Widget Builder', icon: Cpu },
   { href: '/dashboard/widgets', label: 'Mis Widgets', icon: Boxes },
   { href: '/dashboard/settings', label: 'Ajustes', icon: Settings },
@@ -19,6 +21,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, loading, logout, stopImpersonating } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [usage, setUsage] = useState<{ used: number; limit: number; percentUsed: number; plan: string } | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    fetch('/api/billing/usage')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d && setUsage(d))
+      .catch(() => {});
+  }, [user]);
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
@@ -27,7 +38,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--background)' }}>
-        <div style={{ width: '32px', height: '32px', border: '3px solid var(--border)', borderTopColor: '#0d9488', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+        <div style={{ width: '32px', height: '32px', border: '3px solid var(--border)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
@@ -93,10 +104,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           padding: '20px 12px', alignSelf: 'stretch',
         }}>
           {/* Logo */}
-          <Link href="/" style={{ display: 'block', padding: '4px 8px', marginBottom: '16px', textDecoration: 'none' }}>
-            <span style={{ fontSize: '18px', fontWeight: 800, background: 'linear-gradient(135deg, #0d9488, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              AgentFlow
-            </span>
+          <Link href="/" className="flex items-center gap-2.5 no-underline px-2 mb-4">
+            <Image src="/t.jpg" alt="MatIAs" width={36} height={36} className="rounded-xl object-cover shrink-0" style={{ aspectRatio: '1/1' }} />
+            <span className="text-lg font-bold gradient-text">MatIAs</span>
           </Link>
 
           {/* Nav */}
@@ -110,9 +120,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 style={{
                   display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px',
                   borderRadius: '10px', textDecoration: 'none', fontSize: '13px', fontWeight: active ? 700 : 500,
-                  background: active ? 'rgba(13,148,136,0.12)' : 'transparent',
-                  color: active ? '#0d9488' : 'var(--foreground)',
-                  transition: 'background 0.15s',
+                  background: active ? 'rgba(228,20,20,0.1)' : 'transparent',
+                  color: active ? 'var(--primary)' : 'var(--foreground)',
+                  border: active ? '1px solid rgba(228,20,20,0.18)' : '1px solid transparent',
+                  transition: 'background 0.15s, border-color 0.15s',
                 }}
               >
                 <Icon size={16} />
@@ -121,6 +132,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             );
           })}
         </nav>
+
+        {/* Quota indicator */}
+        {usage && (
+          <div style={{ marginBottom: '16px', padding: '10px 12px', borderRadius: '12px', background: 'var(--muted)', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Conversaciones
+              </span>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: usage.percentUsed >= 80 ? '#ef4444' : 'var(--foreground)' }}>
+                {usage.percentUsed}%
+              </span>
+            </div>
+            <div style={{ height: '5px', borderRadius: '999px', background: 'var(--border)', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%',
+                width: `${Math.min(usage.percentUsed, 100)}%`,
+                borderRadius: '999px',
+                background: usage.percentUsed >= 80
+                  ? 'linear-gradient(90deg,#f87600,#ef4444)'
+                  : 'linear-gradient(90deg,#e41414,#f87600)',
+                transition: 'width 0.4s ease',
+              }} />
+            </div>
+            <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '5px' }}>
+              {usage.limit === -1
+                ? 'Ilimitado'
+                : `${usage.used.toLocaleString('es')} / ${usage.limit.toLocaleString('es')}`}
+              {' · '}<span style={{ textTransform: 'capitalize' }}>{usage.plan}</span>
+            </p>
+            {usage.percentUsed >= 80 && (
+              <Link href="/dashboard/settings" style={{ display: 'block', marginTop: '6px', fontSize: '10px', fontWeight: 700, color: '#ef4444', textDecoration: 'none' }}>
+                ↑ Mejorar plan
+              </Link>
+            )}
+          </div>
+        )}
 
         {/* User + logout */}
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px' }}>

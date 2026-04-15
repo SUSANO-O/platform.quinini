@@ -11,6 +11,11 @@ import {
   type ReactNode,
 } from 'react';
 import { useAuth } from './use-auth';
+import {
+  clearSubscriptionSessionCache,
+  readSubscriptionSessionCache,
+  writeSubscriptionSessionCache,
+} from '@/lib/subscription-session-cache';
 
 export interface SubscriptionStatus {
   hasAccess: boolean;
@@ -51,7 +56,8 @@ export type SubscriptionContextValue = SubscriptionStatus & {
   openBillingPortal: () => Promise<{ error?: string } | Record<string, never>>;
   cancelSubscription: (atPeriodEnd?: boolean) => Promise<{ error?: string; message?: string }>;
   resumeSubscription: () => Promise<{ error?: string; message?: string }>;
-  refresh: (opts?: { silent?: boolean }) => void;
+  /** `force` ignora caché y vuelve a pedir al servidor (tras checkout, facturación, botón actualizar). */
+  refresh: (opts?: { silent?: boolean; force?: boolean }) => void;
 };
 
 const SubscriptionContext = createContext<SubscriptionContextValue | null>(null);
@@ -64,22 +70,43 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const loadedOnce = useRef(false);
 
   const load = useCallback(
-    (opts?: { silent?: boolean }) => {
-      if (!user) {
+    (opts?: { silent?: boolean; force?: boolean }) => {
+      const uid = user?.uid;
+      if (!uid) {
         setStatus(DEFAULT_STATUS);
         setLoading(false);
         loadedOnce.current = false;
         return;
       }
       const silent = opts?.silent === true;
+      const force = opts?.force === true;
+
+      if (!force) {
+        const cached = readSubscriptionSessionCache(uid);
+        if (cached && !cached.stale) {
+          setStatus(cached.data as SubscriptionStatus);
+          setLoading(false);
+          setIsRefreshing(false);
+          loadedOnce.current = true;
+          return;
+        }
+      }
+
       if (!silent) {
         if (!loadedOnce.current) setLoading(true);
         else setIsRefreshing(true);
       }
 
       fetch('/api/subscription')
-        .then((r) => r.json())
-        .then((data) => setStatus(data))
+        .then(async (r) => {
+          const data = (await r.json()) as SubscriptionStatus & { error?: string };
+          if (!r.ok || (data && typeof data.error === 'string' && data.error)) {
+            setStatus(DEFAULT_STATUS);
+            return;
+          }
+          setStatus(data);
+          writeSubscriptionSessionCache(uid, data);
+        })
         .catch(() => setStatus(DEFAULT_STATUS))
         .finally(() => {
           loadedOnce.current = true;
@@ -87,32 +114,33 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
           setIsRefreshing(false);
         });
     },
-    [user],
+    [user?.uid],
   );
 
   useEffect(() => {
     if (!user) {
+      clearSubscriptionSessionCache();
       setStatus(DEFAULT_STATUS);
       setLoading(false);
       loadedOnce.current = false;
       return;
     }
     load();
-  }, [user, load]);
+  }, [user?.uid, load]);
 
   useEffect(() => {
     if (!user || typeof window === 'undefined') return;
     const q = new URLSearchParams(window.location.search);
     if (q.get('subscription') !== 'success' && q.get('billing') !== 'return') return;
-    const t = window.setTimeout(() => load({ silent: true }), 400);
-    const t2 = window.setTimeout(() => load({ silent: true }), 1800);
+    const t = window.setTimeout(() => load({ silent: true, force: true }), 400);
+    const t2 = window.setTimeout(() => load({ silent: true, force: true }), 1800);
     return () => {
       window.clearTimeout(t);
       window.clearTimeout(t2);
     };
   }, [user, load]);
 
-  // Al volver a la pestaña, sincroniza suscripción sin bloquear la UI
+  // Al volver a la pestaña: solo red si la caché está caducada (load sin force usa sessionStorage)
   useEffect(() => {
     if (!user) return;
     const onVis = () => {
@@ -134,7 +162,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       return {};
     }
     if (res.ok && data.ok) {
-      load({ silent: true });
+      load({ silent: true, force: true });
       return typeof data.message === 'string' ? { message: data.message } : {};
     }
     return { error: data.error || 'Error al procesar el plan.' };
@@ -158,7 +186,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     });
     const data = await res.json();
     if (res.ok && data.ok) {
-      load({ silent: true });
+      load({ silent: true, force: true });
       return { message: data.message as string };
     }
     return { error: data.error || 'No se pudo cancelar.' };
@@ -168,13 +196,17 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     const res = await fetch('/api/billing/resume', { method: 'POST' });
     const data = await res.json();
     if (res.ok && data.ok) {
-      load({ silent: true });
+      load({ silent: true, force: true });
       return { message: data.message as string };
     }
     return { error: data.error || 'No se pudo reactivar.' };
   }, [load]);
 
-  const refresh = useCallback(() => load({ silent: true }), [load]);
+  const refresh = useCallback(
+    (opts?: { silent?: boolean; force?: boolean }) =>
+      load({ silent: opts?.silent !== false, force: opts?.force !== false }),
+    [load],
+  );
 
   const value = useMemo<SubscriptionContextValue>(
     () => ({

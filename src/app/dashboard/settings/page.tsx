@@ -7,8 +7,12 @@ import { UpdatePaymentModal } from '@/components/billing/update-payment-modal';
 import { InvoiceList } from '@/components/billing/invoice-list';
 import { getStripePromise } from '@/lib/stripe-client';
 import { useEffect, useState } from 'react';
-import { CreditCard, ExternalLink } from 'lucide-react';
+import { CreditCard, ExternalLink, Settings, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+
+const BRAND_R = '#e41414';
+const BRAND_O = '#f87600';
+const BRAND_B = '#00acf8';
 
 export default function SettingsPage() {
   const { user, refreshUser } = useAuth();
@@ -194,19 +198,41 @@ export default function SettingsPage() {
     ['active', 'trialing', 'past_due'].includes(subscription.status);
 
   return (
-    <div style={{ padding: '32px', maxWidth: '640px' }}>
+    <div className="relative overflow-hidden min-h-full">
+      <div className="hero-glow pointer-events-none" style={{ background: BRAND_R, top: '-200px', right: '-80px' }} />
+      <div className="hero-glow pointer-events-none" style={{ background: BRAND_B, top: '100px', left: '-120px' }} />
+
+      <div className="relative max-w-2xl mx-auto px-6 py-10">
       <UpdatePaymentModal
         open={paymentModalOpen}
         onClose={() => setPaymentModalOpen(false)}
         onSaved={() => refresh({ silent: true })}
       />
 
-      <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '4px' }}>Ajustes</h1>
-      <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', marginBottom: '32px' }}>Información de tu cuenta y suscripción</p>
+      <div className="badge-primary mb-3 w-fit">
+        <Sparkles size={13} />
+        Configuración
+      </div>
+      <h1 className="text-2xl md:text-3xl font-bold tracking-tight m-0 flex items-center gap-2 flex-wrap">
+        <span
+          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: `${BRAND_R}12`, border: `1px solid ${BRAND_R}28` }}
+        >
+          <Settings size={20} style={{ color: BRAND_R }} strokeWidth={1.75} />
+        </span>
+        <span>
+          <span className="gradient-text">Ajustes</span>
+        </span>
+      </h1>
+      <p className="text-sm mt-2 mb-8 m-0" style={{ color: 'var(--muted-foreground)' }}>
+        Información de tu cuenta y suscripción — misma línea visual que el resto del dashboard.
+      </p>
 
       {/* Account info */}
-      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '24px', marginBottom: '20px' }}>
-        <h2 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '16px' }}>Cuenta</h2>
+      <div className="rounded-2xl overflow-hidden border mb-5 card-texture" style={{ borderColor: 'var(--border)' }}>
+        <div style={{ height: 3, background: `linear-gradient(90deg, ${BRAND_R}, ${BRAND_B})` }} />
+        <div className="p-6">
+        <h2 className="text-[15px] font-bold m-0 mb-4">Cuenta</h2>
 
         <div style={{ marginBottom: '20px' }}>
           <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '6px' }}>Nombre</label>
@@ -230,14 +256,11 @@ export default function SettingsPage() {
               type="button"
               disabled={busyProfile || !user}
               onClick={saveDisplayName}
+              className="px-4 py-2.5 rounded-xl font-bold text-[13px] border transition-opacity hover:opacity-95 disabled:opacity-60"
               style={{
-                padding: '10px 16px',
-                borderRadius: '10px',
-                fontWeight: 700,
-                fontSize: '13px',
-                background: 'rgba(13,148,136,0.12)',
-                color: '#0d9488',
-                border: '1px solid rgba(13,148,136,0.35)',
+                background: `${BRAND_R}12`,
+                color: BRAND_R,
+                borderColor: `${BRAND_R}35`,
                 cursor: busyProfile ? 'wait' : 'pointer',
               }}
             >
@@ -253,12 +276,10 @@ export default function SettingsPage() {
 
         {user?.pendingEmail ? (
           <div
+            className="rounded-xl p-3.5 mb-4 border"
             style={{
-              padding: '14px',
-              borderRadius: '12px',
-              border: '1px solid rgba(13,148,136,0.35)',
-              background: 'rgba(13,148,136,0.06)',
-              marginBottom: '16px',
+              borderColor: `${BRAND_B}40`,
+              background: `linear-gradient(135deg, rgba(0,172,248,0.08), rgba(228,20,20,0.05))`,
             }}
           >
             <p style={{ fontSize: '13px', margin: '0 0 12px', lineHeight: 1.5 }}>
@@ -289,14 +310,10 @@ export default function SettingsPage() {
                 type="button"
                 disabled={busyEmailConfirm || emailCode.length !== 6}
                 onClick={confirmEmailChange}
+                className="px-4 py-2.5 rounded-xl font-bold text-[13px] text-white border-0 transition-opacity"
                 style={{
-                  padding: '10px 16px',
-                  borderRadius: '10px',
-                  fontWeight: 700,
-                  fontSize: '13px',
-                  background: '#0d9488',
-                  color: '#fff',
-                  border: 'none',
+                  background: `linear-gradient(135deg, ${BRAND_R}, ${BRAND_O})`,
+                  boxShadow: emailCode.length === 6 ? '0 4px 14px rgba(228,20,20,0.25)' : undefined,
                   cursor: busyEmailConfirm || emailCode.length !== 6 ? 'not-allowed' : 'pointer',
                   opacity: emailCode.length !== 6 ? 0.6 : 1,
                 }}
@@ -333,14 +350,11 @@ export default function SettingsPage() {
               type="button"
               disabled={busyEmailReq || !newEmail.trim()}
               onClick={requestEmailChange}
+              className="px-4 py-2.5 rounded-xl font-bold text-[13px] border transition-opacity"
               style={{
-                padding: '10px 16px',
-                borderRadius: '10px',
-                fontWeight: 700,
-                fontSize: '13px',
-                background: 'rgba(13,148,136,0.12)',
-                color: '#0d9488',
-                border: '1px solid rgba(13,148,136,0.35)',
+                background: `${BRAND_R}12`,
+                color: BRAND_R,
+                borderColor: `${BRAND_R}35`,
                 cursor: busyEmailReq || !newEmail.trim() ? 'wait' : 'pointer',
                 opacity: !newEmail.trim() ? 0.6 : 1,
               }}
@@ -358,20 +372,29 @@ export default function SettingsPage() {
             label="User ID"
             value={user?.uid || '—'}
             action={
-              <button onClick={copyUserId} style={{ fontSize: '11px', color: '#0d9488', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
+              <button
+                type="button"
+                onClick={copyUserId}
+                className="text-[11px] font-bold border-0 bg-transparent cursor-pointer landing-link-accent"
+              >
                 {copyMsg || 'Copiar'}
               </button>
             }
           />
         </div>
+        </div>
       </div>
 
       {/* Subscription info */}
-      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '24px', marginBottom: '20px' }}>
-        <h2 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '16px' }}>Suscripción y facturación</h2>
+      <div className="rounded-2xl overflow-hidden border card-texture" style={{ borderColor: 'var(--border)' }}>
+        <div style={{ height: 3, background: `linear-gradient(90deg, ${BRAND_B}, ${BRAND_O})` }} />
+        <div className="p-6">
+        <h2 className="text-[15px] font-bold m-0 mb-4">Suscripción y facturación</h2>
 
         {billingMsg && (
-          <p style={{ fontSize: '13px', color: '#0d9488', marginBottom: '16px', lineHeight: 1.45 }}>{billingMsg}</p>
+          <p className="text-[13px] mb-4 m-0 leading-snug font-medium" style={{ color: 'var(--primary)' }}>
+            {billingMsg}
+          </p>
         )}
 
         {!loading && <SubscriptionPlanPanel />}
@@ -450,32 +473,20 @@ export default function SettingsPage() {
         {!loading && isPremium && hasStripePaid && (
           <>
             <div
-              style={{
-                padding: '16px',
-                borderRadius: '12px',
-                border: '1px solid var(--border)',
-                background: 'var(--background)',
-                marginBottom: '16px',
-              }}
+              className="rounded-xl p-4 border mb-4 card-texture"
+              style={{ borderColor: 'var(--border)' }}
             >
-              <p style={{ fontSize: '13px', fontWeight: 700, marginBottom: '10px' }}>Tarjeta y facturas (sin salir de la app)</p>
+              <p className="text-[13px] font-bold mb-2.5 m-0">Tarjeta y facturas (sin salir de la app)</p>
               <button
                 type="button"
                 disabled={!!busy}
                 onClick={() => setPaymentModalOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-[13px] border mb-3.5 transition-opacity hover:opacity-95"
                 style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '10px 16px',
-                  borderRadius: '10px',
-                  fontWeight: 700,
-                  fontSize: '13px',
-                  background: 'rgba(13,148,136,0.12)',
-                  color: '#0d9488',
-                  border: '1px solid rgba(13,148,136,0.35)',
+                  background: `${BRAND_R}12`,
+                  color: BRAND_R,
+                  borderColor: `${BRAND_R}35`,
                   cursor: busy ? 'wait' : 'pointer',
-                  marginBottom: '14px',
                 }}
               >
                 <CreditCard size={16} />
@@ -514,9 +525,12 @@ export default function SettingsPage() {
                   type="button"
                   disabled={!!busy}
                   onClick={resume}
+                  className="px-4 py-2.5 rounded-xl font-bold text-[13px] border transition-opacity"
                   style={{
-                    padding: '10px 16px', borderRadius: '10px', fontWeight: 700, fontSize: '13px',
-                    background: 'rgba(13,148,136,0.12)', color: '#0d9488', border: '1px solid rgba(13,148,136,0.35)', cursor: busy ? 'wait' : 'pointer',
+                    background: `${BRAND_R}12`,
+                    color: BRAND_R,
+                    borderColor: `${BRAND_R}35`,
+                    cursor: busy ? 'wait' : 'pointer',
                   }}
                 >
                   Mantener suscripción (anular cancelación)
@@ -538,6 +552,8 @@ export default function SettingsPage() {
           </>
         )}
 
+        </div>
+      </div>
       </div>
     </div>
   );

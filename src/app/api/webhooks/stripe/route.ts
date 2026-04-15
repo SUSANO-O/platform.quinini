@@ -7,7 +7,7 @@ import Stripe from 'stripe';
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { connectDB } from '@/lib/db/connection';
-import { Subscription as SubscriptionModel, User } from '@/lib/db/models';
+import { Subscription as SubscriptionModel, User, ConversationPack } from '@/lib/db/models';
 import {
   fetchInvoicePdfBuffer,
   sendPaidInvoiceEmail,
@@ -60,12 +60,33 @@ export async function POST(req: NextRequest) {
       // ── New subscription activated via Checkout ─────────────────────────
       case 'checkout.session.completed': {
         const session = event.data.object as {
-          metadata?: { userId?: string; plan?: string };
+          id?: string;
+          metadata?: { userId?: string; plan?: string; packId?: string; conversations?: string; type?: string };
           customer?: string;
           subscription?: string;
           customer_details?: { email?: string };
         };
-        const { userId, plan } = session.metadata || {};
+        const { userId, plan, type, packId, conversations } = session.metadata || {};
+
+        // ── Conversation pack fulfillment ────────────────────────────────
+        if (type === 'conversation_pack' && userId && packId && conversations) {
+          const convCount = parseInt(conversations, 10);
+          if (!isNaN(convCount) && convCount > 0) {
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + 90); // válido 90 días
+            await ConversationPack.create({
+              userId,
+              packId,
+              conversations: convCount,
+              used: 0,
+              stripeSessionId: session.id || null,
+              expiresAt,
+              status: 'active',
+            });
+            console.log(`[Webhook] Pack acreditado — user:${userId} pack:${packId} conv:${convCount}`);
+          }
+          break;
+        }
         if (!userId) break;
 
         const stripeSubscriptionId = sessionSubscriptionId(session);
@@ -217,9 +238,9 @@ export async function POST(req: NextRequest) {
           const p = resolvePlanFromStripeSubscription(stripeSub);
           if (p) {
             const names: Record<string, string> = {
-              starter: 'Starter ($19/mes)',
-              growth: 'Growth ($49/mes)',
-              business: 'Business ($129/mes)',
+              starter: 'Starter ($29/mes)',
+              growth: 'Growth ($79/mes)',
+              business: 'Business ($199/mes)',
               enterprise: 'Enterprise',
             };
             planLabel = names[p] || p;

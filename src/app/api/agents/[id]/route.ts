@@ -12,7 +12,7 @@ import { getAgentLimits } from '@/lib/agent-plans';
 import {
   canAttemptHubSync,
   fetchCatalogAgentFromHub,
-  pushClientAgentToHubCatalog,
+  syncHubCatalogFromLandingAgentDoc,
 } from '@/lib/aibackhub-sync';
 import { repairSubAgentLinks } from '@/lib/repair-subagent-links';
 
@@ -31,10 +31,20 @@ export async function GET(req: NextRequest, { params }: Params) {
   const { id } = await params;
   await connectDB();
 
-  let agent = await ClientAgent.findOne({
-    _id: id,
-    $or: [{ userId }, { isPlatform: true, status: 'active', type: 'agent' }],
-  }).lean();
+  const isObjectId = mongoose.Types.ObjectId.isValid(id);
+  let agent = isObjectId
+    ? await ClientAgent.findOne({
+        _id: id,
+        $or: [{ userId }, { isPlatform: true, status: 'active', type: 'agent' }],
+      }).lean()
+    : null;
+
+  if (!agent) {
+    agent = await ClientAgent.findOne({
+      $or: [{ agentHubId: id }, ...(isObjectId ? [] : [{ name: id }])],
+      $and: [{ $or: [{ userId }, { isPlatform: true, status: 'active', type: 'agent' }] }],
+    }).lean();
+  }
   if (!agent) return NextResponse.json({ error: 'Agente no encontrado.' }, { status: 404 });
 
   const isPlatformAgent = Boolean((agent as { isPlatform?: boolean }).isPlatform);
@@ -77,10 +87,14 @@ export async function GET(req: NextRequest, { params }: Params) {
         $set.widgetPublicToken = hub.widgetPublicToken.trim() || null;
       }
 
+      // Hub alcanzable y agente existe en catálogo → alinear estado de sync en Mongo (corrige `failed` obsoleto).
+      $set.syncStatus = 'synced';
+
       if (!isPlatformAgent) {
-        await ClientAgent.updateOne({ _id: id }, { $set });
+        const docId = String(agent._id);
+        await ClientAgent.updateOne({ _id: docId }, { $set });
         if ('type' in $set || 'parentAgentId' in $set) {
-          await repairSubAgentLinks(new mongoose.Types.ObjectId(id));
+          await repairSubAgentLinks(new mongoose.Types.ObjectId(docId));
         }
       }
 
@@ -156,6 +170,24 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     agent.tools = body.tools;
   }
 
+  if ('enabledMcpToolIds' in body) {
+    const raw = body.enabledMcpToolIds;
+    if (!Array.isArray(raw)) {
+      return NextResponse.json(
+        { error: 'enabledMcpToolIds debe ser un array de strings (ids mcp: o std:).' },
+        { status: 400 },
+      );
+    }
+    const cleaned = raw
+      .filter(
+        (x: unknown): x is string =>
+          typeof x === 'string' && (x.startsWith('mcp:') || x.startsWith('std:')),
+      )
+      .map((x) => x.trim())
+      .slice(0, 200);
+    agent.set('enabledMcpToolIds', cleaned);
+  }
+
   // ── RAG update ───────────────────────────────────────────────────────────
   if ('ragEnabled' in body) {
     const sub = await Subscription.findOne({ userId }).lean() as { plan?: string; status?: string } | null;
@@ -171,10 +203,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   if ('ragSources' in body) {
     agent.ragSources = body.ragSources;
-    // Re-sync to backend so RAG content is updated in AgentFlowHub
-    if (agent.agentHubId) {
-      agent.syncStatus = 'pending';
-    }
   }
 
   // ── General update ───────────────────────────────────────────────────────
@@ -212,25 +240,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const hubId = typeof agent.agentHubId === 'string' ? agent.agentHubId.trim() : '';
   if (hubId && canAttemptHubSync()) {
-    const pushPayload: Parameters<typeof pushClientAgentToHubCatalog>[0] = {
-      agentHubId: hubId,
-      name: agent.name,
-      description: agent.description ?? '',
-      systemPrompt: agent.systemPrompt,
-      model: agent.model,
-      inferenceTemperature: (agent as { inferenceTemperature?: number | null }).inferenceTemperature,
-      inferenceMaxTokens: (agent as { inferenceMaxTokens?: number | null }).inferenceMaxTokens,
-      landingClientAgentMongoId: agent._id.toString(),
-      ragEnabled: agent.ragEnabled,
-      ragSources: agent.ragSources,
-      type: agent.type,
-      parentAgentId: agent.parentAgentId ?? null,
-      isPlatform: Boolean((agent as { isPlatform?: boolean }).isPlatform),
-    };
-    if (agent.widgetPublicToken !== undefined) {
-      pushPayload.widgetPublicToken = agent.widgetPublicToken;
-    }
-    void pushClientAgentToHubCatalog(pushPayload).catch(() => {});
+    const pushedOk = await syncHubCatalogFromLandingAgentDoc(agent);
+    agent.syncStatus = pushedOk ? 'synced' : 'failed';
+    await ClientAgent.updateOne({ _id: agent._id }, { syncStatus: agent.syncStatus });
   }
 
   return NextResponse.json({ agent });

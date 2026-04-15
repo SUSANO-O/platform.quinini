@@ -19,7 +19,7 @@ import {
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Soluciones por sector | AgentFlow',
+  title: 'Soluciones por sector | MatIAs',
   description:
     'Casos de uso reales: salud, agua, agricultura, educación y más. Resultados operativos, no promesas vacías.',
 };
@@ -138,20 +138,14 @@ export default function SolucionesPage() {
       <Navbar />
 
       <section className="relative pt-28 pb-16 md:pt-36 md:pb-24 px-6 overflow-hidden">
-        <div className="hero-glow" style={{ background: '#0d9488', top: '-180px', left: '5%' }} />
-        <div className="hero-glow" style={{ background: '#6366f1', top: '80px', right: '0' }} />
+        <div className="hero-glow" style={{ background: 'var(--gradient-start)', top: '-180px', left: '5%' }} />
+        <div className="hero-glow" style={{ background: 'var(--accent)', top: '80px', right: '0' }} />
+        <div className="hero-glow" style={{ background: 'var(--accent-warm)', top: '200px', left: '45%' }} />
 
         <div className="relative max-w-4xl mx-auto text-center">
-          <div
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-6"
-            style={{
-              background: 'rgba(13,148,136,0.1)',
-              color: '#0d9488',
-              border: '1px solid rgba(13,148,136,0.2)',
-            }}
-          >
-            <Building2 size={14} />
-            Para equipos de operaciones, no para demos
+          <div className="badge-primary mb-6 mx-auto w-fit">
+            <Building2 size={13} />
+            Operaciones reales, no solo demos
           </div>
 
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.12]">
@@ -171,9 +165,12 @@ export default function SolucionesPage() {
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/dashboard"
+              href="/register"
               className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl text-white font-semibold text-sm transition-all hover:shadow-xl hover:scale-[1.02]"
-              style={{ background: 'linear-gradient(135deg, #0d9488, #6366f1)' }}
+              style={{
+                background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))',
+                boxShadow: '0 4px 20px rgba(228,20,20,0.28)',
+              }}
             >
               Empezar ahora <ArrowRight size={16} />
             </Link>
@@ -196,9 +193,9 @@ export default function SolucionesPage() {
               <div key={p.title} className="text-center md:text-left">
                 <div
                   className="mx-auto md:mx-0 w-12 h-12 rounded-xl flex items-center justify-center mb-4"
-                  style={{ background: 'rgba(13,148,136,0.12)' }}
+                  style={{ background: 'rgba(228,20,20,0.1)', border: '1px solid rgba(228,20,20,0.2)' }}
                 >
-                  <p.icon size={22} style={{ color: '#0d9488' }} />
+                  <p.icon size={22} style={{ color: 'var(--primary)' }} />
                 </div>
                 <h3 className="text-lg font-bold mb-2">{p.title}</h3>
                 <p className="text-sm leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
@@ -227,7 +224,7 @@ export default function SolucionesPage() {
             {SECTORS.map((s) => (
               <article
                 key={s.sector}
-                className="rounded-2xl p-8 transition-all hover:shadow-lg"
+                className="rounded-2xl p-8 transition-all card-hover"
                 style={{
                   background: 'var(--card)',
                   border: '1px solid var(--border)',
@@ -236,12 +233,12 @@ export default function SolucionesPage() {
                 <div className="flex items-start gap-4 mb-5">
                   <div
                     className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ background: 'rgba(13,148,136,0.1)' }}
+                    style={{ background: 'rgba(228,20,20,0.1)', border: '1px solid rgba(228,20,20,0.2)' }}
                   >
-                    <s.icon size={22} style={{ color: '#0d9488' }} />
+                    <s.icon size={22} style={{ color: 'var(--primary)' }} />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#0d9488' }}>
+                    <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--accent)' }}>
                       {s.sector}
                     </p>
                     <h3 className="text-xl font-bold mt-1 leading-snug">{s.headline}</h3>
@@ -303,7 +300,7 @@ export default function SolucionesPage() {
               >
                 <span
                   className="text-xs font-semibold px-2.5 py-1 rounded-md"
-                  style={{ background: 'rgba(99,102,241,0.12)', color: '#6366f1' }}
+                  style={{ background: 'rgba(0,172,248,0.12)', color: 'var(--accent)' }}
                 >
                   {story.tag}
                 </span>
@@ -319,7 +316,8 @@ export default function SolucionesPage() {
 
       {/* Closing */}
       <section className="py-20 md:py-28 px-6 text-center relative overflow-hidden">
-        <div className="hero-glow" style={{ background: '#6366f1', bottom: '-200px', right: '10%' }} />
+        <div className="hero-glow" style={{ background: 'var(--accent-warm)', bottom: '-200px', right: '10%' }} />
+        <div className="hero-glow" style={{ background: 'var(--gradient-start)', bottom: '-120px', left: '20%' }} />
 
         <div className="relative max-w-2xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-extrabold mb-4">
@@ -330,9 +328,12 @@ export default function SolucionesPage() {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/dashboard"
+              href="/register"
               className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl text-white font-semibold transition-all hover:shadow-xl hover:scale-[1.02]"
-              style={{ background: 'linear-gradient(135deg, #0d9488, #6366f1)' }}
+              style={{
+                background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))',
+                boxShadow: '0 4px 20px rgba(228,20,20,0.28)',
+              }}
             >
               Crear cuenta y probar <ArrowRight size={16} />
             </Link>

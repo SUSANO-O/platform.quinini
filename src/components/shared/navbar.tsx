@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
 const NAV_LINKS = [
   { href: '/soluciones', label: 'Soluciones' },
-  { href: '/widget', label: 'Widget SDK' },
+  { href: '/widget', label: 'Widget API' },
   { href: '/demos', label: 'Demos' },
   { href: '/#pricing', label: 'Precios' },
   { href: '/docs', label: 'Docs' },
@@ -21,12 +22,9 @@ export function Navbar() {
     <nav className="fixed top-0 left-0 right-0 z-50 glass border-b" style={{ borderColor: 'var(--border)' }}>
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center font-extrabold text-sm text-white"
-            style={{ background: 'linear-gradient(135deg, #0d9488, #6366f1)' }}>
-            AF
-          </div>
+          <Image src="/t.jpg" alt="MatIAs" width={36} height={36} className="rounded-xl object-cover" style={{ aspectRatio: '1/1' }} />
           <span className="text-lg font-bold" style={{ color: 'var(--foreground)' }}>
-            AgentFlow
+            MatIAs
           </span>
         </Link>
 
@@ -50,7 +48,7 @@ export function Navbar() {
               <Link
                 href="/dashboard"
                 className="text-sm font-semibold px-5 py-2.5 rounded-xl text-white transition-all hover:shadow-lg"
-                style={{ background: 'linear-gradient(135deg, #0d9488, #6366f1)' }}
+              style={{ background: 'linear-gradient(135deg, #e41414, #f87600)' }}
               >
                 Dashboard →
               </Link>
@@ -66,7 +64,7 @@ export function Navbar() {
                 <Link
                   href="/register"
                   className="text-sm font-semibold px-5 py-2.5 rounded-xl text-white transition-all hover:shadow-lg"
-                  style={{ background: 'linear-gradient(135deg, #0d9488, #6366f1)' }}
+                  style={{ background: 'linear-gradient(135deg, #e41414, #f87600)' }}
                 >
                   Empezar gratis
                 </Link>
@@ -100,7 +98,7 @@ export function Navbar() {
               <Link
                 href="/dashboard"
                 className="block text-center text-sm font-semibold px-5 py-2.5 rounded-xl text-white"
-                style={{ background: 'linear-gradient(135deg, #0d9488, #6366f1)' }}
+                style={{ background: 'linear-gradient(135deg, #e41414, #f87600)' }}
                 onClick={() => setOpen(false)}
               >
                 Dashboard →
@@ -113,7 +111,7 @@ export function Navbar() {
                 <Link
                   href="/register"
                   className="block text-center text-sm font-semibold px-5 py-2.5 rounded-xl text-white"
-                  style={{ background: 'linear-gradient(135deg, #0d9488, #6366f1)' }}
+                  style={{ background: 'linear-gradient(135deg, #e41414, #f87600)' }}
                   onClick={() => setOpen(false)}
                 >
                   Empezar gratis

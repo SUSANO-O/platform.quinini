@@ -1,6 +1,9 @@
 'use client';
 
-import { useEffect, useState, use, useMemo } from 'react';
+import {
+  useEffect, useState, use, useMemo, useCallback, useRef,
+  type CSSProperties, type ReactNode,
+} from 'react';
 import { useRouter } from 'next/navigation';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useClientModels, mergeSavedModelOptions } from '@/hooks/use-client-models';
@@ -9,11 +12,88 @@ import {
   Bot, ChevronLeft, Save, Loader2, Plus, Trash2, Network,
   Zap, Wrench, Settings, Lock, CircleOff, Upload, FileText,
   Image as ImageIcon, File, Link2, AlignLeft, CheckCircle2,
-  AlertCircle, X, KeyRound,
+  AlertCircle, X, KeyRound, RefreshCw, Sparkles,
 } from 'lucide-react';
+
+const R = '#e41414';
+const O = '#f87600';
+const B = '#00acf8';
+const BTN_PRIMARY: CSSProperties = {
+  background: `linear-gradient(135deg, ${R}, ${O})`,
+  color: '#fff',
+  border: 'none',
+  boxShadow: '0 4px 18px rgba(228,20,20,0.28)',
+};
 import Link from 'next/link';
+import { McpLandingConnectForm } from '@/components/mcp/mcp-landing-connect-form';
+import { AgentMcpOpenFromQuery } from '@/components/mcp/agent-mcp-open-from-query';
+import { AgentHubspotOauthReturn } from '@/components/mcp/agent-hubspot-oauth-return';
+import { McpAgentStandardCredentialsEditor } from '@/components/mcp/mcp-agent-standard-credentials-editor';
 
 type Tab = 'general' | 'tools' | 'rag' | 'subagents';
+
+interface McpServerGroup {
+  integrationKey: string;
+  serverName: string;
+  description: string;
+  syncStatus: 'ok' | 'pending' | 'error';
+  connectionId: string;
+  tools: { id: string; name: string; description: string }[];
+  credentialFields: { key: string; label: string; secret: boolean; required: boolean }[];
+  credentialsMask: Record<string, string>;
+  lastSyncAt?: string;
+  lastSyncError?: string;
+}
+
+interface AgentHubLinkInfo {
+  hasAgentHubId: boolean;
+  agentHubId: string | null;
+  catalogSyncStatus: string;
+}
+
+function formatMcpLastSync(iso?: string): string | null {
+  if (!iso?.trim()) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function mcpConnectionBadgeStyle(s: McpServerGroup): { label: string; bg: string; color: string } {
+  if (s.syncStatus === 'ok') {
+    return { label: '✓ MCP sync OK', bg: 'rgba(34,197,94,0.12)', color: '#22c55e' };
+  }
+  if (s.syncStatus === 'error') {
+    return { label: 'Error sync MCP', bg: 'rgba(239,68,68,0.12)', color: '#ef4444' };
+  }
+  return { label: 'Pendiente MCP', bg: 'rgba(217,119,6,0.12)', color: '#d97706' };
+}
+
+function SectionCard({
+  children,
+  bar = 'rb' as 'rb' | 'bo',
+  className,
+  innerStyle,
+  outerStyle,
+}: {
+  children: ReactNode;
+  bar?: 'rb' | 'bo';
+  className?: string;
+  innerStyle?: CSSProperties;
+  outerStyle?: CSSProperties;
+}) {
+  const barBg = bar === 'bo' ? `linear-gradient(90deg, ${B}, ${O})` : `linear-gradient(90deg, ${R}, ${B})`;
+  return (
+    <div
+      className={`rounded-2xl overflow-hidden border mb-4 card-texture card-hover ${className ?? ''}`}
+      style={{ borderColor: 'var(--border)', ...outerStyle }}
+    >
+      <div className="h-[3px]" style={{ background: barBg }} />
+      <div className="p-5" style={innerStyle}>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 interface ToolConfig { toolId: string; config: Record<string, string> }
 
@@ -45,6 +125,7 @@ interface ClientAgent {
   tools: ToolConfig[]; ragEnabled: boolean; ragSources: RagSource[];
   subAgentIds: string[]; syncStatus: string; agentHubId: string | null;
   widgetPublicToken?: string | null;
+  enabledMcpToolIds?: string[];
   /** Catálogo global (solo lectura en la landing; edición en AgentFlowHub). */
   isPlatform?: boolean;
 }
@@ -79,6 +160,16 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [widgetPublicToken, setWidgetPublicToken] = useState('');
   const [inferenceTemperature, setInferenceTemperature] = useState('');
   const [inferenceMaxTokens, setInferenceMaxTokens] = useState('');
+
+  // MCP tools state
+  const [mcpServers, setMcpServers] = useState<McpServerGroup[]>([]);
+  const [mcpLoading, setMcpLoading] = useState(false);
+  const [mcpToolIds, setMcpToolIds] = useState<string[]>([]);
+  const [mcpAgentHubLink, setMcpAgentHubLink] = useState<AgentHubLinkInfo | null>(null);
+  const enabledMcpSavedRef = useRef<string[] | undefined>(undefined);
+  useEffect(() => {
+    enabledMcpSavedRef.current = agent?.enabledMcpToolIds;
+  }, [agent?.enabledMcpToolIds]);
 
   // File upload state
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -126,6 +217,122 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       })
       .finally(() => setLoading(false));
   }, [id, router]);
+
+  const onOpenToolsTab = useCallback(() => setTab('tools'), []);
+
+  const loadMcp = useCallback(() => {
+    if (!id) return;
+    setMcpLoading(true);
+    fetch(`/api/mcp/agent-tools?agentId=${encodeURIComponent(id)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const raw = (data?.servers ?? []) as McpServerGroup[];
+        const srvs: McpServerGroup[] = raw.map((s) => ({
+          ...s,
+          credentialFields: Array.isArray(s.credentialFields) ? s.credentialFields : [],
+          credentialsMask:
+            s.credentialsMask && typeof s.credentialsMask === 'object' ? s.credentialsMask : {},
+          lastSyncAt: typeof s.lastSyncAt === 'string' ? s.lastSyncAt : undefined,
+          lastSyncError: typeof s.lastSyncError === 'string' ? s.lastSyncError : undefined,
+        }));
+        setMcpServers(srvs);
+        const link = data?.agentHubLink;
+        if (link && typeof link === 'object') {
+          setMcpAgentHubLink({
+            hasAgentHubId: Boolean(link.hasAgentHubId),
+            agentHubId: typeof link.agentHubId === 'string' ? link.agentHubId : null,
+            catalogSyncStatus: typeof link.catalogSyncStatus === 'string' ? link.catalogSyncStatus : 'unknown',
+          });
+        } else {
+          setMcpAgentHubLink(null);
+        }
+        const allIds = srvs.filter((s) => s.syncStatus === 'ok').flatMap((s) => s.tools.map((t) => t.id));
+        const saved = enabledMcpSavedRef.current;
+        if (Array.isArray(saved)) {
+          if (saved.length === 0) {
+            setMcpToolIds([]);
+          } else {
+            const v = saved.filter((tid) => allIds.includes(tid));
+            setMcpToolIds(v.length > 0 ? v : allIds);
+          }
+        } else {
+          setMcpToolIds(allIds);
+        }
+      })
+      .catch(() => {
+        setMcpServers([]);
+        setMcpAgentHubLink(null);
+      })
+      .finally(() => setMcpLoading(false));
+  }, [id]);
+
+  useEffect(() => {
+    loadMcp();
+  }, [loadMcp]);
+
+  const onHubspotOauthReturn = useCallback(
+    (kind: 'ok' | 'partial' | 'err', detail?: string) => {
+      setError('');
+      setSuccess('');
+      loadMcp();
+      if (kind === 'ok') {
+        setSuccess('HubSpot conectado y sincronizado.');
+      } else if (kind === 'partial') {
+        setSuccess(
+          detail?.trim() ||
+            'HubSpot autorizado; si la sincronización falló, pulsa Sincronizar en la conexión.',
+        );
+      } else {
+        setError(detail?.trim() || 'No se pudo completar la conexión OAuth con HubSpot.');
+      }
+    },
+    [loadMcp],
+  );
+
+  async function resyncMcpConnection(connectionId: string) {
+    setError('');
+    const r = await fetch(
+      `/api/mcp/connections/${encodeURIComponent(connectionId)}/sync?landingAgentId=${encodeURIComponent(id)}`,
+      { method: 'POST', credentials: 'include' },
+    );
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      setError(j?.error ?? 'No se pudo sincronizar la conexión MCP.');
+      return;
+    }
+    loadMcp();
+  }
+
+  async function deleteMcpConnection(connectionId: string) {
+    if (!confirm('¿Quitar esta conexión MCP de este agente? Las credenciales dejarán de aplicarse.')) return;
+    setError('');
+    const r = await fetch(
+      `/api/mcp/connections/${encodeURIComponent(connectionId)}?landingAgentId=${encodeURIComponent(id)}`,
+      { method: 'DELETE', credentials: 'include' },
+    );
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      setError(j?.error ?? 'No se pudo eliminar la conexión.');
+      return;
+    }
+    loadMcp();
+  }
+
+  function toggleMcpTool(toolId: string) {
+    setMcpToolIds((prev) =>
+      prev.includes(toolId) ? prev.filter((t) => t !== toolId) : [...prev, toolId],
+    );
+  }
+
+  const syncedMcpServers = useMemo(
+    () => mcpServers.filter((s) => s.syncStatus === 'ok' && s.tools.length > 0),
+    [mcpServers],
+  );
+
+  const pendingOrErrorMcpServers = useMemo(
+    () => mcpServers.filter((s) => s.syncStatus !== 'ok'),
+    [mcpServers],
+  );
 
   async function save(patch: Record<string, unknown>) {
     setSaving(true); setError(''); setSuccess('');
@@ -188,7 +395,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   }
 
   async function saveTools() {
-    await save({ tools });
+    await save({ tools, enabledMcpToolIds: mcpToolIds });
   }
 
   async function saveRag() {
@@ -289,22 +496,27 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     setShowNewSub(false); setSubName(''); setSubPrompt(''); setSubModel('gemini-2.5-flash');
   }
 
-  const inp: React.CSSProperties = {
-    width: '100%', padding: '10px 14px', borderRadius: '10px',
+  const inp: CSSProperties = {
+    width: '100%', padding: '10px 14px', borderRadius: '12px',
     border: '1px solid var(--border)', background: 'var(--background)',
     color: 'var(--foreground)', fontSize: '13px', outline: 'none', boxSizing: 'border-box',
   };
-  const section: React.CSSProperties = {
-    background: 'var(--card)', border: '1px solid var(--border)',
-    borderRadius: '14px', padding: '20px', marginBottom: '16px',
-  };
-  const sectionTitle: React.CSSProperties = {
+  const sectionTitle: CSSProperties = {
     fontSize: '12px', fontWeight: 700, color: 'var(--muted-foreground)',
     textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px',
   };
 
   if (loading) {
-    return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--muted-foreground)' }}>Cargando...</div>;
+    return (
+      <div className="relative overflow-hidden" style={{ minHeight: '100%' }}>
+        <div className="hero-glow pointer-events-none" style={{ background: R, top: '-200px', right: '-60px' }} />
+        <div className="hero-glow pointer-events-none" style={{ background: B, top: '100px', left: '-120px' }} />
+        <div className="relative px-6 py-16 max-w-3xl mx-auto text-center text-sm" style={{ color: 'var(--muted-foreground)' }}>
+          <Loader2 className="animate-spin mx-auto mb-3" size={28} style={{ color: R }} />
+          Cargando agente…
+        </div>
+      </div>
+    );
   }
   if (!agent) return null;
 
@@ -318,35 +530,61 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         : !agent.ragEnabled && ragN > 0 ? `RAG off · ${ragN} fuente${ragN !== 1 ? 's' : ''} guardada${ragN !== 1 ? 's' : ''}`
           : null;
 
-  const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
+  const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
     { id: 'general', label: 'General', icon: <Settings size={13} /> },
-    { id: 'tools',   label: `Herramientas (${tools.length})`, icon: <Wrench size={13} /> },
+    { id: 'tools',   label: `Herramientas (${tools.length + mcpToolIds.length})`, icon: <Wrench size={13} /> },
     { id: 'rag',     label: `RAG (${ragN})`, icon: <Zap size={13} /> },
     { id: 'subagents', label: `Sub-agentes (${subAgents.length})`, icon: <Network size={13} /> },
   ];
 
   return (
-    <div style={{ padding: '32px', maxWidth: '750px' }}>
+    <div className="relative overflow-hidden" style={{ minHeight: '100%' }}>
+      <div className="hero-glow pointer-events-none" style={{ background: R, top: '-200px', right: '-60px' }} />
+      <div className="hero-glow pointer-events-none" style={{ background: B, top: '120px', left: '-120px' }} />
+
+      <div className="relative px-6 py-10 max-w-3xl mx-auto">
+      {agent && (
+        <>
+          <AgentMcpOpenFromQuery
+            agentId={id}
+            plan={plan}
+            readOnly={readOnly}
+            onConnected={loadMcp}
+            onOpenToolsTab={onOpenToolsTab}
+          />
+          <AgentHubspotOauthReturn
+            agentId={id}
+            onOpenToolsTab={onOpenToolsTab}
+            onHubspotOauthDone={onHubspotOauthReturn}
+          />
+        </>
+      )}
+
       {/* Back */}
-      <Link href="/dashboard/agents" style={{
-        display: 'inline-flex', alignItems: 'center', gap: '4px',
-        color: 'var(--muted-foreground)', fontSize: '12px', textDecoration: 'none', marginBottom: '18px',
-      }}>
+      <Link href="/dashboard/agents" className="landing-link-accent inline-flex items-center gap-1 text-xs no-underline mb-4 font-semibold">
         <ChevronLeft size={14} /> Mis agentes
       </Link>
+      <div className="badge-primary mb-4 w-fit">
+        <Sparkles size={13} />
+        Detalle del agente
+      </div>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
-        <div style={{
-          width: 44, height: 44, borderRadius: '12px',
-          background: isDisabled ? 'var(--border)' : 'rgba(99,102,241,0.12)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-        }}>
-          <Bot size={20} style={{ color: isDisabled ? 'var(--muted-foreground)' : '#6366f1' }} />
+      <div className="flex flex-wrap items-center gap-3 mb-8">
+        <div
+          className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border"
+          style={{
+            background: isDisabled ? 'var(--border)' : `${R}14`,
+            borderColor: isDisabled ? 'var(--border)' : `${R}33`,
+          }}
+        >
+          <Bot size={20} style={{ color: isDisabled ? 'var(--muted-foreground)' : R }} strokeWidth={1.75} />
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '18px', fontWeight: 800 }}>{agent.name}</span>
+        <div className="flex-1 min-w-[200px]">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-lg md:text-xl font-bold tracking-tight">
+            <span className="gradient-text">{agent.name}</span>
+          </span>
             <span style={{
               fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
               background: isDisabled ? 'rgba(107,114,128,0.15)' : 'rgba(34,197,94,0.12)',
@@ -355,27 +593,27 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               {isDisabled ? 'Desactivado' : 'Activo'}
             </span>
             {agent.syncStatus === 'synced' && (
-              <span style={{ fontSize: 10, color: '#0d9488', fontWeight: 600 }}>✓ Hub sync</span>
+              <span className="text-[10px] font-semibold" style={{ color: B }}>✓ Hub sync</span>
             )}
             {ragSummary && (
               <span style={{
                 fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-                background: ragLoaded ? 'rgba(13,148,136,0.12)' : agent.ragEnabled ? 'rgba(217,119,6,0.12)' : 'rgba(107,114,128,0.12)',
-                color: ragLoaded ? '#0d9488' : agent.ragEnabled ? '#d97706' : 'var(--muted-foreground)',
+                background: ragLoaded ? 'rgba(0,172,248,0.12)' : agent.ragEnabled ? 'rgba(217,119,6,0.12)' : 'rgba(107,114,128,0.12)',
+                color: ragLoaded ? B : agent.ragEnabled ? '#d97706' : 'var(--muted-foreground)',
               }} title="Estado del RAG de catálogo (texto, URL, archivos)">
                 {ragSummary}
               </span>
             )}
           </div>
-          <p style={{ margin: 0, fontSize: '12px', color: 'var(--muted-foreground)' }}>{agent.description || agent.model}</p>
+          <p className="m-0 text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>{agent.description || agent.model}</p>
         </div>
         {!readOnly && (
         <button
           onClick={toggleStatus}
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-semibold cursor-pointer transition-colors card-hover"
           style={{
-            display: 'flex', alignItems: 'center', gap: '6px',
-            padding: '7px 14px', borderRadius: '8px', border: '1px solid var(--border)',
-            background: 'transparent', cursor: 'pointer', fontSize: '12px', fontWeight: 600,
+            borderColor: 'var(--border)',
+            background: 'transparent',
             color: isDisabled ? '#22c55e' : '#ef4444',
           }}
         >
@@ -386,21 +624,21 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', background: 'var(--card)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+      <div className="flex gap-1 mb-6 p-1 rounded-2xl border card-texture" style={{ borderColor: 'var(--border)' }}>
         {TABS.map(({ id: tabId, label, icon }) => (
           <button
             key={tabId}
             onClick={() => setTab(tabId)}
+            type="button"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl border-0 cursor-pointer text-xs transition-all whitespace-nowrap min-w-0"
             style={{
-              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
-              padding: '7px 10px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-              fontSize: '12px', fontWeight: tab === tabId ? 700 : 500,
+              fontWeight: tab === tabId ? 700 : 500,
               background: tab === tabId ? 'var(--background)' : 'transparent',
-              color: tab === tabId ? 'var(--foreground)' : 'var(--muted-foreground)',
-              whiteSpace: 'nowrap',
+              color: tab === tabId ? R : 'var(--muted-foreground)',
+              boxShadow: tab === tabId ? `0 0 0 1px ${R}22` : 'none',
             }}
           >
-            {icon} {label}
+            {icon} <span className="truncate">{label}</span>
           </button>
         ))}
       </div>
@@ -420,21 +658,21 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       {/* ── GENERAL TAB ──────────────────────────────────────────────────────── */}
       {tab === 'general' && (
         <>
-          <div style={section}>
+          <SectionCard>
             <p style={sectionTitle}>Información básica</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '5px' }}>Nombre</label>
-                <input style={inp} value={name} onChange={(e) => setName(e.target.value)} disabled={readOnly} />
+                <input className="landing-input" style={inp} value={name} onChange={(e) => setName(e.target.value)} disabled={readOnly} />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '5px' }}>Descripción</label>
-                <input style={inp} value={description} onChange={(e) => setDescription(e.target.value)} disabled={readOnly} />
+                <input className="landing-input" style={inp} value={description} onChange={(e) => setDescription(e.target.value)} disabled={readOnly} />
               </div>
             </div>
-          </div>
+          </SectionCard>
 
-          <div style={section}>
+          <SectionCard bar="bo">
             <p style={{ ...sectionTitle, display: 'flex', alignItems: 'center', gap: '8px' }}>
               <KeyRound size={14} style={{ opacity: 0.85 }} /> Token público del widget <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 'normal', color: 'var(--muted-foreground)' }}>(opcional)</span>
             </p>
@@ -465,9 +703,9 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               </button>
               )}
             </div>
-          </div>
+          </SectionCard>
 
-          <div style={section}>
+          <SectionCard>
             <p style={sectionTitle}>Modelo de IA</p>
             {modelsHubError && (
               <p style={{ fontSize: '12px', color: '#d97706', marginBottom: '10px', lineHeight: 1.45 }}>
@@ -482,11 +720,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '6px' }}>
               {displayModels.map((m) => (
                 <button key={m.id} type="button" onClick={() => setModel(m.id)} style={{
-                  padding: '8px 10px', borderRadius: '8px', textAlign: 'left', cursor: 'pointer',
-                  border: `1px solid ${model === m.id ? '#6366f1' : 'var(--border)'}`,
-                  background: model === m.id ? 'rgba(99,102,241,0.08)' : 'transparent',
+                  padding: '8px 10px', borderRadius: '10px', textAlign: 'left', cursor: 'pointer',
+                  border: `1px solid ${model === m.id ? R : 'var(--border)'}`,
+                  background: model === m.id ? 'rgba(228,20,20,0.08)' : 'transparent',
                 }}>
-                  <p style={{ fontSize: '11px', fontWeight: 700, margin: '0 0 1px', color: model === m.id ? '#6366f1' : 'var(--foreground)' }}>{m.name}</p>
+                  <p style={{ fontSize: '11px', fontWeight: 700, margin: '0 0 1px', color: model === m.id ? R : 'var(--foreground)' }}>{m.name}</p>
                   <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: 0 }}>
                     {m.provider}{m.badge ? ` · ${m.badge}` : ''}
                     {m.maxTokens != null ? ` · ${m.maxTokens.toLocaleString()} ctx` : ''}
@@ -525,32 +763,33 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 />
               </div>
             </div>
-          </div>
+          </SectionCard>
 
-          <div style={section}>
+          <SectionCard bar="bo">
             <p style={sectionTitle}>System Prompt</p>
             <textarea
+              className="landing-input"
               style={{ ...inp, minHeight: '160px', resize: 'vertical', fontFamily: 'inherit' }}
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
               disabled={readOnly}
               readOnly={readOnly}
             />
-          </div>
+          </SectionCard>
 
           {!readOnly && (
           <button
             onClick={saveGeneral}
             disabled={saving}
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-opacity"
             style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              padding: '10px 22px', borderRadius: '10px', fontWeight: 700, fontSize: '13px',
-              background: '#6366f1', color: '#fff', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1,
+              ...BTN_PRIMARY,
+              cursor: saving ? 'not-allowed' : 'pointer',
+              opacity: saving ? 0.7 : 1,
             }}
           >
-            {saving ? <Loader2 size={14} style={{ animation: 'spin 0.7s linear infinite' }} /> : <Save size={14} />}
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
             Guardar cambios
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           </button>
           )}
         </>
@@ -559,9 +798,350 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       {/* ── TOOLS TAB ────────────────────────────────────────────────────────── */}
       {tab === 'tools' && (
         <>
-          <div style={{ ...section, marginBottom: '14px' }}>
+          {!readOnly && (
+            <div style={{ marginBottom: '16px' }}>
+              <McpLandingConnectForm landingAgentId={id} plan={plan} onConnected={loadMcp} />
+            </div>
+          )}
+
+          {/* ── MCP Integrations (synced) ── */}
+          {mcpLoading ? (
+            <SectionCard innerStyle={{ textAlign: 'center', padding: '28px 16px' }}>
+              <Loader2 size={22} className="animate-spin mx-auto mb-2 block" style={{ color: R }} />
+              <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', margin: 0 }}>Cargando integraciones MCP...</p>
+            </SectionCard>
+          ) : syncedMcpServers.length > 0 ? (
+            <>
+              <SectionCard>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                  <p style={{ ...sectionTitle, margin: 0 }}>Integraciones MCP conectadas</p>
+                  <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                    {mcpToolIds.length} tool{mcpToolIds.length !== 1 ? 's' : ''} activa{mcpToolIds.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: '0 0 10px', lineHeight: 1.5 }}>
+                  Herramientas de las integraciones MCP conectadas a este agente (desde aquí o desde AgentFlowHub). Cada agente puede usar credenciales distintas para la misma integración.
+                </p>
+                {!readOnly && (
+                  <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '0 0 10px', lineHeight: 1.45 }}>
+                    Marca o desmarca las tools y pulsa <strong>Guardar herramientas</strong> (al final de esta pestaña): la selección se guarda aquí y en AIBackHub como{' '}
+                    <code style={{ fontSize: '10px' }}>enabledToolIds</code> para el widget y el chat con MCP.
+                  </p>
+                )}
+                {mcpAgentHubLink ? (
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      lineHeight: 1.5,
+                      padding: '10px 12px',
+                      borderRadius: '10px',
+                      border: '1px solid var(--border)',
+                      background: 'rgba(0,172,248,0.06)',
+                      marginBottom: '14px',
+                      color: 'var(--foreground)',
+                    }}
+                  >
+                    <p style={{ margin: '0 0 6px', fontWeight: 700 }}>Dos niveles de “sync” (no son lo mismo)</p>
+                    <p style={{ margin: 0, color: 'var(--muted-foreground)' }}>
+                      <strong>1) Catálogo AIBackHub</strong> (agente landing ↔ hub):{' '}
+                      {mcpAgentHubLink.catalogSyncStatus === 'synced' && mcpAgentHubLink.hasAgentHubId
+                        ? (
+                          <>
+                            OK — id en catálogo:{' '}
+                            <code style={{ fontSize: '10px' }}>{mcpAgentHubLink.agentHubId}</code>
+                          </>
+                          )
+                        : mcpAgentHubLink.catalogSyncStatus === 'pending'
+                          ? 'pendiente. Espera unos segundos tras crear el agente o ve a Mis agentes y fuerza sincronización.'
+                          : mcpAgentHubLink.catalogSyncStatus === 'failed'
+                            ? 'falló. Revisa que AIBackHub esté en marcha (BACKEND_URL) y vuelve a sincronizar.'
+                            : `estado “${mcpAgentHubLink.catalogSyncStatus}”.`}
+                    </p>
+                    <p style={{ margin: '8px 0 0', color: 'var(--muted-foreground)' }}>
+                      <strong>2) Conexión MCP</strong> (hub ↔ servidor MCP remoto): el distintivo verde en cada tarjeta indica
+                      que el hub pudo conectar a tu URL, validar credenciales si aplica y obtener la lista de tools. Las
+                      credenciales de la conexión se guardan en el hub y persisten; la fecha de la última comprobación
+                      aparece bajo el nombre del servidor.
+                    </p>
+                  </div>
+                ) : null}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {syncedMcpServers.map((srv) => {
+                    const MCP_ICONS: Record<string, string> = {
+                      gmail: '📧', hubspot: '🏢', slack: '💬',
+                      google_calendar: '📅', googleCalendar: '📅',
+                      weather: '🌤️', webSearch: '🔍', web_search: '🔍',
+                    };
+                    const icon = MCP_ICONS[srv.integrationKey] ?? '🔌';
+                    const allSelected = srv.tools.every((t) => mcpToolIds.includes(t.id));
+                    const someSelected = srv.tools.some((t) => mcpToolIds.includes(t.id));
+                    const badge = mcpConnectionBadgeStyle(srv);
+                    const lastSyncLabel = formatMcpLastSync(srv.lastSyncAt);
+
+                    return (
+                      <div key={srv.connectionId} style={{
+                        border: '1px solid var(--border)', borderRadius: '12px',
+                        overflow: 'hidden',
+                      }}>
+                        {/* Server header */}
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: '10px',
+                          padding: '12px 14px', background: 'rgba(228,20,20,0.04)',
+                          borderBottom: '1px solid var(--border)',
+                        }}>
+                          <span style={{ fontSize: '20px' }}>{icon}</span>
+                          <div style={{ flex: 1 }}>
+                            <p style={{ fontSize: '13px', fontWeight: 700, margin: 0 }}>{srv.serverName}</p>
+                            <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: 0 }}>
+                              {srv.tools.length} tool{srv.tools.length !== 1 ? 's' : ''} disponible{srv.tools.length !== 1 ? 's' : ''}
+                              {lastSyncLabel ? ` · última comprobación hub↔MCP: ${lastSyncLabel}` : ''}
+                            </p>
+                            {srv.syncStatus === 'error' && srv.lastSyncError ? (
+                              <p style={{ fontSize: '10px', color: '#ef4444', margin: '4px 0 0', lineHeight: 1.35 }}>
+                                {srv.lastSyncError.slice(0, 220)}
+                                {srv.lastSyncError.length > 220 ? '…' : ''}
+                              </p>
+                            ) : null}
+                          </div>
+                          <span style={{
+                            fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                            background: badge.bg, color: badge.color,
+                          }}>
+                            {badge.label}
+                          </span>
+                          {!readOnly && (
+                            <>
+                              <button
+                                type="button"
+                                title="Volver a sincronizar con el servidor MCP"
+                                onClick={() => resyncMcpConnection(srv.connectionId)}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: '4px',
+                                  fontSize: '11px', fontWeight: 600, padding: '4px 10px',
+                                  borderRadius: '6px', border: '1px solid var(--border)',
+                                  background: 'transparent', color: 'var(--muted-foreground)',
+                                  cursor: 'pointer', whiteSpace: 'nowrap',
+                                }}
+                              >
+                                <RefreshCw size={12} /> Sync
+                              </button>
+                              <button
+                                type="button"
+                                title="Quitar conexión de este agente"
+                                onClick={() => deleteMcpConnection(srv.connectionId)}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: '4px',
+                                  fontSize: '11px', fontWeight: 600, padding: '4px 10px',
+                                  borderRadius: '6px', border: '1px solid rgba(239,68,68,0.35)',
+                                  background: 'rgba(239,68,68,0.06)', color: '#ef4444',
+                                  cursor: 'pointer', whiteSpace: 'nowrap',
+                                }}
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const ids = srv.tools.map((t) => t.id);
+                                  if (allSelected) {
+                                    setMcpToolIds((prev) => prev.filter((tid) => !ids.includes(tid)));
+                                  } else {
+                                    setMcpToolIds((prev) => [...new Set([...prev, ...ids])]);
+                                  }
+                                }}
+                                style={{
+                                  fontSize: '11px', fontWeight: 600, padding: '4px 10px',
+                                  borderRadius: '6px', border: '1px solid var(--border)',
+                                  background: allSelected ? 'rgba(228,20,20,0.08)' : 'transparent',
+                                  color: allSelected ? R : 'var(--muted-foreground)',
+                                  cursor: 'pointer', whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {allSelected ? 'Deseleccionar todo' : someSelected ? 'Seleccionar todo' : 'Seleccionar todo'}
+                              </button>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Tools list */}
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          {srv.tools.map((tool, ti) => {
+                            const selected = mcpToolIds.includes(tool.id);
+                            return (
+                              <button
+                                key={tool.id}
+                                type="button"
+                                onClick={() => !readOnly && toggleMcpTool(tool.id)}
+                                disabled={readOnly}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: '10px',
+                                  padding: '10px 14px', textAlign: 'left',
+                                  cursor: readOnly ? 'not-allowed' : 'pointer',
+                                  border: 'none',
+                                  borderBottom: ti < srv.tools.length - 1 ? '1px solid var(--border)' : 'none',
+                                  background: selected ? 'rgba(228,20,20,0.05)' : 'transparent',
+                                  transition: 'background 0.15s',
+                                }}
+                              >
+                                <span style={{
+                                  width: 18, height: 18, borderRadius: '4px', flexShrink: 0,
+                                  border: `2px solid ${selected ? R : 'var(--border)'}`,
+                                  background: selected ? R : 'transparent',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  transition: 'all 0.15s',
+                                }}>
+                                  {selected && <span style={{ color: '#fff', fontSize: '10px', fontWeight: 900, lineHeight: 1 }}>✓</span>}
+                                </span>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <p style={{
+                                    fontSize: '12px', fontWeight: 600, margin: 0,
+                                    color: selected ? R : 'var(--foreground)',
+                                  }}>
+                                    {tool.name}
+                                  </p>
+                                  {tool.description && (
+                                    <p style={{
+                                      fontSize: '11px', color: 'var(--muted-foreground)', margin: '1px 0 0',
+                                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                    }}>
+                                      {tool.description}
+                                    </p>
+                                  )}
+                                </div>
+                                <code style={{
+                                  fontSize: '9px', color: 'var(--muted-foreground)',
+                                  background: 'var(--background)', padding: '2px 6px',
+                                  borderRadius: '4px', flexShrink: 0,
+                                }}>
+                                  {tool.id}
+                                </code>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {srv.integrationKey === 'mcp_standard' ? (
+                          <McpAgentStandardCredentialsEditor
+                            landingAgentId={id}
+                            connectionId={srv.connectionId}
+                            credentialFields={srv.credentialFields}
+                            credentialsMask={srv.credentialsMask}
+                            readOnly={readOnly}
+                            onResync={resyncMcpConnection}
+                          />
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </SectionCard>
+            </>
+          ) : mcpServers.length === 0 && !mcpLoading ? (
+            <SectionCard innerStyle={{ textAlign: 'center', padding: '28px 16px' }}>
+                <RefreshCw size={24} style={{ color: 'var(--muted-foreground)', margin: '0 auto 10px' }} />
+                <p style={{ fontWeight: 600, fontSize: '13px', margin: '0 0 6px' }}>Sin integraciones MCP</p>
+                <p style={{ color: 'var(--muted-foreground)', fontSize: '12px', margin: 0, lineHeight: 1.5 }}>
+                  Usa el formulario de arriba para conectar Gmail, calendario, MCP estándar, etc. Cada agente puede tener su propia cuenta o credenciales.
+                </p>
+            </SectionCard>
+          ) : null}
+
+          {/* Pending/Error MCP connections */}
+          {pendingOrErrorMcpServers.length > 0 && (
+            <SectionCard bar="bo">
+              <p style={{ ...sectionTitle, margin: '0 0 10px' }}>Integraciones pendientes / con error</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {pendingOrErrorMcpServers.map((srv) => {
+                  const pb = mcpConnectionBadgeStyle(srv);
+                  const pLast = formatMcpLastSync(srv.lastSyncAt);
+                  return (
+                  <div
+                    key={srv.connectionId}
+                    style={{
+                      borderRadius: '10px',
+                      border: '1px solid var(--border)',
+                      overflow: 'hidden',
+                      opacity: 0.9,
+                    }}
+                  >
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px',
+                    }}>
+                      <span style={{ fontSize: '16px' }}>🔌</span>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: '12px', fontWeight: 600, margin: 0 }}>{srv.serverName}</p>
+                        {pLast ? (
+                          <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: '3px 0 0' }}>
+                            Último intento: {pLast}
+                          </p>
+                        ) : null}
+                        {srv.syncStatus === 'error' && srv.lastSyncError ? (
+                          <p style={{ fontSize: '10px', color: '#ef4444', margin: '4px 0 0', lineHeight: 1.35 }}>
+                            {srv.lastSyncError.slice(0, 280)}
+                            {srv.lastSyncError.length > 280 ? '…' : ''}
+                          </p>
+                        ) : null}
+                      </div>
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                        background: pb.bg, color: pb.color,
+                      }}>
+                        {pb.label}
+                      </span>
+                      {!readOnly && (
+                        <>
+                          <button
+                            type="button"
+                            title="Reintentar sincronización"
+                            onClick={() => resyncMcpConnection(srv.connectionId)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '4px',
+                              fontSize: '11px', fontWeight: 600, padding: '4px 10px',
+                              borderRadius: '6px', border: '1px solid var(--border)',
+                              background: 'transparent', cursor: 'pointer', color: 'var(--muted-foreground)',
+                            }}
+                          >
+                            <RefreshCw size={12} /> Reintentar
+                          </button>
+                          <button
+                            type="button"
+                            title="Eliminar conexión"
+                            onClick={() => deleteMcpConnection(srv.connectionId)}
+                            style={{
+                              padding: '4px 8px', borderRadius: '6px',
+                              border: '1px solid rgba(239,68,68,0.35)', background: 'rgba(239,68,68,0.06)',
+                              color: '#ef4444', cursor: 'pointer',
+                            }}
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    {srv.integrationKey === 'mcp_standard' ? (
+                      <McpAgentStandardCredentialsEditor
+                        landingAgentId={id}
+                        connectionId={srv.connectionId}
+                        credentialFields={srv.credentialFields}
+                        credentialsMask={srv.credentialsMask}
+                        readOnly={readOnly}
+                        onResync={resyncMcpConnection}
+                      />
+                    ) : null}
+                  </div>
+                );
+                })}
+              </div>
+              <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '10px 0 0', lineHeight: 1.5 }}>
+                Reintenta la sincronización aquí o revisa las credenciales. También puedes gestionar conexiones en AgentFlowHub.
+              </p>
+            </SectionCard>
+          )}
+
+          {/* ── Built-in tools ── */}
+          <SectionCard>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <p style={{ ...sectionTitle, margin: 0 }}>Herramientas disponibles</p>
+              <p style={{ ...sectionTitle, margin: 0 }}>Herramientas built-in</p>
               <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{tools.length}/{limits.toolsPerAgent} seleccionadas</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -576,32 +1156,32 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                     style={{
                       display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px',
                       borderRadius: '10px', textAlign: 'left', cursor: readOnly || !available || maxed ? 'not-allowed' : 'pointer',
-                      border: `1px solid ${selected ? '#6366f1' : 'var(--border)'}`,
-                      background: selected ? 'rgba(99,102,241,0.07)' : 'transparent',
+                      border: `1px solid ${selected ? R : 'var(--border)'}`,
+                      background: selected ? 'rgba(228,20,20,0.07)' : 'transparent',
                       opacity: readOnly || !available || maxed ? 0.45 : 1,
                     }}
                   >
                     <span style={{ fontSize: '18px' }}>{tool.icon}</span>
                     <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: '13px', fontWeight: 700, margin: 0, color: selected ? '#6366f1' : 'var(--foreground)' }}>{tool.name}</p>
+                      <p style={{ fontSize: '13px', fontWeight: 700, margin: 0, color: selected ? R : 'var(--foreground)' }}>{tool.name}</p>
                       <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: 0 }}>{tool.description}</p>
                     </div>
                     {!available && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}><Lock size={9} /> {tool.minPlan}+</span>}
-                    {selected && <span style={{ width: 16, height: 16, borderRadius: '50%', background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {selected && <span style={{ width: 16, height: 16, borderRadius: '50%', background: R, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <span style={{ color: '#fff', fontSize: '9px', fontWeight: 900 }}>✓</span>
                     </span>}
                   </button>
                 );
               })}
             </div>
-          </div>
+          </SectionCard>
 
           {/* Config fields for selected tools */}
           {tools.map((t) => {
             const def = TOOL_MAP[t.toolId];
             if (!def?.configFields?.length) return null;
             return (
-              <div key={t.toolId} style={section}>
+              <SectionCard key={t.toolId}>
                 <p style={sectionTitle}>{def.icon} {def.name} — Configuración</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {def.configFields.map((field) => (
@@ -610,6 +1190,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         {field.label} {field.required && <span style={{ color: '#ef4444' }}>*</span>}
                       </label>
                       <input
+                        className="landing-input"
                         style={inp}
                         type={field.key.toLowerCase().includes('token') || field.key.toLowerCase().includes('key') || field.key.toLowerCase().includes('secret') ? 'password' : 'text'}
                         value={(t.config ?? {})[field.key] ?? ''}
@@ -620,17 +1201,22 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                     </div>
                   ))}
                 </div>
-              </div>
+              </SectionCard>
             );
           })}
 
           {!readOnly && (
-          <button onClick={saveTools} disabled={saving} style={{
-            display: 'flex', alignItems: 'center', gap: '8px',
-            padding: '10px 22px', borderRadius: '10px', fontWeight: 700, fontSize: '13px',
-            background: '#6366f1', color: '#fff', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1,
-          }}>
-            {saving ? <Loader2 size={14} style={{ animation: 'spin 0.7s linear infinite' }} /> : <Save size={14} />}
+          <button
+            onClick={saveTools}
+            disabled={saving}
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-opacity"
+            style={{
+              ...BTN_PRIMARY,
+              cursor: saving ? 'not-allowed' : 'pointer',
+              opacity: saving ? 0.7 : 1,
+            }}
+          >
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
             Guardar herramientas
           </button>
           )}
@@ -641,21 +1227,20 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       {tab === 'rag' && (
         <>
           {!limits.ragEnabled ? (
-            <div style={{ ...section, textAlign: 'center', padding: '40px' }}>
+            <SectionCard innerStyle={{ textAlign: 'center', padding: '36px 20px' }}>
               <Lock size={32} style={{ color: 'var(--muted-foreground)', margin: '0 auto 12px' }} />
               <p style={{ fontWeight: 700, marginBottom: '6px' }}>RAG no disponible en tu plan</p>
               <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', marginBottom: '16px' }}>
                 Activa un plan Starter o superior para agregar conocimiento personalizado a tus agentes.
               </p>
-              <Link href="/dashboard" style={{
-                display: 'inline-flex', padding: '8px 20px', borderRadius: '10px',
-                fontWeight: 700, fontSize: '13px', background: '#6366f1', color: '#fff', textDecoration: 'none',
-              }}>Ver planes →</Link>
-            </div>
+              <Link href="/dashboard" className="landing-btn-primary !inline-flex !w-auto no-underline text-sm px-5 py-2 rounded-xl">
+                Ver planes →
+              </Link>
+            </SectionCard>
           ) : (
             <>
               {/* Toggle + description */}
-              <div style={section}>
+              <SectionCard>
                 <p style={sectionTitle}>RAG — Base de conocimiento</p>
                 <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', marginBottom: '16px' }}>
                   Sube archivos o agrega texto/URLs para que el agente responda con información precisa de tu negocio.
@@ -664,7 +1249,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: readOnly ? 'default' : 'pointer' }}>
                   <div onClick={() => !readOnly && setRagEnabled(!ragEnabled)} style={{
                     width: 40, height: 22, borderRadius: 11, position: 'relative', cursor: readOnly ? 'not-allowed' : 'pointer',
-                    background: ragEnabled ? '#6366f1' : 'var(--border)', transition: 'background 0.2s',
+                    background: ragEnabled ? `linear-gradient(90deg, ${R}, ${O})` : 'var(--border)', transition: 'background 0.2s',
                     opacity: readOnly ? 0.75 : 1,
                   }}>
                     <div style={{
@@ -677,21 +1262,26 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   </span>
                 </label>
                 {ragEnabled && !readOnly && (
-                  <button onClick={saveRag} disabled={saving} style={{
-                    marginTop: '14px', display: 'inline-flex', alignItems: 'center', gap: '6px',
-                    padding: '7px 16px', borderRadius: '8px', fontWeight: 700, fontSize: '12px',
-                    background: '#6366f1', color: '#fff', border: 'none', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1,
-                  }}>
-                    {saving ? <Loader2 size={13} style={{ animation: 'spin 0.7s linear infinite' }} /> : <Save size={13} />}
+                  <button
+                    onClick={saveRag}
+                    disabled={saving}
+                    className="mt-3.5 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs transition-opacity"
+                    style={{
+                      ...BTN_PRIMARY,
+                      cursor: saving ? 'not-allowed' : 'pointer',
+                      opacity: saving ? 0.7 : 1,
+                    }}
+                  >
+                    {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                     Guardar
                   </button>
                 )}
-              </div>
+              </SectionCard>
 
               {ragEnabled && (
                 <>
                   {/* Upload zone */}
-                  <div style={section}>
+                  <SectionCard bar="bo">
                     <p style={sectionTitle}>Subir archivos</p>
 
                     {/* Drag-and-drop zone */}
@@ -700,9 +1290,9 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       onDragLeave={() => setDragOver(false)}
                       onDrop={readOnly ? undefined : handleFileDrop}
                       style={{
-                        border: `2px dashed ${dragOver ? '#6366f1' : 'var(--border)'}`,
+                        border: `2px dashed ${dragOver ? R : 'var(--border)'}`,
                         borderRadius: '12px', padding: '32px 20px', textAlign: 'center',
-                        background: dragOver ? 'rgba(99,102,241,0.05)' : 'transparent',
+                        background: dragOver ? 'rgba(228,20,20,0.05)' : 'transparent',
                         transition: 'all 0.15s', cursor: readOnly ? 'not-allowed' : 'pointer', marginBottom: '14px',
                         pointerEvents: readOnly ? 'none' : 'auto', opacity: readOnly ? 0.65 : 1,
                       }}
@@ -717,12 +1307,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       />
                       {uploadingFile ? (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                          <Loader2 size={28} style={{ color: '#6366f1', animation: 'spin 0.7s linear infinite' }} />
-                          <p style={{ color: '#6366f1', fontSize: '13px', fontWeight: 600 }}>Procesando archivo...</p>
+                          <Loader2 size={28} className="animate-spin" style={{ color: R }} />
+                          <p style={{ color: R, fontSize: '13px', fontWeight: 600 }}>Procesando archivo...</p>
                         </div>
                       ) : (
                         <>
-                          <Upload size={28} style={{ color: dragOver ? '#6366f1' : 'var(--muted-foreground)', margin: '0 auto 10px' }} />
+                          <Upload size={28} style={{ color: dragOver ? R : 'var(--muted-foreground)', margin: '0 auto 10px' }} />
                           <p style={{ fontWeight: 700, fontSize: '13px', marginBottom: '4px' }}>
                             Arrastra un archivo aquí o haz clic para seleccionar
                           </p>
@@ -763,10 +1353,10 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         <button onClick={() => setUploadErr('')} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}><X size={12} /></button>
                       </div>
                     )}
-                  </div>
+                  </SectionCard>
 
                   {/* Sources list */}
-                  <div style={section}>
+                  <SectionCard>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
                       <p style={{ ...sectionTitle, margin: 0 }}>
                         Fuentes ({ragSources.length}/20)
@@ -789,17 +1379,17 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         {ragSources.map((src, i) => {
                           if (src.type === 'file') {
                             // File source — read-only display
-                            const catIcon: Record<string, React.ReactNode> = {
+                            const catIcon: Record<string, ReactNode> = {
                               pdf: <FileText size={16} style={{ color: '#ef4444' }} />,
-                              docx: <FileText size={16} style={{ color: '#6366f1' }} />,
+                              docx: <FileText size={16} style={{ color: R }} />,
                               image: <ImageIcon size={16} style={{ color: '#f59e0b' }} />,
-                              text: <AlignLeft size={16} style={{ color: '#0d9488' }} />,
+                              text: <AlignLeft size={16} style={{ color: B }} />,
                             };
                             return (
                               <div key={src.fileId ?? i} style={{
                                 display: 'flex', alignItems: 'flex-start', gap: '10px',
                                 padding: '12px 14px', border: '1px solid var(--border)', borderRadius: '10px',
-                                background: 'rgba(99,102,241,0.03)',
+                                background: 'rgba(228,20,20,0.03)',
                               }}>
                                 <div style={{ flexShrink: 0, marginTop: 2 }}>
                                   {catIcon[src.fileCategory ?? ''] ?? <File size={16} style={{ color: 'var(--muted-foreground)' }} />}
@@ -837,8 +1427,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                             <div key={i} style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
                               <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
                                 {src.type === 'url'
-                                  ? <Link2 size={14} style={{ color: '#6366f1', flexShrink: 0 }} />
-                                  : <AlignLeft size={14} style={{ color: '#0d9488', flexShrink: 0 }} />
+                                  ? <Link2 size={14} style={{ color: R, flexShrink: 0 }} />
+                                  : <AlignLeft size={14} style={{ color: B, flexShrink: 0 }} />
                                 }
                                 <select
                                   value={src.type}
@@ -892,17 +1482,21 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
                     {/* Save button for manual text/url sources */}
                     {!readOnly && ragSources.some((s) => s.type !== 'file') && (
-                      <button onClick={saveRag} disabled={saving} style={{
-                        marginTop: '14px', display: 'flex', alignItems: 'center', gap: '8px',
-                        padding: '9px 20px', borderRadius: '10px', fontWeight: 700, fontSize: '13px',
-                        background: '#6366f1', color: '#fff', border: 'none',
-                        cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1,
-                      }}>
-                        {saving ? <Loader2 size={13} style={{ animation: 'spin 0.7s linear infinite' }} /> : <Save size={13} />}
+                      <button
+                        onClick={saveRag}
+                        disabled={saving}
+                        className="mt-3.5 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-opacity"
+                        style={{
+                          ...BTN_PRIMARY,
+                          cursor: saving ? 'not-allowed' : 'pointer',
+                          opacity: saving ? 0.7 : 1,
+                        }}
+                      >
+                        {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                         Guardar fuentes de texto/URL
                       </button>
                     )}
-                  </div>
+                  </SectionCard>
                 </>
               )}
             </>
@@ -914,61 +1508,68 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       {tab === 'subagents' && (
         <>
           {limits.subAgentsPerAgent === 0 ? (
-            <div style={{ ...section, textAlign: 'center', padding: '40px' }}>
+            <SectionCard innerStyle={{ textAlign: 'center', padding: '36px 20px' }}>
               <Network size={32} style={{ color: 'var(--muted-foreground)', margin: '0 auto 12px' }} />
               <p style={{ fontWeight: 700, marginBottom: '6px' }}>Sub-agentes no disponibles en tu plan</p>
               <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', marginBottom: '16px' }}>
                 Los sub-agentes permiten orquestar múltiples especialistas bajo un agente principal. Disponible desde el plan Starter.
               </p>
-              <Link href="/dashboard" style={{
-                display: 'inline-flex', padding: '8px 20px', borderRadius: '10px',
-                fontWeight: 700, fontSize: '13px', background: '#6366f1', color: '#fff', textDecoration: 'none',
-              }}>Ver planes →</Link>
-            </div>
+              <Link href="/dashboard" className="landing-btn-primary !inline-flex !w-auto no-underline text-sm px-5 py-2 rounded-xl">
+                Ver planes →
+              </Link>
+            </SectionCard>
           ) : (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div>
-                  <p style={{ fontWeight: 700, margin: '0 0 2px' }}>Orquestación y sub-agentes</p>
+                  <p className="font-bold m-0 mb-0.5">Orquestación y sub-agentes</p>
                   <p style={{ color: 'var(--muted-foreground)', fontSize: '12px', margin: 0 }}>
                     {subAgents.length}/{limits.subAgentsPerAgent} sub-agentes
                   </p>
                 </div>
                 {subAgents.length < limits.subAgentsPerAgent && !showNewSub && (
-                  <button onClick={() => setShowNewSub(true)} style={{
-                    display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px',
-                    borderRadius: '10px', border: 'none', background: '#6366f1', color: '#fff',
-                    fontWeight: 700, fontSize: '12px', cursor: 'pointer',
-                  }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewSub(true)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs transition-opacity"
+                    style={{ ...BTN_PRIMARY, cursor: 'pointer' }}
+                  >
                     <Plus size={13} /> Agregar sub-agente
                   </button>
                 )}
               </div>
 
               {showNewSub && !readOnly && (
-                <div style={{ ...section, border: '1px solid rgba(99,102,241,0.3)' }}>
+                <SectionCard outerStyle={{ borderColor: 'rgba(228,20,20,0.35)' }}>
                   <p style={sectionTitle}>Nuevo sub-agente</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <input style={inp} value={subName} onChange={(e) => setSubName(e.target.value)} placeholder="Nombre del sub-agente (ej: Especialista en facturación)" />
-                    <select style={inp} value={subModel} onChange={(e) => setSubModel(e.target.value)}>
+                    <input className="landing-input" style={inp} value={subName} onChange={(e) => setSubName(e.target.value)} placeholder="Nombre del sub-agente (ej: Especialista en facturación)" />
+                    <select className="landing-input" style={inp} value={subModel} onChange={(e) => setSubModel(e.target.value)}>
                       {displayModels.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.provider})</option>)}
                     </select>
                     <textarea
+                      className="landing-input"
                       style={{ ...inp, minHeight: '100px', resize: 'vertical', fontFamily: 'inherit' }}
                       value={subPrompt}
                       onChange={(e) => setSubPrompt(e.target.value)}
                       placeholder="System prompt del sub-agente: Define su especialización específica..."
                     />
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <button onClick={createSubAgent} disabled={creatingSubAgent || !subName.trim() || !subPrompt.trim()} style={{
-                        display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 18px',
-                        borderRadius: '8px', border: 'none', background: '#6366f1', color: '#fff',
-                        fontWeight: 700, fontSize: '12px', cursor: 'pointer', opacity: (!subName.trim() || !subPrompt.trim()) ? 0.6 : 1,
-                      }}>
-                        {creatingSubAgent ? <Loader2 size={13} style={{ animation: 'spin 0.7s linear infinite' }} /> : <Plus size={13} />}
+                      <button
+                        type="button"
+                        onClick={createSubAgent}
+                        disabled={creatingSubAgent || !subName.trim() || !subPrompt.trim()}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs transition-opacity"
+                        style={{
+                          ...BTN_PRIMARY,
+                          cursor: 'pointer',
+                          opacity: (!subName.trim() || !subPrompt.trim()) ? 0.6 : 1,
+                        }}
+                      >
+                        {creatingSubAgent ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
                         Crear
                       </button>
-                      <button onClick={() => setShowNewSub(false)} style={{
+                      <button type="button" onClick={() => setShowNewSub(false)} style={{
                         padding: '8px 16px', borderRadius: '8px', border: '1px solid var(--border)',
                         background: 'transparent', fontSize: '12px', cursor: 'pointer',
                       }}>
@@ -976,28 +1577,29 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       </button>
                     </div>
                   </div>
-                </div>
+                </SectionCard>
               )}
 
               {subAgents.length === 0 && !showNewSub ? (
-                <div style={{ ...section, textAlign: 'center', padding: '32px' }}>
+                <SectionCard innerStyle={{ textAlign: 'center', padding: '28px 16px' }}>
                   <Network size={28} style={{ color: 'var(--muted-foreground)', margin: '0 auto 10px' }} />
-                  <p style={{ color: 'var(--muted-foreground)', fontSize: '13px' }}>
+                  <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', margin: 0 }}>
                     Sin sub-agentes aún. Agrega especialistas para orquestar tareas complejas.
                   </p>
-                </div>
+                </SectionCard>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {subAgents.map((sa) => (
-                    <div key={sa._id} style={{
-                      display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px',
-                      background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px',
-                    }}>
-                      <div style={{
-                        width: 34, height: 34, borderRadius: '8px', background: 'rgba(99,102,241,0.1)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                      }}>
-                        <Bot size={16} style={{ color: '#6366f1' }} />
+                    <div
+                      key={sa._id}
+                      className="flex items-center gap-3 px-4 py-3.5 rounded-2xl border card-texture card-hover"
+                      style={{ borderColor: 'var(--border)' }}
+                    >
+                      <div
+                        className="w-[34px] h-[34px] rounded-lg flex items-center justify-center shrink-0 border"
+                        style={{ background: `${R}14`, borderColor: `${R}28` }}
+                      >
+                        <Bot size={16} style={{ color: R }} strokeWidth={1.75} />
                       </div>
                       <div style={{ flex: 1 }}>
                         <p style={{ margin: 0, fontWeight: 700, fontSize: '13px' }}>{sa.name}</p>
@@ -1010,10 +1612,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       }}>
                         {sa.status === 'active' ? 'Activo' : 'Desactivado'}
                       </span>
-                      <Link href={`/dashboard/agents/${sa._id}`} style={{
-                        padding: '5px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 600,
-                        color: '#6366f1', background: 'rgba(99,102,241,0.08)', textDecoration: 'none',
-                      }}>
+                      <Link
+                        href={`/dashboard/agents/${sa._id}`}
+                        className="landing-link-accent no-underline text-[11px] font-semibold px-2.5 py-1.5 rounded-lg shrink-0"
+                        style={{ background: `${R}14` }}
+                      >
                         Configurar
                       </Link>
                     </div>
@@ -1024,6 +1627,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           )}
         </>
       )}
+      </div>
     </div>
   );
 }

@@ -15,9 +15,9 @@ import {
 } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Demos | AgentFlow',
+  title: 'Demos | MatIAs',
   description:
-    'Prueba la API, el playground, agentes de ejemplo y el panel demo. Todo lo necesario para ver AgentFlow en acción.',
+    'Prueba la API, el playground, agentes de ejemplo y el panel demo. Todo lo necesario para verMatIAsen acción.',
 };
 
 type DemoItem = {
@@ -74,19 +74,13 @@ export default function DemosPage() {
       <Navbar />
 
       <section className="relative pt-28 pb-16 md:pt-36 md:pb-24 px-6 overflow-hidden">
-        <div className="hero-glow" style={{ background: '#0d9488', top: '-180px', left: '8%' }} />
-        <div className="hero-glow" style={{ background: '#6366f1', top: '-80px', right: '0%' }} />
+        <div className="hero-glow" style={{ background: 'var(--gradient-start)', top: '-180px', left: '8%' }} />
+        <div className="hero-glow" style={{ background: 'var(--accent-warm)', top: '-80px', right: '0%' }} />
+        <div className="hero-glow" style={{ background: 'var(--accent)', top: '180px', left: '42%' }} />
 
         <div className="relative max-w-4xl mx-auto text-center">
-          <div
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-8"
-            style={{
-              background: 'rgba(99,102,241,0.1)',
-              color: '#6366f1',
-              border: '1px solid rgba(99,102,241,0.2)',
-            }}
-          >
-            <Sparkles size={14} />
+          <div className="badge-primary mb-8 mx-auto w-fit">
+            <Sparkles size={13} />
             Demos y entornos de prueba
           </div>
 
@@ -96,7 +90,7 @@ export default function DemosPage() {
           </h1>
 
           <p className="mt-6 text-lg md:text-xl max-w-2xl mx-auto" style={{ color: 'var(--muted-foreground)' }}>
-            Explora AgentFlow sin fricción: playground de API, agente de muestra, documentación y el panel demo. Si
+            ExploraMatIAssin fricción: playground de API, agente de muestra, documentación y el panel demo. Si
             desarrollas en local, arranca también el <strong className="text-foreground">gateway</strong> y el backend
             para que el Playground responda.
           </p>
@@ -105,7 +99,10 @@ export default function DemosPage() {
             <Link
               href="/playground"
               className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl text-white font-semibold text-sm transition-all hover:shadow-xl hover:scale-[1.02]"
-              style={{ background: 'linear-gradient(135deg, #0d9488, #6366f1)' }}
+              style={{
+                background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))',
+                boxShadow: '0 4px 20px rgba(228,20,20,0.28)',
+              }}
             >
               <Code2 size={18} />
               Abrir Playground
@@ -126,7 +123,7 @@ export default function DemosPage() {
         <div className="max-w-6xl mx-auto">
           <div className="mb-12 max-w-2xl">
             <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-              <MessageSquareCode className="h-7 w-7 text-teal-600" />
+              <MessageSquareCode className="h-7 w-7 shrink-0" style={{ color: 'var(--primary)' }} />
               Qué puedes probar
             </h2>
             <p className="mt-3" style={{ color: 'var(--muted-foreground)' }}>
@@ -140,7 +137,7 @@ export default function DemosPage() {
               <Link
                 key={d.href}
                 href={d.href}
-                className="group rounded-2xl p-6 md:p-8 text-left transition-all hover:shadow-lg hover:-translate-y-0.5"
+                className="group rounded-2xl p-6 md:p-8 text-left transition-all card-hover"
                 style={{
                   background: 'var(--card)',
                   border: '1px solid var(--border)',
@@ -149,14 +146,14 @@ export default function DemosPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div
                     className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl"
-                    style={{ background: 'rgba(13,148,136,0.12)', color: '#0d9488' }}
+                    style={{ background: 'rgba(228,20,20,0.1)', border: '1px solid rgba(228,20,20,0.2)', color: 'var(--primary)' }}
                   >
                     {d.icon}
                   </div>
                   {d.badge && (
                     <span
                       className="text-xs font-semibold px-2.5 py-1 rounded-md"
-                      style={{ background: 'rgba(99,102,241,0.12)', color: '#6366f1' }}
+                      style={{ background: 'rgba(0,172,248,0.12)', color: 'var(--accent)' }}
                     >
                       {d.badge}
                     </span>
@@ -168,7 +165,7 @@ export default function DemosPage() {
                 </p>
                 <span
                   className="inline-flex items-center gap-1.5 mt-4 text-sm font-semibold"
-                  style={{ color: '#0d9488' }}
+                  style={{ color: 'var(--primary)' }}
                 >
                   Entrar
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -187,11 +184,14 @@ export default function DemosPage() {
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
-              href="/dashboard"
+              href="/register"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white font-semibold text-sm"
-              style={{ background: 'linear-gradient(135deg, #0d9488, #6366f1)' }}
+              style={{
+                background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))',
+                boxShadow: '0 4px 16px rgba(228,20,20,0.22)',
+              }}
             >
-              Ir al dashboard
+              Crear cuenta gratis
             </Link>
             <Link
               href="/pricing"

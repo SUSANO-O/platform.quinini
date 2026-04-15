@@ -62,7 +62,7 @@ const USE_CASES = [
 
 export default function GeoeconomicsLandingPage() {
   useEffect(() => {
-    // Load the Widget SDK
+    // Load the Widget API
     const script = document.createElement('script');
     script.src = `${window.location.protocol}//${window.location.hostname}:9002/widget.js`;
     script.onload = () => {
@@ -262,12 +262,12 @@ export default function GeoeconomicsLandingPage() {
         </div>
       </section>
 
-      {/* Widget SDK embed section */}
+      {/* Widget API embed section */}
       <section className="py-24 px-6" style={{ background: 'var(--muted)' }}>
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl font-bold mb-4">Embede el agente en tu sitio</h2>
           <p className="mb-8" style={{ color: 'var(--muted-foreground)' }}>
-            Usa el Widget SDK para agregar el analista geoeconómico a cualquier página web.
+            Usa el Widget API para agregar el analista geoeconómico a cualquier página web.
           </p>
 
           <div className="rounded-2xl overflow-hidden text-left" style={{ border: '1px solid var(--border)' }}>

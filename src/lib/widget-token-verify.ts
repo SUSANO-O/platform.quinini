@@ -16,22 +16,22 @@ function normalizeAgentField(v: unknown): string {
 export async function findWidgetForWtToken(
   token: string,
   widgetId?: string,
-): Promise<{ agentId: unknown } | null> {
+): Promise<{ agentId: unknown; userId: string } | null> {
   const t = token.trim();
   if (!t.startsWith('wt_')) return null;
 
   if (widgetId && mongoose.Types.ObjectId.isValid(widgetId)) {
-    const w = await Widget.findById(widgetId).select({ agentId: 1, afhubToken: 1 }).lean();
+    const w = await Widget.findById(widgetId).select({ agentId: 1, userId: 1, afhubToken: 1 }).lean();
     if (w) {
       const stored = w.afhubToken != null ? String(w.afhubToken).trim() : '';
       if (stored && stored !== t) return null;
-      return { agentId: w.agentId };
+      return { agentId: w.agentId, userId: String(w.userId) };
     }
     // widgetId inválido o doc borrado: intentar solo por token
   }
 
-  const w = await Widget.findOne({ afhubToken: t }).select({ agentId: 1 }).lean();
-  return w ? { agentId: w.agentId } : null;
+  const w = await Widget.findOne({ afhubToken: t }).select({ agentId: 1, userId: 1 }).lean();
+  return w ? { agentId: w.agentId, userId: String(w.userId) } : null;
 }
 
 /**

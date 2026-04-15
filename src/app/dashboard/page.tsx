@@ -2,200 +2,245 @@
 
 import { useAuth } from '@/hooks/use-auth';
 import { useSubscription } from '@/hooks/use-subscription';
+import { QuotaTopupBanner } from '@/components/dashboard/quota-topup-banner';
+import { SubscriptionStatusHero } from '@/components/dashboard/subscription-status-hero';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { Cpu, Boxes, Zap, Clock, CheckCircle, Bot } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Cpu, Boxes, Zap, Clock, CheckCircle, Bot, Sparkles } from 'lucide-react';
+
+interface UsageData {
+  used: number;
+  limit: number;
+  percentUsed: number;
+  plan: string;
+  activePacks: { packId: string; remaining: number; total: number; expiresAt: string }[];
+}
+
+/* Misma lógica de color que el index (#e41414 y familia) */
+const R = '#e41414';
+const O = '#f87600';
+const B = '#00acf8';
 
 const PLANS = [
-  { id: 'starter', name: 'Starter', price: '$19/mes', widgets: 3, agents: 2, requests: '50k req/mes', color: '#0d9488' },
-  { id: 'growth', name: 'Growth', price: '$49/mes', widgets: 6, agents: 5, requests: '200k req/mes', color: '#6366f1', popular: true },
-  { id: 'business', name: 'Business', price: '$129/mes', widgets: 12, agents: 15, requests: 'Ilimitado', color: '#a855f7' },
-];
+  { id: 'starter', name: 'Starter', price: '$19', priceSuffix: '/mes', widgets: 3, agents: 2, requests: '50k req/mes', color: B, popular: false },
+  { id: 'growth', name: 'Growth', price: '$49', priceSuffix: '/mes', widgets: 6, agents: 5, requests: '200k req/mes', color: R, popular: true },
+  { id: 'business', name: 'Business', price: '$129', priceSuffix: '/mes', widgets: 12, agents: 15, requests: 'Ilimitado', color: O, popular: false },
+] as const;
+
+const QUICK = [
+  { href: '/dashboard/widget-builder', icon: Cpu, title: 'Widget Builder', desc: 'Diseña y configura tu chat widget', color: R, external: false },
+  { href: '/dashboard/widgets', icon: Boxes, title: 'Mis Widgets', desc: 'Gestiona tus widgets creados', color: B, external: false },
+  { href: '/dashboard/agents', icon: Bot, title: 'Mis Agentes', desc: 'Crea y configura tus agentes de IA', color: O, external: false },
+  { href: '/widget', icon: Zap, title: 'Docs SDK', desc: 'Guía de integración del Widget API', color: B, external: true },
+] as const;
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
   const { hasAccess, isPremium, isTrialActive, trialDaysRemaining, subscription, startCheckout, loading } = useSubscription();
   const cancelScheduled = Boolean(subscription?.cancelAtPeriodEnd);
+  const [usage, setUsage] = useState<UsageData | null>(null);
 
   useEffect(() => {
     if (user?.role === 'admin') router.replace('/admin');
   }, [user, router]);
 
+  useEffect(() => {
+    if (!user) return;
+    fetch('/api/billing/usage')
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => d && setUsage(d))
+      .catch(() => {});
+  }, [user]);
+
   const trialUrgent = trialDaysRemaining <= 2;
 
   return (
-    <div style={{ padding: '32px', maxWidth: '900px' }}>
-      <h1 style={{ fontSize: '26px', fontWeight: 800, marginBottom: '4px' }}>
-        Bienvenido, {user?.displayName || user?.email?.split('@')[0]} 👋
-      </h1>
-      <p style={{ color: 'var(--muted-foreground)', fontSize: '14px', marginBottom: '32px' }}>
-        Panel de control de AgentFlow
-      </p>
+    <div className="relative overflow-hidden" style={{ minHeight: '100%' }}>
+      <div className="hero-glow pointer-events-none" style={{ background: R, top: '-200px', right: '-80px' }} />
+      <div className="hero-glow pointer-events-none" style={{ background: B, top: '120px', left: '-100px' }} />
 
-      {/* Subscription status banner */}
-      {!loading && (
-        <div style={{
-          borderRadius: '14px', padding: '20px 24px', marginBottom: '32px',
-          background: isPremium
-            ? 'linear-gradient(135deg, rgba(13,148,136,0.12), rgba(99,102,241,0.12))'
-            : isTrialActive
-              ? trialUrgent ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.08)'
-              : 'rgba(239,68,68,0.08)',
-          border: `1px solid ${isPremium ? 'rgba(13,148,136,0.25)' : (trialUrgent || !isTrialActive) ? 'rgba(239,68,68,0.25)' : 'rgba(245,158,11,0.25)'}`,
-          display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap',
-        }}>
-          <div style={{ fontSize: '28px' }}>
-            {isPremium ? '✅' : isTrialActive ? (trialUrgent ? '⚠️' : '⏳') : '🔒'}
-          </div>
-          <div style={{ flex: 1 }}>
-            {isPremium ? (
-              <>
-                <p style={{ fontWeight: 700, fontSize: '15px', marginBottom: '2px' }}>
-                  Plan activo: <span style={{ textTransform: 'capitalize' }}>{subscription?.plan}</span>
-                </p>
-                <p style={{ color: 'var(--muted-foreground)', fontSize: '13px' }}>Tu suscripción está activa.</p>
-              </>
-            ) : isTrialActive ? (
-              <>
-                <p style={{ fontWeight: 700, fontSize: '15px', marginBottom: '2px', color: trialUrgent ? '#ef4444' : '#f59e0b' }}>
-                  {trialDaysRemaining === 0 ? 'Último día de trial' : `Trial: ${trialDaysRemaining} día${trialDaysRemaining !== 1 ? 's' : ''} restante${trialDaysRemaining !== 1 ? 's' : ''}`}
-                </p>
-                <p style={{ color: 'var(--muted-foreground)', fontSize: '13px' }}>
-                  {trialUrgent ? '¡Tu prueba está por vencer! Suscríbete para no perder el acceso.' : 'Estás usando el período de prueba gratuita de 5 días.'}
-                </p>
-              </>
-            ) : (
-              <>
-                <p style={{ fontWeight: 700, fontSize: '15px', marginBottom: '2px', color: '#ef4444' }}>Trial vencido</p>
-                <p style={{ color: 'var(--muted-foreground)', fontSize: '13px' }}>
-                  Tu período de prueba ha terminado. Elige un plan para continuar.
-                </p>
-              </>
-            )}
-          </div>
-          {!isPremium && (
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {PLANS.map((plan) => (
-                <button
-                  key={plan.id}
-                  onClick={() => startCheckout(plan.id)}
+      <div className="relative px-6 py-10 max-w-4xl mx-auto">
+        {usage && (
+          <QuotaTopupBanner
+            percentUsed={usage.percentUsed}
+            used={usage.used}
+            limit={usage.limit}
+            plan={usage.plan}
+            activePacks={usage.activePacks}
+          />
+        )}
+        <div className="badge-primary mb-5 w-fit">Panel</div>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight" style={{ letterSpacing: '-0.02em' }}>
+          Bienvenido,{' '}
+          <span className="gradient-text">{user?.displayName || user?.email?.split('@')[0]}</span>
+          <span className="text-foreground"> 👋</span>
+        </h1>
+        <p className="text-sm mt-1 mb-10" style={{ color: 'var(--muted-foreground)' }}>
+          Panel de control de tu cuenta ¿que vas a hacer hoy?.
+        </p>
+
+        <SubscriptionStatusHero
+          loading={loading}
+          isPremium={isPremium}
+          isTrialActive={isTrialActive}
+          trialUrgent={trialUrgent}
+          trialDaysRemaining={trialDaysRemaining}
+          subscription={
+            subscription
+              ? {
+                  plan: subscription.plan,
+                  currentPeriodEnd: subscription.currentPeriodEnd,
+                  cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+                }
+              : null
+          }
+          plans={PLANS}
+          onCheckout={startCheckout}
+          celebrationGifSrc={process.env.NEXT_PUBLIC_SUBSCRIPTION_HERO_GIF}
+        />
+
+        {/* Accesos rápidos */}
+        <div className="grid sm:grid-cols-2 gap-4 mb-12">
+          {QUICK.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              target={item.external ? '_blank' : undefined}
+              rel={item.external ? 'noopener noreferrer' : undefined}
+              className="card-hover rounded-2xl overflow-hidden no-underline text-inherit group border"
+              style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
+            >
+              <div style={{ height: 3, background: `linear-gradient(90deg, ${item.color}, ${item.color}88)` }} />
+              <div className="p-5">
+                <div
+                  className="w-11 h-11 rounded-xl flex items-center justify-center mb-3 transition-transform group-hover:scale-105"
                   style={{
-                    padding: '8px 16px', borderRadius: '10px', fontWeight: 700, fontSize: '13px',
-                    background: plan.color, color: '#fff', border: 'none', cursor: 'pointer',
+                    background: `${item.color}12`,
+                    border: `1px solid ${item.color}28`,
                   }}
                 >
-                  {plan.name} {plan.price}
-                </button>
+                  <item.icon size={20} style={{ color: item.color }} strokeWidth={1.75} />
+                </div>
+                <p className="font-bold text-[15px] mb-1">{item.title}</p>
+                <p className="text-xs leading-relaxed m-0" style={{ color: 'var(--muted-foreground)' }}>
+                  {item.desc}
+                </p>
+              </div>
+            </Link>
+          ))}
+        </div>
+
+        {isPremium && !cancelScheduled && (
+          <div className="mb-10">
+            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+              Cambios de plan aplican proration automática en Stripe. Facturas y método de pago:{' '}
+              <Link href="/dashboard/settings" className="font-bold landing-link-accent">
+                Ajustes → Suscripción
+              </Link>
+            </p>
+          </div>
+        )}
+
+        {/* Planes (promo) */}
+        {!isPremium && (
+          <section
+            className="rounded-2xl border p-6 md:p-8 -mx-1"
+            style={{ background: 'var(--muted)', borderColor: 'var(--border)' }}
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Sparkles size={16} style={{ color: R }} />
+              <h2 className="text-lg md:text-xl font-bold m-0">Elige tu plan</h2>
+            </div>
+            <p className="text-sm mb-6 m-0" style={{ color: 'var(--muted-foreground)' }}>
+              Sin contratos. Cancela cuando quieras — precios alineados con la landing pública.
+            </p>
+
+            <div className="grid sm:grid-cols-3 gap-4 md:gap-5">
+              {PLANS.map((plan) => (
+                <div
+                  key={plan.id}
+                  className="rounded-2xl p-6 relative pt-7 border"
+                  style={{
+                    backgroundImage: plan.popular
+                      ? `linear-gradient(145deg, rgba(228,20,20,0.05), rgba(248,118,0,0.05)), radial-gradient(circle, rgba(0,0,0,0.05) 1px, transparent 1px)`
+                      : `radial-gradient(circle, rgba(0,0,0,0.06) 1px, transparent 1px)`,
+                    backgroundSize: plan.popular ? 'auto, 20px 20px' : '20px 20px',
+                    backgroundColor: 'var(--card)',
+                    borderColor: plan.popular ? plan.color : 'var(--border)',
+                    boxShadow: plan.popular ? '0 8px 28px rgba(228,20,20,0.1)' : undefined,
+                  }}
+                >
+                  {plan.popular && (
+                    <div
+                      className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full"
+                      style={{
+                        top: '-12px',
+                        background: `linear-gradient(135deg, ${R}, ${O})`,
+                      }}
+                    >
+                      Más popular
+                    </div>
+                  )}
+                  <p className="font-extrabold text-lg mb-0">{plan.name}</p>
+                  <div className="flex items-end gap-1 mb-4 mt-2">
+                    <span className="text-3xl font-extrabold" style={{ color: plan.color }}>
+                      {plan.price}
+                    </span>
+                    <span className="text-xs pb-1" style={{ color: 'var(--muted-foreground)' }}>
+                      {plan.priceSuffix}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-2 mb-5">
+                    {[`${plan.widgets} widgets`, `${plan.agents} agentes`, plan.requests].map((feat) => (
+                      <div key={feat} className="flex items-center gap-2 text-[13px]">
+                        <CheckCircle size={14} style={{ color: plan.color, flexShrink: 0 }} />
+                        {feat}
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => startCheckout(plan.id)}
+                    className="w-full py-3 rounded-xl font-bold text-sm text-white border-0 cursor-pointer transition-all hover:opacity-95 hover:shadow-lg"
+                    style={{
+                      background: plan.popular ? `linear-gradient(135deg, ${R}, ${O})` : plan.color,
+                      boxShadow: plan.popular ? '0 4px 18px rgba(228,20,20,0.28)' : undefined,
+                    }}
+                  >
+                    Suscribirse
+                  </button>
+                </div>
               ))}
             </div>
-          )}
-        </div>
-      )}
+          </section>
+        )}
 
-      {/* Quick actions */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '40px' }}>
-        <Link href="/dashboard/widget-builder" style={{
-          display: 'block', padding: '20px', borderRadius: '14px', textDecoration: 'none',
-          background: 'linear-gradient(135deg, rgba(13,148,136,0.1), rgba(99,102,241,0.1))',
-          border: '1px solid rgba(13,148,136,0.2)',
-        }}>
-          <Cpu size={24} style={{ color: '#0d9488', marginBottom: '10px' }} />
-          <p style={{ fontWeight: 700, marginBottom: '4px' }}>Widget Builder</p>
-          <p style={{ color: 'var(--muted-foreground)', fontSize: '12px' }}>Diseña y configura tu chat widget</p>
-        </Link>
-
-        <Link href="/dashboard/widgets" style={{
-          display: 'block', padding: '20px', borderRadius: '14px', textDecoration: 'none',
-          background: 'var(--card)', border: '1px solid var(--border)',
-        }}>
-          <Boxes size={24} style={{ color: '#6366f1', marginBottom: '10px' }} />
-          <p style={{ fontWeight: 700, marginBottom: '4px' }}>Mis Widgets</p>
-          <p style={{ color: 'var(--muted-foreground)', fontSize: '12px' }}>Gestiona tus widgets creados</p>
-        </Link>
-
-        <Link href="/dashboard/agents" style={{
-          display: 'block', padding: '20px', borderRadius: '14px', textDecoration: 'none',
-          background: 'var(--card)', border: '1px solid var(--border)',
-        }}>
-          <Bot size={24} style={{ color: '#a855f7', marginBottom: '10px' }} />
-          <p style={{ fontWeight: 700, marginBottom: '4px' }}>Mis Agentes</p>
-          <p style={{ color: 'var(--muted-foreground)', fontSize: '12px' }}>Crea y configura tus agentes de IA</p>
-        </Link>
-
-        <Link href="/widget" target="_blank" style={{
-          display: 'block', padding: '20px', borderRadius: '14px', textDecoration: 'none',
-          background: 'var(--card)', border: '1px solid var(--border)',
-        }}>
-          <Zap size={24} style={{ color: '#f59e0b', marginBottom: '10px' }} />
-          <p style={{ fontWeight: 700, marginBottom: '4px' }}>Docs SDK</p>
-          <p style={{ color: 'var(--muted-foreground)', fontSize: '12px' }}>Guía de integración del Widget SDK</p>
-        </Link>
-      </div>
-
-      {isPremium && !cancelScheduled && (
-        <div style={{ marginBottom: '32px' }}>
-          <p style={{ fontSize: '14px', color: 'var(--muted-foreground)', marginBottom: '8px' }}>
-            Cambios de plan aplican proration automática en Stripe. Facturas y método de pago:{' '}
-            <Link href="/dashboard/settings" style={{ color: '#6366f1', fontWeight: 700 }}>Ajustes → Suscripción</Link>
-          </p>
-        </div>
-      )}
-
-      {/* Plans */}
-      {!isPremium && (
-        <div>
-          <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '4px' }}>Elige tu plan</h2>
-          <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', marginBottom: '20px' }}>Sin contratos, cancela en cualquier momento.</p>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-            {PLANS.map((plan) => (
-              <div key={plan.id} style={{
-                background: 'var(--card)', border: `1px solid ${plan.popular ? plan.color : 'var(--border)'}`,
-                borderRadius: '14px', padding: '24px', position: 'relative',
-              }}>
-                {plan.popular && (
-                  <div style={{
-                    position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)',
-                    background: plan.color, color: '#fff', fontSize: '11px', fontWeight: 700,
-                    padding: '3px 12px', borderRadius: '20px',
-                  }}>Más popular</div>
-                )}
-                <p style={{ fontWeight: 800, fontSize: '18px', marginBottom: '4px' }}>{plan.name}</p>
-                <p style={{ fontSize: '22px', fontWeight: 800, color: plan.color, marginBottom: '16px' }}>{plan.price}</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
-                  {[`${plan.widgets} widgets`, `${plan.agents} agentes`, plan.requests].map((feat) => (
-                    <div key={feat} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
-                      <CheckCircle size={14} style={{ color: plan.color, flexShrink: 0 }} />
-                      {feat}
-                    </div>
-                  ))}
-                </div>
-                <button
-                  onClick={() => startCheckout(plan.id)}
-                  style={{
-                    width: '100%', padding: '10px', borderRadius: '10px', fontWeight: 700,
-                    fontSize: '13px', background: plan.color, color: '#fff', border: 'none', cursor: 'pointer',
-                  }}
-                >
-                  Suscribirse
-                </button>
-              </div>
-            ))}
+        {isTrialActive && !isPremium && (
+          <div
+            className="mt-8 flex items-center gap-3 text-[13px] rounded-xl px-4 py-3 border card-texture"
+            style={{ color: 'var(--muted-foreground)', borderColor: 'var(--border)' }}
+          >
+            <Clock size={16} className="shrink-0" style={{ color: B }} />
+            <span>
+              Trial iniciado el{' '}
+              {subscription?.trialStartedAt
+                ? new Date(subscription.trialStartedAt).toLocaleDateString('es', { day: 'numeric', month: 'long' })
+                : '—'}
+              . Vence el{' '}
+              {subscription?.trialEndsAt
+                ? new Date(subscription.trialEndsAt).toLocaleDateString('es', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })
+                : '—'}
+              .
+            </span>
           </div>
-        </div>
-      )}
-
-      {isTrialActive && !isPremium && (
-        <div style={{ marginTop: '32px', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--muted-foreground)', fontSize: '13px' }}>
-          <Clock size={16} />
-          Trial iniciado el{' '}
-          {subscription?.trialStartedAt ? new Date(subscription.trialStartedAt).toLocaleDateString('es', { day: 'numeric', month: 'long' }) : '—'}.
-          {' '}Vence el{' '}
-          {subscription?.trialEndsAt ? new Date(subscription.trialEndsAt).toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}.
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

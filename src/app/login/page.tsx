@@ -3,6 +3,7 @@
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 
 function LoginForm() {
@@ -24,92 +25,73 @@ function LoginForm() {
     if (result.error) {
       setError(result.error);
     } else {
-      // Admins go to /admin, everyone else to the `from` param or /dashboard
       const destination = result.user?.role === 'admin' ? '/admin' : from;
       router.push(destination);
     }
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--background)', padding: '24px' }}>
-      <div style={{ width: '100%', maxWidth: '420px' }}>
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <Link href="/">
-            <span style={{ fontSize: '28px', fontWeight: 800, background: 'linear-gradient(135deg, #0d9488, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              AgentFlow
-            </span>
+    <div className="landing-auth-wrap">
+      <div className="hero-glow" style={{ background: 'var(--gradient-start)', top: '-200px', left: '8%' }} />
+      <div className="hero-glow" style={{ background: 'var(--accent-warm)', top: '-100px', right: '5%' }} />
+      <div className="hero-glow" style={{ background: 'var(--accent)', top: '40%', left: '45%' }} />
+
+      <div className="relative w-full max-w-[420px]">
+        <div className="text-center mb-8">
+          <Link href="/" className="inline-flex flex-col items-center gap-3 no-underline">
+            <Image src="/t.jpg" alt="MatIAs" width={56} height={56} className="rounded-xl object-cover shadow-md" style={{ aspectRatio: '1/1' }} />
+            <span className="text-2xl font-bold gradient-text">MatIAs</span>
           </Link>
-          <p style={{ marginTop: '8px', color: 'var(--muted-foreground)', fontSize: '14px' }}>
+          <p className="mt-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
             Inicia sesión en tu cuenta
           </p>
         </div>
 
-        {/* Card */}
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '32px' }}>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div className="landing-card p-8">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Email</label>
+              <label className="block text-[13px] font-semibold mb-1.5">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="tu@email.com"
-                style={{
-                  width: '100%', padding: '10px 14px', borderRadius: '10px',
-                  border: '1px solid var(--border)', background: 'var(--background)',
-                  color: 'var(--foreground)', fontSize: '14px', boxSizing: 'border-box',
-                  outline: 'none',
-                }}
+                className="landing-input"
               />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Contraseña</label>
+              <label className="block text-[13px] font-semibold mb-1.5">Contraseña</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 placeholder="••••••••"
-                style={{
-                  width: '100%', padding: '10px 14px', borderRadius: '10px',
-                  border: '1px solid var(--border)', background: 'var(--background)',
-                  color: 'var(--foreground)', fontSize: '14px', boxSizing: 'border-box',
-                  outline: 'none',
-                }}
+                className="landing-input"
               />
             </div>
 
             {error && (
-              <p style={{ color: '#ef4444', fontSize: '13px', background: 'rgba(239,68,68,0.08)', padding: '10px 14px', borderRadius: '8px' }}>
+              <p className="text-[13px] text-red-600 bg-red-500/10 px-3.5 py-2.5 rounded-lg border border-red-500/20">
                 {error}
               </p>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                padding: '12px', borderRadius: '10px', fontWeight: 700, fontSize: '14px',
-                background: 'linear-gradient(135deg, #0d9488, #6366f1)', color: '#fff',
-                border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.7 : 1, transition: 'opacity 0.2s',
-              }}
-            >
-              {loading ? 'Iniciando...' : 'Iniciar Sesión'}
+            <button type="submit" disabled={loading} className="landing-btn-primary">
+              {loading ? 'Iniciando...' : 'Iniciar sesión'}
             </button>
           </form>
         </div>
 
-        <p style={{ textAlign: 'center', marginTop: '12px', fontSize: '13px' }}>
-          <Link href="/forgot-password" style={{ color: 'var(--muted-foreground)', textDecoration: 'none' }}>
+        <p className="text-center mt-3 text-[13px]">
+          <Link href="/forgot-password" className="landing-link-accent opacity-90 hover:opacity-100">
             ¿Olvidaste tu contraseña?
           </Link>
         </p>
-        <p style={{ textAlign: 'center', marginTop: '8px', fontSize: '14px', color: 'var(--muted-foreground)' }}>
+        <p className="text-center mt-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
           ¿No tienes cuenta?{' '}
-          <Link href="/register" style={{ color: '#0d9488', fontWeight: 600, textDecoration: 'none' }}>
+          <Link href="/register" className="landing-link-accent">
             Regístrate gratis
           </Link>
         </p>

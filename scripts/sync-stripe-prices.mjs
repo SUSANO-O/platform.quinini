@@ -40,7 +40,7 @@ function setEnvKey(text, key, value) {
 }
 
 const PLANS = [
-  { key: 'STRIPE_PRICE_STARTER', cents: 1900, hints: ['starter', 'agentflow starter'] },
+  { key: 'STRIPE_PRICE_STARTER', cents: 1900, hints: ['starter', 'MatIAsstarter'] },
   { key: 'STRIPE_PRICE_GROWTH', cents: 4900, hints: ['growth'] },
   { key: 'STRIPE_PRICE_BUSINESS', cents: 12900, hints: ['business'] },
 ];
