@@ -351,7 +351,7 @@ export function SubscriptionStatusHero({
               <p className="m-0 text-[13px] leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
                 {trialUrgent
                   ? '¡Tu prueba está por vencer! Suscríbete para no perder el acceso.'
-                  : 'Estás usando el período de prueba gratuita de 5 días.'}
+                  : 'Estás usando el período de prueba gratuita de 3 días.'}
               </p>
             </>
           ) : (

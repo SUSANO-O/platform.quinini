@@ -389,8 +389,9 @@ export default function AgentsPage() {
                   Catálogo plataforma
                 </h2>
                 <p className="text-xs m-0 mb-4" style={{ color: 'var(--muted-foreground)' }}>
-                  Agentes globales sincronizados desde el hub. No consumen tu cupo; su edición puede estar
-                  restringida si son de solo lectura.
+                  Agentes globales sincronizados desde el hub. No consumen tu cupo de cantidad de agentes,
+                  pero su uso sí puede consumir cuota de conversaciones (tras el tramo gratis mensual de
+                  plataforma). Su edición puede estar restringida si son de solo lectura.
                 </p>
                 <div className="flex flex-col gap-4">
                   {catalogPlatformAgents.map((agent) => (

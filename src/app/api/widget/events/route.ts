@@ -9,6 +9,9 @@ import {
   getAibackhubBaseUrl,
   hubCreateHeaders,
 } from '@/lib/aibackhub-sync';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
+
+const MAX_EVENT_BODY_BYTES = 8 * 1024; // 8 KB — events are tiny
 
 const ALLOWED_EVENTS = new Set([
   'widget_loaded',
@@ -28,9 +31,20 @@ function corsHeaders(): Record<string, string> {
 }
 
 export async function POST(req: NextRequest) {
+  // ── Rate limit: 120 req/min per IP (analytics flood guard) ──────────────────
+  const ip = getClientIp(req);
+  const rl = checkRateLimit('widget-events', ip, 120, 60_000);
+  if (!rl.success) {
+    // 200 instead of 429 so the SDK (sendBeacon) doesn't log errors in the console
+    return NextResponse.json({ ok: true, dropped: true, reason: 'rate_limited' }, { headers: corsHeaders() });
+  }
+
   let body: Record<string, unknown> = {};
   try {
     const text = await req.text();
+    if (text.length > MAX_EVENT_BODY_BYTES) {
+      return NextResponse.json({ error: 'Payload demasiado grande.' }, { status: 413, headers: corsHeaders() });
+    }
     if (text) body = JSON.parse(text) as Record<string, unknown>;
   } catch {
     return NextResponse.json({ error: 'JSON inválido.' }, { status: 400, headers: corsHeaders() });

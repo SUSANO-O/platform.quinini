@@ -12,6 +12,7 @@ import {
   verifySessionToken,
   IMPERSONATOR_COOKIE,
 } from '@/lib/auth';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 
@@ -39,6 +40,15 @@ async function requireAdmin(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const adminId = await requireAdmin(req);
   if (!adminId) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
+
+  // 20 intentos por admin por hora — limita iteración de userIds si la sesión de admin se compromete
+  const rl = checkRateLimit('admin-impersonate', adminId, 20, 60 * 60 * 1000);
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: 'Demasiados cambios de sesión. Espera antes de volver a intentarlo.' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } },
+    );
+  }
 
   const body = (await req.json().catch(() => null)) as { targetUserId?: string } | null;
   const raw = typeof body?.targetUserId === 'string' ? body.targetUserId.trim() : '';

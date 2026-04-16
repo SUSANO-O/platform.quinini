@@ -46,7 +46,7 @@ export default function RegisterPage() {
             <span className="text-2xl font-bold gradient-text">MatIAs</span>
           </Link>
           <p className="mt-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-            Empieza tu prueba gratuita de 5 días
+            Empieza tu prueba gratuita de 3 días
           </p>
         </div>
 
@@ -59,7 +59,7 @@ export default function RegisterPage() {
         >
           <Sparkles className="shrink-0 mt-0.5" size={18} style={{ color: 'var(--primary)' }} />
           <div>
-            <p className="font-bold text-[13px] m-0">5 días gratis, sin tarjeta</p>
+            <p className="font-bold text-[13px] m-0">3 días gratis, sin tarjeta</p>
             <p className="text-xs m-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
               Acceso completo al Widget Builder y todos los agentes
             </p>
@@ -112,7 +112,7 @@ export default function RegisterPage() {
             </button>
 
             <p className="text-[11px] text-center leading-relaxed m-0" style={{ color: 'var(--muted-foreground)' }}>
-              Al registrarte aceptas los Términos de Servicio. Después de 5 días se requiere suscripción.
+              Al registrarte aceptas los Términos de Servicio. Después de 3 días se requiere suscripción.
             </p>
           </form>
         </div>

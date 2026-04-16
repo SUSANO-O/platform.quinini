@@ -13,6 +13,10 @@ import { findWidgetForWtToken, sentAgentIdMatchesWidget } from '@/lib/widget-tok
 import { trackWidgetChatUsage } from '@/lib/platform-agent-utils';
 import { checkConversationQuota } from '@/lib/quota';
 import { getAgentLimits } from '@/lib/agent-plans';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
+
+/** Max body size accepted from widget SDK (64 KB) */
+const MAX_WIDGET_BODY_BYTES = 64 * 1024;
 
 /** Reintenta con localhost ↔ 127.0.0.1 (a veces solo uno resuelve en Windows). */
 function alternateHubOrigin(base: string): string | null {
@@ -51,9 +55,59 @@ async function fetchHubWidgetChat(
 }
 
 export async function POST(req: NextRequest) {
-  const base = getAgentflowhubBaseUrl();
-  const body = await req.text();
   const origin = req.headers.get('origin') || '*';
+
+  // ── Rate limit paso 1: por IP global — 120/min ───────────────────────────────────
+  // Bloquea floods masivos sin penalizar NAT compartido (oficinas, universidades).
+  // 120/min = 2 req/seg: imposible para un humano, trivial para un bot.
+  const ip = getClientIp(req);
+  const rlGlobal = checkRateLimit('widget-chat-ip', ip, 120, 60_000);
+  if (!rlGlobal.success) {
+    return NextResponse.json(
+      { error: 'Demasiadas solicitudes. Intenta de nuevo más tarde.', code: 'RATE_LIMIT' },
+      { status: 429, headers: { ...cors(origin), 'Retry-After': String(rlGlobal.retryAfter) } },
+    );
+  }
+
+  // ── Body size guard (64 KB max) ──────────────────────────────────────────────────
+  const contentLength = Number(req.headers.get('content-length') || '0');
+  if (contentLength > MAX_WIDGET_BODY_BYTES) {
+    return NextResponse.json(
+      { error: 'Payload demasiado grande.', code: 'PAYLOAD_TOO_LARGE' },
+      { status: 413, headers: cors(origin) },
+    );
+  }
+
+  const base = getAgentflowhubBaseUrl();
+  const rawBody = await req.text();
+
+  // Enforce size after read (content-length puede ser falso o ausente)
+  if (rawBody.length > MAX_WIDGET_BODY_BYTES) {
+    return NextResponse.json(
+      { error: 'Payload demasiado grande.', code: 'PAYLOAD_TOO_LARGE' },
+      { status: 413, headers: cors(origin) },
+    );
+  }
+
+  // ── Rate limit paso 2: IP + agentId — 40/min por widget ─────────────────────────
+  // Igual al límite de AgentFlowhub → esta capa nunca es más restrictiva que la posterior.
+  // Clave compuesta: usuarios de la misma NAT no comparten cupo entre widgets distintos.
+  try {
+    const parsedForRl = JSON.parse(rawBody) as { agentId?: unknown };
+    const agentIdForRl = typeof parsedForRl?.agentId === 'string' ? parsedForRl.agentId.trim().slice(0, 100) : '';
+    if (agentIdForRl) {
+      const rlAgent = checkRateLimit('widget-chat-agent', `${ip}:${agentIdForRl}`, 40, 60_000);
+      if (!rlAgent.success) {
+        return NextResponse.json(
+          { error: 'Demasiadas solicitudes para este widget. Intenta de nuevo más tarde.', code: 'RATE_LIMIT' },
+          { status: 429, headers: { ...cors(origin), 'Retry-After': String(rlAgent.retryAfter) } },
+        );
+      }
+    }
+  } catch {
+    /* body no es JSON válido — se rechazará más adelante al parsear */
+  }
+
   const requestOrigin = req.nextUrl.origin;
 
   // Evita recursión cuando AGENTFLOWHUB_URL apunta al mismo host de la landing.
@@ -75,7 +129,7 @@ export async function POST(req: NextRequest) {
   let parsedWidgetId = '';
   let tokenFromBody = '';
   try {
-    const j = JSON.parse(body) as { agentId?: string; widgetId?: string; token?: string };
+    const j = JSON.parse(rawBody) as { agentId?: string; widgetId?: string; token?: string };
     parsedAgentId = typeof j?.agentId === 'string' ? j.agentId.trim() : '';
     parsedWidgetId = typeof j?.widgetId === 'string' ? j.widgetId.trim() : '';
     tokenFromBody = typeof j?.token === 'string' ? j.token.trim() : '';
@@ -130,8 +184,10 @@ export async function POST(req: NextRequest) {
               { status: 429, headers: cors(origin) },
             );
           }
-        } catch {
-          /* Si falla la comprobación de cuota, dejamos pasar (fail-open) */
+        } catch (quotaErr) {
+          // fail-open: si Mongo no responde el widget sigue funcionando,
+          // pero loggeamos para que las alertas de infraestructura lo detecten
+          console.error('[widget/chat] quota check failed (fail-open):', quotaErr);
         }
 
         // ── Sub-agent limit check ─────────────────────────────────────────
@@ -196,7 +252,7 @@ export async function POST(req: NextRequest) {
   const init: RequestInit = {
     method: 'POST',
     headers,
-    body,
+    body: rawBody,
     signal: AbortSignal.timeout(120_000),
   };
 
@@ -234,7 +290,7 @@ export async function POST(req: NextRequest) {
         : '';
     return NextResponse.json(
       {
-        error: 'No se pudo conectar con AgentFlowhub.',
+        error: 'No esta respondiendo el agente. Por favor, intenta de nuevo',
         code: 'HUB_CHAT_PROXY_FAILED',
         details: msg,
         hubUrl: `${base}/api/widget/chat`,

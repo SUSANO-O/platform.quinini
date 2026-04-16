@@ -3,7 +3,7 @@ import { connectDB } from './db/connection';
 import { Subscription as SubscriptionModel } from './db/models';
 import { PLANS, stripe } from './stripe';
 
-const TRIAL_DAYS = 5;
+const TRIAL_DAYS = 3;
 
 /** Map Stripe subscription.status to values allowed by our Mongoose schema */
 export function mapStripeStatusToDb(stripeStatus: string): string {

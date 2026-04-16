@@ -77,7 +77,7 @@ const PLANS = [
 ];
 
 const HOW = [
-  { step: '01', title: 'Crea tu cuenta',           desc: '5 días gratis, sin tarjeta. Acceso completo al Widget Builder y los 9 agentes.' },
+  { step: '01', title: 'Crea tu cuenta',           desc: '3 días gratis, sin tarjeta. Acceso completo al Widget Builder y los 9 agentes.' },
   { step: '02', title: 'Diseña tu widget',          desc: 'Elige el agente, personaliza colores, textos y posición con el Widget Builder visual.' },
   { step: '03', title: 'Copia el snippet',          desc: 'Un bloque de código. Pégalo en tu HTML y el chat aparece al instante.' },
   { step: '04', title: 'Escala cuando estés listo', desc: 'Actualiza al plan que necesites. Sin contratos, cancela cuando quieras.' },
@@ -98,7 +98,7 @@ export default function LandingPage() {
           {/* Badge */}
           <div className="badge-primary mb-8 mx-auto w-fit">
             <Sparkles size={13} />
-            5 días gratis — sin tarjeta de crédito
+            3 días gratis — sin tarjeta de crédito
           </div>
 
           <h1
@@ -121,7 +121,7 @@ export default function LandingPage() {
               className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl text-white font-semibold text-sm transition-all hover:scale-[1.03]"
               style={{ background: `linear-gradient(135deg, ${R}, ${O})`, boxShadow: `0 4px 20px rgba(228,20,20,0.28)` }}
             >
-              Empezar gratis — 5 días de trial <ArrowRight size={16} />
+              Empezar gratis — 3 días de trial <ArrowRight size={16} />
             </Link>
             <Link
               href="/login"
@@ -359,7 +359,7 @@ export default function LandingPage() {
                       <div className="flex gap-2 items-end">
                         <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-white text-xs font-bold" style={{ background: `linear-gradient(135deg,${R},${O})` }}>M</div>
                         <div className="text-xs px-3 py-2 rounded-2xl rounded-bl-none max-w-[80%]" style={{ background: 'var(--muted)', color: 'var(--foreground)' }}>
-                          El plan Pro incluye agentes ilimitados, analítica avanzada y soporte prioritario. Empieza con <strong>5 días gratis</strong> — sin tarjeta. 🚀
+                          El plan Pro incluye agentes ilimitados, analítica avanzada y soporte prioritario. Empieza con <strong>3 días gratis</strong> — sin tarjeta. 🚀
                         </div>
                       </div>
                     </div>
@@ -389,7 +389,7 @@ export default function LandingPage() {
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold">Precios transparentes</h2>
             <p className="mt-4" style={{ color: 'var(--muted-foreground)' }}>
-              5 días de prueba gratuita en todos los planes. Sin contratos. Cancela cuando quieras.
+              3 días de prueba gratuita en todos los planes. Sin contratos. Cancela cuando quieras.
             </p>
           </div>
 
@@ -441,7 +441,7 @@ export default function LandingPage() {
                   className="block text-center py-3 rounded-xl font-bold text-sm transition-all hover:opacity-90 hover:shadow-lg text-white"
                   style={{ background: plan.popular ? `linear-gradient(135deg, ${R}, ${O})` : plan.color }}
                 >
-                  Empezar gratis — 5 días
+                  Empezar gratis — 3 días
                 </Link>
               </div>
             ))}
@@ -454,7 +454,7 @@ export default function LandingPage() {
         <div className="max-w-3xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-12">Preguntas frecuentes</h2>
           {[
-            { q: '¿Qué incluye el trial de 5 días?',               a: 'Acceso completo al Widget Builder, todos los agentes y el SDK. Sin límites en el período de prueba.' },
+            { q: '¿Qué incluye el trial de 3 días?',               a: 'Acceso completo al Widget Builder, todos los agentes y el SDK. Sin límites en el período de prueba.' },
             { q: '¿Necesito tarjeta de crédito para registrarme?',  a: 'No. Solo email y contraseña. La tarjeta solo se solicita cuando eliges un plan de pago.' },
             { q: '¿Puedo cancelar en cualquier momento?',           a: 'Sí. Sin contratos ni penalizaciones. Cancelas y el acceso continúa hasta el fin del período pagado.' },
             { q: '¿El widget funciona en cualquier sitio web?',     a: 'Sí. Cualquier página HTML. Solo necesitas incluir el script y llamar a window.AgentFlowhub.init().' },
@@ -484,7 +484,7 @@ export default function LandingPage() {
         <div className="relative max-w-2xl mx-auto">
           <h2 className="text-4xl md:text-5xl font-extrabold mb-6">
             Empieza hoy.<br />
-            <span className="gradient-text">5 días gratis.</span>
+            <span className="gradient-text">3 días gratis.</span>
           </h2>
           <p className="text-lg mb-10" style={{ color: 'var(--muted-foreground)' }}>
             Sin tarjeta. Cancela cuando quieras. Tu primer widget activo en minutos.

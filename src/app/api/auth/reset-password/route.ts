@@ -6,8 +6,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { User } from '@/lib/db/models';
 import { hashPassword } from '@/lib/auth';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
+  // 5 intentos por IP por hora — evita enumeración de tokens de reset
+  const ip = getClientIp(req);
+  const rl = checkRateLimit('password-reset', ip, 5, 60 * 60 * 1000);
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: 'Demasiados intentos. Espera antes de volver a intentarlo.' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } },
+    );
+  }
+
   const { token, password } = await req.json();
   if (!token || !password) return NextResponse.json({ error: 'Token y contraseña requeridos.' }, { status: 400 });
 

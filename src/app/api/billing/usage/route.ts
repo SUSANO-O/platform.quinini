@@ -7,7 +7,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken } from '@/lib/auth';
 import { checkConversationQuota } from '@/lib/quota';
 import { connectDB } from '@/lib/db/connection';
-import { ConversationPack } from '@/lib/db/models';
+import { ConversationPack, PlatformUsage } from '@/lib/db/models';
+import { PLATFORM_AGENT_FREE_REQUESTS_PER_USER_MONTH } from '@/lib/agent-plans';
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get('afhub_session')?.value;
@@ -28,6 +29,12 @@ export async function GET(req: NextRequest) {
     ]);
 
     const month = new Date().toISOString().slice(0, 7);
+    const platformRow = await PlatformUsage.findOne({ userId, month })
+      .select({ platformFreeUsed: 1 })
+      .lean() as { platformFreeUsed?: number } | null;
+    const platformFreeUsed = Math.max(0, platformRow?.platformFreeUsed ?? 0);
+    const platformFreeLimit = PLATFORM_AGENT_FREE_REQUESTS_PER_USER_MONTH;
+    const platformFreeRemaining = Math.max(0, platformFreeLimit - platformFreeUsed);
     const percentUsed = quota.limit === -1 ? 0 : Math.round((quota.used / quota.limit) * 100);
 
     return NextResponse.json({
@@ -39,6 +46,9 @@ export async function GET(req: NextRequest) {
       plan: quota.plan,
       percentUsed,
       allowed: quota.allowed,
+      platformFreeLimit,
+      platformFreeUsed,
+      platformFreeRemaining,
       activePacks: packs.map((p) => ({
         packId: p.packId,
         remaining: p.conversations - p.used,

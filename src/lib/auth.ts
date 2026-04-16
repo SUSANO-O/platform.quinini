@@ -40,9 +40,36 @@ export async function verifyPassword(
 
 // ── Session tokens ────────────────────────────────────────────────────────────
 
+/**
+ * Returns JWT_SECRET or throws in production if it's missing/insecure.
+ * Falls back to a dev placeholder only in non-production environments so
+ * local `npm run dev` still works without a full .env file.
+ */
+function getSessionSecret(): string {
+  const secret = process.env.JWT_SECRET;
+
+  if (!secret || secret.trim().length === 0) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        '[auth] JWT_SECRET is not set. Set a strong random secret (min 32 chars) in your environment variables before deploying.',
+      );
+    }
+    // Dev/test fallback — never reaches production
+    return 'dev-secret-change-me';
+  }
+
+  if (process.env.NODE_ENV === 'production' && secret.trim().length < 32) {
+    throw new Error(
+      `[auth] JWT_SECRET is too short (${secret.trim().length} chars). Use at least 32 random characters.`,
+    );
+  }
+
+  return secret.trim();
+}
+
 /** Simple session token: base64url(userId:timestamp:hmac) */
 export function createSessionToken(userId: string): string {
-  const secret = process.env.JWT_SECRET || 'dev-secret-change-me';
+  const secret = getSessionSecret();
   const payload = `${userId}:${Date.now()}`;
   const hmac = crypto.createHmac('sha256', secret).update(payload).digest('hex');
   return Buffer.from(`${payload}:${hmac}`).toString('base64url');
@@ -50,7 +77,7 @@ export function createSessionToken(userId: string): string {
 
 export function verifySessionToken(token: string): string | null {
   try {
-    const secret = process.env.JWT_SECRET || 'dev-secret-change-me';
+    const secret = getSessionSecret();
     const decoded = Buffer.from(token, 'base64url').toString('utf8');
     const parts = decoded.split(':');
     if (parts.length < 3) return null;
@@ -95,7 +122,7 @@ export function generateSecureToken(): string {
 
 /** Hash del código de 6 dígitos para cambio de email (comparación segura en servidor). */
 export function hashEmailChangeCode(code: string, userId: string): string {
-  const secret = process.env.JWT_SECRET || 'dev-secret-change-me';
+  const secret = getSessionSecret();
   const normalized = code.replace(/\s/g, '');
   return crypto.createHash('sha256').update(`${normalized}:${userId}:${secret}`).digest('hex');
 }

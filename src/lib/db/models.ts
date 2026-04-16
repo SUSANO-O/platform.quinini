@@ -22,6 +22,10 @@ const UserSchema = new Schema({
   createdAt:         { type: Date,   default: Date.now },
 }, { timestamps: true });
 
+// Password reset and email verify token lookups — sparse so null docs are excluded
+UserSchema.index({ resetToken: 1 }, { sparse: true });
+UserSchema.index({ verifyToken: 1 }, { sparse: true });
+
 // ── SUBSCRIPTIONS ────────────────────────────────────────────────────────────
 
 const SubscriptionSchema = new Schema({
@@ -140,6 +144,8 @@ const ClientAgentSchema = new Schema({
 ClientAgentSchema.index({ userId: 1, type: 1, createdAt: -1 });
 ClientAgentSchema.index({ parentAgentId: 1 });
 ClientAgentSchema.index({ isPlatform: 1, status: 1 });
+// Sync queries: AgentFlowhub/AIBackHub lookup by hub slug
+ClientAgentSchema.index({ agentHubId: 1 }, { sparse: true });
 
 // ── PLATFORM AGENT FREE USAGE (por usuario/mes; no descontar de RequestLog hasta superar el umbral) ─
 

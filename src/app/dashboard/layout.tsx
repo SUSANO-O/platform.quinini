@@ -21,7 +21,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, loading, logout, stopImpersonating } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [usage, setUsage] = useState<{ used: number; limit: number; percentUsed: number; plan: string } | null>(null);
+  const [usage, setUsage] = useState<{
+    used: number;
+    limit: number;
+    percentUsed: number;
+    plan: string;
+    platformFreeLimit?: number;
+    platformFreeUsed?: number;
+    platformFreeRemaining?: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -161,6 +169,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 : `${usage.used.toLocaleString('es')} / ${usage.limit.toLocaleString('es')}`}
               {' · '}<span style={{ textTransform: 'capitalize' }}>{usage.plan}</span>
             </p>
+            {typeof usage.platformFreeLimit === 'number' && (
+              <p
+                title="Cuota gratuita de regalo para usar agentes de plataforma este mes. Al agotarse, los chats pasan a contar en tu cuota normal de conversaciones."
+                style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '4px', cursor: 'help' }}
+              >
+                Regalo plataforma (cuota gratis): {(usage.platformFreeUsed ?? 0).toLocaleString('es')} /{' '}
+                {usage.platformFreeLimit.toLocaleString('es')}
+                {' · '}restan {(usage.platformFreeRemaining ?? 0).toLocaleString('es')}
+              </p>
+            )}
             {usage.percentUsed >= 80 && (
               <Link href="/dashboard/settings" style={{ display: 'block', marginTop: '6px', fontSize: '10px', fontWeight: 700, color: '#ef4444', textDecoration: 'none' }}>
                 ↑ Mejorar plan
