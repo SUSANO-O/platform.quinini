@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { User } from '@/lib/db/models';
 import { generateSecureToken } from '@/lib/auth';
-import { sendVerificationEmail } from '@/lib/email';
+import { sendVerificationEmail, type EmailSendResult } from '@/lib/email';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest) {
@@ -28,6 +28,11 @@ export async function GET(req: NextRequest) {
   await User.updateOne(
     { _id: user._id },
     { emailVerified: true, verifyToken: null, verifyTokenExpiry: null },
+  );
+
+  console.log(
+    '[verify-email API] GET: correo marcado como verificado en BD (esta petición no envía email; solo confirma el token).',
+    { email: user.email },
   );
 
   return NextResponse.json({ ok: true, message: 'Email verificado correctamente.' });
@@ -60,12 +65,34 @@ export async function POST(req: NextRequest) {
   const verifyTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
   await User.updateOne({ _id: user._id }, { verifyToken, verifyTokenExpiry });
-  await sendVerificationEmail(
+
+  console.log(
+    '[verify-email API] POST: reenvío de verificación → siguiente línea en esta misma terminal debe ser [Email] SIMULADO o [Email] Enviado OK (Resend).',
+    { to: user.email },
+  );
+
+  const sent: EmailSendResult = await sendVerificationEmail(
     user.email,
     user.displayName || user.email.split('@')[0],
     verifyToken,
     'resend',
   );
 
+  if (!sent.ok) {
+    console.error('[verify-email API] POST: fallo al enviar:', sent);
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          sent.code === 'no_api_key'
+            ? 'El servicio de correo no está configurado (falta RESEND_API_KEY en el servidor).'
+            : `No se pudo enviar el correo: ${sent.message}. Comprueba EMAIL_FROM y que el dominio esté verificado en Resend.`,
+        code: sent.code,
+      },
+      { status: 502 },
+    );
+  }
+
+  console.log('[verify-email API] POST: Resend aceptó el envío (revisa también dashboard de Resend).');
   return NextResponse.json({ ok: true });
 }

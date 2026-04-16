@@ -75,14 +75,41 @@ function p(text: string): string {
 
 // ── Send helper ───────────────────────────────────────────────────────────────
 
-async function send(to: string, subject: string, html: string): Promise<void> {
+export type EmailSendResult =
+  | { ok: true }
+  | { ok: false; code: 'no_api_key' | 'resend_error'; message: string };
+
+async function send(to: string, subject: string, html: string): Promise<EmailSendResult> {
   if (!resend) {
-    // Dev fallback: just log
-    console.log(`[Email DEV] To: ${to} | Subject: ${subject}`);
-    return;
+    console.log('[Email] SIMULADO (terminal) — mismo shape que envío real; no se llama a Resend', {
+      to,
+      subject,
+      id: '(simulado)',
+      from: FROM,
+      hint: 'Define RESEND_API_KEY en .env para enviar de verdad.',
+    });
+    return {
+      ok: false,
+      code: 'no_api_key',
+      message: 'Falta RESEND_API_KEY en el servidor.',
+    };
   }
-  const { error } = await resend.emails.send({ from: FROM, to, subject, html });
-  if (error) console.error('[Email] Send error:', error);
+  const { data, error } = await resend.emails.send({ from: FROM, to, subject, html });
+  if (error) {
+    const message =
+      typeof error === 'object' && error && 'message' in error
+        ? String((error as { message: unknown }).message)
+        : String(error);
+    console.error('[Email] Send error:', error);
+    return { ok: false, code: 'resend_error', message };
+  }
+  console.log('[Email] Enviado OK (Resend)', {
+    to,
+    subject,
+    id: data?.id ?? '(sin id)',
+    from: FROM,
+  });
+  return { ok: true };
 }
 
 async function sendWithAttachments(
@@ -90,12 +117,23 @@ async function sendWithAttachments(
   subject: string,
   html: string,
   attachments: { filename: string; content: Buffer }[],
-): Promise<void> {
+): Promise<EmailSendResult> {
   if (!resend) {
-    console.log(`[Email DEV] To: ${to} | Subject: ${subject} | attachments: ${attachments.length}`);
-    return;
+    console.log('[Email] SIMULADO (terminal, con adjuntos) — no se llama a Resend', {
+      to,
+      subject,
+      id: '(simulado)',
+      from: FROM,
+      attachments: attachments.length,
+      hint: 'Define RESEND_API_KEY en .env para enviar de verdad.',
+    });
+    return {
+      ok: false,
+      code: 'no_api_key',
+      message: 'Falta RESEND_API_KEY en el servidor.',
+    };
   }
-  const { error } = await resend.emails.send({
+  const { data, error } = await resend.emails.send({
     from: FROM,
     to,
     subject,
@@ -105,7 +143,26 @@ async function sendWithAttachments(
       content: a.content,
     })),
   });
-  if (error) console.error('[Email] Send (attachments) error:', error);
+  if (error) {
+    const message =
+      typeof error === 'object' && error && 'message' in error
+        ? String((error as { message: unknown }).message)
+        : String(error);
+    console.error('[Email] Send (attachments) error:', error);
+    return { ok: false, code: 'resend_error', message };
+  }
+  console.log('[Email] Enviado OK (Resend, con adjuntos)', {
+    to,
+    subject,
+    id: data?.id ?? '(sin id)',
+    from: FROM,
+    attachments: attachments.length,
+  });
+  return { ok: true };
+}
+
+function logSendFailure(context: string, r: EmailSendResult) {
+  if (!r.ok) console.error(`[Email] ${context}:`, r.code, r.message);
 }
 
 /** Descarga el PDF público que Stripe genera para la factura (URL temporal). */
@@ -169,9 +226,9 @@ export async function sendPaidInvoiceEmail(
 
   if (pdfBuffer && pdfBuffer.length > 0) {
     const safeName = `factura-agentflow-${invoiceNumber || 'stripe'}.pdf`.replace(/[^a-zA-Z0-9._-]/g, '_');
-    await sendWithAttachments(to, `${invRef} — MatIAs`, html, [{ filename: safeName, content: pdfBuffer }]);
+    logSendFailure('invoice email', await sendWithAttachments(to, `${invRef} — MatIAs`, html, [{ filename: safeName, content: pdfBuffer }]));
   } else {
-    await send(to, `${invRef} — MatIAs`, html);
+    logSendFailure('invoice email', await send(to, `${invRef} — MatIAs`, html));
   }
 }
 
@@ -186,12 +243,12 @@ export async function sendVerificationEmail(
   displayName: string,
   token: string,
   variant: 'welcome' | 'resend' = 'welcome',
-): Promise<void> {
+): Promise<EmailSendResult> {
   const url = `${APP_URL}/verify-email?token=${encodeURIComponent(token)}`;
   const safeName = displayName.trim() || email.split('@')[0];
 
   if (variant === 'welcome') {
-    const subject = 'Bienvenido aMatIAs— confirma tu correo';
+    const subject = 'Bienvenido a MatIAs — confirma tu correo';
     const html = baseTemplate(subject, `
       ${h1('Te damos la bienvenida')}
       ${p(`Hola <strong style="color:#f1f5f9;">${escapeHtml(safeName)}</strong>,`)}
@@ -203,8 +260,7 @@ export async function sendVerificationEmail(
       ${btn('Confirmar mi correo', url, '#0d9488')}
       ${p('<br/><span style="font-size:13px;color:#64748b;">Si no has sido tú quien se ha registrado, puedes ignorar este mensaje con tranquilidad.</span>')}
     `);
-    await send(email, subject, html);
-    return;
+    return await send(email, subject, html);
   }
 
   const subject = 'Tu enlace de verificación — MatIAs';
@@ -216,7 +272,7 @@ export async function sendVerificationEmail(
     ${btn('Confirmar mi correo', url, '#0d9488')}
     ${p('<br/><span style="font-size:13px;color:#64748b;">Si no has pedido este correo, ignora este mensaje.</span>')}
   `);
-  await send(email, subject, html);
+  return await send(email, subject, html);
 }
 
 function escapeHtml(s: string): string {
@@ -240,7 +296,7 @@ export async function sendPasswordResetEmail(
     ${btn('Restablecer contraseña', url, '#ef4444')}
     ${p('<br/>Si no solicitaste este cambio, ignora este mensaje. Tu contraseña no será modificada.')}
   `);
-  await send(email, 'Recupera tu contraseña — MatIAs', html);
+  logSendFailure('password reset', await send(email, 'Recupera tu contraseña — MatIAs', html));
 }
 
 /** Código de 6 dígitos para confirmar cambio de email (se envía al correo nuevo). */
@@ -256,7 +312,7 @@ export async function sendEmailChangeCodeEmail(
     <p style="margin:20px 0;font-size:28px;font-weight:800;letter-spacing:0.3em;color:#0d9488;text-align:center;">${code}</p>
     ${p('Si no has sido tú, ignora este mensaje. Tu cuenta actual no cambia hasta que confirmes el código.')}
   `);
-  await send(newEmail, `Tu código MatIAs: ${code}`, html);
+  logSendFailure('email change code', await send(newEmail, `Tu código MatIAs: ${code}`, html));
 }
 
 const PLAN_NAMES: Record<string, string> = {
@@ -324,7 +380,7 @@ export async function sendSubscriptionEmail(
     `;
   }
 
-  await send(to, subject, baseTemplate(subject, bodyHtml));
+  logSendFailure('subscription email', await send(to, subject, baseTemplate(subject, bodyHtml)));
 }
 
 /** Alerta cuando el usuario supera el 80 % de su cuota mensual de conversaciones. */
@@ -347,5 +403,5 @@ export async function sendQuotaWarningEmail(
     ${btn('Mejorar plan ahora', `${APP_URL}/dashboard/settings`, '#e41414')}
     ${p('<br/><span style="font-size:13px;color:#64748b;">Si no quieres recibir estos avisos, puedes ignorarlos — solo son informativos.</span>')}
   `);
-  await send(to, subject, html);
+  logSendFailure('quota warning', await send(to, subject, html));
 }

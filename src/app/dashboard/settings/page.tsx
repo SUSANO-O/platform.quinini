@@ -39,6 +39,7 @@ export default function SettingsPage() {
   const [busyProfile, setBusyProfile] = useState(false);
   const [busyEmailReq, setBusyEmailReq] = useState(false);
   const [busyEmailConfirm, setBusyEmailConfirm] = useState(false);
+  const [busyVerifyResend, setBusyVerifyResend] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -93,6 +94,34 @@ export default function SettingsPage() {
       await refreshUser();
     } finally {
       setBusyEmailReq(false);
+    }
+  }
+
+  async function resendVerificationFromSettings() {
+    if (!user?.email) return;
+    setBusyVerifyResend(true);
+    try {
+      const r = await fetch('/api/auth/verify-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email }),
+      });
+      const data = (await r.json()) as { ok?: boolean; error?: string; message?: string };
+      if (!r.ok || data.ok === false) {
+        toast.error(data.error || 'No se pudo enviar el correo de verificación.');
+        return;
+      }
+      if (data.message) {
+        toast.info(data.message);
+        return;
+      }
+      toast.success(
+        'Te hemos enviado un nuevo enlace. Revisa la bandeja y la carpeta de spam.',
+      );
+    } catch {
+      toast.error('Error de red. Inténtalo de nuevo.');
+    } finally {
+      setBusyVerifyResend(false);
     }
   }
 
@@ -258,17 +287,19 @@ export default function SettingsPage() {
                 </p>
               </div>
             </div>
-            <Link
-              href="/verify-email"
-              className="inline-flex items-center justify-center shrink-0 px-4 py-2 rounded-xl text-xs font-bold no-underline transition-opacity hover:opacity-90 whitespace-nowrap"
+            <button
+              type="button"
+              disabled={busyVerifyResend}
+              onClick={resendVerificationFromSettings}
+              className="inline-flex items-center justify-center shrink-0 px-4 py-2 rounded-xl text-xs font-bold border-0 cursor-pointer transition-opacity hover:opacity-90 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
               style={{
                 background: `linear-gradient(135deg, ${BRAND_R}, ${BRAND_O})`,
                 color: '#fff',
                 boxShadow: '0 4px 14px rgba(228,20,20,0.22)',
               }}
             >
-              Ir a verificación
-            </Link>
+              {busyVerifyResend ? 'Enviando…' : 'Reenviar correo de verificación'}
+            </button>
           </div>
         )}
 
@@ -335,11 +366,16 @@ export default function SettingsPage() {
           <p className="text-sm font-semibold m-0 mt-1.5 break-all">{user?.email || '—'}</p>
           {!emailVerified && (
             <p className="text-[11px] m-0 mt-2 leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
-              Abre el enlace del correo de bienvenida o usa{' '}
-              <Link href="/verify-email" className="font-bold landing-link-accent">
-                Verificación de correo
-              </Link>{' '}
-              para reenviar el mensaje.
+              Abre el enlace del último correo o pulsa{' '}
+              <button
+                type="button"
+                disabled={busyVerifyResend}
+                onClick={resendVerificationFromSettings}
+                className="font-bold landing-link-accent border-0 bg-transparent cursor-pointer p-0 disabled:opacity-60"
+              >
+                reenviar aquí
+              </button>
+              .
             </p>
           )}
         </div>

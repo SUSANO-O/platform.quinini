@@ -96,10 +96,10 @@ export async function POST(req: NextRequest) {
         verifyTokenExpiry,
       });
 
-      // Send verification email (non-blocking)
-      sendVerificationEmail(normalizedEmail, user.displayName, verifyToken).catch((err) =>
-        console.error('[Register] Email send failed:', err),
-      );
+      const emailResult = await sendVerificationEmail(normalizedEmail, user.displayName, verifyToken);
+      if (!emailResult.ok) {
+        console.error('[Register] Correo de verificación no enviado:', emailResult);
+      }
 
       const token = createSessionToken(user._id.toString());
       const res = NextResponse.json({
@@ -110,8 +110,15 @@ export async function POST(req: NextRequest) {
           role: user.role || 'user',
           emailVerified: false,
         },
-        message:
-          'Cuenta creada. Te hemos enviado un correo de bienvenida con el enlace para confirmar tu correo.',
+        message: emailResult.ok
+          ? 'Cuenta creada. Te hemos enviado un correo de bienvenida con el enlace para confirmar tu correo.'
+          : 'Cuenta creada, pero no pudimos enviar el correo de verificación. Revisa RESEND_API_KEY y EMAIL_FROM en el servidor (y el dominio en Resend), o pide un reenvío desde la página de verificación de correo.',
+        emailSent: emailResult.ok,
+        ...(emailResult.ok
+          ? {}
+          : {
+              emailErrorCode: emailResult.code,
+            }),
       });
       setCookie(res, token);
       return res;
