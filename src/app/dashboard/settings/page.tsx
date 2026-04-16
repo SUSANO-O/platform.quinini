@@ -282,8 +282,7 @@ export default function SettingsPage() {
                   Verifica tu correo para continuar
                 </p>
                 <p className="text-xs m-0 mt-1 leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
-                  Hasta entonces no podrás guardar cambios en la cuenta, cambiar el email ni contratar o modificar planes
-                  (la API también lo bloquea).
+                  Es necesario verificar tu correo para continuar y disfrutar de todas las funcionalidades de la plataforma.
                 </p>
               </div>
             </div>

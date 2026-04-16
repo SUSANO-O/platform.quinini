@@ -19,6 +19,19 @@ const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL?.trim() ||
   'http://localhost:3201';
 
+/**
+ * Base pública HTTPS para `<img src="…">` en HTML de correo.
+ * Preferir NEXT_PUBLIC_APP_URL (p. ej. https://quinini.online) para que Gmail/Outlook carguen el logo.
+ * Opcional: EMAIL_PUBLIC_ASSET_BASE solo para imágenes (si difiere del enlace de botones).
+ */
+const EMAIL_PUBLIC_ORIGIN = (
+  process.env.EMAIL_PUBLIC_ASSET_BASE?.trim() ||
+  process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+  process.env.APP_URL?.trim() ||
+  'http://localhost:3201'
+).replace(/\/$/, '');
+const EMAIL_LOGO_URL = `${EMAIL_PUBLIC_ORIGIN}/t.jpg`;
+
 // ── Template helpers ──────────────────────────────────────────────────────────
 
 function baseTemplate(title: string, bodyHtml: string): string {
@@ -36,7 +49,16 @@ function baseTemplate(title: string, bodyHtml: string): string {
         <!-- Header -->
         <tr>
           <td style="padding:28px 32px;background:linear-gradient(135deg,#0d9488,#6366f1);">
-            <span style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.5px;">MatIAs</span>
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td valign="middle" style="width:52px;padding-right:14px;">
+                  <img src="${EMAIL_LOGO_URL}" width="40" height="40" alt="MatIAs" border="0" style="display:block;border-radius:10px;width:40px;height:40px;object-fit:cover;" />
+                </td>
+                <td valign="middle">
+                  <span style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.5px;">MatIAs</span>
+                </td>
+              </tr>
+            </table>
           </td>
         </tr>
         <!-- Body -->
@@ -49,7 +71,7 @@ function baseTemplate(title: string, bodyHtml: string): string {
         <tr>
           <td style="padding:20px 32px;border-top:1px solid #334155;">
             <p style="margin:0;font-size:11px;color:#64748b;">
-             MatIAs· <a href="${APP_URL}" style="color:#6366f1;text-decoration:none;">agentflowhub.com</a>
+             MatIAs· <a href="${APP_URL}" style="color:#6366f1;text-decoration:none;">matias.online</a>
               · Este email fue enviado porque tienes una cuenta en MatIAs.
             </p>
           </td>
