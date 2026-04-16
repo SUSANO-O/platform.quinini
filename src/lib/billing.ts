@@ -7,7 +7,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import type Stripe from 'stripe';
 import { stripe, PLANS } from '@/lib/stripe';
-import { verifySessionToken } from '@/lib/auth';
+import { verifySessionToken, isUserEmailVerified, isImpersonationSession } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
 import { Subscription as SubscriptionModel, User } from '@/lib/db/models';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
@@ -104,6 +104,16 @@ export async function postSubscribePlan(req: NextRequest): Promise<NextResponse>
     await connectDB();
     const user = await User.findById(userId);
     if (!user) return NextResponse.json({ error: 'Usuario no encontrado.' }, { status: 404 });
+
+    if (!isImpersonationSession(req.cookies) && !isUserEmailVerified(user)) {
+      return NextResponse.json(
+        {
+          error: 'Debes verificar tu correo antes de contratar o cambiar de plan.',
+          code: 'EMAIL_NOT_VERIFIED',
+        },
+        { status: 403 },
+      );
+    }
 
     const subDoc = await SubscriptionModel.findOne({ userId });
     const stripeSubId = subDoc?.stripeSubscriptionId;
@@ -367,6 +377,16 @@ export async function postCreateSetupIntent(req: NextRequest): Promise<NextRespo
   const user = await User.findById(userId);
   if (!user) return NextResponse.json({ error: 'Usuario no encontrado.' }, { status: 404 });
 
+  if (!isImpersonationSession(req.cookies) && !isUserEmailVerified(user)) {
+    return NextResponse.json(
+      {
+        error: 'Verifica tu correo antes de actualizar el método de pago.',
+        code: 'EMAIL_NOT_VERIFIED',
+      },
+      { status: 403 },
+    );
+  }
+
   let sub = await SubscriptionModel.findOne({ userId });
   let customerId = sub?.stripeCustomerId;
   if (!customerId) {
@@ -424,6 +444,20 @@ export async function postCompleteSetupIntent(req: NextRequest): Promise<NextRes
   }
 
   await connectDB();
+  const user = await User.findById(userId).select('emailVerified').lean() as
+    | { emailVerified?: boolean | null }
+    | null;
+  if (!user) return NextResponse.json({ error: 'Usuario no encontrado.' }, { status: 404 });
+  if (!isImpersonationSession(req.cookies) && !isUserEmailVerified(user)) {
+    return NextResponse.json(
+      {
+        error: 'Verifica tu correo antes de guardar un método de pago.',
+        code: 'EMAIL_NOT_VERIFIED',
+      },
+      { status: 403 },
+    );
+  }
+
   const sub = await SubscriptionModel.findOne({ userId });
   if (!sub?.stripeCustomerId) {
     return NextResponse.json({ error: 'No hay cliente de facturación.' }, { status: 400 });

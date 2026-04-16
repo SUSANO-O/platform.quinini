@@ -73,6 +73,20 @@ export function verifySessionToken(token: string): string | null {
 /** Cookie httpOnly: token del admin que inició suplantación (misma forma que sesión). */
 export const IMPERSONATOR_COOKIE = 'afhub_impersonator';
 
+/** Igual que la API de sesión: sin campo o null se trata como verificado (cuentas legacy). */
+export function isUserEmailVerified(user: { emailVerified?: boolean | null } | null | undefined): boolean {
+  if (!user) return false;
+  return user.emailVerified ?? true;
+}
+
+type CookieGetter = { get: (name: string) => { value: string } | undefined };
+
+/** Suplantación activa con cookie firmada válida: el admin opera la cuenta (sin bloqueo por email). */
+export function isImpersonationSession(cookies: CookieGetter): boolean {
+  const imp = cookies.get(IMPERSONATOR_COOKIE)?.value;
+  return Boolean(imp && verifySessionToken(imp));
+}
+
 // ── Secure random tokens (email verify, password reset) ───────────────────────
 
 export function generateSecureToken(): string {

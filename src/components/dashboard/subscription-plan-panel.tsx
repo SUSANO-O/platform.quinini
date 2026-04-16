@@ -8,7 +8,7 @@ import { ChevronRight, Crown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 /** Panel de plan (subir/bajar) — pensado para Ajustes → Suscripción. */
-export function SubscriptionPlanPanel() {
+export function SubscriptionPlanPanel({ checkoutDisabled = false }: { checkoutDisabled?: boolean }) {
   const { subscription, isRefreshing, startCheckout } = useSubscription();
   const [busy, setBusy] = useState<string | null>(null);
   const [modalPlan, setModalPlan] = useState<PaidPlanId | null>(null);
@@ -57,7 +57,7 @@ export function SubscriptionPlanPanel() {
     return (
       <button
         type="button"
-        disabled={!!busy}
+        disabled={!!busy || checkoutDisabled}
         onClick={() => setModalPlan(id)}
         style={{
           display: 'flex',
@@ -70,7 +70,8 @@ export function SubscriptionPlanPanel() {
           background: bg,
           fontSize: '11px',
           fontWeight: 600,
-          cursor: busy ? 'wait' : 'pointer',
+          cursor: busy || checkoutDisabled ? 'not-allowed' : 'pointer',
+          opacity: busy || checkoutDisabled ? 0.55 : 1,
           color: 'var(--foreground)',
           textAlign: 'left',
         }}
@@ -98,6 +99,19 @@ export function SubscriptionPlanPanel() {
         background: 'linear-gradient(145deg, rgba(228,20,20,0.06), rgba(0,172,248,0.06))',
       }}
     >
+      {checkoutDisabled && (
+        <p
+          className="text-[11px] font-semibold m-0 mb-3 leading-snug rounded-lg px-3 py-2.5 border"
+          style={{
+            borderColor: 'rgba(217,119,6,0.35)',
+            background: 'rgba(217,119,6,0.08)',
+            color: '#b45309',
+          }}
+        >
+          Verifica tu correo en Ajustes para poder contratar o cambiar de plan.
+        </p>
+      )}
+
       <PlanChangeModal
         open={modalPlan !== null}
         onClose={() => !busy && setModalPlan(null)}

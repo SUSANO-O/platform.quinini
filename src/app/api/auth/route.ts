@@ -161,6 +161,7 @@ export async function POST(req: NextRequest) {
           displayName: user.displayName,
           role: user.role || 'user',
           emailVerified: user.emailVerified ?? true, // treat legacy users as verified
+          pendingEmail: user.pendingEmail ?? null,
         },
       });
       setCookie(res, token);

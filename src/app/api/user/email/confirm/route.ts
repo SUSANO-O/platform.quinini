@@ -3,7 +3,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifySessionToken, hashEmailChangeCode } from '@/lib/auth';
+import { verifySessionToken, hashEmailChangeCode, isUserEmailVerified, isImpersonationSession } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
 import { User, Subscription as SubscriptionModel } from '@/lib/db/models';
 import { stripe } from '@/lib/stripe';
@@ -41,6 +41,16 @@ export async function POST(req: NextRequest) {
   await connectDB();
   const user = await User.findById(userId);
   if (!user) return NextResponse.json({ error: 'Usuario no encontrado.' }, { status: 404 });
+
+  if (!isImpersonationSession(req.cookies) && !isUserEmailVerified(user)) {
+    return NextResponse.json(
+      {
+        error: 'Verifica tu correo actual antes de confirmar un cambio de email.',
+        code: 'EMAIL_NOT_VERIFIED',
+      },
+      { status: 403 },
+    );
+  }
 
   if (!user.pendingEmail || user.pendingEmail !== newEmail) {
     return NextResponse.json(

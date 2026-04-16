@@ -3,7 +3,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifySessionToken } from '@/lib/auth';
+import { verifySessionToken, isUserEmailVerified, isImpersonationSession } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
 import { User } from '@/lib/db/models';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
@@ -36,6 +36,20 @@ export async function PATCH(req: NextRequest) {
   }
 
   await connectDB();
+  const existing = await User.findById(userId).select('emailVerified').lean() as
+    | { emailVerified?: boolean | null }
+    | null;
+  if (!existing) return NextResponse.json({ error: 'Usuario no encontrado.' }, { status: 404 });
+  if (!isImpersonationSession(req.cookies) && !isUserEmailVerified(existing)) {
+    return NextResponse.json(
+      {
+        error: 'Verifica tu correo antes de actualizar tu perfil.',
+        code: 'EMAIL_NOT_VERIFIED',
+      },
+      { status: 403 },
+    );
+  }
+
   const displayName = raw.length > 0 ? raw : null;
   const user = await User.findByIdAndUpdate(
     userId,

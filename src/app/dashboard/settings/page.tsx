@@ -7,7 +7,8 @@ import { UpdatePaymentModal } from '@/components/billing/update-payment-modal';
 import { InvoiceList } from '@/components/billing/invoice-list';
 import { getStripePromise } from '@/lib/stripe-client';
 import { useEffect, useState } from 'react';
-import { CreditCard, ExternalLink, Settings, Sparkles } from 'lucide-react';
+import Link from 'next/link';
+import { CreditCard, ExternalLink, Settings, Sparkles, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const BRAND_R = '#e41414';
@@ -197,6 +198,9 @@ export default function SettingsPage() {
     subscription?.status &&
     ['active', 'trialing', 'past_due'].includes(subscription.status);
 
+  const emailVerified = user?.emailVerified ?? true;
+  const billingRestricted = !emailVerified && !user?.impersonation;
+
   return (
     <div className="relative overflow-hidden min-h-full">
       <div className="hero-glow pointer-events-none" style={{ background: BRAND_R, top: '-200px', right: '-80px' }} />
@@ -234,6 +238,40 @@ export default function SettingsPage() {
         <div className="p-6">
         <h2 className="text-[15px] font-bold m-0 mb-4">Cuenta</h2>
 
+        {billingRestricted && (
+          <div
+            className="rounded-xl border p-4 mb-5 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"
+            style={{
+              borderColor: 'rgba(217,119,6,0.4)',
+              background: 'linear-gradient(135deg, rgba(217,119,6,0.1), rgba(228,20,20,0.06))',
+            }}
+          >
+            <div className="flex gap-3 min-w-0">
+              <AlertTriangle className="shrink-0 mt-0.5" size={20} style={{ color: '#d97706' }} />
+              <div className="min-w-0">
+                <p className="text-sm font-bold m-0" style={{ color: 'var(--foreground)' }}>
+                  Verifica tu correo para continuar
+                </p>
+                <p className="text-xs m-0 mt-1 leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
+                  Hasta entonces no podrás guardar cambios en la cuenta, cambiar el email ni contratar o modificar planes
+                  (la API también lo bloquea).
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/verify-email"
+              className="inline-flex items-center justify-center shrink-0 px-4 py-2 rounded-xl text-xs font-bold no-underline transition-opacity hover:opacity-90 whitespace-nowrap"
+              style={{
+                background: `linear-gradient(135deg, ${BRAND_R}, ${BRAND_O})`,
+                color: '#fff',
+                boxShadow: '0 4px 14px rgba(228,20,20,0.22)',
+              }}
+            >
+              Ir a verificación
+            </Link>
+          </div>
+        )}
+
         <div style={{ marginBottom: '20px' }}>
           <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '6px' }}>Nombre</label>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -243,6 +281,7 @@ export default function SettingsPage() {
               onChange={(e) => setDisplayNameDraft(e.target.value)}
               maxLength={120}
               placeholder="Tu nombre"
+              disabled={billingRestricted}
               style={{
                 flex: '1 1 200px',
                 padding: '10px 12px',
@@ -250,18 +289,19 @@ export default function SettingsPage() {
                 border: '1px solid var(--border)',
                 background: 'var(--background)',
                 fontSize: '14px',
+                opacity: billingRestricted ? 0.65 : 1,
               }}
             />
             <button
               type="button"
-              disabled={busyProfile || !user}
+              disabled={busyProfile || !user || billingRestricted}
               onClick={saveDisplayName}
               className="px-4 py-2.5 rounded-xl font-bold text-[13px] border transition-opacity hover:opacity-95 disabled:opacity-60"
               style={{
                 background: `${BRAND_R}12`,
                 color: BRAND_R,
                 borderColor: `${BRAND_R}35`,
-                cursor: busyProfile ? 'wait' : 'pointer',
+                cursor: busyProfile ? 'wait' : billingRestricted ? 'not-allowed' : 'pointer',
               }}
             >
               {busyProfile ? 'Guardando…' : 'Guardar nombre'}
@@ -269,12 +309,42 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div style={{ marginBottom: '16px' }}>
-          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--muted-foreground)' }}>Email actual</span>
-          <p style={{ fontSize: '14px', fontWeight: 600, margin: '6px 0 0' }}>{user?.email || '—'}</p>
+        <div className="mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+            <span className="text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>
+              Email actual
+            </span>
+            {emailVerified ? (
+              <span
+                className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                style={{ background: 'rgba(34,197,94,0.12)', color: '#15803d' }}
+              >
+                <CheckCircle2 size={12} strokeWidth={2.5} />
+                Verificado
+              </span>
+            ) : (
+              <span
+                className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                style={{ background: 'rgba(217,119,6,0.14)', color: '#b45309' }}
+              >
+                <AlertTriangle size={12} strokeWidth={2.5} />
+                Sin verificar
+              </span>
+            )}
+          </div>
+          <p className="text-sm font-semibold m-0 mt-1.5 break-all">{user?.email || '—'}</p>
+          {!emailVerified && (
+            <p className="text-[11px] m-0 mt-2 leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
+              Abre el enlace del correo de bienvenida o usa{' '}
+              <Link href="/verify-email" className="font-bold landing-link-accent">
+                Verificación de correo
+              </Link>{' '}
+              para reenviar el mensaje.
+            </p>
+          )}
         </div>
 
-        {user?.pendingEmail ? (
+        {!billingRestricted && user?.pendingEmail ? (
           <div
             className="rounded-xl p-3.5 mb-4 border"
             style={{
@@ -327,6 +397,7 @@ export default function SettingsPage() {
           </div>
         ) : null}
 
+        {!billingRestricted ? (
         <div style={{ marginBottom: '8px' }}>
           <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '6px' }}>
             {user?.pendingEmail ? 'Reenviar código / otro correo' : 'Nuevo email'}
@@ -366,6 +437,7 @@ export default function SettingsPage() {
             No puedes usar un email que ya tenga otra cuenta. Te enviaremos un código al nuevo correo; caduca en 15 minutos.
           </p>
         </div>
+        ) : null}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingTop: '8px', borderTop: '1px solid var(--border)' }}>
           <Row
@@ -397,7 +469,7 @@ export default function SettingsPage() {
           </p>
         )}
 
-        {!loading && <SubscriptionPlanPanel />}
+        {!loading && <SubscriptionPlanPanel checkoutDisabled={billingRestricted} />}
 
         <div style={{ marginBottom: '20px' }}>
           <p
@@ -468,6 +540,7 @@ export default function SettingsPage() {
 
         <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '16px', lineHeight: 1.5 }}>
           Los cambios de plan (subida o bajada) aplican proration de Stripe: se ajusta el importe en la siguiente factura según el tiempo restante del periodo.
+          {billingRestricted ? ' Verifica tu correo para habilitar cambios de plan.' : ''}
         </p>
 
         {!loading && isPremium && hasStripePaid && (
@@ -479,14 +552,15 @@ export default function SettingsPage() {
               <p className="text-[13px] font-bold mb-2.5 m-0">Tarjeta y facturas (sin salir de la app)</p>
               <button
                 type="button"
-                disabled={!!busy}
+                disabled={!!busy || billingRestricted}
                 onClick={() => setPaymentModalOpen(true)}
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-[13px] border mb-3.5 transition-opacity hover:opacity-95"
                 style={{
                   background: `${BRAND_R}12`,
                   color: BRAND_R,
                   borderColor: `${BRAND_R}35`,
-                  cursor: busy ? 'wait' : 'pointer',
+                  cursor: busy || billingRestricted ? 'not-allowed' : 'pointer',
+                  opacity: billingRestricted ? 0.55 : 1,
                 }}
               >
                 <CreditCard size={16} />

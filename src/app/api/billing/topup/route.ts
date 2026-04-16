@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifySessionToken } from '@/lib/auth';
+import { verifySessionToken, isUserEmailVerified, isImpersonationSession } from '@/lib/auth';
 import { stripe } from '@/lib/stripe';
 import { connectDB } from '@/lib/db/connection';
 import { User, Subscription } from '@/lib/db/models';
@@ -55,8 +55,18 @@ export async function POST(req: NextRequest) {
   }
 
   await connectDB();
-  const user = await User.findById(userId).lean() as { email?: string } | null;
+  const user = await User.findById(userId).lean() as { email?: string; emailVerified?: boolean | null } | null;
   if (!user) return NextResponse.json({ error: 'Usuario no encontrado.' }, { status: 404 });
+
+  if (!isImpersonationSession(req.cookies) && !isUserEmailVerified(user)) {
+    return NextResponse.json(
+      {
+        error: 'Debes verificar tu correo antes de comprar packs de conversaciones.',
+        code: 'EMAIL_NOT_VERIFIED',
+      },
+      { status: 403 },
+    );
+  }
 
   // Obtener o crear Stripe customer
   const sub = await Subscription.findOne({ userId }).lean() as { stripeCustomerId?: string } | null;

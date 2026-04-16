@@ -8,6 +8,8 @@ export interface AuthUser {
   email: string;
   displayName: string | null;
   role: 'user' | 'admin';
+  /** Si false, el usuario debe abrir el enlace del correo de verificación antes de facturación / ciertos cambios. */
+  emailVerified?: boolean;
   /** Email pendiente de confirmación por código (cambio de correo). */
   pendingEmail?: string | null;
   /** Sesión de admin viendo la cuenta de un cliente (suplantación). */

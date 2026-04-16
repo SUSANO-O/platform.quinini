@@ -3,12 +3,14 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useAuth } from '@/hooks/use-auth';
 import Image from 'next/image';
 import { CheckCircle, XCircle, Loader2, Mail } from 'lucide-react';
 
 function VerifyEmailContent() {
   const params = useSearchParams();
   const router = useRouter();
+  const { refreshUser } = useAuth();
   const token = params.get('token');
 
   const [state, setState] = useState<'loading' | 'success' | 'error' | 'notoken'>('loading');
@@ -24,12 +26,15 @@ function VerifyEmailContent() {
 
     fetch(`/api/auth/verify-email?token=${token}`)
       .then((r) => r.json())
-      .then((d) => {
+      .then(async (d) => {
         setState(d.ok ? 'success' : 'error');
-        if (d.ok) setTimeout(() => router.push('/dashboard'), 3000);
+        if (d.ok) {
+          await refreshUser();
+          setTimeout(() => router.push('/dashboard'), 3000);
+        }
       })
       .catch(() => setState('error'));
-  }, [token, router]);
+  }, [token, router, refreshUser]);
 
   async function handleResend(e: React.FormEvent) {
     e.preventDefault();

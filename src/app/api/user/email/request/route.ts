@@ -4,7 +4,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifySessionToken, hashEmailChangeCode, generateEmailChangeCode } from '@/lib/auth';
+import {
+  verifySessionToken,
+  hashEmailChangeCode,
+  generateEmailChangeCode,
+  isUserEmailVerified,
+  isImpersonationSession,
+} from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
 import { User } from '@/lib/db/models';
 import { sendEmailChangeCodeEmail } from '@/lib/email';
@@ -42,6 +48,17 @@ export async function POST(req: NextRequest) {
   await connectDB();
   const user = await User.findById(userId);
   if (!user) return NextResponse.json({ error: 'Usuario no encontrado.' }, { status: 404 });
+
+  if (!isImpersonationSession(req.cookies) && !isUserEmailVerified(user)) {
+    return NextResponse.json(
+      {
+        error:
+          'Verifica tu correo actual con el enlace que te enviamos antes de solicitar un cambio de email.',
+        code: 'EMAIL_NOT_VERIFIED',
+      },
+      { status: 403 },
+    );
+  }
 
   if (user.email === newEmail) {
     return NextResponse.json({ error: 'Ese ya es tu email actual.' }, { status: 400 });
