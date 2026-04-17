@@ -7,6 +7,7 @@ import {
   ArrowRight, Code2, Globe, Sparkles, Check,
   HeartPulse, Droplets, FlaskConical, Sprout,
   GraduationCap, Activity, TrendingUp, Lock, Wrench,
+  UserPlus, Palette, Rocket,
 } from 'lucide-react';
 
 /* ── Paleta #e41414 ───────────────────────────────────────────────────────── */
@@ -29,12 +30,12 @@ const AGENTS: { name: string; desc: string; Icon: React.ElementType; color: stri
 ];
 
 const FEATURES = [
-  { icon: Zap,          title: 'Ultra rápido',             desc: 'Tiempos de respuesta sub-200 ms. Enrutamiento multi-modelo automático.',           color: R },
-  { icon: Shield,       title: 'Seguro por defecto',       desc: 'Auth por API key, rate limiting por plan, datos aislados por tenant.',              color: Rd },
-  { icon: Database,     title: 'Embeddings & RAG',         desc: 'Sube documentos, genera embeddings y obtén respuestas ancladas en tus datos.',      color: O },
-  { icon: MessageSquare,title: 'Widget API',               desc: 'Embebe un chat widget en cualquier sitio web con una sola línea de código.',        color: B },
-  { icon: BarChart3,    title: 'Analytics en tiempo real', desc: 'Dashboard con requests, latencia, endpoints top y costos.',                         color: C },
-  { icon: Globe,        title: 'Multi-tenant',             desc: 'Cada API key tiene datos aislados, rate limits independientes y facturación separada.', color: B },
+  { icon: Zap,          title: 'Ultra rápido',             desc: 'Tiempos de respuesta sub-200 ms. Enrutamiento multi-modelo automático.',               color: R,  metric: '< 200 ms'       },
+  { icon: Shield,       title: 'Seguro por defecto',       desc: 'Auth por API key, rate limiting por plan, datos aislados por tenant.',                  color: Rd, metric: 'API key auth'    },
+  { icon: Database,     title: 'Embeddings & RAG',         desc: 'Sube documentos, genera embeddings y obtén respuestas ancladas en tus datos.',          color: O,  metric: 'Multi-format'    },
+  { icon: MessageSquare,title: 'Widget API',               desc: 'Embebe un chat widget en cualquier sitio web con una sola línea de código.',            color: B,  metric: '1 línea de JS'   },
+  { icon: BarChart3,    title: 'Analytics en tiempo real', desc: 'Dashboard con requests, latencia, endpoints top y costos en vivo.',                     color: C,  metric: 'Live dashboard'  },
+  { icon: Globe,        title: 'Multi-tenant',             desc: 'Cada API key tiene datos aislados, rate limits independientes y facturación separada.', color: B,  metric: 'Aislado por key' },
 ];
 
 const PLANS = [
@@ -167,33 +168,109 @@ export default function LandingPage() {
       </section>
 
       {/* ── HOW IT WORKS ─────────────────────────────────────────────────────── */}
-      <section className="py-24 px-6" style={{ background: 'var(--muted)' }}>
-        <div className="max-w-4xl mx-auto">
+      <section className="py-24 px-6 relative overflow-hidden" style={{ background: 'var(--muted)' }}>
+        {/* Faint background glow */}
+        <div style={{
+          position: 'absolute', top: '50%', left: '50%',
+          transform: 'translate(-50%,-50%)',
+          width: 700, height: 500, pointerEvents: 'none',
+          background: `radial-gradient(ellipse, ${R}07 0%, transparent 70%)`,
+        }} />
+
+        <div className="max-w-3xl mx-auto relative">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold">Funciona en 4 pasos</h2>
             <p className="mt-4" style={{ color: 'var(--muted-foreground)' }}>
               De cero a un chat widget en tu sitio en menos de 10 minutos.
             </p>
           </div>
-          <div className="space-y-4">
-            {HOW.map((s, i) => {
-              const stepColors = [`linear-gradient(135deg,${R},${O})`, `linear-gradient(135deg,${O},${B})`, `linear-gradient(135deg,${B},${C})`, `linear-gradient(135deg,${C},${R})`];
-              return (
-                <div key={s.step} className="card-texture flex gap-6 items-start p-6 rounded-2xl" style={{ border: '1px solid var(--border)' }}>
-                  <div
-                    className="w-14 h-14 rounded-2xl flex items-center justify-center font-extrabold text-lg shrink-0 text-white"
-                    style={{ background: stepColors[i] }}
-                  >
-                    {s.step}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold mb-1">{s.title}</h3>
-                    <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>{s.desc}</p>
-                  </div>
+
+          {(() => {
+            const steps = [
+              { ...HOW[0], Icon: UserPlus, accent: R,  grad: `linear-gradient(135deg,${R},${O})` },
+              { ...HOW[1], Icon: Palette,  accent: O,  grad: `linear-gradient(135deg,${O},${B})` },
+              { ...HOW[2], Icon: Code2,    accent: B,  grad: `linear-gradient(135deg,${B},${C})` },
+              { ...HOW[3], Icon: Rocket,   accent: C,  grad: `linear-gradient(135deg,${C},${R})` },
+            ];
+            return (
+              <div className="relative">
+                {/* Vertical connector line */}
+                <div style={{
+                  position: 'absolute', left: 27, top: 28, bottom: 28, width: 2,
+                  background: `linear-gradient(to bottom, ${R}, ${O}, ${B}, ${C})`,
+                  opacity: 0.25, borderRadius: 2,
+                }} />
+
+                <div className="space-y-4">
+                  {steps.map((s, i) => (
+                    <div key={s.step} className="relative flex gap-5 items-stretch group">
+                      {/* Left column: icon badge */}
+                      <div className="relative flex flex-col items-center shrink-0" style={{ width: 56 }}>
+                        <div
+                          className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 relative z-10"
+                          style={{
+                            background: s.grad,
+                            boxShadow: `0 4px 20px ${s.accent}35`,
+                          }}
+                        >
+                          <s.Icon size={22} color="white" strokeWidth={1.75} />
+                          {/* Step chip */}
+                          <div style={{
+                            position: 'absolute', top: -7, right: -7,
+                            width: 20, height: 20, borderRadius: 999,
+                            background: 'var(--muted)',
+                            border: `2px solid ${s.accent}`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 9, fontWeight: 800, color: s.accent,
+                            lineHeight: 1,
+                          }}>
+                            {i + 1}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Card */}
+                      <div
+                        className="flex-1 relative overflow-hidden rounded-2xl"
+                        style={{
+                          background: 'var(--card)',
+                          border: `1px solid ${s.accent}22`,
+                          boxShadow: `0 1px 3px rgba(0,0,0,0.04)`,
+                        }}
+                      >
+                        {/* Top accent bar */}
+                        <div style={{ height: 2, background: s.grad }} />
+
+                        {/* Watermark number */}
+                        <div style={{
+                          position: 'absolute', right: 10, bottom: -12,
+                          fontSize: 90, fontWeight: 900, lineHeight: 1,
+                          color: s.accent, opacity: 0.045,
+                          fontFamily: 'monospace', userSelect: 'none', pointerEvents: 'none',
+                        }}>
+                          {s.step}
+                        </div>
+
+                        {/* Subtle dot texture top-right */}
+                        <div style={{
+                          position: 'absolute', inset: 0, pointerEvents: 'none',
+                          backgroundImage: `radial-gradient(circle, ${s.accent}20 1px, transparent 1px)`,
+                          backgroundSize: '16px 16px',
+                          maskImage: `radial-gradient(ellipse 60% 80% at 95% 10%, black, transparent)`,
+                          WebkitMaskImage: `radial-gradient(ellipse 60% 80% at 95% 10%, black, transparent)`,
+                        }} />
+
+                        <div className="p-5 relative">
+                          <h3 className="text-base font-bold mb-1" style={{ letterSpacing: '-0.02em' }}>{s.title}</h3>
+                          <p className="text-sm leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>{s.desc}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })()}
         </div>
       </section>
 
@@ -209,22 +286,57 @@ export default function LandingPage() {
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-5">
-            {AGENTS.map((a) => (
+            {AGENTS.map((a, i) => (
               <div
                 key={a.name}
-                className="card-hover rounded-2xl overflow-hidden"
-                style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+                className="card-hover rounded-2xl overflow-hidden relative"
+                style={{ background: 'var(--card)', border: `1px solid ${a.color}28` }}
               >
-                {/* Barra superior con micro-gradiente */}
-                <div style={{ height: 3, background: `linear-gradient(90deg, ${a.color}, ${a.color}88)` }} />
+                {/* Dot grid texture */}
+                <div style={{
+                  position: 'absolute', inset: 0, pointerEvents: 'none',
+                  backgroundImage: `radial-gradient(circle, ${a.color}28 1px, transparent 1px)`,
+                  backgroundSize: '18px 18px',
+                  maskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%)',
+                  WebkitMaskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%)',
+                }} />
 
-                <div className="p-6">
-                  {/* Icono en contenedor con fondo de color suave */}
+                {/* Top color wash blob */}
+                <div style={{
+                  position: 'absolute', top: -40, right: -20, width: 180, height: 140,
+                  background: `radial-gradient(ellipse at top right, ${a.color}22 0%, transparent 70%)`,
+                  pointerEvents: 'none',
+                }} />
+
+                {/* Large faint background icon */}
+                <div style={{
+                  position: 'absolute', bottom: -8, right: -4, pointerEvents: 'none',
+                  color: `${a.color}0e`,
+                }}>
+                  <a.Icon size={110} strokeWidth={1} aria-hidden />
+                </div>
+
+                {/* Top accent bar */}
+                <div style={{ height: 3, background: `linear-gradient(90deg, ${a.color}, ${a.color}33)`, position: 'relative' }} />
+
+                <div className="p-6 relative">
+                  {/* Index number */}
+                  <span style={{
+                    position: 'absolute', top: 16, right: 18,
+                    fontSize: 13, fontWeight: 700, letterSpacing: '0.06em',
+                    color: `${a.color}60`,
+                    fontFamily: 'monospace',
+                  }}>
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+
+                  {/* Icon */}
                   <div
                     className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
                     style={{
-                      background: `${a.color}12`,
-                      border: `1px solid ${a.color}28`,
+                      background: `${a.color}14`,
+                      border: `1px solid ${a.color}30`,
+                      boxShadow: `0 0 18px ${a.color}18, inset 0 1px 0 ${a.color}20`,
                     }}
                   >
                     <a.Icon size={22} style={{ color: a.color }} strokeWidth={1.75} />
@@ -232,6 +344,12 @@ export default function LandingPage() {
 
                   <h3 className="text-base font-bold mb-1.5" style={{ letterSpacing: '-0.01em' }}>{a.name}</h3>
                   <p className="text-sm leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>{a.desc}</p>
+
+                  {/* Bottom separator accent */}
+                  <div style={{
+                    marginTop: 18, height: 1,
+                    background: `linear-gradient(90deg, ${a.color}50, transparent)`,
+                  }} />
                 </div>
               </div>
             ))}
@@ -240,31 +358,75 @@ export default function LandingPage() {
       </section>
 
       {/* ── FEATURES ─────────────────────────────────────────────────────────── */}
-      <section className="py-24 px-6" style={{ background: 'var(--muted)' }}>
-        <div className="max-w-7xl mx-auto">
+      <section className="py-24 px-6 relative overflow-hidden" style={{ background: 'var(--muted)' }}>
+        {/* Ambient glows */}
+        <div style={{ position: 'absolute', top: -80, left: -80, width: 320, height: 320, borderRadius: '50%', background: `radial-gradient(circle, ${R}08, transparent 70%)`, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: -80, right: -80, width: 320, height: 320, borderRadius: '50%', background: `radial-gradient(circle, ${B}08, transparent 70%)`, pointerEvents: 'none' }} />
+
+        <div className="max-w-7xl mx-auto relative">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold">Todo lo que necesitas para integrar IA</h2>
             <p className="mt-4 text-lg" style={{ color: 'var(--muted-foreground)' }}>
               Desde embeddings hasta facturación — manejamos la infraestructura para que te enfoques en tu producto.
             </p>
           </div>
+
           <div className="grid md:grid-cols-3 gap-6">
             {FEATURES.map((f) => (
               <div
                 key={f.title}
-                className="card-hover rounded-2xl overflow-hidden"
-                style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+                className="card-hover rounded-2xl overflow-hidden relative group"
+                style={{ background: 'var(--card)', border: `1px solid ${f.color}22` }}
               >
-                <div style={{ height: 3, background: `linear-gradient(90deg, ${f.color}, ${f.color}88)` }} />
-                <div className="p-7">
-                  <div
-                    className="w-11 h-11 rounded-xl flex items-center justify-center mb-4"
-                    style={{ background: `${f.color}12`, border: `1px solid ${f.color}28` }}
-                  >
-                    <f.icon size={20} style={{ color: f.color }} strokeWidth={1.75} />
+                {/* Top accent bar */}
+                <div style={{ height: 3, background: `linear-gradient(90deg, ${f.color}, ${f.color}33)` }} />
+
+                {/* Grid line texture — top-left corner */}
+                <div style={{
+                  position: 'absolute', inset: 0, pointerEvents: 'none',
+                  backgroundImage: `linear-gradient(${f.color}0e 1px, transparent 1px), linear-gradient(90deg, ${f.color}0e 1px, transparent 1px)`,
+                  backgroundSize: '26px 26px',
+                  maskImage: 'linear-gradient(135deg, black 0%, transparent 55%)',
+                  WebkitMaskImage: 'linear-gradient(135deg, black 0%, transparent 55%)',
+                }} />
+
+                {/* Color wash — top left */}
+                <div style={{
+                  position: 'absolute', top: -30, left: -30, width: 140, height: 140, pointerEvents: 'none',
+                  background: `radial-gradient(circle, ${f.color}16 0%, transparent 70%)`,
+                }} />
+
+                <div className="p-7 relative">
+                  {/* Icon + metric badge row */}
+                  <div className="flex items-start justify-between mb-5">
+                    <div
+                      className="w-12 h-12 rounded-xl flex items-center justify-center"
+                      style={{
+                        background: `${f.color}14`,
+                        border: `1px solid ${f.color}30`,
+                        boxShadow: `0 0 18px ${f.color}18, inset 0 1px 0 ${f.color}22`,
+                      }}
+                    >
+                      <f.icon size={21} style={{ color: f.color }} strokeWidth={1.75} />
+                    </div>
+
+                    <span style={{
+                      fontSize: 11, fontWeight: 700, letterSpacing: '0.03em',
+                      padding: '3px 9px', borderRadius: 6,
+                      background: `${f.color}10`,
+                      color: f.color,
+                      border: `1px solid ${f.color}28`,
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {f.metric}
+                    </span>
                   </div>
+
                   <h3 className="text-base font-bold mb-2" style={{ letterSpacing: '-0.01em' }}>{f.title}</h3>
                   <p className="text-sm leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>{f.desc}</p>
+
+                  {/* Bottom separator accent */}
+                  <div style={{ marginTop: 18, height: 1, background: `linear-gradient(90deg, ${f.color}45, transparent)` }} />
                 </div>
               </div>
             ))}

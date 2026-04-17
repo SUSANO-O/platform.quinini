@@ -20,6 +20,41 @@ type Params = { params: Promise<{ id: string }> };
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const MAX_SOURCES_PER_AGENT = 20;
 
+/**
+ * Validates that a buffer's magic bytes match the declared MIME type.
+ * Returns false only when we can positively identify a mismatch for binary
+ * formats (PDF, images, Office docs). Text formats have no magic bytes and
+ * always return true.
+ */
+function magicBytesMatch(buf: Buffer, declaredMime: string): boolean {
+  if (buf.length < 4) return true; // too small to validate
+  switch (declaredMime) {
+    case 'application/pdf':
+      // %PDF
+      return buf[0] === 0x25 && buf[1] === 0x50 && buf[2] === 0x44 && buf[3] === 0x46;
+    case 'image/png':
+      // \x89PNG
+      return buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47;
+    case 'image/jpeg':
+      // \xFF\xD8\xFF
+      return buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
+    case 'image/gif':
+      // GIF8
+      return buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38;
+    case 'image/webp':
+      // RIFF....WEBP
+      return buf.length >= 12 &&
+        buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
+        buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50;
+    case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+    case 'application/msword':
+      // DOCX = PK (ZIP), DOC = D0CF (OLE Compound)
+      return (buf[0] === 0x50 && buf[1] === 0x4b) || (buf[0] === 0xd0 && buf[1] === 0xcf);
+    default:
+      return true; // text/plain, text/csv, text/markdown, application/json, text/html — no magic bytes
+  }
+}
+
 // Allowed MIME types
 const ALLOWED_MIMES = new Set([
   'application/pdf',
@@ -112,6 +147,14 @@ export async function POST(req: NextRequest, { params }: Params) {
   // Read file buffer
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
+
+  // Validate magic bytes — prevents disguising a binary file as a different type
+  if (!magicBytesMatch(buffer, mimeType)) {
+    return NextResponse.json(
+      { error: 'El contenido del archivo no coincide con el tipo declarado. Verifica que el archivo no esté corrupto.' },
+      { status: 415 },
+    );
+  }
 
   // Process and extract text
   const result = await processFile(buffer, filename, mimeType);

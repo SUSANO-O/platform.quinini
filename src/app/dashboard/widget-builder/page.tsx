@@ -3,6 +3,12 @@
 import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { Copy, Check, Save, ExternalLink } from 'lucide-react';
+import {
+  defaultHueFromHex,
+  fabOrbitBlendModes,
+  hashWidgetSeed,
+  iridescentOrbBackgroundCss,
+} from '@/lib/widget-iridescent';
 
 // ── Orb gradient (port of orb-gradient.ts) ───────────────────────────────────
 
@@ -62,6 +68,20 @@ function computeOrbGradient(hex: string) {
   const lHex = rgbToHex(light.r, light.g, light.b);
   const dHex = rgbToHex(deep.r, deep.g, deep.b);
   return `linear-gradient(155deg, rgba(255,255,255,.22) 0%, transparent 42%), linear-gradient(148deg, ${lHex} 0%, ${hex} 46%, ${dHex} 100%)`;
+}
+
+function computeIridescentFabBackground(hex: string): string {
+  const h = defaultHueFromHex(hex);
+  const seed = hashWidgetSeed(`${hex}:fab`);
+  return `${iridescentOrbBackgroundCss(h, seed)}, ${computeOrbGradient(hex)}`;
+}
+
+function mockFabOrbInnerStyle(hex: string): React.CSSProperties {
+  return {
+    background: computeIridescentFabBackground(hex),
+    ...( { backgroundBlendMode: fabOrbitBlendModes() } as Pick<React.CSSProperties, 'backgroundBlendMode'> ),
+    filter: 'saturate(1.3) contrast(1.1) brightness(1.06)',
+  };
 }
 
 // ── Agent list (from API; widget.agentId = id estable del ClientAgent en landing) ──
@@ -177,7 +197,7 @@ function MockPreview({ cfg }: { cfg: WidgetConfig }) {
   /** Evita mutar el DOM con innerHTML en onError (rompe a React). */
   const [fabAvatarFailed, setFabAvatarFailed] = useState(false);
   const [headerAvatarFailed, setHeaderAvatarFailed] = useState(false);
-  const grad = computeOrbGradient(cfg.color);
+  const grad = computeIridescentFabBackground(cfg.color);
 
   useEffect(() => {
     setFabAvatarFailed(false);
@@ -232,7 +252,15 @@ function MockPreview({ cfg }: { cfg: WidgetConfig }) {
           // Offset up from FAB
           ...(cfg.position.includes('bottom') ? { bottom: 72, right: fabPos.right, left: fabPos.left, top: 'auto', transform: fabPos.left === '50%' ? 'translateX(-50%)' : undefined } : {}),
         }}>
-          <div style={{ background: grad, padding: '12px', color: '#fff' }}>
+          <div
+            style={{
+              background: grad,
+              ...( { backgroundBlendMode: fabOrbitBlendModes() } as Pick<React.CSSProperties, 'backgroundBlendMode'> ),
+    filter: 'saturate(1.3) contrast(1.1) brightness(1.06)',
+              padding: '12px',
+              color: '#fff',
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {cfg.avatar && !headerAvatarFailed ? (
                 <img
@@ -325,22 +353,45 @@ function MockPreview({ cfg }: { cfg: WidgetConfig }) {
           </div>
         )}
         <button
+          type="button"
           onClick={() => setChatOpen((v) => !v)}
+          className="relative overflow-hidden rounded-full border-0 shadow-lg ring-1 ring-white/35"
           style={{
-            width: 44, height: 44, borderRadius: '50%', border: 'none', cursor: 'pointer',
-            background: grad, boxShadow: `0 4px 16px ${cfg.color}66`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+            width: 44,
+            height: 44,
+            cursor: 'pointer',
+            boxShadow: `0 4px 16px ${cfg.color}66`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
           {cfg.avatar && !fabAvatarFailed ? (
             <img
               src={cfg.avatar}
               alt=""
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              className="relative z-10 h-full w-full object-cover"
               onError={() => setFabAvatarFailed(true)}
             />
           ) : (
-            <span style={{ color: '#fff', fontSize: 20 }}>{chatOpen ? '✕' : '💬'}</span>
+            <>
+              <div
+                className="absolute inset-[-36%] rounded-full"
+                style={mockFabOrbInnerStyle(cfg.color)}
+                aria-hidden
+              />
+              <div
+                className="pointer-events-none absolute inset-0 z-[1] rounded-full"
+                style={{
+                  boxShadow:
+                    'inset 0 2px 10px rgba(255,255,255,0.5), inset 0 -5px 12px rgba(0,0,0,0.2), inset 0 0 0 1px rgba(255,255,255,0.22)',
+                }}
+                aria-hidden
+              />
+              <span className="relative z-[2] text-[20px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]">
+                {chatOpen ? '✕' : '💬'}
+              </span>
+            </>
           )}
         </button>
       </div>
@@ -894,3 +945,4 @@ export default function WidgetBuilderPage() {
     </div>
   );
 }
+

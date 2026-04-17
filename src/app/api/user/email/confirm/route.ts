@@ -73,17 +73,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Ese email ya está en uso.' }, { status: 409 });
   }
 
-  await User.updateOne(
-    { _id: userId },
-    {
-      $set: { email: newEmail },
-      $unset: {
-        pendingEmail: 1,
-        emailChangeCodeHash: 1,
-        emailChangeExpires: 1,
+  try {
+    await User.updateOne(
+      { _id: userId },
+      {
+        $set: { email: newEmail },
+        $unset: {
+          pendingEmail: 1,
+          emailChangeCodeHash: 1,
+          emailChangeExpires: 1,
+        },
       },
-    },
-  );
+    );
+  } catch (err: unknown) {
+    const code = err && typeof err === 'object' && 'code' in err ? (err as { code: unknown }).code : null;
+    if (code === 11000) {
+      return NextResponse.json({ error: 'Ese email ya está en uso.' }, { status: 409 });
+    }
+    throw err;
+  }
 
   if (process.env.STRIPE_SECRET_KEY) {
     try {

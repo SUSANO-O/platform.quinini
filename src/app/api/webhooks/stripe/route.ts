@@ -69,21 +69,35 @@ export async function POST(req: NextRequest) {
         const { userId, plan, type, packId, conversations } = session.metadata || {};
 
         // ── Conversation pack fulfillment ────────────────────────────────
+        const KNOWN_PACK_IDS = new Set(['pack_s', 'pack_m', 'pack_l']);
         if (type === 'conversation_pack' && userId && packId && conversations) {
+          if (!KNOWN_PACK_IDS.has(packId)) {
+            console.error(`[Webhook] packId desconocido: "${packId}" — session:${session.id}`);
+            break;
+          }
           const convCount = parseInt(conversations, 10);
           if (!isNaN(convCount) && convCount > 0) {
             const expiresAt = new Date();
             expiresAt.setDate(expiresAt.getDate() + 90); // válido 90 días
-            await ConversationPack.create({
-              userId,
-              packId,
-              conversations: convCount,
-              used: 0,
-              stripeSessionId: session.id || null,
-              expiresAt,
-              status: 'active',
-            });
-            console.log(`[Webhook] Pack acreditado — user:${userId} pack:${packId} conv:${convCount}`);
+            try {
+              await ConversationPack.create({
+                userId,
+                packId,
+                conversations: convCount,
+                used: 0,
+                stripeSessionId: session.id || null,
+                expiresAt,
+                status: 'active',
+              });
+              console.log(`[Webhook] Pack acreditado — user:${userId} pack:${packId} conv:${convCount}`);
+            } catch (err: unknown) {
+              const code = err && typeof err === 'object' && 'code' in err ? (err as { code: unknown }).code : null;
+              if (code === 11000) {
+                console.log(`[Webhook] Pack ya acreditado (idempotente) — session:${session.id}`);
+              } else {
+                throw err;
+              }
+            }
           }
           break;
         }
@@ -141,31 +155,35 @@ export async function POST(req: NextRequest) {
         const subCreated = readStripeSubscriptionCreatedSeconds(stripeSub);
         const mapped = mapStripeStatusToDb(stripeSub.status || 'active');
 
-        const existing = await SubscriptionModel.findOne({ stripeCustomerId: customerId }).lean() as
-          | { status?: string }
-          | null;
-
-        const update: Record<string, unknown> = {
+        const baseUpdate: Record<string, unknown> = {
           currentPeriodEnd: periodEnd,
           currentPeriodStart: periodStart,
           stripeSubscriptionCreated: subCreated,
           cancelAtPeriodEnd: readCancelAtPeriodEnd(stripeSub),
         };
-        if (resolvedPlan) update.plan = resolvedPlan;
+        if (resolvedPlan) baseUpdate.plan = resolvedPlan;
 
-        // Evita condición de carrera: checkout.session.completed pone 'active' y luego
-        // customer.subscription.created envía 'incomplete' y borraba el acceso en la UI.
-        const wouldDowngradePaid =
-          existing &&
-          ['active', 'trialing'].includes(existing.status || '') &&
-          mapped === 'incomplete';
-        if (!wouldDowngradePaid) {
-          update.status = mapped;
+        // Elimina la condición de carrera con actualización atómica condicional:
+        // 1. Aplica siempre los campos de periodo (no afectan acceso).
+        // 2. Actualiza status a 'incomplete' SOLO si no está ya en 'active'/'trialing'.
+        //    Así checkout.session.completed (que pone 'active') no puede ser sobrescrito
+        //    por customer.subscription.created (que llega con 'incomplete') aunque lleguen
+        //    simultáneamente.
+        await SubscriptionModel.findOneAndUpdate({ stripeCustomerId: customerId }, { $set: baseUpdate });
+        if (mapped === 'incomplete') {
+          await SubscriptionModel.findOneAndUpdate(
+            { stripeCustomerId: customerId, status: { $nin: ['active', 'trialing'] } },
+            { $set: { status: mapped } },
+          );
+        } else {
+          await SubscriptionModel.findOneAndUpdate(
+            { stripeCustomerId: customerId },
+            { $set: { status: mapped } },
+          );
         }
 
-        await SubscriptionModel.findOneAndUpdate({ stripeCustomerId: customerId }, update);
         console.log(
-          `[Webhook] Subscription ${event.type} — customer:${customerId} status:${stripeSub.status} plan:${resolvedPlan ?? 'unchanged'} mapped:${mapped}${wouldDowngradePaid ? ' (status no degradado)' : ''}`,
+          `[Webhook] Subscription ${event.type} — customer:${customerId} status:${stripeSub.status} plan:${resolvedPlan ?? 'unchanged'} mapped:${mapped}`,
         );
         break;
       }
@@ -189,7 +207,7 @@ export async function POST(req: NextRequest) {
         );
 
         if (sub) {
-          sendSubscriptionEmail(sub.userId, 'canceled', sub.plan).catch(() => {});
+          sendSubscriptionEmail(sub.userId, 'canceled', sub.plan).catch((e) => console.error('[Webhook] canceled email:', e));
         }
 
         console.log(`[Webhook] Subscription canceled — customer:${customerId}`);
@@ -274,7 +292,7 @@ export async function POST(req: NextRequest) {
           invoiceNumber: inv.number ?? null,
           hostedInvoiceUrl: inv.hosted_invoice_url ?? null,
           pdfBuffer,
-        }).catch(() => {});
+        }).catch((e) => console.error('[Webhook] invoice email:', e));
 
         console.log(`[Webhook] invoice.paid — customer:${customerId} invoice:${inv.id} kind:${kind}`);
         break;
@@ -299,7 +317,7 @@ export async function POST(req: NextRequest) {
         );
 
         if (sub) {
-          sendSubscriptionEmail(sub.userId, 'payment_failed', sub.plan).catch(() => {});
+          sendSubscriptionEmail(sub.userId, 'payment_failed', sub.plan).catch((e) => console.error('[Webhook] payment_failed email:', e));
         }
 
         console.log(`[Webhook] Payment failed — customer:${customerId} attempt:${invoice.attempt_count}`);
@@ -314,7 +332,7 @@ export async function POST(req: NextRequest) {
 
         const sub = await SubscriptionModel.findOne({ stripeCustomerId: customerId });
         if (sub) {
-          sendSubscriptionEmail(sub.userId, 'trial_ending', sub.plan).catch(() => {});
+          sendSubscriptionEmail(sub.userId, 'trial_ending', sub.plan).catch((e) => console.error('[Webhook] trial_ending email:', e));
         }
 
         console.log(`[Webhook] Trial ending soon — customer:${customerId}`);

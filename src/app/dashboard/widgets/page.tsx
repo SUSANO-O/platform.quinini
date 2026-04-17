@@ -1,6 +1,12 @@
 'use client';
 
 import { useEffect, useState, type CSSProperties } from 'react';
+import {
+  defaultHueFromHex,
+  hashWidgetSeed,
+  iridescentOrbBackgroundCss,
+  iridescentOrbBlendModes,
+} from '@/lib/widget-iridescent';
 import Link from 'next/link';
 import { Trash2, Plus, Code2, Boxes, Pencil, Play, Sparkles } from 'lucide-react';
 import { useSubscription } from '@/hooks/use-subscription';
@@ -22,79 +28,13 @@ interface Widget {
   humanSupportPhone?: string;
 }
 
-function hashSeed(s: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
-function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
-  let h = hex.trim().replace('#', '');
-  if (h.length === 3) {
-    h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
-  }
-  if (h.length !== 6) return null;
-  const n = parseInt(h, 16);
-  if (!Number.isFinite(n)) return null;
-  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
-}
-
-function mix(a: number, b: number, t: number): number {
-  return Math.round(a + (b - a) * t);
-}
-
-function rgba(r: number, g: number, b: number, a: number): string {
-  return `rgba(${r},${g},${b},${a})`;
-}
-
-/** Avatar circular con gradiente tipo “lava” y variación estable por widget. */
-function widgetLavaAvatarStyle(baseHex: string, widgetId: string): CSSProperties {
-  const rgb = hexToRgb(baseHex) ?? { r: 13, g: 148, b: 136 };
-  const n = hashSeed(widgetId);
-  const u = (k: number) => ((n >>> k) & 0xffff) / 0xffff;
-  const t1 = 0.28 + u(0) * 0.22;
-  const t2 = 0.22 + u(8) * 0.2;
-  const light = {
-    r: mix(rgb.r, 255, t1),
-    g: mix(rgb.g, 255, t2),
-    b: mix(rgb.b, 255, 0.32 + u(16) * 0.18),
-  };
-  const deep = {
-    r: mix(rgb.r, 0, 0.18 + u(4) * 0.22),
-    g: mix(rgb.g, 0, 0.12 + u(12) * 0.15),
-    b: mix(rgb.b, 40, 0.1 + u(20) * 0.12),
-  };
-  const hot = {
-    r: mix(rgb.r, 255, 0.45 + u(24) * 0.15),
-    g: mix(rgb.g, 120, 0.25),
-    b: mix(rgb.b, 255, 0.2),
-  };
-  const blobX1 = 18 + (n % 35);
-  const blobY1 = 22 + ((n >>> 6) % 38);
-  const blobX2 = 58 + ((n >>> 12) % 32);
-  const blobY2 = 55 + ((n >>> 18) % 30);
-  const angle = 118 + (n % 48);
-  const grainAngle = 42 + ((n >>> 3) % 36);
-
-  const layers = [
-    `radial-gradient(ellipse 95% 85% at ${blobX1}% ${blobY1}%, ${rgba(light.r, light.g, light.b, 0.92)} 0%, transparent 68%)`,
-    `radial-gradient(circle at ${blobX2}% ${blobY2}%, ${rgba(hot.r, hot.g, hot.b, 0.55)} 0%, transparent 42%)`,
-    `radial-gradient(circle at ${50 + (u(28) - 0.5) * 20}% ${12 + (u(30) - 0.5) * 15}%, ${rgba(255, 255, 255, 0.22)} 0%, transparent 28%)`,
-    `linear-gradient(${angle}deg, ${rgba(deep.r, deep.g, deep.b, 1)} 0%, ${rgba(rgb.r, rgb.g, rgb.b, 1)} 38%, ${rgba(light.r, light.g, light.b, 0.95)} 100%)`,
-    `repeating-linear-gradient(${grainAngle}deg, rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 1px, transparent 1px, transparent 4px)`,
-    `repeating-linear-gradient(${grainAngle + 55}deg, rgba(0,0,0,0.04) 0px, rgba(0,0,0,0.04) 1px, transparent 1px, transparent 5px)`,
-  ].join(', ');
-
-  const borderA = 0.38 + u(2) * 0.12;
+function widgetIridescentOrbInnerStyle(baseHex: string, widgetId: string): CSSProperties {
+  const h = defaultHueFromHex(baseHex);
+  const seed = hashWidgetSeed(`${widgetId}|${baseHex}`);
   return {
-    background: layers,
-    backgroundBlendMode: 'normal, normal, soft-light, normal, overlay, multiply',
-    border: `2px solid ${rgba(mix(rgb.r, 255, 0.25), mix(rgb.g, 255, 0.25), mix(rgb.b, 255, 0.25), borderA)}`,
-    boxShadow:
-      'inset 0 1px 2px rgba(255,255,255,0.4), inset 0 -3px 8px rgba(0,0,0,0.18), 0 2px 10px rgba(0,0,0,0.08)',
+    background: iridescentOrbBackgroundCss(h, seed),
+    ...( { backgroundBlendMode: iridescentOrbBlendModes() } as Pick<CSSProperties, 'backgroundBlendMode'> ),
+    filter: 'saturate(1.28) contrast(1.08) brightness(1.06)',
   };
 }
 
@@ -279,10 +219,21 @@ export default function WidgetsPage() {
                 <div style={{ height: 3, background: `linear-gradient(90deg, ${w.color}, ${BRAND_B}99)` }} />
                 <div className="flex flex-wrap items-center gap-4 p-4 md:p-5">
                   <div
-                    className="w-10 h-10 rounded-full shrink-0 shadow-sm overflow-hidden"
-                    style={widgetLavaAvatarStyle(w.color, w._id)}
+                    className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full shadow-md ring-1 ring-white/40"
                     aria-hidden
-                  />
+                  >
+                    <div
+                      className="absolute inset-[-38%] rounded-full"
+                      style={widgetIridescentOrbInnerStyle(w.color, w._id)}
+                    />
+                    <div
+                      className="pointer-events-none absolute inset-0 rounded-full"
+                      style={{
+                        boxShadow:
+                          'inset 0 2px 10px rgba(255,255,255,0.55), inset 0 -6px 14px rgba(0,0,0,0.22), inset 0 0 0 1px rgba(255,255,255,0.25)',
+                      }}
+                    />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm m-0 mb-0.5">{w.name}</p>
                     <p className="text-xs m-0 truncate" style={{ color: 'var(--muted-foreground)' }}>
@@ -382,3 +333,4 @@ export default function WidgetsPage() {
     </div>
   );
 }
+

@@ -116,22 +116,23 @@ async function send(to: string, subject: string, html: string): Promise<EmailSen
       message: 'Falta RESEND_API_KEY en el servidor.',
     };
   }
-  const { data, error } = await resend.emails.send({ from: FROM, to, subject, html });
-  if (error) {
-    const message =
+  const MAX_ATTEMPTS = 3;
+  let lastError = '';
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    if (attempt > 1) await new Promise((r) => setTimeout(r, 1000 * (attempt - 1)));
+    const { data, error } = await resend.emails.send({ from: FROM, to, subject, html });
+    if (!error) {
+      if (attempt > 1) console.log(`[Email] Enviado OK en intento ${attempt}`, { to, subject });
+      else console.log('[Email] Enviado OK (Resend)', { to, subject, id: data?.id ?? '(sin id)', from: FROM });
+      return { ok: true };
+    }
+    lastError =
       typeof error === 'object' && error && 'message' in error
         ? String((error as { message: unknown }).message)
         : String(error);
-    console.error('[Email] Send error:', error);
-    return { ok: false, code: 'resend_error', message };
+    console.error(`[Email] Send error (intento ${attempt}/${MAX_ATTEMPTS}):`, error);
   }
-  console.log('[Email] Enviado OK (Resend)', {
-    to,
-    subject,
-    id: data?.id ?? '(sin id)',
-    from: FROM,
-  });
-  return { ok: true };
+  return { ok: false, code: 'resend_error', message: lastError };
 }
 
 async function sendWithAttachments(
