@@ -131,28 +131,53 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user || typeof window === 'undefined') return;
     const q = new URLSearchParams(window.location.search);
+    const ptxn = q.get('_ptxn');
     const hasSubscriptionSuccess = q.get('subscription') === 'success';
     const hasBillingReturn = q.get('billing') === 'return';
-    const hasPaddleTxn = Boolean(q.get('_ptxn'));
+    const hasPaddleTxn = Boolean(ptxn);
     if (!hasSubscriptionSuccess && !hasBillingReturn && !hasPaddleTxn) return;
 
-    // Si dejamos _ptxn en la URL, Paddle.js puede reintentar abrir el checkout
-    // en cada refresh y devolver 409 (transacción ya completada).
-    const cleanParams = new URLSearchParams(q);
-    cleanParams.delete('_ptxn');
-    cleanParams.delete('subscription');
-    cleanParams.delete('billing');
-    const nextQuery = cleanParams.toString();
-    const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`;
-    window.history.replaceState({}, '', nextUrl);
+    let cancelled = false;
+    const timers: number[] = [];
 
-    const t = window.setTimeout(() => load({ silent: true, force: true }), 400);
-    const t2 = window.setTimeout(() => load({ silent: true, force: true }), 1800);
-    const t3 = window.setTimeout(() => load({ silent: true, force: true }), 4000);
+    (async () => {
+      if (ptxn?.startsWith('txn_')) {
+        clearSubscriptionSessionCache(user.uid);
+        try {
+          const r = await fetch('/api/billing/sync-checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transactionId: ptxn }),
+          });
+          const j = (await r.json()) as { error?: string; ok?: boolean; message?: string };
+          if (!r.ok) {
+            console.warn('[Paddle][sync-checkout]', r.status, j);
+          }
+        } catch (e) {
+          console.warn('[Paddle][sync-checkout] network', e);
+        }
+      }
+
+      if (cancelled) return;
+
+      const cleanParams = new URLSearchParams(q);
+      cleanParams.delete('_ptxn');
+      cleanParams.delete('subscription');
+      cleanParams.delete('billing');
+      const nextQuery = cleanParams.toString();
+      const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`;
+      window.history.replaceState({}, '', nextUrl);
+
+      timers.push(
+        window.setTimeout(() => load({ silent: true, force: true }), 400),
+        window.setTimeout(() => load({ silent: true, force: true }), 1800),
+        window.setTimeout(() => load({ silent: true, force: true }), 4000),
+      );
+    })();
+
     return () => {
-      window.clearTimeout(t);
-      window.clearTimeout(t2);
-      window.clearTimeout(t3);
+      cancelled = true;
+      timers.forEach((id) => window.clearTimeout(id));
     };
   }, [user, load]);
 
