@@ -143,18 +143,40 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     (async () => {
       if (ptxn?.startsWith('txn_')) {
         clearSubscriptionSessionCache(user.uid);
-        try {
-          const r = await fetch('/api/billing/sync-checkout', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ transactionId: ptxn }),
-          });
-          const j = (await r.json()) as { error?: string; ok?: boolean; message?: string };
-          if (!r.ok) {
+        const maxAttempts = 6;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            const r = await fetch('/api/billing/sync-checkout', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ transactionId: ptxn }),
+            });
+            const j = (await r.json()) as {
+              error?: string;
+              ok?: boolean;
+              message?: string;
+              status?: string;
+            };
+
+            if (r.ok && j.ok) break;
+
+            // Paddle puede tardar unos segundos en mover de draft -> completed.
+            const isDraftConflict = r.status === 409 && j.status === 'draft';
+            if (isDraftConflict && attempt < maxAttempts) {
+              const waitMs = attempt * 1000;
+              await new Promise((resolve) => window.setTimeout(resolve, waitMs));
+              continue;
+            }
+
             console.warn('[Paddle][sync-checkout]', r.status, j);
+            break;
+          } catch (e) {
+            if (attempt >= maxAttempts) {
+              console.warn('[Paddle][sync-checkout] network', e);
+            } else {
+              await new Promise((resolve) => window.setTimeout(resolve, attempt * 1000));
+            }
           }
-        } catch (e) {
-          console.warn('[Paddle][sync-checkout] network', e);
         }
       }
 
