@@ -131,12 +131,28 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user || typeof window === 'undefined') return;
     const q = new URLSearchParams(window.location.search);
-    if (q.get('subscription') !== 'success' && q.get('billing') !== 'return') return;
+    const hasSubscriptionSuccess = q.get('subscription') === 'success';
+    const hasBillingReturn = q.get('billing') === 'return';
+    const hasPaddleTxn = Boolean(q.get('_ptxn'));
+    if (!hasSubscriptionSuccess && !hasBillingReturn && !hasPaddleTxn) return;
+
+    // Si dejamos _ptxn en la URL, Paddle.js puede reintentar abrir el checkout
+    // en cada refresh y devolver 409 (transacción ya completada).
+    const cleanParams = new URLSearchParams(q);
+    cleanParams.delete('_ptxn');
+    cleanParams.delete('subscription');
+    cleanParams.delete('billing');
+    const nextQuery = cleanParams.toString();
+    const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`;
+    window.history.replaceState({}, '', nextUrl);
+
     const t = window.setTimeout(() => load({ silent: true, force: true }), 400);
     const t2 = window.setTimeout(() => load({ silent: true, force: true }), 1800);
+    const t3 = window.setTimeout(() => load({ silent: true, force: true }), 4000);
     return () => {
       window.clearTimeout(t);
       window.clearTimeout(t2);
+      window.clearTimeout(t3);
     };
   }, [user, load]);
 
