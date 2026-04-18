@@ -24,12 +24,12 @@ const nextConfig: NextConfig = {
             value: [
               "default-src 'self'",
               // Stripe.js se sirve desde js.stripe.com; permitimos su carga explícitamente.
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.stripe.com",
-              "script-src-elem 'self' 'unsafe-inline' https://js.stripe.com",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.stripe.com https://cdn.paddle.com",
+              "script-src-elem 'self' 'unsafe-inline' https://js.stripe.com https://cdn.paddle.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com",
               "font-src 'self' data: https://fonts.gstatic.com https://api.fontshare.com https://cdn.fontshare.com",
               "img-src 'self' data: blob: https:",
-              "connect-src 'self' https://api.stripe.com https://checkout.stripe.com",
+              "connect-src 'self' https://api.stripe.com https://checkout.stripe.com https://api.paddle.com https://sandbox-api.paddle.com",
               "frame-src https://js.stripe.com https://hooks.stripe.com",
               "object-src 'none'",
               "base-uri 'self'",
