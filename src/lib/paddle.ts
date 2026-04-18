@@ -16,11 +16,27 @@
 
 import { Paddle, Environment } from '@paddle/paddle-node-sdk';
 
+function maskServerValue(value: string | undefined): string {
+  if (!value) return 'missing';
+  if (value.length <= 12) return `${value.slice(0, 4)}...`;
+  return `${value.slice(0, 8)}...${value.slice(-4)}`;
+}
+
+const paddleEnvironment =
+  process.env.PADDLE_ENVIRONMENT === 'production'
+    ? Environment.production
+    : Environment.sandbox;
+
+console.info('[Paddle][Server] Config loaded', {
+  env: process.env.PADDLE_ENVIRONMENT === 'production' ? 'production' : 'sandbox',
+  apiKey: maskServerValue(process.env.PADDLE_API_KEY),
+  starterPriceConfigured: Boolean(process.env.PADDLE_PRICE_STARTER),
+  growthPriceConfigured: Boolean(process.env.PADDLE_PRICE_GROWTH),
+  businessPriceConfigured: Boolean(process.env.PADDLE_PRICE_BUSINESS),
+});
+
 export const paddle = new Paddle(process.env.PADDLE_API_KEY || '', {
-  environment:
-    process.env.PADDLE_ENVIRONMENT === 'production'
-      ? Environment.production
-      : Environment.sandbox,
+  environment: paddleEnvironment,
 });
 
 export const PLANS = {

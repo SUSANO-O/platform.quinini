@@ -158,6 +158,21 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     });
     const data = await res.json();
     if (data.url) {
+      try {
+        const checkoutUrl = new URL(String(data.url));
+        console.info('[Paddle][Checkout] Redirecting to checkout URL', {
+          plan,
+          host: checkoutUrl.host,
+          path: checkoutUrl.pathname,
+        });
+        if (checkoutUrl.host.includes('sandbox') && window.location.hostname !== 'localhost') {
+          console.warn(
+            '[Paddle][Checkout] Estás redirigiendo a sandbox fuera de localhost. Revisa variables de entorno de producción.',
+          );
+        }
+      } catch {
+        console.warn('[Paddle][Checkout] No se pudo parsear checkout URL', { plan });
+      }
       window.location.href = data.url;
       return {};
     }
@@ -165,6 +180,11 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       load({ silent: true, force: true });
       return typeof data.message === 'string' ? { message: data.message } : {};
     }
+    console.error('[Paddle][Checkout] API /api/billing/plan falló', {
+      plan,
+      status: res.status,
+      error: data?.error || 'Sin detalle',
+    });
     return { error: data.error || 'Error al procesar el plan.' };
   }, [load]);
 
