@@ -1,84 +1,23 @@
 'use client';
 
+/**
+ * Modal para actualizar el método de pago.
+ * Migrado de Stripe Elements → redirección a la URL de gestión de Paddle.
+ *
+ * Flujo Paddle:
+ *   1. POST /api/billing/payment-method-url  →  { url }
+ *   2. window.location.href = url  →  portal seguro de Paddle
+ *
+ * ─── Stripe Elements (comentado — conservado para referencia) ────────────
+ * // import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+ * // import { getStripePromise } from '@/lib/stripe-client';
+ * // function SetupForm({ onSaved, onClose }) { ... stripe.confirmSetup() ... }
+ * → Ver git history para la implementación completa con Stripe Elements.
+ */
+
 import { useEffect, useState } from 'react';
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { getStripePromise } from '@/lib/stripe-client';
 import { toast } from 'sonner';
-import { X } from 'lucide-react';
-
-function SetupForm({
-  onSaved,
-  onClose,
-}: {
-  onSaved: () => void;
-  onClose: () => void;
-}) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!stripe || !elements) return;
-    setLoading(true);
-    const { error, setupIntent } = await stripe.confirmSetup({
-      elements,
-      redirect: 'if_required',
-      confirmParams: {
-        return_url:
-          typeof window !== 'undefined'
-            ? `${window.location.origin}/dashboard/settings?setup=return`
-            : '',
-      },
-    });
-    setLoading(false);
-    if (error) {
-      toast.error(error.message || 'No se pudo confirmar el método de pago.');
-      return;
-    }
-    if (setupIntent?.status === 'succeeded' && setupIntent.id) {
-      const r = await fetch('/api/billing/setup-intent/complete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ setupIntentId: setupIntent.id }),
-      });
-      const data = await r.json();
-      if (!r.ok) {
-        toast.error(data.error || 'Error al guardar la tarjeta.');
-        return;
-      }
-      toast.success(data.message || 'Método de pago actualizado.');
-      onSaved();
-      onClose();
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit}>
-      <div style={{ marginBottom: '16px' }}>
-        <PaymentElement />
-      </div>
-      <button
-        type="submit"
-        disabled={!stripe || loading}
-        style={{
-          width: '100%',
-          padding: '11px 16px',
-          borderRadius: '10px',
-          fontWeight: 700,
-          fontSize: '14px',
-          border: 'none',
-          background: '#0d9488',
-          color: '#fff',
-          cursor: loading || !stripe ? 'wait' : 'pointer',
-          opacity: !stripe ? 0.6 : 1,
-        }}
-      >
-        {loading ? 'Guardando…' : 'Guardar método de pago'}
-      </button>
-    </form>
-  );
-}
+import { X, ExternalLink } from 'lucide-react';
 
 type UpdatePaymentModalProps = {
   open: boolean;
@@ -86,43 +25,33 @@ type UpdatePaymentModalProps = {
   onSaved: () => void;
 };
 
-export function UpdatePaymentModal({ open, onClose, onSaved }: UpdatePaymentModalProps) {
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
+export function UpdatePaymentModal({ open, onClose }: UpdatePaymentModalProps) {
+  const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [loadingSecret, setLoadingSecret] = useState(false);
-  const [stripePromise] = useState(() => getStripePromise());
 
   useEffect(() => {
-    if (!open) {
-      setClientSecret(null);
-      setLoadError(null);
-      return;
-    }
-    if (!stripePromise) {
-      setLoadError(
-        'Falta la clave publicable de Stripe (NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY). Añádela al .env y reinicia.',
-      );
-      return;
-    }
-    setLoadingSecret(true);
-    setLoadError(null);
-    fetch('/api/billing/setup-intent', { method: 'POST' })
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.error) setLoadError(d.error);
-        else if (d.clientSecret) setClientSecret(d.clientSecret);
-        else setLoadError('Respuesta inválida del servidor.');
-      })
-      .catch(() => setLoadError('No se pudo conectar. Intenta de nuevo.'))
-      .finally(() => setLoadingSecret(false));
-  }, [open, stripePromise]);
+    if (!open) setLoadError(null);
+  }, [open]);
 
   if (!open) return null;
 
-  const appearance =
-    typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
-      ? ({ theme: 'night' as const } satisfies { theme: 'night' })
-      : ({ theme: 'stripe' as const } satisfies { theme: 'stripe' });
+  async function handleRedirect() {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const res = await fetch('/api/billing/payment-method-url', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        setLoadError(data.error || 'No se pudo obtener la URL de Paddle.');
+        return;
+      }
+      window.location.href = data.url;
+    } catch {
+      setLoadError('Error de conexión. Intenta de nuevo.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div
@@ -144,8 +73,6 @@ export function UpdatePaymentModal({ open, onClose, onSaved }: UpdatePaymentModa
         style={{
           width: '100%',
           maxWidth: '440px',
-          maxHeight: '90vh',
-          overflow: 'auto',
           borderRadius: '16px',
           background: 'var(--card)',
           border: '1px solid var(--border)',
@@ -158,7 +85,7 @@ export function UpdatePaymentModal({ open, onClose, onSaved }: UpdatePaymentModa
           <div>
             <h2 style={{ fontSize: '17px', fontWeight: 800, margin: 0 }}>Método de pago</h2>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: '6px 0 0', lineHeight: 1.4 }}>
-              Datos procesados por Stripe. No almacenamos el número de tarjeta en nuestros servidores.
+              Serás redirigido al portal seguro de Paddle para actualizar tu tarjeta.
             </p>
           </div>
           <button
@@ -180,19 +107,35 @@ export function UpdatePaymentModal({ open, onClose, onSaved }: UpdatePaymentModa
         {loadError && (
           <p style={{ fontSize: '13px', color: '#ef4444', marginBottom: '12px' }}>{loadError}</p>
         )}
-        {loadingSecret && !loadError && <p style={{ fontSize: '13px', color: 'var(--muted-foreground)' }}>Preparando formulario…</p>}
 
-        {stripePromise && clientSecret && !loadError && (
-          <Elements
-            stripe={stripePromise}
-            options={{
-              clientSecret,
-              appearance,
-            }}
-          >
-            <SetupForm onSaved={onSaved} onClose={onClose} />
-          </Elements>
-        )}
+        <button
+          type="button"
+          disabled={loading}
+          onClick={handleRedirect}
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            padding: '11px 16px',
+            borderRadius: '10px',
+            fontWeight: 700,
+            fontSize: '14px',
+            border: 'none',
+            background: '#0d9488',
+            color: '#fff',
+            cursor: loading ? 'wait' : 'pointer',
+            opacity: loading ? 0.7 : 1,
+          }}
+        >
+          {loading ? 'Redirigiendo…' : (
+            <>
+              Actualizar método de pago
+              <ExternalLink size={14} />
+            </>
+          )}
+        </button>
       </div>
     </div>
   );

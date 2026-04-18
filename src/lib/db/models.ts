@@ -30,8 +30,15 @@ UserSchema.index({ verifyToken: 1 }, { sparse: true });
 
 const SubscriptionSchema = new Schema({
   userId:               { type: String, required: true, unique: true },
-  stripeCustomerId:     { type: String, default: null },
-  stripeSubscriptionId: { type: String, default: null },
+
+  // ── Paddle Billing v2 (activo) ───────────────────────────────────────────
+  paddleCustomerId:     { type: String, default: null },
+  paddleSubscriptionId: { type: String, default: null },
+
+  // ── Stripe (comentado — conservado para referencia / migración de datos) ─
+  // stripeCustomerId:     { type: String, default: null },
+  // stripeSubscriptionId: { type: String, default: null },
+
   status:               {
     type: String,
     enum: ['trialing', 'active', 'canceled', 'past_due', 'incomplete'],
@@ -43,19 +50,20 @@ const SubscriptionSchema = new Schema({
     default: 'free',
   },
   currentPeriodEnd: { type: Number, default: 0 },
-  /** Stripe: inicio del periodo de facturación actual (epoch segundos) */
+  /** Inicio del periodo de facturación actual (epoch segundos) */
   currentPeriodStart: { type: Number, default: 0 },
-  /** Stripe: creación de la suscripción (epoch segundos) — referencia de “desde cuándo” */
+  /** Creación de la suscripción en el proveedor (epoch segundos) */
   stripeSubscriptionCreated: { type: Number, default: 0 },
-  /** Stripe: cancelación al final del periodo (sigue activo hasta currentPeriodEnd) */
+  /** Cancelación al final del periodo (sigue activo hasta currentPeriodEnd) */
   cancelAtPeriodEnd: { type: Boolean, default: false },
   trialStartedAt:   { type: Date, default: null },
   trialEndsAt:      { type: Date, default: null },
-  /** Mes ("YYYY-MM") en que se envió la alerta de 80% de cuota. Evita envíos repetidos. */
+  /** Mes (“YYYY-MM”) en que se envió la alerta de 80% de cuota. Evita envíos repetidos. */
   quotaWarningSentMonth: { type: String, default: null },
 }, { timestamps: true });
 
-SubscriptionSchema.index({ stripeCustomerId: 1 });
+SubscriptionSchema.index({ paddleCustomerId: 1 });
+// SubscriptionSchema.index({ stripeCustomerId: 1 }); // Stripe — comentado
 
 // ── WIDGETS ──────────────────────────────────────────────────────────────────
 

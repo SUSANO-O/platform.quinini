@@ -5,7 +5,7 @@ import { useSubscription } from '@/hooks/use-subscription';
 import { SubscriptionPlanPanel } from '@/components/dashboard/subscription-plan-panel';
 import { UpdatePaymentModal } from '@/components/billing/update-payment-modal';
 import { InvoiceList } from '@/components/billing/invoice-list';
-import { getStripePromise } from '@/lib/stripe-client';
+// import { getStripePromise } from '@/lib/stripe-client'; // Stripe — comentado
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CreditCard, ExternalLink, Settings, Sparkles, CheckCircle2, AlertTriangle } from 'lucide-react';
@@ -152,41 +152,23 @@ export default function SettingsPage() {
   }
 
   /** Tras 3DS u otro redirect de Stripe al guardar tarjeta */
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('setup') !== 'return') return;
-    const clientSecret = params.get('setup_intent_client_secret');
-    if (!clientSecret) return;
-
-    (async () => {
-      const p = getStripePromise();
-      if (!p) return;
-      const stripe = await p;
-      if (!stripe) return;
-      const { setupIntent, error } = await stripe.retrieveSetupIntent(clientSecret);
-      if (error || !setupIntent?.id) {
-        toast.error(error?.message || 'No se pudo completar la verificación del pago.');
-        window.history.replaceState({}, '', '/dashboard/settings');
-        return;
-      }
-      if (setupIntent.status === 'succeeded') {
-        const r = await fetch('/api/billing/setup-intent/complete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ setupIntentId: setupIntent.id }),
-        });
-        const data = await r.json();
-        if (r.ok) {
-          toast.success(data.message || 'Método de pago actualizado.');
-          refresh({ silent: true });
-        } else {
-          toast.error(data.error || 'Error al guardar.');
-        }
-      }
-      window.history.replaceState({}, '', '/dashboard/settings');
-    })();
-  }, [refresh]);
+  // ── Stripe SetupIntent return handler (comentado — Paddle maneja esto en su portal) ──
+  // useEffect(() => {
+  //   if (typeof window === 'undefined') return;
+  //   const params = new URLSearchParams(window.location.search);
+  //   if (params.get('setup') !== 'return') return;
+  //   const clientSecret = params.get('setup_intent_client_secret');
+  //   if (!clientSecret) return;
+  //   (async () => {
+  //     const p = getStripePromise();
+  //     if (!p) return;
+  //     const stripe = await p;
+  //     if (!stripe) return;
+  //     const { setupIntent, error } = await stripe.retrieveSetupIntent(clientSecret);
+  //     ...
+  //     window.history.replaceState({}, '', '/dashboard/settings');
+  //   })();
+  // }, [refresh]);
 
   function copyUserId() {
     if (!user) return;

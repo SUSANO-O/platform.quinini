@@ -1,23 +1,32 @@
 /**
  * POST /api/billing/topup
- * Crea una sesión de Stripe Checkout (modo payment, one-time) para comprar
- * un pack de conversaciones extra.
+ * Crea un checkout de Paddle (pago único) para comprar un pack de conversaciones.
  * Body: { packId: 'pack_s' | 'pack_m' | 'pack_l' }
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken, isUserEmailVerified, isImpersonationSession } from '@/lib/auth';
-import { stripe } from '@/lib/stripe';
 import { connectDB } from '@/lib/db/connection';
 import { User, Subscription } from '@/lib/db/models';
 import { CONVERSATION_PACKS, type PackId } from '@/lib/plan-catalog';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
+import { getPaymentService } from '@/lib/payment';
 
+// IDs de precios Paddle para packs de conversaciones (one-time)
 const PACK_PRICE_IDS: Record<PackId, string> = {
-  pack_s: process.env.STRIPE_PACK_S || '',
-  pack_m: process.env.STRIPE_PACK_M || '',
-  pack_l: process.env.STRIPE_PACK_L || '',
+  pack_s: process.env.PADDLE_PACK_S || '',
+  pack_m: process.env.PADDLE_PACK_M || '',
+  pack_l: process.env.PADDLE_PACK_L || '',
 };
+
+// ─── STRIPE (comentado) ──────────────────────────────────────────────────────
+// const PACK_PRICE_IDS: Record<PackId, string> = {
+//   pack_s: process.env.STRIPE_PACK_S || '',
+//   pack_m: process.env.STRIPE_PACK_M || '',
+//   pack_l: process.env.STRIPE_PACK_L || '',
+// };
+// import { stripe } from '@/lib/stripe';
+// const session = await stripe.checkout.sessions.create({ mode: 'payment', ... });
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
@@ -31,7 +40,6 @@ export async function POST(req: NextRequest) {
 
   const token = req.cookies.get('afhub_session')?.value;
   if (!token) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
-
   const userId = verifySessionToken(token);
   if (!userId) return NextResponse.json({ error: 'Sesión inválida.' }, { status: 401 });
 
@@ -49,7 +57,7 @@ export async function POST(req: NextRequest) {
   const priceId = PACK_PRICE_IDS[packId];
   if (!priceId) {
     return NextResponse.json(
-      { error: 'Pack no configurado (falta STRIPE_PACK_* en .env).' },
+      { error: 'Pack no configurado (falta PADDLE_PACK_* en .env).' },
       { status: 400 },
     );
   }
@@ -60,43 +68,36 @@ export async function POST(req: NextRequest) {
 
   if (!isImpersonationSession(req.cookies) && !isUserEmailVerified(user)) {
     return NextResponse.json(
-      {
-        error: 'Debes verificar tu correo antes de comprar packs de conversaciones.',
-        code: 'EMAIL_NOT_VERIFIED',
-      },
+      { error: 'Debes verificar tu correo antes de comprar packs de conversaciones.', code: 'EMAIL_NOT_VERIFIED' },
       { status: 403 },
     );
   }
 
-  // Obtener o crear Stripe customer
-  const sub = await Subscription.findOne({ userId }).lean() as { stripeCustomerId?: string } | null;
-  let customerId = sub?.stripeCustomerId;
-  if (!customerId) {
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
-    } else {
-      const c = await stripe.customers.create({ email: user.email, metadata: { userId } });
-      customerId = c.id;
-    }
-    await Subscription.findOneAndUpdate({ userId }, { $set: { stripeCustomerId: customerId } }, { upsert: true });
-  }
-
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
+  const paymentService = getPaymentService();
 
-  const session = await stripe.checkout.sessions.create({
-    customer: customerId,
-    mode: 'payment',
-    payment_method_types: ['card'],
-    line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${appUrl}/dashboard?topup=success&pack=${packId}`,
-    cancel_url:  `${appUrl}/dashboard?topup=cancelled`,
-    metadata: { userId, packId, conversations: String(pack.conversations), type: 'conversation_pack' },
-  });
+  try {
+    const { url } = await paymentService.createTopupCheckout({
+      userId,
+      email: user.email!,
+      packId,
+      priceId,
+      conversations: pack.conversations,
+      successUrl: `${appUrl}/dashboard?topup=success&pack=${packId}`,
+      cancelUrl: `${appUrl}/dashboard?topup=cancelled`,
+    });
 
-  if (!session.url) {
+    // Guardar paddleCustomerId si se creó un cliente nuevo durante el checkout
+    const sub = await Subscription.findOne({ userId }).lean() as { paddleCustomerId?: string } | null;
+    if (!sub?.paddleCustomerId) {
+      const customerId = await paymentService.getOrCreateCustomerId(userId, user.email!);
+      await Subscription.findOneAndUpdate({ userId }, { $set: { paddleCustomerId: customerId } }, { upsert: true });
+    }
+
+    return NextResponse.json({ url });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'unknown';
+    console.error('[Billing] topup:', msg);
     return NextResponse.json({ error: 'No se pudo crear la sesión de pago.' }, { status: 500 });
   }
-
-  return NextResponse.json({ url: session.url });
 }

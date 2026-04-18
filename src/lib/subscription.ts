@@ -1,264 +1,128 @@
-import type Stripe from 'stripe';
+/**
+ * Gestión de estado de suscripción y sincronización con Paddle.
+ * La lógica de Stripe está conservada comentada más abajo para referencia.
+ */
+
 import { connectDB } from './db/connection';
 import { Subscription as SubscriptionModel } from './db/models';
-import { PLANS, stripe } from './stripe';
+import { paddle } from './paddle';
+import {
+  mapPaddleStatusToDb,
+  resolvePlanFromPaddleSubscription,
+  isoToEpochExport as isoToEpoch,
+} from './payment/paddle-adapter';
 
 const TRIAL_DAYS = 3;
 
-/** Map Stripe subscription.status to values allowed by our Mongoose schema */
-export function mapStripeStatusToDb(stripeStatus: string): string {
-  switch (stripeStatus) {
-    case 'active':
-    case 'trialing':
-    case 'canceled':
-    case 'past_due':
-    case 'incomplete':
-      return stripeStatus;
-    case 'incomplete_expired':
-      return 'canceled';
-    case 'unpaid':
-    case 'paused':
-      return 'past_due';
-    default:
-      return 'past_due';
-  }
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// Paddle helpers (activos)
+// ─────────────────────────────────────────────────────────────────────────────
 
-export function planFromStripePriceId(priceId: string | undefined): string | null {
-  if (!priceId) return null;
-  for (const [key, plan] of Object.entries(PLANS)) {
-    if (plan.priceId === priceId) return key;
-  }
-  return null;
-}
+export { mapPaddleStatusToDb, resolvePlanFromPaddleSubscription };
 
-function getPlanFromStripeSubscription(stripeSub: Stripe.Subscription): string | null {
-  const price = stripeSub.items?.data?.[0]?.price;
-  const priceId = typeof price === 'string' ? price : price?.id;
-  return planFromStripePriceId(priceId);
-}
-
-/**
- * Determina el plan de pago desde la suscripción de Stripe.
- * Orden: metadata.plan (checkout subscription_data) → priceId en .env → importe USD (unit_amount).
- */
-function pickEpochSeconds(x: unknown): number {
-  if (typeof x === 'number' && !Number.isNaN(x) && x > 0) return Math.floor(x);
-  if (typeof x === 'string') {
-    const n = parseInt(x, 10);
-    return Number.isNaN(n) ? 0 : n;
-  }
-  return 0;
-}
-
-/**
- * Lee un campo epoch (snake_case) de un Subscription de Stripe.
- * El SDK a veces no expone bien las claves vía `as Record` — usamos acceso tipado + JSON plano.
- */
-/** Campos epoch en la respuesta de Stripe (snake_case en API; el SDK puede exponer camelCase). */
-type StripeSubEpochFields = {
-  current_period_end?: number;
-  current_period_start?: number;
-  currentPeriodEnd?: number;
-  currentPeriodStart?: number;
-  created?: number;
-};
-
-function readStripeSubscriptionEpochField(
-  stripeSub: unknown,
-  key: 'current_period_end' | 'current_period_start' | 'created',
-): number {
-  const s = stripeSub as StripeSubEpochFields;
-  if (key === 'current_period_end') {
-    const a = pickEpochSeconds(s.current_period_end ?? s.currentPeriodEnd);
-    if (a > 0) return a;
-  } else if (key === 'current_period_start') {
-    const a = pickEpochSeconds(s.current_period_start ?? s.currentPeriodStart);
-    if (a > 0) return a;
-  } else {
-    const a = pickEpochSeconds(s.created);
-    if (a > 0) return a;
-  }
-
-  const o = stripeSub as Record<string, unknown>;
-  let v = pickEpochSeconds(o[key]);
-  if (v > 0) return v;
-
-  const toJson = (stripeSub as { toJSON?: () => object }).toJSON;
-  if (typeof toJson === 'function') {
-    try {
-      v = pickEpochSeconds((toJson.call(stripeSub) as Record<string, unknown>)[key]);
-      if (v > 0) return v;
-    } catch {
-      /* ignore */
-    }
-  }
-
-  try {
-    const plain = JSON.parse(JSON.stringify(stripeSub)) as Record<string, unknown>;
-    v = pickEpochSeconds(plain[key]);
-    if (v > 0) return v;
-    if (key === 'current_period_end') {
-      v = pickEpochSeconds(plain.currentPeriodEnd);
-      if (v > 0) return v;
-    }
-    if (key === 'current_period_start') {
-      v = pickEpochSeconds(plain.currentPeriodStart);
-      if (v > 0) return v;
-    }
-  } catch {
-    /* ignore */
-  }
-
-  return 0;
-}
-
-/**
- * API Basil (p. ej. 2025-04-30.basil): `current_period_*` ya no están en Subscription,
- * solo en cada SubscriptionItem (`items.data[]`).
- * @see https://docs.stripe.com/changelog/basil/2025-03-31/deprecate-subscription-current-period-start-and-end
- */
-function readPeriodFromSubscriptionItems(
-  stripeSub: unknown,
-  which: 'current_period_end' | 'current_period_start',
-): number {
-  const sub = stripeSub as {
-    items?: { data?: Array<StripeSubEpochFields & Record<string, unknown>> };
+export function readCancelAtPeriodEnd(paddleSub: unknown): boolean {
+  const s = paddleSub as {
+    scheduledChange?: { action?: string } | null;
+    scheduled_change?: { action?: string } | null;
   };
-  const items = sub.items?.data;
-  if (!items?.length) return 0;
-  const camel = which === 'current_period_end' ? 'currentPeriodEnd' : 'currentPeriodStart';
-  for (const raw of items) {
-    const it = raw as Record<string, unknown>;
-    let v = pickEpochSeconds(it[which]);
-    if (v > 0) return v;
-    v = pickEpochSeconds(it[camel]);
-    if (v > 0) return v;
-    try {
-      const plain = JSON.parse(JSON.stringify(raw)) as Record<string, unknown>;
-      v = pickEpochSeconds(plain[which]);
-      if (v > 0) return v;
-      v = pickEpochSeconds(plain[camel]);
-      if (v > 0) return v;
-    } catch {
-      /* ignore */
-    }
-  }
-  return 0;
+  return (s.scheduledChange ?? s.scheduled_change)?.action === 'cancel';
 }
 
-/** Lee `current_period_end` (segundos epoch): Subscription (API antigua) o primer SubscriptionItem (Basil). */
-export function readCurrentPeriodEndSeconds(stripeSub: unknown): number {
-  const top = readStripeSubscriptionEpochField(stripeSub, 'current_period_end');
-  if (top > 0) return top;
-  return readPeriodFromSubscriptionItems(stripeSub, 'current_period_end');
+export function readCurrentPeriodEndSeconds(paddleSub: unknown): number {
+  const s = paddleSub as {
+    currentBillingPeriod?: { endsAt?: string };
+    current_billing_period?: { ends_at?: string };
+    items?: Array<{
+      currentBillingPeriod?: { endsAt?: string };
+      current_billing_period?: { ends_at?: string };
+    }>;
+  };
+  const iso =
+    s.currentBillingPeriod?.endsAt ??
+    s.current_billing_period?.ends_at ??
+    s.items?.[0]?.currentBillingPeriod?.endsAt ??
+    s.items?.[0]?.current_billing_period?.ends_at;
+  return isoToEpoch(iso);
 }
 
-/** Lee `current_period_start` (segundos epoch): Subscription (API antigua) o primer SubscriptionItem (Basil). */
-export function readCurrentPeriodStartSeconds(stripeSub: unknown): number {
-  const top = readStripeSubscriptionEpochField(stripeSub, 'current_period_start');
-  if (top > 0) return top;
-  return readPeriodFromSubscriptionItems(stripeSub, 'current_period_start');
+export function readCurrentPeriodStartSeconds(paddleSub: unknown): number {
+  const s = paddleSub as {
+    currentBillingPeriod?: { startsAt?: string };
+    current_billing_period?: { starts_at?: string };
+    items?: Array<{
+      currentBillingPeriod?: { startsAt?: string };
+      current_billing_period?: { starts_at?: string };
+    }>;
+  };
+  const iso =
+    s.currentBillingPeriod?.startsAt ??
+    s.current_billing_period?.starts_at ??
+    s.items?.[0]?.currentBillingPeriod?.startsAt ??
+    s.items?.[0]?.current_billing_period?.starts_at;
+  return isoToEpoch(iso);
 }
 
-/** Stripe `subscription.created` (epoch segundos). */
-export function readStripeSubscriptionCreatedSeconds(stripeSub: unknown): number {
-  return readStripeSubscriptionEpochField(stripeSub, 'created');
-}
-
-/** Stripe Subscription.cancel_at_period_end */
-export function readCancelAtPeriodEnd(stripeSub: unknown): boolean {
-  const o = stripeSub as Record<string, unknown>;
-  return o.cancel_at_period_end === true;
-}
-
-export function resolvePlanFromStripeSubscription(
-  stripeSub: Stripe.Subscription | {
-    metadata?: Record<string, string> | null;
-    items?: Stripe.Subscription['items'];
-  },
-): string | null {
-  const metaPlan = stripeSub.metadata?.plan;
-  if (metaPlan && ['starter', 'growth', 'business', 'enterprise'].includes(metaPlan)) {
-    return metaPlan;
-  }
-
-  const byPriceId = getPlanFromStripeSubscription(stripeSub as Stripe.Subscription);
-  if (byPriceId) return byPriceId;
-
-  const price = stripeSub.items?.data?.[0]?.price;
-  const priceObj = typeof price === 'string' ? null : price;
-  const cents = priceObj?.unit_amount;
-  if (cents != null) {
-    for (const [key, plan] of Object.entries(PLANS)) {
-      if (plan.price * 100 === cents) return key;
-    }
-  }
-  return null;
+export function readSubscriptionCreatedSeconds(sub: unknown): number {
+  const s = sub as { createdAt?: string; created_at?: string };
+  return isoToEpoch(s.createdAt ?? s.created_at);
 }
 
 /**
- * Reconcile MongoDB with Stripe when we have customer/subscription IDs.
- * Fixes stale data if webhooks failed or `current_period_end` was missing.
+ * Reconcilia MongoDB con Paddle cuando tenemos el ID de suscripción.
+ * Equivalente a syncSubscriptionFromStripe.
  */
-export async function syncSubscriptionFromStripe(userId: string) {
-  if (!process.env.STRIPE_SECRET_KEY) return;
+export async function syncSubscriptionFromPaddle(userId: string) {
+  if (!process.env.PADDLE_API_KEY) return;
 
   await connectDB();
   const sub = await SubscriptionModel.findOne({ userId });
   if (!sub) return;
 
-  let subscriptionId = sub.stripeSubscriptionId;
+  let subscriptionId: string | null = sub.paddleSubscriptionId ?? null;
 
-  if (!subscriptionId && sub.stripeCustomerId) {
-    const list = await stripe.subscriptions.list({
-      customer: sub.stripeCustomerId,
-      status: 'all',
-      limit: 5,
-    });
-    const relevant = list.data.find((s) =>
-      ['active', 'trialing', 'past_due', 'unpaid', 'paused'].includes(s.status),
-    );
-    if (relevant) {
-      subscriptionId = relevant.id;
-      sub.stripeSubscriptionId = relevant.id;
+  if (!subscriptionId && sub.paddleCustomerId) {
+    for await (const paddleSub of paddle.subscriptions.list({
+      customerId: sub.paddleCustomerId,
+      status: ['active', 'trialing', 'past_due'],
+    } as Parameters<typeof paddle.subscriptions.list>[0])) {
+      subscriptionId = (paddleSub as unknown as { id: string }).id;
+      break;
     }
   }
 
   if (!subscriptionId) return;
 
   try {
-    // Stripe SDK typings wrap the resource; runtime shape includes current_period_end
-    const stripeSub = (await stripe.subscriptions.retrieve(subscriptionId, {
-      expand: ['items.data.price'],
-    })) as unknown as Stripe.Subscription;
-    const mapped = mapStripeStatusToDb(stripeSub.status);
-    const currentPeriodEnd = readCurrentPeriodEndSeconds(stripeSub);
-    const currentPeriodStart = readCurrentPeriodStartSeconds(stripeSub);
-    const stripeSubscriptionCreated = readStripeSubscriptionCreatedSeconds(stripeSub);
-    const resolvedPlan = resolvePlanFromStripeSubscription(stripeSub);
-    const customerId =
-      typeof stripeSub.customer === 'string'
-        ? stripeSub.customer
-        : (stripeSub.customer as Stripe.Customer)?.id;
+    const paddleSub = await paddle.subscriptions.get(subscriptionId);
+    const raw = paddleSub as unknown as Record<string, unknown>;
+
+    const mapped = mapPaddleStatusToDb(raw.status as string);
+    const currentPeriodEnd = readCurrentPeriodEndSeconds(paddleSub);
+    const currentPeriodStart = readCurrentPeriodStartSeconds(paddleSub);
+    const subCreated = readSubscriptionCreatedSeconds(paddleSub);
+    const resolvedPlan = resolvePlanFromPaddleSubscription(paddleSub);
+    const cancelAtEnd = readCancelAtPeriodEnd(paddleSub);
 
     const update: Record<string, unknown> = {
-      stripeSubscriptionId: stripeSub.id,
+      paddleSubscriptionId: subscriptionId,
       status: mapped,
       currentPeriodEnd,
       currentPeriodStart,
-      stripeSubscriptionCreated,
-      cancelAtPeriodEnd: readCancelAtPeriodEnd(stripeSub),
+      stripeSubscriptionCreated: subCreated,
+      cancelAtPeriodEnd: cancelAtEnd,
     };
-    if (customerId) update.stripeCustomerId = customerId;
+    if (raw.customerId) update.paddleCustomerId = raw.customerId;
     if (resolvedPlan) update.plan = resolvedPlan;
 
     await SubscriptionModel.findOneAndUpdate({ userId }, { $set: update });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'unknown';
-    console.error('[Subscription] Stripe sync error:', msg);
+    console.error('[Subscription] Paddle sync error:', msg);
   }
 }
+
+/** Alias de compatibilidad — usado por billing.ts y tests existentes. */
+export const syncSubscriptionFromStripe = syncSubscriptionFromPaddle;
 
 export async function ensureTrial(userId: string) {
   await connectDB();
@@ -268,7 +132,6 @@ export async function ensureTrial(userId: string) {
   if (!sub) {
     const trialStartedAt = new Date();
     const trialEndsAt = new Date(trialStartedAt.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
-
     sub = await SubscriptionModel.create({
       userId,
       status: 'trialing',
@@ -288,22 +151,22 @@ export async function getSubscription(userId: string) {
 
 export async function getSubscriptionStatus(userId: string) {
   const sub = await ensureTrial(userId);
-  await syncSubscriptionFromStripe(userId);
+  await syncSubscriptionFromPaddle(userId);
 
   const fresh = await SubscriptionModel.findOne({ userId });
   const doc = fresh || sub;
   const now = Date.now();
   const nowSec = now / 1000;
 
-  const hasStripeSubscription = Boolean(doc.stripeSubscriptionId);
-  const paidStripeStatuses = ['active', 'trialing', 'past_due'];
+  // Paddle usa paddleSubscriptionId; reutilizamos el nombre del campo para compat. con el frontend
+  const hasStripeSubscription = Boolean(doc.paddleSubscriptionId);
+  const paidStatuses = ['active', 'trialing', 'past_due'];
   const periodOk = doc.currentPeriodEnd > nowSec;
   const statusOk =
-    paidStripeStatuses.includes(doc.status) ||
+    paidStatuses.includes(doc.status) ||
     (doc.status === 'incomplete' &&
       ['starter', 'growth', 'business', 'enterprise'].includes(doc.plan));
   const paidPlan = ['starter', 'growth', 'business', 'enterprise'].includes(doc.plan);
-  // currentPeriodEnd en 0 en Mongo pero suscripción Stripe activa (SDK no extrajo el campo en webhook/sync)
   const periodMissingButPaid =
     doc.currentPeriodEnd <= 0 &&
     paidPlan &&
@@ -318,7 +181,6 @@ export async function getSubscriptionStatus(userId: string) {
     : 0;
 
   const hasAccess = isPaidActive || isTrialActive;
-
   const cancelAtPeriodEnd = Boolean((doc as { cancelAtPeriodEnd?: boolean }).cancelAtPeriodEnd);
 
   return {
@@ -326,7 +188,6 @@ export async function getSubscriptionStatus(userId: string) {
     isPremium: isPaidActive,
     isTrialActive,
     trialDaysRemaining,
-    /** Hay `stripeSubscriptionId` en BD (suscripción en Stripe). */
     hasStripeSubscription,
     subscription: {
       status: doc.status,
@@ -340,3 +201,33 @@ export async function getSubscriptionStatus(userId: string) {
     },
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ─── STRIPE (comentado — conservado para referencia) ─────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+
+// import type Stripe from 'stripe';
+// import { PLANS, stripe } from './stripe';
+//
+// export function mapStripeStatusToDb(stripeStatus: string): string {
+//   switch (stripeStatus) {
+//     case 'active': case 'trialing': case 'canceled': case 'past_due': case 'incomplete':
+//       return stripeStatus;
+//     case 'incomplete_expired': return 'canceled';
+//     case 'unpaid': case 'paused': return 'past_due';
+//     default: return 'past_due';
+//   }
+// }
+//
+// export function planFromStripePriceId(priceId: string | undefined): string | null {
+//   if (!priceId) return null;
+//   for (const [key, plan] of Object.entries(PLANS)) {
+//     if (plan.priceId === priceId) return key;
+//   }
+//   return null;
+// }
+//
+// // readCurrentPeriodEndSeconds, readCurrentPeriodStartSeconds,
+// // readStripeSubscriptionCreatedSeconds, readCancelAtPeriodEnd (Stripe),
+// // resolvePlanFromStripeSubscription, syncSubscriptionFromStripe
+// // → Ver git history o tag pre-paddle para la implementación completa.

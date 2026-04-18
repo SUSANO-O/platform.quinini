@@ -50,6 +50,7 @@ export function Footer() {
               <li><Link href="/terminos-y-condiciones" className="hover:underline">Términos</Link></li>
               <li><Link href="/politica-de-privacidad" className="hover:underline">Privacidad</Link></li>
               <li><Link href="/politica-de-cookies" className="hover:underline">Cookies</Link></li>
+              <li><Link href="/politica-de-reembolso" className="hover:underline">Reembolsos</Link></li>
             </ul>
           </div>
         </div>

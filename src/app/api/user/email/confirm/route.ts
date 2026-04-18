@@ -6,7 +6,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken, hashEmailChangeCode, isUserEmailVerified, isImpersonationSession } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
 import { User, Subscription as SubscriptionModel } from '@/lib/db/models';
-import { stripe } from '@/lib/stripe';
+import { paddle } from '@/lib/paddle';
+// import { stripe } from '@/lib/stripe'; // Stripe — comentado
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
@@ -93,16 +94,29 @@ export async function POST(req: NextRequest) {
     throw err;
   }
 
-  if (process.env.STRIPE_SECRET_KEY) {
+  // Actualizar email del cliente en Paddle (equivalente al bloque de Stripe)
+  if (process.env.PADDLE_API_KEY) {
     try {
       const sub = await SubscriptionModel.findOne({ userId });
-      if (sub?.stripeCustomerId) {
-        await stripe.customers.update(sub.stripeCustomerId, { email: newEmail });
+      if (sub?.paddleCustomerId) {
+        await paddle.customers.update(sub.paddleCustomerId, { email: newEmail });
       }
     } catch (e) {
-      console.error('[Email confirm] Stripe customer update:', e);
+      console.error('[Email confirm] Paddle customer update:', e);
     }
   }
+
+  // ── Stripe (comentado) ──────────────────────────────────────────────────
+  // if (process.env.STRIPE_SECRET_KEY) {
+  //   try {
+  //     const sub = await SubscriptionModel.findOne({ userId });
+  //     if (sub?.stripeCustomerId) {
+  //       await stripe.customers.update(sub.stripeCustomerId, { email: newEmail });
+  //     }
+  //   } catch (e) {
+  //     console.error('[Email confirm] Stripe customer update:', e);
+  //   }
+  // }
 
   return NextResponse.json({
     ok: true,
