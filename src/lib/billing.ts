@@ -129,6 +129,15 @@ async function createCheckoutResponse(
   const paymentService = getPaymentService();
 
   try {
+    // Persistimos paddleCustomerId antes del checkout para poder reconciliar
+    // webhooks aunque custom_data.userId no llegue en algunos eventos.
+    const customerId = await paymentService.getOrCreateCustomerId(userId, email);
+    await SubscriptionModel.findOneAndUpdate(
+      { userId },
+      { $set: { paddleCustomerId: customerId } },
+      { upsert: true, new: true },
+    );
+
     const { url } = await paymentService.createCheckoutSession({
       userId,
       email,

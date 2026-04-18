@@ -146,14 +146,29 @@ export async function POST(req: NextRequest) {
         }
 
         // ── Nueva suscripción via checkout ─────────────────────────────
-        if (!userId || !txn.subscription_id) break;
+        if (!txn.subscription_id) {
+          console.warn(`[Webhook/Paddle] transaction.completed sin subscription_id — txn:${txn.id}`);
+          break;
+        }
+
+        let resolvedUserId = userId ?? null;
+        if (!resolvedUserId && txn.customer_id) {
+          const known = await SubscriptionModel.findOne({ paddleCustomerId: txn.customer_id }).lean() as { userId?: string } | null;
+          if (known?.userId) resolvedUserId = known.userId;
+        }
+        if (!resolvedUserId) {
+          console.warn(
+            `[Webhook/Paddle] transaction.completed sin userId resoluble — txn:${txn.id} customer:${txn.customer_id ?? 'n/a'}`,
+          );
+          break;
+        }
 
         const periodEnd = isoToEpoch(txn.billing_period?.ends_at);
         const periodStart = isoToEpoch(txn.billing_period?.starts_at);
         const resolvedPlan = plan || 'starter';
 
         await SubscriptionModel.findOneAndUpdate(
-          { userId },
+          { userId: resolvedUserId },
           {
             paddleCustomerId: txn.customer_id || null,
             paddleSubscriptionId: txn.subscription_id,
@@ -166,7 +181,7 @@ export async function POST(req: NextRequest) {
           { upsert: true, new: true },
         );
 
-        console.log(`[Webhook/Paddle] Suscripción activada — user:${userId} plan:${resolvedPlan}`);
+        console.log(`[Webhook/Paddle] Suscripción activada — user:${resolvedUserId} plan:${resolvedPlan}`);
         break;
       }
 
