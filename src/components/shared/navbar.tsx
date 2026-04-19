@@ -7,11 +7,7 @@ import { Menu, X } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
 const NAV_LINKS = [
-  { href: '/soluciones', label: 'Soluciones' },
-  { href: '/widget', label: 'Widget API' },
-  { href: '/demos', label: 'Demos' },
   { href: '/#pricing', label: 'Precios' },
-  { href: '/docs', label: 'Docs' },
 ];
 
 export function Navbar() {

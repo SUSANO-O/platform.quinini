@@ -5,8 +5,8 @@ import Link from 'next/link';
 import {
   Zap, Shield, BarChart3, MessageSquare, Database,
   ArrowRight, Code2, Globe, Sparkles, Check,
-  HeartPulse, Droplets, FlaskConical, Sprout,
-  GraduationCap, Activity, TrendingUp, Lock, Wrench,
+  HeartPulse, FlaskConical, Sprout,
+  GraduationCap, TrendingUp, Lock, Wrench,
   UserPlus, Palette, Rocket,
 } from 'lucide-react';
 
@@ -19,21 +19,16 @@ const Rd = '#bb1b14';  // rojo oscuro
 
 const AGENTS: { name: string; desc: string; Icon: React.ElementType; color: string }[] = [
   { name: 'Health Monitor',    desc: 'Análisis de signos vitales en tiempo real',           Icon: HeartPulse,    color: R  },
-  { name: 'Water Quality',     desc: 'pH, turbidez, cloro y detección de contaminantes',    Icon: Droplets,      color: B  },
   { name: 'Drug Discovery',    desc: 'Screening molecular, predicción ADMET',               Icon: FlaskConical,  color: O  },
   { name: 'Smart Agriculture', desc: 'Análisis de suelo, optimización de cultivos',         Icon: Sprout,        color: C  },
   { name: 'Education AI',      desc: 'Rutas de aprendizaje personalizadas y tutoría',       Icon: GraduationCap, color: O  },
-  { name: 'Plethysmography',   desc: 'Análisis de onda, diagnóstico vascular',              Icon: Activity,      color: B  },
   { name: 'Geoeconomics',      desc: 'Análisis macroeconómico y riesgo geopolítico',        Icon: TrendingUp,    color: B  },
   { name: 'Cybersecurity',     desc: 'Análisis de amenazas, auditoría de vulnerabilidades', Icon: Lock,          color: R  },
   { name: 'Maximo',            desc: 'Mantenimiento industrial y gestión de activos',       Icon: Wrench,        color: Rd },
 ];
 
 const FEATURES = [
-  { icon: Zap,          title: 'Ultra rápido',             desc: 'Tiempos de respuesta sub-200 ms. Enrutamiento multi-modelo automático.',               color: R,  metric: '< 200 ms'       },
   { icon: Shield,       title: 'Seguro por defecto',       desc: 'Auth por API key, rate limiting por plan, datos aislados por tenant.',                  color: Rd, metric: 'API key auth'    },
-  { icon: Database,     title: 'Embeddings & RAG',         desc: 'Sube documentos, genera embeddings y obtén respuestas ancladas en tus datos.',          color: O,  metric: 'Multi-format'    },
-  { icon: MessageSquare,title: 'Widget API',               desc: 'Embebe un chat widget en cualquier sitio web con una sola línea de código.',            color: B,  metric: '1 línea de JS'   },
   { icon: BarChart3,    title: 'Analytics en tiempo real', desc: 'Dashboard con requests, latencia, endpoints top y costos en vivo.',                     color: C,  metric: 'Live dashboard'  },
   { icon: Globe,        title: 'Multi-tenant',             desc: 'Cada API key tiene datos aislados, rate limits independientes y facturación separada.', color: B,  metric: 'Aislado por key' },
 ];
@@ -279,7 +274,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold">
-              <span className="gradient-text">9 Agentes especializados</span>
+              <span className="gradient-text">7 Agentes especializados</span>
             </h2>
             <p className="mt-4 text-lg" style={{ color: 'var(--muted-foreground)' }}>
               Cada agente está entrenado para su dominio. Elige uno, envía datos, recibe insights.
