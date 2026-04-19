@@ -129,7 +129,7 @@ async function createCheckoutResponse(
     const customerId = await paymentService.getOrCreateCustomerId(userId, email);
     await SubscriptionModel.findOneAndUpdate(
       { userId },
-      { $set: { paddleCustomerId: customerId } },
+      { $set: { lsCustomerId: customerId } },
       { upsert: true, new: true },
     );
 
@@ -363,13 +363,13 @@ export async function getBillingInvoices(req: NextRequest): Promise<NextResponse
 
   await connectDB();
   const sub = await SubscriptionModel.findOne({ userId });
-  if (!sub?.paddleCustomerId) {
+  if (!sub?.lsCustomerId) {
     return NextResponse.json({ invoices: [] });
   }
 
   try {
     const paymentService = getPaymentService();
-    const invoices = await paymentService.getInvoices(sub.paddleCustomerId);
+    const invoices = await paymentService.getInvoices(sub.lsCustomerId);
     return NextResponse.json({ invoices });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'unknown';
