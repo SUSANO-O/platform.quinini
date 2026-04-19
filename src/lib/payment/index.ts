@@ -4,13 +4,14 @@
  * librería de proveedor — esto aplica Inversión de Dependencias.
  */
 
-import { PaddleAdapter } from './paddle-adapter';
+// import { PaddleAdapter } from './paddle-adapter'; // Paddle — comentado
+import { LemonSqueezyAdapter } from './lemonsqueezy-adapter';
 import type { PaymentServiceInterface } from './interface';
 
 let _instance: PaymentServiceInterface | null = null;
 
 export function getPaymentService(): PaymentServiceInterface {
-  if (!_instance) _instance = new PaddleAdapter();
+  if (!_instance) _instance = new LemonSqueezyAdapter();
   return _instance;
 }
 

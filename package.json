@@ -12,6 +12,7 @@
     "verify:mcp-phases": "node scripts/verify-mcp-phases.mjs"
   },
   "dependencies": {
+    "@lemonsqueezy/lemonsqueezy.js": "^4.0.0",
     "@paddle/paddle-node-sdk": "^1.10.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/pdf-parse": "^1.1.5",

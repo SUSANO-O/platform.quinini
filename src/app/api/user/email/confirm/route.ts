@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken, hashEmailChangeCode, isUserEmailVerified, isImpersonationSession } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
 import { User, Subscription as SubscriptionModel } from '@/lib/db/models';
-import { paddle } from '@/lib/paddle';
+// import { paddle } from '@/lib/paddle'; // Paddle — comentado
 // import { stripe } from '@/lib/stripe'; // Stripe — comentado
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
@@ -94,17 +94,7 @@ export async function POST(req: NextRequest) {
     throw err;
   }
 
-  // Actualizar email del cliente en Paddle (equivalente al bloque de Stripe)
-  if (process.env.PADDLE_API_KEY) {
-    try {
-      const sub = await SubscriptionModel.findOne({ userId });
-      if (sub?.paddleCustomerId) {
-        await paddle.customers.update(sub.paddleCustomerId, { email: newEmail });
-      }
-    } catch (e) {
-      console.error('[Email confirm] Paddle customer update:', e);
-    }
-  }
+  // LemonSqueezy actualiza el email del cliente automáticamente desde el webhook
 
   // ── Stripe (comentado) ──────────────────────────────────────────────────
   // if (process.env.STRIPE_SECRET_KEY) {

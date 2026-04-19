@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { SubscriptionProvider } from '@/hooks/use-subscription';
-import { initPaddleClient } from '@/lib/paddle-client';
+// import { initPaddleClient } from '@/lib/paddle-client'; // Paddle — comentado
 import { useEffect, useState } from 'react';
 import { LayoutDashboard, Boxes, Settings, LogOut, Cpu, Bot, ShieldAlert, Plug } from 'lucide-react';
 
@@ -32,8 +32,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     platformFreeRemaining?: number;
   } | null>(null);
 
-  // Inicializar Paddle.js para el overlay de checkout (detecta ?_ptxn= automáticamente)
-  useEffect(() => { initPaddleClient(); }, []);
+  // LemonSqueezy no requiere inicialización de JS en el cliente
 
   useEffect(() => {
     if (!user) return;

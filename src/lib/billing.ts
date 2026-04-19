@@ -1,22 +1,17 @@
 /**
  * Operaciones de facturación: checkout, cambio de plan, portal, cancelación.
- * Migrado de Stripe a Paddle Billing v2.
- * La lógica de Stripe está conservada comentada al final del archivo.
+ * Migrado de Paddle a LemonSqueezy.
  */
 
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { PLANS } from '@/lib/paddle';
+import { PLANS } from '@/lib/lemonsqueezy';
 import { getPaymentService } from '@/lib/payment';
 import { verifySessionToken, isUserEmailVerified, isImpersonationSession } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
 import { Subscription as SubscriptionModel, User } from '@/lib/db/models';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
-import {
-  readCancelAtPeriodEnd,
-  readCurrentPeriodEndSeconds,
-  syncSubscriptionFromPaddle,
-} from '@/lib/subscription';
+import { syncSubscriptionFromLS } from '@/lib/subscription';
 
 const PAID_STATUSES = new Set(['active', 'trialing', 'past_due']);
 
@@ -67,7 +62,7 @@ export async function postSubscribePlan(req: NextRequest): Promise<NextResponse>
     const planConfig = PLANS[plan];
     if (!planConfig.priceId) {
       return NextResponse.json(
-        { error: 'Plan no configurado (falta PADDLE_PRICE_*).' },
+        { error: 'Plan no configurado (falta LEMONSQUEEZY_VARIANT_*).' },
         { status: 400 },
       );
     }
@@ -84,21 +79,21 @@ export async function postSubscribePlan(req: NextRequest): Promise<NextResponse>
     }
 
     const subDoc = await SubscriptionModel.findOne({ userId });
-    const paddleSubId = subDoc?.paddleSubscriptionId;
+    const lsSubId = subDoc?.lsSubscriptionId;
 
-    if (paddleSubId && PAID_STATUSES.has(subDoc?.status ?? '')) {
+    if (lsSubId && PAID_STATUSES.has(subDoc?.status ?? '')) {
       try {
         await changeSubscriptionPlan({
-          subscriptionId: paddleSubId,
+          subscriptionId: lsSubId,
           newPriceId: planConfig.priceId,
           userId,
           planLabel: plan,
         });
-        await syncSubscriptionFromPaddle(userId);
+        await syncSubscriptionFromLS(userId);
         return NextResponse.json({
           ok: true,
           proration: true,
-          message: 'Plan actualizado. Paddle aplicará el prorrateo en la próxima factura.',
+          message: 'Plan actualizado. LemonSqueezy aplicará el prorrateo en la próxima factura.',
         });
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : 'Error al cambiar plan.';
@@ -155,7 +150,7 @@ async function createCheckoutResponse(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// postBillingPortal — Customer Portal de Paddle
+// postBillingPortal — Customer Portal de LemonSqueezy
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function postBillingPortal(req: NextRequest): Promise<NextResponse> {
@@ -178,12 +173,21 @@ export async function postBillingPortal(req: NextRequest): Promise<NextResponse>
   if (!user) return NextResponse.json({ error: 'Usuario no encontrado.' }, { status: 404 });
 
   const sub = await SubscriptionModel.findOne({ userId });
-  let customerId = sub?.paddleCustomerId as string | undefined;
+  let customerId = sub?.lsCustomerId as string | undefined;
 
   if (!customerId) {
     const paymentService = getPaymentService();
     customerId = await paymentService.getOrCreateCustomerId(userId, user.email);
-    await SubscriptionModel.findOneAndUpdate({ userId }, { $set: { paddleCustomerId: customerId } });
+    if (customerId) {
+      await SubscriptionModel.findOneAndUpdate({ userId }, { $set: { lsCustomerId: customerId } });
+    }
+  }
+
+  if (!customerId) {
+    return NextResponse.json(
+      { error: 'No hay suscripción activa para acceder al portal.' },
+      { status: 400 },
+    );
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
@@ -199,7 +203,7 @@ export async function postBillingPortal(req: NextRequest): Promise<NextResponse>
     const msg = e instanceof Error ? e.message : 'unknown';
     console.error('[Billing] portal:', msg);
     return NextResponse.json(
-      { error: 'No se pudo abrir el portal de facturación de Paddle.' },
+      { error: 'No se pudo abrir el portal de facturación.' },
       { status: 502 },
     );
   }
@@ -232,30 +236,21 @@ export async function postCancelSubscription(req: NextRequest): Promise<NextResp
 
   await connectDB();
   const sub = await SubscriptionModel.findOne({ userId });
-  if (!sub?.paddleSubscriptionId) {
+  if (!sub?.lsSubscriptionId) {
     return NextResponse.json({ error: 'No hay suscripción de pago asociada.' }, { status: 400 });
   }
 
   try {
     const paymentService = getPaymentService();
-    await paymentService.cancelSubscription(sub.paddleSubscriptionId, atPeriodEnd);
+    await paymentService.cancelSubscription(sub.lsSubscriptionId, atPeriodEnd);
 
-    if (atPeriodEnd) {
-      // Paddle cancela al fin del periodo; sincronizamos para reflejar scheduledChange
-      await syncSubscriptionFromPaddle(userId);
-      const updated = await SubscriptionModel.findOne({ userId });
-      return NextResponse.json({
-        ok: true,
-        atPeriodEnd: true,
-        message: 'La suscripción se cancelará al final del periodo de facturación actual.',
-      });
-    }
-
-    await SubscriptionModel.findOneAndUpdate(
-      { userId },
-      { $set: { status: 'canceled', currentPeriodEnd: 0, cancelAtPeriodEnd: false } },
-    );
-    return NextResponse.json({ ok: true, atPeriodEnd: false, message: 'Suscripción cancelada de inmediato.' });
+    // LS siempre cancela al fin del período; sincronizamos para reflejar cancelAtPeriodEnd
+    await syncSubscriptionFromLS(userId);
+    return NextResponse.json({
+      ok: true,
+      atPeriodEnd: true,
+      message: 'La suscripción se cancelará al final del periodo de facturación actual.',
+    });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'unknown';
     console.error('[Billing] cancel:', msg);
@@ -284,14 +279,14 @@ export async function postResumeSubscription(req: NextRequest): Promise<NextResp
 
   await connectDB();
   const sub = await SubscriptionModel.findOne({ userId });
-  if (!sub?.paddleSubscriptionId) {
+  if (!sub?.lsSubscriptionId) {
     return NextResponse.json({ error: 'No hay suscripción de pago asociada.' }, { status: 400 });
   }
 
   try {
     const paymentService = getPaymentService();
-    await paymentService.resumeSubscription(sub.paddleSubscriptionId);
-    await syncSubscriptionFromPaddle(userId);
+    await paymentService.resumeSubscription(sub.lsSubscriptionId);
+    await syncSubscriptionFromLS(userId);
     return NextResponse.json({ ok: true, message: 'Cancelación anulada. Tu suscripción continuará renovándose.' });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'unknown';
@@ -332,13 +327,13 @@ export async function postGetPaymentMethodUrl(req: NextRequest): Promise<NextRes
   }
 
   const sub = await SubscriptionModel.findOne({ userId });
-  if (!sub?.paddleSubscriptionId) {
+  if (!sub?.lsSubscriptionId) {
     return NextResponse.json({ error: 'No hay suscripción de pago activa.' }, { status: 400 });
   }
 
   try {
     const paymentService = getPaymentService();
-    const url = await paymentService.getPaymentMethodUpdateUrl(sub.paddleSubscriptionId);
+    const url = await paymentService.getPaymentMethodUpdateUrl(sub.lsSubscriptionId);
     return NextResponse.json({ url });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'unknown';

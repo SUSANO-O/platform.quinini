@@ -12,21 +12,19 @@ import { CONVERSATION_PACKS, type PackId } from '@/lib/plan-catalog';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { getPaymentService } from '@/lib/payment';
 
-// IDs de precios Paddle para packs de conversaciones (one-time)
+// IDs de variantes LemonSqueezy para packs de conversaciones (one-time)
 const PACK_PRICE_IDS: Record<PackId, string> = {
-  pack_s: process.env.PADDLE_PACK_S || '',
-  pack_m: process.env.PADDLE_PACK_M || '',
-  pack_l: process.env.PADDLE_PACK_L || '',
+  pack_s: process.env.LEMONSQUEEZY_VARIANT_PACK_S || '',
+  pack_m: process.env.LEMONSQUEEZY_VARIANT_PACK_M || '',
+  pack_l: process.env.LEMONSQUEEZY_VARIANT_PACK_L || '',
 };
 
-// ─── STRIPE (comentado) ──────────────────────────────────────────────────────
+// ─── PADDLE (comentado) ──────────────────────────────────────────────────────
 // const PACK_PRICE_IDS: Record<PackId, string> = {
-//   pack_s: process.env.STRIPE_PACK_S || '',
-//   pack_m: process.env.STRIPE_PACK_M || '',
-//   pack_l: process.env.STRIPE_PACK_L || '',
+//   pack_s: process.env.PADDLE_PACK_S || '',
+//   pack_m: process.env.PADDLE_PACK_M || '',
+//   pack_l: process.env.PADDLE_PACK_L || '',
 // };
-// import { stripe } from '@/lib/stripe';
-// const session = await stripe.checkout.sessions.create({ mode: 'payment', ... });
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
@@ -87,12 +85,7 @@ export async function POST(req: NextRequest) {
       cancelUrl: `${appUrl}/dashboard?topup=cancelled`,
     });
 
-    // Guardar paddleCustomerId si se creó un cliente nuevo durante el checkout
-    const sub = await Subscription.findOne({ userId }).lean() as { paddleCustomerId?: string } | null;
-    if (!sub?.paddleCustomerId) {
-      const customerId = await paymentService.getOrCreateCustomerId(userId, user.email!);
-      await Subscription.findOneAndUpdate({ userId }, { $set: { paddleCustomerId: customerId } }, { upsert: true });
-    }
+    // lsCustomerId se guarda desde el webhook order_created; no hace falta crearlo aquí
 
     return NextResponse.json({ url });
   } catch (e: unknown) {

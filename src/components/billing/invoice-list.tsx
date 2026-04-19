@@ -30,6 +30,8 @@ function statusLabel(s: string | null) {
   switch (s) {
     case 'paid':
       return 'Pagada';
+    case 'completed':
+      return 'Completada';
     case 'open':
       return 'Pendiente';
     case 'void':
@@ -38,6 +40,13 @@ function statusLabel(s: string | null) {
       return 'Incobrable';
     case 'draft':
       return 'Borrador';
+    case 'canceled':
+    case 'cancelled':
+      return 'Cancelada';
+    case 'billed':
+      return 'Facturada';
+    case 'past_due':
+      return 'Vencida';
     default:
       return s || '—';
   }

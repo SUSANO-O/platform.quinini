@@ -18,10 +18,10 @@ type PlanChangeModalProps = {
   fromPlanId: string;
   targetPlanId: PaidPlanId;
   /**
-   * true = ya hay suscripción de pago en Stripe → cambio con proration en factura.
-   * false = primera suscripción o pago vía Checkout (redirección a Stripe).
+   * true = ya hay suscripción de pago activa (Paddle) → cambio con prorrateo en la suscripción.
+   * false = primera contratación → checkout alojado de Paddle.
    */
-  usesStripeSubscription: boolean;
+  isExistingPaidSubscription: boolean;
   onConfirm: () => Promise<void>;
   isBusy: boolean;
 };
@@ -31,7 +31,7 @@ export function PlanChangeModal({
   onClose,
   fromPlanId,
   targetPlanId,
-  usesStripeSubscription,
+  isExistingPaidSubscription,
   onConfirm,
   isBusy,
 }: PlanChangeModalProps) {
@@ -221,27 +221,27 @@ export function PlanChangeModal({
               >
                 <AlertTriangle size={18} style={{ color: '#d97706', flexShrink: 0, marginTop: '2px' }} />
                 <div style={{ fontSize: '12px', lineHeight: 1.55, color: 'var(--foreground)' }}>
-                  {usesStripeSubscription ? (
+                  {isExistingPaidSubscription ? (
                     direction === 'downgrade' ? (
                       <>
-                        <strong>Bajada de plan y proration.</strong> Stripe recalcula el periodo en curso: suele
-                        aplicarse un <strong>crédito proporcional</strong> por la parte no usada del plan anterior,
-                        que verás reflejada en la próxima factura o como saldo. El importe exacto lo confirma Stripe
-                        (no lo mostramos aquí en tiempo real).
+                        <strong>Bajada de plan y prorrateo.</strong> Paddle aplica prorrateo sobre el periodo en curso:
+                        suele generarse un <strong>crédito proporcional</strong> por la parte no usada del plan anterior,
+                        visible en la siguiente factura o en el resumen de la suscripción. El importe exacto lo confirma
+                        Paddle (no lo mostramos aquí en tiempo real).
                       </>
                     ) : (
                       <>
-                        <strong>Subida de plan y proration.</strong> Al tener ya una suscripción activa, el cambio se
-                        factura con <strong>ajuste proporcional (proration)</strong>: Stripe cobra la diferencia por el
-                        tiempo que resta del periodo actual (o lo suma a la siguiente factura, según tu cuenta). El cargo
-                        inmediato puede ser distinto del precio mensual completo.
+                        <strong>Subida de plan y prorrateo.</strong> Con suscripción activa, el cambio se factura con{' '}
+                        <strong>ajuste proporcional</strong>: Paddle cobra la diferencia por el tiempo restante del
+                        periodo actual (o lo incorpora a la siguiente factura). El cargo inmediato puede ser distinto del
+                        precio mensual completo.
                       </>
                     )
                   ) : (
                     <>
-                      <strong>Pago con Stripe Checkout.</strong> Te llevaremos a una página segura de Stripe para
-                      introducir o confirmar el método de pago. Tras completar el pago, tu plan se activará y lo verás
-                      reflejado en el panel en unos segundos.
+                      <strong>Checkout de Paddle.</strong> Te redirigiremos al checkout seguro de Paddle para completar el
+                      pago. Al finalizar, tu plan se activará y lo verás en el panel en unos segundos (también puedes
+                      refrescar si hace falta).
                     </>
                   )}
                 </div>
@@ -249,15 +249,16 @@ export function PlanChangeModal({
 
               <ul style={{ margin: '0 0 16px', paddingLeft: '18px', fontSize: '12px', lineHeight: 1.55, color: 'var(--muted-foreground)' }}>
                 <li style={{ marginBottom: '6px' }}>
-                  Recibirás el comprobante y el detalle de líneas de factura en el email asociado a tu cuenta de Stripe.
+                  Recibirás el comprobante y el detalle en el correo que uses con Paddle para esta cuenta.
                 </li>
                 <li style={{ marginBottom: '6px' }}>
-                  Puedes revisar facturas, tarjeta y cancelaciones en{' '}
-                  <strong style={{ color: 'var(--foreground)' }}>Ajustes</strong> (facturas y método de pago) cuando lo necesites.
+                  Puedes revisar cobros, método de pago y cancelaciones desde esta página (facturas y portal de Paddle)
+                  cuando lo necesites.
                 </li>
-                {usesStripeSubscription && (
+                {isExistingPaidSubscription && (
                   <li>
-                    Al confirmar, aceptas el cambio de plan y las condiciones de facturación que aplique Stripe según tu periodo actual.
+                    Al confirmar, aceptas el cambio de plan y las condiciones de facturación que aplique Paddle según tu
+                    periodo actual.
                   </li>
                 )}
               </ul>
@@ -296,7 +297,11 @@ export function PlanChangeModal({
                     opacity: isBusy ? 0.85 : 1,
                   }}
                 >
-                  {isBusy ? 'Procesando…' : usesStripeSubscription ? 'Confirmar y aplicar cambio' : 'Ir al pago seguro'}
+                  {isBusy
+                    ? 'Procesando…'
+                    : isExistingPaidSubscription
+                      ? 'Confirmar y aplicar cambio'
+                      : 'Ir al checkout de Paddle'}
                 </button>
               </div>
             </>

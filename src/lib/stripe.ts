@@ -38,5 +38,5 @@
 //   },
 // } as const;
 
-// Re-exportar desde Paddle para compatibilidad con imports existentes
-export { PLANS } from '@/lib/paddle';
+// Re-exportar desde LemonSqueezy para compatibilidad con imports existentes
+export { PLANS } from '@/lib/lemonsqueezy';

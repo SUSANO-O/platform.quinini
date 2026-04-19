@@ -204,7 +204,7 @@ export default function SettingsPage() {
     else if (r && 'message' in r && r.message) setBillingMsg(r.message);
   }
 
-  const hasStripePaid =
+  const hasActivePaidPlan =
     isPremium &&
     subscription?.status &&
     ['active', 'trialing', 'past_due'].includes(subscription.status);
@@ -521,7 +521,7 @@ export default function SettingsPage() {
                     margin: '8px 0 6px',
                   }}
                 >
-                  Suscripción en Stripe
+                  Suscripción (Paddle)
                 </p>
                 {(subscription.stripeSubscriptionCreated ?? 0) > 0 ? (
                   <Row
@@ -556,17 +556,22 @@ export default function SettingsPage() {
         </div>
 
         <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '16px', lineHeight: 1.5 }}>
-          Los cambios de plan (subida o bajada) aplican proration de Stripe: se ajusta el importe en la siguiente factura según el tiempo restante del periodo.
+          Los cambios de plan (subida o bajada) usan prorrateo de Paddle sobre el periodo de facturación actual; el detalle
+          del cargo aparece en tu facturación de Paddle.
           {billingRestricted ? ' Verifica tu correo para habilitar cambios de plan.' : ''}
         </p>
 
-        {!loading && isPremium && hasStripePaid && (
+        {!loading && isPremium && hasActivePaidPlan && (
           <>
             <div
               className="rounded-xl p-4 border mb-4 card-texture"
               style={{ borderColor: 'var(--border)' }}
             >
-              <p className="text-[13px] font-bold mb-2.5 m-0">Tarjeta y facturas (sin salir de la app)</p>
+              <p className="text-[13px] font-bold mb-2.5 m-0">Método de pago y facturas</p>
+              <p className="text-[11px] m-0 mb-2.5 leading-snug" style={{ color: 'var(--muted-foreground)' }}>
+                Paddle abre una página segura para actualizar la tarjeta. Las facturas listadas vienen de tus transacciones
+                completadas en Paddle.
+              </p>
               <button
                 type="button"
                 disabled={!!busy || billingRestricted}
@@ -608,7 +613,7 @@ export default function SettingsPage() {
                 }}
               >
                 <ExternalLink size={14} />
-                Abrir portal avanzado de Stripe (histórico completo, opciones extra)
+                Abrir portal de cliente de Paddle (facturación y datos de pago)
               </button>
 
               {subscription?.cancelAtPeriodEnd ? (

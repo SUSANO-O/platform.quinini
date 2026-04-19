@@ -13,7 +13,7 @@ export function SubscriptionPlanPanel({ checkoutDisabled = false }: { checkoutDi
   const [busy, setBusy] = useState<string | null>(null);
   const [modalPlan, setModalPlan] = useState<PaidPlanId | null>(null);
 
-  const hasPaidStripeUi =
+  const hasPaidSubscriptionUi =
     subscription &&
     ['active', 'trialing', 'past_due'].includes(subscription.status);
 
@@ -117,7 +117,7 @@ export function SubscriptionPlanPanel({ checkoutDisabled = false }: { checkoutDi
         onClose={() => !busy && setModalPlan(null)}
         fromPlanId={effectivePlan}
         targetPlanId={modalPlan ?? 'starter'}
-        usesStripeSubscription={Boolean(hasPaidStripeUi)}
+        isExistingPaidSubscription={Boolean(hasPaidSubscriptionUi)}
         onConfirm={executePlanChange}
         isBusy={Boolean(busy)}
       />
@@ -190,7 +190,8 @@ export function SubscriptionPlanPanel({ checkoutDisabled = false }: { checkoutDi
             ))}
           </div>
           <p style={{ fontSize: '9px', color: 'var(--muted-foreground)', margin: '8px 0 0', lineHeight: 1.35 }}>
-            La bajada aplica proration: Stripe puede acreditar la parte no usada del periodo actual (detalle en la factura).
+            La bajada aplica prorrateo en Paddle: puede acreditarse la parte no usada del periodo actual (detalle en la
+            factura o en el resumen de la suscripción).
           </p>
         </>
       )}

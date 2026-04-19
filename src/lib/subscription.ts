@@ -1,128 +1,104 @@
 /**
- * Gestión de estado de suscripción y sincronización con Paddle.
- * La lógica de Stripe está conservada comentada más abajo para referencia.
+ * Gestión de estado de suscripción y sincronización con LemonSqueezy.
+ * Paddle comentado — migrado a LS.
  */
 
 import { connectDB } from './db/connection';
 import { Subscription as SubscriptionModel } from './db/models';
-import { paddle } from './paddle';
 import {
-  mapPaddleStatusToDb,
-  resolvePlanFromPaddleSubscription,
-  isoToEpochExport as isoToEpoch,
-} from './payment/paddle-adapter';
+  mapLSStatusToDb,
+  planFromLSVariantId,
+  ensureLSSetup,
+} from './lemonsqueezy';
+import { getSubscription as getLSSubscription } from '@lemonsqueezy/lemonsqueezy.js';
+import {
+  readLSCancelAtPeriodEnd,
+  readLSPeriodEndSeconds,
+  readLSCreatedSeconds,
+} from './payment/lemonsqueezy-adapter';
+
+export { mapLSStatusToDb, planFromLSVariantId };
 
 const TRIAL_DAYS = 3;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Paddle helpers (activos)
-// ─────────────────────────────────────────────────────────────────────────────
+// ── helpers de periodo para mantener compatibilidad con billing/webhook ──────
 
-export { mapPaddleStatusToDb, resolvePlanFromPaddleSubscription };
-
-export function readCancelAtPeriodEnd(paddleSub: unknown): boolean {
-  const s = paddleSub as {
-    scheduledChange?: { action?: string } | null;
-    scheduled_change?: { action?: string } | null;
-  };
-  return (s.scheduledChange ?? s.scheduled_change)?.action === 'cancel';
+export function readCancelAtPeriodEnd(sub: unknown): boolean {
+  return readLSCancelAtPeriodEnd(sub);
 }
 
-export function readCurrentPeriodEndSeconds(paddleSub: unknown): number {
-  const s = paddleSub as {
-    currentBillingPeriod?: { endsAt?: string };
-    current_billing_period?: { ends_at?: string };
-    items?: Array<{
-      currentBillingPeriod?: { endsAt?: string };
-      current_billing_period?: { ends_at?: string };
-    }>;
-  };
-  const iso =
-    s.currentBillingPeriod?.endsAt ??
-    s.current_billing_period?.ends_at ??
-    s.items?.[0]?.currentBillingPeriod?.endsAt ??
-    s.items?.[0]?.current_billing_period?.ends_at;
-  return isoToEpoch(iso);
+export function readCurrentPeriodEndSeconds(sub: unknown): number {
+  return readLSPeriodEndSeconds(sub);
 }
 
-export function readCurrentPeriodStartSeconds(paddleSub: unknown): number {
-  const s = paddleSub as {
-    currentBillingPeriod?: { startsAt?: string };
-    current_billing_period?: { starts_at?: string };
-    items?: Array<{
-      currentBillingPeriod?: { startsAt?: string };
-      current_billing_period?: { starts_at?: string };
-    }>;
-  };
-  const iso =
-    s.currentBillingPeriod?.startsAt ??
-    s.current_billing_period?.starts_at ??
-    s.items?.[0]?.currentBillingPeriod?.startsAt ??
-    s.items?.[0]?.current_billing_period?.starts_at;
-  return isoToEpoch(iso);
+export function readCurrentPeriodStartSeconds(_sub: unknown): number {
+  return 0; // LS no expone period start directamente
 }
 
 export function readSubscriptionCreatedSeconds(sub: unknown): number {
-  const s = sub as { createdAt?: string; created_at?: string };
-  return isoToEpoch(s.createdAt ?? s.created_at);
+  return readLSCreatedSeconds(sub);
 }
 
 /**
- * Reconcilia MongoDB con Paddle cuando tenemos el ID de suscripción.
- * Equivalente a syncSubscriptionFromStripe.
+ * Reconcilia MongoDB con LemonSqueezy cuando tenemos el ID de suscripción.
  */
-export async function syncSubscriptionFromPaddle(userId: string) {
-  if (!process.env.PADDLE_API_KEY) return;
+export async function syncSubscriptionFromLS(userId: string) {
+  if (!process.env.LEMONSQUEEZY_API_KEY) return;
 
   await connectDB();
   const sub = await SubscriptionModel.findOne({ userId });
-  if (!sub) return;
+  if (!sub?.lsSubscriptionId) return;
 
-  let subscriptionId: string | null = sub.paddleSubscriptionId ?? null;
-
-  if (!subscriptionId && sub.paddleCustomerId) {
-    for await (const paddleSub of paddle.subscriptions.list({
-      customerId: sub.paddleCustomerId,
-      status: ['active', 'trialing', 'past_due'],
-    } as Parameters<typeof paddle.subscriptions.list>[0])) {
-      subscriptionId = (paddleSub as unknown as { id: string }).id;
-      break;
-    }
-  }
-
-  if (!subscriptionId) return;
-
+  ensureLSSetup();
   try {
-    const paddleSub = await paddle.subscriptions.get(subscriptionId);
-    const raw = paddleSub as unknown as Record<string, unknown>;
+    const { data, error } = await getLSSubscription(sub.lsSubscriptionId as never);
+    if (error || !data) return;
 
-    const mapped = mapPaddleStatusToDb(raw.status as string);
-    const currentPeriodEnd = readCurrentPeriodEndSeconds(paddleSub);
-    const currentPeriodStart = readCurrentPeriodStartSeconds(paddleSub);
-    const subCreated = readSubscriptionCreatedSeconds(paddleSub);
-    const resolvedPlan = resolvePlanFromPaddleSubscription(paddleSub);
-    const cancelAtEnd = readCancelAtPeriodEnd(paddleSub);
+    const attr = (data as unknown as {
+      data?: {
+        attributes?: {
+          status?: string;
+          variant_id?: number;
+          customer_id?: number;
+          cancelled?: boolean;
+          renews_at?: string | null;
+          ends_at?: string | null;
+          created_at?: string;
+        };
+      };
+    })?.data?.attributes;
+
+    if (!attr) return;
+
+    const mapped = mapLSStatusToDb(attr.status);
+    const currentPeriodEnd = attr.cancelled
+      ? (attr.ends_at ? Math.floor(new Date(attr.ends_at).getTime() / 1000) : 0)
+      : (attr.renews_at ? Math.floor(new Date(attr.renews_at).getTime() / 1000) : 0);
+    const cancelAtEnd = attr.cancelled === true && attr.status === 'active';
+    const resolvedPlan = planFromLSVariantId(attr.variant_id);
+    const created = attr.created_at
+      ? Math.floor(new Date(attr.created_at).getTime() / 1000)
+      : 0;
 
     const update: Record<string, unknown> = {
-      paddleSubscriptionId: subscriptionId,
       status: mapped,
       currentPeriodEnd,
-      currentPeriodStart,
-      stripeSubscriptionCreated: subCreated,
       cancelAtPeriodEnd: cancelAtEnd,
+      stripeSubscriptionCreated: created,
     };
-    if (raw.customerId) update.paddleCustomerId = raw.customerId;
+    if (attr.customer_id) update.lsCustomerId = String(attr.customer_id);
     if (resolvedPlan) update.plan = resolvedPlan;
 
     await SubscriptionModel.findOneAndUpdate({ userId }, { $set: update });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'unknown';
-    console.error('[Subscription] Paddle sync error:', msg);
+    console.error('[Subscription] LS sync error:', msg);
   }
 }
 
-/** Alias de compatibilidad — usado por billing.ts y tests existentes. */
-export const syncSubscriptionFromStripe = syncSubscriptionFromPaddle;
+/** Alias para compatibilidad con código existente */
+export const syncSubscriptionFromPaddle = syncSubscriptionFromLS;
+export const syncSubscriptionFromStripe = syncSubscriptionFromLS;
 
 export async function ensureTrial(userId: string) {
   await connectDB();
@@ -151,15 +127,15 @@ export async function getSubscription(userId: string) {
 
 export async function getSubscriptionStatus(userId: string) {
   const sub = await ensureTrial(userId);
-  await syncSubscriptionFromPaddle(userId);
+  await syncSubscriptionFromLS(userId);
 
   const fresh = await SubscriptionModel.findOne({ userId });
   const doc = fresh || sub;
   const now = Date.now();
   const nowSec = now / 1000;
 
-  // Paddle usa paddleSubscriptionId; reutilizamos el nombre del campo para compat. con el frontend
-  const hasStripeSubscription = Boolean(doc.paddleSubscriptionId);
+  // hasStripeSubscription: compatibilidad con frontend — true si hay suscripción LS (o Paddle legacy)
+  const hasStripeSubscription = Boolean(doc.lsSubscriptionId || doc.paddleSubscriptionId);
   const paidStatuses = ['active', 'trialing', 'past_due'];
   const periodOk = doc.currentPeriodEnd > nowSec;
   const statusOk =
@@ -202,32 +178,8 @@ export async function getSubscriptionStatus(userId: string) {
   };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ─── STRIPE (comentado — conservado para referencia) ─────────────────────────
-// ─────────────────────────────────────────────────────────────────────────────
-
-// import type Stripe from 'stripe';
-// import { PLANS, stripe } from './stripe';
-//
-// export function mapStripeStatusToDb(stripeStatus: string): string {
-//   switch (stripeStatus) {
-//     case 'active': case 'trialing': case 'canceled': case 'past_due': case 'incomplete':
-//       return stripeStatus;
-//     case 'incomplete_expired': return 'canceled';
-//     case 'unpaid': case 'paused': return 'past_due';
-//     default: return 'past_due';
-//   }
-// }
-//
-// export function planFromStripePriceId(priceId: string | undefined): string | null {
-//   if (!priceId) return null;
-//   for (const [key, plan] of Object.entries(PLANS)) {
-//     if (plan.priceId === priceId) return key;
-//   }
-//   return null;
-// }
-//
-// // readCurrentPeriodEndSeconds, readCurrentPeriodStartSeconds,
-// // readStripeSubscriptionCreatedSeconds, readCancelAtPeriodEnd (Stripe),
-// // resolvePlanFromStripeSubscription, syncSubscriptionFromStripe
-// // → Ver git history o tag pre-paddle para la implementación completa.
+// ── Paddle (comentado) ────────────────────────────────────────────────────────
+// import { paddle } from './paddle';
+// import { mapPaddleStatusToDb, resolvePlanFromPaddleSubscription, isoToEpochExport } from './payment/paddle-adapter';
+// export async function syncSubscriptionFromPaddle(userId) { ... }
+// → Ver git history para la implementación completa de Paddle.

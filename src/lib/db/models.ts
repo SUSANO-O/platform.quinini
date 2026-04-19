@@ -31,7 +31,11 @@ UserSchema.index({ verifyToken: 1 }, { sparse: true });
 const SubscriptionSchema = new Schema({
   userId:               { type: String, required: true, unique: true },
 
-  // ── Paddle Billing v2 (activo) ───────────────────────────────────────────
+  // ── LemonSqueezy (activo) ────────────────────────────────────────────────
+  lsCustomerId:         { type: String, default: null },
+  lsSubscriptionId:     { type: String, default: null },
+
+  // ── Paddle (comentado — conservado para suscriptores legacy) ────────────
   paddleCustomerId:     { type: String, default: null },
   paddleSubscriptionId: { type: String, default: null },
 
@@ -62,7 +66,8 @@ const SubscriptionSchema = new Schema({
   quotaWarningSentMonth: { type: String, default: null },
 }, { timestamps: true });
 
-SubscriptionSchema.index({ paddleCustomerId: 1 });
+SubscriptionSchema.index({ lsCustomerId: 1 });
+SubscriptionSchema.index({ paddleCustomerId: 1 }); // legacy
 // SubscriptionSchema.index({ stripeCustomerId: 1 }); // Stripe — comentado
 
 // ── WIDGETS ──────────────────────────────────────────────────────────────────
