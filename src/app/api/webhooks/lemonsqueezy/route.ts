@@ -75,10 +75,15 @@ export async function POST(req: NextRequest) {
   // Verificación HMAC SHA-256
   try {
     const expected = createHmac('sha256', secret).update(body).digest('hex');
-    const sigBuf = Buffer.from(signature.padEnd(expected.length, '0'), 'hex');
+    if (!signature || signature.length !== expected.length) {
+      console.error('[Webhook/LS] Firma ausente o longitud incorrecta — recibida:', signature?.length ?? 0, 'esperada:', expected.length);
+      return NextResponse.json({ error: 'Webhook Error: firma inválida' }, { status: 400 });
+    }
+    const sigBuf = Buffer.from(signature, 'hex');
     const expBuf = Buffer.from(expected, 'hex');
     if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
-      throw new Error('Firma no coincide');
+      console.error('[Webhook/LS] Firma no coincide. ¿Coincide LEMONSQUEEZY_WEBHOOK_SECRET en Vercel?');
+      return NextResponse.json({ error: 'Webhook Error: firma no coincide' }, { status: 400 });
     }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'unknown';
@@ -96,6 +101,8 @@ export async function POST(req: NextRequest) {
   const eventName = payload.meta.event_name;
   const customData = payload.meta.custom_data ?? {};
   const data = payload.data;
+
+  console.log(`[Webhook/LS] evento:${eventName} id:${data.id} customData:${JSON.stringify(customData)}`);
 
   await connectDB();
 
