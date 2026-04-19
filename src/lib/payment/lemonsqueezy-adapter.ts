@@ -175,6 +175,7 @@ export class LemonSqueezyAdapter implements PaymentServiceInterface {
             total: number;
             currency: string;
             created_at: string;
+            urls?: { invoice_url?: string };
           };
         }>;
       })?.data;
@@ -183,13 +184,13 @@ export class LemonSqueezyAdapter implements PaymentServiceInterface {
 
       return items.map((inv) => ({
         id: String(inv.id),
-        number: null,
+        number: `#${inv.id}`,
         status: inv.attributes.status,
         amountPaid: inv.attributes.total,
         amountDue: inv.attributes.total,
         currency: (inv.attributes.currency || 'USD').toUpperCase(),
         created: isoToEpoch(inv.attributes.created_at),
-        hostedInvoiceUrl: null,
+        hostedInvoiceUrl: inv.attributes.urls?.invoice_url ?? null,
         invoicePdf: null,
       }));
     } catch {

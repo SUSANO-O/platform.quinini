@@ -521,7 +521,7 @@ export default function SettingsPage() {
                     margin: '8px 0 6px',
                   }}
                 >
-                  Suscripción (Paddle)
+                  Suscripción (LemonSqueezy)
                 </p>
                 {(subscription.stripeSubscriptionCreated ?? 0) > 0 ? (
                   <Row
@@ -556,8 +556,8 @@ export default function SettingsPage() {
         </div>
 
         <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '16px', lineHeight: 1.5 }}>
-          Los cambios de plan (subida o bajada) usan prorrateo de Paddle sobre el periodo de facturación actual; el detalle
-          del cargo aparece en tu facturación de Paddle.
+          Los cambios de plan (subida o bajada) usan prorrateo de LemonSqueezy sobre el periodo de facturación actual; el detalle
+          del cargo aparece en tu portal de LemonSqueezy.
           {billingRestricted ? ' Verifica tu correo para habilitar cambios de plan.' : ''}
         </p>
 
@@ -569,8 +569,8 @@ export default function SettingsPage() {
             >
               <p className="text-[13px] font-bold mb-2.5 m-0">Método de pago y facturas</p>
               <p className="text-[11px] m-0 mb-2.5 leading-snug" style={{ color: 'var(--muted-foreground)' }}>
-                Paddle abre una página segura para actualizar la tarjeta. Las facturas listadas vienen de tus transacciones
-                completadas en Paddle.
+                LemonSqueezy abre una página segura para actualizar la tarjeta. Las facturas listadas vienen de tus transacciones
+                completadas en LemonSqueezy.
               </p>
               <button
                 type="button"
@@ -613,7 +613,7 @@ export default function SettingsPage() {
                 }}
               >
                 <ExternalLink size={14} />
-                Abrir portal de cliente de Paddle (facturación y datos de pago)
+                Abrir portal de cliente de LemonSqueezy (facturación y datos de pago)
               </button>
 
               {subscription?.cancelAtPeriodEnd ? (

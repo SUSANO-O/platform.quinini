@@ -190,7 +190,7 @@ export function SubscriptionPlanPanel({ checkoutDisabled = false }: { checkoutDi
             ))}
           </div>
           <p style={{ fontSize: '9px', color: 'var(--muted-foreground)', margin: '8px 0 0', lineHeight: 1.35 }}>
-            La bajada aplica prorrateo en Paddle: puede acreditarse la parte no usada del periodo actual (detalle en la
+            La bajada aplica prorrateo en LemonSqueezy: puede acreditarse la parte no usada del periodo actual (detalle en la
             factura o en el resumen de la suscripción).
           </p>
         </>
