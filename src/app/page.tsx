@@ -19,7 +19,6 @@ const Rd = '#bb1b14';  // rojo oscuro
 
 const AGENTS: { name: string; desc: string; Icon: React.ElementType; color: string }[] = [
   { name: 'Health Monitor',    desc: 'Análisis de signos vitales en tiempo real',           Icon: HeartPulse,    color: R  },
-  { name: 'Drug Discovery',    desc: 'Screening molecular, predicción ADMET',               Icon: FlaskConical,  color: O  },
   { name: 'Smart Agriculture', desc: 'Análisis de suelo, optimización de cultivos',         Icon: Sprout,        color: C  },
   { name: 'Education AI',      desc: 'Rutas de aprendizaje personalizadas y tutoría',       Icon: GraduationCap, color: O  },
   { name: 'Geoeconomics',      desc: 'Análisis macroeconómico y riesgo geopolítico',        Icon: TrendingUp,    color: B  },
