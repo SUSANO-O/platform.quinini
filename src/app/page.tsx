@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   Zap, Shield, BarChart3, MessageSquare, Database,
   ArrowRight, Code2, Globe, Sparkles, Check,
-  HeartPulse, FlaskConical, Sprout,
+  HeartPulse, Sprout,
   GraduationCap, TrendingUp, Lock, Wrench,
   UserPlus, Palette, Rocket,
 } from 'lucide-react';
@@ -273,7 +273,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold">
-              <span className="gradient-text">7 Agentes especializados</span>
+              <span className="gradient-text">6 Agentes especializados</span>
             </h2>
             <p className="mt-4 text-lg" style={{ color: 'var(--muted-foreground)' }}>
               Cada agente está entrenado para su dominio. Elige uno, envía datos, recibe insights.
