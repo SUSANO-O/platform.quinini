@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
       // ── Nueva suscripción ───────────────────────────────────────────────
       case 'subscription_created': {
         const attr = data.attributes as LSSubscriptionAttributes;
-        const userId = customData.userId;
+        const userId = customData.userId || customData.user_id;
         if (!userId) {
           console.warn('[Webhook/LS] subscription_created sin userId — id:', data.id);
           break;
@@ -262,7 +262,8 @@ export async function POST(req: NextRequest) {
         const attr = data.attributes as LSOrderAttributes;
         if (attr.status !== 'paid') break;
 
-        const { userId, packId, conversations, type } = customData;
+        const userId = customData.userId || customData.user_id;
+        const { packId, conversations, type } = customData;
         if (type !== 'conversation_pack' || !userId || !packId || !conversations) break;
 
         const KNOWN_PACK_IDS = new Set(['pack_s', 'pack_m', 'pack_l']);

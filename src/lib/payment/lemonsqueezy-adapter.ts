@@ -58,7 +58,7 @@ export class LemonSqueezyAdapter implements PaymentServiceInterface {
       checkoutOptions: { embed: false, media: false, logo: true },
       checkoutData: {
         email,
-        custom: { userId, plan },
+        custom: { user_id: userId, plan },
       },
       productOptions: {
         redirectUrl: successUrl,
@@ -83,7 +83,7 @@ export class LemonSqueezyAdapter implements PaymentServiceInterface {
       checkoutOptions: { embed: false, media: false },
       checkoutData: {
         email,
-        custom: { userId, packId, conversations: String(conversations), type: 'conversation_pack' },
+        custom: { user_id: userId, packId, conversations: String(conversations), type: 'conversation_pack' },
       },
       productOptions: {
         redirectUrl: successUrl,
