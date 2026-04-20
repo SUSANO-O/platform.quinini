@@ -30,7 +30,7 @@ const EMAIL_PUBLIC_ORIGIN = (
   process.env.APP_URL?.trim() ||
   'http://localhost:3201'
 ).replace(/\/$/, '');
-const EMAIL_LOGO_URL = `${EMAIL_PUBLIC_ORIGIN}/t.jpg`;
+const EMAIL_LOGO_URL = `${EMAIL_PUBLIC_ORIGIN}/t1.png`;
 
 // ── Template helpers ──────────────────────────────────────────────────────────
 

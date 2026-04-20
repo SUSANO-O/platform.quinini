@@ -8,12 +8,12 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2.5 mb-4">
-              <Image src="/t.jpg" alt="MatIAs" width={32} height={32} className="rounded-lg object-cover" style={{ aspectRatio: '1/1' }} />
+              <Image src="/t1.png" alt="MatIAs" width={32} height={32} className="rounded-lg object-cover" style={{ aspectRatio: '1/1' }} />
               <span className="font-bold">MatIAs</span>
             </div>
             <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
               Agentes de IA como servicio.<br />
-              Una API, integración en minutos.
+              API REEST full, integración en minutos.
             </p>
           </div>
 

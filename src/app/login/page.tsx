@@ -39,7 +39,7 @@ function LoginForm() {
       <div className="relative w-full max-w-[420px]">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex flex-col items-center gap-3 no-underline">
-            <Image src="/t.jpg" alt="MatIAs" width={56} height={56} className="rounded-xl object-cover shadow-md" style={{ aspectRatio: '1/1' }} />
+            <Image src="/t1.png" alt="MatIAs" width={56} height={56} className="rounded-xl object-cover shadow-md" style={{ aspectRatio: '1/1' }} />
             <span className="text-2xl font-bold gradient-text">MatIAs</span>
           </Link>
           <p className="mt-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>

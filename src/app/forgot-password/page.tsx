@@ -38,7 +38,7 @@ export default function ForgotPasswordPage() {
 
       <div className="relative w-full max-w-[400px] landing-card p-9">
         <Link href="/" className="inline-flex items-center gap-2.5 mb-7 no-underline">
-          <Image src="/t.jpg" alt="MatIAs" width={36} height={36} className="rounded-xl object-cover" style={{ aspectRatio: '1/1' }} />
+          <Image src="/t1.png" alt="MatIAs" width={36} height={36} className="rounded-xl object-cover" style={{ aspectRatio: '1/1' }} />
           <span className="text-lg font-bold gradient-text">MatIAs</span>
         </Link>
 

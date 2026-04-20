@@ -116,7 +116,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }}>
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 no-underline px-2 mb-4">
-            <Image src="/t.jpg" alt="MatIAs" width={36} height={36} className="rounded-xl object-cover shrink-0" style={{ aspectRatio: '1/1' }} />
+            <Image src="/t1.png" alt="MatIAs" width={36} height={36} className="rounded-xl object-cover shrink-0" style={{ aspectRatio: '1/1' }} />
             <span className="text-lg font-bold gradient-text">MatIAs</span>
           </Link>
 
