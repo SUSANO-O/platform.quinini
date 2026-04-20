@@ -26,7 +26,8 @@ const STEPS = [
     icon: Key,
     title: 'Regístrate y obtén tu API Key',
     desc: 'Un solo POST crea tu organización y devuelve el orgId y apiKey que necesitas para todo lo demás.',
-    code: `curl -X POST https://agentflowhub.com/api/orgs \\
+    code: `curl -X POST https://www.quinini.online
+api/orgs \\
   -H "Content-Type: application/json" \\
   -d '{
     "name": "Acme Corp",
@@ -47,7 +48,8 @@ const STEPS = [
     icon: Package,
     title: 'Crea un Widget',
     desc: 'Asocia el widget a tu agente de IA y define los dominios que pueden usarlo.',
-    code: `curl -X POST https://agentflowhub.com/api/orgs/org_a1b2c3d4/widgets \\
+    code: `curl -X POST https://www.quinini.online
+api/orgs/org_a1b2c3d4/widgets \\
   -H "X-Api-Key: afhub_xxxxxxxx..." \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -69,7 +71,8 @@ const STEPS = [
     title: 'Pega el snippet en tu web',
     desc: 'Una sola línea antes del </body>. Cero dependencias, cero configuración extra.',
     code: `<script
-  src="https://agentflowhub.com/widget.js"
+  src="https://www.quinini.online
+widget.js"
   data-agent-id="mi-agente-id"
   data-token="wt_yyyyyyyyyy..."
   data-title="Soporte Acme"
@@ -254,7 +257,8 @@ export default function WidgetLandingPage() {
             <CodeBlock
               lang="html · snippet"
               code={`<script
-  src="https://agentflowhub.com/widget.js"
+  src="https://www.quinini.online
+widget.js"
   data-agent-id="mi-agente-id"
   data-token="wt_yyyyyyyyyy..."
   data-title="Soporte"
@@ -351,7 +355,8 @@ export default function WidgetLandingPage() {
 
           <CodeBlock
             lang="javascript"
-            code={`<script src="https://agentflowhub.com/widget.js" async></script>
+            code={`<script src="https://www.quinini.online
+widget.js" async></script>
 <script>
   window.addEventListener('load', function () {
     const chat = window.AgentFlowhub.init({

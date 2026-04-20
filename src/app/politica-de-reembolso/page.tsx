@@ -17,7 +17,7 @@ export default function ReembolsoPage() {
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-foreground">1. Suscripciones y Facturación</h2>
               <p className="leading-relaxed">
-                MatIAs (AIBackHub) opera bajo un modelo de suscripción de pago por adelantado. Al contratar un plan, usted acepta que se le facture el importe total correspondiente al periodo seleccionado (mensual o anual).
+                MatIAs opera bajo un modelo de suscripción de pago por adelantado. Al contratar un plan, usted acepta que se le facture el importe total correspondiente al periodo seleccionado (mensual o anual).
               </p>
             </section>
 

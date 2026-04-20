@@ -22,16 +22,6 @@ export function Footer() {
             <ul className="space-y-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
               <li><Link href="/playground" className="hover:underline">Playground</Link></li>
               <li><Link href="/pricing" className="hover:underline">Precios</Link></li>
-              <li><Link href="/docs" className="hover:underline">Documentación API</Link></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-semibold text-sm mb-3">Desarrolladores</h4>
-            <ul className="space-y-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              <li><Link href="/docs" className="hover:underline">Docs</Link></li>
-              <li><Link href="/dashboard" className="hover:underline">Claves API</Link></li>
-              <li><Link href="/docs#sdks" className="hover:underline">SDKs</Link></li>
             </ul>
           </div>
 

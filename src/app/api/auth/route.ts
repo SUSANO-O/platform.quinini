@@ -18,7 +18,7 @@ import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { sendVerificationEmail } from '@/lib/email';
 
 const COOKIE = 'afhub_session';
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
+const COOKIE_MAX_AGE = 60 * 60 * 12; // 12 hours
 
 const cookieBase = {
   httpOnly: true,

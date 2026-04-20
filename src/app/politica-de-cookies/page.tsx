@@ -24,7 +24,7 @@ export default function CookiesPage() {
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-foreground">2. ¿Cómo utilizamos las Cookies?</h2>
               <p className="leading-relaxed">
-                En MatIAs (AIBackHub), utilizamos cookies para:
+                En MatIAs, utilizamos cookies para:
               </p>
               <ul className="list-disc pl-6 space-y-3">
                 <li><strong>Autenticación:</strong> Mantener su sesión iniciada y proteger su cuenta.</li>
@@ -39,7 +39,7 @@ export default function CookiesPage() {
               <ul className="list-disc pl-6 space-y-3">
                 <li><strong>Cookies Esenciales:</strong> Necesarias para el funcionamiento básico del sitio. Sin ellas, no podría acceder a su cuenta ni realizar pagos.</li>
                 <li><strong>Cookies Analíticas:</strong> Nos ayudan a medir el tráfico y el rendimiento del sitio.</li>
-                <li><strong>Cookies de Terceros:</strong> Algunos servicios externos, como Stripe (para pagos) o Google Analytics (para estadísticas), pueden instalar sus propias cookies.</li>
+                <li><strong>Cookies de Terceros:</strong> Algunos servicios externos, como lemonsqueezy (para pagos) o Google Analytics (para estadísticas), pueden instalar sus propias cookies.</li>
               </ul>
             </section>
 

@@ -17,7 +17,7 @@ export default function PrivacidadPage() {
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-foreground">1. Introducción</h2>
               <p className="leading-relaxed">
-                En MatIAs (AIBackHub), nos comprometemos a proteger su privacidad. Esta política explica cómo recopilamos, utilizamos y protegemos su información cuando utiliza nuestra plataforma de agentes de inteligencia artificial.
+                En MatIAs, nos comprometemos a proteger su privacidad. Esta política explica cómo recopilamos, utilizamos y protegemos su información cuando utiliza nuestra plataforma de agentes de inteligencia artificial.
               </p>
             </section>
 
@@ -53,7 +53,7 @@ export default function PrivacidadPage() {
               </p>
               <ul className="list-disc pl-6 space-y-3">
                 <li><strong>Modelos de Lenguaje:</strong> Enviamos prompts a proveedores de modelos (como OpenAI, Google o Anthropic) para generar respuestas. Sus datos se procesan de acuerdo con sus políticas de privacidad.</li>
-                <li><strong>Procesadores de Pago:</strong> Utilizamos Stripe para la gestión de cobros y suscripciones.</li>
+                <li><strong>Procesadores de Pago:</strong> Utilizamos https://www.lemonsqueezy.com/ para la gestión de cobros y suscripciones.</li>
                 <li><strong>Infraestructura:</strong> Utilizamos proveedores de nube seguros para alojar nuestra base de datos y servicios.</li>
               </ul>
             </section>

@@ -275,12 +275,11 @@ export default function GeoeconomicsLandingPage() {
               <span className="text-xs font-mono" style={{ color: 'var(--muted-foreground)' }}>HTML — embed code</span>
             </div>
             <pre className="p-6 text-sm overflow-x-auto" style={{ background: '#0f1729', color: '#e2e8f0' }}>
-{`<script src="https://agentflowhub.com/widget.js"></script>
+{`<script src="https://www.quinini.online/widget.js"></script>
 <script>
   AgentFlowhub.init({
     agentId: "agente-de-geoeconomia",
     token: "YOUR_WIDGET_TOKEN",
-    host: "https://agentflowhub.com",
     title: "Analista Geoeconómico",
     subtitle: "Pregúntame sobre economía global",
     color: "#0d9488",

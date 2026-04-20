@@ -17,7 +17,7 @@ export default function TerminosPage() {
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-foreground">1. Aceptación de los Términos</h2>
               <p className="leading-relaxed">
-                Al acceder y utilizar los servicios de MatIAs (operado por AIBackHub), usted acepta cumplir y estar sujeto a los siguientes términos y condiciones. Si no está de acuerdo con alguna parte de estos términos, no podrá utilizar nuestros servicios.
+                Al acceder y utilizar los servicios de MatIAs (operado por MatAIs), usted acepta cumplir y estar sujeto a los siguientes términos y condiciones. Si no está de acuerdo con alguna parte de estos términos, no podrá utilizar nuestros servicios.
               </p>
             </section>
 
@@ -57,7 +57,7 @@ export default function TerminosPage() {
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-foreground">6. Propiedad Intelectual</h2>
               <p className="leading-relaxed">
-                Todo el contenido, marcas y tecnología relacionados con MatIAs son propiedad de AIBackHub o sus licenciantes. Usted conserva los derechos sobre los datos e información que cargue en la plataforma, pero nos otorga una licencia limitada para procesar dicha información con el fin de prestarle el servicio.
+                Todo el contenido, marcas y tecnología relacionados con MatIAs son propiedad de MatAIs o sus licenciantes. Usted conserva los derechos sobre los datos e información que cargue en la plataforma, pero nos otorga una licencia limitada para procesar dicha información con el fin de prestarle el servicio.
               </p>
             </section>
 

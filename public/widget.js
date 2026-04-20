@@ -499,7 +499,7 @@
 
     var powered = document.createElement('div');
     powered.className = 'afhub-powered';
-    powered.innerHTML = 'Powered by <a href="https://agentflowhub.com" target="_blank" rel="noopener">AgentFlowhub</a>';
+    powered.innerHTML = 'Powered by <a href="https://www.quinini.online" target="_blank" rel="noopener">MatAIs</a>';
     chat.appendChild(powered);
 
     var inputArea = document.createElement('div');
