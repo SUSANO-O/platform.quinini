@@ -160,6 +160,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [widgetPublicToken, setWidgetPublicToken] = useState('');
   const [inferenceTemperature, setInferenceTemperature] = useState('');
   const [inferenceMaxTokens, setInferenceMaxTokens] = useState('');
+  const [modelQuery, setModelQuery] = useState('');
+  const [showAllModels, setShowAllModels] = useState(false);
 
   // MCP tools state
   const [mcpServers, setMcpServers] = useState<McpServerGroup[]>([]);
@@ -193,6 +195,14 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     () => Boolean(model.trim()) && !clientModels.some((x) => x.id === model),
     [clientModels, model],
   );
+  const filteredModels = useMemo(() => {
+    const q = modelQuery.trim().toLowerCase();
+    if (!q) return displayModels;
+    return displayModels.filter((m) =>
+      `${m.name} ${m.id} ${m.provider} ${m.description ?? ''}`.toLowerCase().includes(q)
+    );
+  }, [displayModels, modelQuery]);
+  const visibleModels = showAllModels ? filteredModels : filteredModels.slice(0, 12);
 
   useEffect(() => {
     fetch(`/api/agents/${id}`)
@@ -717,10 +727,31 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 El modelo guardado (<code style={{ fontSize: '11px' }}>{model}</code>) no está en el catálogo actual o no cumple tu plan. Elige uno de la lista o ajústalo en AgentFlowHub.
               </p>
             )}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '6px' }}>
-              {displayModels.map((m) => (
+            <div style={{ border: '1px solid var(--border)', background: 'var(--muted)', borderRadius: 12, padding: 12, marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+                <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)' }}>
+                  Busca por nombre, proveedor o capacidad
+                </p>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)' }}>
+                  {filteredModels.length} resultados
+                </span>
+              </div>
+              <input
+                className="landing-input"
+                style={inp}
+                value={modelQuery}
+                onChange={(e) => {
+                  setModelQuery(e.target.value);
+                  setShowAllModels(false);
+                }}
+                placeholder="Buscar modelo..."
+                disabled={readOnly}
+              />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px' }}>
+              {visibleModels.map((m) => (
                 <button key={m.id} type="button" onClick={() => setModel(m.id)} style={{
-                  padding: '8px 10px', borderRadius: '10px', textAlign: 'left', cursor: 'pointer',
+                  padding: '10px 12px', borderRadius: '10px', textAlign: 'left', cursor: 'pointer',
                   border: `1px solid ${model === m.id ? R : 'var(--border)'}`,
                   background: model === m.id ? 'rgba(228,20,20,0.08)' : 'transparent',
                 }}>
@@ -735,6 +766,26 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 </button>
               ))}
             </div>
+            {filteredModels.length > 12 && (
+              <div style={{ marginTop: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAllModels((v) => !v)}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    border: '1px solid var(--border)',
+                    background: 'var(--background)',
+                    color: 'var(--foreground)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {showAllModels ? 'Ver menos modelos' : `Ver todos (${filteredModels.length})`}
+                </button>
+              </div>
+            )}
             <div style={{ marginTop: '14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '6px', color: 'var(--muted-foreground)' }}>

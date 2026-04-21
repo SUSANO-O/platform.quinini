@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useSubscription } from '@/hooks/use-subscription';
@@ -62,10 +62,20 @@ export default function NewAgentPage() {
   const [isPlatform, setIsPlatform] = useState(false);
   const [inferenceTemperature, setInferenceTemperature] = useState('');
   const [inferenceMaxTokens, setInferenceMaxTokens] = useState('');
+  const [modelQuery, setModelQuery] = useState('');
+  const [showAllModels, setShowAllModels] = useState(false);
   /** Tras crear el agente, abrir modal de MCP en la ficha con esta integración. */
   const [pendingMcp, setPendingMcp] = useState<{ key: string; name: string } | null>(null);
   const [mcpInfoModal, setMcpInfoModal] = useState<McpCatalogRow | null>(null);
   const { models: clientModels, hubError: modelsHubError } = useClientModels(plan);
+  const filteredModels = useMemo(() => {
+    const q = modelQuery.trim().toLowerCase();
+    if (!q) return clientModels;
+    return clientModels.filter((m) =>
+      `${m.name} ${m.id} ${m.provider} ${m.description ?? ''}`.toLowerCase().includes(q)
+    );
+  }, [clientModels, modelQuery]);
+  const visibleModels = showAllModels ? filteredModels : filteredModels.slice(0, 12);
 
   const hubUiBase = (process.env.NEXT_PUBLIC_AGENTFLOWHUB_URL || 'http://127.0.0.1:9010').replace(
     /\/$/,
@@ -336,15 +346,35 @@ export default function NewAgentPage() {
                 {modelsHubError} Se muestran modelos de respaldo; revisa BACKEND_URL y que AIBackHub esté en marcha.
               </p>
             )}
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-2">
-              {clientModels.map((m) => {
+            <div className="rounded-xl p-3 mb-3" style={{ border: '1px solid var(--border)', background: 'var(--muted)' }}>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="text-[11px] font-semibold m-0" style={{ color: 'var(--muted-foreground)' }}>
+                  Selecciona un modelo (busca por nombre, proveedor o capacidad)
+                </p>
+                <span className="text-[11px] font-semibold" style={{ color: 'var(--muted-foreground)' }}>
+                  {filteredModels.length} resultados
+                </span>
+              </div>
+              <input
+                className="landing-input"
+                style={inp}
+                value={modelQuery}
+                onChange={(e) => {
+                  setModelQuery(e.target.value);
+                  setShowAllModels(false);
+                }}
+                placeholder="Buscar modelo..."
+              />
+            </div>
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2.5">
+              {visibleModels.map((m) => {
                 const selected = model === m.id;
                 return (
                   <button
                     key={m.id}
                     type="button"
                     onClick={() => setModel(m.id)}
-                    className="text-left rounded-xl p-2.5 cursor-pointer transition-all border"
+                    className="text-left rounded-xl p-3 cursor-pointer transition-all border"
                     style={{
                       borderColor: selected ? `${R}55` : 'var(--border)',
                       background: selected ? `${R}0d` : 'transparent',
@@ -379,6 +409,18 @@ export default function NewAgentPage() {
                 );
               })}
             </div>
+            {filteredModels.length > 12 && (
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAllModels((v) => !v)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors"
+                  style={{ borderColor: 'var(--border)', background: 'var(--background)', color: 'var(--foreground)' }}
+                >
+                  {showAllModels ? 'Ver menos modelos' : `Ver todos (${filteredModels.length})`}
+                </button>
+              </div>
+            )}
             <div className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
               <div>
                 <label

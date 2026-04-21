@@ -22,12 +22,12 @@ export default async function LandingPage() {
   const t = await getTranslations('landing');
 
   const AGENTS = [
-    { name: 'Health Monitor',    desc: t('agents.health'),       Icon: HeartPulse,    color: R  },
-    { name: 'Smart Agriculture', desc: t('agents.agriculture'),   Icon: Sprout,        color: C  },
-    { name: 'Education AI',      desc: t('agents.education'),     Icon: GraduationCap, color: O  },
-    { name: 'Geoeconomics',      desc: t('agents.geoeconomics'),  Icon: TrendingUp,    color: B  },
-    { name: 'Cybersecurity',     desc: t('agents.cybersecurity'), Icon: Lock,          color: R  },
-    { name: 'Maximo',            desc: t('agents.maximo'),        Icon: Wrench,        color: Rd },
+    { name: 'Health Monitor',    desc: t('agents.health'),       Icon: HeartPulse,    color: R,  focus: 'Salud' },
+    { name: 'Smart Agriculture', desc: t('agents.agriculture'),   Icon: Sprout,        color: C,  focus: 'Agro' },
+    { name: 'Education AI',      desc: t('agents.education'),     Icon: GraduationCap, color: O,  focus: 'Educacion' },
+    { name: 'Geoeconomics',      desc: t('agents.geoeconomics'),  Icon: TrendingUp,    color: B,  focus: 'Economia' },
+    { name: 'Cybersecurity',     desc: t('agents.cybersecurity'), Icon: Lock,          color: R,  focus: 'Seguridad' },
+    { name: 'Maximo',            desc: t('agents.maximo'),        Icon: Wrench,        color: Rd, focus: 'Industria' },
   ];
 
   const FEATURES = [
@@ -237,20 +237,25 @@ export default async function LandingPage() {
       {/* ── AGENTS ───────────────────────────────────────────────────────────── */}
       <section className="py-24 px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
+          <div className="text-center mb-14">
             <h2 className="text-3xl md:text-4xl font-bold">
               <span className="gradient-text">{t('agents.title')}</span>
             </h2>
-            <p className="mt-4 text-lg" style={{ color: 'var(--muted-foreground)' }}>
+            <p className="mt-4 text-lg max-w-3xl mx-auto" style={{ color: 'var(--muted-foreground)' }}>
               {t('agents.subtitle')}
             </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              <span className="px-3 py-1 rounded-full text-xs font-semibold" style={{ background: `${R}12`, color: R, border: `1px solid ${R}30` }}>Especializados por dominio</span>
+              <span className="px-3 py-1 rounded-full text-xs font-semibold" style={{ background: `${O}12`, color: O, border: `1px solid ${O}30` }}>Listos para usar</span>
+              <span className="px-3 py-1 rounded-full text-xs font-semibold" style={{ background: `${B}12`, color: B, border: `1px solid ${B}30` }}>Integracion via widget</span>
+            </div>
           </div>
-          <div className="grid md:grid-cols-3 gap-5">
-            {AGENTS.map((a, i) => (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {AGENTS.map((a) => (
               <div
                 key={a.name}
-                className="card-hover rounded-2xl overflow-hidden relative"
-                style={{ background: 'var(--card)', border: `1px solid ${a.color}28` }}
+                className="card-hover rounded-2xl overflow-hidden relative h-full flex flex-col"
+                style={{ background: 'var(--card)', border: `1px solid ${a.color}28`, boxShadow: '0 8px 32px rgba(0,0,0,0.04)' }}
               >
                 <div style={{
                   position: 'absolute', inset: 0, pointerEvents: 'none',
@@ -264,27 +269,38 @@ export default async function LandingPage() {
                   background: `radial-gradient(ellipse at top right, ${a.color}22 0%, transparent 70%)`,
                   pointerEvents: 'none',
                 }} />
-                <div style={{ position: 'absolute', bottom: -8, right: -4, pointerEvents: 'none', color: `${a.color}0e` }}>
-                  <a.Icon size={110} strokeWidth={1} aria-hidden />
-                </div>
                 <div style={{ height: 3, background: `linear-gradient(90deg, ${a.color}, ${a.color}33)`, position: 'relative' }} />
-                <div className="p-6 relative">
-                  <span style={{
-                    position: 'absolute', top: 16, right: 18,
-                    fontSize: 13, fontWeight: 700, letterSpacing: '0.06em',
-                    color: `${a.color}60`, fontFamily: 'monospace',
-                  }}>
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
-                  <div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
-                    style={{ background: `${a.color}14`, border: `1px solid ${a.color}30`, boxShadow: `0 0 18px ${a.color}18, inset 0 1px 0 ${a.color}20` }}
-                  >
-                    <a.Icon size={22} style={{ color: a.color }} strokeWidth={1.75} />
+                <div className="p-6 relative flex-1 flex flex-col">
+                  <div className="flex items-start justify-between gap-3">
+                    <div
+                      className="w-12 h-12 rounded-xl flex items-center justify-center"
+                      style={{ background: `${a.color}14`, border: `1px solid ${a.color}30`, boxShadow: `0 0 18px ${a.color}18, inset 0 1px 0 ${a.color}20` }}
+                    >
+                      <a.Icon size={22} style={{ color: a.color }} strokeWidth={1.75} />
+                    </div>
+                    <span
+                      className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md"
+                      style={{ background: `${a.color}12`, color: a.color, border: `1px solid ${a.color}30` }}
+                    >
+                      {a.focus}
+                    </span>
                   </div>
-                  <h3 className="text-base font-bold mb-1.5" style={{ letterSpacing: '-0.01em' }}>{a.name}</h3>
-                  <p className="text-sm leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>{a.desc}</p>
-                  <div style={{ marginTop: 18, height: 1, background: `linear-gradient(90deg, ${a.color}50, transparent)` }} />
+
+                  <h3 className="text-lg font-bold mt-5 mb-2" style={{ letterSpacing: '-0.01em' }}>{a.name}</h3>
+                  <p className="text-sm leading-relaxed min-h-[62px]" style={{ color: 'var(--muted-foreground)' }}>{a.desc}</p>
+
+                  <div className="mt-5 pt-4 flex items-center justify-between" style={{ borderTop: `1px solid ${a.color}30` }}>
+                    <span className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>
+                      Ideal para equipos operativos
+                    </span>
+                    <Link
+                      href="/register"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg"
+                      style={{ background: `${a.color}14`, color: a.color, border: `1px solid ${a.color}35` }}
+                    >
+                      Probar <ArrowRight size={12} />
+                    </Link>
+                  </div>
                 </div>
               </div>
             ))}
