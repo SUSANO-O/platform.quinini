@@ -31,6 +31,9 @@ const SIDEBAR_TOUR_KEY_BY_HREF: Record<string, string> = {
 function JourneyProgress() {
   const { journeyPercent, journeyComplete, completedCount, totalStages, currentStageLabel } = useTour();
 
+  /** Con el camino al 100% no mostramos la tarjeta de progreso (evita que el “100%” quede fijo en el sidebar). */
+  if (journeyComplete) return null;
+
   return (
     <div
       className="card-texture"
@@ -47,9 +50,7 @@ function JourneyProgress() {
         <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>
           Camino trial
         </span>
-        <span style={{ fontSize: '11px', fontWeight: 800, color: journeyComplete ? '#059669' : 'var(--foreground)' }}>
-          {journeyComplete ? '100%' : `${journeyPercent}%`}
-        </span>
+        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--foreground)' }}>{journeyPercent}%</span>
       </div>
       <div
         style={{
@@ -65,18 +66,14 @@ function JourneyProgress() {
             height: '100%',
             width: `${journeyPercent}%`,
             borderRadius: '999px',
-            background: journeyComplete
-              ? 'linear-gradient(90deg, #059669, #34d399)'
-              : 'linear-gradient(90deg, #e41414, #f87600, #00acf8)',
+            background: 'linear-gradient(90deg, #e41414, #f87600, #00acf8)',
             transition: 'width 0.45s ease',
             boxShadow: '0 0 12px rgba(228,20,20,0.25)',
           }}
         />
       </div>
       <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: '8px 0 0', lineHeight: 1.45 }}>
-        {journeyComplete
-          ? 'Recorrido completado. Usa «Reiniciar guía» abajo si quieres volver a hacer el camino desde cero.'
-          : `Etapa actual: ${currentStageLabel ?? '…'} · ${completedCount}/${totalStages} etapas`}
+        {`Etapa actual: ${currentStageLabel ?? '…'} · ${completedCount}/${totalStages} etapas`}
       </p>
     </div>
   );
