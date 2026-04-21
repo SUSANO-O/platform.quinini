@@ -34,7 +34,7 @@ export function LandingWidgetScript() {
         theme: 'light',
         autoOpen: false,
         debug: false,
-        onError: (err) => {
+        onError: (err: unknown) => {
           console.error('Widget error', err);
         },
       });
