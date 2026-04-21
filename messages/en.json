@@ -1,0 +1,170 @@
+{
+  "nav": {
+    "pricing": "Pricing",
+    "signIn": "Sign in",
+    "startFree": "Start free",
+    "dashboard": "Dashboard →"
+  },
+  "footer": {
+    "tagline": "AI Agents as a Service. Full REST API, integration in minutes.",
+    "product": "Product",
+    "company": "Company",
+    "legal": "Legal",
+    "home": "Home",
+    "plans": "Plans",
+    "terms": "Terms",
+    "privacy": "Privacy",
+    "cookies": "Cookies",
+    "refunds": "Refunds"
+  },
+  "landing": {
+    "badge": "3 days free — no credit card required",
+    "hero": {
+      "title1": "AI Agents for",
+      "title2": "any industry",
+      "description": "Create your own intelligent chat widget on your website in minutes. Build specialized agents, a full REST API, and Widget API that works on any page — all in one place.",
+      "ctaPrimary": "Start free — 3-day trial",
+      "ctaAccount": "I already have an account",
+      "ctaDocs": "View docs"
+    },
+    "stats": {
+      "agents": "Agents created",
+      "conversations": "Conversations per day",
+      "companies": "Companies that trust us"
+    },
+    "how": {
+      "title": "Works in 4 steps",
+      "subtitle": "From zero to a chat widget on your site in less than 10 minutes.",
+      "step1Title": "Create your account",
+      "step1Desc": "3 days free, no card. Full access to the Widget Builder and all 9 agents.",
+      "step2Title": "Design your widget",
+      "step2Desc": "Choose the agent, customize colors, text and position with the visual Widget Builder.",
+      "step3Title": "Copy the snippet",
+      "step3Desc": "One code block. Paste it in your HTML and the chat appears instantly.",
+      "step4Title": "Scale when you're ready",
+      "step4Desc": "Upgrade to the plan you need. No contracts, cancel anytime."
+    },
+    "agents": {
+      "title": "6 Specialized Agents",
+      "subtitle": "Each agent is trained for its domain. Choose one, send data, receive insights.",
+      "health": "Real-time vital signs analysis",
+      "agriculture": "Soil analysis, crop optimization",
+      "education": "Personalized learning paths and tutoring",
+      "geoeconomics": "Macroeconomic analysis and geopolitical risk",
+      "cybersecurity": "Threat analysis, vulnerability auditing",
+      "maximo": "Industrial maintenance and asset management"
+    },
+    "features": {
+      "title": "Everything you need to integrate AI",
+      "subtitle": "From embeddings to billing — we handle the infrastructure so you can focus on your product.",
+      "secureTitle": "Secure by default",
+      "secureDesc": "API key auth, rate limiting per plan, tenant-isolated data.",
+      "secureMetric": "API key auth",
+      "analyticsTitle": "Real-time analytics",
+      "analyticsDesc": "Dashboard with requests, latency, top endpoints and live costs.",
+      "analyticsMetric": "Live dashboard",
+      "multitenantTitle": "Multi-tenant",
+      "multitenantDesc": "Each API key has isolated data, independent rate limits and separate billing.",
+      "multitenantMetric": "Isolated per key"
+    },
+    "widget": {
+      "badge": "Convert more, effortlessly",
+      "title": "Your sales agent that never sleeps",
+      "subtitle": "Deploy an intelligent chat on your site in less than 5 minutes. Answer questions, qualify leads and close sales — 24 hours a day.",
+      "windowTitle": "MatIAs — Widget Builder",
+      "live": "Live",
+      "startFree": "Start free →",
+      "whyTitle": "Why sales teams choose it",
+      "b1Title": "Responds instantly",
+      "b1Desc": "No waiting. The customer receives a response in less than 1 second.",
+      "b2Title": "Qualifies leads automatically",
+      "b2Desc": "The agent identifies purchase intent and prioritizes hot contacts.",
+      "b3Title": "Integrates in 2 lines",
+      "b3Desc": "One script and done. Compatible with any web, CMS or ecommerce.",
+      "b4Title": "Your brand, your style",
+      "b4Desc": "Colors, logo, position and tone fully customizable.",
+      "b5Title": "Conversion analytics",
+      "b5Desc": "Measure opens, messages and leads generated from the dashboard.",
+      "chatSampleTitle": "Sample real conversation",
+      "assistantName": "MatIAs Assistant",
+      "available": "Available now",
+      "msg1": "Hi! 👋 I'm your assistant. Are you looking for information about our plans?",
+      "msg2": "Yes, what's included in the Pro plan?",
+      "msg3": "The Pro plan includes unlimited agents, advanced analytics and priority support. Start with <strong>3 days free</strong> — no card required. 🚀",
+      "inputPlaceholder": "Type your message…",
+      "socialProof": "<red>+320 companies</red> already use MatIAs to convert more visitors into customers"
+    },
+    "pricing": {
+      "title": "Transparent pricing",
+      "subtitle": "3-day free trial on all plans. No contracts. Cancel anytime.",
+      "period": "/mo",
+      "popular": "Most popular",
+      "cta": "Start free — 3 days",
+      "starter": {
+        "widgets": "2 widgets",
+        "requests": "5,000 conv/mo",
+        "features": [
+          "2 active widgets on your site",
+          "5,000 conversations per month (~167/day)",
+          "1 custom agent",
+          "AI Chat + basic analytics",
+          "Email support (48 h)"
+        ]
+      },
+      "growth": {
+        "widgets": "5 widgets",
+        "requests": "25,000 conv/mo",
+        "features": [
+          "5 active widgets on your site",
+          "25,000 conversations per month (~833/day)",
+          "Unlimited agents + RAG",
+          "Advanced analytics + CSV export",
+          "Priority support (chat, 24 h)"
+        ]
+      },
+      "business": {
+        "widgets": "15 widgets",
+        "requests": "100k conv/mo",
+        "features": [
+          "15 active widgets on your site",
+          "100,000 conversations per month (~3,300/day)",
+          "Agents + RAG + MCP integrations",
+          "Dedicated support + 99.9% SLA",
+          "Onboarding and setup included"
+        ]
+      }
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "items": [
+        {
+          "q": "What's included in the 3-day trial?",
+          "a": "Full access to the Widget Builder, all agents and the SDK. No limits during the trial period."
+        },
+        {
+          "q": "Do I need a credit card to sign up?",
+          "a": "No. Just email and password. A card is only required when you choose a paid plan."
+        },
+        {
+          "q": "Can I cancel at any time?",
+          "a": "Yes. No contracts or penalties. Cancel and access continues until the end of the paid period."
+        },
+        {
+          "q": "Does the widget work on any website?",
+          "a": "Yes. Any HTML page. You just need to include the script and call window.AgentFlowhub.init()."
+        },
+        {
+          "q": "What happens if I exceed the request limit?",
+          "a": "We notify you before reaching the limit. You can upgrade your plan or wait for the next cycle."
+        }
+      ]
+    },
+    "cta": {
+      "title1": "Start today.",
+      "title2": "3 days free.",
+      "subtitle": "No card. Cancel anytime. Your first widget live in minutes.",
+      "primary": "Create free account",
+      "secondary": "I already have an account"
+    }
+  }
+}

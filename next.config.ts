@@ -1,4 +1,7 @@
+import createNextIntlPlugin from 'next-intl/plugin';
 import type { NextConfig } from 'next';
+
+const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['mongoose', 'stripe', 'bcryptjs', 'pdf-parse', 'mammoth'],
@@ -23,13 +26,13 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
-              "script-src-elem 'self' 'unsafe-inline'",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://control-matias.vercel.app",
+              "script-src-elem 'self' 'unsafe-inline' https://control-matias.vercel.app",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com",
               "font-src 'self' data: https://fonts.gstatic.com https://api.fontshare.com https://cdn.fontshare.com",
               "img-src 'self' data: blob: https:",
               // LemonSqueezy: checkout hospedado en app.lemonsqueezy.com / checkout.lemonsqueezy.com
-              "connect-src 'self' https://api.lemonsqueezy.com",
+              "connect-src 'self' https://api.lemonsqueezy.com https://control-matias.vercel.app",
               "frame-src https://app.lemonsqueezy.com https://checkout.lemonsqueezy.com",
               "object-src 'none'",
               "base-uri 'self'",
@@ -49,4 +52,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);
