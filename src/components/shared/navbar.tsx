@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/use-auth';
 
 const NAV_LINKS = [
   { href: '/#pricing', label: 'Precios' },
+  { href: '/preguntas-frecuentes', label: 'Preguntas frecuentes' },
 ];
 
 export function Navbar() {

@@ -34,6 +34,15 @@ export function LandingNavbar() {
           >
             {t('pricing')}
           </Link>
+          <Link
+            href="/preguntas-frecuentes"
+            className="text-sm font-medium transition-colors"
+            style={{ color: 'var(--muted-foreground)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
+          >
+            {t('faq')}
+          </Link>
 
           <LanguageSwitcher />
 
@@ -83,6 +92,14 @@ export function LandingNavbar() {
             onClick={() => setOpen(false)}
           >
             {t('pricing')}
+          </Link>
+          <Link
+            href="/preguntas-frecuentes"
+            className="block text-sm font-medium py-2"
+            style={{ color: 'var(--muted-foreground)' }}
+            onClick={() => setOpen(false)}
+          >
+            {t('faq')}
           </Link>
 
           <div className="py-1">
