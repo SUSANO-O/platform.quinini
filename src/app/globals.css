@@ -420,14 +420,22 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .driver-popover.afhub-driver-popover .driver-popover-close-btn {
+  /* Forzar visibilidad: driver.js a veces deja display:none por inline si falla la fusión de showButtons */
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   width: 32px;
   height: 32px;
   min-width: 32px;
-  margin: -4px -6px 0 8px;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 20;
+  margin: 0;
   border: none;
   border-radius: 9999px;
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   line-height: 1;
   color: var(--muted-foreground);
   background: transparent;

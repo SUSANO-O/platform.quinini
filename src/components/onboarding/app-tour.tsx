@@ -222,6 +222,9 @@ function pathAllowedForJourney(
   return false;
 }
 
+/** Siempre incluir `close`: driver.js fusiona el popover del paso al final y puede ocultar la X si falta aquí. */
+const AFHUB_DRIVER_POPOVER_BUTTONS = ['next', 'previous', 'close'] as const;
+
 function mk(
   element: string,
   title: string,
@@ -232,7 +235,13 @@ function mk(
 ): AfhubDriveStep {
   return {
     element,
-    popover: { title, description, side, align },
+    popover: {
+      title,
+      description,
+      side,
+      align,
+      showButtons: [...AFHUB_DRIVER_POPOVER_BUTTONS],
+    },
     ...(meta ? { afhubMeta: meta } : {}),
   };
 }
@@ -607,6 +616,18 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
           const clickStep = i !== undefined && metasRef.current[i]?.advance === 'click';
           popover.nextButton.style.display = clickStep ? 'none' : '';
           popover.nextButton.disabled = clickStep;
+          const cb = popover.closeButton;
+          cb.style.setProperty('display', 'flex', 'important');
+          cb.style.setProperty('visibility', 'visible', 'important');
+          cb.style.setProperty('opacity', '1', 'important');
+          cb.style.setProperty('position', 'absolute', 'important');
+          cb.style.setProperty('z-index', '20', 'important');
+          cb.style.setProperty('top', '10px', 'important');
+          cb.style.setProperty('right', '10px', 'important');
+          cb.style.setProperty('align-items', 'center', 'important');
+          cb.style.setProperty('justify-content', 'center', 'important');
+          cb.setAttribute('aria-label', 'Cerrar guía');
+          if (!cb.innerHTML?.trim()) cb.innerHTML = '&times;';
           const w = popover.wrapper;
           w.classList.remove('afhub-popover-enter');
           void w.offsetWidth;

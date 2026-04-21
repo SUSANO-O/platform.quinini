@@ -1,357 +1,214 @@
-# Base de conocimiento — Camino trial y onboarding guiado del dashboard (MatIAs)
+# Base de conocimiento — MatIAs (dashboard): uso del producto y camino trial
 
-Documento operativo para **soporte técnico a clientes** sobre el onboarding guiado (“Camino trial”), rutas, almacenamiento y comportamiento esperado. Basado en la implementación actual del panel (`/dashboard`).
+Documento para **soporte al cliente** sobre qué puede hacer un usuario en el panel, límites por plan y la **guía del camino trial**.  
 
----
-
-## 1. Qué es el “Camino trial”
-
-- Es un **roadmap guiado en 7 etapas** dentro del dashboard, pensado sobre todo para usuarios con **trial activo**.
-- Usa la librería **`driver.js`** (popovers, overlay, pasos anclados en el DOM mediante atributos de datos en componentes).
-- El progreso se guarda en el **navegador del cliente** (no sustituye validación en servidor).
-
-**Objetivo para el cliente:** recorrer inicio → crear agente → agentes → MCP → widget builder → widgets → ajustes, con ayuda contextual.
+**Cómo leerlo:** las secciones **1–6** son la base diaria (respuestas en lenguaje llano). La sección **7 (Anexo técnico)** solo sirve para incidencias raras, bucles o escalación a ingeniería; **no** es material para evaluar al cliente ni para un “examen” de implementación interna.
 
 ---
 
-## 2. Orden fijo de las 7 etapas
+## 1. Agentes: cuántos puedo crear, cómo los creo y qué hago después
 
-| Orden | ID interno        | Nombre en UI (aprox.) | Ruta por defecto              | Ancla menú lateral (DOM) |
-|------:|--------------------|------------------------|--------------------------------|---------------------------|
-| 1     | `inicio`           | Inicio                 | `/dashboard`                   | `sidebar-inicio`          |
-| 2     | `crear-agente`     | Crear agente           | `/dashboard/agents/new`        | `sidebar-agentes`         |
-| 3     | `mis-agentes`      | Mis agentes            | `/dashboard/agents`            | `sidebar-agentes`         |
-| 4     | `mcp`              | Integraciones MCP      | `/dashboard/mcp`               | `sidebar-mcp`             |
-| 5     | `widget-builder`   | Widget Builder         | `/dashboard/widget-builder`    | `sidebar-widget-builder`  |
-| 6     | `mis-widgets`      | Mis widgets            | `/dashboard/widgets`           | `sidebar-widgets`         |
-| 7     | `ajustes`          | Ajustes                | `/dashboard/settings`          | `sidebar-ajustes`         |
+### 1.1 Cuántos agentes (y subagentes) según el plan
 
-La primera etapa **no completada** en `localStorage` es la que el sistema intenta impulsar (redirección + arranque automático de la guía si aplica).
+Los números concretos pueden cambiar con el producto; la referencia viva está en la lógica de planes del repositorio. Orientación típica:
+
+| Plan (nombre en producto) | Agentes principales (máx.) | Subagentes por agente (máx.) | Herramientas nativas por agente (máx.) | RAG (conocimiento en documentos) |
+|---------------------------|----------------------------|------------------------------|----------------------------------------|----------------------------------|
+| **Free** | 1 | 0 | 2 | No |
+| **Starter** | 2 | 1 | 3 | Sí |
+| **Growth** | 5 | 3 | 5 | Sí |
+| **Business** | 15 | 10 | 10 | Sí |
+| **Enterprise** | Muy alto (según contrato) | Muy alto | Muy alto | Sí |
+
+Si el cliente “no puede crear más agentes”, suele ser **tope del plan**, no un fallo: debe **mejorar plan** o borrar/agentar recursos.
+
+### 1.2 Cómo crear un agente (pasos en pantalla)
+
+1. Entrar en **Mis agentes** → **Nuevo agente** (`/dashboard/agents/new`).
+2. Rellenar **nombre** (obligatorio).
+3. Elegir **modelo** de la lista (se puede buscar por nombre o proveedor).
+4. Opcional: **temperatura** y **máximo de tokens de salida** si quieren afinar el comportamiento; si no, dejar vacío y usa el valor por defecto del catálogo.
+5. Opcional: **token público del widget** si integran el SDK con validación por token; si solo usan widgets creados en **Mis widgets** con su propio token, muchas veces pueden dejarlo vacío.
+6. Escribir el **system prompt** (obligatorio): define personalidad, límites, idioma y cuándo escalar a humanos.
+7. Pulsar **Crear agente**.
+
+En la misma pantalla puede indicarse una **integración MCP** para conectar después; lo habitual es terminar el alta y seguir en la **ficha del agente**.
+
+### 1.3 Después de crear el agente: qué puede hacer el cliente
+
+Abriendo el agente en **Mis agentes** (`/dashboard/agents/[id]`):
+
+| Pestaña | Qué hace el usuario aquí |
+|---------|---------------------------|
+| **General** | Cambiar nombre, descripción, modelo, system prompt, token público del widget, temperatura y tokens de salida. |
+| **Herramientas** | Activar herramientas nativas permitidas por su plan (búsqueda web, webhook, Gmail, Slack, calendario, CRM, etc., según plan). Conectar **MCP** con credenciales **por este agente**, revisar sincronización y marcar qué herramientas remotas usa el modelo. |
+| **RAG** | Activar conocimiento a partir de **URLs**, **texto** o **archivos** subidos; ideal para FAQs, manuales y políticas internas. En **plan free** el RAG del producto no está habilitado. |
+| **Subagentes** | Crear “mini agentes” especializados bajo el principal, hasta el máximo que permita el plan. |
+
+**Herramientas típicas en plan free:** búsqueda web y webhook. A partir de **starter** suelen sumarse más (p. ej. subida de archivos, Gmail, Slack); en planes superiores entran calendario, HubSpot, WhatsApp, Notion, etc.
+
+### 1.4 Widgets: cuántos y relación con el agente
+
+También dependen del plan (referencia en código: límites por plan en la misma librería de planes que los agentes). Regla práctica: **un widget se asocia a un agente** en el **Widget Builder**; el cliente configura aspecto, textos, posición y snippet, y puede probar la vista previa antes de publicar.
 
 ---
 
-## 3. Cuándo el sistema **cambia la ruta** (listas vacías)
+## 2. Camino trial (guía): qué es para el usuario
 
-Tras consultar **`GET /api/agents`** y **`GET /api/widgets`**:
-
-| Etapa           | Si…                         | Ruta efectiva del paso (en lugar de la tabla) |
-|-----------------|-----------------------------|-----------------------------------------------|
-| `mis-agentes`   | **0 agentes** en API        | `/dashboard/agents/new` (alta directa)       |
-| `mis-widgets`   | **0 widgets** en API       | `/dashboard/widget-builder` (crear primero)  |
-
-**Mensaje al cliente:** “Si aún no tienes agentes/widgets, el camino te lleva directo a crear el primero en lugar de quedarte solo en la lista vacía.”
-
-**Soporte:** si el cliente ve un salto a “nuevo agente” o “widget builder” sin haber pasado por la lista, puede ser **normal** por esta regla.
+- Es un **recorrido guiado en 7 pasos** dentro del dashboard (mensajes encima de la pantalla con **Siguiente**, **Atrás** y **cerrar con X** en cualquier momento).
+- Orden habitual: **Inicio** → **Crear agente** → **Mis agentes** → **Integraciones MCP** → **Widget Builder** → **Mis widgets** → **Ajustes**.
+- **No crea** el agente ni el widget solo: al terminar cada bloque el usuario debe haber usado los formularios reales si quiere esos recursos.
+- Si **aún no tiene agentes**, en el paso de “Mis agentes” el sistema puede llevarle directo a **crear el primero** (evita una lista vacía sin acción). Igual si **no tiene widgets** en el paso de widgets: puede abrirse el **constructor** para crear el primero.
+- **Reiniciar guía** en el menú lateral borra el progreso del recorrido y vuelve a empezar. **Iniciar guía** solo tiene sentido mientras no haya completado el 100%.
+- Cuando llega al **100%**, la tarjeta de progreso del camino trial **desaparece**; puede seguir usando **Reiniciar guía** si quiere repetir el recorrido.
 
 ---
 
-## 4. Etapa especial `inicio` (clics reales + navegación)
+## 3. Preguntas frecuentes del cliente (lenguaje llano)
 
-- Parte de la guía **no usa “Siguiente”**: hay que **hacer clic** en el menú (p. ej. Mis agentes, luego Inicio).
-- Al navegar, se usa **`sessionStorage`** para **reanudar** la guía en el paso correcto; la clave es el **valor string** de la constante `INTERACTIVE_RESUME_KEY` en el módulo de onboarding principal bajo `src/components/onboarding/`.
-- Hay un flag en **`localStorage`**: `afhub_inicio_agents_flow_v1` mientras el flujo permite estar en `/dashboard/agents` sin que el roadmap te devuelva a la fuerza a `/dashboard` en medio del tutorial.
+**P: ¿La guía crea solo mi agente o mi widget?**  
+R: **No.** Solo enseña dónde pulsar; tú rellenas y guardas en cada pantalla.
 
-Si el cliente dice “me saca de Mis agentes al volver al inicio” o “la guía no continúa”, revisar que no tengan bloqueadores de **sessionStorage** / **localStorage** (modo incógnito estricto, extensiones, políticas IT).
+**P: ¿Por qué me manda a “nuevo agente” si el paso decía “Mis agentes”?**  
+R: Porque **todavía no tienes ningún agente**; el producto te lleva a crearlos primero.
+
+**P: ¿Por qué me abre el constructor de widgets si iba a “Mis widgets”?**  
+R: Porque **no tienes widgets guardados**; te ayuda a crear el primero.
+
+**P: Completé el recorrido y no veo agente nuevo.**  
+R: Hay que **crearlo** en **Nuevo agente** y guardar; la guía no sustituye ese paso.
+
+**P: Perdí la barra de progreso del camino trial.**  
+R: Si ya completaste todos los pasos, **es normal** que desaparezca. Puedes usar **Reiniciar guía** si quieres repetir.
+
+**P: ¿Cuántos agentes puedo tener?**  
+R: Depende de tu **plan** (tabla de la §1.1). Si no te deja crear más, has llegado al límite o necesitas subir de plan.
+
+**P: ¿Puedo ponerle documentación a mi agente?**  
+R: Sí, en la ficha del agente, pestaña **RAG**, si tu plan lo incluye (desde **starter** en la tabla típica). En **free** no suele estar disponible el RAG del producto.
+
+**P: ¿Dónde conecto Gmail o Slack?**  
+R: En la ficha del agente → **Herramientas**, si tu plan incluye esa herramienta.
 
 ---
 
-## 5. Almacenamiento (qué borrar para “empezar de cero”)
+## 4. Tono recomendado con el cliente
 
-| Concepto | Dónde | Cómo obtener el literal exacto |
+- Hablar de **“tu plan”**, **“la ficha del agente”** y **“la guía”**, no de APIs ni de almacenamiento del navegador salvo que el cliente sea técnico.
+- Si algo “salta de pantalla”, explicar la intención: **ayudar a crear el primer recurso** o **seguir el orden del recorrido**.
+- No prometer comportamiento que dependa del **modelo externo** o del **hub**; sí prometer lo que hace el **panel** (formularios, límites, dónde se guarda al pulsar Guardar).
+
+---
+
+## 5. Comprobar conocimiento del soporte (solo uso del producto)
+
+Usar preguntas como estas **no** exige saber nombres de archivos ni endpoints.
+
+**Agentes y planes**
+
+1. ¿Cuántos agentes principales puede tener, por lo general, un usuario en plan **free**?
+2. ¿En qué plan suele estar disponible el **RAG** según la tabla de referencia del documento?
+3. Nombra **dos** herramientas que suelen estar disponibles en el plan **free**.
+4. Tras pulsar “Crear agente”, ¿en qué **cuatro pestañas** puede seguir configurando el usuario el mismo agente?
+
+**Flujo y expectativas**
+
+5. ¿La guía del camino trial **crea** sola el agente al llegar al último mensaje de un paso?
+6. Un usuario sin agentes está en el paso “Mis agentes” del recorrido. ¿Qué es lo más probable que vea en pantalla y por qué?
+7. ¿Qué botón del menú lateral puede usar si quiere **volver a cero** el recorrido guiado?
+
+**Criterio / consejo**
+
+8. Un cliente quiere un bot **muy creativo** para inventar slogans y otro **muy fijo** para políticas legales. ¿Qué le sugieres que diferencie entre ambos además del modelo (piensa en system prompt y temperatura)?
+
+**Respuestas breves (clave interna):** 1 → Uno. 2 → Desde starter (según tabla). 3 → Por ejemplo búsqueda web y webhook. 4 → General, Herramientas, RAG, Subagentes. 5 → No. 6 → Pantalla de **crear agente** / alta, porque no hay agentes aún. 7 → **Reiniciar guía**. 8 → Distintos **system prompts** y **temperatura** más baja para el legal; más alta para slogans, siempre acorde al riesgo.
+
+---
+
+## 6. Consejos breves para que el cliente saque partido al agente
+
+- **System prompt** concreto: rol, tono, idioma, límites y cuándo pasar a un humano.
+- **RAG** (si su plan lo tiene): subir PDFs o pegar políticas y decir en el prompt que **priorice** esa información.
+- **Herramientas**: activar solo las que vayan a usar; menos ruido = respuestas más estables.
+- **MCP**: revisar que la integración muestre estado correcto tras poner credenciales; si falla, reintentar credenciales antes de culpar al modelo.
+- **Widgets**: probar en vista previa; copiar el snippet solo cuando la configuración esté lista.
+
+---
+
+## 7. Anexo técnico (incidencias y escalación)
+
+Usar solo si el caso es **bucle**, **sesión**, **datos que no cargan** o **bug sospechoso**.
+
+### 7.1 Orden interno de las 7 etapas (IDs)
+
+| Orden | ID interno | Nombre en UI (aprox.) | Ruta por defecto |
+|------:|------------|------------------------|------------------|
+| 1 | `inicio` | Inicio | `/dashboard` |
+| 2 | `crear-agente` | Crear agente | `/dashboard/agents/new` |
+| 3 | `mis-agentes` | Mis agentes | `/dashboard/agents` |
+| 4 | `mcp` | Integraciones MCP | `/dashboard/mcp` |
+| 5 | `widget-builder` | Widget Builder | `/dashboard/widget-builder` |
+| 6 | `mis-widgets` | Mis widgets | `/dashboard/widgets` |
+| 7 | `ajustes` | Ajustes | `/dashboard/settings` |
+
+La primera etapa no marcada como hecha en almacenamiento local es la que el cliente intenta mostrar; puede combinarse con redirección automática de la guía si hay trial activo.
+
+### 7.2 Listas vacías (comportamiento en cliente)
+
+Tras cargar listas de agentes y widgets desde el panel:
+
+- Si la etapa es **mis-agentes** y **no hay agentes**, la ruta efectiva puede ser **`/dashboard/agents/new`**.
+- Si la etapa es **mis-widgets** y **no hay widgets**, la ruta efectiva puede ser **`/dashboard/widget-builder`**.
+
+### 7.3 Etapa inicio (clics en menú)
+
+Parte del recorrido pide **clic real** en el menú (no solo “Siguiente”). Hay reanudación en **sessionStorage** y un flag en **localStorage** para el flujo inicio ↔ agentes. Si “se corta” la guía, revisar bloqueo de almacenamiento del sitio (modo privado estricto, políticas IT).
+
+### 7.4 Almacenamiento y “empezar de cero”
+
+| Concepto | Dónde | Dónde ver el literal en código |
 |----------|--------|--------------------------------|
-| Progreso del camino (journey v2) | `localStorage` | Valor de `JOURNEY_STORAGE_KEY` en el módulo principal de onboarding (`src/components/onboarding/`). |
-| Persistencia legacy (trial) | `localStorage` | Constante en `trial-onboarding.tsx` del mismo directorio; el botón “Reiniciar guía” también la limpia. |
-| Reanudación entre rutas | `sessionStorage` | Valor de `INTERACTIVE_RESUME_KEY` en el módulo principal de onboarding. |
-| Flujo inicio ↔ agentes | `localStorage` | Valor de `INICIO_AGENTS_FLOW_KEY` en el módulo principal de onboarding. |
+| Progreso del camino | `localStorage` | `JOURNEY_STORAGE_KEY` en `src/components/onboarding/` |
+| Legacy trial | `localStorage` | `trial-onboarding.tsx` y constantes adyacentes en el módulo principal |
+| Reanudación entre rutas | `sessionStorage` | `INTERACTIVE_RESUME_KEY` |
+| Flujo inicio ↔ agentes | `localStorage` | `INICIO_AGENTS_FLOW_KEY` |
 
-**Reiniciar guía** en el sidebar ejecuta la limpieza de journey + reanudación + flag inicio y relanza el asistente visual desde la primera etapa pendiente.
+**Reiniciar guía** limpia lo necesario y relanza el asistente. Alternativa: parámetros de URL documentados en el código (valores típicos `1` y `reset` sobre el mismo nombre de query).
 
-**Soporte remoto (instrucciones al cliente):**  
-DevTools → Application → Local Storage / Session Storage → borrar las entradas anteriores (usar los literales definidos en las constantes del código) para el origen del sitio, recargar.
+### 7.5 APIs de conteo y errores
 
----
+El cliente consulta agentes/widgets para saber si hay listas vacías. Respuesta **no OK** (p. ej. 401) puede tratarse como listas vacías y disparar la lógica de “ir a crear”. **Excepción de red** en `fetch` puede hacer que el código asuma datos presentes para no bloquear la guía. Ante 401: cerrar sesión y volver a entrar.
 
-## 6. Arranque automático de la guía
+### 7.6 Asistente (Driver.js)
 
-- El auto-arranque del camino depende de **`isTrialActive`** (hook de suscripción en el cliente).
-- Si **no** hay trial activo, el recorrido largo **no** se dispara solo (salvo forzar con URL, ver §8).
-- Tras **completar una etapa** (último paso “Listo”), se marca la etapa en `localStorage` y el efecto puede **redirigir** a la siguiente ruta y **abrir** el siguiente bloque de pasos de Driver.js.
+Espera breve al DOM entre pasos; overlay oscurece el fondo a propósito; botón **cerrar (X)** disponible en el popover.
 
----
+### 7.7 Archivos de referencia (equipo)
 
-## 7. Interfaz en el sidebar
+- Onboarding: `src/components/onboarding/`
+- Sidebar del dashboard: `src/app/dashboard/layout.tsx`
+- Estilos del popover: `src/app/globals.css`
+- Límites de planes (agentes, herramientas, RAG): `src/lib/agent-plans.ts`
+- Alta de agente: `src/app/dashboard/agents/new/page.tsx`
+- Ficha de agente: `src/app/dashboard/agents/[id]/page.tsx`
 
-- **Camino trial:** barra de % y texto de etapa **solo mientras el camino no está al 100%**. Completado todo, la tarjeta **se oculta** (no queda fijo “100%” en pantalla).
-- **Iniciar guía:** visible **solo si el camino no está al 100%**.
-- **Reiniciar guía:** **siempre** visible; resetea progreso y vuelve a lanzar el asistente desde la primera etapa pendiente.
+### 7.8 Matriz síntoma → acción (técnico)
 
----
+| Síntoma | Acción |
+|---------|--------|
+| Redirecciones solas con trial | Explicar roadmap; **Reiniciar guía** o completar pasos. |
+| Bucles | Reset por URL según código o **Reiniciar guía**; limpiar session del sitio. |
+| Guía no arranca sin trial | Arranque automático del recorrido largo no aplica; revisar plan o botón de guía. |
+| Pantalla atenuada | Overlay del asistente; no es fallo de monitor. |
 
-## 8. Parámetros de URL (forzar o resetear)
+### 7.9 Escalación a ingeniería
 
-El efecto de onboarding lee **un nombre de parámetro en la query string** (el literal del nombre está en el mismo archivo donde se comparan los valores `'1'` y `'reset'` contra `searchParams` / `URLSearchParams`).
+Incluir: usuario (sin contraseñas), URL, navegador, plan/trial, pasos para reproducir, capturas de **Ajustes** si aplica, y si usaron **Reiniciar guía** o reset por URL. Solo si hace falta: listado de claves de almacenamiento según §7.4 y estado HTTP de las peticiones de listado (sin pegar datos sensibles).
 
-- **Forzar:** añadir `?<nombre>=1` (nombre según fuente).
-- **Reset:** añadir `?<nombre>=reset` — borra journey v2, estado de reanudación (`INTERACTIVE_RESUME_KEY`), flag `INICIO_AGENTS_FLOW_KEY` y elimina ese parámetro de la URL para evitar bucles.
+### 7.10 Límites de este documento
 
-Quien depure sin abrir el repositorio puede inspeccionar en Network o en la barra de direcciones qué parámetro desaparece tras un reset exitoso.
-
-Útil si el cliente quedó en un estado raro y soporte quiere un reset limpio sin tocar DevTools a mano (aunque el botón Reiniciar suele bastar).
-
----
-
-## 9. Comportamiento técnico del asistente (Driver.js) — para explicar síntomas
-
-- **Espera al DOM:** antes de avanzar de paso o al iniciar, se espera a que exista el selector del paso (polling breve). Si la página carga lento, puede haber un **retraso corto** antes del siguiente popover.
-- **Pasos “solo clic”:** en algunos pasos se oculta “Siguiente”; hay que hacer clic en el elemento resaltado.
-- **Overlay:** velo semitransparente sobre el resto de la pantalla; es intencional para foco (no es un “bug de pantalla negra”).
-- **Tras 100% del camino:** “Iniciar guía” abre una **guía corta contextual** de la página actual (`postJourneyPageSteps`), no el roadmap completo de 7 etapas.
+No cubre precios legales ni runbooks de base de datos. Los números de plan deben contrastarse con `agent-plans` y producto si hay duda.
 
 ---
 
-## 10. Archivos de referencia (equipo técnico)
-
-- Lógica principal del onboarding y journey: directorio `src/components/onboarding/` (constantes `JOURNEY_STORAGE_KEY`, `INTERACTIVE_RESUME_KEY`, `INICIO_AGENTS_FLOW_KEY`, integración con `driver.js`).
-- Sidebar, barra de progreso y botones: `src/app/dashboard/layout.tsx`
-- Estilos popover / overlay / indicador de clic: `src/app/globals.css` (clases `afhub-*`, `driver-*`)
-- Anclas en páginas: atributos de datos en componentes (buscar en el código el patrón de selectores usado por Driver en formularios y sidebar).
-
----
-
-## 11. Preguntas frecuentes (respuestas cortas)
-
-**P: ¿Completar la guía crea el agente o el widget automáticamente?**  
-R: **No.** Marcar etapa “hecha” es al **terminar los pasos** (último “Listo”). Crear agente/widget sigue siendo acción del usuario en los formularios.
-
-**P: ¿Por qué me manda a “nuevo agente” si la etapa es “Mis agentes”?**  
-R: Porque **no hay ningún agente** en la API; el camino prioriza **alta** en `/dashboard/agents/new`.
-
-**P: ¿Por qué abre Widget Builder si la etapa es “Mis widgets”?**  
-R: Porque **no hay widgets** guardados; el camino prioriza **crear el primero** en el builder.
-
-**P: La guía no arranca en Mis agentes / Mis widgets.**  
-R: Puede estar **esperando** el conteo de API (`/api/agents`, `/api/widgets`). Si la petición **no es OK** (p. ej. 401), el cuerpo se ignora y se cuenta como **0 agentes / 0 widgets** → puede activarse la ruta de “lista vacía”. Si **falla la red** (excepción al `fetch`), el código marca **“hay datos”** para no bloquear el flujo. Revisar sesión, Network y consola.
-
-**P: ¿Cómo vuelvo al inicio del recorrido?**  
-R: **Reiniciar guía** en el sidebar (o limpiar `afhub_onboarding_journey_v2` + recargar).
-
-**P: Completé todo y desapareció la barra de progreso.**  
-R: **Esperado.** Al 100% se oculta la tarjeta “Camino trial”; sigue **Reiniciar guía** si quieren repetir.
-
----
-
-## 12. Tono recomendado con el cliente
-
-- Enfatizar que el camino es una **ayuda guiada**, no un reemplazo de la documentación ni de la creación real de recursos.
-- Si hay confusión con **redirecciones**, explicar las rutas **efectivas** con listas vacías (§3).
-- Si hay bloqueos, preguntar por **navegador privado**, **extensiones** y **cookies/almacenamiento** del sitio.
-- No prometer que la **guía asistida** corrija datos en servidor; solo orienta la UI.
-
----
-
-## 13. Glosario y ejemplo de `afhub_onboarding_journey_v2`
-
-**IDs de etapa** (clave en `done`): `inicio` | `crear-agente` | `mis-agentes` | `mcp` | `widget-builder` | `mis-widgets` | `ajustes`.
-
-**Ejemplo de valor en `localStorage`:**
-
-```json
-{
-  "v": 2,
-  "done": {
-    "inicio": true,
-    "crear-agente": true,
-    "mis-agentes": false
-  }
-}
-```
-
-La siguiente etapa pendiente es la **primera** de la lista fija (§2) cuya clave no está en `true`. Si falta una clave, se considera pendiente.
-
----
-
-## 14. Inventario de anclas de paso en el DOM (referencia rápida)
-
-Los valores siguientes son los **literales** usados en selectores del onboarding (coinciden con el atributo de datos en JSX del repositorio).
-
-| Área | Valores típicos | Notas |
-|------|-----------------|--------|
-| Sidebar | `sidebar-inicio`, `sidebar-agentes`, `sidebar-mcp`, `sidebar-widget-builder`, `sidebar-widgets`, `sidebar-ajustes` | Enlaces del `layout` del dashboard. |
-| Inicio | `dashboard-quick-actions`, `dashboard-upgrade` | Atajos y bloque de plan. |
-| Alta / edición agente | `agent-name`, `agent-model`, `agent-create-submit`, `agent-edit-model`, `agent-edit-save` | `agents/new` y `agents/[id]`. |
-| Lista agentes | `agents-new`, `agents-list` | Lista vacía puede llevar ancla de paso en el estado vacío (tarjeta). |
-| MCP | `mcp-catalog` | Página catálogo. |
-| Widget builder | `widget-builder-header`, `widget-builder-name`, `widget-builder-agent`, `widget-builder-branding`, `widget-builder-chat-texts`, `widget-builder-support`, `widget-builder-look`, `widget-builder-position`, `widget-builder-embed-options`, `widget-builder-preview`, `widget-builder-snippet-panel`, `widget-builder-save`, `widget-builder-copy` | El mismo bloque de formulario se reutiliza en etapa `mis-widgets` vacía. |
-| Lista widgets | `widgets-new`, `widgets-list` | |
-| Ajustes | `settings-account`, `settings-billing` | |
-
-Si un paso “no aparece”, suele ser porque **falta el nodo** en el DOM (condición de carga, ruta distinta o ancla renombrada en código).
-
----
-
-## 15. Cómo se calculan “hay agentes” y “hay widgets”
-
-En cliente se llama a:
-
-- **`GET /api/agents`** — si la respuesta incluye un array `agents` con **longitud > 0**, `hasAgents = true`.
-- **`GET /api/widgets`** — si `widgets` tiene **longitud > 0**, `hasWidgets = true`.
-
-Hasta que esas peticiones terminen, las etapas `mis-agentes` y `mis-widgets` **esperan** (`loaded`) antes de decidir redirección “lista vacía → alta/builder”.
-
-**Si `fetch` lanza error** (red caída, CORS raro, etc.): se marca `loaded: true` y `hasAgents` / `hasWidgets` en **true** para no dejar el flujo colgado.
-
-**Si la respuesta no es `ok`** (p. ej. **401** no autorizado, **500**): el JSON no se usa; los arrays se tratan como vacíos → `hasAgents` / `hasWidgets` pueden quedar en **false** y aplicarse la lógica de **lista vacía** (redirección a alta / builder aunque en servidor “existiera” sesión válida en otro contexto).
-
-**Soporte:** cookie caducada o 401 en Network → **cerrar sesión y volver a entrar**; comprobar que `/api/agents` y `/api/widgets` devuelvan **200** con el payload esperado.
-
----
-
-## 16. Matriz síntoma → causa probable → qué hacer
-
-| Síntoma | Causa probable | Acción sugerida |
-|---------|----------------|------------------|
-| Me redirige solo de una página a otra | Trial activo + etapa pendiente del camino | Normal; explicar roadmap. Si molesta: Reiniciar guía o completar etapa. |
-| Bucle de redirecciones | Estado corrupto en storage + reanudación | Parámetro de reset en URL (§8) o Reiniciar guía; borrar `sessionStorage` del sitio. |
-| “Siguiente” no hace nada al instante | Espera al DOM del siguiente paso | Esperar 1–3 s; si página pesada, más. |
-| No ve botón Siguiente | Paso “solo clic” (etapa inicio) | Debe hacer clic en el menú indicado. |
-| La guía no arranca | Sin trial activo | El arranque automático del recorrido no corre; puede usar guía manual si está el botón o revisar suscripción. |
-| La guía no arranca en Mis agentes/widgets | Conteo aún cargando | Esperar; recargar. Revisar Network a `/api/agents` y `/api/widgets`. |
-| Lista vacía pero no me lleva a “nuevo” | API devuelve agentes o widgets que el cliente no “ve” | Explicar que el **criterio es el array de la API**, no solo la UI. |
-| Pantalla atenuada | Overlay de `driver.js` | Es el foco del paso; no es error de monitor. |
-| Perdí el progreso del camino | Otro navegador / borró datos / otro dispositivo | `localStorage` es por origen + navegador; es esperado. |
-
----
-
-## 17. Trial, suscripción y sesión
-
-- **`isTrialActive`** viene del contexto de suscripción del dashboard (no duplicar lógica aquí): si el producto considera que el trial **no** está activo, el **arranque automático del recorrido** no debe dispararse como en trial.
-- **Sesión:** las APIs del conteo y del panel suelen depender de cookie de sesión (p. ej. `afhub_session` en rutas API). Sin sesión válida, no hay datos fiables para el onboarding guiado.
-- **Plan y límites** (agentes, widgets, conversaciones) son reglas de **negocio** aparte del camino; el roadmap no valida cupos al marcar una etapa hecha.
-
----
-
-## 18. Privacidad y datos locales
-
-- El progreso del camino (`journey_v2`) y flags asociados viven en el **navegador del usuario**.
-- **No** sustituye auditoría ni historial en servidor.
-- Cumplimiento / borrar datos: orientar a **limpiar sitio** en el navegador o usar Reiniciar guía según política interna.
-
----
-
-## 19. Admin en suplantación (“impersonate”)
-
-Si un administrador navega el dashboard **actuando como otro usuario**, el cliente “ve” el mismo panel y el mismo camino trial **en contexto de esa cuenta**. El soporte debe tener claro si el ticket es del **usuario final** o de una **sesión de depuración** de admin para no mezclar expectativas.
-
----
-
-## 20. Accesibilidad y controles del asistente (Driver.js)
-
-- El popover incluye **botón de cerrar (X)** y **control por teclado** en todo el recorrido: el usuario puede salir del asistente en cualquier paso sin completar la etapa.
-- Los botones **Siguiente / Atrás** pueden deshabilitarse brevemente mientras se **espera al DOM** del siguiente paso (`aria-busy` en botones del popover).
-- Si el cliente usa **lector de pantalla** o **navegación solo teclado**, puede haber fricción en pasos “solo clic” en el menú lateral; valorar ofrecer **Reiniciar guía** + enlace directo a la ruta de la etapa (URLs de §2 y §3).
-
----
-
-## 21. Producto: agente y widget (contexto mínimo para soporte)
-
-- **Agente:** el panel crea/edita **agentes de cliente** en la landing; la guía de alta usa nombre, modelo y envío del formulario. La integración con hub/MCP es tema aparte del solo onboarding visual.
-- **Widget:** el **Widget Builder** configura apariencia, textos, posición, token en snippet opcional, etc. Guardar persiste en API; copiar pone el HTML en el portapapeles.
-- **Documentación pública del embed:** en la UI del builder suele existir enlace tipo **`/widget`** (SDK); útil si el cliente pregunta por integración fuera del panel guiado.
-
----
-
-## 22. Escalación a ingeniería (plantilla de ticket)
-
-Incluir siempre:
-
-1. **Usuario / cuenta** (sin contraseñas).  
-2. **URL exacta** y **navegador**.  
-3. **¿Trial activo?** (lo que vean en Ajustes / facturación).  
-4. **Captura o lista** de `localStorage` / `sessionStorage`: claves cuyos literales salen de `JOURNEY_STORAGE_KEY`, `INICIO_AGENTS_FLOW_KEY`, `INTERACTIVE_RESUME_KEY` y la constante legacy en `trial-onboarding.tsx`.  
-5. **Respuestas** de `/api/agents` y `/api/widgets` (solo status y tamaño del array, sin pegar datos sensibles completos).  
-6. **Pasos para reproducir** (clics desde inicio).  
-7. Si usaron el **reset por URL** (§8) o **Reiniciar guía** y el resultado.
-
----
-
-## 23. Límites de lo que cubre este documento
-
-- No describe **precios**, **facturación Stripe/Lemon** ni **políticas legales** del producto.
-- No sustituye **runbooks de incidentes** de backend o base de datos.
-- Cualquier cambio en el módulo de onboarding (`src/components/onboarding/`) o en las rutas del dashboard puede **desalinear** este texto: conviene revisar el código al cerrar sprints que toquen onboarding.
-
----
-
-## 24. Consejos para agentes potentes (lo que ofrece la herramienta)
-
-La **alta** (`/dashboard/agents/new`) pide lo esencial: nombre, modelo, **system prompt obligatorio**, y opciones como temperatura / máximo de tokens de salida y token público del widget. El mensaje en pantalla indica que **RAG y herramientas** se afinan en la **ficha del agente** tras crearlo: conviene explicar ese flujo en dos fases (crear → editar pestañas).
-
-### 24.1 System prompt (base del comportamiento)
-
-- Es **obligatorio** en el alta; sin él no se crea el agente.
-- Recomendar **estructura clara**: rol, público objetivo, tono, qué puede y no puede hacer, **idioma** de respuesta, cómo manejar datos sensibles y **cuándo derivar a humanos**.
-- Si más adelante activan **RAG** o **MCP**, alinear el texto: “prioriza la documentación indexada”, “usa herramientas solo cuando aporten”, “si falta contexto, dilo”.
-
-### 24.2 Modelo de IA y parámetros de inferencia
-
-- El catálogo viene del **hub** (`useClientModels` según plan); en la UI se puede **buscar** por nombre, proveedor o capacidad y ver **proveedor**, **badge** (p. ej. rápido vs potente) y **tamaño de contexto** cuando el catálogo lo expone.
-- Evitar modelos marcados como **deprecados** salvo migración temporal.
-- Algunos modelos exigen un **plan mínimo** (`planMeetsModelMin` en código): si el cliente no ve un modelo, revisar suscripción.
-- **Temperatura** (0–2) y **máx. tokens de salida** son opcionales; vacío deja el **comportamiento por defecto del catálogo**. Orientación general: temperatura **baja** para soporte, políticas y hechos; **más alta** para lluvia de ideas o redacción creativa (siempre dentro del marco del system prompt).
-
-### 24.3 Pestañas de la ficha del agente (`/dashboard/agents/[id]`)
-
-| Pestaña | Para qué sirve |
-|---------|----------------|
-| **General** | Nombre, descripción, modelo, system prompt, token público del widget, parámetros de inferencia. |
-| **Herramientas** | Herramientas nativas del producto (catálogo `TOOLS` en `src/lib/agent-plans.ts`), límites por plan, y **integraciones MCP** (conexiones por agente, sincronización, activación de herramientas expuestas por el servidor). |
-| **RAG** | Activar conocimiento contextual; fuentes por **URL**, **texto** o **archivo** (subida vía API de la ficha). |
-| **Subagentes** | Agentes auxiliares bajo el orquestador (límites según plan). |
-
-### 24.4 Herramientas nativas y planes (resumen operativo)
-
-Los límites numéricos y la lista exacta viven en **`AGENT_PLAN_LIMITS`** / **`getAgentLimits`** en `src/lib/agent-plans.ts`. Resumen orientativo para soporte:
-
-| Plan (típico) | Agentes | Subagentes / agente | Herramientas / agente | RAG |
-|---------------|---------|----------------------|------------------------|-----|
-| **free** | 1 | 0 | 2 | Desactivado |
-| **starter** | 2 | 1 | 3 | Activado |
-| **growth** | 5 | 3 | 5 | Activado |
-| **business** | 15 | 10 | 10 | Activado |
-| **enterprise** | amplio | amplio | amplio | Activado |
-
-**Herramientas disponibles por plan** (identificadores en código): en **free** suelen ser **Web Search** y **Webhook**; en **starter** se suman entre otras **File Upload**, **Gmail**, **Slack**; en **growth** entran **Google Calendar**, **HubSpot**, **WhatsApp Business**, **Notion**; **Zapier** aparece a nivel **business**. Si el cliente “no ve” una herramienta, casi siempre es **plan** o tope `toolsPerAgent`.
-
-**Consejos de uso:** Web Search para datos **actualizados**; Webhook para **integrar APIs propias** o backends internos con secret opcional; File Upload cuando el flujo necesita **documentos del usuario**; el resto según el stack real del cliente (CRM, calendario, mensajería).
-
-### 24.5 RAG (conocimiento propio)
-
-- Solo tiene sentido en planes con **`ragEnabled: true`** (desde **starter** en la tabla anterior).
-- Activar RAG **y** cargar fuentes; en la lista de agentes se distingue “RAG activo sin fuentes” vs “RAG cargado”.
-- En el **system prompt**, pedir que **cite o se base** en la documentación cuando exista, y que indique **lagunas** si la fuente no cubre la pregunta.
-- Subir **archivos** relevantes y nombres de fuente **descriptivos** mejora trazabilidad en soporte al cliente.
-
-### 24.6 MCP (Model Context Protocol)
-
-- Las credenciales son **por agente**; el mismo conector puede usar **login distinto** en otro agente.
-- Revisar **estado de sincronización** (OK / pendiente / error) y **re-sincronizar** o corregir credenciales antes de dar por fallido el modelo.
-- Tras sync OK, el cliente puede **elegir qué herramientas MCP** entran en el contexto (no hace falta habilitar todas si generan ruido o coste).
-
-### 24.7 Subagentes
-
-- Útiles para **separar especialidades** (p. ej. un subagente técnico y otro de redacción) bajo un orquestador.
-- Respetar el tope **`subAgentsPerAgent`** del plan; si no pueden crear más, es límite de producto, no un bug.
-
-### 24.8 Token público del widget (alta / General)
-
-- Opcional en el formulario de alta. Si se define, el SDK debe enviar el mismo valor en **`token`** y la API puede validarlo con cabecera **`X-Widget-Token`** (como indica la propia UI).
-- Si solo usan widgets creados en **Mis widgets** con token `wt_…`, suele ser razonable **dejarlo vacío** en el agente.
-
-### 24.9 Cierre operativo
-
-- **Nombre y descripción** claros ayudan en equipos con muchos agentes y al vincular **widgets**.
-- Tras cambios importantes, probar el agente desde el **widget** o el canal que usen y comprobar **sincronización con AIBackHub** (`agentHubId`, estado de sync) si el ticket es de “no actualiza en el hub”.
-
----
-
-*Última revisión: onboarding en `src/components/onboarding/`, layout `src/app/dashboard/layout.tsx`, estilos `src/app/globals.css`, límites y herramientas en `src/lib/agent-plans.ts`, fichas de agente en `src/app/dashboard/agents/`. Actualizar si cambian claves de storage, planes, catálogo de herramientas o reglas de RAG/MCP.*
+*Última revisión alineada con el panel MatIAs (dashboard). Prioridad: secciones 1–6 para soporte al cliente; sección 7 para incidencias.*
