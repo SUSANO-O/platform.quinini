@@ -420,7 +420,26 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .driver-popover.afhub-driver-popover .driver-popover-close-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  margin: -4px -6px 0 8px;
+  border: none;
+  border-radius: 9999px;
+  font-size: 1.25rem;
+  line-height: 1;
   color: var(--muted-foreground);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.driver-popover.afhub-driver-popover .driver-popover-close-btn:hover {
+  color: var(--foreground);
+  background: rgba(15, 23, 42, 0.08);
 }
 
 /* Indicador mínimo en pasos con clic (sin “radar” ni halos fuertes) */

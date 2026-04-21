@@ -586,8 +586,9 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       const tour = driver({
         showProgress: true,
         animate: true,
-        allowClose: !opts.journeyMode,
-        allowKeyboardControl: !opts.journeyMode,
+        /* Cerrar (X) y teclado siempre: el usuario puede salir del recorrido en cualquier paso */
+        allowClose: true,
+        allowKeyboardControl: true,
         /* Opacidad suave: el panel sigue legible; solo se atenúa un poco el resto */
         overlayOpacity: opts.journeyMode ? 0.32 : 0.24,
         overlayColor: 'rgb(15 23 42)',
@@ -599,7 +600,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
         prevBtnText: 'Atrás',
         doneBtnText: 'Listo',
         progressText: 'Paso {{current}} de {{total}}',
-        showButtons: opts.journeyMode ? ['next', 'previous'] : ['next', 'previous', 'close'],
+        showButtons: ['next', 'previous', 'close'],
         steps: driverSteps,
         onPopoverRender: (popover, { driver: d }) => {
           const i = d.getActiveIndex();

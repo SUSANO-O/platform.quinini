@@ -246,7 +246,7 @@ Si un administrador navega el dashboard **actuando como otro usuario**, el clien
 
 ## 20. Accesibilidad y controles del asistente (Driver.js)
 
-- En pasos del **camino trial** (modo journey) suele desactivarse el cierre fácil con teclado para forzar el flujo; en guías **post-100%** suele permitirse más libertad (cerrar, etc.), según implementación actual.
+- El popover incluye **botón de cerrar (X)** y **control por teclado** en todo el recorrido: el usuario puede salir del asistente en cualquier paso sin completar la etapa.
 - Los botones **Siguiente / Atrás** pueden deshabilitarse brevemente mientras se **espera al DOM** del siguiente paso (`aria-busy` en botones del popover).
 - Si el cliente usa **lector de pantalla** o **navegación solo teclado**, puede haber fricción en pasos “solo clic” en el menú lateral; valorar ofrecer **Reiniciar guía** + enlace directo a la ruta de la etapa (URLs de §2 y §3).
 
