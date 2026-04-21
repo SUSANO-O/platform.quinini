@@ -5,24 +5,7 @@ import { useEffect } from 'react';
 declare global {
   interface Window {
     AgentFlowhub?: {
-      init: (config: {
-        agentId: string;
-        host: string;
-        color: string;
-        title: string;
-        subtitle: string;
-        welcome: string;
-        fabHint: string;
-        position: 'right' | 'left';
-        edgeInset: number;
-        offsetBottom: number;
-        humanSupportPhone: string;
-        borderRadius: number;
-        theme: 'light' | 'dark';
-        autoOpen: boolean;
-        debug: boolean;
-        onError: (err: unknown) => void;
-      }) => void;
+      init: (cfg: Record<string, unknown>) => { destroy?: () => void };
     };
     __agentFlowhubLandingInitialized?: boolean;
   }
