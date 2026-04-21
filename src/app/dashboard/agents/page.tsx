@@ -255,6 +255,7 @@ export default function AgentsPage() {
           </div>
           <Link
             href="/dashboard/agents/new"
+            data-tour="agents-new"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold no-underline transition-all shrink-0"
             style={
               atLimit
@@ -327,6 +328,7 @@ export default function AgentsPage() {
           </div>
         ) : mineAgents.length === 0 && catalogPlatformAgents.length === 0 ? (
           <div
+            data-tour="agents-list"
             className="card-texture rounded-2xl border border-dashed text-center py-14 px-6"
             style={{ borderColor: 'var(--border)' }}
           >
@@ -352,7 +354,7 @@ export default function AgentsPage() {
             </Link>
           </div>
         ) : (
-          <div className="flex flex-col gap-10">
+          <div className="flex flex-col gap-10" data-tour="agents-list">
             {mineAgents.length > 0 && (
               <section>
                 <h2 className="text-base font-bold m-0 mb-1 tracking-tight">Tus agentes</h2>

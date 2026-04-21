@@ -309,7 +309,7 @@ export default function NewAgentPage() {
 
           <FormSection>
             <h2 style={sectionTitle}>Información básica</h2>
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3" data-tour="agent-name">
               <div>
                 <label className="block text-xs font-semibold mb-1.5">
                   Nombre del agente <span style={{ color: '#ef4444' }}>*</span>
@@ -341,6 +341,7 @@ export default function NewAgentPage() {
 
           <FormSection>
             <h2 style={sectionTitle}>Modelo de IA</h2>
+            <div data-tour="agent-model">
             {modelsHubError && (
               <p className="text-xs mb-3 leading-relaxed m-0" style={{ color: '#d97706' }}>
                 {modelsHubError} Se muestran modelos de respaldo; revisa BACKEND_URL y que AIBackHub esté en marcha.
@@ -455,6 +456,7 @@ export default function NewAgentPage() {
                 />
               </div>
             </div>
+            </div>
           </FormSection>
 
           <FormSection>
@@ -526,7 +528,7 @@ export default function NewAgentPage() {
           <FormSection bar="bo">
             <div className="flex items-center gap-2 mb-2.5">
               <Plug size={16} style={{ color: B, flexShrink: 0 }} />
-              <h2 style={{ ...sectionTitle, marginBottom: 0 }}>Integraciones MCP (backend)</h2>
+              <h2 style={{ ...sectionTitle, marginBottom: 0 }}>Integraciones MCP (proximamente)</h2>
             </div>
             <div className="text-xs mb-3.5 leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
               <p className="m-0 mb-2.5">
@@ -587,6 +589,7 @@ export default function NewAgentPage() {
 
           <div className="flex flex-wrap gap-2.5 pt-1">
             <button
+              data-tour="agent-create-submit"
               type="submit"
               disabled={loading}
               className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm cursor-pointer transition-opacity disabled:opacity-70 disabled:cursor-not-allowed"

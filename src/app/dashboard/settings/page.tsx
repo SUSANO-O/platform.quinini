@@ -244,7 +244,7 @@ export default function SettingsPage() {
       </p>
 
       {/* Account info */}
-      <div className="rounded-2xl overflow-hidden border mb-5 card-texture" style={{ borderColor: 'var(--border)' }}>
+      <div className="rounded-2xl overflow-hidden border mb-5 card-texture" style={{ borderColor: 'var(--border)' }} data-tour="settings-account">
         <div style={{ height: 3, background: `linear-gradient(90deg, ${BRAND_R}, ${BRAND_B})` }} />
         <div className="p-6">
         <h2 className="text-[15px] font-bold m-0 mb-4">Cuenta</h2>
@@ -475,7 +475,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Subscription info */}
-      <div className="rounded-2xl overflow-hidden border card-texture" style={{ borderColor: 'var(--border)' }}>
+      <div className="rounded-2xl overflow-hidden border card-texture" style={{ borderColor: 'var(--border)' }} data-tour="settings-billing">
         <div style={{ height: 3, background: `linear-gradient(90deg, ${BRAND_B}, ${BRAND_O})` }} />
         <div className="p-6">
         <h2 className="text-[15px] font-bold m-0 mb-4">Suscripción y facturación</h2>

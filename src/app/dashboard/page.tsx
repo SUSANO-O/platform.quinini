@@ -102,7 +102,7 @@ export default function DashboardPage() {
         />
 
         {/* Accesos rápidos */}
-        <div className="grid sm:grid-cols-2 gap-4 mb-12">
+        <div className="grid sm:grid-cols-2 gap-4 mb-12" data-tour="dashboard-quick-actions">
           {QUICK.map((item) => (
             <Link
               key={item.href}
@@ -146,6 +146,7 @@ export default function DashboardPage() {
         {/* Planes (promo) */}
         {!isPremium && (
           <section
+            data-tour="dashboard-upgrade"
             className="rounded-2xl border p-6 md:p-8 -mx-1"
             style={{ background: 'var(--muted)', borderColor: 'var(--border)' }}
           >

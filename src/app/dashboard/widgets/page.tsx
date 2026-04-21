@@ -107,6 +107,7 @@ export default function WidgetsPage() {
           </div>
           <Link
             href="/dashboard/widget-builder"
+            data-tour="widgets-new"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold no-underline shrink-0 transition-all"
             style={
               atLimit
@@ -209,7 +210,7 @@ export default function WidgetsPage() {
             </Link>
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4" data-tour="widgets-list">
             {widgets.map((w) => (
               <div
                 key={w._id}

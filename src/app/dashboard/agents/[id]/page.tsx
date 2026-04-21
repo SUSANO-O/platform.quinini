@@ -717,6 +717,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
           <SectionCard>
             <p style={sectionTitle}>Modelo de IA</p>
+            <div data-tour="agent-edit-model">
             {modelsHubError && (
               <p style={{ fontSize: '12px', color: '#d97706', marginBottom: '10px', lineHeight: 1.45 }}>
                 {modelsHubError} Se muestran modelos de respaldo.
@@ -814,6 +815,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 />
               </div>
             </div>
+            </div>
           </SectionCard>
 
           <SectionCard bar="bo">
@@ -830,6 +832,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
           {!readOnly && (
           <button
+            data-tour="agent-edit-save"
             onClick={saveGeneral}
             disabled={saving}
             className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-opacity"

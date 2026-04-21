@@ -48,6 +48,7 @@ export default function DashboardMcpPage() {
       </div>
 
       <div
+        data-tour="mcp-catalog"
         style={{
           background: 'var(--card)',
           border: '1px solid var(--border)',

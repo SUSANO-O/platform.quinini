@@ -320,3 +320,131 @@ h1, h2, h3, h4, h5, h6 {
 .sub-hero-sparkle {
   animation: sub-hero-sparkle 1s ease-out 0.2s forwards;
 }
+
+/* ── Dashboard: fondo con textura muy fina ───────────────────────────────── */
+.dashboard-root-texture {
+  background-image:
+    radial-gradient(circle at 18% 0%, rgba(228, 20, 20, 0.045), transparent 38%),
+    radial-gradient(circle at 92% 8%, rgba(0, 172, 248, 0.05), transparent 32%),
+    radial-gradient(circle at 50% 100%, rgba(248, 118, 0, 0.035), transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), transparent 42%);
+  background-attachment: fixed;
+}
+
+/* ── Onboarding driver.js (popover MatIAs) ───────────────────────────────── */
+.driver-overlay.driver-overlay-animated {
+  /* Sin desenfoque del fondo: solo el velo de color del tour */
+  backdrop-filter: none;
+}
+
+/* Solo opacidad: driver.js posiciona el wrapper con transform */
+@keyframes afhub-popover-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.driver-popover.afhub-driver-popover.afhub-popover-enter {
+  animation: afhub-popover-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.driver-popover.afhub-driver-popover {
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.96) 100%);
+  background-color: #ffffff;
+  background-image:
+    radial-gradient(circle, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+  background-size: 22px 22px;
+  box-shadow:
+    0 24px 48px rgba(15, 23, 42, 0.14),
+    0 0 0 1px rgba(255, 255, 255, 0.65) inset,
+    0 0 40px rgba(228, 20, 20, 0.08);
+  max-width: min(360px, calc(100vw - 32px));
+}
+
+.driver-popover.afhub-driver-popover .driver-popover-title {
+  font-family: 'Clash Display', 'Satoshi', system-ui, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+}
+
+.driver-popover.afhub-driver-popover .driver-popover-description {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--muted-foreground);
+}
+
+.driver-popover.afhub-driver-popover .driver-popover-footer {
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
+.driver-popover.afhub-driver-popover .driver-popover-progress-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+.driver-popover.afhub-driver-popover .driver-popover-prev-btn,
+.driver-popover.afhub-driver-popover .driver-popover-next-btn {
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  background: var(--muted);
+  color: var(--foreground);
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.18s ease;
+}
+
+.driver-popover.afhub-driver-popover .driver-popover-next-btn {
+  border-color: rgba(228, 20, 20, 0.35);
+  background: linear-gradient(135deg, rgba(228, 20, 20, 0.12), rgba(248, 118, 0, 0.1));
+  color: #b01010;
+}
+
+.driver-popover.afhub-driver-popover .driver-popover-next-btn:hover {
+  transform: translateY(-1px);
+}
+
+.driver-popover.afhub-driver-popover .driver-popover-close-btn {
+  color: var(--muted-foreground);
+}
+
+/* Indicador mínimo en pasos con clic (sin “radar” ni halos fuertes) */
+@keyframes afhub-click-hint {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.06);
+  }
+  50% {
+    box-shadow: 0 0 0 1px rgba(228, 20, 20, 0.18);
+  }
+}
+
+.driver-active-element.afhub-click-target {
+  position: relative;
+  z-index: 10002;
+  border-radius: 10px;
+  outline: none;
+  animation: afhub-click-hint 2.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .driver-active-element.afhub-click-target {
+    animation: none;
+    box-shadow: 0 0 0 1px rgba(228, 20, 20, 0.16);
+  }
+}

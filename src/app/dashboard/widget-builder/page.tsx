@@ -621,7 +621,7 @@ export default function WidgetBuilderPage() {
         <div className="w-full xl:w-[360px] shrink-0 xl:max-h-[calc(100vh-5rem)] overflow-y-auto pr-1">
           <div className="card-texture rounded-2xl border p-6" style={{ borderColor: 'var(--border)' }}>
             <div className="badge-primary mb-3 w-fit">Widget</div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight m-0 mb-1">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight m-0 mb-1" data-tour="widget-builder-header">
               {editWidgetId ? (
                 <>
                   Editar <span className="gradient-text">widget</span>
@@ -646,13 +646,13 @@ export default function WidgetBuilderPage() {
             )}
 
         {/* Widget name */}
-        <div style={fieldStyle}>
+        <div style={fieldStyle} data-tour="widget-builder-name">
           <label style={labelStyle}>Nombre del widget</label>
           <input style={inputStyle} value={cfg.name} onChange={(e) => update({ name: e.target.value })} placeholder="Mi widget" />
         </div>
 
         {/* Agent selector (widget.agentId = ObjectId landing; el hub resuelve por landingClientAgentId) */}
-        <div style={fieldStyle}>
+        <div style={fieldStyle} data-tour="widget-builder-agent">
           <label style={labelStyle}>Agente</label>
           {loadingInitial ? (
             <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', margin: 0 }}>Cargando…</p>
@@ -742,7 +742,7 @@ export default function WidgetBuilderPage() {
         </div>
 
         {/* Branding */}
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '14px' }}>
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '14px' }} data-tour="widget-builder-branding">
           <div style={{ flex: 1 }}>
             <label style={labelStyle}>Color</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -769,6 +769,7 @@ export default function WidgetBuilderPage() {
         </div>
 
         {/* Texts */}
+        <div data-tour="widget-builder-chat-texts">
         <div style={fieldStyle}>
           <label style={labelStyle}>Título</label>
           <input style={inputStyle} value={cfg.title} onChange={(e) => update({ title: e.target.value })} placeholder="MatIAsAssistant" />
@@ -785,7 +786,8 @@ export default function WidgetBuilderPage() {
           <label style={labelStyle}>Mensaje FAB (hint)</label>
           <input style={inputStyle} value={cfg.fabHint} onChange={(e) => update({ fabHint: e.target.value })} placeholder="¿Necesitas ayuda?" />
         </div>
-        <div style={fieldStyle}>
+        </div>
+        <div style={fieldStyle} data-tour="widget-builder-support">
           <label style={labelStyle}>WhatsApp — atención humana</label>
           <input
             style={inputStyle}
@@ -797,6 +799,7 @@ export default function WidgetBuilderPage() {
             Si el visitante escribe palabras como «persona», «humano» o «atención humana», aparece en el chat un acceso a WhatsApp (con número válido). Opcional.
           </p>
         </div>
+        <div data-tour="widget-builder-look">
         <div style={fieldStyle}>
           <label style={labelStyle}>URL de avatar / orbe</label>
           <input style={inputStyle} value={cfg.avatar} onChange={(e) => update({ avatar: e.target.value })} placeholder="https://..." />
@@ -805,9 +808,10 @@ export default function WidgetBuilderPage() {
           <label style={labelStyle}>Border radius</label>
           <input style={inputStyle} value={cfg.borderRadius} onChange={(e) => update({ borderRadius: e.target.value })} placeholder="16px" />
         </div>
+        </div>
 
         {/* Position grid */}
-        <div style={fieldStyle}>
+        <div style={fieldStyle} data-tour="widget-builder-position">
           <label style={labelStyle}>Posición</label>
           <div style={{ display: 'inline-grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px' }}>
             {POSITIONS.flat().map((p) => (
@@ -829,7 +833,8 @@ export default function WidgetBuilderPage() {
           </div>
         </div>
 
-        {/* Auto open */}
+        {/* Auto open + token snippet (comportamiento del embed) */}
+        <div data-tour="widget-builder-embed-options">
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
           <input type="checkbox" id="autoOpen" checked={cfg.autoOpen} onChange={(e) => update({ autoOpen: e.target.checked })}
             style={{ width: 16, height: 16, cursor: 'pointer' }} />
@@ -856,12 +861,14 @@ export default function WidgetBuilderPage() {
             </div>
           </div>
         </div>
+        </div>
 
         {/* Action buttons */}
         <div className="flex gap-2">
           <button
             type="button"
             onClick={copySnippet}
+            data-tour="widget-builder-copy"
             className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-[13px] border transition-colors hover:bg-slate-50"
             style={{ borderColor: 'var(--border)', background: 'var(--background)', color: 'var(--foreground)' }}
           >
@@ -872,6 +879,7 @@ export default function WidgetBuilderPage() {
             type="button"
             onClick={saveWidget}
             disabled={saving || loadingInitial}
+            data-tour="widget-builder-save"
             className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-[13px] text-white border-0 transition-all hover:opacity-95 disabled:opacity-60"
             style={{
               background: saved ? '#22c55e' : `linear-gradient(135deg, ${BRAND_R}, ${BRAND_O})`,
@@ -889,7 +897,7 @@ export default function WidgetBuilderPage() {
       {/* Preview + snippet */}
       <div className="flex-1 min-w-0 flex flex-col gap-5">
         {/* Live preview */}
-        <div>
+        <div data-tour="widget-builder-preview">
           <p className="text-xs font-bold uppercase tracking-widest m-0 mb-2" style={{ color: 'var(--muted-foreground)' }}>
             Vista previa — prueba el botón
           </p>
@@ -899,7 +907,11 @@ export default function WidgetBuilderPage() {
         </div>
 
         {/* Code snippet */}
-        <div className="rounded-2xl overflow-hidden border flex flex-col flex-1 min-h-0 card-texture" style={{ borderColor: 'var(--border)' }}>
+        <div
+          className="rounded-2xl overflow-hidden border flex flex-col flex-1 min-h-0 card-texture"
+          style={{ borderColor: 'var(--border)' }}
+          data-tour="widget-builder-snippet-panel"
+        >
           <div
             className="flex items-center justify-between gap-3 px-4 py-3 border-b"
             style={{ background: 'var(--muted)', borderColor: 'var(--border)' }}
