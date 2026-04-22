@@ -14,6 +14,9 @@ interface UsageData {
   limit: number;
   percentUsed: number;
   plan: string;
+  platformFreeLimit?: number;
+  platformFreeUsed?: number;
+  platformFreeRemaining?: number;
   activePacks: { packId: string; remaining: number; total: number; expiresAt: string }[];
 }
 
@@ -100,6 +103,109 @@ export default function DashboardPage() {
           onCheckout={startCheckout}
           celebrationGifSrc={process.env.NEXT_PUBLIC_SUBSCRIPTION_HERO_GIF}
         />
+
+        {usage && (
+          <section
+            className="mb-8 rounded-2xl border card-texture"
+            style={{
+              borderColor: usage.percentUsed >= 80 ? 'rgba(239,68,68,0.35)' : 'var(--border)',
+              background:
+                usage.percentUsed >= 80
+                  ? 'linear-gradient(150deg, rgba(239,68,68,0.08), rgba(248,118,0,0.06), rgba(255,255,255,0.94))'
+                  : 'linear-gradient(150deg, rgba(228,20,20,0.06), rgba(0,172,248,0.06), rgba(255,255,255,0.94))',
+              boxShadow: '0 8px 28px rgba(15,23,42,0.06)',
+            }}
+          >
+            <div className="p-5 md:p-6">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div>
+                  <p
+                    className="m-0 text-[11px] font-bold uppercase tracking-[0.08em]"
+                    style={{ color: 'var(--muted-foreground)' }}
+                  >
+                    Uso del mes
+                  </p>
+                  <p className="m-0 mt-1 text-sm font-semibold">
+                    Conversaciones del plan <span style={{ textTransform: 'capitalize' }}>{usage.plan}</span>
+                  </p>
+                </div>
+                <div
+                  className="rounded-full px-3 py-1 text-xs font-extrabold"
+                  style={{
+                    color: usage.percentUsed >= 80 ? '#ef4444' : '#0f172a',
+                    background:
+                      usage.percentUsed >= 80
+                        ? 'rgba(239,68,68,0.14)'
+                        : 'linear-gradient(90deg, rgba(228,20,20,0.16), rgba(0,172,248,0.14))',
+                    border:
+                      usage.percentUsed >= 80
+                        ? '1px solid rgba(239,68,68,0.35)'
+                        : '1px solid rgba(15,23,42,0.08)',
+                  }}
+                >
+                  {usage.percentUsed}%
+                </div>
+              </div>
+
+              <div
+                style={{
+                  height: '10px',
+                  borderRadius: '999px',
+                  background: 'rgba(15,23,42,0.08)',
+                  overflow: 'hidden',
+                  border: '1px solid rgba(15,23,42,0.06)',
+                }}
+              >
+                <div
+                  style={{
+                    height: '100%',
+                    width: `${Math.min(usage.percentUsed, 100)}%`,
+                    borderRadius: '999px',
+                    background:
+                      usage.percentUsed >= 80
+                        ? 'linear-gradient(90deg,#f87600,#ef4444)'
+                        : 'linear-gradient(90deg,#e41414,#f87600,#00acf8)',
+                    transition: 'width 0.45s ease',
+                  }}
+                />
+              </div>
+
+              <div
+                className="mt-3 flex items-center justify-between gap-3 text-xs"
+                style={{ color: 'var(--muted-foreground)' }}
+              >
+                <span>
+                  {usage.limit === -1
+                    ? 'Ilimitado'
+                    : `${usage.used.toLocaleString('es')} / ${usage.limit.toLocaleString('es')}`}
+                </span>
+                {usage.percentUsed >= 80 ? (
+                  <Link href="/dashboard/settings" className="font-bold landing-link-accent text-xs">
+                    Ajustar plan
+                  </Link>
+                ) : (
+                  <span>Todo en rango</span>
+                )}
+              </div>
+
+              {typeof usage.platformFreeLimit === 'number' && (
+                <div
+                  className="mt-3 rounded-xl px-3 py-2 text-xs"
+                  title="Cuota gratuita de regalo para usar agentes de plataforma este mes. Al agotarse, los chats pasan a contar en tu cuota normal de conversaciones."
+                  style={{
+                    background: 'rgba(255,255,255,0.72)',
+                    border: '1px solid rgba(15,23,42,0.08)',
+                    color: 'var(--muted-foreground)',
+                  }}
+                >
+                  Regalo plataforma: {(usage.platformFreeUsed ?? 0).toLocaleString('es')} /{' '}
+                  {usage.platformFreeLimit.toLocaleString('es')} · restan{' '}
+                  {(usage.platformFreeRemaining ?? 0).toLocaleString('es')}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* Accesos rápidos */}
         <div className="grid sm:grid-cols-2 gap-4 mb-12" data-tour="dashboard-quick-actions">

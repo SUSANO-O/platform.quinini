@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { SubscriptionProvider } from '@/hooks/use-subscription';
 import { TourProvider, useTour } from '@/components/onboarding/app-tour';
 // import { initPaddleClient } from '@/lib/paddle-client'; // Paddle — comentado
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { LayoutDashboard, Boxes, Settings, LogOut, Cpu, Bot, ShieldAlert, Plug, Route, RotateCcw } from 'lucide-react';
 
 const NAV = [
@@ -139,25 +139,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, loading, logout, stopImpersonating } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [usage, setUsage] = useState<{
-    used: number;
-    limit: number;
-    percentUsed: number;
-    plan: string;
-    platformFreeLimit?: number;
-    platformFreeUsed?: number;
-    platformFreeRemaining?: number;
-  } | null>(null);
-
-  // LemonSqueezy no requiere inicialización de JS en el cliente
-
-  useEffect(() => {
-    if (!user) return;
-    fetch('/api/billing/usage')
-      .then(r => r.ok ? r.json() : null)
-      .then(d => d && setUsage(d))
-      .catch(() => {});
-  }, [user]);
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
@@ -265,52 +246,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             );
           })}
         </nav>
-
-        {/* Quota indicator */}
-        {usage && (
-          <div style={{ marginBottom: '16px', padding: '10px 12px', borderRadius: '12px', background: 'var(--muted)', border: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Conversaciones
-              </span>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: usage.percentUsed >= 80 ? '#ef4444' : 'var(--foreground)' }}>
-                {usage.percentUsed}%
-              </span>
-            </div>
-            <div style={{ height: '5px', borderRadius: '999px', background: 'var(--border)', overflow: 'hidden' }}>
-              <div style={{
-                height: '100%',
-                width: `${Math.min(usage.percentUsed, 100)}%`,
-                borderRadius: '999px',
-                background: usage.percentUsed >= 80
-                  ? 'linear-gradient(90deg,#f87600,#ef4444)'
-                  : 'linear-gradient(90deg,#e41414,#f87600)',
-                transition: 'width 0.4s ease',
-              }} />
-            </div>
-            <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '5px' }}>
-              {usage.limit === -1
-                ? 'Ilimitado'
-                : `${usage.used.toLocaleString('es')} / ${usage.limit.toLocaleString('es')}`}
-              {' · '}<span style={{ textTransform: 'capitalize' }}>{usage.plan}</span>
-            </p>
-            {typeof usage.platformFreeLimit === 'number' && (
-              <p
-                title="Cuota gratuita de regalo para usar agentes de plataforma este mes. Al agotarse, los chats pasan a contar en tu cuota normal de conversaciones."
-                style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginTop: '4px', cursor: 'help' }}
-              >
-                Regalo plataforma (cuota gratis): {(usage.platformFreeUsed ?? 0).toLocaleString('es')} /{' '}
-                {usage.platformFreeLimit.toLocaleString('es')}
-                {' · '}restan {(usage.platformFreeRemaining ?? 0).toLocaleString('es')}
-              </p>
-            )}
-            {usage.percentUsed >= 80 && (
-              <Link href="/dashboard/settings" style={{ display: 'block', marginTop: '6px', fontSize: '10px', fontWeight: 700, color: '#ef4444', textDecoration: 'none' }}>
-                ↑ Mejorar plan
-              </Link>
-            )}
-          </div>
-        )}
 
         {/* User + logout */}
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
