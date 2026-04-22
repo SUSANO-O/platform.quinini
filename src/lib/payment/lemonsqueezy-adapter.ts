@@ -25,6 +25,29 @@ import type {
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
+const VARIANT_ENV_BY_PLAN: Record<string, string> = {
+  starter: 'LEMONSQUEEZY_VARIANT_STARTER',
+  growth: 'LEMONSQUEEZY_VARIANT_GROWTH',
+  business: 'LEMONSQUEEZY_VARIANT_BUSINESS',
+};
+
+function variantEnvVarName(planLabel: string): string {
+  return VARIANT_ENV_BY_PLAN[planLabel.toLowerCase()] ?? 'LEMONSQUEEZY_VARIANT_*';
+}
+
+function explainLsPlanChangeError(planLabel: string, newPriceId: string, rawError: string): string {
+  const env = variantEnvVarName(planLabel);
+  if (rawError.includes('Entity not found') && rawError.includes('variant_id')) {
+    return (
+      `Lemon Squeezy no encontró la variante de pago para el plan «${planLabel}» (variant_id=${newPriceId}). ` +
+      `En el panel de Lemon Squeezy abre la tienda correcta → Productos → el producto de suscripción → Variantes y copia el ID numérico de la variante Business. ` +
+      `Actualiza ${env} (y LEMONSQUEEZY_STORE_ID) en Vercel o .env; deben ser de la misma tienda. ` +
+      `Si Business es otro producto distinto al de la suscripción actual, LS puede rechazar el cambio: en ese caso las tres variantes deberían ser del mismo producto de suscripción o hay que dar de alta una nueva suscripción vía checkout.`
+    );
+  }
+  return `Error al cambiar plan a ${planLabel}: ${rawError}`;
+}
+
 function isoToEpoch(iso: string | null | undefined): number {
   if (!iso) return 0;
   const ms = new Date(iso).getTime();
@@ -102,6 +125,14 @@ export class LemonSqueezyAdapter implements PaymentServiceInterface {
     ensureLSSetup();
     const { subscriptionId, newPriceId, planLabel } = params;
 
+    const variantId = parseInt(newPriceId, 10);
+    if (!Number.isFinite(variantId) || variantId <= 0) {
+      throw new Error(
+        `ID de variante Lemon Squeezy inválido para «${planLabel}» («${newPriceId}»). ` +
+          `Configura ${variantEnvVarName(planLabel)} con el ID numérico de la variante en el panel de LS.`,
+      );
+    }
+
     const { data: current } = await getSubscription(subscriptionId as never);
     const currentVariant = (current as unknown as { data?: { attributes?: { variant_id?: number } } })?.data?.attributes?.variant_id;
     if (currentVariant && String(currentVariant) === newPriceId) {
@@ -109,11 +140,14 @@ export class LemonSqueezyAdapter implements PaymentServiceInterface {
     }
 
     const { error } = await updateSubscription(subscriptionId as never, {
-      variantId: parseInt(newPriceId, 10),
+      variantId,
       invoiceImmediately: true,
     } as never);
 
-    if (error) throw new Error(`Error al cambiar plan a ${planLabel}: ${JSON.stringify(error)}`);
+    if (error) {
+      const raw = JSON.stringify(error);
+      throw new Error(explainLsPlanChangeError(planLabel, String(variantId), raw));
+    }
   }
 
   async cancelSubscription(subscriptionId: string, _atPeriodEnd: boolean): Promise<void> {

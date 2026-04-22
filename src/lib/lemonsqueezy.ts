@@ -8,7 +8,7 @@
  *   LEMONSQUEEZY_WEBHOOK_SECRET        — secreto del endpoint de webhooks
  *   LEMONSQUEEZY_VARIANT_STARTER       — ID de variante Starter
  *   LEMONSQUEEZY_VARIANT_GROWTH        — ID de variante Growth
- *   LEMONSQUEEZY_VARIANT_BUSINESS      — ID de variante Business
+ *   LEMONSQUEEZY_VARIANT_BUSINESS      — ID de variante Business (numérico; debe existir en esa tienda; para cambios in-place LS suele exigir variantes del mismo producto de suscripción)
  *   LEMONSQUEEZY_VARIANT_PACK_S        — ID de variante pack_s (one-time)
  *   LEMONSQUEEZY_VARIANT_PACK_M        — ID de variante pack_m
  *   LEMONSQUEEZY_VARIANT_PACK_L        — ID de variante pack_l
