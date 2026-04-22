@@ -2,7 +2,6 @@ import React from 'react';
 import { getTranslations } from 'next-intl/server';
 import { LandingNavbar } from '@/components/landing/landing-navbar';
 import { LandingFooter } from '@/components/landing/landing-footer';
-import { LandingWidgetScript } from '@/components/landing/landing-widget-script';
 import Link from 'next/link';
 import {
   Zap, Shield, BarChart3, MessageSquare, Database,
@@ -578,7 +577,6 @@ export default async function LandingPage() {
       </section>
 
       <LandingFooter />
-      <LandingWidgetScript />
     </div>
   );
 }

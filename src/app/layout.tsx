@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/hooks/use-auth';
 import { AppToasterLoader } from '@/components/ui/app-toaster-loader';
+import { LandingWidgetScript } from '@/components/landing/landing-widget-script';
 
 export const metadata: Metadata = {
   title: 'MatIAs— AI Agents for Your App',
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body suppressHydrationWarning>
         <AuthProvider>
           {children}
+          <LandingWidgetScript />
           <AppToasterLoader />
         </AuthProvider>
       </body>
