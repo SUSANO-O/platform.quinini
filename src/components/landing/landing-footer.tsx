@@ -48,7 +48,7 @@ export async function LandingFooter() {
         </div>
 
         <div className="mt-12 pt-8 text-center text-xs" style={{ borderTop: '1px solid var(--border)', color: 'var(--muted-foreground)' }}>
-          &copy; {new Date().getFullYear()} MatIAs. Powered by AIBackHub.
+          &copy; {new Date().getFullYear()} MatIAs. Powered by quinini.
         </div>
       </div>
     </footer>
