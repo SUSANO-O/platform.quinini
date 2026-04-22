@@ -321,14 +321,14 @@ export default function AgentsPage() {
           </div>
         </div>
 
-        {/* Lista */}
+        {/* Lista: ancla `agents-list` siempre en el DOM (también en carga) para que el onboarding reanude al llegar desde /dashboard */}
+        <div data-tour="agents-list">
         {loading ? (
           <div className="flex justify-center py-14 text-sm" style={{ color: 'var(--muted-foreground)' }}>
             Cargando agentes...
           </div>
         ) : mineAgents.length === 0 && catalogPlatformAgents.length === 0 ? (
           <div
-            data-tour="agents-list"
             className="card-texture rounded-2xl border border-dashed text-center py-14 px-6"
             style={{ borderColor: 'var(--border)' }}
           >
@@ -354,7 +354,7 @@ export default function AgentsPage() {
             </Link>
           </div>
         ) : (
-          <div className="flex flex-col gap-10" data-tour="agents-list">
+          <div className="flex flex-col gap-10">
             {mineAgents.length > 0 && (
               <section>
                 <h2 className="text-base font-bold m-0 mb-1 tracking-tight">Tus agentes</h2>
@@ -410,6 +410,7 @@ export default function AgentsPage() {
             )}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

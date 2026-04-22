@@ -19,6 +19,8 @@ const UserSchema = new Schema({
   pendingEmail:         { type: String, default: null, lowercase: true, trim: true },
   emailChangeCodeHash:  { type: String, default: null },
   emailChangeExpires:   { type: Date,   default: null },
+  /** Progreso del camino trial / onboarding en dashboard (etapas, última ruta, reanudación del driver). */
+  onboardingJourney: { type: Schema.Types.Mixed, default: null },
   createdAt:         { type: Date,   default: Date.now },
 }, { timestamps: true });
 

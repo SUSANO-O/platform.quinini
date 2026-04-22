@@ -9,16 +9,40 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { driver, type DriveStep } from 'driver.js';
 import 'driver.js/dist/driver.css';
+import { useAuth } from '@/hooks/use-auth';
 import { useSubscription } from '@/hooks/use-subscription';
 
 const JOURNEY_STORAGE_KEY = 'afhub_onboarding_journey_v2';
 const LEGACY_TOUR_STORAGE_KEY = 'afhub_trial_tours_v1';
 const INTERACTIVE_RESUME_KEY = 'afhub_tour_resume_v1';
-/** Mientras la etapa `inicio` incluya la visita guiada a `/dashboard/agents`, evita redirecciones a `/dashboard`. */
+/** Flujo guiado inicio ↔ agentes (reanudación del paso con clic en el menú). */
 const INICIO_AGENTS_FLOW_KEY = 'afhub_inicio_agents_flow_v1';
+/** Si se borró el camino antes de tener sesión, completar DELETE en servidor al iniciar sesión. */
+const PENDING_SERVER_JOURNEY_CLEAR_KEY = 'afhub_pending_journey_server_clear';
+
+function requestServerJourneyClearWhenAuthed() {
+  try {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(PENDING_SERVER_JOURNEY_CLEAR_KEY, '1');
+    }
+  } catch {
+    /* noop */
+  }
+}
+
+async function flushPendingServerJourneyClear(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    if (window.sessionStorage.getItem(PENDING_SERVER_JOURNEY_CLEAR_KEY) !== '1') return;
+    const r = await fetch('/api/user/onboarding-journey', { method: 'DELETE', credentials: 'include' });
+    if (r.ok) window.sessionStorage.removeItem(PENDING_SERVER_JOURNEY_CLEAR_KEY);
+  } catch {
+    /* noop */
+  }
+}
 
 export const JOURNEY_STAGE_IDS = [
   'inicio',
@@ -50,6 +74,11 @@ type AfhubStepMeta = {
   advance: 'next' | 'click';
   /** Si el clic navega a otra ruta, reanudar aquí */
   resume?: { route: string; stepIndex: number };
+  /**
+   * Botones del popover en driver.js. En pasos `advance: 'click'` hay que **excluir «next»**:
+   * si no, driver vuelve a poner «Siguiente» visible y contradice el texto del paso.
+   */
+  driverShowButtons?: ('next' | 'previous' | 'close')[];
 };
 
 export type AfhubDriveStep = DriveStep & { afhubMeta?: AfhubStepMeta };
@@ -151,14 +180,6 @@ function setInicioAgentsFlow(active: boolean) {
   }
 }
 
-function readInicioAgentsFlow(): boolean {
-  try {
-    return window.localStorage.getItem(INICIO_AGENTS_FLOW_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
 function readJourneyState(): JourneyStateV2 {
   if (typeof window === 'undefined') return { v: 2, done: {} };
   try {
@@ -176,6 +197,18 @@ function readJourneyState(): JourneyStateV2 {
 
 function writeJourneyState(state: JourneyStateV2) {
   window.localStorage.setItem(JOURNEY_STORAGE_KEY, JSON.stringify(state));
+}
+
+/** Une progreso local y remoto sin perder etapas marcadas en ninguno de los dos lados. */
+function mergeJourneyDone(
+  local: Partial<Record<JourneyStageId, boolean>>,
+  remote: Partial<Record<JourneyStageId, boolean>>,
+): Partial<Record<JourneyStageId, boolean>> {
+  const out: Partial<Record<JourneyStageId, boolean>> = { ...local };
+  for (const id of JOURNEY_STAGE_IDS) {
+    if (remote[id]) out[id] = true;
+  }
+  return out;
 }
 
 function markStageDone(id: JourneyStageId) {
@@ -196,30 +229,27 @@ export type TourCountsState = {
   hasWidgets: boolean;
 };
 
-/** Ruta del paso del roadmap (alta directa si aún no hay filas en listado). */
-function getEffectivePathForStage(stage: JourneyStageId, counts: TourCountsState): string {
-  if (counts.loaded) {
-    if (stage === 'mis-agentes' && !counts.hasAgents) return '/dashboard/agents/new';
-    if (stage === 'mis-widgets' && !counts.hasWidgets) return '/dashboard/widget-builder';
+/**
+ * Marca como hechas (en orden) todas las etapas hasta la que corresponde a la URL actual.
+ * Así el % del camino sube al explorar el panel, sin redirecciones ni obligar a abrir el driver.
+ */
+function markStagesReachedByPath(pathname: string): boolean {
+  const ix = JOURNEY_STAGE_IDS.findIndex((id) => STAGE_META[id].match(pathname));
+  if (ix === -1) return false;
+  const state = readJourneyState();
+  const nextDone = { ...state.done };
+  let changed = false;
+  for (let i = 0; i <= ix; i++) {
+    const id = JOURNEY_STAGE_IDS[i];
+    if (!nextDone[id]) {
+      nextDone[id] = true;
+      changed = true;
+    }
   }
-  return STAGE_META[stage].path;
-}
-
-/** Permite estar en la ruta oficial, en la de “alta si vacío”, reanudación o flujo inicio→agentes. */
-function pathAllowedForJourney(
-  incomplete: JourneyStageId,
-  pathname: string,
-  counts: TourCountsState,
-): boolean {
-  if (STAGE_META[incomplete].match(pathname)) return true;
-  if (counts.loaded) {
-    if (incomplete === 'mis-agentes' && !counts.hasAgents && pathname === '/dashboard/agents/new') return true;
-    if (incomplete === 'mis-widgets' && !counts.hasWidgets && pathname === '/dashboard/widget-builder') return true;
+  if (changed) {
+    writeJourneyState({ v: 2, done: nextDone });
   }
-  const r = readTourResume();
-  if (r && r.v === 1 && r.stage === incomplete && pathname === r.route) return true;
-  if (incomplete === 'inicio' && pathname === '/dashboard/agents' && readInicioAgentsFlow()) return true;
-  return false;
+  return changed;
 }
 
 /** Siempre incluir `close`: driver.js fusiona el popover del paso al final y puede ocultar la X si falta aquí. */
@@ -233,6 +263,12 @@ function mk(
   align: 'start' | 'center' | 'end' = 'center',
   meta?: AfhubStepMeta,
 ): AfhubDriveStep {
+  const popoverShowButtons: ('next' | 'previous' | 'close')[] =
+    meta?.driverShowButtons != null
+      ? [...meta.driverShowButtons]
+      : meta?.advance === 'click'
+        ? ['previous', 'close']
+        : [...AFHUB_DRIVER_POPOVER_BUTTONS];
   return {
     element,
     popover: {
@@ -240,7 +276,7 @@ function mk(
       description,
       side,
       align,
-      showButtons: [...AFHUB_DRIVER_POPOVER_BUTTONS],
+      showButtons: popoverShowButtons,
     },
     ...(meta ? { afhubMeta: meta } : {}),
   };
@@ -277,11 +313,15 @@ function journeyStepsFor(stage: JourneyStageId, counts: TourCountsState): AfhubD
       return [
         mk(
           s('sidebar-agentes'),
-          'Abrir Mis agentes',
-          'No uses «Siguiente»: haz clic en <strong>Mis agentes</strong> en el menú. Verás un pulso alrededor del botón.',
+          'Abrir Mis Agentes',
+          'En este paso <strong>no uses «Siguiente»</strong> (está oculto): en el menú lateral pulsa <strong>Mis Agentes</strong>; el enlace mostrará un pulso hasta que navegues.',
           'right',
           'start',
-          { advance: 'click', resume: { route: '/dashboard/agents', stepIndex: 1 } },
+          {
+            advance: 'click',
+            resume: { route: '/dashboard/agents', stepIndex: 1 },
+            driverShowButtons: ['close'],
+          },
         ),
         mk(
           s('agents-list'),
@@ -293,10 +333,14 @@ function journeyStepsFor(stage: JourneyStageId, counts: TourCountsState): AfhubD
         mk(
           s('sidebar-inicio'),
           'Volver al inicio',
-          'Haz clic en <strong>Inicio</strong> en el menú lateral para volver al panel principal y seguir el recorrido.',
+          'Igual que antes: <strong>sin «Siguiente»</strong>. Pulsa <strong>Inicio</strong> en el menú lateral para volver al panel y seguir el recorrido.',
           'right',
           'start',
-          { advance: 'click', resume: { route: '/dashboard', stepIndex: 3 } },
+          {
+            advance: 'click',
+            resume: { route: '/dashboard', stepIndex: 3 },
+            driverShowButtons: ['previous', 'close'],
+          },
         ),
         mk(
           s('dashboard-quick-actions'),
@@ -496,10 +540,11 @@ function setTourNavButtonsDisabled(disabled: boolean) {
 
 export function TourProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const { isTrialActive } = useSubscription();
   const driverRef = useRef<ReturnType<typeof driver> | null>(null);
   const [journeyTick, setJourneyTick] = useState(0);
+  const [journeyRemoteReady, setJourneyRemoteReady] = useState(false);
   const metasRef = useRef<AfhubStepMeta[]>([]);
   const stageRef = useRef<JourneyStageId | null>(null);
   const clickCleanupRef = useRef<(() => void) | null>(null);
@@ -538,6 +583,78 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, [pathname, journeyTick]);
+
+  /** Hidratar progreso desde el servidor (otro dispositivo / pestaña) antes de volver a guardar. */
+  useEffect(() => {
+    if (authLoading || !user?.uid) {
+      setJourneyRemoteReady(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        await flushPendingServerJourneyClear();
+        const r = await fetch('/api/user/onboarding-journey', { credentials: 'include' });
+        if (!r.ok) {
+          if (!cancelled) setJourneyRemoteReady(true);
+          return;
+        }
+        const data = (await r.json()) as {
+          journey: {
+            v: number;
+            done?: Partial<Record<JourneyStageId, boolean>>;
+            lastTourResume?: TourResumeV1 | null;
+          } | null;
+        };
+        if (cancelled) return;
+        const j = data.journey;
+        if (j && j.v === 2) {
+          const local = readJourneyState();
+          const mergedDone = mergeJourneyDone(local.done, j.done ?? {});
+          writeJourneyState({ v: 2, done: mergedDone });
+          const resume = j.lastTourResume;
+          if (
+            resume &&
+            resume.v === 1 &&
+            typeof resume.route === 'string' &&
+            typeof window !== 'undefined' &&
+            window.location.pathname === resume.route
+          ) {
+            writeTourResume(resume);
+          }
+          setJourneyTick((x) => x + 1);
+        }
+      } catch {
+        /* ignore */
+      } finally {
+        if (!cancelled) setJourneyRemoteReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, user?.uid]);
+
+  /** Guardar camino en servidor (debounce) para soporte y continuidad entre sesiones. */
+  useEffect(() => {
+    if (!journeyRemoteReady || !user?.uid || authLoading) return;
+    if (typeof window === 'undefined') return;
+    const t = setTimeout(() => {
+      const done = readJourneyState().done;
+      const lastTourResume = readTourResume();
+      void fetch('/api/user/onboarding-journey', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          done,
+          lastPathname: pathname,
+          lastTourResume,
+        }),
+      }).catch(() => {});
+    }, 800);
+    return () => clearTimeout(t);
+  }, [journeyRemoteReady, user?.uid, authLoading, journeyTick, pathname]);
 
   const journeySnapshot = useMemo((): JourneyStateV2 => {
     if (typeof window === 'undefined') {
@@ -830,12 +947,8 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       clearTourResume();
     }
 
-    if (!pathAllowedForJourney(next, pathname, tourCounts)) {
-      router.replace(getEffectivePathForStage(next, tourCounts), { scroll: false });
-      return;
-    }
     startJourneyStage(next, 0);
-  }, [currentStage, journeyComplete, pathname, router, startJourneyStage, tourCounts]);
+  }, [currentStage, journeyComplete, pathname, startJourneyStage, tourCounts]);
 
   const resetJourney = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -845,7 +958,12 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     setInicioAgentsFlow(false);
     destroyDriver();
     setJourneyTick((x) => x + 1);
-  }, [destroyDriver]);
+    if (user?.uid) {
+      void fetch('/api/user/onboarding-journey', { method: 'DELETE', credentials: 'include' }).catch(() => {});
+    } else {
+      requestServerJourneyClearWhenAuthed();
+    }
+  }, [destroyDriver, user?.uid]);
 
   useEffect(() => {
     return () => destroyDriver();
@@ -864,6 +982,11 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       clearTourResume();
       setInicioAgentsFlow(false);
       setJourneyTick((x) => x + 1);
+      if (user?.uid) {
+        void fetch('/api/user/onboarding-journey', { method: 'DELETE', credentials: 'include' }).catch(() => {});
+      } else {
+        requestServerJourneyClearWhenAuthed();
+      }
       const url = new URL(window.location.href);
       url.searchParams.delete('tour');
       window.history.replaceState({}, '', `${url.pathname}${url.search}`);
@@ -911,30 +1034,45 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       };
     }
 
-    if (!pathAllowedForJourney(incomplete, pathname, tourCounts)) {
-      router.replace(getEffectivePathForStage(incomplete, tourCounts), { scroll: false });
-      return;
+    /* Sin redirecciones ni arranque automático del driver al navegar: el usuario recorre el menú a su ritmo.
+       El % del camino sube con el efecto `markStagesReachedByPath` (otro useEffect). */
+    if (force && isTrialActive && incomplete) {
+      let cancelled = false;
+      const steps = toDriverSteps(journeyStepsFor(incomplete, tourCounts));
+      const cancelWait = whenStepsDomReady(
+        steps,
+        0,
+        () => {
+          if (cancelled) return;
+          destroyDriver();
+          startJourneyStage(incomplete, 0);
+        },
+        { maxMs: 3200, intervalMs: 36 },
+      );
+      return () => {
+        cancelled = true;
+        cancelWait();
+      };
     }
 
-    if (!force && !reset && !isTrialActive) return;
+    return undefined;
+  }, [pathname, isTrialActive, destroyDriver, startJourneyStage, tourCounts, user?.uid]);
 
-    let cancelled = false;
-    const steps = toDriverSteps(journeyStepsFor(incomplete, tourCounts));
-    const cancelWait = whenStepsDomReady(
-      steps,
-      0,
-      () => {
-        if (cancelled) return;
-        destroyDriver();
-        startJourneyStage(incomplete, 0);
-      },
-      { maxMs: 3200, intervalMs: 36 },
-    );
-    return () => {
-      cancelled = true;
-      cancelWait();
-    };
-  }, [pathname, isTrialActive, router, destroyDriver, startJourneyStage, tourCounts]);
+  /** Progreso del camino al visitar cada sección (sin abrir el popover). No pisar reanudación interactiva. */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!pathname.startsWith('/dashboard')) return;
+    try {
+      const r = readTourResume();
+      if (r?.v === 1 && typeof r.route === 'string' && pathname === r.route) return;
+    } catch {
+      /* noop */
+    }
+    if (firstIncompleteStage(readJourneyState()) === null) return;
+    if (markStagesReachedByPath(pathname)) {
+      setJourneyTick((x) => x + 1);
+    }
+  }, [pathname]);
 
   const ctx = useMemo<TourContextValue>(
     () => ({
