@@ -21,7 +21,7 @@ import {
 declare global {
   interface Window {
     AgentFlowhub?: {
-      init: (cfg: Record<string, unknown>) => { destroy?: () => void };
+      init: (cfg: Record<string, unknown>) => { destroy?: () => void } | void;
     };
   }
 }
@@ -275,7 +275,7 @@ export default function WidgetPreviewPage() {
         };
 
         const api = window.AgentFlowhub.init(cfg);
-        instanceRef.current = api;
+        instanceRef.current = api && typeof api === 'object' ? api : null;
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Error al iniciar el widget.');
       }

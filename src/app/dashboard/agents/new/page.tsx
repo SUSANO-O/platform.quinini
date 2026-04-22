@@ -75,7 +75,13 @@ export default function NewAgentPage() {
       `${m.name} ${m.id} ${m.provider} ${m.description ?? ''}`.toLowerCase().includes(q)
     );
   }, [clientModels, modelQuery]);
-  const visibleModels = showAllModels ? filteredModels : filteredModels.slice(0, 12);
+  const orderedFilteredModels = useMemo(() => {
+    const selectedIndex = filteredModels.findIndex((m) => m.id === model);
+    if (selectedIndex <= 0) return filteredModels;
+    const selectedModel = filteredModels[selectedIndex];
+    return [selectedModel, ...filteredModels.slice(0, selectedIndex), ...filteredModels.slice(selectedIndex + 1)];
+  }, [filteredModels, model]);
+  const visibleModels = showAllModels ? orderedFilteredModels : orderedFilteredModels.slice(0, 12);
 
   const hubUiBase = (process.env.NEXT_PUBLIC_AGENTFLOWHUB_URL || 'http://127.0.0.1:9010').replace(
     /\/$/,
