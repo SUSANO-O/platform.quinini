@@ -30,7 +30,7 @@ const MATH_LANDING: Record<string, unknown> = {
   fabHint: '¿En qué podemos ayudarte?',
   avatar:
     'https://img.freepik.com/premium-photo/bright-blue-orb_303714-30852.jpg',
-  position: 'right',
+  position: 'center',
   edgeInset: 20,
   offsetBottom: 20,
   offsetTop: 20,
@@ -52,7 +52,7 @@ const MATH_AIS_APP: Record<string, unknown> = {
   subtitle: 'En linea',
   welcome: 'Hola! Como puedo ayudarte hoy?',
   fabHint: '¿tienes duda en el uso?',
-  position: 'right',
+  position: 'center',
   edgeInset: 20,
   offsetBottom: 20,
   offsetTop: 20,
