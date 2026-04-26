@@ -78,6 +78,7 @@ export type HubCatalogAgent = {
   ragSources?: unknown[];
   hasWidget?: boolean;
   widgetPublicToken?: string;
+  persistConversationHistory?: boolean;
   isPlatform?: boolean;
   /** Catálogo hub: Active | Inactive | Error */
   status?: string;
@@ -126,6 +127,8 @@ export async function pushClientAgentToHubCatalog(agent: {
   parentAgentId?: string | null;
   /** Token público del widget (catálogo). Omitir si no está en Mongo para no pisar el hub. */
   widgetPublicToken?: string | null;
+  /** Persistir historial local de chat por agente en el widget. */
+  persistConversationHistory?: boolean;
   isPlatform?: boolean;
   /** IDs MCP del agente (mismo campo que `enabledToolIds` en el catálogo hub). */
   enabledToolIds?: string[] | null;
@@ -167,6 +170,9 @@ export async function pushClientAgentToHubCatalog(agent: {
       const wt = agent.widgetPublicToken === null ? '' : String(agent.widgetPublicToken).trim();
       payload.hasWidget = Boolean(wt);
       payload.widgetPublicToken = wt;
+    }
+    if (typeof agent.persistConversationHistory === 'boolean') {
+      payload.persistConversationHistory = agent.persistConversationHistory;
     }
     if (typeof agent.isPlatform === 'boolean') {
       payload.isPlatform = agent.isPlatform;
@@ -211,6 +217,7 @@ type LandingAgentDocLike = {
   type?: string;
   parentAgentId?: unknown;
   widgetPublicToken?: unknown;
+  persistConversationHistory?: boolean;
   isPlatform?: boolean;
   enabledMcpToolIds?: string[];
 };
@@ -252,6 +259,9 @@ export async function syncHubCatalogFromLandingAgentDoc(
       agent.widgetPublicToken === null
         ? null
         : String(agent.widgetPublicToken).trim() || null;
+  }
+  if (typeof agent.persistConversationHistory === 'boolean') {
+    payload.persistConversationHistory = agent.persistConversationHistory;
   }
   if (Array.isArray(agent.enabledMcpToolIds)) {
     payload.enabledToolIds = agent.enabledMcpToolIds;

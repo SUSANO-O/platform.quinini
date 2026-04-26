@@ -4,10 +4,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
-import { SubscriptionProvider } from '@/hooks/use-subscription';
+import { SubscriptionProvider, useSubscription } from '@/hooks/use-subscription';
 import { TourProvider, useTour } from '@/components/onboarding/app-tour';
 // import { initPaddleClient } from '@/lib/paddle-client'; // Paddle — comentado
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { LayoutDashboard, Boxes, Settings, LogOut, Cpu, Bot, ShieldAlert, Plug, Route, RotateCcw } from 'lucide-react';
 
 const NAV = [
@@ -27,6 +27,183 @@ const SIDEBAR_TOUR_KEY_BY_HREF: Record<string, string> = {
   '/dashboard/widgets': 'sidebar-widgets',
   '/dashboard/settings': 'sidebar-ajustes',
 };
+
+const SUBSCRIPTION_PLANS = [
+  { id: 'starter', label: 'Starter' },
+  { id: 'growth', label: 'Growth' },
+  { id: 'business', label: 'Business' },
+] as const;
+
+function SubscriptionExpiryGate() {
+  const { loading, hasAccess, isTrialActive, subscription, startCheckout } = useSubscription();
+  const [openModal, setOpenModal] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+
+  const trialExpired = useMemo(
+    () => !loading && !hasAccess && !isTrialActive,
+    [loading, hasAccess, isTrialActive],
+  );
+  const expiredAt = subscription?.trialEndsAt
+    ? new Date(subscription.trialEndsAt).toLocaleDateString('es', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    })
+    : null;
+
+  useEffect(() => {
+    if (!trialExpired) {
+      setOpenModal(false);
+      setDismissed(false);
+      return;
+    }
+    setOpenModal(true);
+    setDismissed(false);
+  }, [trialExpired]);
+
+  if (!trialExpired) return null;
+
+  return (
+    <>
+      {openModal ? (
+        <div
+          role="dialog"
+          aria-modal="false"
+          onClick={() => { setOpenModal(false); setDismissed(true); }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 90,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            background: 'rgba(2,6,23,0.45)',
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          <div
+            className="card-texture"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 'min(560px, 100%)',
+              borderRadius: '18px',
+              border: '1px solid rgba(255,255,255,0.24)',
+              boxShadow: '0 24px 70px rgba(0,0,0,0.35)',
+              background: 'linear-gradient(145deg, rgba(255,255,255,0.22), rgba(255,255,255,0.07))',
+              backdropFilter: 'blur(14px)',
+              color: '#f8fafc',
+              padding: '22px',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'flex-start' }}>
+              <div>
+                <p style={{ margin: 0, fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.78 }}>
+                  Sesion vencida
+                </p>
+                <h3 style={{ margin: '8px 0 0', fontSize: '22px', lineHeight: 1.18 }}>
+                  Tu trial ya expiro
+                </h3>
+              </div>
+              <button
+                type="button"
+                aria-label="Cerrar"
+                onClick={() => {
+                  setOpenModal(false);
+                  setDismissed(true);
+                }}
+                style={{
+                  border: '1px solid rgba(255,255,255,0.28)',
+                  borderRadius: '10px',
+                  background: 'rgba(15,23,42,0.38)',
+                  color: '#fff',
+                  width: '34px',
+                  height: '34px',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <p style={{ margin: '12px 0 16px', color: 'rgba(241,245,249,0.96)', lineHeight: 1.5 }}>
+              {expiredAt
+                ? `Tu sesion de prueba vencio el ${expiredAt}.`
+                : 'Tu sesion de prueba ya vencio.'} Para seguir disfrutando los servicios, suscribete a un plan.
+            </p>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {SUBSCRIPTION_PLANS.map((plan) => (
+                <button
+                  key={plan.id}
+                  type="button"
+                  onClick={() => startCheckout(plan.id)}
+                  style={{
+                    border: 0,
+                    borderRadius: '10px',
+                    padding: '9px 14px',
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    color: '#fff',
+                    cursor: 'pointer',
+                    background:
+                      plan.id === 'growth'
+                        ? 'linear-gradient(135deg, #e41414, #f87600)'
+                        : 'linear-gradient(135deg, #00acf8, #0284c7)',
+                  }}
+                >
+                  Suscribirme {plan.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function SidebarExpiryBadge() {
+  const { loading, hasAccess, isTrialActive, startCheckout } = useSubscription();
+  if (loading || hasAccess || isTrialActive) return null;
+  return (
+    <div style={{
+      marginBottom: '12px',
+      padding: '10px 12px',
+      borderRadius: '10px',
+      border: '1px solid var(--border)',
+      background: 'var(--muted)',
+    }}>
+      <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: 'var(--foreground)', marginBottom: '8px' }}>
+        Período de prueba finalizado
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {SUBSCRIPTION_PLANS.map((plan) => (
+          <button
+            key={plan.id}
+            type="button"
+            onClick={() => startCheckout(plan.id)}
+            style={{
+              border: 0,
+              borderRadius: '8px',
+              padding: '6px 10px',
+              fontSize: '11px',
+              fontWeight: 700,
+              color: '#fff',
+              cursor: 'pointer',
+              background: plan.id === 'growth'
+                ? 'linear-gradient(135deg, #e41414, #f87600)'
+                : 'linear-gradient(135deg, #00acf8, #0284c7)',
+            }}
+          >
+            {plan.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function JourneyProgress() {
   const { journeyPercent, journeyComplete, completedCount, totalStages, currentStageLabel } = useTour();
@@ -163,6 +340,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <SubscriptionProvider>
       <TourProvider>
+      <SubscriptionExpiryGate />
       <div
         className="dashboard-root-texture"
         style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--background)' }}
@@ -249,6 +427,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* User + logout */}
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+          <SidebarExpiryBadge />
           <JourneyProgress />
           <TourActions />
           <p style={{ fontSize: '12px', fontWeight: 600, marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

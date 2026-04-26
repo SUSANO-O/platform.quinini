@@ -36,6 +36,19 @@ function alternateHubOrigin(base: string): string | null {
   return null;
 }
 
+function estimateUserTurnFromBody(rawBody: string): number {
+  try {
+    const payload = JSON.parse(rawBody) as { messages?: Array<{ role?: string }> };
+    if (!Array.isArray(payload.messages)) return 0;
+    return payload.messages.reduce((acc, msg) => {
+      const role = String(msg?.role || '').toLowerCase();
+      return role === 'user' ? acc + 1 : acc;
+    }, 0);
+  } catch {
+    return 0;
+  }
+}
+
 async function fetchHubWidgetChat(
   base: string,
   init: RequestInit,
@@ -128,6 +141,7 @@ export async function POST(req: NextRequest) {
   let parsedAgentId = '';
   let parsedWidgetId = '';
   let tokenFromBody = '';
+  const userTurnCount = estimateUserTurnFromBody(rawBody);
   try {
     const j = JSON.parse(rawBody) as { agentId?: string; widgetId?: string; token?: string };
     parsedAgentId = typeof j?.agentId === 'string' ? j.agentId.trim() : '';
@@ -196,6 +210,20 @@ export async function POST(req: NextRequest) {
             .select({ plan: 1, status: 1 })
             .lean() as { plan?: string; status?: string } | null;
           const hasActivePlan = sub?.status === 'active' || sub?.status === 'trialing';
+
+          // Trial/suscripción vencida: permitimos solo el primer mensaje del visitante.
+          // Desde el segundo, devolvemos error amigable sin exponer detalle comercial.
+          if (!hasActivePlan && userTurnCount >= 2) {
+            return NextResponse.json(
+              {
+                error:
+                  'No podemos responder en este momento. Por favor, comunicate con la empresa proveedora del servicio para continuar.',
+                code: 'WIDGET_PROVIDER_SUBSCRIPTION_REQUIRED',
+              },
+              { status: 403, headers: cors(origin) },
+            );
+          }
+
           const plan = hasActivePlan ? (sub?.plan ?? 'free') : 'free';
           const limits = getAgentLimits(plan);
 

@@ -66,6 +66,8 @@ const SubscriptionSchema = new Schema({
   trialEndsAt:      { type: Date, default: null },
   /** Mes (“YYYY-MM”) en que se envió la alerta de 80% de cuota. Evita envíos repetidos. */
   quotaWarningSentMonth: { type: String, default: null },
+  /** Historial de recordatorios de vencimiento enviados para evitar duplicados (trial/renovacion). */
+  reminderHistory: { type: [String], default: [] },
 }, { timestamps: true });
 
 SubscriptionSchema.index({ lsCustomerId: 1 });
@@ -151,6 +153,8 @@ const ClientAgentSchema = new Schema({
   agentHubId:      { type: String, default: null }, // ID in AgentFlowHub backend
   /** Token público del catálogo (AIBackHub); el SDK lo envía como X-Widget-Token (como AgentFlowHub). */
   widgetPublicToken: { type: String, default: null },
+  /** Persistencia local del historial de conversación del widget por agente. */
+  persistConversationHistory: { type: Boolean, default: true },
   syncStatus:      { type: String, enum: ['pending', 'synced', 'failed'], default: 'pending' },
   /** Creado por admin; visible para todos los usuarios y no cuenta en el cupo de agentes del plan. */
   isPlatform:      { type: Boolean, default: false },

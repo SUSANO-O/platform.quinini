@@ -125,6 +125,7 @@ interface ClientAgent {
   tools: ToolConfig[]; ragEnabled: boolean; ragSources: RagSource[];
   subAgentIds: string[]; syncStatus: string; agentHubId: string | null;
   widgetPublicToken?: string | null;
+  persistConversationHistory?: boolean;
   enabledMcpToolIds?: string[];
   /** Catálogo global (solo lectura en la landing; edición en AgentFlowHub). */
   isPlatform?: boolean;
@@ -158,6 +159,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [ragEnabled, setRagEnabled] = useState(false);
   const [ragSources, setRagSources] = useState<RagSource[]>([]);
   const [widgetPublicToken, setWidgetPublicToken] = useState('');
+  const [persistConversationHistory, setPersistConversationHistory] = useState(true);
   const [inferenceTemperature, setInferenceTemperature] = useState('');
   const [inferenceMaxTokens, setInferenceMaxTokens] = useState('');
   const [modelQuery, setModelQuery] = useState('');
@@ -224,6 +226,9 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         setRagEnabled(a.ragEnabled);
         setRagSources(a.ragSources ?? []);
         setWidgetPublicToken(typeof a.widgetPublicToken === 'string' ? a.widgetPublicToken : '');
+        setPersistConversationHistory(
+          typeof a.persistConversationHistory === 'boolean' ? a.persistConversationHistory : true,
+        );
         setInferenceTemperature(
           typeof a.inferenceTemperature === 'number' ? String(a.inferenceTemperature) : '',
         );
@@ -386,6 +391,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       systemPrompt,
       model,
       widgetPublicToken: widgetPublicToken.trim() ? widgetPublicToken.trim().slice(0, 512) : null,
+      persistConversationHistory,
     };
     if (t === '') {
       patch.inferenceTemperature = null;
@@ -545,6 +551,18 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       : agent.ragEnabled && ragN === 0 ? 'RAG activo · sin fuentes'
         : !agent.ragEnabled && ragN > 0 ? `RAG off · ${ragN} fuente${ragN !== 1 ? 's' : ''} guardada${ragN !== 1 ? 's' : ''}`
           : null;
+  const conversationSyncBadge = (() => {
+    if (!agent.agentHubId) {
+      return { label: 'Solo local', bg: 'rgba(107,114,128,0.15)', color: '#6b7280' };
+    }
+    if (agent.syncStatus === 'synced') {
+      return { label: 'Sync OK', bg: 'rgba(34,197,94,0.12)', color: '#22c55e' };
+    }
+    if (agent.syncStatus === 'failed') {
+      return { label: 'Sync error', bg: 'rgba(239,68,68,0.12)', color: '#ef4444' };
+    }
+    return { label: 'Sync pendiente', bg: 'rgba(217,119,6,0.12)', color: '#d97706' };
+  })();
 
   const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
     { id: 'general', label: 'General', icon: <Settings size={13} /> },
@@ -719,6 +737,59 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               </button>
               )}
             </div>
+          </SectionCard>
+
+          <SectionCard>
+            <p style={sectionTitle}>Contexto de conversación</p>
+            <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
+              Si está activo, el widget recuerda la última conversación del agente en este navegador, incluso después de refrescar o cerrar sesión.
+            </p>
+            <div style={{ marginBottom: '12px' }}>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: '2px 8px',
+                  borderRadius: 20,
+                  background: conversationSyncBadge.bg,
+                  color: conversationSyncBadge.color,
+                }}
+                title="Estado de sincronización de esta configuración con AgentFlowHub/AIBackHub"
+              >
+                {conversationSyncBadge.label}
+              </span>
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: readOnly ? 'default' : 'pointer' }}>
+              <div
+                onClick={() => !readOnly && setPersistConversationHistory((prev) => !prev)}
+                style={{
+                  width: 40,
+                  height: 22,
+                  borderRadius: 11,
+                  position: 'relative',
+                  cursor: readOnly ? 'not-allowed' : 'pointer',
+                  background: persistConversationHistory ? `linear-gradient(90deg, ${R}, ${O})` : 'var(--border)',
+                  transition: 'background 0.2s',
+                  opacity: readOnly ? 0.75 : 1,
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 3,
+                    left: persistConversationHistory ? 21 : 3,
+                    width: 16,
+                    height: 16,
+                    borderRadius: '50%',
+                    background: '#fff',
+                    transition: 'left 0.2s',
+                  }}
+                />
+              </div>
+              <span style={{ fontSize: '13px', fontWeight: 600 }}>
+                {persistConversationHistory ? 'Memoria persistente activada' : 'Memoria persistente desactivada'}
+              </span>
+            </label>
           </SectionCard>
 
           <SectionCard>

@@ -224,17 +224,17 @@ export function SubscriptionStatusHero({
     ? 'rgba(228,20,20,0.22)'
     : isTrialActive
       ? trialUrgent
-        ? 'rgba(239,68,68,0.3)'
-        : 'rgba(245,158,11,0.28)'
-      : 'rgba(239,68,68,0.28)';
+        ? 'rgba(245,158,11,0.3)'
+        : 'rgba(245,158,11,0.22)'
+      : 'var(--border)';
 
   const bgStyle = isPremium
     ? `linear-gradient(135deg, rgba(228,20,20,0.07), rgba(248,118,0,0.06), rgba(0,172,248,0.04)), var(--card)`
     : isTrialActive
       ? trialUrgent
-        ? 'rgba(239,68,68,0.06)'
-        : 'rgba(245,158,11,0.06)'
-      : 'rgba(239,68,68,0.06)';
+        ? 'rgba(245,158,11,0.05)'
+        : 'rgba(245,158,11,0.04)'
+      : 'var(--card)';
 
   const showConfetti = playIntro && isPremium && !reducedMotion;
 
@@ -283,7 +283,7 @@ export function SubscriptionStatusHero({
             }}
             aria-hidden
           >
-            {isTrialActive ? (trialUrgent ? '⚠️' : '⏳') : '🔒'}
+            {isTrialActive ? '⏳' : '🗓️'}
           </div>
         )}
 
@@ -342,23 +342,23 @@ export function SubscriptionStatusHero({
             <>
               <p
                 className="mb-0 text-[15px] font-bold leading-snug"
-                style={{ color: trialUrgent ? '#ef4444' : '#d97706' }}
+                style={{ color: trialUrgent ? '#d97706' : 'var(--foreground)' }}
               >
                 {trialDaysRemaining === 0
-                  ? 'Último día de trial'
-                  : `Trial: ${trialDaysRemaining} día${trialDaysRemaining !== 1 ? 's' : ''} restante${trialDaysRemaining !== 1 ? 's' : ''}`}
+                  ? 'Último día de prueba'
+                  : `Prueba gratuita · ${trialDaysRemaining} día${trialDaysRemaining !== 1 ? 's' : ''} restante${trialDaysRemaining !== 1 ? 's' : ''}`}
               </p>
               <p className="m-0 text-[13px] leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
                 {trialUrgent
-                  ? '¡Tu prueba está por vencer! Suscríbete para no perder el acceso.'
-                  : 'Estás usando el período de prueba gratuita de 3 días.'}
+                  ? 'Tu prueba está próxima a vencer. Elige un plan para continuar sin interrupciones.'
+                  : 'Estás en el período de prueba gratuita de 3 días. Explora todas las funciones.'}
               </p>
             </>
           ) : (
             <>
-              <p className="mb-0 text-[15px] font-bold text-red-600">Trial vencido</p>
+              <p className="mb-0 text-[15px] font-semibold" style={{ color: 'var(--foreground)' }}>Período de prueba finalizado</p>
               <p className="m-0 text-[13px] leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
-                Tu período de prueba ha terminado. Elige un plan para continuar.
+                Tu prueba ha concluido. Elige un plan para seguir usando la plataforma.
               </p>
             </>
           )}

@@ -87,6 +87,9 @@ export async function GET(req: NextRequest, { params }: Params) {
       if (typeof hub.widgetPublicToken === 'string') {
         $set.widgetPublicToken = hub.widgetPublicToken.trim() || null;
       }
+      if (typeof hub.persistConversationHistory === 'boolean') {
+        $set.persistConversationHistory = hub.persistConversationHistory;
+      }
 
       if (typeof hub.isPlatform === 'boolean') $set.isPlatform = hub.isPlatform;
       const landingStatusFromHub = hubCatalogStatusToLandingStatus(hub.status);
@@ -240,6 +243,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     } else if (typeof v === 'string') {
       const t = v.trim().slice(0, 512);
       agent.set('widgetPublicToken', t || null);
+    }
+  }
+  if ('persistConversationHistory' in body) {
+    if (typeof body.persistConversationHistory === 'boolean') {
+      agent.set('persistConversationHistory', body.persistConversationHistory);
+    } else {
+      return NextResponse.json(
+        { error: 'persistConversationHistory debe ser boolean.' },
+        { status: 400 },
+      );
     }
   }
 

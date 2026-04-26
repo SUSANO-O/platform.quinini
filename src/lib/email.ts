@@ -406,6 +406,44 @@ export async function sendSubscriptionEmail(
   logSendFailure('subscription email', await send(to, subject, baseTemplate(subject, bodyHtml)));
 }
 
+type SubscriptionReminderKind = 'trial' | 'renewal';
+
+export async function sendSubscriptionReminderEmail(params: {
+  to: string;
+  displayName?: string | null;
+  kind: SubscriptionReminderKind;
+  daysLeft: number;
+  plan: string;
+  dueDate: Date;
+}): Promise<void> {
+  const { to, displayName, kind, daysLeft, plan, dueDate } = params;
+  const safeName = (displayName || '').trim() || to.split('@')[0] || 'usuario';
+  const planName = PLAN_NAMES[plan] || plan;
+  const due = dueDate.toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' });
+  const dashUrl = `${APP_URL}/dashboard/settings`;
+
+  const whenLabel = daysLeft === 0 ? 'hoy' : `en ${daysLeft} dia${daysLeft !== 1 ? 's' : ''}`;
+  const title = kind === 'trial' ? 'Tu trial vence pronto' : 'Tu suscripcion vence pronto';
+  const subject = kind === 'trial'
+    ? `Tu trial vence ${whenLabel} - MatIAs`
+    : `Tu renovacion vence ${whenLabel} - MatIAs`;
+
+  const ctaText = kind === 'trial' ? 'Ver planes y suscribirme' : 'Revisar suscripcion';
+  const detail = kind === 'trial'
+    ? `Tu periodo de prueba vence ${whenLabel} (${due}).`
+    : `Tu periodo actual de ${planName} vence ${whenLabel} (${due}).`;
+
+  const html = baseTemplate(subject, `
+    ${h1(title)}
+    ${p(`Hola <strong style="color:#f1f5f9;">${escapeHtml(safeName)}</strong>,`)}
+    ${p(detail)}
+    ${p('Te recomendamos revisar tu suscripcion para evitar interrupciones en el servicio de tus widgets y agentes.')}
+    ${btn(ctaText, dashUrl, '#e41414')}
+  `);
+
+  logSendFailure('subscription reminder', await send(to, subject, html));
+}
+
 /** Alerta cuando el usuario supera el 80 % de su cuota mensual de conversaciones. */
 export async function sendQuotaWarningEmail(
   to: string,

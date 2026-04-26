@@ -1102,13 +1102,14 @@
       });
       var data = await res.json().catch(function () { return {}; });
       if (!res.ok) {
-        if (res.status === 429 && data.code === 'QUOTA_EXCEEDED') {
-          throw new Error('Este asistente ha alcanzado su límite de conversaciones por este mes. Por favor, inténtalo de nuevo el próximo mes o contacta con el soporte.');
+        var SERVICE_ERROR = 'No podemos procesar tu solicitud en este momento. Comunícate con soporte.';
+        if (data.code === 'QUOTA_EXCEEDED' || data.code === 'SUBAGENT_LIMIT_EXCEEDED' || data.code === 'WIDGET_PROVIDER_SUBSCRIPTION_REQUIRED') {
+          throw new Error(SERVICE_ERROR);
         }
-        if (res.status === 403 && data.code === 'SUBAGENT_LIMIT_EXCEEDED') {
-          throw new Error('Este agente no está disponible temporalmente. Por favor, contacta con el soporte.');
+        if (res.status === 429) {
+          throw new Error('Demasiadas solicitudes. Intenta de nuevo en un momento.');
         }
-        throw new Error(data.error || data.message || ('HTTP ' + res.status));
+        throw new Error(SERVICE_ERROR);
       }
       return data;
     } finally {

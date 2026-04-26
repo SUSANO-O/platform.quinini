@@ -49,6 +49,21 @@ interface PacksData {
   packs: PackRow[];
 }
 
+interface ReminderResult {
+  ok: boolean;
+  dryRun: boolean;
+  checkedSubscriptions: number;
+  remindersFound: number;
+  remindersSent: number;
+  filters?: {
+    kinds: Array<'trial' | 'renewal'>;
+    plans: Array<'free' | 'starter' | 'growth' | 'business' | 'enterprise'>;
+    limit: number;
+  };
+  report?: Array<{ email: string; kind: 'trial' | 'renewal'; daysLeft: number }>;
+  error?: string;
+}
+
 const PLAN_COLOR: Record<string, string> = {
   free: '#64748b',
   starter: '#00acf8',
@@ -83,6 +98,11 @@ export default function AdminPage() {
   const [quotaFilter, setQuotaFilter] = useState<'all' | 'over' | 'near'>('all');
   const [packs, setPacks] = useState<PacksData | null>(null);
   const [packFilter, setPackFilter] = useState<'all' | 'active' | 'exhausted' | 'expired'>('all');
+  const [sendingReminders, setSendingReminders] = useState(false);
+  const [reminderResult, setReminderResult] = useState<ReminderResult | null>(null);
+  const [reminderKinds, setReminderKinds] = useState<Array<'trial' | 'renewal'>>(['trial', 'renewal']);
+  const [reminderPlans, setReminderPlans] = useState<Array<'free' | 'starter' | 'growth' | 'business' | 'enterprise'>>(['free', 'starter', 'growth', 'business', 'enterprise']);
+  const [reminderLimit, setReminderLimit] = useState(500);
 
   useEffect(() => {
     fetch('/api/admin/stats').then((r) => r.json()).then(setStats);
@@ -115,12 +135,161 @@ export default function AdminPage() {
     </div>
   );
 
+  const runReminders = async (dryRun: boolean) => {
+    setSendingReminders(true);
+    setReminderResult(null);
+    try {
+      const r = await fetch('/api/admin/subscription-reminders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dryRun,
+          kinds: reminderKinds,
+          plans: reminderPlans,
+          limit: reminderLimit,
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        setReminderResult({
+          ok: false,
+          dryRun,
+          checkedSubscriptions: 0,
+          remindersFound: 0,
+          remindersSent: 0,
+          error: data?.error || 'No se pudo ejecutar el envio de recordatorios.',
+        });
+        return;
+      }
+      setReminderResult(data as ReminderResult);
+    } catch {
+      setReminderResult({
+        ok: false,
+        dryRun,
+        checkedSubscriptions: 0,
+        remindersFound: 0,
+        remindersSent: 0,
+        error: 'Error de red al ejecutar recordatorios.',
+      });
+    } finally {
+      setSendingReminders(false);
+    }
+  };
+
   return (
     <div style={{ padding: '32px', maxWidth: '1100px' }}>
       <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '4px' }}>Panel Admin</h1>
       <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', marginBottom: '32px' }}>
         Resumen general · Mes actual: {new Date().toISOString().slice(0, 7)}
       </p>
+
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '16px 18px', marginBottom: '24px' }}>
+        <p style={{ margin: 0, fontSize: '14px', fontWeight: 700 }}>Recordatorios de vencimiento</p>
+        <p style={{ margin: '4px 0 12px', color: 'var(--muted-foreground)', fontSize: '12px' }}>
+          Ejecuta notificaciones de trial/renovacion para 15, 7, 3, 1 y 0 dias.
+        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
+          <select
+            value={reminderKinds.length === 2 ? 'both' : reminderKinds[0]}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === 'both') setReminderKinds(['trial', 'renewal']);
+              else if (v === 'trial' || v === 'renewal') setReminderKinds([v]);
+            }}
+            style={{ padding: '7px 10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px', background: 'var(--muted)', color: 'var(--foreground)' }}
+          >
+            <option value="both">Tipos: trial + renovacion</option>
+            <option value="trial">Tipos: solo trial</option>
+            <option value="renewal">Tipos: solo renovacion</option>
+          </select>
+          <select
+            value={reminderPlans.length === 5 ? 'all' : reminderPlans[0]}
+            onChange={(e) => {
+              const v = e.target.value as 'all' | 'free' | 'starter' | 'growth' | 'business' | 'enterprise';
+              if (v === 'all') setReminderPlans(['free', 'starter', 'growth', 'business', 'enterprise']);
+              else setReminderPlans([v]);
+            }}
+            style={{ padding: '7px 10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px', background: 'var(--muted)', color: 'var(--foreground)' }}
+          >
+            <option value="all">Planes: todos</option>
+            <option value="free">Plan: free</option>
+            <option value="starter">Plan: starter</option>
+            <option value="growth">Plan: growth</option>
+            <option value="business">Plan: business</option>
+            <option value="enterprise">Plan: enterprise</option>
+          </select>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--muted-foreground)' }}>
+            Lote
+            <input
+              type="number"
+              min={1}
+              max={5000}
+              value={reminderLimit}
+              onChange={(e) => setReminderLimit(Math.max(1, Math.min(5000, Number(e.target.value) || 1)))}
+              style={{ width: '84px', padding: '6px 8px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--muted)', color: 'var(--foreground)', fontSize: '12px' }}
+            />
+          </label>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => runReminders(true)}
+            disabled={sendingReminders}
+            style={{
+              padding: '7px 12px',
+              borderRadius: '9px',
+              border: '1px solid var(--border)',
+              background: 'var(--muted)',
+              color: 'var(--foreground)',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: sendingReminders ? 'not-allowed' : 'pointer',
+              opacity: sendingReminders ? 0.7 : 1,
+            }}
+          >
+            Probar (dry-run)
+          </button>
+          <button
+            onClick={() => runReminders(false)}
+            disabled={sendingReminders}
+            style={{
+              padding: '7px 12px',
+              borderRadius: '9px',
+              border: '1px solid #e41414',
+              background: '#e41414',
+              color: '#fff',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: sendingReminders ? 'not-allowed' : 'pointer',
+              opacity: sendingReminders ? 0.7 : 1,
+            }}
+          >
+            Enviar recordatorios ahora
+          </button>
+        </div>
+        {reminderResult && (
+          <div style={{ marginTop: '12px', borderTop: '1px solid var(--border)', paddingTop: '10px', fontSize: '12px' }}>
+            {!reminderResult.ok ? (
+              <p style={{ margin: 0, color: '#ef4444', fontWeight: 700 }}>
+                {reminderResult.error || 'No se pudo ejecutar la accion.'}
+              </p>
+            ) : (
+              <>
+                <p style={{ margin: 0, fontWeight: 700 }}>
+                  {reminderResult.dryRun ? 'Simulacion lista' : 'Envio completado'} · revisadas {reminderResult.checkedSubscriptions} suscripciones
+                </p>
+                <p style={{ margin: '4px 0 0', color: 'var(--muted-foreground)' }}>
+                  Detectadas: {reminderResult.remindersFound} · Enviadas: {reminderResult.remindersSent}
+                </p>
+                {reminderResult.filters && (
+                  <p style={{ margin: '4px 0 0', color: 'var(--muted-foreground)' }}>
+                    Filtros → tipos: {reminderResult.filters.kinds.join(', ')} · planes: {reminderResult.filters.plans.join(', ')} · lote: {reminderResult.filters.limit}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
       {!stats ? spin : (
         <>

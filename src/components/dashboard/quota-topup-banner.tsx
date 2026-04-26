@@ -57,8 +57,8 @@ export function QuotaTopupBanner({ percentUsed, used, limit, plan, activePacks }
           <Zap size={15} style={{ color: bannerColor, flexShrink: 0 }} />
           <span style={{ fontSize: '13px', fontWeight: 600, color: bannerColor }}>
             {isOver
-              ? `Has superado tu límite (${used.toLocaleString('es')} / ${limit.toLocaleString('es')} conv). El widget está bloqueado.`
-              : `Has usado el ${percentUsed}% de tus conversaciones (${used.toLocaleString('es')} / ${limit.toLocaleString('es')}).`}
+              ? `Límite de conversaciones alcanzado (${used.toLocaleString('es')} / ${limit.toLocaleString('es')}). Agrega más para reactivar los widgets.`
+              : `Has usado el ${percentUsed}% de tus conversaciones este mes (${used.toLocaleString('es')} / ${limit.toLocaleString('es')}).`}
           </span>
         </div>
         <button
