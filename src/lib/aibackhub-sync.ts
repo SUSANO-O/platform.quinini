@@ -67,7 +67,7 @@ function normalizeLandingTools(raw: unknown): LandingToolConfig[] | undefined {
   if (!Array.isArray(raw)) return undefined;
   return raw
     .filter(
-      (item): item is { toolId?: unknown; config?: unknown } =>
+      (item): item is { toolId: string; config?: unknown } =>
         Boolean(item) && typeof item === 'object' && typeof item.toolId === 'string',
     )
     .map((item) => {
