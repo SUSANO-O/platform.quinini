@@ -279,6 +279,69 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       .slice(0, 20);
     agent.set('skills', cleaned);
   }
+  if ('skillsConfig' in body) {
+    const raw = body.skillsConfig;
+    if (!Array.isArray(raw)) {
+      return NextResponse.json({ error: 'skillsConfig debe ser un array.' }, { status: 400 });
+    }
+    const cleaned = raw
+      .filter((x: unknown): x is {
+        id: string;
+        name?: string;
+        enabled?: boolean;
+        priority?: number;
+        config?: {
+          prompt_extension?: string;
+          active_tools?: string[];
+          llm_settings?: { temperature?: number; maxOutputTokens?: number };
+        };
+      } => Boolean(x) && typeof x === 'object' && typeof (x as { id?: unknown }).id === 'string')
+      .map((x) => ({
+        id: x.id.trim().slice(0, 64),
+        ...(typeof x.name === 'string' ? { name: x.name.trim().slice(0, 120) } : {}),
+        ...(typeof x.enabled === 'boolean' ? { enabled: x.enabled } : {}),
+        ...(typeof x.priority === 'number'
+          ? { priority: Math.max(0, Math.min(1000, Math.floor(x.priority))) }
+          : {}),
+        ...(x.config && typeof x.config === 'object'
+          ? {
+              config: {
+                ...(typeof x.config.prompt_extension === 'string'
+                  ? { prompt_extension: x.config.prompt_extension.slice(0, 6000) }
+                  : {}),
+                ...(Array.isArray(x.config.active_tools)
+                  ? {
+                      active_tools: x.config.active_tools
+                        .filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
+                        .map((t) => t.trim().slice(0, 128))
+                        .slice(0, 200),
+                    }
+                  : {}),
+                ...(x.config.llm_settings && typeof x.config.llm_settings === 'object'
+                  ? {
+                      llm_settings: {
+                        ...(typeof x.config.llm_settings.temperature === 'number'
+                          ? { temperature: Math.max(0, Math.min(2, x.config.llm_settings.temperature)) }
+                          : {}),
+                        ...(typeof x.config.llm_settings.maxOutputTokens === 'number'
+                          ? {
+                              maxOutputTokens: Math.max(
+                                1,
+                                Math.min(32768, Math.floor(x.config.llm_settings.maxOutputTokens)),
+                              ),
+                            }
+                          : {}),
+                      },
+                    }
+                  : {}),
+              },
+            }
+          : {}),
+      }))
+      .filter((x) => x.id.length > 0)
+      .slice(0, 50);
+    agent.set('skillsConfig', cleaned);
+  }
 
   await agent.save();
 

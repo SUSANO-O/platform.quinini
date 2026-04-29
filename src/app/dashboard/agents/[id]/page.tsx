@@ -19,6 +19,11 @@ import {
 const R = '#e41414';
 const O = '#f87600';
 const B = '#00acf8';
+const RUNTIME_SKILL_TEMPLATES = [
+  { id: 'sales_closer', name: 'Cierre de Ventas Consultivo', defaultPriority: 50 },
+  { id: 'tech_support_l1', name: 'Soporte Técnico Nivel 1', defaultPriority: 40 },
+  { id: 'data_analyst_pro', name: 'Analista de Datos Pro', defaultPriority: 45 },
+] as const;
 const BTN_PRIMARY: CSSProperties = {
   background: `linear-gradient(135deg, ${R}, ${O})`,
   color: '#fff',
@@ -29,7 +34,6 @@ import Link from 'next/link';
 import { McpLandingConnectForm } from '@/components/mcp/mcp-landing-connect-form';
 import { AgentMcpOpenFromQuery } from '@/components/mcp/agent-mcp-open-from-query';
 import { AgentHubspotOauthReturn } from '@/components/mcp/agent-hubspot-oauth-return';
-import { McpAgentStandardCredentialsEditor } from '@/components/mcp/mcp-agent-standard-credentials-editor';
 
 type Tab = 'general' | 'tools' | 'rag' | 'subagents';
 
@@ -132,6 +136,21 @@ interface ClientAgent {
   isPlatform?: boolean;
   /** Skills del agente (IDs del catálogo). Sync con hub. */
   skills?: string[];
+  /** Config runtime de skills (prompt/tools/settings). */
+  skillsConfig?: Array<{
+    id: string;
+    name?: string;
+    enabled?: boolean;
+    priority?: number;
+    config?: {
+      prompt_extension?: string;
+      active_tools?: string[];
+      llm_settings?: {
+        temperature?: number;
+        maxOutputTokens?: number;
+      };
+    };
+  }>;
 }
 interface SubAgent {
   _id: string; name: string; model: string; status: 'active' | 'disabled';
@@ -168,6 +187,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [modelQuery, setModelQuery] = useState('');
   const [showAllModels, setShowAllModels] = useState(false);
   const [skills, setSkills] = useState<string[]>([]);
+  const [skillsConfig, setSkillsConfig] = useState<NonNullable<ClientAgent['skillsConfig']>>([]);
+  const [customSkillInput, setCustomSkillInput] = useState('');
 
   // MCP tools state
   const [mcpServers, setMcpServers] = useState<McpServerGroup[]>([]);
@@ -240,6 +261,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           typeof a.inferenceMaxTokens === 'number' ? String(a.inferenceMaxTokens) : '',
         );
         setSkills(Array.isArray(a.skills) ? a.skills : []);
+        setSkillsConfig(Array.isArray(a.skillsConfig) ? a.skillsConfig : []);
       })
       .finally(() => setLoading(false));
   }, [id, router]);
@@ -398,6 +420,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       widgetPublicToken: widgetPublicToken.trim() ? widgetPublicToken.trim().slice(0, 512) : null,
       persistConversationHistory,
       skills,
+      skillsConfig,
     };
     if (t === '') {
       patch.inferenceTemperature = null;
@@ -533,6 +556,43 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     fontSize: '12px', fontWeight: 700, color: 'var(--muted-foreground)',
     textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px',
   };
+  const getRuntimeSkillConfig = useCallback(
+    (skillId: string) => skillsConfig.find((s) => s?.id === skillId),
+    [skillsConfig],
+  );
+  const upsertRuntimeSkillConfig = useCallback(
+    (skillId: string, enabled: boolean, fallbackPriority: number) => {
+      setSkillsConfig((prev) => {
+        const idx = prev.findIndex((s) => s?.id === skillId);
+        if (idx === -1) {
+          if (!enabled) return prev;
+          return [...prev, { id: skillId, enabled: true, priority: fallbackPriority }];
+        }
+        const next = [...prev];
+        next[idx] = { ...next[idx], enabled };
+        return next;
+      });
+    },
+    [],
+  );
+  const setRuntimeSkillPriority = useCallback((skillId: string, value: string, fallbackPriority: number) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return;
+    const p = Math.max(0, Math.min(1000, Math.floor(n)));
+    setSkillsConfig((prev) => {
+      const idx = prev.findIndex((s) => s?.id === skillId);
+      if (idx === -1) return [...prev, { id: skillId, enabled: true, priority: p || fallbackPriority }];
+      const next = [...prev];
+      next[idx] = { ...next[idx], priority: p };
+      return next;
+    });
+  }, []);
+  const addCustomSkill = useCallback(() => {
+    const v = customSkillInput.trim();
+    if (!v) return;
+    setSkills((prev) => (prev.includes(v) ? prev : [...prev, v]));
+    setCustomSkillInput('');
+  }, [customSkillInput]);
 
   if (loading) {
     return (
@@ -938,6 +998,103 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   </button>
                 );
               })}
+              {skills
+                .filter((sid) => !AGENT_SKILLS.some((s) => s.id === sid))
+                .map((sid) => (
+                  <button
+                    key={sid}
+                    type="button"
+                    title="Skill personalizada"
+                    disabled={readOnly}
+                    onClick={() => {
+                      if (readOnly) return;
+                      setSkills((prev) => prev.filter((s) => s !== sid));
+                    }}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '20px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      border: '1px solid var(--border)',
+                      background: 'rgba(99,102,241,0.12)',
+                      color: '#6366f1',
+                      cursor: readOnly ? 'default' : 'pointer',
+                    }}
+                  >
+                    {sid} ✕
+                  </button>
+                ))}
+            </div>
+            {!readOnly && (
+              <div style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
+                <input
+                  className="landing-input"
+                  style={{ ...inp, flex: 1 }}
+                  value={customSkillInput}
+                  onChange={(e) => setCustomSkillInput(e.target.value)}
+                  placeholder="Agregar skill personalizada (id)"
+                />
+                <button
+                  type="button"
+                  onClick={addCustomSkill}
+                  style={{
+                    padding: '8px 12px', borderRadius: '10px', border: '1px solid var(--border)',
+                    background: 'var(--background)', cursor: 'pointer', fontWeight: 700, fontSize: '12px',
+                  }}
+                >
+                  Agregar
+                </button>
+              </div>
+            )}
+          </SectionCard>
+
+          <SectionCard bar="bo">
+            <p style={sectionTitle}>Perfiles runtime (cerebro)</p>
+            <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
+              Estos perfiles cambian comportamiento real en AIBackHub (prompt/tools/settings).
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {RUNTIME_SKILL_TEMPLATES.map((tpl) => {
+                const cfg = getRuntimeSkillConfig(tpl.id);
+                const enabled = cfg?.enabled !== false && Boolean(cfg);
+                const priority = cfg?.priority ?? tpl.defaultPriority;
+                return (
+                  <div key={tpl.id} style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                      <div>
+                        <p style={{ margin: 0, fontSize: '12px', fontWeight: 700 }}>{tpl.name}</p>
+                        <p style={{ margin: 0, fontSize: '10px', color: 'var(--muted-foreground)' }}>{tpl.id}</p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={readOnly}
+                        onClick={() => !readOnly && upsertRuntimeSkillConfig(tpl.id, !enabled, tpl.defaultPriority)}
+                        style={{
+                          padding: '5px 10px', borderRadius: '999px', border: '1px solid var(--border)',
+                          background: enabled ? `linear-gradient(90deg, ${R}, ${O})` : 'transparent',
+                          color: enabled ? '#fff' : 'var(--muted-foreground)', cursor: readOnly ? 'default' : 'pointer',
+                          fontSize: '11px', fontWeight: 700,
+                        }}
+                      >
+                        {enabled ? 'Activo' : 'Inactivo'}
+                      </button>
+                    </div>
+                    <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <label style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Prioridad</label>
+                      <input
+                        className="landing-input"
+                        style={{ ...inp, width: '120px', padding: '6px 10px' }}
+                        type="number"
+                        min={0}
+                        max={1000}
+                        value={String(priority)}
+                        onChange={(e) => setRuntimeSkillPriority(tpl.id, e.target.value, tpl.defaultPriority)}
+                        disabled={readOnly}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </SectionCard>
 
@@ -1197,16 +1354,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                             );
                           })}
                         </div>
-                        {srv.integrationKey === 'mcp_standard' ? (
-                          <McpAgentStandardCredentialsEditor
-                            landingAgentId={id}
-                            connectionId={srv.connectionId}
-                            credentialFields={srv.credentialFields}
-                            credentialsMask={srv.credentialsMask}
-                            readOnly={readOnly}
-                            onResync={resyncMcpConnection}
-                          />
-                        ) : null}
                       </div>
                     );
                   })}
@@ -1218,7 +1365,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 <RefreshCw size={24} style={{ color: 'var(--muted-foreground)', margin: '0 auto 10px' }} />
                 <p style={{ fontWeight: 600, fontSize: '13px', margin: '0 0 6px' }}>Sin integraciones MCP</p>
                 <p style={{ color: 'var(--muted-foreground)', fontSize: '12px', margin: 0, lineHeight: 1.5 }}>
-                  Usa el formulario de arriba para conectar Gmail, calendario, MCP estándar, etc. Cada agente puede tener su propia cuenta o credenciales.
+                  Usa el formulario de arriba para conectar Gmail, calendario, HubSpot, etc. Cada agente puede tener su propia cuenta o credenciales.
                 </p>
             </SectionCard>
           ) : null}
@@ -1295,16 +1442,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         </>
                       )}
                     </div>
-                    {srv.integrationKey === 'mcp_standard' ? (
-                      <McpAgentStandardCredentialsEditor
-                        landingAgentId={id}
-                        connectionId={srv.connectionId}
-                        credentialFields={srv.credentialFields}
-                        credentialsMask={srv.credentialsMask}
-                        readOnly={readOnly}
-                        onResync={resyncMcpConnection}
-                      />
-                    ) : null}
                   </div>
                 );
                 })}
