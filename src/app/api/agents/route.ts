@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
       if (Array.isArray(hub.tools)) {
         $set.tools = hub.tools
           .filter(
-            (x): x is { toolId: string; config?: Record<string, unknown> } =>
+            (x): x is { toolId: string; config?: Record<string, string> } =>
               Boolean(x) &&
               typeof x === 'object' &&
               typeof x.toolId === 'string' &&
