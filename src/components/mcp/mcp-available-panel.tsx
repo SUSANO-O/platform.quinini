@@ -16,7 +16,6 @@ const INTEGRATION_ICONS: Record<string, string> = {
   gmail: '📧',
   hubspot: '🏢',
   google_calendar: '📅',
-  mcp_standard: '🔌',
   slack: '💬',
   weather: '🌤️',
   webSearch: '🔍',
@@ -41,7 +40,8 @@ export function McpAvailablePanel({ compact, onConnectRequest }: Props) {
           setError(typeof data.error === 'string' ? data.error : 'No se pudo cargar el catálogo MCP.');
           setCatalog([]);
         } else {
-          setCatalog(Array.isArray(data.catalog) ? data.catalog : []);
+          const list = Array.isArray(data.catalog) ? data.catalog : [];
+          setCatalog(list.filter((row: McpCatalogRow) => row?.key !== 'mcp_standard'));
           if (typeof data.backendBase === 'string') setBackendBase(data.backendBase);
         }
       } catch (e) {

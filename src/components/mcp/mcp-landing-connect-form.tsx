@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ExternalLink, Loader2 } from 'lucide-react';
-import { getMcpStandardDefaultServerUrl } from '@/lib/mcp-standard-defaults';
 import {
   isMcpIntegrationAllowedForPlan,
   minPlanForMcpIntegration,
@@ -48,7 +47,6 @@ const INTEGRATION_ICONS: Record<string, string> = {
   hubspot: '🏢',
   google_calendar: '📅',
   googleCalendar: '📅',
-  mcp_standard: '🔌',
   slack: '💬',
   weather: '🌤️',
   webSearch: '🔍',
@@ -131,11 +129,7 @@ export function McpLandingConnectForm({
   const [stdPreview, setStdPreview] = useState<StdPreview>({ kind: 'idle' });
   const stdPreviewMatchRef = useRef<string>('');
 
-  const { primaryCatalog, advancedCatalog } = useMemo(() => {
-    const primary = catalog.filter((c) => c.key !== 'mcp_standard');
-    const advanced = catalog.filter((c) => c.key === 'mcp_standard');
-    return { primaryCatalog: primary, advancedCatalog: advanced };
-  }, [catalog]);
+  const primaryCatalog = useMemo(() => catalog, [catalog]);
 
   const entry = useMemo(
     () => catalog.find((c) => c.key === integrationKey),
@@ -166,7 +160,9 @@ export function McpLandingConnectForm({
           throw new Error(j?.error || 'No se pudo cargar el catálogo MCP');
         }
         const list = (j?.data?.catalog ?? j?.catalog ?? []) as CatalogEntry[];
-        if (!cancelled) setCatalog(Array.isArray(list) ? list : []);
+        if (!cancelled) {
+          setCatalog((Array.isArray(list) ? list : []).filter((c) => c?.key !== 'mcp_standard'));
+        }
       } catch {
         if (!cancelled) setCatalog([]);
       } finally {
@@ -210,26 +206,11 @@ export function McpLandingConnectForm({
     const am = authMethod || entry.authMethods?.[0]?.id || '';
     const list =
       entry.credentialFieldsByAuthMethod?.[am] ?? entry.credentialFields ?? [];
-    const defaultMcpUrl =
-      entry.key === 'mcp_standard' ? getMcpStandardDefaultServerUrl() : '';
-    const presetsLen = entry.standardPresets?.length ?? 0;
-    const allowCustom = entry.standardAllowCustomUrl !== false;
-
     setCreds((prev) => {
       const next: Record<string, string> = {};
       for (const f of list) {
         const prevVal = prev[f.key] ?? '';
-        if (
-          entry.key === 'mcp_standard' &&
-          f.key === 'MCP_SERVER_URL' &&
-          defaultMcpUrl &&
-          !prevVal.trim() &&
-          (presetsLen === 0 || allowCustom)
-        ) {
-          next[f.key] = defaultMcpUrl;
-        } else {
-          next[f.key] = prevVal;
-        }
+        next[f.key] = prevVal;
       }
       if (am) next.AUTH_METHOD = am;
       if (entry.key === 'mcp_standard' && prev.MCP_STANDARD_PRESET_ID) {
@@ -614,25 +595,6 @@ export function McpLandingConnectForm({
           </div>
         )}
 
-        {advancedCatalog.length > 0 && (
-          <div className="space-y-2 border-t border-zinc-200 pt-4 dark:border-zinc-700">
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Avanzado</p>
-            <p className="text-xs text-zinc-600 dark:text-zinc-400">
-              Servidor MCP estándar: URLs permitidas y presets los define el hub (variables{' '}
-              <code className="rounded bg-zinc-100 px-1 text-[11px] dark:bg-zinc-800">MCP_ENABLED_INTEGRATIONS</code>,{' '}
-              <code className="rounded bg-zinc-100 px-1 text-[11px] dark:bg-zinc-800">MCP_STANDARD_PRESETS</code> en AIBackHub).
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2" role="list">
-              {advancedCatalog.map((c) => renderIntegrationCard(c, { advanced: true }))}
-            </div>
-          </div>
-        )}
-
-        {primaryCatalog.length === 0 && advancedCatalog.length > 0 && (
-          <p className="text-xs text-zinc-600 dark:text-zinc-400">
-            Solo está disponible la conexión por URL (MCP estándar).
-          </p>
-        )}
       </div>
     );
   }

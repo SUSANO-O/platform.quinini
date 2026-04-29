@@ -160,6 +160,8 @@ const ClientAgentSchema = new Schema({
   isPlatform:      { type: Boolean, default: false },
   /** IDs de skills del catálogo (agent-skills.ts). Sincronizado bidireccional con el hub. */
   skills:          { type: [String], default: [] },
+  /** Config runtime de skills (prompt/tools/settings), sincronizada con el hub. */
+  skillsConfig:    { type: [Schema.Types.Mixed], default: [] },
 }, { timestamps: true });
 
 ClientAgentSchema.index({ userId: 1, type: 1, createdAt: -1 });

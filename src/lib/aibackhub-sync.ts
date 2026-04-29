@@ -82,6 +82,21 @@ export type HubCatalogAgent = {
   isPlatform?: boolean;
   /** Skills del agente (IDs del catálogo agent-skills.ts). */
   skills?: string[];
+  /** Config runtime de skills (prompt/tools/settings). */
+  skillsConfig?: Array<{
+    id: string;
+    name?: string;
+    enabled?: boolean;
+    priority?: number;
+    config?: {
+      prompt_extension?: string;
+      active_tools?: string[];
+      llm_settings?: {
+        temperature?: number;
+        maxOutputTokens?: number;
+      };
+    };
+  }>;
   /** Catálogo hub: Active | Inactive | Error */
   status?: string;
 };
@@ -136,6 +151,21 @@ export async function pushClientAgentToHubCatalog(agent: {
   enabledToolIds?: string[] | null;
   /** Skills del agente (IDs del catálogo). */
   skills?: string[] | null;
+  /** Config runtime de skills. */
+  skillsConfig?: Array<{
+    id: string;
+    name?: string;
+    enabled?: boolean;
+    priority?: number;
+    config?: {
+      prompt_extension?: string;
+      active_tools?: string[];
+      llm_settings?: {
+        temperature?: number;
+        maxOutputTokens?: number;
+      };
+    };
+  }> | null;
 }): Promise<boolean> {
   const base = getAibackhubBaseUrl();
   const hid = String(agent.agentHubId || '').trim();
@@ -187,6 +217,9 @@ export async function pushClientAgentToHubCatalog(agent: {
     if (Array.isArray(agent.skills)) {
       payload.skills = agent.skills;
     }
+    if (Array.isArray(agent.skillsConfig)) {
+      payload.skillsConfig = agent.skillsConfig;
+    }
     const res = await fetch(url, {
       method: 'PUT',
       headers: hubCreateHeaders(),
@@ -228,6 +261,20 @@ type LandingAgentDocLike = {
   isPlatform?: boolean;
   enabledMcpToolIds?: string[];
   skills?: string[];
+  skillsConfig?: Array<{
+    id: string;
+    name?: string;
+    enabled?: boolean;
+    priority?: number;
+    config?: {
+      prompt_extension?: string;
+      active_tools?: string[];
+      llm_settings?: {
+        temperature?: number;
+        maxOutputTokens?: number;
+      };
+    };
+  }>;
 };
 
 /**
@@ -276,6 +323,9 @@ export async function syncHubCatalogFromLandingAgentDoc(
   }
   if (Array.isArray(agent.skills)) {
     payload.skills = agent.skills;
+  }
+  if (Array.isArray(agent.skillsConfig)) {
+    payload.skillsConfig = agent.skillsConfig;
   }
   return pushClientAgentToHubCatalog(payload);
 }

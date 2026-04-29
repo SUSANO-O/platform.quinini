@@ -88,6 +88,20 @@ export async function POST(req: NextRequest) {
     enabledToolIds?: string[];
     widgetPublicToken?: string | null;
     persistConversationHistory?: boolean;
+    skillsConfig?: Array<{
+      id: string;
+      name?: string;
+      enabled?: boolean;
+      priority?: number;
+      config?: {
+        prompt_extension?: string;
+        active_tools?: string[];
+        llm_settings?: {
+          temperature?: number;
+          maxOutputTokens?: number;
+        };
+      };
+    }>;
   };
   try {
     body = await req.json();
@@ -163,6 +177,53 @@ export async function POST(req: NextRequest) {
   }
   if (typeof body.persistConversationHistory === 'boolean') {
     $set.persistConversationHistory = body.persistConversationHistory;
+  }
+  if (Array.isArray(body.skillsConfig)) {
+    $set.skillsConfig = body.skillsConfig
+      .filter((x) => x && typeof x === 'object' && typeof x.id === 'string' && x.id.trim().length > 0)
+      .map((x) => ({
+        id: String(x.id).trim().slice(0, 64),
+        ...(typeof x.name === 'string' ? { name: x.name.trim().slice(0, 120) } : {}),
+        ...(typeof x.enabled === 'boolean' ? { enabled: x.enabled } : {}),
+        ...(typeof x.priority === 'number' ? { priority: Math.max(0, Math.min(1000, Math.floor(x.priority))) } : {}),
+        ...(x.config && typeof x.config === 'object'
+          ? {
+              config: {
+                ...(typeof x.config.prompt_extension === 'string'
+                  ? { prompt_extension: x.config.prompt_extension.slice(0, 6000) }
+                  : {}),
+                ...(Array.isArray(x.config.active_tools)
+                  ? {
+                      active_tools: x.config.active_tools
+                        .filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
+                        .map((t) => t.trim().slice(0, 128))
+                        .slice(0, 200),
+                    }
+                  : {}),
+                ...(x.config.llm_settings && typeof x.config.llm_settings === 'object'
+                  ? {
+                      llm_settings: {
+                        ...(typeof x.config.llm_settings.temperature === 'number'
+                          ? {
+                              temperature: Math.max(0, Math.min(2, x.config.llm_settings.temperature)),
+                            }
+                          : {}),
+                        ...(typeof x.config.llm_settings.maxOutputTokens === 'number'
+                          ? {
+                              maxOutputTokens: Math.max(
+                                1,
+                                Math.min(32768, Math.floor(x.config.llm_settings.maxOutputTokens)),
+                              ),
+                            }
+                          : {}),
+                      },
+                    }
+                  : {}),
+              },
+            }
+          : {}),
+      }))
+      .slice(0, 50);
   }
 
   /** El slug del hub es la fuente de verdad para `agentHubId` en la landing. */
