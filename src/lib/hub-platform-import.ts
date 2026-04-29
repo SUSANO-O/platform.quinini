@@ -59,18 +59,23 @@ export async function ensureHubPlatformAgentsInLanding(options?: {
 
     if (existing) {
       const ex = existing as { isPlatform?: boolean; status?: string };
-      if (!ex.isPlatform || ex.status !== landingStatus) {
-        await ClientAgent.updateOne(
-          { agentHubId: hubSlug },
-          {
-            $set: {
-              isPlatform: true,
-              status: landingStatus,
-              syncStatus: 'synced',
-            },
+      const nextSkills = Array.isArray(h.skills)
+        ? h.skills
+            .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+            .map((x) => x.trim())
+            .slice(0, 20)
+        : undefined;
+      await ClientAgent.updateOne(
+        { agentHubId: hubSlug },
+        {
+          $set: {
+            isPlatform: true,
+            status: landingStatus,
+            syncStatus: 'synced',
+            ...(nextSkills ? { skills: nextSkills } : {}),
           },
-        );
-      }
+        },
+      );
       continue;
     }
 
@@ -94,6 +99,12 @@ export async function ensureHubPlatformAgentsInLanding(options?: {
       syncStatus: 'synced' as const,
       ragEnabled: Boolean(h.ragEnabled),
       ragSources: Array.isArray(h.ragSources) ? h.ragSources : [],
+      skills: Array.isArray(h.skills)
+        ? h.skills
+            .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+            .map((x) => x.trim())
+            .slice(0, 20)
+        : [],
       widgetPublicToken:
         typeof h.widgetPublicToken === 'string' && h.widgetPublicToken.trim() !== ''
           ? h.widgetPublicToken.trim().slice(0, 512)
@@ -113,6 +124,7 @@ export async function ensureHubPlatformAgentsInLanding(options?: {
       parentAgentId: null,
       widgetPublicToken: doc.widgetPublicToken ?? null,
       isPlatform: true,
+      skills: Array.isArray(doc.skills) ? doc.skills : [],
     }).catch(() => {});
   }
 }

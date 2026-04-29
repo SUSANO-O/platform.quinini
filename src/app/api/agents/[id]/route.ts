@@ -75,6 +75,12 @@ export async function GET(req: NextRequest, { params }: Params) {
       }
       if (typeof hub.ragEnabled === 'boolean') $set.ragEnabled = hub.ragEnabled;
       if (hub.ragSources !== undefined) $set.ragSources = hub.ragSources;
+      if (Array.isArray(hub.skills)) {
+        $set.skills = hub.skills
+          .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+          .map((x) => x.trim())
+          .slice(0, 20);
+      }
       const hex = /^[a-f0-9]{24}$/i;
       const parent = hub.landingParentClientAgentId;
       if (parent === null || hub.catalogAgentType === 'agent') {

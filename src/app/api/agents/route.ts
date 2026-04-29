@@ -76,6 +76,12 @@ export async function GET(req: NextRequest) {
       const $set: Record<string, unknown> = { name, description, systemPrompt, model };
       if (typeof hub.ragEnabled === 'boolean') $set.ragEnabled = hub.ragEnabled;
       if (hub.ragSources !== undefined) $set.ragSources = hub.ragSources;
+      if (Array.isArray(hub.skills)) {
+        $set.skills = hub.skills
+          .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+          .map((x) => x.trim())
+          .slice(0, 20);
+      }
       if (typeof hub.isPlatform === 'boolean') $set.isPlatform = hub.isPlatform;
       const landingStatusFromHub = hubCatalogStatusToLandingStatus(hub.status);
       const syncStatusFromHub =

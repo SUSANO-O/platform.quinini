@@ -27,7 +27,7 @@ const MATH_LANDING: Record<string, unknown> = {
   title: 'Math',
   subtitle: 'En linea',
   welcome: 'Hola! Como puedo ayudarte hoy?',
-  fabHint: '¿En qué podemos ayudarte?',
+  fabHint: 'preguntame lo que necesites',
   avatar:
     'https://img.freepik.com/premium-photo/bright-blue-orb_303714-30852.jpg',
   position: 'right',
