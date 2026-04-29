@@ -85,6 +85,9 @@ export async function POST(req: NextRequest) {
     inferenceMaxTokens?: number | null;
     isPlatform?: boolean;
     skills?: string[];
+    enabledToolIds?: string[];
+    widgetPublicToken?: string | null;
+    persistConversationHistory?: boolean;
   };
   try {
     body = await req.json();
@@ -145,6 +148,21 @@ export async function POST(req: NextRequest) {
       .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
       .map((x) => x.trim())
       .slice(0, 20);
+  }
+  if (Array.isArray(body.enabledToolIds)) {
+    $set.enabledMcpToolIds = body.enabledToolIds
+      .filter((x): x is string => typeof x === 'string' && (x.startsWith('mcp:') || x.startsWith('std:')))
+      .map((x) => x.trim())
+      .slice(0, 200);
+  }
+  if (body.widgetPublicToken === null) {
+    $set.widgetPublicToken = null;
+  } else if (typeof body.widgetPublicToken === 'string') {
+    const t = body.widgetPublicToken.trim().slice(0, 512);
+    $set.widgetPublicToken = t || null;
+  }
+  if (typeof body.persistConversationHistory === 'boolean') {
+    $set.persistConversationHistory = body.persistConversationHistory;
   }
 
   /** El slug del hub es la fuente de verdad para `agentHubId` en la landing. */

@@ -292,7 +292,10 @@ async function syncToHub(agent: {
   type?: 'agent' | 'sub-agent';
   parentAgentId?: string | null;
   widgetPublicToken?: string | null;
+  persistConversationHistory?: boolean;
   isPlatform?: boolean;
+  enabledMcpToolIds?: string[];
+  skills?: string[];
 }) {
   if (!canAttemptHubSync()) return;
 
@@ -320,11 +323,20 @@ async function syncToHub(agent: {
     if (agent.isPlatform === true) {
       payload.isPlatform = true;
     }
+    if (typeof agent.persistConversationHistory === 'boolean') {
+      payload.persistConversationHistory = agent.persistConversationHistory;
+    }
     if (typeof agent.inferenceTemperature === 'number') {
       payload.inferenceTemperature = agent.inferenceTemperature;
     }
     if (typeof agent.inferenceMaxTokens === 'number') {
       payload.inferenceMaxTokens = agent.inferenceMaxTokens;
+    }
+    if (Array.isArray(agent.enabledMcpToolIds)) {
+      payload.enabledToolIds = agent.enabledMcpToolIds;
+    }
+    if (Array.isArray(agent.skills)) {
+      payload.skills = agent.skills;
     }
 
     const res = await fetch(`${baseUrl}/api/agents`, {

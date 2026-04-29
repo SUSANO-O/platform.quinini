@@ -161,6 +161,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
     agent.status = body.status;
     await agent.save();
+    const hubId = typeof agent.agentHubId === 'string' ? agent.agentHubId.trim() : '';
+    if (hubId && canAttemptHubSync()) {
+      const pushedOk = await syncHubCatalogFromLandingAgentDoc(agent);
+      agent.syncStatus = pushedOk ? 'synced' : 'failed';
+      await ClientAgent.updateOne({ _id: agent._id }, { syncStatus: agent.syncStatus });
+    }
     return NextResponse.json({ agent });
   }
 
