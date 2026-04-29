@@ -76,6 +76,27 @@ export async function GET(req: NextRequest) {
       const $set: Record<string, unknown> = { name, description, systemPrompt, model };
       if (typeof hub.ragEnabled === 'boolean') $set.ragEnabled = hub.ragEnabled;
       if (hub.ragSources !== undefined) $set.ragSources = hub.ragSources;
+      if (Array.isArray(hub.tools)) {
+        $set.tools = hub.tools
+          .filter(
+            (x): x is { toolId: string; config?: Record<string, unknown> } =>
+              Boolean(x) &&
+              typeof x === 'object' &&
+              typeof x.toolId === 'string' &&
+              x.toolId.trim().length > 0,
+          )
+          .map((x) => {
+            const cfg: Record<string, string> = {};
+            if (x.config && typeof x.config === 'object') {
+              for (const [k, v] of Object.entries(x.config)) {
+                if (typeof v === 'string') cfg[k] = v;
+                else if (v != null) cfg[k] = String(v);
+              }
+            }
+            return { toolId: x.toolId.trim(), config: cfg };
+          })
+          .slice(0, 100);
+      }
       if (Array.isArray(hub.skills)) {
         $set.skills = hub.skills
           .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)

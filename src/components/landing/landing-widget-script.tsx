@@ -52,7 +52,7 @@ const MATH_AIS_APP: Record<string, unknown> = {
   subtitle: 'En linea',
   welcome: 'Hola! Como puedo ayudarte hoy?',
   fabHint: '¿tienes duda en el uso?',
-  position: 'center',
+  position: 'right',
   edgeInset: 20,
   offsetBottom: 20,
   offsetTop: 20,

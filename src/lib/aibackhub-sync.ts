@@ -61,6 +61,29 @@ export function hubCatalogStatusToLandingStatus(
   return undefined;
 }
 
+type LandingToolConfig = { toolId: string; config?: Record<string, string> };
+
+function normalizeLandingTools(raw: unknown): LandingToolConfig[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  return raw
+    .filter(
+      (item): item is { toolId?: unknown; config?: unknown } =>
+        Boolean(item) && typeof item === 'object' && typeof item.toolId === 'string',
+    )
+    .map((item) => {
+      const cfg: Record<string, string> = {};
+      if (item.config && typeof item.config === 'object') {
+        for (const [k, v] of Object.entries(item.config as Record<string, unknown>)) {
+          if (typeof v === 'string') cfg[k] = v;
+          else if (v != null) cfg[k] = String(v);
+        }
+      }
+      return { toolId: item.toolId.trim(), config: cfg };
+    })
+    .filter((t) => t.toolId.length > 0)
+    .slice(0, 100);
+}
+
 /** Catálogo de agentes en AIBackHub (colección `agents`), alineado con AgentFlowhub + landing RAG/jerarquía. */
 export type HubCatalogAgent = {
   id: string;
@@ -97,6 +120,8 @@ export type HubCatalogAgent = {
       };
     };
   }>;
+  /** Herramientas built-in del agente (incluye `webhook` con su config). */
+  tools?: LandingToolConfig[];
   /** Catálogo hub: Active | Inactive | Error */
   status?: string;
 };
@@ -149,6 +174,8 @@ export async function pushClientAgentToHubCatalog(agent: {
   isPlatform?: boolean;
   /** IDs MCP del agente (mismo campo que `enabledToolIds` en el catálogo hub). */
   enabledToolIds?: string[] | null;
+  /** Herramientas built-in del agente (webhook, etc.) */
+  tools?: LandingToolConfig[] | null;
   /** Skills del agente (IDs del catálogo). */
   skills?: string[] | null;
   /** Config runtime de skills. */
@@ -214,6 +241,9 @@ export async function pushClientAgentToHubCatalog(agent: {
     if (Array.isArray(agent.enabledToolIds)) {
       payload.enabledToolIds = agent.enabledToolIds;
     }
+    if (Array.isArray(agent.tools)) {
+      payload.tools = normalizeLandingTools(agent.tools);
+    }
     if (Array.isArray(agent.skills)) {
       payload.skills = agent.skills;
     }
@@ -260,6 +290,7 @@ type LandingAgentDocLike = {
   persistConversationHistory?: boolean;
   isPlatform?: boolean;
   enabledMcpToolIds?: string[];
+  tools?: LandingToolConfig[];
   skills?: string[];
   skillsConfig?: Array<{
     id: string;
@@ -321,6 +352,9 @@ export async function syncHubCatalogFromLandingAgentDoc(
   if (Array.isArray(agent.enabledMcpToolIds)) {
     payload.enabledToolIds = agent.enabledMcpToolIds;
   }
+  if (Array.isArray(agent.tools)) {
+    payload.tools = agent.tools;
+  }
   if (Array.isArray(agent.skills)) {
     payload.skills = agent.skills;
   }
@@ -343,6 +377,7 @@ export type CreateHubAgentFromLandingInput = {
   parentAgentId?: unknown;
   widgetPublicToken?: string | null;
   isPlatform?: boolean;
+  tools?: LandingToolConfig[];
 };
 
 /**
@@ -383,6 +418,9 @@ export async function postCreateLandingAgentOnHubCatalog(
   }
   if (agent.isPlatform === true) {
     payload.isPlatform = true;
+  }
+  if (Array.isArray(agent.tools)) {
+    payload.tools = normalizeLandingTools(agent.tools);
   }
 
   try {

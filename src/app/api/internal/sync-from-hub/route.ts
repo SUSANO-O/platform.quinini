@@ -86,6 +86,10 @@ export async function POST(req: NextRequest) {
     isPlatform?: boolean;
     skills?: string[];
     enabledToolIds?: string[];
+    tools?: Array<{
+      toolId: string;
+      config?: Record<string, unknown>;
+    }>;
     widgetPublicToken?: string | null;
     persistConversationHistory?: boolean;
     skillsConfig?: Array<{
@@ -168,6 +172,24 @@ export async function POST(req: NextRequest) {
       .filter((x): x is string => typeof x === 'string' && (x.startsWith('mcp:') || x.startsWith('std:')))
       .map((x) => x.trim())
       .slice(0, 200);
+  }
+  if (Array.isArray(body.tools)) {
+    $set.tools = body.tools
+      .filter(
+        (x): x is { toolId: string; config?: Record<string, unknown> } =>
+          Boolean(x) && typeof x === 'object' && typeof x.toolId === 'string' && x.toolId.trim().length > 0,
+      )
+      .map((x) => {
+        const cfg: Record<string, string> = {};
+        if (x.config && typeof x.config === 'object') {
+          for (const [k, v] of Object.entries(x.config)) {
+            if (typeof v === 'string') cfg[k] = v;
+            else if (v != null) cfg[k] = String(v);
+          }
+        }
+        return { toolId: x.toolId.trim().slice(0, 80), config: cfg };
+      })
+      .slice(0, 100);
   }
   if (body.widgetPublicToken === null) {
     $set.widgetPublicToken = null;
