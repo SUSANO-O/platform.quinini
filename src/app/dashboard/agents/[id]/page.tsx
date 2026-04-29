@@ -20,9 +20,27 @@ const R = '#e41414';
 const O = '#f87600';
 const B = '#00acf8';
 const RUNTIME_SKILL_TEMPLATES = [
-  { id: 'sales_closer', name: 'Cierre de Ventas Consultivo', defaultPriority: 50 },
-  { id: 'tech_support_l1', name: 'Soporte Técnico Nivel 1', defaultPriority: 40 },
-  { id: 'data_analyst_pro', name: 'Analista de Datos Pro', defaultPriority: 45 },
+  {
+    id: 'sales_closer',
+    name: 'Cierre de Ventas Consultivo',
+    defaultPriority: 50,
+    icon: '💼',
+    description: 'Enfoca la conversación en detección de necesidad, objeciones y cierre.',
+  },
+  {
+    id: 'tech_support_l1',
+    name: 'Soporte Técnico Nivel 1',
+    defaultPriority: 40,
+    icon: '🛠️',
+    description: 'Diagnóstico paso a paso, tono empático y escalamiento cuando falta contexto.',
+  },
+  {
+    id: 'data_analyst_pro',
+    name: 'Analista de Datos Pro',
+    defaultPriority: 45,
+    icon: '📊',
+    description: 'Razonamiento estructurado para métricas, tablas y detección de anomalías.',
+  },
 ] as const;
 const BTN_PRIMARY: CSSProperties = {
   background: `linear-gradient(135deg, ${R}, ${O})`,
@@ -966,6 +984,14 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
               Capacidades de este agente. Se sincronizan con el hub al guardar.
             </p>
+            <div style={{ marginBottom: '10px' }}>
+              <span style={{
+                fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                background: 'rgba(0,172,248,0.12)', color: B,
+              }}>
+                {skills.length} seleccionada{skills.length !== 1 ? 's' : ''}
+              </span>
+            </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {AGENT_SKILLS.map((skill) => {
                 const active = skills.includes(skill.id);
@@ -982,19 +1008,19 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       );
                     }}
                     style={{
-                      padding: '5px 12px',
+                      padding: '6px 12px',
                       borderRadius: '20px',
                       fontSize: '11px',
                       fontWeight: 700,
-                      border: `1px solid ${active ? 'transparent' : 'var(--border)'}`,
-                      background: active ? skill.color : 'transparent',
-                      color: active ? '#fff' : 'var(--muted-foreground)',
+                      border: `1px solid ${active ? `${skill.color}66` : 'var(--border)'}`,
+                      background: active ? `${skill.color}18` : 'transparent',
+                      color: active ? skill.color : 'var(--muted-foreground)',
                       cursor: readOnly ? 'default' : 'pointer',
                       transition: 'all 0.15s',
                       opacity: readOnly ? 0.7 : 1,
                     }}
                   >
-                    {skill.label}
+                    {active ? '✓ ' : ''}{skill.label}
                   </button>
                 );
               })}
@@ -1011,12 +1037,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       setSkills((prev) => prev.filter((s) => s !== sid));
                     }}
                     style={{
-                      padding: '5px 12px',
+                      padding: '6px 12px',
                       borderRadius: '20px',
                       fontSize: '11px',
                       fontWeight: 700,
-                      border: '1px solid var(--border)',
-                      background: 'rgba(99,102,241,0.12)',
+                      border: '1px solid rgba(99,102,241,0.28)',
+                      background: 'rgba(99,102,241,0.09)',
                       color: '#6366f1',
                       cursor: readOnly ? 'default' : 'pointer',
                     }}
@@ -1026,7 +1052,15 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 ))}
             </div>
             {!readOnly && (
-              <div style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
+              <div style={{
+                marginTop: '10px',
+                display: 'flex',
+                gap: '8px',
+                padding: '10px',
+                borderRadius: '12px',
+                border: '1px dashed var(--border)',
+                background: 'rgba(0,172,248,0.04)',
+              }}>
                 <input
                   className="landing-input"
                   style={{ ...inp, flex: 1 }}
@@ -1059,10 +1093,18 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 const enabled = cfg?.enabled !== false && Boolean(cfg);
                 const priority = cfg?.priority ?? tpl.defaultPriority;
                 return (
-                  <div key={tpl.id} style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 12px' }}>
+                  <div key={tpl.id} style={{
+                    border: `1px solid ${enabled ? `${R}30` : 'var(--border)'}`,
+                    borderRadius: '12px',
+                    padding: '12px',
+                    background: enabled ? 'rgba(228,20,20,0.05)' : 'transparent',
+                    transition: 'all .15s',
+                  }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
                       <div>
-                        <p style={{ margin: 0, fontSize: '12px', fontWeight: 700 }}>{tpl.name}</p>
+                        <p style={{ margin: 0, fontSize: '12px', fontWeight: 700, color: enabled ? R : 'var(--foreground)' }}>
+                          <span style={{ marginRight: 6 }}>{tpl.icon}</span>{tpl.name}
+                        </p>
                         <p style={{ margin: 0, fontSize: '10px', color: 'var(--muted-foreground)' }}>{tpl.id}</p>
                       </div>
                       <button
@@ -1079,19 +1121,27 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         {enabled ? 'Activo' : 'Inactivo'}
                       </button>
                     </div>
-                    <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <label style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Prioridad</label>
-                      <input
-                        className="landing-input"
-                        style={{ ...inp, width: '120px', padding: '6px 10px' }}
-                        type="number"
-                        min={0}
-                        max={1000}
-                        value={String(priority)}
-                        onChange={(e) => setRuntimeSkillPriority(tpl.id, e.target.value, tpl.defaultPriority)}
-                        disabled={readOnly}
-                      />
-                    </div>
+                    <details style={{ marginTop: 8 }}>
+                      <summary style={{ fontSize: 11, color: 'var(--muted-foreground)', cursor: 'pointer', userSelect: 'none' }}>
+                        Ver detalle del perfil
+                      </summary>
+                      <p style={{ margin: '8px 0 6px', fontSize: 11, color: 'var(--muted-foreground)', lineHeight: 1.45 }}>
+                        {tpl.description}
+                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <label style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Prioridad</label>
+                        <input
+                          className="landing-input"
+                          style={{ ...inp, width: '120px', padding: '6px 10px', background: enabled ? 'var(--background)' : 'transparent' }}
+                          type="number"
+                          min={0}
+                          max={1000}
+                          value={String(priority)}
+                          onChange={(e) => setRuntimeSkillPriority(tpl.id, e.target.value, tpl.defaultPriority)}
+                          disabled={readOnly}
+                        />
+                      </div>
+                    </details>
                   </div>
                 );
               })}
