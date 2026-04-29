@@ -394,10 +394,10 @@ export async function sendSubscriptionEmail(
       ${btn('Actualizar método de pago', dashUrl, '#ef4444')}
     `;
   } else {
-    subject = 'Tu trial vence en 3 días — MatIAs';
+    subject = 'Tu trial vence pronto — MatIAs';
     bodyHtml = `
       ${h1('Tu prueba vence pronto')}
-      ${p('Tu período de prueba gratuita deMatIAsvence en 3 días.')}
+      ${p('Tu período de prueba gratuita de MatIAs está por finalizar.')}
       ${p('Suscríbete ahora para mantener el acceso a tus agentes y widgets sin interrupciones.')}
       ${btn('Ver planes', dashUrl, '#f59e0b')}
     `;

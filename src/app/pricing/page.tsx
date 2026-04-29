@@ -1,6 +1,7 @@
 import { Navbar } from '@/components/shared/navbar';
 import { Footer } from '@/components/shared/footer';
 import { PLANS } from '@/lib/gateway';
+import { PLAN_RAG_LIMITS } from '@/lib/plan-catalog';
 import { Check, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
@@ -68,6 +69,11 @@ export default function PricingPage() {
                     </li>
                   ))}
                 </ul>
+                {PLAN_RAG_LIMITS[plan.id] && (
+                  <p className="mt-4 text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>
+                    Límite técnico RAG: {PLAN_RAG_LIMITS[plan.id]!.mb.toLocaleString()} MB o {PLAN_RAG_LIMITS[plan.id]!.sources} fuentes por agente
+                  </p>
+                )}
 
                 <Link
                   href="/dashboard"
@@ -82,7 +88,7 @@ export default function PricingPage() {
                       : { border: '1px solid var(--border)', color: 'var(--foreground)' }
                   }
                 >
-                  {plan.id === 'free' ? 'Empezar gratis' : plan.id === 'enterprise' ? 'Contactar ventas' : 'Probar 15 días'}
+                  {plan.id === 'free' ? 'Empezar gratis' : plan.id === 'enterprise' ? 'Contactar ventas' : 'Probar 7 días'}
                   <ArrowRight size={14} />
                 </Link>
               </div>
@@ -92,7 +98,7 @@ export default function PricingPage() {
           {/* FAQ / rate limits */}
           <div className="mt-24 max-w-3xl mx-auto">
             <h2 className="text-2xl font-bold text-center mb-10">Límites por plan</h2>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-3 gap-4">
               {PLANS.map((plan) => (
                 <div
                   key={plan.id}

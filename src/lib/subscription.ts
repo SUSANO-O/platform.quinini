@@ -19,7 +19,7 @@ import {
 
 export { mapLSStatusToDb, planFromLSVariantId };
 
-const TRIAL_DAYS = 3;
+const TRIAL_DAYS = 7;
 
 // ── helpers de periodo para mantener compatibilidad con billing/webhook ──────
 

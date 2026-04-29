@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useSubscription } from '@/hooks/use-subscription';
-import { PLAN_DISPLAY, PAID_PLAN_IDS, planRank } from '@/lib/plan-catalog';
+import { PLAN_DISPLAY, PAID_PLAN_IDS, PLAN_RAG_LIMITS, planRank } from '@/lib/plan-catalog';
 import { PlanChangeModal, type PaidPlanId } from '@/components/dashboard/plan-change-modal';
 import { ChevronRight, Crown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -147,6 +147,15 @@ export function SubscriptionPlanPanel({ checkoutDisabled = false }: { checkoutDi
           <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '2px 0 0' }}>
             {current.priceLabel} · {current.widgets} widget{current.widgets !== 1 ? 's' : ''}
           </p>
+          {PLAN_RAG_LIMITS[effectivePlan] ? (
+            <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: '2px 0 0', lineHeight: 1.35 }}>
+              RAG: {PLAN_RAG_LIMITS[effectivePlan]!.mb.toLocaleString()} MB / {PLAN_RAG_LIMITS[effectivePlan]!.sources} fuentes por agente
+            </p>
+          ) : (
+            <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: '2px 0 0', lineHeight: 1.35 }}>
+              RAG no incluido en este plan
+            </p>
+          )}
         </div>
       </div>
 

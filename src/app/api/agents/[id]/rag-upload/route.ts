@@ -18,7 +18,7 @@ import crypto from 'crypto';
 type Params = { params: Promise<{ id: string }> };
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
-const MAX_SOURCES_PER_AGENT = 20;
+const DEFAULT_MAX_SOURCES_PER_AGENT = 20;
 
 /**
  * Validates that a buffer's magic bytes match the declared MIME type.
@@ -135,11 +135,31 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
   }
 
-  // Check total sources limit
+  // Check total sources limit (por plan)
+  const maxSourcesByPlan = limits.ragSourcesPerAgent > 0 ? limits.ragSourcesPerAgent : DEFAULT_MAX_SOURCES_PER_AGENT;
   const currentSources = agent.ragSources?.length ?? 0;
-  if (currentSources >= MAX_SOURCES_PER_AGENT) {
+  if (currentSources >= maxSourcesByPlan) {
     return NextResponse.json(
-      { error: `Máximo ${MAX_SOURCES_PER_AGENT} fuentes por agente. Elimina alguna antes de subir más.` },
+      { error: `Máximo ${maxSourcesByPlan} fuentes por agente en tu plan. Elimina alguna antes de subir más.` },
+      { status: 403 },
+    );
+  }
+
+  // Check total storage limit (sumando archivos ya cargados en ragSources)
+  const usedBytes = (agent.ragSources ?? []).reduce((acc: number, s: unknown) => {
+    if (!s || typeof s !== 'object') return acc;
+    const size = (s as { fileSize?: unknown }).fileSize;
+    return acc + (typeof size === 'number' && Number.isFinite(size) ? Math.max(0, size) : 0);
+  }, 0);
+  const maxStorageBytes = Math.max(0, limits.ragStorageMbPerAgent) * 1024 * 1024;
+  if (maxStorageBytes > 0 && usedBytes + file.size > maxStorageBytes) {
+    const usedMb = (usedBytes / 1024 / 1024).toFixed(1);
+    return NextResponse.json(
+      {
+        error:
+          `Límite de almacenamiento RAG alcanzado para tu plan (${limits.ragStorageMbPerAgent} MB por agente). ` +
+          `Uso actual: ${usedMb} MB.`,
+      },
       { status: 403 },
     );
   }

@@ -42,6 +42,15 @@ export const PLAN_CONVERSATION_LIMITS: Record<string, number> = {
   enterprise: -1,
 };
 
+/** Límite técnico de conocimiento RAG por agente (null = no aplica/no habilitado). */
+export const PLAN_RAG_LIMITS: Record<string, { mb: number; sources: number } | null> = {
+  free: null,
+  starter: null,
+  growth: { mb: 100, sources: 50 },
+  business: { mb: 1024, sources: 200 },
+  enterprise: { mb: 10_240, sources: 1000 },
+};
+
 export function planRank(plan: string): number {
   const i = PLAN_ORDER.indexOf(plan as PlanId);
   return i >= 0 ? i : 0;
@@ -58,13 +67,14 @@ export const PLAN_FEATURE_BULLETS: Record<
   starter: [
     '2 widgets activos en tu sitio',
     '5.000 conversaciones al mes (~167/día)',
-    '1 agente personalizado · Chat AI + analítica básica',
+    '1 agente personalizado · Chat AI + analítica básica (sin RAG)',
     'Soporte por email (48 h)',
   ],
   growth: [
     '5 widgets activos en tu sitio',
     '25.000 conversaciones al mes (~833/día)',
     'Agentes ilimitados + RAG + analítica avanzada',
+    'RAG: hasta 100 MB o 50 fuentes por agente',
     'Soporte prioritario por chat (24 h)',
   ],
   business: [

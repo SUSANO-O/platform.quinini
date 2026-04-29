@@ -34,7 +34,7 @@ export const TOOLS: ToolDef[] = [
     name: 'File Upload',
     icon: '📎',
     description: 'Permite al usuario subir archivos para que el agente los procese.',
-    minPlan: 'starter',
+    minPlan: 'growth',
     configFields: [],
   },
   {
@@ -135,6 +135,8 @@ export interface AgentPlanLimits {
   subAgentsPerAgent: number; // max sub-agents per orchestrator
   toolsPerAgent: number;  // max tools per agent
   ragEnabled: boolean;
+  ragSourcesPerAgent: number;
+  ragStorageMbPerAgent: number;
   availableToolIds: string[];
 }
 
@@ -146,20 +148,26 @@ export const AGENT_PLAN_LIMITS: Record<string, AgentPlanLimits> = {
     subAgentsPerAgent: 0,
     toolsPerAgent: 2,
     ragEnabled: false,
+    ragSourcesPerAgent: 0,
+    ragStorageMbPerAgent: 0,
     availableToolIds: ['web-search', 'webhook'],
   },
   starter: {
     agents: 2,
     subAgentsPerAgent: 1,
     toolsPerAgent: 3,
-    ragEnabled: true,
-    availableToolIds: ['web-search', 'webhook', 'file-upload', 'gmail', 'slack'],
+    ragEnabled: false,
+    ragSourcesPerAgent: 0,
+    ragStorageMbPerAgent: 0,
+    availableToolIds: ['web-search', 'webhook', 'gmail', 'slack'],
   },
   growth: {
     agents: 5,
     subAgentsPerAgent: 3,
     toolsPerAgent: 5,
     ragEnabled: true,
+    ragSourcesPerAgent: 50,
+    ragStorageMbPerAgent: 100,
     availableToolIds: ['web-search', 'webhook', 'file-upload', 'gmail', 'slack', 'google-calendar', 'hubspot', 'whatsapp', 'notion'],
   },
   business: {
@@ -167,6 +175,8 @@ export const AGENT_PLAN_LIMITS: Record<string, AgentPlanLimits> = {
     subAgentsPerAgent: 10,
     toolsPerAgent: 10,
     ragEnabled: true,
+    ragSourcesPerAgent: 200,
+    ragStorageMbPerAgent: 1024,
     availableToolIds: ALL_TOOL_IDS,
   },
   enterprise: {
@@ -174,6 +184,8 @@ export const AGENT_PLAN_LIMITS: Record<string, AgentPlanLimits> = {
     subAgentsPerAgent: 999,
     toolsPerAgent: 999,
     ragEnabled: true,
+    ragSourcesPerAgent: 1000,
+    ragStorageMbPerAgent: 10240,
     availableToolIds: ALL_TOOL_IDS,
   },
 };
