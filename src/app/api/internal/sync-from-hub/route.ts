@@ -84,6 +84,7 @@ export async function POST(req: NextRequest) {
     inferenceTemperature?: number | null;
     inferenceMaxTokens?: number | null;
     isPlatform?: boolean;
+    skills?: string[];
   };
   try {
     body = await req.json();
@@ -137,6 +138,13 @@ export async function POST(req: NextRequest) {
       $set.type = 'sub-agent';
       $set.parentAgentId = parent;
     }
+  }
+
+  if (Array.isArray(body.skills)) {
+    $set.skills = body.skills
+      .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+      .map((x) => x.trim())
+      .slice(0, 20);
   }
 
   /** El slug del hub es la fuente de verdad para `agentHubId` en la landing. */

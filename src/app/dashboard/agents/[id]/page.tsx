@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useClientModels, mergeSavedModelOptions } from '@/hooks/use-client-models';
 import { TOOLS, getAgentLimits, TOOL_MAP } from '@/lib/agent-plans';
+import { AGENT_SKILLS } from '@/lib/agent-skills';
 import {
   Bot, ChevronLeft, Save, Loader2, Plus, Trash2, Network,
   Zap, Wrench, Settings, Lock, CircleOff, Upload, FileText,
@@ -129,6 +130,8 @@ interface ClientAgent {
   enabledMcpToolIds?: string[];
   /** Catálogo global (solo lectura en la landing; edición en AgentFlowHub). */
   isPlatform?: boolean;
+  /** Skills del agente (IDs del catálogo). Sync con hub. */
+  skills?: string[];
 }
 interface SubAgent {
   _id: string; name: string; model: string; status: 'active' | 'disabled';
@@ -164,6 +167,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [inferenceMaxTokens, setInferenceMaxTokens] = useState('');
   const [modelQuery, setModelQuery] = useState('');
   const [showAllModels, setShowAllModels] = useState(false);
+  const [skills, setSkills] = useState<string[]>([]);
 
   // MCP tools state
   const [mcpServers, setMcpServers] = useState<McpServerGroup[]>([]);
@@ -235,6 +239,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         setInferenceMaxTokens(
           typeof a.inferenceMaxTokens === 'number' ? String(a.inferenceMaxTokens) : '',
         );
+        setSkills(Array.isArray(a.skills) ? a.skills : []);
       })
       .finally(() => setLoading(false));
   }, [id, router]);
@@ -392,6 +397,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       model,
       widgetPublicToken: widgetPublicToken.trim() ? widgetPublicToken.trim().slice(0, 512) : null,
       persistConversationHistory,
+      skills,
     };
     if (t === '') {
       patch.inferenceTemperature = null;
@@ -892,6 +898,46 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 />
               </div>
             </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard>
+            <p style={sectionTitle}>Skills</p>
+            <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
+              Capacidades de este agente. Se sincronizan con el hub al guardar.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {AGENT_SKILLS.map((skill) => {
+                const active = skills.includes(skill.id);
+                return (
+                  <button
+                    key={skill.id}
+                    type="button"
+                    title={skill.description}
+                    disabled={readOnly}
+                    onClick={() => {
+                      if (readOnly) return;
+                      setSkills((prev) =>
+                        active ? prev.filter((s) => s !== skill.id) : [...prev, skill.id],
+                      );
+                    }}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '20px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      border: `1px solid ${active ? 'transparent' : 'var(--border)'}`,
+                      background: active ? skill.color : 'transparent',
+                      color: active ? '#fff' : 'var(--muted-foreground)',
+                      cursor: readOnly ? 'default' : 'pointer',
+                      transition: 'all 0.15s',
+                      opacity: readOnly ? 0.7 : 1,
+                    }}
+                  >
+                    {skill.label}
+                  </button>
+                );
+              })}
             </div>
           </SectionCard>
 

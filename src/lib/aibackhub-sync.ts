@@ -80,6 +80,8 @@ export type HubCatalogAgent = {
   widgetPublicToken?: string;
   persistConversationHistory?: boolean;
   isPlatform?: boolean;
+  /** Skills del agente (IDs del catálogo agent-skills.ts). */
+  skills?: string[];
   /** Catálogo hub: Active | Inactive | Error */
   status?: string;
 };
@@ -132,6 +134,8 @@ export async function pushClientAgentToHubCatalog(agent: {
   isPlatform?: boolean;
   /** IDs MCP del agente (mismo campo que `enabledToolIds` en el catálogo hub). */
   enabledToolIds?: string[] | null;
+  /** Skills del agente (IDs del catálogo). */
+  skills?: string[] | null;
 }): Promise<boolean> {
   const base = getAibackhubBaseUrl();
   const hid = String(agent.agentHubId || '').trim();
@@ -180,6 +184,9 @@ export async function pushClientAgentToHubCatalog(agent: {
     if (Array.isArray(agent.enabledToolIds)) {
       payload.enabledToolIds = agent.enabledToolIds;
     }
+    if (Array.isArray(agent.skills)) {
+      payload.skills = agent.skills;
+    }
     const res = await fetch(url, {
       method: 'PUT',
       headers: hubCreateHeaders(),
@@ -220,6 +227,7 @@ type LandingAgentDocLike = {
   persistConversationHistory?: boolean;
   isPlatform?: boolean;
   enabledMcpToolIds?: string[];
+  skills?: string[];
 };
 
 /**
@@ -265,6 +273,9 @@ export async function syncHubCatalogFromLandingAgentDoc(
   }
   if (Array.isArray(agent.enabledMcpToolIds)) {
     payload.enabledToolIds = agent.enabledMcpToolIds;
+  }
+  if (Array.isArray(agent.skills)) {
+    payload.skills = agent.skills;
   }
   return pushClientAgentToHubCatalog(payload);
 }

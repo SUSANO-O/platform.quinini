@@ -25,5 +25,5 @@ export async function GET(req: NextRequest) {
     limit: 5000,
   });
 
-  return NextResponse.json({ ok: true, source: 'cron', ...result });
+  return NextResponse.json({ ...result, source: 'cron' });
 }

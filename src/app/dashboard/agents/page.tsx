@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useClientModels } from '@/hooks/use-client-models';
 import { getAgentLimits, TOOL_MAP } from '@/lib/agent-plans';
+import { SKILL_MAP } from '@/lib/agent-skills';
 import {
   Bot,
   Plus,
@@ -34,6 +35,7 @@ interface ClientAgent {
   ragSources?: unknown[];
   createdAt: string;
   isPlatform?: boolean;
+  skills?: string[];
 }
 
 function AgentCard({
@@ -137,6 +139,36 @@ function AgentCard({
               </span>
             )}
           </div>
+          {agent.skills && agent.skills.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {agent.skills.slice(0, 5).map((sid) => {
+                const sk = SKILL_MAP.get(sid);
+                if (!sk) return null;
+                return (
+                  <span
+                    key={sid}
+                    title={sk.description}
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: 20,
+                      background: `${sk.color}22`,
+                      color: sk.color,
+                      border: `1px solid ${sk.color}44`,
+                    }}
+                  >
+                    {sk.label}
+                  </span>
+                );
+              })}
+              {agent.skills.length > 5 && (
+                <span style={{ fontSize: 10, color: 'var(--muted-foreground)', padding: '2px 4px' }}>
+                  +{agent.skills.length - 5} más
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">

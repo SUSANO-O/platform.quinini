@@ -256,6 +256,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
   }
 
+  if ('skills' in body) {
+    const raw = body.skills;
+    if (!Array.isArray(raw)) {
+      return NextResponse.json({ error: 'skills debe ser un array de strings.' }, { status: 400 });
+    }
+    const cleaned = raw
+      .filter((x: unknown): x is string => typeof x === 'string' && x.trim().length > 0)
+      .map((x) => x.trim())
+      .slice(0, 20);
+    agent.set('skills', cleaned);
+  }
+
   await agent.save();
 
   const hubId = typeof agent.agentHubId === 'string' ? agent.agentHubId.trim() : '';

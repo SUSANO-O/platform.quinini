@@ -158,6 +158,8 @@ const ClientAgentSchema = new Schema({
   syncStatus:      { type: String, enum: ['pending', 'synced', 'failed'], default: 'pending' },
   /** Creado por admin; visible para todos los usuarios y no cuenta en el cupo de agentes del plan. */
   isPlatform:      { type: Boolean, default: false },
+  /** IDs de skills del catálogo (agent-skills.ts). Sincronizado bidireccional con el hub. */
+  skills:          { type: [String], default: [] },
 }, { timestamps: true });
 
 ClientAgentSchema.index({ userId: 1, type: 1, createdAt: -1 });
