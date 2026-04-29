@@ -19,12 +19,12 @@
     "refunds": "Refunds"
   },
   "landing": {
-    "badge": "3 days free — no credit card required",
+    "badge": "7 days free — no credit card required",
     "hero": {
       "title1": "AI Agents for",
       "title2": "any industry",
       "description": "Create your own intelligent chat widget on your website in minutes. Build specialized agents, a full REST API, and Widget API that works on any page — all in one place.",
-      "ctaPrimary": "Start free — 3-day trial",
+      "ctaPrimary": "Start free — 7-day trial",
       "ctaAccount": "I already have an account",
       "ctaDocs": "View docs"
     },
@@ -37,7 +37,7 @@
       "title": "Works in 4 steps",
       "subtitle": "From zero to a chat widget on your site in less than 10 minutes.",
       "step1Title": "Create your account",
-      "step1Desc": "3 days free, no card. Full access to the Widget Builder and all 9 agents.",
+      "step1Desc": "7 days free, no card. Full access to the Widget Builder and all 9 agents.",
       "step2Title": "Design your widget",
       "step2Desc": "Choose the agent, customize colors, text and position with the visual Widget Builder.",
       "step3Title": "Copy the snippet",
@@ -90,25 +90,26 @@
       "assistantName": "MatIAs Assistant",
       "available": "Available now",
       "msg1": "Hi! 👋 I'm your assistant. Are you looking for information about our plans?",
-      "msg2": "Yes, what's included in the Pro plan?",
-      "msg3": "The Pro plan includes unlimited agents, advanced analytics and priority support. Start with <strong>3 days free</strong> — no card required. 🚀",
+      "msg2": "Yes, what's included in the Growth plan?",
+      "msg3": "Growth includes unlimited agents, RAG with files/URLs and advanced analytics. Start with <strong>7 days free</strong> — no card required. 🚀",
       "inputPlaceholder": "Type your message…",
       "socialProof": "<red>+320 companies</red> already use MatIAs to convert more visitors into customers"
     },
     "pricing": {
       "title": "Transparent pricing",
-      "subtitle": "3-day free trial on all plans. No contracts. Cancel anytime.",
+      "subtitle": "7-day free trial. No contracts. Cancel anytime.",
       "period": "/mo",
       "popular": "Most popular",
-      "cta": "Start free — 3 days",
+      "cta": "Start free — 7 days",
+      "ragNotIncluded": "No document RAG — available from Growth",
+      "ragTechnical": "RAG technical limit: {mb} MB or {sources} sources per agent",
       "starter": {
         "widgets": "2 widgets",
         "requests": "5,000 conv/mo",
         "features": [
           "2 active widgets on your site",
           "5,000 conversations per month (~167/day)",
-          "1 custom agent",
-          "AI Chat + basic analytics",
+          "1 custom agent · AI Chat + basic analytics (no RAG)",
           "Email support (48 h)"
         ]
       },
@@ -118,9 +119,8 @@
         "features": [
           "5 active widgets on your site",
           "25,000 conversations per month (~833/day)",
-          "Unlimited agents + RAG",
-          "Advanced analytics + CSV export",
-          "Priority support (chat, 24 h)"
+          "Unlimited agents + RAG + advanced analytics",
+          "Priority support via chat (24 h)"
         ]
       },
       "business": {
@@ -130,8 +130,7 @@
           "15 active widgets on your site",
           "100,000 conversations per month (~3,300/day)",
           "Agents + RAG + MCP integrations",
-          "Dedicated support + 99.9% SLA",
-          "Onboarding and setup included"
+          "Dedicated support · 99.9% SLA · Onboarding included"
         ]
       }
     },
@@ -139,7 +138,7 @@
       "title": "Frequently asked questions",
       "items": [
         {
-          "q": "What's included in the 3-day trial?",
+          "q": "What's included in the 7-day trial?",
           "a": "Full access to the Widget Builder, all agents and the SDK. No limits during the trial period."
         },
         {
@@ -162,7 +161,7 @@
     },
     "cta": {
       "title1": "Start today.",
-      "title2": "3 days free.",
+      "title2": "7 days free.",
       "subtitle": "No card. Cancel anytime. Your first widget live in minutes.",
       "primary": "Create free account",
       "secondary": "I already have an account"

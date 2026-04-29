@@ -19,12 +19,12 @@
     "refunds": "Reembolsos"
   },
   "landing": {
-    "badge": "3 días gratis — sin tarjeta de crédito",
+    "badge": "7 días gratis — sin tarjeta de crédito",
     "hero": {
       "title1": "Agentes de IA para",
       "title2": "cualquier industria",
       "description": "Crea tu propio chat widget inteligente en tu sitio web en minutos. Crea agentes especializados, una API REST FULL, y Widgets API que funciona en cualquier página todo en un solo lugar.",
-      "ctaPrimary": "Empezar gratis — 3 días de trial",
+      "ctaPrimary": "Empezar gratis — 7 días de trial",
       "ctaAccount": "Ya tengo cuenta",
       "ctaDocs": "Ver docs"
     },
@@ -37,7 +37,7 @@
       "title": "Funciona en 4 pasos",
       "subtitle": "De cero a un chat widget en tu sitio en menos de 10 minutos.",
       "step1Title": "Crea tu cuenta",
-      "step1Desc": "3 días gratis, sin tarjeta. Acceso completo al Widget Builder y los 9 agentes.",
+      "step1Desc": "7 días gratis, sin tarjeta. Acceso completo al Widget Builder y los 9 agentes.",
       "step2Title": "Diseña tu widget",
       "step2Desc": "Elige el agente, personaliza colores, textos y posición con el Widget Builder visual.",
       "step3Title": "Copia el snippet",
@@ -90,25 +90,26 @@
       "assistantName": "Asistente MatIAs",
       "available": "Disponible ahora",
       "msg1": "¡Hola! 👋 Soy tu asistente. ¿Estás buscando información sobre nuestros planes?",
-      "msg2": "Sí, ¿qué incluye el plan Pro?",
-      "msg3": "El plan Pro incluye agentes ilimitados, analítica avanzada y soporte prioritario. Empieza con <strong>3 días gratis</strong> — sin tarjeta. 🚀",
+      "msg2": "Sí, ¿qué incluye el plan Growth?",
+      "msg3": "Growth incluye agentes ilimitados, RAG con archivos/URLs y analítica avanzada. Empieza con <strong>7 días gratis</strong> — sin tarjeta. 🚀",
       "inputPlaceholder": "Escribe tu mensaje…",
       "socialProof": "<red>+320 empresas</red> ya usan MatIAs para convertir más visitantes en clientes"
     },
     "pricing": {
       "title": "Precios transparentes",
-      "subtitle": "3 días de prueba gratuita en todos los planes. Sin contratos. Cancela cuando quieras.",
+      "subtitle": "7 días de prueba gratuita. Sin contratos. Cancela cuando quieras.",
       "period": "/mes",
       "popular": "Más popular",
-      "cta": "Empezar gratis — 3 días",
+      "cta": "Empezar gratis — 7 días",
+      "ragNotIncluded": "Sin RAG en documentos — disponible desde Growth",
+      "ragTechnical": "Límite técnico RAG: {mb} MB o {sources} fuentes por agente",
       "starter": {
         "widgets": "2 widgets",
         "requests": "5,000 conv/mes",
         "features": [
           "2 widgets activos en tu sitio",
           "5.000 conversaciones al mes (~167/día)",
-          "1 agente personalizado",
-          "Chat AI + analítica básica",
+          "1 agente personalizado · Chat AI + analítica básica (sin RAG)",
           "Soporte por email (48 h)"
         ]
       },
@@ -118,9 +119,8 @@
         "features": [
           "5 widgets activos en tu sitio",
           "25.000 conversaciones al mes (~833/día)",
-          "Agentes ilimitados + RAG",
-          "Analítica avanzada + exportación CSV",
-          "Soporte prioritario (chat, 24 h)"
+          "Agentes ilimitados + RAG + analítica avanzada",
+          "Soporte prioritario por chat (24 h)"
         ]
       },
       "business": {
@@ -130,8 +130,7 @@
           "15 widgets activos en tu sitio",
           "100.000 conversaciones al mes (~3.300/día)",
           "Agentes + RAG + integraciones MCP",
-          "Soporte dedicado + SLA 99,9 %",
-          "Onboarding y configuración incluidos"
+          "Soporte dedicado · SLA 99,9 % · Onboarding incluido"
         ]
       }
     },
@@ -139,7 +138,7 @@
       "title": "Preguntas frecuentes",
       "items": [
         {
-          "q": "¿Qué incluye el trial de 3 días?",
+          "q": "¿Qué incluye el trial de 7 días?",
           "a": "Acceso completo al Widget Builder, todos los agentes y el SDK. Sin límites en el período de prueba."
         },
         {
@@ -162,7 +161,7 @@
     },
     "cta": {
       "title1": "Empieza hoy.",
-      "title2": "3 días gratis.",
+      "title2": "7 días gratis.",
       "subtitle": "Sin tarjeta. Cancela cuando quieras. Tu primer widget activo en minutos.",
       "primary": "Crear cuenta gratis",
       "secondary": "Ya tengo cuenta"

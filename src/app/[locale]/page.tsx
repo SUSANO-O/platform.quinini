@@ -10,6 +10,7 @@ import {
   GraduationCap, TrendingUp, Lock, Wrench,
   UserPlus, Palette, Rocket,
 } from 'lucide-react';
+import { PLAN_RAG_LIMITS } from '@/lib/plan-catalog';
 
 const R  = '#e41414';
 const O  = '#f87600';
@@ -501,7 +502,7 @@ export default async function LandingPage() {
                 </div>
                 <p className="text-sm mb-6" style={{ color: 'var(--muted-foreground)' }}>{plan.widgets} · {plan.requests}</p>
 
-                <ul className="space-y-3 mb-8">
+                <ul className="space-y-3 mb-4">
                   {plan.features.map((feat) => (
                     <li key={feat} className="flex items-center gap-2 text-sm">
                       <Check size={14} style={{ color: plan.color, flexShrink: 0 }} />
@@ -509,6 +510,19 @@ export default async function LandingPage() {
                     </li>
                   ))}
                 </ul>
+                {plan.id === 'starter' && (
+                  <p className="text-xs font-semibold mb-6 leading-snug" style={{ color: 'var(--muted-foreground)' }}>
+                    {t('pricing.ragNotIncluded')}
+                  </p>
+                )}
+                {PLAN_RAG_LIMITS[plan.id] && (
+                  <p className="text-xs font-semibold mb-6 leading-snug" style={{ color: 'var(--muted-foreground)' }}>
+                    {t('pricing.ragTechnical', {
+                      mb: PLAN_RAG_LIMITS[plan.id]!.mb.toLocaleString(),
+                      sources: PLAN_RAG_LIMITS[plan.id]!.sources,
+                    })}
+                  </p>
+                )}
 
                 <Link
                   href="/register"

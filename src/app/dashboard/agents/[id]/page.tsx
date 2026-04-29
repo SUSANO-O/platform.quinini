@@ -223,6 +223,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [dragOver, setDragOver] = useState(false);
   const [uploadMsg, setUploadMsg] = useState('');
   const [uploadErr, setUploadErr] = useState('');
+  const [webhookTestBusy, setWebhookTestBusy] = useState(false);
 
   // Sub-agent creation
   const [showNewSub, setShowNewSub] = useState(false);
@@ -465,6 +466,35 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
   async function saveTools() {
     await save({ tools, enabledMcpToolIds: mcpToolIds });
+  }
+
+  async function testSavedWebhook() {
+    setError('');
+    setSuccess('');
+    setWebhookTestBusy(true);
+    try {
+      const res = await fetch(`/api/agents/${encodeURIComponent(id)}/test-webhook`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(typeof data.error === 'string' ? data.error : 'Error al probar webhook.');
+        return;
+      }
+      if (data.ok) {
+        setSuccess(`Webhook OK: el endpoint respondió HTTP ${data.status}.`);
+      } else {
+        setSuccess(
+          `El endpoint respondió HTTP ${data.status}. Revisa que acepte POST JSON y devuelva 2xx si todo va bien.`,
+        );
+      }
+    } catch {
+      setError('No se pudo probar el webhook (red, timeout o servidor inalcanzable).');
+    } finally {
+      setWebhookTestBusy(false);
+      setTimeout(() => setSuccess(''), 6000);
+    }
   }
 
   async function saveRag() {
@@ -1564,6 +1594,30 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       />
                     </div>
                   ))}
+                  {!readOnly && t.toolId === 'webhook' && (
+                    <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
+                      <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '0 0 10px', lineHeight: 1.45 }}>
+                        En el chat el modelo puede escribir JSON sin llamar a tu URL. Esta prueba envía un POST real
+                        desde el servidor con la configuración <strong>ya guardada</strong> (pulsa Guardar herramientas antes si cambiaste la URL).
+                      </p>
+                      <button
+                        type="button"
+                        onClick={testSavedWebhook}
+                        disabled={webhookTestBusy}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-opacity"
+                        style={{
+                          border: `1px solid ${B}`,
+                          background: 'rgba(0,172,248,0.08)',
+                          color: B,
+                          cursor: webhookTestBusy ? 'not-allowed' : 'pointer',
+                          opacity: webhookTestBusy ? 0.7 : 1,
+                        }}
+                      >
+                        {webhookTestBusy ? <Loader2 size={13} className="animate-spin" /> : <Link2 size={13} />}
+                        Probar webhook (POST de prueba)
+                      </button>
+                    </div>
+                  )}
                 </div>
               </SectionCard>
             );
