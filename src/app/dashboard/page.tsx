@@ -35,7 +35,7 @@ const QUICK = [
   { href: '/dashboard/widget-builder', icon: Cpu, title: 'Widget Builder', desc: 'Diseña y configura tu chat widget', color: R, external: false },
   { href: '/dashboard/widgets', icon: Boxes, title: 'Mis Widgets', desc: 'Gestiona tus widgets creados', color: B, external: false },
   { href: '/dashboard/agents', icon: Bot, title: 'Mis Agentes', desc: 'Crea y configura tus agentes de IA', color: O, external: false },
-  { href: '/widget', icon: Zap, title: 'Docs SDK', desc: 'Guía de integración del Widget API', color: B, external: true },
+ // { href: '/widget', icon: Zap, title: 'Docs SDK', desc: 'Guía de integración del Widget API', color: B, external: true },
 ] as const;
 
 export default function DashboardPage() {
