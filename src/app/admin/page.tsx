@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Users, Boxes, TrendingUp, Clock, XCircle, CheckCircle, AlertTriangle, Ban, Activity, ShoppingBag } from 'lucide-react';
+import { Users, Boxes, TrendingUp, Clock, XCircle, CheckCircle, AlertTriangle, Ban, Activity, ShoppingBag, LayoutDashboard } from 'lucide-react';
 
 interface UserQuota {
   userId: string;
@@ -64,6 +64,27 @@ interface ReminderResult {
   error?: string;
 }
 
+interface WidgetAnalyticsSupervision {
+  subAgentsTotal: number;
+  subAgentsActive: number;
+  inventory: Array<{
+    id: string;
+    name: string;
+    parentAgentId: string | null;
+    parentName: string | null;
+    userId: string;
+    userEmail: string;
+    status: string;
+    hubSlug: string | null;
+    syncStatus: string;
+    updatedAt: string | null;
+  }>;
+}
+
+interface WidgetAnalyticsPayload {
+  supervision?: WidgetAnalyticsSupervision;
+}
+
 const PLAN_COLOR: Record<string, string> = {
   free: '#64748b',
   starter: '#00acf8',
@@ -103,11 +124,18 @@ export default function AdminPage() {
   const [reminderKinds, setReminderKinds] = useState<Array<'trial' | 'renewal'>>(['trial', 'renewal']);
   const [reminderPlans, setReminderPlans] = useState<Array<'free' | 'starter' | 'growth' | 'business' | 'enterprise'>>(['free', 'starter', 'growth', 'business', 'enterprise']);
   const [reminderLimit, setReminderLimit] = useState(500);
+  const [widgetAnalytics, setWidgetAnalytics] = useState<WidgetAnalyticsPayload | null>(null);
 
   useEffect(() => {
     fetch('/api/admin/stats').then((r) => r.json()).then(setStats);
     fetch('/api/admin/packs').then((r) => r.ok ? r.json() : null).then((d) => d && setPacks(d));
+    fetch('/api/admin/widget-analytics')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setWidgetAnalytics(d as WidgetAnalyticsPayload));
   }, []);
+
+  /** Misma base que dashboard MCP; enlaces del panel Admin solo exponen vars NEXT_PUBLIC_* en el cliente. */
+  const hubUiBase = (process.env.NEXT_PUBLIC_AGENTFLOWHUB_URL || 'http://127.0.0.1:9010').replace(/\/$/, '');
 
   const metricCards = stats ? [
     { label: 'Usuarios totales',       value: stats.totalUsers,         icon: Users,         color: '#6366f1' },
@@ -305,6 +333,71 @@ export default function AdminPage() {
               </div>
             ))}
           </div>
+
+          {/* ── Supervisión sub-agentes (inventario landing) ── */}
+          {widgetAnalytics?.supervision && (
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', overflow: 'hidden', marginBottom: '32px' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <LayoutDashboard size={20} style={{ color: '#6366f1' }} />
+                  <div>
+                    <p style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>Supervisión operativa · sub-agentes</p>
+                    <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '4px 0 0', maxWidth: '640px' }}>
+                      Inventario en MatIAs (landing). Trazas por fase (router/worker), tools y <code style={{ fontSize: '10px' }}>traceId</code> están en AgentFlowhub → Granja → pestaña Supervisión.
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '12px' }}>
+                  <span><strong style={{ color: '#0d9488' }}>{widgetAnalytics.supervision.subAgentsActive}</strong> activos / {widgetAnalytics.supervision.subAgentsTotal} total</span>
+                  {hubUiBase ? (
+                    <a
+                      href={`${hubUiBase}/agents/farm`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: '#6366f1', fontWeight: 700, textDecoration: 'none' }}
+                    >
+                      Abrir granja en Hub ↗
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+              {widgetAnalytics.supervision.inventory.length === 0 ? (
+                <p style={{ padding: '24px 20px', color: 'var(--muted-foreground)', fontSize: '13px', margin: 0 }}>
+                  Aún no hay sub-agentes registrados en la base de datos de la landing.
+                </p>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--muted)' }}>
+                        {['Sub-agente', 'Padre', 'Usuario', 'Estado', 'Sync hub', 'Actualizado'].map((h) => (
+                          <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {widgetAnalytics.supervision.inventory.map((s, i) => (
+                        <tr key={s.id} style={{ borderTop: '1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'var(--muted)' }}>
+                          <td style={{ padding: '10px 16px', fontWeight: 600 }}>{s.name}</td>
+                          <td style={{ padding: '10px 16px', color: 'var(--muted-foreground)' }}>{s.parentName ?? '—'}</td>
+                          <td style={{ padding: '10px 16px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.userEmail}</td>
+                          <td style={{ padding: '10px 16px' }}>
+                            <span style={{ padding: '2px 8px', borderRadius: '6px', fontWeight: 700, fontSize: '10px', background: s.status === 'active' ? '#22c55e22' : '#64748b22', color: s.status === 'active' ? '#22c55e' : '#64748b' }}>
+                              {s.status}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: '10px' }}>{s.syncStatus}</td>
+                          <td style={{ padding: '10px 16px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>
+                            {s.updatedAt ? new Date(s.updatedAt).toLocaleString('es') : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── Capacity overview ── */}
           {stats.totalCapacity > 0 && (
