@@ -75,15 +75,13 @@ export default function DashboardMcpPage() {
           lineHeight: 1.55,
         }}
       >
-        <strong>AgentFlowHub — MCP estándar y credenciales</strong>
+        <strong>AgentFlowHub — integraciones y credenciales</strong>
         <p style={{ margin: '8px 0 0' }}>
-          Para conectar un <strong>servidor MCP genérico</strong> (URL + opcional Authorization), abre el hub en{' '}
+          Para gestionar conexiones MCP por agente desde el hub, abre{' '}
           <a href={`${hubUiBase}/mcp`} target="_blank" rel="noopener noreferrer" style={{ color: '#6366f1', fontWeight: 700 }}>
             {hubUiBase}/mcp
           </a>
-          {' '}→ pestaña <strong>&quot;MCP estándar&quot;</strong>. Tras sincronizar el agente, las mismas conexiones aplican al
-          agente enlazado en AIBackHub; en la landing puedes revisar credenciales en la ficha del agente (integraciones) cuando
-          el flujo lo permita.
+          . Tras sincronizar el agente, las mismas conexiones aplican al agente enlazado en AIBackHub.
         </p>
       </div>
 

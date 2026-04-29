@@ -564,7 +564,7 @@ export default function NewAgentPage() {
                   >
                     {hubUiBase}/mcp
                   </a>{' '}
-                  (pestañas Conexiones / MCP estándar), elige el agente del hub y añade credenciales allí.
+                  (pestaña Conexiones), elige el agente del hub y añade credenciales allí.
                 </li>
                 <li>
                   En la ficha → <strong>Herramientas</strong> marca qué tools MCP usa el agente (y el widget) y guarda.

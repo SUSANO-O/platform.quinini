@@ -42,7 +42,7 @@ interface McpConnection {
   syncStatus: 'pending' | 'ok' | 'error';
   lastSyncAt?: string;
   lastSyncError?: string;
-  /** IDs de tools descubiertas (p. ej. MCP estándar). */
+  /** IDs de tools descubiertas durante la sincronización MCP. */
   toolsSnapshot?: string[];
   /** En hub vienen enmascaradas (no son los valores reales). */
   credentials?: Record<string, string>;
