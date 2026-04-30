@@ -16,6 +16,11 @@ import {
   syncHubCatalogFromLandingAgentDoc,
 } from '@/lib/aibackhub-sync';
 import { repairSubAgentLinks } from '@/lib/repair-subagent-links';
+import {
+  getUserAllowedProviders,
+  isProviderAllowed,
+  resolveProviderForModelId,
+} from '@/lib/model-provider-policy';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -252,7 +257,22 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if ('name' in body && body.name?.trim()) agent.name = body.name.trim();
   if ('description' in body) agent.description = body.description ?? '';
   if ('systemPrompt' in body && body.systemPrompt?.trim()) agent.systemPrompt = body.systemPrompt.trim();
-  if ('model' in body && body.model) agent.model = body.model;
+  if ('model' in body && body.model) {
+    const allowedProviders = await getUserAllowedProviders(userId);
+    if (allowedProviders.length) {
+      const provider = await resolveProviderForModelId(String(body.model));
+      if (!provider || !isProviderAllowed(allowedProviders, provider)) {
+        return NextResponse.json(
+          {
+            error:
+              'Ese modelo no está permitido para tu cuenta por política de proveedor.',
+          },
+          { status: 403 },
+        );
+      }
+    }
+    agent.model = body.model;
+  }
   if ('inferenceTemperature' in body) {
     const v = body.inferenceTemperature;
     if (v === null || v === '') {

@@ -45,19 +45,19 @@ export default async function LandingPage() {
 
   const PLANS = [
     {
-      name: 'Starter', price: '$29', period: t('pricing.period'),
+      name: 'Starter', price: '$39', period: t('pricing.period'),
       widgets: t('pricing.starter.widgets'), requests: t('pricing.starter.requests'),
       features: t.raw('pricing.starter.features') as string[],
       color: B, id: 'starter',
     },
     {
-      name: 'Growth', price: '$79', period: t('pricing.period'),
+      name: 'Growth', price: '$99', period: t('pricing.period'),
       widgets: t('pricing.growth.widgets'), requests: t('pricing.growth.requests'),
       features: t.raw('pricing.growth.features') as string[],
       color: R, id: 'growth', popular: true,
     },
     {
-      name: 'Business', price: '$199', period: t('pricing.period'),
+      name: 'Business', price: '$349', period: t('pricing.period'),
       widgets: t('pricing.business.widgets'), requests: t('pricing.business.requests'),
       features: t.raw('pricing.business.features') as string[],
       color: O, id: 'business',

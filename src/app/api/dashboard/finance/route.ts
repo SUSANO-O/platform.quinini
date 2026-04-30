@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       ...summary,
       disclaimer:
-        'Estimación interna basada en mensajes registrados en RequestLog × FINANCE_EST_USD_PER_MESSAGE. No incluye coste real de proveedores de IA.',
+        'Estimación interna basada en mensajes registrados en RequestLog × estimación por mensaje usando * + estimación por tipo de modelo usando *. No incluye coste real de proveedores de IA.',
     });
   } catch (e) {
     console.error('[finance]', e);

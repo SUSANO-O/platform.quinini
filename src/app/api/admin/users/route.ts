@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { User, Subscription, Widget, ClientAgent, RequestLog } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
+import { normalizeAllowedProviders } from '@/lib/model-provider-policy';
 
 async function requireAdmin(req: NextRequest) {
   const token = req.cookies.get('afhub_session')?.value;
@@ -37,7 +38,7 @@ export async function GET(req: NextRequest) {
   }
 
   const [users, total] = await Promise.all([
-    User.find(userQuery).sort({ createdAt: -1 }).skip(skip).limit(limit).lean() as Promise<Array<{ _id: unknown; email: string; displayName?: string; role?: string; createdAt: Date }>>,
+    User.find(userQuery).sort({ createdAt: -1 }).skip(skip).limit(limit).lean() as Promise<Array<{ _id: unknown; email: string; displayName?: string; role?: string; createdAt: Date; allowedModelProviders?: string[] }>>,
     User.countDocuments(userQuery),
   ]);
 
@@ -87,10 +88,34 @@ export async function GET(req: NextRequest) {
       trialEndsAt:         sub?.trialEndsAt || null,
       trialDaysRemaining,
       periodEnd:           sub?.currentPeriodEnd || 0,
+      allowedModelProviders: normalizeAllowedProviders(u.allowedModelProviders),
     };
   });
 
   if (status) rows = rows.filter((r) => r.status === status);
 
   return NextResponse.json({ users: rows, total, page, pages: Math.ceil(total / limit) });
+}
+
+export async function PATCH(req: NextRequest) {
+  const adminId = await requireAdmin(req);
+  if (!adminId) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
+
+  let body: { userId?: string; allowedModelProviders?: unknown };
+  try {
+    body = (await req.json()) as { userId?: string; allowedModelProviders?: unknown };
+  } catch {
+    return NextResponse.json({ error: 'JSON inválido.' }, { status: 400 });
+  }
+  const userId = typeof body.userId === 'string' ? body.userId.trim() : '';
+  if (!userId) return NextResponse.json({ error: 'userId requerido.' }, { status: 400 });
+  const allowedModelProviders = normalizeAllowedProviders(body.allowedModelProviders);
+
+  const target = await User.findById(userId).select({ role: 1 }).lean() as { role?: string } | null;
+  if (!target) return NextResponse.json({ error: 'Usuario no encontrado.' }, { status: 404 });
+  if (target.role === 'admin') {
+    return NextResponse.json({ error: 'No se permite cambiar política de proveedores a usuarios admin.' }, { status: 403 });
+  }
+  await User.updateOne({ _id: userId }, { $set: { allowedModelProviders } });
+  return NextResponse.json({ ok: true, userId, allowedModelProviders });
 }

@@ -217,9 +217,9 @@ export async function POST(req: NextRequest) {
           .format(attr.total / 100);
 
         const planLabel = (({
-          starter: 'Starter ($29/mes)',
-          growth: 'Growth ($79/mes)',
-          business: 'Business ($199/mes)',
+          starter: 'Starter ($39/mes)',
+          growth: 'Growth ($99/mes)',
+          business: 'Business ($349/mes)',
           enterprise: 'Enterprise',
         } as Record<string, string>)[sub.plan] ?? sub.plan);
 

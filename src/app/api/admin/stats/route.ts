@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
   const active   = subs.filter((s) => s.status === 'active').length;
   const canceled = subs.filter((s) => s.status === 'canceled').length;
 
-  const MRR: Record<string, number> = { starter: 29, growth: 79, business: 199 };
+  const MRR: Record<string, number> = { starter: 39, growth: 99, business: 349 };
   const mrr = subs
     .filter((s) => s.status === 'active')
     .reduce((acc, s) => acc + (MRR[s.plan] || 0), 0);

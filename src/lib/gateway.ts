@@ -63,7 +63,7 @@ export const PLANS: PlanInfo[] = [
   {
     id: 'starter',
     name: 'Starter',
-    price: '$29',
+    price: '$39',
     priceNote: '/month',
     rateLimit: 60,
     monthlyRequests: 5000,
@@ -78,7 +78,7 @@ export const PLANS: PlanInfo[] = [
   {
     id: 'growth',
     name: 'Growth',
-    price: '$79',
+    price: '$99',
     priceNote: '/month',
     rateLimit: 120,
     monthlyRequests: 25000,
@@ -94,7 +94,7 @@ export const PLANS: PlanInfo[] = [
   {
     id: 'business',
     name: 'Business',
-    price: '$199',
+    price: '$349',
     priceNote: '/month',
     rateLimit: 300,
     monthlyRequests: 100000,

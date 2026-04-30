@@ -29,7 +29,7 @@ export const LS_STORE_ID = parseInt(process.env.LEMONSQUEEZY_STORE_ID || '0', 10
 export const PLANS = {
   starter: {
     name: 'Starter',
-    price: 29,
+    price: 39,
     priceId: process.env.LEMONSQUEEZY_VARIANT_STARTER || '',
     widgets: 2,
     requests: '5k conv/mo',
@@ -43,7 +43,7 @@ export const PLANS = {
   },
   growth: {
     name: 'Growth',
-    price: 79,
+    price: 99,
     priceId: process.env.LEMONSQUEEZY_VARIANT_GROWTH || '',
     widgets: 5,
     requests: '25k conv/mo',
@@ -57,7 +57,7 @@ export const PLANS = {
   },
   business: {
     name: 'Business',
-    price: 199,
+    price: 349,
     priceId: process.env.LEMONSQUEEZY_VARIANT_BUSINESS || '',
     widgets: 15,
     requests: '100k conv/mo',

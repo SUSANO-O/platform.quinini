@@ -24,6 +24,8 @@ const UserSchema = new Schema({
   /** Webhook HTTPS del cliente SaaS (eventos salientes RGPD/producto). Firma HMAC opcional. */
   saasWebhookUrl:    { type: String, default: null },
   saasWebhookSecret: { type: String, default: null },
+  /** Política opcional por tenant: proveedores permitidos en selector de modelos (vacío = todos). */
+  allowedModelProviders: { type: [String], default: [] },
   createdAt:         { type: Date,   default: Date.now },
 }, { timestamps: true });
 

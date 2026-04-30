@@ -18,7 +18,10 @@ interface UserRow {
   trialEndsAt: string | null;
   trialDaysRemaining: number;
   periodEnd: number;
+  allowedModelProviders?: string[];
 }
+
+const PROVIDER_OPTIONS = ['google', 'vertex', 'huggingface', 'openai', 'anthropic', 'deepseek'] as const;
 
 const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   trialing:   { label: 'Trial',    color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
@@ -45,6 +48,7 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('');
   const [loading, setLoading] = useState(true);
+  const [savingPolicyUid, setSavingPolicyUid] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -66,7 +70,7 @@ export default function AdminUsersPage() {
     background: 'var(--background)', color: 'var(--foreground)', fontSize: '13px', outline: 'none',
   };
 
-  const cols = '2fr 1fr 1fr 0.7fr 0.7fr 1fr 1fr 0.8fr';
+  const cols = '2fr 1fr 1fr 0.7fr 0.7fr 1fr 1fr 1.6fr';
 
   async function impersonate(uid: string) {
     if (!confirm('¿Abrir el dashboard como este usuario? Podrás ver su cuenta como si hubieras iniciado sesión con él.')) return;
@@ -81,6 +85,25 @@ export default function AdminUsersPage() {
       return;
     }
     window.location.href = '/dashboard';
+  }
+
+  async function saveProviderPolicy(uid: string, providers: string[]) {
+    setSavingPolicyUid(uid);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: uid, allowedModelProviders: providers }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        alert(data.error || 'No se pudo guardar la política de proveedores.');
+        return;
+      }
+      setUsers((prev) => prev.map((u) => (u.uid === uid ? { ...u, allowedModelProviders: providers } : u)));
+    } finally {
+      setSavingPolicyUid(null);
+    }
   }
 
   return (
@@ -126,7 +149,7 @@ export default function AdminUsersPage() {
         <div style={{ minWidth: 820 }}>
           {/* Header */}
           <div style={{ display: 'grid', gridTemplateColumns: cols, gap: '10px', padding: '11px 20px', borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.02)' }}>
-            {['Email', 'Estado', 'Plan', 'Widgets', 'Agentes', 'Req/mes', 'Registro', 'Acciones'].map((h) => (
+            {['Email', 'Estado', 'Plan', 'Widgets', 'Agentes', 'Req/mes', 'Registro', 'Acciones / Política IA'].map((h) => (
               <span key={h} style={{ fontSize: '11px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</span>
             ))}
           </div>
@@ -193,27 +216,52 @@ export default function AdminUsersPage() {
                     {u.role === 'admin' || u.uid === currentUser?.uid ? (
                       <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>—</span>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => impersonate(u.uid)}
-                        title="Abrir el dashboard como este usuario"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          padding: '5px 10px',
-                          borderRadius: '8px',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          border: '1px solid rgba(99,102,241,0.45)',
-                          background: 'rgba(99,102,241,0.08)',
-                          color: '#6366f1',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <UserRound size={12} />
-                        Suplantar
-                      </button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+                        <button
+                          type="button"
+                          onClick={() => impersonate(u.uid)}
+                          title="Abrir el dashboard como este usuario"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            padding: '5px 10px',
+                            borderRadius: '8px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            border: '1px solid rgba(99,102,241,0.45)',
+                            background: 'rgba(99,102,241,0.08)',
+                            color: '#6366f1',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <UserRound size={12} />
+                          Suplantar
+                        </button>
+                        <select
+                          value={(u.allowedModelProviders ?? []).join(',')}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            const providers = value ? value.split(',').filter(Boolean) : [];
+                            void saveProviderPolicy(u.uid, providers);
+                          }}
+                          disabled={savingPolicyUid === u.uid}
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border)',
+                            background: 'var(--background)',
+                            color: 'var(--foreground)',
+                            fontSize: '11px',
+                          }}
+                        >
+                          <option value="">Todos los proveedores</option>
+                          {PROVIDER_OPTIONS.map((p) => (
+                            <option key={p} value={p}>Solo {p}</option>
+                          ))}
+                          <option value="google,vertex">Solo google + vertex</option>
+                        </select>
+                      </div>
                     )}
                   </div>
                 </div>

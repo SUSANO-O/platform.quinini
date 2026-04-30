@@ -7,6 +7,12 @@ import { PieChart, Loader2 } from 'lucide-react';
 type FinancePayload = {
   currency: string;
   rateUsdPerMessage: number;
+  rates?: {
+    defaultRate: number;
+    flashRate: number;
+    premiumRate: number;
+    ragMultiplier: number;
+  };
   months: string[];
   rows: Array<{
     month: string;
@@ -14,6 +20,9 @@ type FinancePayload = {
     agentLabel: string;
     billableMessages: number;
     estimatedUsd: number;
+    modelClass?: 'default' | 'flash' | 'premium';
+    ragEnabled?: boolean;
+    effectiveUsdPerMessage?: number;
   }>;
   totalsByMonth: Record<string, { messages: number; estimatedUsd: number }>;
   disclaimer?: string;
@@ -67,8 +76,14 @@ export default function FinancePage() {
         <>
           <div className="card-texture" style={{ padding: 16, borderRadius: 14, marginBottom: 16, border: '1px solid rgba(255,255,255,0.12)' }}>
             <p style={{ margin: 0, fontSize: 14 }}>
-              Tarifa estimada: <strong>{data.rateUsdPerMessage} USD</strong> por mensaje facturable.
+              Tarifa base estimada: <strong>{data.rateUsdPerMessage} USD</strong> por mensaje facturable.
             </p>
+            {data.rates ? (
+              <p style={{ margin: '8px 0 0', fontSize: 12, opacity: 0.86 }}>
+                Flash/Mini: <strong>{data.rates.flashRate}</strong> · Premium/Pro: <strong>{data.rates.premiumRate}</strong> ·
+                Multiplicador RAG: <strong>x{data.rates.ragMultiplier}</strong>
+              </p>
+            ) : null}
             {data.disclaimer ? (
               <p style={{ margin: '10px 0 0', fontSize: 12, opacity: 0.78 }}>{data.disclaimer}</p>
             ) : null}
@@ -83,6 +98,7 @@ export default function FinancePage() {
                 <tr style={{ textAlign: 'left', background: 'rgba(15,23,42,0.45)' }}>
                   <th style={{ padding: '12px 10px' }}>Mes</th>
                   <th style={{ padding: '12px 10px' }}>Agente / widget</th>
+                  <th style={{ padding: '12px 10px' }}>Perfil de coste</th>
                   <th style={{ padding: '12px 10px' }}>Mensajes</th>
                   <th style={{ padding: '12px 10px' }}>USD (est.)</th>
                 </tr>
@@ -92,6 +108,10 @@ export default function FinancePage() {
                   <tr key={`${r.month}-${r.widgetId}-${i}`} style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
                     <td style={{ padding: '10px' }}>{r.month}</td>
                     <td style={{ padding: '10px' }}>{r.agentLabel}</td>
+                    <td style={{ padding: '10px' }}>
+                      {(r.modelClass || 'default')}{r.ragEnabled ? ' + RAG' : ''}
+                      {typeof r.effectiveUsdPerMessage === 'number' ? ` (${r.effectiveUsdPerMessage})` : ''}
+                    </td>
                     <td style={{ padding: '10px' }}>{r.billableMessages}</td>
                     <td style={{ padding: '10px' }}>{r.estimatedUsd.toFixed(4)}</td>
                   </tr>

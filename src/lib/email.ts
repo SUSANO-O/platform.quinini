@@ -339,9 +339,9 @@ export async function sendEmailChangeCodeEmail(
 }
 
 const PLAN_NAMES: Record<string, string> = {
-  starter: 'Starter ($29/mes)',
-  growth: 'Growth ($79/mes)',
-  business: 'Business ($199/mes)',
+  starter: 'Starter ($39/mes)',
+  growth: 'Growth ($99/mes)',
+  business: 'Business ($349/mes)',
   enterprise: 'Enterprise',
 };
 

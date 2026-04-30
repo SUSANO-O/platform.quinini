@@ -9,9 +9,9 @@ export const PLAN_DISPLAY: Record<
   { label: string; priceLabel: string; widgets: number }
 > = {
   free: { label: 'Free', priceLabel: '$0', widgets: 1 },
-  starter: { label: 'Starter', priceLabel: '$29/mes', widgets: 2 },
-  growth: { label: 'Growth', priceLabel: '$79/mes', widgets: 5 },
-  business: { label: 'Business', priceLabel: '$199/mes', widgets: 15 },
+  starter: { label: 'Starter', priceLabel: '$39/mes', widgets: 2 },
+  growth: { label: 'Growth', priceLabel: '$99/mes', widgets: 5 },
+  business: { label: 'Business', priceLabel: '$349/mes', widgets: 15 },
   enterprise: { label: 'Enterprise', priceLabel: 'Contacto', widgets: 999 },
 };
 

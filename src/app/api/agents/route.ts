@@ -19,6 +19,11 @@ import {
 } from '@/lib/aibackhub-sync';
 import { repairSubAgentLinks } from '@/lib/repair-subagent-links';
 import { ensureHubPlatformAgentsInLanding } from '@/lib/hub-platform-import';
+import {
+  getUserAllowedProviders,
+  isProviderAllowed,
+  resolveProviderForModelId,
+} from '@/lib/model-provider-policy';
 
 async function getAuth(req: NextRequest) {
   const token = req.cookies.get('afhub_session')?.value;
@@ -185,6 +190,19 @@ export async function POST(req: NextRequest) {
   if (!name?.trim()) return NextResponse.json({ error: 'El nombre es requerido.' }, { status: 400 });
   if (!systemPrompt?.trim()) return NextResponse.json({ error: 'El system prompt es requerido.' }, { status: 400 });
   if (!model) return NextResponse.json({ error: 'El modelo es requerido.' }, { status: 400 });
+  const allowedProviders = await getUserAllowedProviders(userId);
+  if (allowedProviders.length) {
+    const provider = await resolveProviderForModelId(String(model));
+    if (!provider || !isProviderAllowed(allowedProviders, provider)) {
+      return NextResponse.json(
+        {
+          error:
+            'Este modelo no está permitido para tu cuenta. Contacta a administración para habilitar su proveedor.',
+        },
+        { status: 403 },
+      );
+    }
+  }
 
   // ── Enforce limits (los agentes de plataforma no cuentan en el cupo) ─────
   if (type === 'agent' && !isPlatform) {
