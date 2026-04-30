@@ -600,6 +600,31 @@
       return 'MCP';
     }
 
+    function formatQuotaTagHtml(qh) {
+      if (!qh || typeof qh !== 'object') return '';
+      var pct = typeof qh.percentUsed === 'number' ? qh.percentUsed : 0;
+      var pauseMax = qh.estimatedPauseSecMax != null ? qh.estimatedPauseSecMax : 60;
+      var pauseExact = qh.estimatedPauseSec != null ? qh.estimatedPauseSec : pauseMax;
+      var rem = qh.remaining;
+      if (qh.atLimit === true || pct >= 100 || rem === 0) {
+        return (
+          '<div class="afhub-quota-tag afhub-quota-tag--limit" role="status">Has llegado al cupo de esta ventana (~100%). El siguiente mensaje puede requerir una espera de unos ' +
+          pauseExact +
+          ' s.</div>'
+        );
+      }
+      if (pct >= 80) {
+        return (
+          '<div class="afhub-quota-tag afhub-quota-tag--warn" role="status">Vas cerca del límite (~' +
+          pct +
+          '%) del cupo de mensajes en esta ventana. Al llegar al 100%, la pausa puede ser de hasta ~' +
+          pauseMax +
+          ' s.</div>'
+        );
+      }
+      return '';
+    }
+
     function addMessage(type, text, imgOpts) {
       var el = document.createElement('div');
       el.className = 'afhub-msg ' + type;
@@ -609,7 +634,8 @@
           imgOpts && imgOpts.cooldown
             ? '<div class="afhub-cooldown-pill" role="status">Agente en espera</div>'
             : '';
-        el.innerHTML = cooldownPrefix + formatBotHtml(text);
+        var quotaPrefix = imgOpts && imgOpts.quotaHtml ? imgOpts.quotaHtml : '';
+        el.innerHTML = cooldownPrefix + quotaPrefix + formatBotHtml(text);
         if (imgOpts && imgOpts.images && imgOpts.images.length) {
           for (var j = 0; j < imgOpts.images.length; j++) {
             var item = imgOpts.images[j];
@@ -848,6 +874,14 @@
           if (toolsUsed && toolsUsed.length) botOpts.toolsUsed = toolsUsed;
           if (mcpTag) botOpts.mcpTag = mcpTag;
           if (cooldown) botOpts.cooldown = true;
+        }
+        var qh = data.quotaHint;
+        if (qh && !cooldown) {
+          var qHtml = formatQuotaTagHtml(qh);
+          if (qHtml) {
+            botOpts = botOpts || {};
+            botOpts.quotaHtml = qHtml;
+          }
         }
         addMessage('bot', reply, botOpts);
         history.push({ role: 'model', content: reply });
@@ -1339,6 +1373,8 @@
           '#' + rootId + ' .afhub-msg-rich .afhub-pre { background:#1a1a24; color:#e8e8ef; border-color:rgba(255,255,255,.08); }' +
           '#' + rootId + ' .afhub-msg-rich .afhub-code { background:#2a2a36; color:#e0e0ea; }' +
           '#' + rootId + ' .afhub-cooldown-pill { color:rgba(255,255,255,.48); background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); }' +
+          '#' + rootId + ' .afhub-quota-tag--warn { color:#fcd34d !important; background:rgba(251,191,36,.12) !important; border-color:rgba(251,191,36,.35) !important; }' +
+          '#' + rootId + ' .afhub-quota-tag--limit { color:#fca5a5 !important; background:rgba(248,113,113,.12) !important; border-color:rgba(248,113,113,.35) !important; }' +
           '#' + rootId + ' .afhub-input-area { border-top-color:#2a2a34; background:#16161d; }' +
           '#' + rootId + ' .afhub-input { border-color:#3d3d4a; background:#1e1e28; color:#ececf1; }' +
           '#' + rootId + ' .afhub-input::placeholder { color:#888; }' +
@@ -1429,6 +1465,9 @@
       '#' + rootId + ' .afhub-msg-rich strong { font-weight:600; }' +
       '#' + rootId + ' .afhub-msg-rich em { font-style:italic; opacity:.95; }' +
       '#' + rootId + ' .afhub-cooldown-pill { display:block; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:rgba(0,0,0,.42); margin:0 0 10px; padding:4px 10px; border-radius:999px; background:rgba(0,0,0,.05); border:1px solid rgba(0,0,0,.08); width:fit-content; }' +
+      '#' + rootId + ' .afhub-quota-tag { display:block; font-size:12px; font-weight:500; line-height:1.45; margin:0 0 10px; padding:8px 11px; border-radius:10px; border:1px solid rgba(0,0,0,.1); width:100%; max-width:100%; box-sizing:border-box; }' +
+      '#' + rootId + ' .afhub-quota-tag--warn { color:#92400e; background:rgba(251,191,36,.14); border-color:rgba(217,119,6,.28); }' +
+      '#' + rootId + ' .afhub-quota-tag--limit { color:#991b1b; background:rgba(248,113,113,.12); border-color:rgba(220,38,38,.28); }' +
       '#' + rootId + ' .afhub-mcp-source-tag { margin-top:8px; display:inline-block; font-size:10px; font-weight:600; letter-spacing:.04em; padding:3px 8px; border-radius:6px; color:' +
         cfg.color +
         '; background:rgba(0,0,0,.04); border:1px solid rgba(0,0,0,.1); }' +
