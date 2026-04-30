@@ -605,7 +605,11 @@
       el.className = 'afhub-msg ' + type;
       if (type === 'bot') {
         el.className += ' afhub-msg-rich';
-        el.innerHTML = formatBotHtml(text);
+        var cooldownPrefix =
+          imgOpts && imgOpts.cooldown
+            ? '<div class="afhub-cooldown-pill" role="status">Agente en espera</div>'
+            : '';
+        el.innerHTML = cooldownPrefix + formatBotHtml(text);
         if (imgOpts && imgOpts.images && imgOpts.images.length) {
           for (var j = 0; j < imgOpts.images.length; j++) {
             var item = imgOpts.images[j];
@@ -836,12 +840,14 @@
         if (!mcpTag && toolsUsed && toolsUsed.length) {
           mcpTag = inferMcpTagFromToolIds(toolsUsed);
         }
+        var cooldown = data.code === 'AGENT_COOLDOWN' || data.cooldown === true;
         var botOpts = undefined;
-        if ((imgs && imgs.length) || (toolsUsed && toolsUsed.length) || mcpTag) {
+        if ((imgs && imgs.length) || (toolsUsed && toolsUsed.length) || mcpTag || cooldown) {
           botOpts = {};
           if (imgs && imgs.length) botOpts.images = imgs;
           if (toolsUsed && toolsUsed.length) botOpts.toolsUsed = toolsUsed;
           if (mcpTag) botOpts.mcpTag = mcpTag;
+          if (cooldown) botOpts.cooldown = true;
         }
         addMessage('bot', reply, botOpts);
         history.push({ role: 'model', content: reply });
@@ -1103,13 +1109,18 @@
       var data = await res.json().catch(function () { return {}; });
       if (!res.ok) {
         var SERVICE_ERROR = 'No podemos procesar tu solicitud en este momento. Comunícate con soporte.';
+        var serverMsg = typeof data.error === 'string' && data.error.trim() ? data.error.trim() : '';
         if (data.code === 'QUOTA_EXCEEDED' || data.code === 'SUBAGENT_LIMIT_EXCEEDED' || data.code === 'WIDGET_PROVIDER_SUBSCRIPTION_REQUIRED') {
           throw new Error(SERVICE_ERROR);
         }
         if (res.status === 429) {
           throw new Error('Demasiadas solicitudes. Intenta de nuevo en un momento.');
         }
-        throw new Error(SERVICE_ERROR);
+        // 502 HUB_CHAT_PROXY_FAILED u otros JSON con `error` del backend / proxy
+        if (serverMsg && (res.status === 502 || res.status === 503 || data.code === 'HUB_CHAT_PROXY_FAILED' || data.code === 'LANDING_SECRET_MISSING')) {
+          throw new Error(serverMsg);
+        }
+        throw new Error(serverMsg || SERVICE_ERROR);
       }
       return data;
     } finally {
@@ -1327,6 +1338,7 @@
           '#' + rootId + ' .afhub-persona-tag { border-color:rgba(255,255,255,.12); background:rgba(255,255,255,.06); }' +
           '#' + rootId + ' .afhub-msg-rich .afhub-pre { background:#1a1a24; color:#e8e8ef; border-color:rgba(255,255,255,.08); }' +
           '#' + rootId + ' .afhub-msg-rich .afhub-code { background:#2a2a36; color:#e0e0ea; }' +
+          '#' + rootId + ' .afhub-cooldown-pill { color:rgba(255,255,255,.48); background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); }' +
           '#' + rootId + ' .afhub-input-area { border-top-color:#2a2a34; background:#16161d; }' +
           '#' + rootId + ' .afhub-input { border-color:#3d3d4a; background:#1e1e28; color:#ececf1; }' +
           '#' + rootId + ' .afhub-input::placeholder { color:#888; }' +
@@ -1416,6 +1428,7 @@
       '#' + rootId + ' .afhub-msg-rich .afhub-code { font-size:.9em; padding:2px 6px; border-radius:5px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:rgba(0,0,0,.07); }' +
       '#' + rootId + ' .afhub-msg-rich strong { font-weight:600; }' +
       '#' + rootId + ' .afhub-msg-rich em { font-style:italic; opacity:.95; }' +
+      '#' + rootId + ' .afhub-cooldown-pill { display:block; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:rgba(0,0,0,.42); margin:0 0 10px; padding:4px 10px; border-radius:999px; background:rgba(0,0,0,.05); border:1px solid rgba(0,0,0,.08); width:fit-content; }' +
       '#' + rootId + ' .afhub-mcp-source-tag { margin-top:8px; display:inline-block; font-size:10px; font-weight:600; letter-spacing:.04em; padding:3px 8px; border-radius:6px; color:' +
         cfg.color +
         '; background:rgba(0,0,0,.04); border:1px solid rgba(0,0,0,.1); }' +

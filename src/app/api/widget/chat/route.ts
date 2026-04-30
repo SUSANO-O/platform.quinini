@@ -67,8 +67,49 @@ async function fetchHubWidgetChat(
   }
 }
 
+/** Misma forma que AgentFlowhub `AGENT_COOLDOWN` — HTTP 200 para que el widget muestre `reply` en el chat. */
+function landingWidgetCooldown(
+  kind: 'landing_ip' | 'landing_agent',
+  retryAfterSec: number,
+  requestId: string,
+) {
+  const retryAfterMs = Math.max(1000, retryAfterSec * 1000);
+  const retryAt = new Date(Date.now() + retryAfterMs).toISOString();
+  const s = Math.max(1, retryAfterSec);
+  const reply =
+    kind === 'landing_ip'
+      ? `El agente está en pausa: demasiadas solicitudes desde esta dirección. Intenta de nuevo en unos ${s} segundos.`
+      : `Este widget recibe muchas preguntas seguidas. Podrás escribir de nuevo en unos ${s} segundos.`;
+  return {
+    reply,
+    code: 'AGENT_COOLDOWN' as const,
+    cooldown: true as const,
+    cooldownKind: kind,
+    retryAfterSec: s,
+    retryAt,
+    requestId,
+  };
+}
+
 export async function POST(req: NextRequest) {
   const origin = req.headers.get('origin') || '*';
+  const requestIdEarly =
+    (req.headers.get('x-trace-id') || req.headers.get('x-request-id') || '').trim() ||
+    randomUUID();
+
+  // Sin esto en Vercel, getAgentflowhubBaseUrl() cae en 127.0.0.1:9002 → fetch falla → 502 poco claro.
+  if (!process.env.AGENTFLOWHUB_URL?.trim() && process.env.VERCEL === '1') {
+    return NextResponse.json(
+      {
+        error:
+          'Falta AGENTFLOWHUB_URL en variables de entorno. Define la URL pública https://… de tu despliegue de AgentFlowhub (Project Settings → Environment Variables).',
+        code: 'AGENTFLOWHUB_URL_MISSING',
+        hint:
+          'Valor típico: https://tu-agentflowhub.vercel.app — mismo endpoint /api/widget/chat; no uses la URL de esta landing como hub.',
+      },
+      { status: 503, headers: cors(origin) },
+    );
+  }
 
   // ── Rate limit paso 1: por IP global — 120/min ───────────────────────────────────
   // Bloquea floods masivos sin penalizar NAT compartido (oficinas, universidades).
@@ -76,10 +117,10 @@ export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
   const rlGlobal = checkRateLimit('widget-chat-ip', ip, 120, 60_000);
   if (!rlGlobal.success) {
-    return NextResponse.json(
-      { error: 'Demasiadas solicitudes. Intenta de nuevo más tarde.', code: 'RATE_LIMIT' },
-      { status: 429, headers: { ...cors(origin), 'Retry-After': String(rlGlobal.retryAfter) } },
-    );
+    return NextResponse.json(landingWidgetCooldown('landing_ip', rlGlobal.retryAfter, requestIdEarly), {
+      status: 200,
+      headers: cors(origin),
+    });
   }
 
   // ── Body size guard (64 KB max) ──────────────────────────────────────────────────
@@ -112,8 +153,8 @@ export async function POST(req: NextRequest) {
       const rlAgent = checkRateLimit('widget-chat-agent', `${ip}:${agentIdForRl}`, 40, 60_000);
       if (!rlAgent.success) {
         return NextResponse.json(
-          { error: 'Demasiadas solicitudes para este widget. Intenta de nuevo más tarde.', code: 'RATE_LIMIT' },
-          { status: 429, headers: { ...cors(origin), 'Retry-After': String(rlAgent.retryAfter) } },
+          landingWidgetCooldown('landing_agent', rlAgent.retryAfter, requestIdEarly),
+          { status: 200, headers: cors(origin) },
         );
       }
     }
@@ -156,9 +197,7 @@ export async function POST(req: NextRequest) {
     tokenFromBody
   ).trim();
 
-  const traceId =
-    (req.headers.get('x-trace-id') || req.headers.get('x-request-id') || '').trim() ||
-    randomUUID();
+  const traceId = requestIdEarly;
 
   const headers: Record<string, string> = {
     'Content-Type': req.headers.get('content-type') || 'application/json',

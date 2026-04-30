@@ -1,6 +1,9 @@
 /**
  * POST /api/widget/events — telemetría del SDK (widget.js).
  * Reenvía a AIBackHub /api/widget-events para que AgentFlowhub Analytics lea los mismos datos.
+ *
+ * Si añades escritura a disco (p. ej. métricas locales), usa `ensureWritableDataDir()` desde
+ * `@/lib/server-writable-data-dir` — en AWS Lambda no se puede crear `./data` bajo `/var/task`.
  */
 
 import { NextRequest, NextResponse } from 'next/server';

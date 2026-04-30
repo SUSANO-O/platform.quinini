@@ -350,7 +350,7 @@ export default function NewAgentPage() {
             <div data-tour="agent-model">
             {modelsHubError && (
               <p className="text-xs mb-3 leading-relaxed m-0" style={{ color: '#d97706' }}>
-                {modelsHubError} Se muestran modelos de respaldo; revisa BACKEND_URL y que AIBackHub esté en marcha.
+                {modelsHubError} Se muestran modelos de respaldo; revisa severback esté en marcha.
               </p>
             )}
             <div className="rounded-xl p-3 mb-3" style={{ border: '1px solid var(--border)', background: 'var(--muted)' }}>
