@@ -16,6 +16,7 @@ import {
 } from '@/lib/auth';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { sendVerificationEmail } from '@/lib/email';
+import { recordAudit } from '@/lib/audit-log';
 
 const COOKIE = 'afhub_session';
 const COOKIE_MAX_AGE = 60 * 60 * 12; // 12 hours
@@ -102,6 +103,12 @@ export async function POST(req: NextRequest) {
       }
 
       const token = createSessionToken(user._id.toString());
+      await recordAudit({
+        userId: user._id.toString(),
+        action: 'auth.register',
+        resource: 'session',
+        ip,
+      });
       const res = NextResponse.json({
         user: {
           uid: user._id.toString(),
@@ -161,6 +168,12 @@ export async function POST(req: NextRequest) {
       }
 
       const token = createSessionToken(user._id.toString());
+      await recordAudit({
+        userId: user._id.toString(),
+        action: 'auth.login',
+        resource: 'session',
+        ip,
+      });
       const res = NextResponse.json({
         user: {
           uid: user._id.toString(),

@@ -8,7 +8,20 @@ import { SubscriptionProvider, useSubscription } from '@/hooks/use-subscription'
 import { TourProvider, useTour } from '@/components/onboarding/app-tour';
 // import { initPaddleClient } from '@/lib/paddle-client'; // Paddle — comentado
 import { useEffect, useMemo, useState } from 'react';
-import { LayoutDashboard, Boxes, Settings, LogOut, Cpu, Bot, ShieldAlert, Plug, Route, RotateCcw } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Boxes,
+  Settings,
+  LogOut,
+  Cpu,
+  Bot,
+  Shield,
+  ShieldAlert,
+  Plug,
+  Route,
+  RotateCcw,
+  PieChart,
+} from 'lucide-react';
 
 const NAV = [
   { href: '/dashboard', label: 'Inicio', icon: LayoutDashboard },
@@ -16,6 +29,8 @@ const NAV = [
   { href: '/dashboard/mcp', label: 'Integraciones MCP', icon: Plug },
   { href: '/dashboard/widget-builder', label: 'Widget Builder', icon: Cpu },
   { href: '/dashboard/widgets', label: 'Mis Widgets', icon: Boxes },
+  { href: '/dashboard/compliance', label: 'Cumplimiento', icon: Shield },
+  { href: '/dashboard/finance', label: 'Costes (interno)', icon: PieChart },
   { href: '/dashboard/settings', label: 'Ajustes', icon: Settings },
 ];
 
@@ -25,6 +40,8 @@ const SIDEBAR_TOUR_KEY_BY_HREF: Record<string, string> = {
   '/dashboard/mcp': 'sidebar-mcp',
   '/dashboard/widget-builder': 'sidebar-widget-builder',
   '/dashboard/widgets': 'sidebar-widgets',
+  '/dashboard/compliance': 'sidebar-cumplimiento',
+  '/dashboard/finance': 'sidebar-finanzas',
   '/dashboard/settings': 'sidebar-ajustes',
 };
 

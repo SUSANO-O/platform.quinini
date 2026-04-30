@@ -13,6 +13,9 @@ import {
   hubCreateHeaders,
 } from '@/lib/aibackhub-sync';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
+import { connectDB } from '@/lib/db/connection';
+import { Widget } from '@/lib/db/models';
+import { dispatchSaasWebhook } from '@/lib/saas-webhook-outbound';
 
 const MAX_EVENT_BODY_BYTES = 8 * 1024; // 8 KB — events are tiny
 
@@ -23,6 +26,8 @@ const ALLOWED_EVENTS = new Set([
   'message_sent',
   'message_received',
   'widget_error',
+  /** Derivado del SDK cuando se muestra oferta WhatsApp / humano */
+  'conversation_handoff',
 ]);
 
 function corsHeaders(): Record<string, string> {
@@ -60,6 +65,32 @@ export async function POST(req: NextRequest) {
       { error: 'Payload inválido para evento de widget.' },
       { status: 400, headers: corsHeaders() },
     );
+  }
+
+  // ── Webhooks salientes SaaS (best-effort, no bloquea analytics) ────────────
+  try {
+    await connectDB();
+    const row = await Widget.findOne({ agentId }).select({ userId: 1 }).lean() as
+      | { userId?: string }
+      | null;
+    const uid = row?.userId?.trim();
+    if (uid) {
+      if (event === 'widget_closed') {
+        dispatchSaasWebhook(uid, 'conversation.closed', {
+          agentId,
+          instanceId: typeof body.instanceId === 'string' ? body.instanceId : undefined,
+          timestamp: typeof body.timestamp === 'string' ? body.timestamp : undefined,
+        });
+      }
+      if (event === 'conversation_handoff') {
+        dispatchSaasWebhook(uid, 'conversation.handoff', {
+          agentId,
+          details: typeof body.details === 'object' && body.details !== null ? body.details : {},
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('[widget/events] saas webhook lookup skipped:', e);
   }
 
   if (!canAttemptHubSync()) {

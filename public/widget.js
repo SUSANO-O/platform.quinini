@@ -484,6 +484,14 @@
       row.appendChild(inner);
       messages.appendChild(row);
       messages.scrollTop = messages.scrollHeight;
+      try {
+        emitEvent('conversation_handoff', {
+          reason: 'keyword_whatsapp_offer',
+          channel: 'whatsapp',
+        });
+      } catch (_evErr) {
+        /* noop */
+      }
     }
 
     var closeBtn = document.createElement('button');

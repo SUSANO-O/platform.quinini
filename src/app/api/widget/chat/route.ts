@@ -7,11 +7,13 @@
 import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAgentflowhubBaseUrl } from '@/lib/aibackhub-sync';
+import { tryServeWidgetChatViaHubMcp } from '@/lib/widget-chat-direct-mcp';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent, Subscription } from '@/lib/db/models';
 import { findWidgetForWtToken, sentAgentIdMatchesWidget } from '@/lib/widget-token-verify';
 import { trackWidgetChatUsage } from '@/lib/platform-agent-utils';
 import { checkConversationQuota } from '@/lib/quota';
+import { dispatchSaasWebhook } from '@/lib/saas-webhook-outbound';
 import { getAgentLimits } from '@/lib/agent-plans';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
@@ -226,6 +228,12 @@ export async function POST(req: NextRequest) {
         try {
           const quota = await checkConversationQuota(w.userId);
           if (!quota.allowed) {
+            dispatchSaasWebhook(w.userId, 'quota.reached', {
+              agentId: parsedAgentId,
+              plan: quota.plan,
+              used: quota.used,
+              limit: quota.limit,
+            });
             return NextResponse.json(
               {
                 error: `Has alcanzado el límite de ${quota.limit.toLocaleString('es')} conversaciones de tu plan ${quota.plan} este mes. Actualiza tu plan para continuar.`,
@@ -310,6 +318,29 @@ export async function POST(req: NextRequest) {
         }
         headers['X-Landing-Wt-Valid'] = '1';
         headers['X-Hub-Sync-Secret'] = secret;
+
+        /** Webhook builtin: AgentFlowhub a veces no usa MCP → solo JSON en texto. Ir directo a AIBackHub ejecuta el POST real. */
+        try {
+          const direct = await tryServeWidgetChatViaHubMcp({
+            widgetTokenStartsWithWt: true,
+            parsedAgentId,
+            rawBody,
+            ownerUserId: w.userId,
+          });
+          if (direct) {
+            trackWidgetChatUsage(widgetToken, parsedAgentId, true).catch(() => {});
+            return NextResponse.json(
+              {
+                reply: direct.reply,
+                toolsUsed: direct.toolsUsed,
+                agentId: parsedAgentId,
+              },
+              { status: 200, headers: cors(origin) },
+            );
+          }
+        } catch (directErr) {
+          console.error('[widget/chat] direct MCP path error:', directErr);
+        }
       }
     } catch {
       /* sin DB: el hub intentará validación remota si está configurada */

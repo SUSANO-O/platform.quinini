@@ -21,6 +21,9 @@ const UserSchema = new Schema({
   emailChangeExpires:   { type: Date,   default: null },
   /** Progreso del camino trial / onboarding en dashboard (etapas, última ruta, reanudación del driver). */
   onboardingJourney: { type: Schema.Types.Mixed, default: null },
+  /** Webhook HTTPS del cliente SaaS (eventos salientes RGPD/producto). Firma HMAC opcional. */
+  saasWebhookUrl:    { type: String, default: null },
+  saasWebhookSecret: { type: String, default: null },
   createdAt:         { type: Date,   default: Date.now },
 }, { timestamps: true });
 
@@ -197,11 +200,23 @@ const ConversationPackSchema = new Schema({
 ConversationPackSchema.index({ userId: 1, status: 1, expiresAt: 1 });
 ConversationPackSchema.index({ stripeSessionId: 1 }, { unique: true, sparse: true });
 
+// ── AUDIT LOG (acciones cuenta / RGPD) ───────────────────────────────────────
+
+const AuditLogSchema = new Schema({
+  userId:   { type: String, required: true, index: true },
+  action:   { type: String, required: true },
+  resource: { type: String, default: '' },
+  meta:     { type: Schema.Types.Mixed, default: {} },
+  ip:       { type: String, default: '' },
+}, { timestamps: true });
+
+AuditLogSchema.index({ userId: 1, createdAt: -1 });
+
 // ── EXPORTS (safe for Next.js HMR) ───────────────────────────────────────────
 
 // Delete cached models in dev so schema changes take effect on hot reload
 if (process.env.NODE_ENV !== 'production') {
-  (['User', 'ClientAgent', 'Subscription', 'PlatformUsage', 'ConversationPack'] as const).forEach((name) => {
+  (['User', 'ClientAgent', 'Subscription', 'PlatformUsage', 'ConversationPack', 'AuditLog'] as const).forEach((name) => {
     if (mongoose.models[name]) delete (mongoose.models as Record<string, unknown>)[name];
   });
 }
@@ -212,3 +227,4 @@ export const RequestLog       = mongoose.models.RequestLog       || mongoose.mod
 export const ClientAgent      = mongoose.models.ClientAgent      || mongoose.model('ClientAgent', ClientAgentSchema);
 export const PlatformUsage    = mongoose.models.PlatformUsage    || mongoose.model('PlatformUsage', PlatformUsageSchema);
 export const ConversationPack = mongoose.models.ConversationPack || mongoose.model('ConversationPack', ConversationPackSchema);
+export const AuditLog         = mongoose.models.AuditLog         || mongoose.model('AuditLog', AuditLogSchema);
