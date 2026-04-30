@@ -25,6 +25,7 @@ const ALLOWED_EVENTS = new Set([
   'widget_closed',
   'message_sent',
   'message_received',
+  'message_feedback',
   'widget_error',
   /** Derivado del SDK cuando se muestra oferta WhatsApp / humano */
   'conversation_handoff',
