@@ -238,11 +238,28 @@ export default function WidgetPreviewPage() {
       const origin = window.location.origin;
 
       const loadScript = (): Promise<void> => {
-        if (window.AgentFlowhub) return Promise.resolve();
+        /**
+         * `public/widget.js` solo registra el SDK si `window.AgentFlowhub` no existe (guard global).
+         * Si el navegador sirvió una copia cacheada antigua, cualquier script nuevo se ignora por completo.
+         * En vista previa forzamos siempre la última versión del archivo y permitimos re-ejecutar el IIFE.
+         */
+        try {
+          document.querySelectorAll('script[data-afhub-widget-preview]').forEach((node) => node.remove());
+        } catch {
+          /* ignore */
+        }
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          delete (window as any).AgentFlowhub;
+        } catch {
+          /* ignore */
+        }
+
         return new Promise((resolve, reject) => {
           const s = document.createElement('script');
-          s.src = `${origin}/widget.js`;
+          s.src = `${origin}/widget.js?v=${encodeURIComponent(String(Date.now()))}`;
           s.async = true;
+          s.setAttribute('data-afhub-widget-preview', '1');
           s.onload = () => resolve();
           s.onerror = () => reject(new Error('No se pudo cargar widget.js'));
           document.body.appendChild(s);
