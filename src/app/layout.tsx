@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/hooks/use-auth';
 import { AppToasterLoader } from '@/components/ui/app-toaster-loader';
@@ -7,9 +7,20 @@ import { LandingWidgetScript } from '@/components/landing/landing-widget-script'
 export const metadata: Metadata = {
   title: 'MatIAs— AI Agents for Your App',
   description: 'Integra agentes de IA especializados en tu producto. Chat Widget API, RAG, embeddings y más — una sola API.',
+  manifest: '/manifest.json',
   icons: {
     icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
+    apple: [{ url: '/t1.png' }],
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'MatIAs',
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#0f1729',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
