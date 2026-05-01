@@ -193,6 +193,20 @@ export async function pushClientAgentToHubCatalog(agent: {
       };
     };
   }> | null;
+  /** Reglas operativas configuradas en la pestaña Reglas de la landing. */
+  behaviorRules?: Array<{
+    id: string;
+    title: string;
+    enabled?: boolean;
+    priority?: number;
+    category?: string;
+    tone?: string;
+    shortAnswers?: boolean;
+    complaintPolicy?: string;
+    unknownAnswerPolicy?: string;
+    interpretedRule?: string;
+    notes?: string;
+  }> | null;
 }): Promise<boolean> {
   const base = getAibackhubBaseUrl();
   const hid = String(agent.agentHubId || '').trim();
@@ -250,6 +264,9 @@ export async function pushClientAgentToHubCatalog(agent: {
     if (Array.isArray(agent.skillsConfig)) {
       payload.skillsConfig = agent.skillsConfig;
     }
+    if (Array.isArray(agent.behaviorRules)) {
+      payload.behaviorRules = agent.behaviorRules;
+    }
     const res = await fetch(url, {
       method: 'PUT',
       headers: hubCreateHeaders(),
@@ -306,6 +323,19 @@ type LandingAgentDocLike = {
       };
     };
   }>;
+  behaviorRules?: Array<{
+    id: string;
+    title: string;
+    enabled?: boolean;
+    priority?: number;
+    category?: string;
+    tone?: string;
+    shortAnswers?: boolean;
+    complaintPolicy?: string;
+    unknownAnswerPolicy?: string;
+    interpretedRule?: string;
+    notes?: string;
+  }>;
 };
 
 /**
@@ -360,6 +390,9 @@ export async function syncHubCatalogFromLandingAgentDoc(
   }
   if (Array.isArray(agent.skillsConfig)) {
     payload.skillsConfig = agent.skillsConfig;
+  }
+  if (Array.isArray(agent.behaviorRules)) {
+    payload.behaviorRules = agent.behaviorRules;
   }
   return pushClientAgentToHubCatalog(payload);
 }
