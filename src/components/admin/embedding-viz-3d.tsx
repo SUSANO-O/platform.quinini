@@ -1,16 +1,9 @@
 'use client';
 
 import { Canvas, type ThreeEvent } from '@react-three/fiber';
-import {
-  OrbitControls,
-  Grid,
-  Stars,
-  GizmoHelper,
-  GizmoViewport,
-  PointMaterial,
-} from '@react-three/drei';
+import { OrbitControls, Grid, Stars, GizmoHelper, GizmoViewport } from '@react-three/drei';
 import * as THREE from 'three';
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { RefreshCw } from 'lucide-react';
 
 export type VizPoint = {
@@ -49,7 +42,8 @@ const TYPE_LABELS: Record<string, string> = {
   preference: 'preferencia',
 };
 
-function buildPointCloudGeometry(points: VizPoint[]): THREE.BufferGeometry {
+/** Posiciones normalizadas ~[-1,1]³ y RGB lineal por punto (para InstancedMesh.setColorAt). */
+function layoutNormalized(points: VizPoint[]) {
   const n = points.length;
   const pos = new Float32Array(n * 3);
   const col = new Float32Array(n * 3);
@@ -86,13 +80,20 @@ function buildPointCloudGeometry(points: VizPoint[]): THREE.BufferGeometry {
     col[i * 3 + 2] = c[2];
   }
 
-  const geom = new THREE.BufferGeometry();
-  geom.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  geom.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  return geom;
+  return { pos, col, n };
 }
 
-function PointCloud({
+/** Radio base de esfera en el espacio normalizado (nube ~2 unidades de ancho). */
+function sphereBaseRadius(n: number): number {
+  const t = Math.sqrt(Math.max(n, 1));
+  return Math.min(0.028, 0.007 + 2.8 / t);
+}
+
+/**
+ * Esferas instanciadas pequeñas (color por instancia). Evita los “sprites” gigantes de GL_POINTS
+ * que se mezclaban en un blob gris.
+ */
+function InstanceScatter({
   points,
   pointSize,
   onHover,
@@ -101,37 +102,54 @@ function PointCloud({
   pointSize: number;
   onHover: (p: VizPoint | null) => void;
 }) {
-  const geometry = useMemo(() => buildPointCloudGeometry(points), [points]);
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const layout = useMemo(() => layoutNormalized(points), [points]);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const colorTmp = useMemo(() => new THREE.Color(), []);
 
-  useEffect(() => {
-    return () => {
-      geometry.dispose();
-    };
-  }, [geometry]);
+  const n = layout.n;
+  const baseR = sphereBaseRadius(n) * pointSize;
 
-  const baseSize = useMemo(() => {
-    const n = Math.max(points.length, 1);
-    return (0.032 + 22 / Math.sqrt(n)) * pointSize;
-  }, [points.length, pointSize]);
+  const geom = useMemo(() => new THREE.SphereGeometry(1, 10, 10), []);
+  const mat = useMemo(
+    () =>
+      new THREE.MeshLambertMaterial({
+        vertexColors: true,
+        toneMapped: false,
+      }),
+    [],
+  );
+
+  useLayoutEffect(() => {
+    const mesh = meshRef.current;
+    if (!mesh || n === 0) return;
+
+    for (let i = 0; i < n; i++) {
+      dummy.position.set(layout.pos[i * 3]!, layout.pos[i * 3 + 1]!, layout.pos[i * 3 + 2]!);
+      dummy.scale.setScalar(baseR);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+      colorTmp.setRGB(layout.col[i * 3]!, layout.col[i * 3 + 1]!, layout.col[i * 3 + 2]!);
+      mesh.setColorAt(i, colorTmp);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }, [layout, n, baseR, dummy, colorTmp]);
 
   const handleMove = (e: ThreeEvent<PointerEvent>) => {
-    const idx = e.index;
-    if (typeof idx === 'number' && idx >= 0 && idx < points.length) onHover(points[idx]!);
+    const id = e.instanceId;
+    if (typeof id === 'number' && id >= 0 && id < points.length) onHover(points[id]!);
     else onHover(null);
   };
 
   return (
-    <points geometry={geometry} onPointerMove={handleMove} onPointerOut={() => onHover(null)}>
-      <PointMaterial
-        vertexColors
-        size={baseSize}
-        sizeAttenuation
-        transparent
-        opacity={0.94}
-        depthWrite={false}
-        toneMapped
-      />
-    </points>
+    <instancedMesh
+      ref={meshRef}
+      args={[geom, mat, n]}
+      frustumCulled={false}
+      onPointerMove={handleMove}
+      onPointerOut={() => onHover(null)}
+    />
   );
 }
 
@@ -156,7 +174,7 @@ function EmbeddingScene({
       <color attach="background" args={['#06060d']} />
       <fog attach="fog" args={['#06060d', 2.4, 11.5]} />
 
-      <ambientLight intensity={0.18} />
+      <ambientLight intensity={0.32} />
       <directionalLight position={[5.5, 7, 4.2]} intensity={0.55} color="#d4d8ff" />
       <directionalLight position={[-5, -3, -5]} intensity={0.2} color="#312e81" />
       <pointLight position={[0, 2.5, 0]} intensity={0.15} color="#6366f1" distance={8} decay={2} />
@@ -177,7 +195,7 @@ function EmbeddingScene({
         sectionThickness={1.15}
       />
 
-      <PointCloud points={points} pointSize={pointSize} onHover={onHover} />
+      <InstanceScatter points={points} pointSize={pointSize} onHover={onHover} />
 
       <primitive object={axes} />
 
@@ -223,7 +241,7 @@ export default function AdminEmbeddingViz3D() {
   const [limit, setLimit] = useState(500);
   const [agentId, setAgentId] = useState('');
   const [type, setType] = useState<string>('');
-  const [pointSize, setPointSize] = useState(1);
+  const [pointSize, setPointSize] = useState(0.9);
   const [hover, setHover] = useState<VizPoint | null>(null);
 
   const load = useCallback(() => {
@@ -333,12 +351,12 @@ export default function AdminEmbeddingViz3D() {
           </select>
         </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px', minWidth: '140px' }}>
-          <span style={{ color: 'var(--muted-foreground)' }}>Tamaño puntos</span>
+          <span style={{ color: 'var(--muted-foreground)' }}>Tamaño esferas</span>
           <input
             type="range"
-            min={0.45}
-            max={2.2}
-            step={0.05}
+            min={0.35}
+            max={1.45}
+            step={0.03}
             value={pointSize}
             onChange={(e) => setPointSize(Number(e.target.value))}
             style={{ width: '100%' }}
@@ -376,7 +394,7 @@ export default function AdminEmbeddingViz3D() {
       )}
       {dim != null && count > 0 && (
         <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', marginBottom: '10px' }}>
-          {count} vectores · dimensión original {dim} · PCA 3D · arrastra para rotar, rueda para zoom · pasa el cursor sobre un punto
+          {count} vectores · dimensión original {dim} · PCA 3D · esferas coloreadas por tipo · arrastra / zoom · cursor sobre una esfera
         </p>
       )}
 
@@ -433,8 +451,8 @@ export default function AdminEmbeddingViz3D() {
               gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
               camera={{ position: [2.45, 1.95, 2.55], fov: 48, near: 0.08, far: 80 }}
               style={{ width: '100%', height: '100%', touchAction: 'none' }}
-              onCreated={({ raycaster }) => {
-                raycaster.params.Points = { threshold: 0.14 };
+              onCreated={({ gl }) => {
+                gl.setClearColor('#06060d', 1);
               }}
             >
               <EmbeddingScene points={points} pointSize={pointSize} onHover={setHover} />
