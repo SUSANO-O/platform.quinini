@@ -146,14 +146,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── Rate limit paso 2: IP + agentId — 40/min por widget ─────────────────────────
-  // Igual al límite de AgentFlowhub → esta capa nunca es más restrictiva que la posterior.
+  // ── Rate limit paso 2: IP + agentId — 48/min por widget (alineado con AgentFlowhub por defecto) ─
   // Clave compuesta: usuarios de la misma NAT no comparten cupo entre widgets distintos.
   try {
     const parsedForRl = JSON.parse(rawBody) as { agentId?: unknown };
     const agentIdForRl = typeof parsedForRl?.agentId === 'string' ? parsedForRl.agentId.trim().slice(0, 100) : '';
     if (agentIdForRl) {
-      const rlAgent = checkRateLimit('widget-chat-agent', `${ip}:${agentIdForRl}`, 40, 60_000);
+      const rlAgent = checkRateLimit('widget-chat-agent', `${ip}:${agentIdForRl}`, 48, 60_000);
       if (!rlAgent.success) {
         return NextResponse.json(
           landingWidgetCooldown('landing_agent', rlAgent.retryAfter, requestIdEarly),
