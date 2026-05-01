@@ -161,6 +161,7 @@ export async function POST(req: NextRequest) {
     type = 'agent',
     parentAgentId,
     ragSources = [],
+    behaviorRules = [],
     inferenceTemperature: bodyInfTemp,
     inferenceMaxTokens: bodyInfMax,
   } = body;
@@ -268,6 +269,45 @@ export async function POST(req: NextRequest) {
         }))
     : [];
 
+  const safeBehaviorRules = Array.isArray(behaviorRules)
+    ? behaviorRules
+        .filter((r: unknown): r is Record<string, unknown> => Boolean(r) && typeof r === 'object')
+        .map((r) => ({
+          id:
+            typeof r.id === 'string' && r.id.trim()
+              ? r.id.trim().slice(0, 64)
+              : new mongoose.Types.ObjectId().toString(),
+          title:
+            typeof r.title === 'string' && r.title.trim()
+              ? r.title.trim().slice(0, 160)
+              : 'Regla sin título',
+          enabled: r.enabled !== false,
+          priority:
+            typeof r.priority === 'number' && Number.isFinite(r.priority)
+              ? Math.max(0, Math.min(1000, Math.floor(r.priority)))
+              : 100,
+          category:
+            typeof r.category === 'string' && r.category.trim()
+              ? r.category.trim().slice(0, 48)
+              : 'general',
+          tone:
+            typeof r.tone === 'string' && r.tone.trim()
+              ? r.tone.trim().slice(0, 48)
+              : 'profesional',
+          shortAnswers: r.shortAnswers === true,
+          complaintPolicy:
+            typeof r.complaintPolicy === 'string' ? r.complaintPolicy.trim().slice(0, 2000) : '',
+          unknownAnswerPolicy:
+            typeof r.unknownAnswerPolicy === 'string'
+              ? r.unknownAnswerPolicy.trim().slice(0, 2000)
+              : '',
+          interpretedRule:
+            typeof r.interpretedRule === 'string' ? r.interpretedRule.trim().slice(0, 4000) : '',
+          notes: typeof r.notes === 'string' ? r.notes.trim().slice(0, 2000) : '',
+        }))
+        .slice(0, 80)
+    : [];
+
   let inferenceTemperature: number | null | undefined;
   if (bodyInfTemp !== undefined && bodyInfTemp !== null && bodyInfTemp !== '') {
     const n = Number(bodyInfTemp);
@@ -297,6 +337,7 @@ export async function POST(req: NextRequest) {
     tools,
     ragEnabled: safeRagSources.length > 0,
     ragSources: safeRagSources,
+    behaviorRules: safeBehaviorRules,
     ...(widgetPublicToken ? { widgetPublicToken } : {}),
     syncStatus: 'pending',
     ...(isPlatform ? { isPlatform: true } : {}),

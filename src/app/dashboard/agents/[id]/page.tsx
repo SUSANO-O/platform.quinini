@@ -53,7 +53,7 @@ import { McpLandingConnectForm } from '@/components/mcp/mcp-landing-connect-form
 import { AgentMcpOpenFromQuery } from '@/components/mcp/agent-mcp-open-from-query';
 import { AgentHubspotOauthReturn } from '@/components/mcp/agent-hubspot-oauth-return';
 
-type Tab = 'general' | 'tools' | 'rag' | 'subagents';
+type Tab = 'general' | 'rules' | 'tools' | 'rag' | 'subagents';
 
 interface McpServerGroup {
   integrationKey: string;
@@ -169,10 +169,82 @@ interface ClientAgent {
       };
     };
   }>;
+  behaviorRules?: BehaviorRule[];
 }
 interface SubAgent {
   _id: string; name: string; model: string; status: 'active' | 'disabled';
   tools: ToolConfig[];
+}
+
+interface BehaviorRule {
+  id: string;
+  title: string;
+  enabled: boolean;
+  priority: number;
+  category: string;
+  tone: string;
+  shortAnswers: boolean;
+  complaintPolicy: string;
+  unknownAnswerPolicy: string;
+  interpretedRule: string;
+  notes: string;
+}
+
+const RULES_PROMPT_START = '### [AFHUB_RULES_START]';
+const RULES_PROMPT_END = '### [AFHUB_RULES_END]';
+
+function createEmptyRule(): BehaviorRule {
+  return {
+    id: crypto.randomUUID(),
+    title: 'Nueva regla',
+    enabled: true,
+    priority: 100,
+    category: 'general',
+    tone: 'profesional',
+    shortAnswers: false,
+    complaintPolicy: '',
+    unknownAnswerPolicy: '',
+    interpretedRule: '',
+    notes: '',
+  };
+}
+
+function stripManagedRulesPrompt(raw: string): string {
+  const s = raw || '';
+  const start = s.indexOf(RULES_PROMPT_START);
+  const end = s.indexOf(RULES_PROMPT_END);
+  if (start === -1 || end === -1 || end < start) return s.trim();
+  const before = s.slice(0, start).trimEnd();
+  const after = s.slice(end + RULES_PROMPT_END.length).trimStart();
+  return [before, after].filter(Boolean).join('\n\n').trim();
+}
+
+function buildRulesPrompt(rules: BehaviorRule[]): string {
+  const active = rules
+    .filter((r) => r.enabled)
+    .sort((a, b) => a.priority - b.priority);
+  if (active.length === 0) return '';
+  const lines = active.map((r, idx) => {
+    const extras: string[] = [];
+    extras.push(`categoria=${r.category}`);
+    extras.push(`tono=${r.tone}`);
+    if (r.shortAnswers) extras.push('respuesta_corta=si');
+    if (r.complaintPolicy.trim()) extras.push(`quejas=${r.complaintPolicy.trim()}`);
+    if (r.unknownAnswerPolicy.trim()) extras.push(`si_no_sabe=${r.unknownAnswerPolicy.trim()}`);
+    const body = r.interpretedRule.trim() || r.notes.trim() || 'Aplicar esta regla de forma consistente.';
+    return `${idx + 1}. ${r.title.trim()} [${extras.join(' | ')}]\n   - ${body}`;
+  });
+  return `${RULES_PROMPT_START}
+Reglas operativas configuradas por el cliente (aplícalas de mayor prioridad a menor prioridad):
+${lines.join('\n')}
+${RULES_PROMPT_END}`;
+}
+
+function mergeSystemPromptWithRules(basePrompt: string, rules: BehaviorRule[]): string {
+  const base = stripManagedRulesPrompt(basePrompt);
+  const rulesBlock = buildRulesPrompt(rules);
+  if (!rulesBlock) return base;
+  return `${base}\n\n${rulesBlock}`.trim();
 }
 
 export default function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -206,6 +278,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [showAllModels, setShowAllModels] = useState(false);
   const [skills, setSkills] = useState<string[]>([]);
   const [skillsConfig, setSkillsConfig] = useState<NonNullable<ClientAgent['skillsConfig']>>([]);
+  const [behaviorRules, setBehaviorRules] = useState<BehaviorRule[]>([]);
   const [customSkillInput, setCustomSkillInput] = useState('');
 
   // MCP tools state
@@ -281,6 +354,24 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         );
         setSkills(Array.isArray(a.skills) ? a.skills : []);
         setSkillsConfig(Array.isArray(a.skillsConfig) ? a.skillsConfig : []);
+        setBehaviorRules(
+          Array.isArray(a.behaviorRules)
+            ? (a.behaviorRules as Array<Partial<BehaviorRule>>).map((r) => ({
+                id: typeof r.id === 'string' && r.id ? r.id : crypto.randomUUID(),
+                title: typeof r.title === 'string' ? r.title : 'Regla sin título',
+                enabled: r.enabled !== false,
+                priority: typeof r.priority === 'number' ? r.priority : 100,
+                category: typeof r.category === 'string' ? r.category : 'general',
+                tone: typeof r.tone === 'string' ? r.tone : 'profesional',
+                shortAnswers: r.shortAnswers === true,
+                complaintPolicy: typeof r.complaintPolicy === 'string' ? r.complaintPolicy : '',
+                unknownAnswerPolicy:
+                  typeof r.unknownAnswerPolicy === 'string' ? r.unknownAnswerPolicy : '',
+                interpretedRule: typeof r.interpretedRule === 'string' ? r.interpretedRule : '',
+                notes: typeof r.notes === 'string' ? r.notes : '',
+              }))
+            : [],
+        );
       })
       .finally(() => setLoading(false));
   }, [id, router]);
@@ -440,6 +531,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       persistConversationHistory,
       skills,
       skillsConfig,
+      behaviorRules,
     };
     if (t === '') {
       patch.inferenceTemperature = null;
@@ -466,6 +558,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
   async function saveTools() {
     await save({ tools, enabledMcpToolIds: mcpToolIds });
+  }
+
+  async function saveRules() {
+    const mergedPrompt = mergeSystemPromptWithRules(systemPrompt, behaviorRules);
+    setSystemPrompt(mergedPrompt);
+    await save({ behaviorRules, systemPrompt: mergedPrompt });
   }
 
   async function testSavedWebhook() {
@@ -680,6 +778,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
   const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
     { id: 'general', label: 'General', icon: <Settings size={13} /> },
+    { id: 'rules', label: `Reglas (${behaviorRules.length})`, icon: <Sparkles size={13} /> },
     { id: 'tools',   label: `Herramientas (${tools.length + mcpToolIds.length})`, icon: <Wrench size={13} /> },
     { id: 'rag',     label: `RAG (${ragN})`, icon: <Zap size={13} /> },
     { id: 'subagents', label: `Sub-agentes (${subAgents.length})`, icon: <Network size={13} /> },
@@ -1205,6 +1304,216 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
             Guardar cambios
           </button>
+          )}
+        </>
+      )}
+
+      {/* ── RULES TAB ───────────────────────────────────────────────────────── */}
+      {tab === 'rules' && (
+        <>
+          <SectionCard>
+            <p style={sectionTitle}>Reglas de comportamiento y flujo</p>
+            <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
+              Configura políticas del agente (prioridad, tono, reclamos, respuestas cortas y qué hacer cuando no sabe). Al guardar, estas reglas se integran automáticamente al system prompt.
+            </p>
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={() => setBehaviorRules((prev) => [...prev, createEmptyRule()])}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs transition-opacity"
+                style={{ ...BTN_PRIMARY, cursor: 'pointer' }}
+              >
+                <Plus size={13} /> Agregar regla
+              </button>
+            )}
+          </SectionCard>
+
+          {behaviorRules.length === 0 ? (
+            <SectionCard innerStyle={{ textAlign: 'center', padding: '28px 16px' }}>
+              <Sparkles size={24} style={{ color: 'var(--muted-foreground)', margin: '0 auto 8px' }} />
+              <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', margin: 0 }}>
+                Sin reglas configuradas aún.
+              </p>
+            </SectionCard>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {behaviorRules
+                .slice()
+                .sort((a, b) => a.priority - b.priority)
+                .map((rule) => (
+                  <SectionCard key={rule.id} outerStyle={{ borderColor: 'rgba(228,20,20,0.2)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>{rule.title || 'Regla sin título'}</p>
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setBehaviorRules((prev) => prev.filter((x) => x.id !== rule.id))
+                          }
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: 8,
+                            border: '1px solid rgba(239,68,68,0.35)',
+                            background: 'rgba(239,68,68,0.08)',
+                            color: '#ef4444',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 10 }}>
+                      <input
+                        className="landing-input"
+                        style={inp}
+                        value={rule.title}
+                        disabled={readOnly}
+                        onChange={(e) =>
+                          setBehaviorRules((prev) =>
+                            prev.map((x) => (x.id === rule.id ? { ...x, title: e.target.value } : x)),
+                          )
+                        }
+                        placeholder="Título de regla"
+                      />
+                      <input
+                        className="landing-input"
+                        style={inp}
+                        type="number"
+                        min={0}
+                        max={1000}
+                        value={String(rule.priority)}
+                        disabled={readOnly}
+                        onChange={(e) =>
+                          setBehaviorRules((prev) =>
+                            prev.map((x) =>
+                              x.id === rule.id ? { ...x, priority: Math.max(0, Math.min(1000, Number(e.target.value) || 0)) } : x,
+                            ),
+                          )
+                        }
+                        placeholder="Prioridad"
+                      />
+                      <select
+                        className="landing-input"
+                        style={inp}
+                        value={rule.category}
+                        disabled={readOnly}
+                        onChange={(e) =>
+                          setBehaviorRules((prev) =>
+                            prev.map((x) => (x.id === rule.id ? { ...x, category: e.target.value } : x)),
+                          )
+                        }
+                      >
+                        <option value="general">General</option>
+                        <option value="tono">Tono</option>
+                        <option value="flujo">Flujo</option>
+                        <option value="queja_reclamo">Queja/Reclamo</option>
+                        <option value="incertidumbre">Si no sabe</option>
+                        <option value="estilo_respuesta">Estilo respuesta</option>
+                        <option value="negocio">Negocio</option>
+                      </select>
+                      <select
+                        className="landing-input"
+                        style={inp}
+                        value={rule.tone}
+                        disabled={readOnly}
+                        onChange={(e) =>
+                          setBehaviorRules((prev) =>
+                            prev.map((x) => (x.id === rule.id ? { ...x, tone: e.target.value } : x)),
+                          )
+                        }
+                      >
+                        <option value="profesional">Profesional</option>
+                        <option value="empatico">Empático</option>
+                        <option value="cercano">Cercano</option>
+                        <option value="formal">Formal</option>
+                        <option value="directo">Directo</option>
+                        <option value="tecnico">Técnico</option>
+                      </select>
+                    </div>
+                    <div style={{ marginTop: 10, display: 'grid', gap: 10 }}>
+                      <textarea
+                        className="landing-input"
+                        style={{ ...inp, minHeight: 70, resize: 'vertical', fontFamily: 'inherit' }}
+                        value={rule.interpretedRule}
+                        disabled={readOnly}
+                        onChange={(e) =>
+                          setBehaviorRules((prev) =>
+                            prev.map((x) => (x.id === rule.id ? { ...x, interpretedRule: e.target.value } : x)),
+                          )
+                        }
+                        placeholder="Regla interpretada (qué debe hacer exactamente el agente)"
+                      />
+                      <input
+                        className="landing-input"
+                        style={inp}
+                        value={rule.complaintPolicy}
+                        disabled={readOnly}
+                        onChange={(e) =>
+                          setBehaviorRules((prev) =>
+                            prev.map((x) => (x.id === rule.id ? { ...x, complaintPolicy: e.target.value } : x)),
+                          )
+                        }
+                        placeholder="Cómo responder ante queja o reclamo"
+                      />
+                      <input
+                        className="landing-input"
+                        style={inp}
+                        value={rule.unknownAnswerPolicy}
+                        disabled={readOnly}
+                        onChange={(e) =>
+                          setBehaviorRules((prev) =>
+                            prev.map((x) => (x.id === rule.id ? { ...x, unknownAnswerPolicy: e.target.value } : x)),
+                          )
+                        }
+                        placeholder="Qué hacer cuando no sabe la respuesta"
+                      />
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                        <input
+                          type="checkbox"
+                          checked={rule.enabled}
+                          disabled={readOnly}
+                          onChange={(e) =>
+                            setBehaviorRules((prev) =>
+                              prev.map((x) => (x.id === rule.id ? { ...x, enabled: e.target.checked } : x)),
+                            )
+                          }
+                        />
+                        Regla activa
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                        <input
+                          type="checkbox"
+                          checked={rule.shortAnswers}
+                          disabled={readOnly}
+                          onChange={(e) =>
+                            setBehaviorRules((prev) =>
+                              prev.map((x) => (x.id === rule.id ? { ...x, shortAnswers: e.target.checked } : x)),
+                            )
+                          }
+                        />
+                        Priorizar respuestas cortas
+                      </label>
+                    </div>
+                  </SectionCard>
+                ))}
+            </div>
+          )}
+
+          {!readOnly && (
+            <button
+              onClick={saveRules}
+              disabled={saving}
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-opacity"
+              style={{
+                ...BTN_PRIMARY,
+                cursor: saving ? 'not-allowed' : 'pointer',
+                opacity: saving ? 0.7 : 1,
+              }}
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              Guardar reglas
+            </button>
           )}
         </>
       )}

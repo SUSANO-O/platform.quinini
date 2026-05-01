@@ -384,6 +384,50 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     agent.set('skillsConfig', cleaned);
   }
 
+  if ('behaviorRules' in body) {
+    const raw = body.behaviorRules;
+    if (!Array.isArray(raw)) {
+      return NextResponse.json({ error: 'behaviorRules debe ser un array.' }, { status: 400 });
+    }
+    const cleaned = raw
+      .filter((x: unknown): x is Record<string, unknown> => Boolean(x) && typeof x === 'object')
+      .map((x) => ({
+        id:
+          typeof x.id === 'string' && x.id.trim()
+            ? x.id.trim().slice(0, 64)
+            : new mongoose.Types.ObjectId().toString(),
+        title:
+          typeof x.title === 'string' && x.title.trim()
+            ? x.title.trim().slice(0, 160)
+            : 'Regla sin título',
+        enabled: x.enabled !== false,
+        priority:
+          typeof x.priority === 'number' && Number.isFinite(x.priority)
+            ? Math.max(0, Math.min(1000, Math.floor(x.priority)))
+            : 100,
+        category:
+          typeof x.category === 'string' && x.category.trim()
+            ? x.category.trim().slice(0, 48)
+            : 'general',
+        tone:
+          typeof x.tone === 'string' && x.tone.trim()
+            ? x.tone.trim().slice(0, 48)
+            : 'profesional',
+        shortAnswers: x.shortAnswers === true,
+        complaintPolicy:
+          typeof x.complaintPolicy === 'string' ? x.complaintPolicy.trim().slice(0, 2000) : '',
+        unknownAnswerPolicy:
+          typeof x.unknownAnswerPolicy === 'string'
+            ? x.unknownAnswerPolicy.trim().slice(0, 2000)
+            : '',
+        interpretedRule:
+          typeof x.interpretedRule === 'string' ? x.interpretedRule.trim().slice(0, 4000) : '',
+        notes: typeof x.notes === 'string' ? x.notes.trim().slice(0, 2000) : '',
+      }))
+      .slice(0, 80);
+    agent.set('behaviorRules', cleaned);
+  }
+
   await agent.save();
 
   const hubId = typeof agent.agentHubId === 'string' ? agent.agentHubId.trim() : '';

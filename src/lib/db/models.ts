@@ -167,6 +167,8 @@ const ClientAgentSchema = new Schema({
   skills:          { type: [String], default: [] },
   /** Config runtime de skills (prompt/tools/settings), sincronizada con el hub. */
   skillsConfig:    { type: [Schema.Types.Mixed], default: [] },
+  /** Reglas operativas editables desde la UI (prioridad, tono, reclamos, respuestas cortas, etc.). */
+  behaviorRules:   { type: [Schema.Types.Mixed], default: [] },
 }, { timestamps: true });
 
 ClientAgentSchema.index({ userId: 1, type: 1, createdAt: -1 });
