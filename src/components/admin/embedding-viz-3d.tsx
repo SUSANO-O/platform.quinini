@@ -32,6 +32,7 @@ const TYPE_PALETTE: Record<string, [number, number, number]> = {
   conversation: [1, 0.5, 0.32],
   knowledge: [0.9, 0.42, 1],
   preference: [0.78, 0.82, 0.98],
+  otro: [0.62, 0.64, 0.72],
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -40,13 +41,15 @@ const TYPE_LABELS: Record<string, string> = {
   conversation: 'conversación',
   knowledge: 'conocimiento',
   preference: 'preferencia',
+  otro: 'otro tipo',
 };
 
-/** Posiciones normalizadas ~[-1,1]³ y RGB lineal por punto (para InstancedMesh.setColorAt). */
-function layoutNormalized(points: VizPoint[]) {
+type LaidOut = { point: VizPoint; x: number; y: number; z: number };
+
+/** Misma caja para todos los puntos; coordenadas ~[-1,1]³ */
+function layoutAllPoints(points: VizPoint[]): LaidOut[] {
   const n = points.length;
-  const pos = new Float32Array(n * 3);
-  const col = new Float32Array(n * 3);
+  if (n === 0) return [];
 
   let minx = Infinity,
     miny = Infinity,
@@ -54,8 +57,7 @@ function layoutNormalized(points: VizPoint[]) {
     maxx = -Infinity,
     maxy = -Infinity,
     maxz = -Infinity;
-  for (let i = 0; i < n; i++) {
-    const p = points[i]!;
+  for (const p of points) {
     minx = Math.min(minx, p.x);
     maxx = Math.max(maxx, p.x);
     miny = Math.min(miny, p.y);
@@ -69,31 +71,115 @@ function layoutNormalized(points: VizPoint[]) {
   const span = Math.max(maxx - minx, maxy - miny, maxz - minz, 1e-9);
   const s = 2 / span;
 
-  for (let i = 0; i < n; i++) {
-    const p = points[i]!;
-    pos[i * 3] = (p.x - cx) * s;
-    pos[i * 3 + 1] = (p.y - cy) * s;
-    pos[i * 3 + 2] = (p.z - cz) * s;
-    const c = TYPE_PALETTE[p.type] ?? [0.58, 0.6, 0.66];
-    col[i * 3] = c[0];
-    col[i * 3 + 1] = c[1];
-    col[i * 3 + 2] = c[2];
-  }
-
-  return { pos, col, n };
+  return points.map((p) => ({
+    point: p,
+    x: (p.x - cx) * s,
+    y: (p.y - cy) * s,
+    z: (p.z - cz) * s,
+  }));
 }
 
-/** Radio base de esfera en el espacio normalizado (nube ~2 unidades de ancho). */
-function sphereBaseRadius(n: number): number {
-  const t = Math.sqrt(Math.max(n, 1));
+function typeKeyForPoint(p: VizPoint): string {
+  return Object.prototype.hasOwnProperty.call(TYPE_PALETTE, p.type) ? p.type : 'otro';
+}
+
+/** Radio base según el total de puntos (misma escala para todos los tipos). */
+function sphereBaseRadius(total: number): number {
+  const t = Math.sqrt(Math.max(total, 1));
   return Math.min(0.028, 0.007 + 2.8 / t);
 }
 
+function solidTypeColor(typeKey: string): THREE.Color {
+  const c = TYPE_PALETTE[typeKey] ?? TYPE_PALETTE.otro!;
+  return new THREE.Color().setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace);
+}
+
 /**
- * Esferas instanciadas pequeñas (color por instancia). Evita los “sprites” gigantes de GL_POINTS
- * que se mezclaban en un blob gris.
+ * Un InstancedMesh por tipo: `MeshBasicMaterial.color` sólido (sin instanceColor).
+ * Así el color no depende de shaders de instancia que en algunos drivers quedaban negros.
  */
-function InstanceScatter({
+function InstancedTypeCloud({
+  geometry,
+  items,
+  baseRadius,
+  typeKey,
+  onHover,
+}: {
+  geometry: THREE.BufferGeometry;
+  items: LaidOut[];
+  baseRadius: number;
+  typeKey: string;
+  onHover: (p: VizPoint | null) => void;
+}) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const n = items.length;
+
+  const mat = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: solidTypeColor(typeKey),
+        toneMapped: false,
+        fog: false,
+        depthTest: true,
+        depthWrite: true,
+      }),
+    [typeKey],
+  );
+
+  useEffect(() => {
+    return () => {
+      mat.dispose();
+    };
+  }, [mat]);
+
+  useLayoutEffect(() => {
+    const mesh = meshRef.current;
+    if (!mesh || n === 0) return;
+
+    for (let i = 0; i < n; i++) {
+      const L = items[i]!;
+      dummy.position.set(L.x, L.y, L.z);
+      dummy.scale.setScalar(baseRadius);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  }, [items, n, baseRadius, dummy]);
+
+  const handleMove = (e: ThreeEvent<PointerEvent>) => {
+    const id = e.instanceId;
+    if (typeof id === 'number' && id >= 0 && id < n) onHover(items[id]!.point);
+    else onHover(null);
+  };
+
+  return (
+    <instancedMesh
+      ref={meshRef}
+      args={[geometry, mat, n]}
+      frustumCulled={false}
+      onPointerMove={handleMove}
+      onPointerOut={() => onHover(null)}
+    />
+  );
+}
+
+const TYPE_DRAW_ORDER = ['conversation', 'chunk', 'document', 'knowledge', 'preference', 'otro'] as const;
+
+function groupByType(laidOut: LaidOut[]): { typeKey: string; items: LaidOut[] }[] {
+  const m = new Map<string, LaidOut[]>();
+  for (const L of laidOut) {
+    const k = typeKeyForPoint(L.point);
+    if (!m.has(k)) m.set(k, []);
+    m.get(k)!.push(L);
+  }
+  return TYPE_DRAW_ORDER.filter((k) => (m.get(k)?.length ?? 0) > 0).map((k) => ({
+    typeKey: k,
+    items: m.get(k)!,
+  }));
+}
+
+function MultiTypeScatter({
   points,
   pointSize,
   onHover,
@@ -102,60 +188,30 @@ function InstanceScatter({
   pointSize: number;
   onHover: (p: VizPoint | null) => void;
 }) {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const layout = useMemo(() => layoutNormalized(points), [points]);
-  const dummy = useMemo(() => new THREE.Object3D(), []);
-  const colorTmp = useMemo(() => new THREE.Color(), []);
+  const laidOut = useMemo(() => layoutAllPoints(points), [points]);
+  const groups = useMemo(() => groupByType(laidOut), [laidOut]);
+  const geometry = useMemo(() => new THREE.SphereGeometry(1, 18, 18), []);
+  const baseR = sphereBaseRadius(points.length) * pointSize;
 
-  const n = layout.n;
-  const baseR = sphereBaseRadius(n) * pointSize;
-
-  const geom = useMemo(() => new THREE.SphereGeometry(1, 10, 10), []);
-  /** Basic ignora normales (Lambert quedaba casi negro según ángulo/luces). fog:false evita que la niebla tiña todo a negro. */
-  const mat = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        vertexColors: true,
-        toneMapped: false,
-        fog: false,
-        depthTest: true,
-        depthWrite: true,
-      }),
-    [],
-  );
-
-  useLayoutEffect(() => {
-    const mesh = meshRef.current;
-    if (!mesh || n === 0) return;
-
-    for (let i = 0; i < n; i++) {
-      dummy.position.set(layout.pos[i * 3]!, layout.pos[i * 3 + 1]!, layout.pos[i * 3 + 2]!);
-      dummy.scale.setScalar(baseR);
-      dummy.updateMatrix();
-      mesh.setMatrixAt(i, dummy.matrix);
-      colorTmp.setRGB(layout.col[i * 3]!, layout.col[i * 3 + 1]!, layout.col[i * 3 + 2]!, THREE.SRGBColorSpace);
-      mesh.setColorAt(i, colorTmp);
-    }
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    mat.vertexColors = true;
-    mat.needsUpdate = true;
-  }, [layout, n, baseR, dummy, colorTmp, mat]);
-
-  const handleMove = (e: ThreeEvent<PointerEvent>) => {
-    const id = e.instanceId;
-    if (typeof id === 'number' && id >= 0 && id < points.length) onHover(points[id]!);
-    else onHover(null);
-  };
+  useEffect(() => {
+    return () => {
+      geometry.dispose();
+    };
+  }, [geometry]);
 
   return (
-    <instancedMesh
-      ref={meshRef}
-      args={[geom, mat, n]}
-      frustumCulled={false}
-      onPointerMove={handleMove}
-      onPointerOut={() => onHover(null)}
-    />
+    <>
+      {groups.map(({ typeKey, items }) => (
+        <InstancedTypeCloud
+          key={typeKey}
+          geometry={geometry}
+          items={items}
+          baseRadius={baseR}
+          typeKey={typeKey}
+          onHover={onHover}
+        />
+      ))}
+    </>
   );
 }
 
@@ -201,7 +257,7 @@ function EmbeddingScene({
         sectionThickness={1.15}
       />
 
-      <InstanceScatter points={points} pointSize={pointSize} onHover={onHover} />
+      <MultiTypeScatter points={points} pointSize={pointSize} onHover={onHover} />
 
       <primitive object={axes} />
 
