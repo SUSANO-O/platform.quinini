@@ -10,10 +10,28 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CreditCard, ExternalLink, Settings, Sparkles, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { PLAN_DISPLAY, PLAN_ORDER, PLAN_RAG_LIMITS } from '@/lib/plan-catalog';
 
 const BRAND_R = '#e41414';
 const BRAND_O = '#f87600';
 const BRAND_B = '#00acf8';
+
+interface RagUsageData {
+  plan: string;
+  ragEnabled: boolean;
+  maxSourcesPerAgent: number;
+  maxStorageMbPerAgent: number;
+  totals: { usedSources: number; usedBytes: number };
+  perAgent: Array<{
+    id: string;
+    name: string;
+    ragEnabled: boolean;
+    usedSources: number;
+    usedBytes: number;
+    percentSources: number;
+    percentStorage: number;
+  }>;
+}
 
 export default function SettingsPage() {
   const { user, refreshUser } = useAuth();
@@ -40,6 +58,7 @@ export default function SettingsPage() {
   const [busyEmailReq, setBusyEmailReq] = useState(false);
   const [busyEmailConfirm, setBusyEmailConfirm] = useState(false);
   const [busyVerifyResend, setBusyVerifyResend] = useState(false);
+  const [ragUsage, setRagUsage] = useState<RagUsageData | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -55,6 +74,16 @@ export default function SettingsPage() {
       setEmailCode('');
     }
   }, [user?.uid, user?.pendingEmail]);
+
+  useEffect(() => {
+    if (!user) return;
+    fetch('/api/billing/rag-usage')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) setRagUsage(data as RagUsageData);
+      })
+      .catch(() => {});
+  }, [user?.uid, subscription?.plan, subscription?.status]);
 
   async function saveDisplayName() {
     if (!user) return;
@@ -488,6 +517,91 @@ export default function SettingsPage() {
 
         {!loading && <SubscriptionPlanPanel checkoutDisabled={billingRestricted} />}
 
+        {ragUsage && (
+          <div
+            className="rounded-xl border p-4 mb-5 card-texture"
+            style={{ borderColor: 'var(--border)' }}
+            data-tour="settings-rag-limits"
+          >
+            <p className="text-[13px] font-bold m-0 mb-1">Límites RAG y administración</p>
+            <p className="text-[11px] m-0 mb-3 leading-snug" style={{ color: 'var(--muted-foreground)' }}>
+              Límite técnico por agente en tu plan actual:{' '}
+              {ragUsage.ragEnabled
+                ? `${ragUsage.maxStorageMbPerAgent.toLocaleString('es')} MB o ${ragUsage.maxSourcesPerAgent.toLocaleString('es')} fuentes`
+                : 'RAG no incluido en este plan'}
+              .
+            </p>
+
+            <div
+              className="rounded-lg px-3 py-2 mb-3"
+              style={{ background: 'rgba(15,23,42,0.04)', border: '1px solid rgba(15,23,42,0.08)' }}
+            >
+              <p className="text-[11px] m-0" style={{ color: 'var(--muted-foreground)' }}>
+                Uso total actual: {ragUsage.totals.usedSources.toLocaleString('es')} fuentes ·{' '}
+                {formatMb(ragUsage.totals.usedBytes)}
+              </p>
+            </div>
+
+            <div className="mb-3" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {PLAN_ORDER.map((planId) => {
+                const planLabel = PLAN_DISPLAY[planId]?.label ?? planId;
+                const limit = PLAN_RAG_LIMITS[planId];
+                const isCurrent = ragUsage.plan === planId;
+                return (
+                  <div
+                    key={planId}
+                    className="rounded-lg px-3 py-2"
+                    style={{
+                      border: isCurrent ? `1px solid ${BRAND_R}40` : '1px solid var(--border)',
+                      background: isCurrent ? `${BRAND_R}10` : 'var(--background)',
+                    }}
+                  >
+                    <p className="text-[11px] m-0">
+                      <strong>{planLabel}</strong>{' '}
+                      <span style={{ color: 'var(--muted-foreground)' }}>
+                        — {limit ? `${limit.mb.toLocaleString('es')} MB / ${limit.sources.toLocaleString('es')} fuentes por agente` : 'sin RAG'}
+                      </span>
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {ragUsage.ragEnabled ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {ragUsage.perAgent.length === 0 ? (
+                  <p className="text-[11px] m-0" style={{ color: 'var(--muted-foreground)' }}>
+                    Aún no tienes agentes propios para administrar RAG.
+                  </p>
+                ) : (
+                  ragUsage.perAgent.map((agent) => (
+                    <div
+                      key={agent.id}
+                      className="rounded-lg p-3"
+                      style={{ border: '1px solid var(--border)', background: 'var(--background)' }}
+                    >
+                      <div className="flex items-center justify-between gap-3 mb-1">
+                        <p className="text-[12px] font-semibold m-0">{agent.name}</p>
+                        <Link href={`/dashboard/agents/${agent.id}`} className="text-[11px] font-bold landing-link-accent">
+                          Administrar
+                        </Link>
+                      </div>
+                      <p className="text-[11px] m-0" style={{ color: 'var(--muted-foreground)' }}>
+                        {agent.usedSources.toLocaleString('es')} / {ragUsage.maxSourcesPerAgent.toLocaleString('es')} fuentes ·{' '}
+                        {formatMb(agent.usedBytes)} / {ragUsage.maxStorageMbPerAgent.toLocaleString('es')} MB
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            ) : (
+              <p className="text-[11px] m-0" style={{ color: 'var(--muted-foreground)' }}>
+                Para administrar fuentes y almacenamiento RAG, cambia a un plan con RAG.
+              </p>
+            )}
+          </div>
+        )}
+
         <div style={{ marginBottom: '20px' }}>
           <p
             style={{
@@ -665,6 +779,13 @@ function fmtDateTime(d: string | Date | null | undefined): string {
 function fmtEpochSec(sec: number): string {
   if (!sec || sec <= 0) return '—';
   return new Date(sec * 1000).toLocaleString('es', { dateStyle: 'long', timeStyle: 'short' });
+}
+
+function formatMb(bytes: number): string {
+  const mb = bytes / (1024 * 1024);
+  if (!Number.isFinite(mb) || mb <= 0) return '0 MB';
+  if (mb >= 100) return `${Math.round(mb).toLocaleString('es')} MB`;
+  return `${mb.toFixed(1)} MB`;
 }
 
 function Row({ label, value, action }: { label: string; value: string; action?: React.ReactNode }) {

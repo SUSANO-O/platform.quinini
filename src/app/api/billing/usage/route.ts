@@ -9,6 +9,7 @@ import { checkConversationQuota } from '@/lib/quota';
 import { connectDB } from '@/lib/db/connection';
 import { ConversationPack, PlatformUsage } from '@/lib/db/models';
 import { PLATFORM_AGENT_FREE_REQUESTS_PER_USER_MONTH } from '@/lib/agent-plans';
+import { getPlatformGiftCycleKey } from '@/lib/platform-agent-utils';
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get('afhub_session')?.value;
@@ -29,9 +30,12 @@ export async function GET(req: NextRequest) {
     ]);
 
     const month = new Date().toISOString().slice(0, 7);
-    const platformRow = await PlatformUsage.findOne({ userId, month })
-      .select({ platformFreeUsed: 1 })
-      .lean() as { platformFreeUsed?: number } | null;
+    const platformCycleKey = await getPlatformGiftCycleKey(userId);
+    const [platformCycleRow, platformLegacyMonthRow] = await Promise.all([
+      PlatformUsage.findOne({ userId, month: platformCycleKey }).select({ platformFreeUsed: 1 }).lean(),
+      PlatformUsage.findOne({ userId, month }).select({ platformFreeUsed: 1 }).lean(),
+    ]) as [{ platformFreeUsed?: number } | null, { platformFreeUsed?: number } | null];
+    const platformRow = platformCycleRow ?? platformLegacyMonthRow;
     const platformFreeUsed = Math.max(0, platformRow?.platformFreeUsed ?? 0);
     const platformFreeLimit = PLATFORM_AGENT_FREE_REQUESTS_PER_USER_MONTH;
     const platformFreeRemaining = Math.max(0, platformFreeLimit - platformFreeUsed);
@@ -46,6 +50,7 @@ export async function GET(req: NextRequest) {
       plan: quota.plan,
       percentUsed,
       allowed: quota.allowed,
+      platformCycleKey,
       platformFreeLimit,
       platformFreeUsed,
       platformFreeRemaining,

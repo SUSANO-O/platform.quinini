@@ -14,6 +14,7 @@ interface UsageData {
   limit: number;
   percentUsed: number;
   plan: string;
+  platformCycleKey?: string;
   platformFreeLimit?: number;
   platformFreeUsed?: number;
   platformFreeRemaining?: number;
@@ -191,7 +192,7 @@ export default function DashboardPage() {
               {typeof usage.platformFreeLimit === 'number' && (
                 <div
                   className="mt-3 rounded-xl px-3 py-2 text-xs"
-                  title="Cuota gratuita de regalo para usar agentes de plataforma este mes. Al agotarse, los chats pasan a contar en tu cuota normal de conversaciones."
+                  title="Cuota gratuita de regalo para usar agentes de plataforma en tu ciclo actual. Al agotarse, los chats pasan a contar en tu cuota normal de conversaciones."
                   style={{
                     background: 'rgba(255,255,255,0.72)',
                     border: '1px solid rgba(15,23,42,0.08)',
@@ -201,6 +202,9 @@ export default function DashboardPage() {
                   Regalo plataforma: {(usage.platformFreeUsed ?? 0).toLocaleString('es')} /{' '}
                   {usage.platformFreeLimit.toLocaleString('es')} · restan{' '}
                   {(usage.platformFreeRemaining ?? 0).toLocaleString('es')}
+                  <div className="mt-1 text-[11px]">
+                    Reinicio: {formatPlatformCycleLabel(usage.platformCycleKey, subscription?.currentPeriodEnd)}
+                  </div>
                 </div>
               )}
             </div>
@@ -350,4 +354,22 @@ export default function DashboardPage() {
       </div>
     </div>
   );
+}
+
+function formatPlatformCycleLabel(cycleKey?: string, subscriptionPeriodEnd?: number): string {
+  if (cycleKey?.startsWith('sub_end:')) {
+    const sec = Number(cycleKey.split(':')[1] ?? 0);
+    if (Number.isFinite(sec) && sec > 0) {
+      return `con tu renovación (${new Date(sec * 1000).toLocaleDateString('es')})`;
+    }
+  }
+  if (cycleKey?.startsWith('trial_end:')) {
+    const dateIso = cycleKey.slice('trial_end:'.length);
+    const d = new Date(`${dateIso}T00:00:00`);
+    if (!Number.isNaN(d.getTime())) return `al terminar el trial (${d.toLocaleDateString('es')})`;
+  }
+  if (subscriptionPeriodEnd && subscriptionPeriodEnd > 0) {
+    return `con tu renovación (${new Date(subscriptionPeriodEnd * 1000).toLocaleDateString('es')})`;
+  }
+  return 'sin reinicio mensual automático';
 }

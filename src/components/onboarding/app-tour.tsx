@@ -302,7 +302,12 @@ function buildWidgetBuilderFormSteps(): AfhubDriveStep[] {
     mk(s('widget-builder-copy'), 'Copiar código', 'Lleva el snippet al portapapeles para pegarlo en tu web.', 'top', 'center'),
   ];
 }
-
+/**
+ * Pasos del tour para cada etapa.
+ * @param stage - La etapa actual.
+ * @param counts - El estado de los contadores de agentes y widgets.
+ * @returns Los pasos del tour para la etapa actual.
+ */
 function journeyStepsFor(stage: JourneyStageId, counts: TourCountsState): AfhubDriveStep[] {
   const intro = (title: string, description: string): AfhubDriveStep =>
     mk(s(STAGE_META[stage].sidebarTour), title, description, 'right', 'start');
