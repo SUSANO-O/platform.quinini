@@ -207,6 +207,23 @@ export async function pushClientAgentToHubCatalog(agent: {
     interpretedRule?: string;
     notes?: string;
   }> | null;
+  /** FAQs (pregunta / respuesta). */
+  agentFaqs?: Array<{
+    id: string;
+    question: string;
+    answer: string;
+    enabled?: boolean;
+    priority?: number;
+  }> | null;
+  /** Candidatas detectadas por repetición en el widget. */
+  faqCandidates?: Array<{
+    id: string;
+    key: string;
+    questionSample: string;
+    count: number;
+    lastSeen: string;
+    dismissed?: boolean;
+  }> | null;
 }): Promise<boolean> {
   const base = getAibackhubBaseUrl();
   const hid = String(agent.agentHubId || '').trim();
@@ -266,6 +283,12 @@ export async function pushClientAgentToHubCatalog(agent: {
     }
     if (Array.isArray(agent.behaviorRules)) {
       payload.behaviorRules = agent.behaviorRules;
+    }
+    if (Array.isArray(agent.agentFaqs)) {
+      payload.agentFaqs = agent.agentFaqs;
+    }
+    if (Array.isArray(agent.faqCandidates)) {
+      payload.faqCandidates = agent.faqCandidates;
     }
     const res = await fetch(url, {
       method: 'PUT',
@@ -336,6 +359,21 @@ type LandingAgentDocLike = {
     interpretedRule?: string;
     notes?: string;
   }>;
+  agentFaqs?: Array<{
+    id: string;
+    question: string;
+    answer: string;
+    enabled?: boolean;
+    priority?: number;
+  }>;
+  faqCandidates?: Array<{
+    id: string;
+    key: string;
+    questionSample: string;
+    count: number;
+    lastSeen: string;
+    dismissed?: boolean;
+  }>;
 };
 
 /**
@@ -393,6 +431,12 @@ export async function syncHubCatalogFromLandingAgentDoc(
   }
   if (Array.isArray(agent.behaviorRules)) {
     payload.behaviorRules = agent.behaviorRules;
+  }
+  if (Array.isArray(agent.agentFaqs)) {
+    payload.agentFaqs = agent.agentFaqs;
+  }
+  if (Array.isArray(agent.faqCandidates)) {
+    payload.faqCandidates = agent.faqCandidates;
   }
   return pushClientAgentToHubCatalog(payload);
 }

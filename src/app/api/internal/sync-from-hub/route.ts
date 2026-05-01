@@ -106,6 +106,22 @@ export async function POST(req: NextRequest) {
         };
       };
     }>;
+    behaviorRules?: Array<Record<string, unknown>>;
+    agentFaqs?: Array<{
+      id: string;
+      question: string;
+      answer: string;
+      enabled?: boolean;
+      priority?: number;
+    }>;
+    faqCandidates?: Array<{
+      id: string;
+      key: string;
+      questionSample: string;
+      count: number;
+      lastSeen: string;
+      dismissed?: boolean;
+    }>;
   };
   try {
     body = await req.json();
@@ -245,6 +261,63 @@ export async function POST(req: NextRequest) {
             }
           : {}),
       }))
+      .slice(0, 50);
+  }
+
+  if (Array.isArray(body.behaviorRules)) {
+    $set.behaviorRules = body.behaviorRules
+      .filter((x) => x && typeof x === 'object')
+      .map((x) => x as Record<string, unknown>)
+      .slice(0, 80);
+  }
+  if (Array.isArray(body.agentFaqs)) {
+    $set.agentFaqs = body.agentFaqs
+      .filter((x) => x && typeof x === 'object' && typeof (x as { id?: unknown }).id === 'string')
+      .map((x) => {
+        const o = x as {
+          id: string;
+          question?: string;
+          answer?: string;
+          enabled?: boolean;
+          priority?: number;
+        };
+        return {
+          id: String(o.id).trim().slice(0, 64),
+          question: typeof o.question === 'string' ? o.question.trim().slice(0, 500) : '',
+          answer: typeof o.answer === 'string' ? o.answer.trim().slice(0, 8000) : '',
+          ...(typeof o.enabled === 'boolean' ? { enabled: o.enabled } : {}),
+          ...(typeof o.priority === 'number'
+            ? { priority: Math.max(0, Math.min(1000, Math.floor(o.priority))) }
+            : {}),
+        };
+      })
+      .filter((x) => x.question.length > 0 && x.answer.length > 0)
+      .slice(0, 100);
+  }
+  if (Array.isArray(body.faqCandidates)) {
+    $set.faqCandidates = body.faqCandidates
+      .filter((x) => x && typeof x === 'object' && typeof (x as { key?: unknown }).key === 'string')
+      .map((x) => {
+        const o = x as {
+          id?: string;
+          key: string;
+          questionSample?: string;
+          count?: number;
+          lastSeen?: string;
+          dismissed?: boolean;
+        };
+        return {
+          id: typeof o.id === 'string' && o.id.trim() ? o.id.trim().slice(0, 64) : new mongoose.Types.ObjectId().toString(),
+          key: String(o.key).trim().slice(0, 500),
+          questionSample: typeof o.questionSample === 'string' ? o.questionSample.trim().slice(0, 400) : '',
+          count:
+            typeof o.count === 'number' && Number.isFinite(o.count)
+              ? Math.max(0, Math.min(1_000_000, Math.floor(o.count)))
+              : 0,
+          lastSeen: typeof o.lastSeen === 'string' ? o.lastSeen.trim().slice(0, 40) : new Date().toISOString(),
+          dismissed: o.dismissed === true,
+        };
+      })
       .slice(0, 50);
   }
 

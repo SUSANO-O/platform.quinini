@@ -13,8 +13,14 @@ import {
   Bot, ChevronLeft, Save, Loader2, Plus, Trash2, Network,
   Zap, Wrench, Settings, Lock, CircleOff, Upload, FileText,
   Image as ImageIcon, File, Link2, AlignLeft, CheckCircle2,
-  AlertCircle, X, KeyRound, RefreshCw, Sparkles,
+  AlertCircle, X, KeyRound, RefreshCw,   Sparkles, HelpCircle,
 } from 'lucide-react';
+import {
+  stripManagedFaqPrompt,
+  buildFaqPromptBlock,
+  type AgentFaqRow,
+  type FaqCandidateRow,
+} from '@/lib/agent-faq-utils';
 
 const R = '#e41414';
 const O = '#f87600';
@@ -53,7 +59,7 @@ import { McpLandingConnectForm } from '@/components/mcp/mcp-landing-connect-form
 import { AgentMcpOpenFromQuery } from '@/components/mcp/agent-mcp-open-from-query';
 import { AgentHubspotOauthReturn } from '@/components/mcp/agent-hubspot-oauth-return';
 
-type Tab = 'general' | 'rules' | 'tools' | 'rag' | 'subagents';
+type Tab = 'general' | 'rules' | 'faqs' | 'tools' | 'rag' | 'subagents';
 
 interface McpServerGroup {
   integrationKey: string;
@@ -170,6 +176,8 @@ interface ClientAgent {
     };
   }>;
   behaviorRules?: BehaviorRule[];
+  agentFaqs?: AgentFaqRow[];
+  faqCandidates?: FaqCandidateRow[];
 }
 interface SubAgent {
   _id: string; name: string; model: string; status: 'active' | 'disabled';
@@ -240,11 +248,26 @@ ${lines.join('\n')}
 ${RULES_PROMPT_END}`;
 }
 
-function mergeSystemPromptWithRules(basePrompt: string, rules: BehaviorRule[]): string {
-  const base = stripManagedRulesPrompt(basePrompt);
+function mergeSystemPromptWithManagedBlocks(
+  basePrompt: string,
+  rules: BehaviorRule[],
+  faqs: AgentFaqRow[],
+  candidates: FaqCandidateRow[],
+): string {
+  const base = stripManagedFaqPrompt(stripManagedRulesPrompt(basePrompt));
   const rulesBlock = buildRulesPrompt(rules);
-  if (!rulesBlock) return base;
-  return `${base}\n\n${rulesBlock}`.trim();
+  const faqBlock = buildFaqPromptBlock(faqs, candidates);
+  return [base, rulesBlock, faqBlock].filter(Boolean).join('\n\n').trim();
+}
+
+function createEmptyFaq(): AgentFaqRow {
+  return {
+    id: crypto.randomUUID(),
+    question: '',
+    answer: '',
+    enabled: true,
+    priority: 100,
+  };
 }
 
 export default function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -279,6 +302,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [skills, setSkills] = useState<string[]>([]);
   const [skillsConfig, setSkillsConfig] = useState<NonNullable<ClientAgent['skillsConfig']>>([]);
   const [behaviorRules, setBehaviorRules] = useState<BehaviorRule[]>([]);
+  const [agentFaqs, setAgentFaqs] = useState<AgentFaqRow[]>([]);
+  const [faqCandidates, setFaqCandidates] = useState<FaqCandidateRow[]>([]);
   const [customSkillInput, setCustomSkillInput] = useState('');
 
   // MCP tools state
@@ -369,6 +394,29 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   typeof r.unknownAnswerPolicy === 'string' ? r.unknownAnswerPolicy : '',
                 interpretedRule: typeof r.interpretedRule === 'string' ? r.interpretedRule : '',
                 notes: typeof r.notes === 'string' ? r.notes : '',
+              }))
+            : [],
+        );
+        setAgentFaqs(
+          Array.isArray(a.agentFaqs)
+            ? (a.agentFaqs as Array<Partial<AgentFaqRow>>).map((f) => ({
+                id: typeof f.id === 'string' && f.id ? f.id : crypto.randomUUID(),
+                question: typeof f.question === 'string' ? f.question : '',
+                answer: typeof f.answer === 'string' ? f.answer : '',
+                enabled: f.enabled !== false,
+                priority: typeof f.priority === 'number' ? f.priority : 100,
+              }))
+            : [],
+        );
+        setFaqCandidates(
+          Array.isArray(a.faqCandidates)
+            ? (a.faqCandidates as Array<Partial<FaqCandidateRow>>).map((c) => ({
+                id: typeof c.id === 'string' && c.id ? c.id : crypto.randomUUID(),
+                key: typeof c.key === 'string' ? c.key : '',
+                questionSample: typeof c.questionSample === 'string' ? c.questionSample : '',
+                count: typeof c.count === 'number' ? c.count : 0,
+                lastSeen: typeof c.lastSeen === 'string' ? c.lastSeen : new Date().toISOString(),
+                dismissed: c.dismissed === true,
               }))
             : [],
         );
@@ -522,16 +570,25 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   async function saveGeneral() {
     const t = inferenceTemperature.trim();
     const m = inferenceMaxTokens.trim();
+    const mergedPrompt = mergeSystemPromptWithManagedBlocks(
+      systemPrompt,
+      behaviorRules,
+      agentFaqs,
+      faqCandidates,
+    );
+    setSystemPrompt(mergedPrompt);
     const patch: Record<string, unknown> = {
       name,
       description,
-      systemPrompt,
+      systemPrompt: mergedPrompt,
       model,
       widgetPublicToken: widgetPublicToken.trim() ? widgetPublicToken.trim().slice(0, 512) : null,
       persistConversationHistory,
       skills,
       skillsConfig,
       behaviorRules,
+      agentFaqs,
+      faqCandidates,
     };
     if (t === '') {
       patch.inferenceTemperature = null;
@@ -561,9 +618,25 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   }
 
   async function saveRules() {
-    const mergedPrompt = mergeSystemPromptWithRules(systemPrompt, behaviorRules);
+    const mergedPrompt = mergeSystemPromptWithManagedBlocks(
+      systemPrompt,
+      behaviorRules,
+      agentFaqs,
+      faqCandidates,
+    );
     setSystemPrompt(mergedPrompt);
-    await save({ behaviorRules, systemPrompt: mergedPrompt });
+    await save({ behaviorRules, agentFaqs, faqCandidates, systemPrompt: mergedPrompt });
+  }
+
+  async function saveFaqs() {
+    const mergedPrompt = mergeSystemPromptWithManagedBlocks(
+      systemPrompt,
+      behaviorRules,
+      agentFaqs,
+      faqCandidates,
+    );
+    setSystemPrompt(mergedPrompt);
+    await save({ agentFaqs, faqCandidates, systemPrompt: mergedPrompt });
   }
 
   async function testSavedWebhook() {
@@ -779,6 +852,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
     { id: 'general', label: 'General', icon: <Settings size={13} /> },
     { id: 'rules', label: `Reglas (${behaviorRules.length})`, icon: <Sparkles size={13} /> },
+    {
+      id: 'faqs',
+      label: `FAQ (${agentFaqs.length})`,
+      icon: <HelpCircle size={13} />,
+    },
     { id: 'tools',   label: `Herramientas (${tools.length + mcpToolIds.length})`, icon: <Wrench size={13} /> },
     { id: 'rag',     label: `RAG (${ragN})`, icon: <Zap size={13} /> },
     { id: 'subagents', label: `Sub-agentes (${subAgents.length})`, icon: <Network size={13} /> },
@@ -1513,6 +1591,226 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
               Guardar reglas
+            </button>
+          )}
+        </>
+      )}
+
+      {/* ── FAQ TAB ─────────────────────────────────────────────────────────── */}
+      {tab === 'faqs' && (
+        <>
+          <SectionCard>
+            <p style={sectionTitle}>Preguntas frecuentes</p>
+            <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
+              Define pares pregunta–respuesta para que el modelo las use cuando la consulta sea equivalente. Al guardar,
+              se integran al system prompt y se sincronizan con AIBackHub. El widget registra preguntas repetidas que
+              aún no tienen FAQ: aparecen abajo como candidatas (≥3 veces) para que las conviertas en FAQ formal.
+            </p>
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={() => setAgentFaqs((prev) => [...prev, createEmptyFaq()])}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs transition-opacity"
+                style={{ ...BTN_PRIMARY, cursor: 'pointer' }}
+              >
+                <Plus size={13} /> Agregar FAQ
+              </button>
+            )}
+          </SectionCard>
+
+          {agentFaqs.length === 0 ? (
+            <SectionCard innerStyle={{ textAlign: 'center', padding: '28px 16px' }}>
+              <HelpCircle size={24} style={{ color: 'var(--muted-foreground)', margin: '0 auto 8px' }} />
+              <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', margin: 0 }}>
+                Sin FAQs aún. Añade la primera o espera a que aparezcan candidatas desde el widget.
+              </p>
+            </SectionCard>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {agentFaqs
+                .slice()
+                .sort((a, b) => a.priority - b.priority)
+                .map((faq) => (
+                  <SectionCard key={faq.id} outerStyle={{ borderColor: 'rgba(0,172,248,0.22)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>FAQ</p>
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          onClick={() => setAgentFaqs((prev) => prev.filter((x) => x.id !== faq.id))}
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: 8,
+                            border: '1px solid rgba(239,68,68,0.35)',
+                            background: 'rgba(239,68,68,0.08)',
+                            color: '#ef4444',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 10 }}>
+                      <input
+                        className="landing-input"
+                        style={inp}
+                        value={faq.question}
+                        disabled={readOnly}
+                        placeholder="Pregunta que hace el usuario"
+                        onChange={(e) =>
+                          setAgentFaqs((prev) =>
+                            prev.map((x) => (x.id === faq.id ? { ...x, question: e.target.value } : x)),
+                          )
+                        }
+                      />
+                      <input
+                        className="landing-input"
+                        style={inp}
+                        type="number"
+                        min={0}
+                        max={1000}
+                        value={String(faq.priority)}
+                        disabled={readOnly}
+                        placeholder="Prioridad"
+                        onChange={(e) =>
+                          setAgentFaqs((prev) =>
+                            prev.map((x) =>
+                              x.id === faq.id
+                                ? { ...x, priority: Math.max(0, Math.min(1000, Number(e.target.value) || 0)) }
+                                : x,
+                            ),
+                          )
+                        }
+                      />
+                    </div>
+                    <textarea
+                      className="landing-input"
+                      style={{ ...inp, minHeight: 88, resize: 'vertical', fontFamily: 'inherit', marginTop: 10 }}
+                      value={faq.answer}
+                      disabled={readOnly}
+                      placeholder="Respuesta canónica del agente"
+                      onChange={(e) =>
+                        setAgentFaqs((prev) =>
+                          prev.map((x) => (x.id === faq.id ? { ...x, answer: e.target.value } : x)),
+                        )
+                      }
+                    />
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginTop: 8 }}>
+                      <input
+                        type="checkbox"
+                        checked={faq.enabled}
+                        disabled={readOnly}
+                        onChange={(e) =>
+                          setAgentFaqs((prev) =>
+                            prev.map((x) => (x.id === faq.id ? { ...x, enabled: e.target.checked } : x)),
+                          )
+                        }
+                      />
+                      FAQ activa
+                    </label>
+                  </SectionCard>
+                ))}
+            </div>
+          )}
+
+          <SectionCard>
+            <p style={sectionTitle}>Candidatas (desde el widget)</p>
+            <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '10px', lineHeight: 1.45 }}>
+              Preguntas que los visitantes repiten y que no coinciden con ninguna FAQ por texto normalizado. Tras{' '}
+              <strong>3</strong> repeticiones se sugieren al modelo como contexto; conviértelas en FAQ para fijar la
+              respuesta.
+            </p>
+            {faqCandidates.filter((c) => !c.dismissed).length === 0 ? (
+              <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', margin: 0 }}>
+                Aún no hay candidatas. Usa el widget con este agente: se irán acumulando aquí.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {faqCandidates
+                  .filter((c) => !c.dismissed)
+                  .sort((a, b) => (b.count ?? 0) - (a.count ?? 0))
+                  .map((c) => (
+                    <div
+                      key={c.id}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: 10,
+                        border: '1px solid var(--border)',
+                        background: 'rgba(0,172,248,0.05)',
+                        fontSize: 13,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 700, color: R }}>×{c.count}</span>
+                        {!readOnly && (
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              className="text-xs font-bold px-2 py-1 rounded-lg border"
+                              style={{ borderColor: `${B}55`, color: B, cursor: 'pointer', background: 'rgba(0,172,248,0.08)' }}
+                              onClick={() => {
+                                const q = c.questionSample.trim();
+                                if (!q) return;
+                                setAgentFaqs((prev) => [
+                                  ...prev,
+                                  {
+                                    id: crypto.randomUUID(),
+                                    question: q.slice(0, 500),
+                                    answer: '',
+                                    enabled: true,
+                                    priority: 50,
+                                  },
+                                ]);
+                                setFaqCandidates((prev) =>
+                                  prev.map((x) => (x.id === c.id ? { ...x, dismissed: true } : x)),
+                                );
+                              }}
+                            >
+                              Crear FAQ
+                            </button>
+                            <button
+                              type="button"
+                              className="text-xs font-semibold px-2 py-1 rounded-lg border"
+                              style={{
+                                borderColor: 'var(--border)',
+                                cursor: 'pointer',
+                                color: 'var(--muted-foreground)',
+                              }}
+                              onClick={() =>
+                                setFaqCandidates((prev) =>
+                                  prev.map((x) => (x.id === c.id ? { ...x, dismissed: true } : x)),
+                                )
+                              }
+                            >
+                              Ocultar
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <p style={{ margin: '8px 0 0', lineHeight: 1.4, color: 'var(--foreground)' }}>{c.questionSample}</p>
+                      <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--muted-foreground)' }}>
+                        Última vez: {c.lastSeen ? new Date(c.lastSeen).toLocaleString('es') : '—'}
+                      </p>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </SectionCard>
+
+          {!readOnly && (
+            <button
+              onClick={saveFaqs}
+              disabled={saving}
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-opacity"
+              style={{
+                ...BTN_PRIMARY,
+                cursor: saving ? 'not-allowed' : 'pointer',
+                opacity: saving ? 0.7 : 1,
+              }}
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              Guardar FAQs
             </button>
           )}
         </>

@@ -16,6 +16,7 @@ import { checkConversationQuota } from '@/lib/quota';
 import { dispatchSaasWebhook } from '@/lib/saas-webhook-outbound';
 import { getAgentLimits } from '@/lib/agent-plans';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
+import { trackWidgetUserMessageForFaqCandidates } from '@/lib/widget-faq-tracker';
 
 /** Max body size accepted from widget SDK (64 KB) */
 const MAX_WIDGET_BODY_BYTES = 64 * 1024;
@@ -201,6 +202,9 @@ export async function POST(req: NextRequest) {
 
   const traceId = requestIdEarly;
 
+  /** Dueño del widget (token wt_*): para telemetría de candidatas a FAQ tras respuesta OK. */
+  let faqTrackOwnerId: string | null = null;
+
   const headers: Record<string, string> = {
     'Content-Type': req.headers.get('content-type') || 'application/json',
     'X-Trace-Id': traceId,
@@ -224,6 +228,7 @@ export async function POST(req: NextRequest) {
             { status: 403, headers: cors(origin) },
           );
         }
+        faqTrackOwnerId = w.userId;
         // ── Quota check ──────────────────────────────────────────────────
         try {
           const quota = await checkConversationQuota(w.userId);
@@ -329,6 +334,11 @@ export async function POST(req: NextRequest) {
           });
           if (direct) {
             trackWidgetChatUsage(widgetToken, parsedAgentId, true).catch(() => {});
+            void trackWidgetUserMessageForFaqCandidates({
+              ownerUserId: w.userId,
+              agentIdOrHubId: parsedAgentId,
+              rawBody,
+            }).catch(() => {});
             return NextResponse.json(
               {
                 reply: direct.reply,
@@ -373,6 +383,13 @@ export async function POST(req: NextRequest) {
 
     if (res.ok && widgetToken.startsWith('wt_') && parsedAgentId) {
       trackWidgetChatUsage(widgetToken, parsedAgentId, true).catch(() => {});
+      if (faqTrackOwnerId) {
+        void trackWidgetUserMessageForFaqCandidates({
+          ownerUserId: faqTrackOwnerId,
+          agentIdOrHubId: parsedAgentId,
+          rawBody,
+        }).catch(() => {});
+      }
     }
 
     return new NextResponse(data, { status: res.status, headers: out });

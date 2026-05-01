@@ -169,6 +169,10 @@ const ClientAgentSchema = new Schema({
   skillsConfig:    { type: [Schema.Types.Mixed], default: [] },
   /** Reglas operativas editables desde la UI (prioridad, tono, reclamos, respuestas cortas, etc.). */
   behaviorRules:   { type: [Schema.Types.Mixed], default: [] },
+  /** Preguntas frecuentes (Q/A) para guiar al modelo. */
+  agentFaqs:       { type: [Schema.Types.Mixed], default: [] },
+  /** Preguntas repetidas sin FAQ formal (candidatas; el widget incrementa contadores). */
+  faqCandidates:   { type: [Schema.Types.Mixed], default: [] },
 }, { timestamps: true });
 
 ClientAgentSchema.index({ userId: 1, type: 1, createdAt: -1 });

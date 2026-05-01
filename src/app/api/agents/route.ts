@@ -162,6 +162,7 @@ export async function POST(req: NextRequest) {
     parentAgentId,
     ragSources = [],
     behaviorRules = [],
+    agentFaqs = [],
     inferenceTemperature: bodyInfTemp,
     inferenceMaxTokens: bodyInfMax,
   } = body;
@@ -308,6 +309,27 @@ export async function POST(req: NextRequest) {
         .slice(0, 80)
     : [];
 
+  const safeAgentFaqs = Array.isArray(agentFaqs)
+    ? agentFaqs
+        .filter((x: unknown): x is Record<string, unknown> => Boolean(x) && typeof x === 'object')
+        .map((x) => ({
+          id:
+            typeof x.id === 'string' && x.id.trim()
+              ? x.id.trim().slice(0, 64)
+              : new mongoose.Types.ObjectId().toString(),
+          question:
+            typeof x.question === 'string' ? x.question.trim().slice(0, 500) : '',
+          answer: typeof x.answer === 'string' ? x.answer.trim().slice(0, 8000) : '',
+          enabled: x.enabled !== false,
+          priority:
+            typeof x.priority === 'number' && Number.isFinite(x.priority)
+              ? Math.max(0, Math.min(1000, Math.floor(x.priority)))
+              : 100,
+        }))
+        .filter((x) => x.question.length > 0 && x.answer.length > 0)
+        .slice(0, 100)
+    : [];
+
   let inferenceTemperature: number | null | undefined;
   if (bodyInfTemp !== undefined && bodyInfTemp !== null && bodyInfTemp !== '') {
     const n = Number(bodyInfTemp);
@@ -338,6 +360,8 @@ export async function POST(req: NextRequest) {
     ragEnabled: safeRagSources.length > 0,
     ragSources: safeRagSources,
     behaviorRules: safeBehaviorRules,
+    agentFaqs: safeAgentFaqs,
+    faqCandidates: [],
     ...(widgetPublicToken ? { widgetPublicToken } : {}),
     syncStatus: 'pending',
     ...(isPlatform ? { isPlatform: true } : {}),

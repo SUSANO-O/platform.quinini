@@ -428,6 +428,62 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     agent.set('behaviorRules', cleaned);
   }
 
+  if ('agentFaqs' in body) {
+    const raw = body.agentFaqs;
+    if (!Array.isArray(raw)) {
+      return NextResponse.json({ error: 'agentFaqs debe ser un array.' }, { status: 400 });
+    }
+    const cleaned = raw
+      .filter((x: unknown): x is Record<string, unknown> => Boolean(x) && typeof x === 'object')
+      .map((x) => ({
+        id:
+          typeof x.id === 'string' && x.id.trim()
+            ? x.id.trim().slice(0, 64)
+            : new mongoose.Types.ObjectId().toString(),
+        question:
+          typeof x.question === 'string' ? x.question.trim().slice(0, 500) : '',
+        answer: typeof x.answer === 'string' ? x.answer.trim().slice(0, 8000) : '',
+        enabled: x.enabled !== false,
+        priority:
+          typeof x.priority === 'number' && Number.isFinite(x.priority)
+            ? Math.max(0, Math.min(1000, Math.floor(x.priority)))
+            : 100,
+      }))
+      .filter((x) => x.question.length > 0 && x.answer.length > 0)
+      .slice(0, 100);
+    agent.set('agentFaqs', cleaned);
+  }
+
+  if ('faqCandidates' in body) {
+    const raw = body.faqCandidates;
+    if (!Array.isArray(raw)) {
+      return NextResponse.json({ error: 'faqCandidates debe ser un array.' }, { status: 400 });
+    }
+    const cleaned = raw
+      .filter((x: unknown): x is Record<string, unknown> => Boolean(x) && typeof x === 'object')
+      .map((x) => ({
+        id:
+          typeof x.id === 'string' && x.id.trim()
+            ? x.id.trim().slice(0, 64)
+            : new mongoose.Types.ObjectId().toString(),
+        key: typeof x.key === 'string' ? x.key.trim().slice(0, 500) : '',
+        questionSample:
+          typeof x.questionSample === 'string' ? x.questionSample.trim().slice(0, 400) : '',
+        count:
+          typeof x.count === 'number' && Number.isFinite(x.count)
+            ? Math.max(0, Math.min(1_000_000, Math.floor(x.count)))
+            : 0,
+        lastSeen:
+          typeof x.lastSeen === 'string' && x.lastSeen.trim()
+            ? x.lastSeen.trim().slice(0, 40)
+            : new Date().toISOString(),
+        dismissed: x.dismissed === true,
+      }))
+      .filter((x) => x.key.length > 0)
+      .slice(0, 50);
+    agent.set('faqCandidates', cleaned);
+  }
+
   await agent.save();
 
   const hubId = typeof agent.agentHubId === 'string' ? agent.agentHubId.trim() : '';
