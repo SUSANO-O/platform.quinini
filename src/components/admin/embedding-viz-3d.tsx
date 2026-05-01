@@ -111,11 +111,15 @@ function InstanceScatter({
   const baseR = sphereBaseRadius(n) * pointSize;
 
   const geom = useMemo(() => new THREE.SphereGeometry(1, 10, 10), []);
+  /** Basic ignora normales (Lambert quedaba casi negro según ángulo/luces). fog:false evita que la niebla tiña todo a negro. */
   const mat = useMemo(
     () =>
-      new THREE.MeshLambertMaterial({
+      new THREE.MeshBasicMaterial({
         vertexColors: true,
         toneMapped: false,
+        fog: false,
+        depthTest: true,
+        depthWrite: true,
       }),
     [],
   );
@@ -129,12 +133,14 @@ function InstanceScatter({
       dummy.scale.setScalar(baseR);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
-      colorTmp.setRGB(layout.col[i * 3]!, layout.col[i * 3 + 1]!, layout.col[i * 3 + 2]!);
+      colorTmp.setRGB(layout.col[i * 3]!, layout.col[i * 3 + 1]!, layout.col[i * 3 + 2]!, THREE.SRGBColorSpace);
       mesh.setColorAt(i, colorTmp);
     }
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }, [layout, n, baseR, dummy, colorTmp]);
+    mat.vertexColors = true;
+    mat.needsUpdate = true;
+  }, [layout, n, baseR, dummy, colorTmp, mat]);
 
   const handleMove = (e: ThreeEvent<PointerEvent>) => {
     const id = e.instanceId;
