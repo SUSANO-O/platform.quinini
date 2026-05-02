@@ -24,6 +24,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
+import { PwaInstallButton } from '@/components/shared/pwa-install-button';
 
 const SIDEBAR_EXPANDED_PX = 220;
 const SIDEBAR_COLLAPSED_PX = 72;
@@ -566,6 +567,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </p>
               </>
             ) : null}
+            <PwaInstallButton collapsed={sidebarCollapsed} />
             <button
               type="button"
               onClick={handleLogout}
