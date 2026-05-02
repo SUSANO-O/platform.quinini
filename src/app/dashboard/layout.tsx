@@ -360,7 +360,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <SubscriptionExpiryGate />
       <div
         className="dashboard-root-texture"
-        style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--background)' }}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: '100vh',
+          height: '100vh',
+          maxHeight: '100vh',
+          overflow: 'hidden',
+          background: 'var(--background)',
+        }}
       >
         {user.impersonation && (
           <div
@@ -404,21 +412,41 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
           </div>
         )}
-        <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        {/* Sidebar */}
-        <aside style={{
-          width: '220px', flexShrink: 0, background: 'var(--card)',
-          borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column',
-          padding: '20px 12px', alignSelf: 'stretch',
-        }}>
+        <div style={{ display: 'flex', flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
+        {/* Sidebar: altura fija al viewport; solo la zona nav hace scroll si hay mucho contenido */}
+        <aside
+          style={{
+            width: '220px',
+            flexShrink: 0,
+            minHeight: 0,
+            height: '100%',
+            background: 'var(--card)',
+            borderRight: '1px solid var(--border)',
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '20px 12px',
+            overflow: 'hidden',
+          }}
+        >
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 no-underline px-2 mb-4">
+          <Link href="/" className="flex shrink-0 items-center gap-2.5 no-underline px-2 mb-4">
             <Image src="/t1.png" alt="MatIAs" width={36} height={36} className="rounded-xl object-cover shrink-0" style={{ aspectRatio: '1/1' }} />
             <span className="text-lg font-bold gradient-text">MatIAs</span>
           </Link>
 
-          {/* Nav */}
-          <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {/* Nav — ocupa el espacio sobrante y hace scroll si crece (trial, badges, muchos enlaces) */}
+          <nav
+            style={{
+              flex: 1,
+              minHeight: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px',
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              WebkitOverflowScrolling: 'touch',
+            }}
+          >
           {NAV.map(({ href, label, icon: Icon }) => {
             const active = href === '/dashboard' ? pathname === href : pathname.startsWith(href);
             return (
@@ -442,8 +470,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
 
-        {/* User + logout */}
-        <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+        {/* User + logout — siempre visible al pie del sidebar */}
+        <div style={{ flexShrink: 0, borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
           <SidebarExpiryBadge />
           <JourneyProgress />
           <TourActions />
@@ -467,8 +495,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
         </aside>
 
-        {/* Main content */}
-        <main style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
+        {/* Main content — única columna que crece con el documento; scroll vertical aquí */}
+        <main style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
           {children}
         </main>
         </div>
