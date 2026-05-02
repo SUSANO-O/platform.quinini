@@ -4,23 +4,36 @@
   "description": "Integra agentes de IA especializados en tu producto.",
   "start_url": "/",
   "scope": "/",
+  "display_override": ["standalone", "fullscreen"],
   "display": "standalone",
   "background_color": "#0f1729",
   "theme_color": "#0f1729",
   "lang": "es",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "icons": [
     {
       "src": "/t1.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/t1.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/t1.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/t1.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/favicon.svg",
