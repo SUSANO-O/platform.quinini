@@ -387,7 +387,30 @@ export default function WidgetPreviewPage() {
           </InfoCard>
 
           {/* Agent Card */}
-          <InfoCard title="Agente" icon={<Bot size={15} />}>
+          <InfoCard
+            title="Agente"
+            icon={<Bot size={15} />}
+            headerActions={
+              agent ? (
+                <Link
+                  href={`/dashboard/agents/${agent._id}`}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: 'var(--primary)',
+                    textDecoration: 'none',
+                    whiteSpace: 'nowrap',
+                    padding: '5px 11px',
+                    borderRadius: 8,
+                    border: '1px solid color-mix(in oklab, var(--primary) 38%, transparent)',
+                    background: 'color-mix(in oklab, var(--primary) 10%, transparent)',
+                  }}
+                >
+                  Abrir agente →
+                </Link>
+              ) : null
+            }
+          >
             {agent ? (
               <>
                 <Row label="Nombre" value={agent.name} />
@@ -572,7 +595,17 @@ export default function WidgetPreviewPage() {
 
 /* ── Small helper components ──────────────────────────────────────────── */
 
-function InfoCard({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+function InfoCard({
+  title,
+  icon,
+  headerActions,
+  children,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  headerActions?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <div
       style={{
@@ -586,7 +619,8 @@ function InfoCard({ title, icon, children }: { title: string; icon: React.ReactN
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 6,
+          justifyContent: 'space-between',
+          gap: 10,
           marginBottom: 10,
           paddingBottom: 8,
           borderBottom: '1px solid color-mix(in oklab, var(--foreground) 8%, transparent)',
@@ -594,7 +628,10 @@ function InfoCard({ title, icon, children }: { title: string; icon: React.ReactN
           fontSize: 13,
         }}
       >
-        {icon} {title}
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          {icon} {title}
+        </span>
+        {headerActions ? <span style={{ flexShrink: 0 }}>{headerActions}</span> : null}
       </div>
       {children}
     </div>
