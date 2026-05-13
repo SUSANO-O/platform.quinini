@@ -26,6 +26,8 @@ const UserSchema = new Schema({
   saasWebhookSecret: { type: String, default: null },
   /** Política opcional por tenant: proveedores permitidos en selector de modelos (vacío = todos). */
   allowedModelProviders: { type: [String], default: [] },
+  /** WebPush subscription object (endpoint + keys) para notificaciones push en navegador. */
+  pushSubscription:  { type: Schema.Types.Mixed, default: null },
   createdAt:         { type: Date,   default: Date.now },
 }, { timestamps: true });
 
@@ -100,6 +102,12 @@ const WidgetSchema = new Schema({
   afhubToken:   { type: String, default: null },
   afhubWidgetId:{ type: String, default: null },
   orgId:        { type: String, default: null },
+  /**
+   * Lista de orígenes permitidos (scheme + host, sin trailing slash).
+   * Ej: [“https://miempresa.com”, “https://www.miempresa.com”]
+   * Si está vacío, se acepta cualquier origen (modo permisivo / dev).
+   */
+  allowedOrigins: { type: [String], default: [] },
 }, { timestamps: true });
 
 WidgetSchema.index({ userId: 1, createdAt: -1 });
@@ -163,6 +171,8 @@ const ClientAgentSchema = new Schema({
   syncStatus:      { type: String, enum: ['pending', 'synced', 'failed'], default: 'pending' },
   /** Creado por admin; visible para todos los usuarios y no cuenta en el cupo de agentes del plan. */
   isPlatform:      { type: Boolean, default: false },
+  /** Si true, el motor en AIBackHub refuerza que el agente no responda fuera de rol + tools/RAG/skills. */
+  strictPurposeOnly: { type: Boolean, default: true },
   /** IDs de skills del catálogo (agent-skills.ts). Sincronizado bidireccional con el hub. */
   skills:          { type: [String], default: [] },
   /** Config runtime de skills (prompt/tools/settings), sincronizada con el hub. */
@@ -220,19 +230,146 @@ const AuditLogSchema = new Schema({
 
 AuditLogSchema.index({ userId: 1, createdAt: -1 });
 
+// ── SECURITY LOG ─────────────────────────────────────────────────────────────
+// Eventos de seguridad del flujo de chat: auth failures, rate limits, injection.
+// TTL de 90 días — suficiente para forensics sin acumular datos innecesarios.
+
+const SecurityLogSchema = new Schema({
+  event:     { type: String, required: true }, // 'rate_limited' | 'origin_not_allowed' | 'token_invalid' | 'quota_exceeded' | 'injection_detected' | 'turn_limit' | 'signature_invalid'
+  ip:        { type: String, default: '' },
+  origin:    { type: String, default: '' },
+  widgetId:  { type: String, default: '' },
+  agentId:   { type: String, default: '' },
+  userId:    { type: String, default: '' },      // dueño del widget si se resolvió
+  code:      { type: String, default: '' },      // código de error devuelto al cliente
+  meta:      { type: Schema.Types.Mixed, default: {} },
+  createdAt: { type: Date, default: Date.now, expires: 60 * 60 * 24 * 90 }, // TTL 90d
+}, { timestamps: false });
+
+SecurityLogSchema.index({ event: 1, createdAt: -1 });
+SecurityLogSchema.index({ ip: 1, createdAt: -1 });
+SecurityLogSchema.index({ widgetId: 1, event: 1, createdAt: -1 });
+
+// ── CONVERSATION SESSIONS (analytics enriquecido) ─────────────────────────────
+// Cada sesión de chat del widget = una entrada. Permite analytics de duración,
+// drop-off, y tasa de resolución.
+
+const ConversationSessionSchema = new Schema({
+  widgetId:     { type: String, required: true },
+  userId:       { type: String, required: true }, // dueño del widget
+  agentId:      { type: String, default: '' },
+  sessionId:    { type: String, required: true, unique: true },
+  startedAt:    { type: Date, required: true },
+  endedAt:      { type: Date, default: null },
+  /** Segundos de duración (null si no terminó) */
+  durationSec:  { type: Number, default: null },
+  messageCount: { type: Number, default: 0 },
+  /** Análisis de sentimiento básico: 'positive' | 'neutral' | 'negative' */
+  sentiment:    { type: String, enum: ['positive', 'neutral', 'negative'], default: 'neutral' },
+  /** true si el usuario solicitó agente humano */
+  escalated:    { type: Boolean, default: false },
+  /** true si la sesión terminó sin respuesta final del bot (abandonó) */
+  dropped:      { type: Boolean, default: false },
+  /** true si el usuario respondió positivamente (resolved vía feedback) */
+  resolved:     { type: Boolean, default: null },
+  /** Hora del día (0-23) para análisis de pico horario */
+  hourOfDay:    { type: Number, default: null },
+  /** Día de la semana (0=dom, 6=sab) */
+  dayOfWeek:    { type: Number, default: null },
+  month:        { type: String, default: '' }, // "YYYY-MM"
+}, { timestamps: true });
+
+ConversationSessionSchema.index({ widgetId: 1, month: -1 });
+ConversationSessionSchema.index({ userId: 1, month: -1 });
+ConversationSessionSchema.index({ sessionId: 1 }, { unique: true });
+ConversationSessionSchema.index({ startedAt: -1 });
+
+// ── TEAM / ORGANIZATIONS ───────────────────────────────────────────────────────
+// Permite que múltiples usuarios compartan el mismo workspace.
+
+const OrganizationSchema = new Schema({
+  name:       { type: String, required: true },
+  slug:       { type: String, required: true, unique: true },
+  ownerId:    { type: String, required: true },
+  members: [{
+    userId: { type: String, required: true },
+    role:   { type: String, enum: ['owner', 'admin', 'viewer'], default: 'viewer' },
+    joinedAt: { type: Date, default: Date.now },
+  }],
+  /** Invitaciones pendientes por email */
+  invites: [{
+    email:    { type: String, required: true, lowercase: true },
+    role:     { type: String, enum: ['admin', 'viewer'], default: 'viewer' },
+    token:    { type: String, required: true },
+    expiresAt:{ type: Date, required: true },
+    invitedBy:{ type: String, required: true },
+  }],
+}, { timestamps: true });
+
+OrganizationSchema.index({ ownerId: 1 });
+OrganizationSchema.index({ 'members.userId': 1 });
+
+// ── REFERRALS ─────────────────────────────────────────────────────────────────
+
+const ReferralSchema = new Schema({
+  referrerId:    { type: String, required: true, unique: true }, // quien refirió
+  code:          { type: String, required: true, unique: true },  // link único
+  /** IDs de usuarios que usaron este código */
+  referredUsers: [{ type: String }],
+  /** Conversaciones bonus otorgadas al referidor */
+  bonusGranted:  { type: Number, default: 0 },
+  /** Conversaciones bonus pendientes de otorgar */
+  bonusPending:  { type: Number, default: 0 },
+}, { timestamps: true });
+
+ReferralSchema.index({ code: 1 }, { unique: true });
+
+// ── A/B PROMPT TEST ───────────────────────────────────────────────────────────
+
+const AbTestSchema = new Schema({
+  agentId:   { type: String, required: true },
+  userId:    { type: String, required: true },
+  name:      { type: String, required: true },
+  status:    { type: String, enum: ['running', 'stopped', 'archived'], default: 'running' },
+  variants: [{
+    id:         { type: String, required: true },
+    label:      { type: String, default: '' },
+    systemPrompt: { type: String, required: true },
+    trafficPct: { type: Number, default: 50 }, // 0-100
+    sessions:   { type: Number, default: 0 },
+    escalations:{ type: Number, default: 0 },
+    positiveResponses: { type: Number, default: 0 },
+    avgDurationSec: { type: Number, default: null },
+  }],
+  startedAt: { type: Date, default: Date.now },
+  stoppedAt: { type: Date, default: null },
+}, { timestamps: true });
+
+AbTestSchema.index({ agentId: 1, userId: 1 });
+AbTestSchema.index({ userId: 1, status: 1 });
+
 // ── EXPORTS (safe for Next.js HMR) ───────────────────────────────────────────
 
 // Delete cached models in dev so schema changes take effect on hot reload
 if (process.env.NODE_ENV !== 'production') {
-  (['User', 'ClientAgent', 'Subscription', 'PlatformUsage', 'ConversationPack', 'AuditLog'] as const).forEach((name) => {
+  const modelNames = [
+    'User', 'ClientAgent', 'Subscription', 'PlatformUsage', 'ConversationPack',
+    'AuditLog', 'SecurityLog', 'ConversationSession', 'Organization', 'Referral', 'AbTest',
+  ] as const;
+  modelNames.forEach((name) => {
     if (mongoose.models[name]) delete (mongoose.models as Record<string, unknown>)[name];
   });
 }
-export const User             = mongoose.models.User             || mongoose.model('User', UserSchema);
-export const Subscription     = mongoose.models.Subscription     || mongoose.model('Subscription', SubscriptionSchema);
-export const Widget           = mongoose.models.Widget           || mongoose.model('Widget', WidgetSchema);
-export const RequestLog       = mongoose.models.RequestLog       || mongoose.model('RequestLog', RequestLogSchema);
-export const ClientAgent      = mongoose.models.ClientAgent      || mongoose.model('ClientAgent', ClientAgentSchema);
-export const PlatformUsage    = mongoose.models.PlatformUsage    || mongoose.model('PlatformUsage', PlatformUsageSchema);
-export const ConversationPack = mongoose.models.ConversationPack || mongoose.model('ConversationPack', ConversationPackSchema);
-export const AuditLog         = mongoose.models.AuditLog         || mongoose.model('AuditLog', AuditLogSchema);
+export const User                 = mongoose.models.User                 || mongoose.model('User', UserSchema);
+export const Subscription         = mongoose.models.Subscription         || mongoose.model('Subscription', SubscriptionSchema);
+export const Widget               = mongoose.models.Widget               || mongoose.model('Widget', WidgetSchema);
+export const RequestLog           = mongoose.models.RequestLog           || mongoose.model('RequestLog', RequestLogSchema);
+export const ClientAgent          = mongoose.models.ClientAgent          || mongoose.model('ClientAgent', ClientAgentSchema);
+export const PlatformUsage        = mongoose.models.PlatformUsage        || mongoose.model('PlatformUsage', PlatformUsageSchema);
+export const ConversationPack     = mongoose.models.ConversationPack     || mongoose.model('ConversationPack', ConversationPackSchema);
+export const AuditLog             = mongoose.models.AuditLog             || mongoose.model('AuditLog', AuditLogSchema);
+export const SecurityLog          = mongoose.models.SecurityLog          || mongoose.model('SecurityLog', SecurityLogSchema);
+export const ConversationSession  = mongoose.models.ConversationSession  || mongoose.model('ConversationSession', ConversationSessionSchema);
+export const Organization         = mongoose.models.Organization         || mongoose.model('Organization', OrganizationSchema);
+export const Referral             = mongoose.models.Referral             || mongoose.model('Referral', ReferralSchema);
+export const AbTest               = mongoose.models.AbTest               || mongoose.model('AbTest', AbTestSchema);

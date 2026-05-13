@@ -8,13 +8,15 @@ import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent } from '@/lib/db/models';
 import { repairSubAgentLinks } from '@/lib/repair-subagent-links';
+import { verifySignature, SIGNATURE_HEADER } from '@/lib/hub-signature';
 
-function getSecret(req: NextRequest): string | null {
-  return (
-    req.headers.get('x-hub-sync-secret')?.trim() ||
-    req.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim() ||
-    null
-  );
+function isAuthorized(req: NextRequest, rawBody: string, expected: string): boolean {
+  const sig = req.headers.get(SIGNATURE_HEADER);
+  if (sig) return verifySignature(rawBody, sig, expected);
+  // Legacy fallback: raw secret in header
+  const legacy = req.headers.get('x-hub-sync-secret')?.trim() ||
+    req.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim() || '';
+  return legacy === expected;
 }
 
 function parseClientAgentIdFromDescription(description: string | undefined): string | undefined {
@@ -64,11 +66,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No configurado.' }, { status: 503 });
   }
 
-  const got = getSecret(req);
-  if (!got || got !== expected) {
+  const rawBody = await req.text();
+  if (!isAuthorized(req, rawBody, expected)) {
     return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
   }
-
   let body: {
     agentHubId?: string;
     landingClientAgentId?: string;
@@ -86,45 +87,20 @@ export async function POST(req: NextRequest) {
     isPlatform?: boolean;
     skills?: string[];
     enabledToolIds?: string[];
-    tools?: Array<{
-      toolId: string;
-      config?: Record<string, unknown>;
-    }>;
+    tools?: Array<{ toolId: string; config?: Record<string, unknown> }>;
     widgetPublicToken?: string | null;
     persistConversationHistory?: boolean;
     skillsConfig?: Array<{
-      id: string;
-      name?: string;
-      enabled?: boolean;
-      priority?: number;
-      config?: {
-        prompt_extension?: string;
-        active_tools?: string[];
-        llm_settings?: {
-          temperature?: number;
-          maxOutputTokens?: number;
-        };
-      };
+      id: string; name?: string; enabled?: boolean; priority?: number;
+      config?: { prompt_extension?: string; active_tools?: string[]; llm_settings?: { temperature?: number; maxOutputTokens?: number } };
     }>;
     behaviorRules?: Array<Record<string, unknown>>;
-    agentFaqs?: Array<{
-      id: string;
-      question: string;
-      answer: string;
-      enabled?: boolean;
-      priority?: number;
-    }>;
-    faqCandidates?: Array<{
-      id: string;
-      key: string;
-      questionSample: string;
-      count: number;
-      lastSeen: string;
-      dismissed?: boolean;
-    }>;
+    agentFaqs?: Array<{ id: string; question: string; answer: string; enabled?: boolean; priority?: number }>;
+    faqCandidates?: Array<{ id: string; key: string; questionSample: string; count: number; lastSeen: string; dismissed?: boolean }>;
+    strictPurposeOnly?: boolean;
   };
   try {
-    body = await req.json();
+    body = JSON.parse(rawBody);
   } catch {
     return NextResponse.json({ error: 'JSON inválido.' }, { status: 400 });
   }
@@ -215,6 +191,9 @@ export async function POST(req: NextRequest) {
   }
   if (typeof body.persistConversationHistory === 'boolean') {
     $set.persistConversationHistory = body.persistConversationHistory;
+  }
+  if (typeof body.strictPurposeOnly === 'boolean') {
+    $set.strictPurposeOnly = body.strictPurposeOnly;
   }
   if (Array.isArray(body.skillsConfig)) {
     $set.skillsConfig = body.skillsConfig

@@ -122,6 +122,9 @@ export async function GET(req: NextRequest, { params }: Params) {
       if (typeof hub.persistConversationHistory === 'boolean') {
         $set.persistConversationHistory = hub.persistConversationHistory;
       }
+      if (typeof hub.strictPurposeOnly === 'boolean') {
+        $set.strictPurposeOnly = hub.strictPurposeOnly;
+      }
 
       if (typeof hub.isPlatform === 'boolean') $set.isPlatform = hub.isPlatform;
       const landingStatusFromHub = hubCatalogStatusToLandingStatus(hub.status);
@@ -306,6 +309,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         { error: 'persistConversationHistory debe ser boolean.' },
         { status: 400 },
       );
+    }
+  }
+  if ('strictPurposeOnly' in body) {
+    if (typeof body.strictPurposeOnly === 'boolean') {
+      agent.set('strictPurposeOnly', body.strictPurposeOnly);
+    } else {
+      return NextResponse.json({ error: 'strictPurposeOnly debe ser boolean.' }, { status: 400 });
     }
   }
 

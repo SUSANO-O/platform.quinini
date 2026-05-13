@@ -9,9 +9,18 @@ import { connectDB } from '@/lib/db/connection';
 import { User } from '@/lib/db/models';
 
 export type SaasWebhookEventType =
+  | 'conversation.started'
   | 'conversation.closed'
   | 'conversation.handoff'
-  | 'quota.reached';
+  | 'conversation.escalation'
+  | 'conversation.message_sent'
+  | 'conversation.message_received'
+  | 'conversation.feedback'
+  | 'quota.reached'
+  | 'quota.warning'
+  | 'agent.created'
+  | 'agent.updated'
+  | 'faq.candidate_detected';
 
 export type SaasWebhookPayload<T = unknown> = {
   event: SaasWebhookEventType;

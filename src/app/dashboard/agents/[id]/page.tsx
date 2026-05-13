@@ -183,6 +183,7 @@ interface ClientAgent {
   subAgentIds: string[]; syncStatus: string; agentHubId: string | null;
   widgetPublicToken?: string | null;
   persistConversationHistory?: boolean;
+  strictPurposeOnly?: boolean;
   enabledMcpToolIds?: string[];
   /** Catálogo global (solo lectura en la landing; edición en AgentFlowHub). */
   isPlatform?: boolean;
@@ -327,6 +328,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   }, [ragSources]);
   const [widgetPublicToken, setWidgetPublicToken] = useState('');
   const [persistConversationHistory, setPersistConversationHistory] = useState(true);
+  const [strictPurposeOnly, setStrictPurposeOnly] = useState(true);
   const [inferenceTemperature, setInferenceTemperature] = useState('');
   const [inferenceMaxTokens, setInferenceMaxTokens] = useState('');
   const [modelQuery, setModelQuery] = useState('');
@@ -455,6 +457,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         setPersistConversationHistory(
           typeof a.persistConversationHistory === 'boolean' ? a.persistConversationHistory : true,
         );
+        setStrictPurposeOnly(a.strictPurposeOnly !== false);
         setInferenceTemperature(
           typeof a.inferenceTemperature === 'number' ? String(a.inferenceTemperature) : '',
         );
@@ -669,6 +672,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       model,
       widgetPublicToken: widgetPublicToken.trim() ? widgetPublicToken.trim().slice(0, 512) : null,
       persistConversationHistory,
+      strictPurposeOnly,
       skills,
       skillsConfig,
       behaviorRules,
@@ -1222,6 +1226,48 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               </button>
               )}
             </div>
+          </SectionCard>
+
+          <SectionCard>
+            <p style={sectionTitle}>Solo propósito del agente</p>
+            <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
+              Si está activo, el motor en AIBackHub refuerza en el system prompt que el agente{' '}
+              <strong>no responda temas fuera de su rol</strong>: solo lo definido en instrucciones, FAQs, reglas y lo que permitan herramientas MCP, skills y RAG. Útil para un vendedor o soporte que no debe improvisar en otros dominios.
+            </p>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: readOnly ? 'default' : 'pointer' }}>
+              <div
+                onClick={() => !readOnly && setStrictPurposeOnly((prev) => !prev)}
+                style={{
+                  width: 40,
+                  height: 22,
+                  borderRadius: 11,
+                  position: 'relative',
+                  cursor: readOnly ? 'not-allowed' : 'pointer',
+                  background: strictPurposeOnly ? `linear-gradient(90deg, ${R}, ${O})` : 'var(--border)',
+                  transition: 'background 0.2s',
+                  opacity: readOnly ? 0.75 : 1,
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 3,
+                    left: strictPurposeOnly ? 21 : 3,
+                    width: 16,
+                    height: 16,
+                    borderRadius: '50%',
+                    background: '#fff',
+                    transition: 'left 0.2s',
+                  }}
+                />
+              </div>
+              <span style={{ fontSize: '13px', fontWeight: 600 }}>
+                {strictPurposeOnly ? 'Modo solo propósito activado' : 'Modo solo propósito desactivado'}
+              </span>
+            </label>
+            <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '10px', marginBottom: 0 }}>
+              Guarda con &quot;Guardar información&quot; para sincronizar con AIBackHub.
+            </p>
           </SectionCard>
 
           <SectionCard>

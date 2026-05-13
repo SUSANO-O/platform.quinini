@@ -165,6 +165,7 @@ export async function POST(req: NextRequest) {
     agentFaqs = [],
     inferenceTemperature: bodyInfTemp,
     inferenceMaxTokens: bodyInfMax,
+    strictPurposeOnly: bodyStrictPurpose,
   } = body;
 
   const user = await User.findById(userId).select({ role: 1 }).lean() as { role?: string } | null;
@@ -347,6 +348,15 @@ export async function POST(req: NextRequest) {
     inferenceMaxTokens = n;
   }
 
+  /** Por defecto activado; solo se desactiva si el cliente envía false explícito. */
+  const strictPurposeOnly =
+    bodyStrictPurpose === false ||
+    bodyStrictPurpose === 'false' ||
+    bodyStrictPurpose === 0 ||
+    bodyStrictPurpose === '0'
+      ? false
+      : true;
+
   // ── Create in MongoDB ────────────────────────────────────────────────────
   const agent = await ClientAgent.create({
     userId,
@@ -362,6 +372,7 @@ export async function POST(req: NextRequest) {
     behaviorRules: safeBehaviorRules,
     agentFaqs: safeAgentFaqs,
     faqCandidates: [],
+    strictPurposeOnly,
     ...(widgetPublicToken ? { widgetPublicToken } : {}),
     syncStatus: 'pending',
     ...(isPlatform ? { isPlatform: true } : {}),
@@ -400,6 +411,7 @@ async function syncToHub(agent: {
   isPlatform?: boolean;
   enabledMcpToolIds?: string[];
   skills?: string[];
+  strictPurposeOnly?: boolean;
 }) {
   if (!canAttemptHubSync()) return;
 
@@ -442,6 +454,7 @@ async function syncToHub(agent: {
     if (Array.isArray(agent.skills)) {
       payload.skills = agent.skills;
     }
+    payload.strictPurposeOnly = agent.strictPurposeOnly !== false;
 
     const res = await fetch(`${baseUrl}/api/agents`, {
       method: 'POST',

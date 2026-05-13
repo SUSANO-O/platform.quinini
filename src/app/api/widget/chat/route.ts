@@ -15,8 +15,12 @@ import { trackWidgetChatUsage } from '@/lib/platform-agent-utils';
 import { checkConversationQuota } from '@/lib/quota';
 import { dispatchSaasWebhook } from '@/lib/saas-webhook-outbound';
 import { getAgentLimits } from '@/lib/agent-plans';
-import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
+import { checkRateLimitAsync, getClientIp } from '@/lib/rate-limit';
 import { trackWidgetUserMessageForFaqCandidates } from '@/lib/widget-faq-tracker';
+import { isOriginAllowed } from '@/lib/widget-origin-check';
+import { extractAndGuardMessage } from '@/lib/message-guard';
+import { signRequest, SIGNATURE_HEADER } from '@/lib/hub-signature';
+import { logSecurityEvent } from '@/lib/security-log';
 
 /** Max body size accepted from widget SDK (64 KB) */
 const MAX_WIDGET_BODY_BYTES = 64 * 1024;
@@ -115,11 +119,10 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Rate limit paso 1: por IP global — 120/min ───────────────────────────────────
-  // Bloquea floods masivos sin penalizar NAT compartido (oficinas, universidades).
-  // 120/min = 2 req/seg: imposible para un humano, trivial para un bot.
   const ip = getClientIp(req);
-  const rlGlobal = checkRateLimit('widget-chat-ip', ip, 120, 60_000);
+  const rlGlobal = await checkRateLimitAsync('widget-chat-ip', ip, 120, 60_000);
   if (!rlGlobal.success) {
+    logSecurityEvent({ event: 'rate_limited', ip, origin, code: 'landing_ip' });
     return NextResponse.json(landingWidgetCooldown('landing_ip', rlGlobal.retryAfter, requestIdEarly), {
       status: 200,
       headers: cors(origin),
@@ -146,14 +149,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── Rate limit paso 2: IP + agentId — 48/min por widget (alineado con AgentFlowhub por defecto) ─
-  // Clave compuesta: usuarios de la misma NAT no comparten cupo entre widgets distintos.
+  // ── Rate limit paso 2: IP + agentId — 48/min por widget ─────────────────────────
   try {
     const parsedForRl = JSON.parse(rawBody) as { agentId?: unknown };
     const agentIdForRl = typeof parsedForRl?.agentId === 'string' ? parsedForRl.agentId.trim().slice(0, 100) : '';
     if (agentIdForRl) {
-      const rlAgent = checkRateLimit('widget-chat-agent', `${ip}:${agentIdForRl}`, 48, 60_000);
+      const rlAgent = await checkRateLimitAsync('widget-chat-agent', `${ip}:${agentIdForRl}`, 48, 60_000);
       if (!rlAgent.success) {
+        logSecurityEvent({ event: 'rate_limited', ip, origin, agentId: agentIdForRl, code: 'landing_agent' });
         return NextResponse.json(
           landingWidgetCooldown('landing_agent', rlAgent.retryAfter, requestIdEarly),
           { status: 200, headers: cors(origin) },
@@ -181,10 +184,25 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // ── Message guard: longitud, turnos, prompt injection ────────────────────────
+  const guardResult = extractAndGuardMessage(rawBody);
+  if (!guardResult.ok) {
+    const secEvent = guardResult.code === 'PROMPT_INJECTION_DETECTED'
+      ? 'injection_detected'
+      : guardResult.code === 'SESSION_TURN_LIMIT'
+        ? 'turn_limit'
+        : 'message_too_long';
+    logSecurityEvent({ event: secEvent, ip, origin, code: guardResult.code });
+    return NextResponse.json(
+      { error: guardResult.message, code: guardResult.code },
+      { status: 400, headers: cors(origin) },
+    );
+  }
+  const userTurnCount = guardResult.turnCount ?? estimateUserTurnFromBody(rawBody);
+
   let parsedAgentId = '';
   let parsedWidgetId = '';
   let tokenFromBody = '';
-  const userTurnCount = estimateUserTurnFromBody(rawBody);
   try {
     const j = JSON.parse(rawBody) as { agentId?: string; widgetId?: string; token?: string };
     parsedAgentId = typeof j?.agentId === 'string' ? j.agentId.trim() : '';
@@ -216,6 +234,21 @@ export async function POST(req: NextRequest) {
       await connectDB();
       const w = await findWidgetForWtToken(widgetToken, parsedWidgetId || undefined);
       if (w) {
+        // ── Domain allowlist check ────────────────────────────────────────
+        if (!isOriginAllowed(req.headers.get('origin'), w.allowedOrigins)) {
+          logSecurityEvent({
+            event: 'origin_not_allowed',
+            ip, origin,
+            agentId: parsedAgentId,
+            userId: w.userId,
+            code: 'ORIGIN_NOT_ALLOWED',
+          });
+          return NextResponse.json(
+            { error: 'Origen no permitido para este widget.', code: 'ORIGIN_NOT_ALLOWED' },
+            { status: 403, headers: cors(origin) },
+          );
+        }
+
         const match = await sentAgentIdMatchesWidget(parsedAgentId, w.agentId);
         if (!match) {
           return NextResponse.json(
@@ -232,6 +265,14 @@ export async function POST(req: NextRequest) {
         try {
           const quota = await checkConversationQuota(w.userId);
           if (!quota.allowed) {
+            logSecurityEvent({
+              event: 'quota_exceeded',
+              ip, origin,
+              agentId: parsedAgentId,
+              userId: w.userId,
+              code: 'QUOTA_EXCEEDED',
+              meta: { used: quota.used, limit: quota.limit, plan: quota.plan },
+            });
             dispatchSaasWebhook(w.userId, 'quota.reached', {
               agentId: parsedAgentId,
               plan: quota.plan,
@@ -320,8 +361,9 @@ export async function POST(req: NextRequest) {
             { status: 503, headers: cors(origin) },
           );
         }
+        // HMAC signature: en vez del secreto raw, enviamos una firma con timestamp
         headers['X-Landing-Wt-Valid'] = '1';
-        headers['X-Hub-Sync-Secret'] = secret;
+        headers[SIGNATURE_HEADER] = signRequest(rawBody, secret);
 
         /** Webhook builtin: AgentFlowhub a veces no usa MCP → solo JSON en texto. Ir directo a AIBackHub ejecuta el POST real. */
         try {

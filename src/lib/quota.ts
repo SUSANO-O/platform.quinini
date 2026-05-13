@@ -8,6 +8,7 @@ import { connectDB } from '@/lib/db/connection';
 import { RequestLog, Subscription, User, ConversationPack } from '@/lib/db/models';
 import { PLAN_CONVERSATION_LIMITS } from '@/lib/plan-catalog';
 import { sendQuotaWarningEmail } from '@/lib/email';
+import { sendPushToUser } from '@/lib/push-notifications';
 
 export interface QuotaResult {
   allowed: boolean;
@@ -57,16 +58,27 @@ export async function checkConversationQuota(userId: string): Promise<QuotaResul
   const used = logs.reduce((sum, l) => sum + (l.count ?? 0), 0);
   const percent = (used / totalLimit) * 100;
 
-  // Alerta al 80% (solo base del plan, no packs) — una vez por mes
+  // Alerta al 80% — una vez por mes (email + push notification)
   if (percent >= 80 && percent < 100) {
     if (await shouldSendWarning(sub, month)) {
       Promise.all([
         Subscription.updateOne({ userId }, { $set: { quotaWarningSentMonth: month } }),
-        User.findById(userId).select({ email: 1, displayName: 1 }).lean().then((u: unknown) => {
-          const user = u as { email?: string; displayName?: string } | null;
-          if (user?.email) {
-            return sendQuotaWarningEmail(user.email, user.displayName || '', used, totalLimit, effectivePlan);
+        User.findById(userId).select({ email: 1, displayName: 1, pushSubscription: 1 }).lean().then((u: unknown) => {
+          const user = u as { email?: string; displayName?: string; pushSubscription?: unknown } | null;
+          if (!user) return;
+          const tasks: Promise<unknown>[] = [];
+          if (user.email) {
+            tasks.push(sendQuotaWarningEmail(user.email, user.displayName || '', used, totalLimit, effectivePlan));
           }
+          if (user.pushSubscription) {
+            tasks.push(sendPushToUser(user.pushSubscription, {
+              title: `Cuota al ${Math.round(percent)}%`,
+              body: `Has usado ${used.toLocaleString('es')} de ${totalLimit.toLocaleString('es')} conversaciones de tu plan ${effectivePlan}.`,
+              url: '/dashboard',
+              tag: 'quota-warning',
+            }));
+          }
+          return Promise.all(tasks);
         }),
       ]).catch(() => {});
     }

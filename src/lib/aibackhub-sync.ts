@@ -103,6 +103,7 @@ export type HubCatalogAgent = {
   widgetPublicToken?: string;
   persistConversationHistory?: boolean;
   isPlatform?: boolean;
+  strictPurposeOnly?: boolean;
   /** Skills del agente (IDs del catálogo agent-skills.ts). */
   skills?: string[];
   /** Config runtime de skills (prompt/tools/settings). */
@@ -224,6 +225,7 @@ export async function pushClientAgentToHubCatalog(agent: {
     lastSeen: string;
     dismissed?: boolean;
   }> | null;
+  strictPurposeOnly?: boolean;
 }): Promise<boolean> {
   const base = getAibackhubBaseUrl();
   const hid = String(agent.agentHubId || '').trim();
@@ -290,6 +292,7 @@ export async function pushClientAgentToHubCatalog(agent: {
     if (Array.isArray(agent.faqCandidates)) {
       payload.faqCandidates = agent.faqCandidates;
     }
+    payload.strictPurposeOnly = agent.strictPurposeOnly !== false;
     const res = await fetch(url, {
       method: 'PUT',
       headers: hubCreateHeaders(),
@@ -374,6 +377,7 @@ type LandingAgentDocLike = {
     lastSeen: string;
     dismissed?: boolean;
   }>;
+  strictPurposeOnly?: boolean;
 };
 
 /**
@@ -407,6 +411,7 @@ export async function syncHubCatalogFromLandingAgentDoc(
     type: agent.type === 'sub-agent' ? 'sub-agent' : 'agent',
     parentAgentId,
     isPlatform: Boolean(agent.isPlatform),
+    strictPurposeOnly: agent.strictPurposeOnly !== false,
   };
   if (agent.widgetPublicToken !== undefined) {
     payload.widgetPublicToken =
@@ -455,6 +460,7 @@ export type CreateHubAgentFromLandingInput = {
   widgetPublicToken?: string | null;
   isPlatform?: boolean;
   tools?: LandingToolConfig[];
+  strictPurposeOnly?: boolean;
 };
 
 /**
@@ -496,6 +502,7 @@ export async function postCreateLandingAgentOnHubCatalog(
   if (agent.isPlatform === true) {
     payload.isPlatform = true;
   }
+  payload.strictPurposeOnly = agent.strictPurposeOnly !== false;
   if (Array.isArray(agent.tools)) {
     payload.tools = normalizeLandingTools(agent.tools);
   }

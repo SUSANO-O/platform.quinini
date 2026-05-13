@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent } from '@/lib/db/models';
+import { verifySignature, SIGNATURE_HEADER } from '@/lib/hub-signature';
 
-function getSecret(req: NextRequest): string | null {
-  return (
-    req.headers.get('x-hub-sync-secret')?.trim() ||
-    req.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim() ||
-    null
-  );
+function isAuthorized(req: NextRequest, rawBody: string, expected: string): boolean {
+  const sig = req.headers.get(SIGNATURE_HEADER);
+  if (sig) return verifySignature(rawBody, sig, expected);
+  const legacy = req.headers.get('x-hub-sync-secret')?.trim() ||
+    req.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim() || '';
+  return legacy === expected;
 }
 
 /**
@@ -22,16 +23,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No configurado.' }, { status: 503 });
   }
 
-  const got = getSecret(req);
-  if (!got || got !== expected) {
+  const rawBody = await req.text();
+  if (!isAuthorized(req, rawBody, expected)) {
     return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
   }
 
   let body: { agentHubId?: string; landingClientAgentId?: string; isPlatform?: boolean };
   try {
-    body = await req.json();
+    body = JSON.parse(rawBody);
   } catch {
-    return NextResponse.json({ error: 'JSON invalido.' }, { status: 400 });
+    return NextResponse.json({ error: 'JSON inválido.' }, { status: 400 });
   }
 
   const agentHubId = typeof body.agentHubId === 'string' ? body.agentHubId.trim() : '';

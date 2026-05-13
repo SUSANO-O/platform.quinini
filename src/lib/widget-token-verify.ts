@@ -10,28 +10,49 @@ function normalizeAgentField(v: unknown): string {
   return String(v).trim();
 }
 
+export type WidgetInfo = {
+  agentId: unknown;
+  userId: string;
+  allowedOrigins: string[];
+};
+
 /**
  * Carga el widget por token y opcionalmente por _id (más fiable que solo afhubToken).
+ * Devuelve también allowedOrigins para validación de dominio en el handler.
  */
 export async function findWidgetForWtToken(
   token: string,
   widgetId?: string,
-): Promise<{ agentId: unknown; userId: string } | null> {
+): Promise<WidgetInfo | null> {
   const t = token.trim();
   if (!t.startsWith('wt_')) return null;
 
   if (widgetId && mongoose.Types.ObjectId.isValid(widgetId)) {
-    const w = await Widget.findById(widgetId).select({ agentId: 1, userId: 1, afhubToken: 1 }).lean();
+    const w = await Widget.findById(widgetId)
+      .select({ agentId: 1, userId: 1, afhubToken: 1, allowedOrigins: 1 })
+      .lean() as { agentId: unknown; userId: unknown; afhubToken?: unknown; allowedOrigins?: string[] } | null;
     if (w) {
       const stored = w.afhubToken != null ? String(w.afhubToken).trim() : '';
       if (stored && stored !== t) return null;
-      return { agentId: w.agentId, userId: String(w.userId) };
+      return {
+        agentId: w.agentId,
+        userId: String(w.userId),
+        allowedOrigins: Array.isArray(w.allowedOrigins) ? w.allowedOrigins : [],
+      };
     }
-    // widgetId inválido o doc borrado: intentar solo por token
   }
 
-  const w = await Widget.findOne({ afhubToken: t }).select({ agentId: 1, userId: 1 }).lean();
-  return w ? { agentId: w.agentId, userId: String(w.userId) } : null;
+  const w = await Widget.findOne({ afhubToken: t })
+    .select({ agentId: 1, userId: 1, allowedOrigins: 1 })
+    .lean() as { agentId: unknown; userId: unknown; allowedOrigins?: string[] } | null;
+
+  return w
+    ? {
+        agentId: w.agentId,
+        userId: String(w.userId),
+        allowedOrigins: Array.isArray(w.allowedOrigins) ? w.allowedOrigins : [],
+      }
+    : null;
 }
 
 /**

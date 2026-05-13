@@ -936,6 +936,8 @@
         timestamp: new Date().toISOString(),
         details: details || {}
       };
+      // Include widget token if available so the server can validate the event source
+      if (cfg.token) payload.token = cfg.token;
       try {
         if (navigator && typeof navigator.sendBeacon === 'function') {
           var blob = new Blob([JSON.stringify(payload)], { type: 'text/plain; charset=UTF-8' });
@@ -1008,7 +1010,9 @@
       isLoading = true;
       showTyping();
 
-      var endpoint = cfg.host.replace(/\/$/, '') + '/api/widget/chat';
+      var baseHost = cfg.host.replace(/\/$/, '');
+      var endpoint = baseHost + '/api/widget/chat';
+      var streamEndpoint = baseHost + '/api/widget/chat/stream';
       var payload = { agentId: cfg.agentId, message: text, history: history.slice(0, -1) };
       if (cfg.widgetId && String(cfg.widgetId).trim()) {
         payload.widgetId = String(cfg.widgetId).trim();
@@ -1017,6 +1021,81 @@
         payload.token = String(cfg.token).trim();
       }
 
+      // ── SSE Streaming (cuando el servidor lo soporta) ──────────────────────
+      var useStream = cfg.stream !== false && typeof window.ReadableStream !== 'undefined';
+
+      if (useStream) {
+        try {
+          var streamHeaders = { 'Content-Type': 'application/json' };
+          if (cfg.token) streamHeaders['X-Widget-Token'] = String(cfg.token).trim();
+          var streamRes = await fetch(streamEndpoint, {
+            method: 'POST',
+            headers: streamHeaders,
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(cfg.timeoutMs || 120000),
+          });
+          if (!streamRes.ok || !streamRes.body) throw new Error('stream_unavailable');
+
+          var streamReader = streamRes.body.getReader();
+          var streamDecoder = new TextDecoder();
+          var streamBuf = '';
+          var streamReply = '';
+          var streamBubble = null;
+          var streamDone = false;
+          hideTyping();
+
+          while (!streamDone) {
+            var chunk = await streamReader.read();
+            if (chunk.done) break;
+            streamBuf += streamDecoder.decode(chunk.value, { stream: true });
+            var lines = streamBuf.split('\n\n');
+            streamBuf = lines.pop() || '';
+            for (var li = 0; li < lines.length; li++) {
+              var line = lines[li].trim();
+              if (!line.startsWith('data:')) continue;
+              var rawJson = line.slice(5).trim();
+              var evt;
+              try { evt = JSON.parse(rawJson); } catch { continue; }
+              if (evt.type === 'token') {
+                streamReply += evt.text;
+                if (!streamBubble) {
+                  streamBubble = addMessage('bot', streamReply, { streaming: true });
+                } else {
+                  var textEl = streamBubble.querySelector('.afhub-msg-text');
+                  if (textEl) textEl.textContent = streamReply;
+                  var msgs = root.querySelector('.afhub-messages');
+                  if (msgs) msgs.scrollTop = msgs.scrollHeight;
+                }
+              } else if (evt.type === 'done') {
+                streamDone = true;
+                var finalReply = evt.reply || streamReply;
+                if (streamBubble) {
+                  var te2 = streamBubble.querySelector('.afhub-msg-text');
+                  if (te2) te2.textContent = finalReply;
+                  streamBubble.classList.remove('afhub-msg--streaming');
+                }
+                resolvedAgentId = evt.agentId || resolvedAgentId;
+                history.push({ role: 'model', content: finalReply });
+                notify('onMessageReceived', finalReply);
+                emitEvent('message_received', { length: finalReply.length, streaming: true });
+              } else if (evt.type === 'error') {
+                streamDone = true;
+                hideTyping();
+                addMessage('bot', evt.message || 'Error del agente.');
+                notify('onError', { message: evt.message, code: evt.code });
+              }
+            }
+          }
+          isLoading = false;
+          sendBtn.disabled = !input.value.trim();
+          return;
+        } catch (streamErr) {
+          log(cfg, 'warn', 'Stream failed, falling back to standard', streamErr);
+          // Fall through to standard fetch
+        }
+      }
+
+      // ── Standard (non-streaming) fallback ─────────────────────────────────
       try {
       var data = await fetchJsonWithRetry(endpoint, payload, cfg);
         hideTyping();

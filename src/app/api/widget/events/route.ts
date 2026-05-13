@@ -12,10 +12,11 @@ import {
   getAibackhubBaseUrl,
   hubCreateHeaders,
 } from '@/lib/aibackhub-sync';
-import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
+import { checkRateLimitAsync, getClientIp } from '@/lib/rate-limit';
 import { connectDB } from '@/lib/db/connection';
-import { Widget } from '@/lib/db/models';
+import { Widget, ConversationSession } from '@/lib/db/models';
 import { dispatchSaasWebhook } from '@/lib/saas-webhook-outbound';
+import { randomUUID } from 'crypto';
 
 const MAX_EVENT_BODY_BYTES = 8 * 1024; // 8 KB — events are tiny
 
@@ -42,7 +43,7 @@ function corsHeaders(): Record<string, string> {
 export async function POST(req: NextRequest) {
   // ── Rate limit: 120 req/min per IP (analytics flood guard) ──────────────────
   const ip = getClientIp(req);
-  const rl = checkRateLimit('widget-events', ip, 120, 60_000);
+  const rl = await checkRateLimitAsync('widget-events', ip, 120, 60_000);
   if (!rl.success) {
     // 200 instead of 429 so the SDK (sendBeacon) doesn't log errors in the console
     return NextResponse.json({ ok: true, dropped: true, reason: 'rate_limited' }, { headers: corsHeaders() });
@@ -61,6 +62,8 @@ export async function POST(req: NextRequest) {
 
   const event = String(body?.event || '').trim();
   const agentId = String(body?.agentId || '').trim();
+  const widgetToken = String(body?.token || '').trim();
+
   if (!event || !agentId || !ALLOWED_EVENTS.has(event)) {
     return NextResponse.json(
       { error: 'Payload inválido para evento de widget.' },
@@ -68,30 +71,124 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── Webhooks salientes SaaS (best-effort, no bloquea analytics) ────────────
+  // ── Session analytics + Webhooks SaaS (best-effort) ──────────────────────
   try {
     await connectDB();
-    const row = await Widget.findOne({ agentId }).select({ userId: 1 }).lean() as
-      | { userId?: string }
-      | null;
+
+    // Validar token si viene en el payload (eventos autenticados)
+    // Si no viene token, se acepta pero sin acceso a datos sensibles (retrocompatibilidad)
+    let row: { userId?: string; _id?: unknown; allowedOrigins?: string[] } | null = null;
+    if (widgetToken.startsWith('wt_')) {
+      row = await Widget.findOne({ afhubToken: widgetToken })
+        .select({ userId: 1, _id: 1, allowedOrigins: 1 })
+        .lean() as typeof row;
+      // Verificar que el agentId del evento corresponde al widget del token
+      if (row) {
+        const widgetData = await Widget.findById(row._id).select({ agentId: 1 }).lean() as
+          | { agentId?: unknown } | null;
+        const widgetAgentId = widgetData?.agentId ? String(widgetData.agentId).trim() : '';
+        if (widgetAgentId && widgetAgentId !== agentId) {
+          return NextResponse.json({ ok: true, dropped: true, reason: 'token_mismatch' }, { headers: corsHeaders() });
+        }
+      }
+    } else {
+      // Sin token: buscar por agentId (modo legacy/retrocompatible)
+      row = await Widget.findOne({ agentId }).select({ userId: 1, _id: 1 }).lean() as typeof row;
+    }
+
     const uid = row?.userId?.trim();
-    if (uid) {
+    const widgetId = row?._id ? String(row._id) : '';
+
+    if (uid && widgetId) {
+      const instanceId = typeof body.instanceId === 'string' ? body.instanceId.trim() : '';
+      const now = new Date();
+      const month = now.toISOString().slice(0, 7);
+      const sessionKey = instanceId || `${widgetId}-${Date.now()}`;
+
+      if (event === 'widget_opened') {
+        // Start new session
+        const sid = `sess_${sessionKey}_${randomUUID().slice(0, 8)}`;
+        await ConversationSession.findOneAndUpdate(
+          { sessionId: sid },
+          {
+            $setOnInsert: {
+              widgetId, userId: uid, agentId,
+              sessionId: sid,
+              startedAt: now,
+              hourOfDay: now.getHours(),
+              dayOfWeek: now.getDay(),
+              month,
+              messageCount: 0,
+              dropped: false,
+              escalated: false,
+              sentiment: 'neutral',
+            },
+          },
+          { upsert: true },
+        );
+      }
+
+      if (event === 'message_received') {
+        // Increment message count & detect sentiment from details
+        const details = body.details as Record<string, unknown> | null;
+        const msgLen = typeof details?.length === 'number' ? details.length : 0;
+        const sentimentPositive = msgLen > 20; // simple heuristic — replace with real NLP later
+        await ConversationSession.findOneAndUpdate(
+          { agentId, userId: uid, endedAt: null },
+          {
+            $inc: { messageCount: 1 },
+            $set: { sentiment: sentimentPositive ? 'positive' : 'neutral' },
+          },
+          { sort: { startedAt: -1 } },
+        );
+      }
+
       if (event === 'widget_closed') {
+        // End session, calculate duration
+        const session = await ConversationSession.findOne(
+          { agentId, userId: uid, endedAt: null },
+          null,
+          { sort: { startedAt: -1 } },
+        );
+        if (session) {
+          const durationSec = Math.round((now.getTime() - session.startedAt.getTime()) / 1000);
+          const dropped = (session.messageCount ?? 0) < 1;
+          await ConversationSession.updateOne(
+            { _id: session._id },
+            { $set: { endedAt: now, durationSec, dropped } },
+          );
+        }
         dispatchSaasWebhook(uid, 'conversation.closed', {
           agentId,
-          instanceId: typeof body.instanceId === 'string' ? body.instanceId : undefined,
+          instanceId: instanceId || undefined,
           timestamp: typeof body.timestamp === 'string' ? body.timestamp : undefined,
         });
       }
+
       if (event === 'conversation_handoff') {
+        await ConversationSession.findOneAndUpdate(
+          { agentId, userId: uid, endedAt: null },
+          { $set: { escalated: true } },
+          { sort: { startedAt: -1 } },
+        );
         dispatchSaasWebhook(uid, 'conversation.handoff', {
           agentId,
           details: typeof body.details === 'object' && body.details !== null ? body.details : {},
         });
       }
+
+      if (event === 'message_feedback') {
+        const details = body.details as Record<string, unknown> | null;
+        const positive = details?.rating === 'positive' || details?.helpful === true;
+        await ConversationSession.findOneAndUpdate(
+          { agentId, userId: uid, endedAt: null },
+          { $set: { resolved: positive, sentiment: positive ? 'positive' : 'negative' } },
+          { sort: { startedAt: -1 } },
+        );
+      }
     }
   } catch (e) {
-    console.warn('[widget/events] saas webhook lookup skipped:', e);
+    console.warn('[widget/events] analytics/webhook skipped:', e);
   }
 
   if (!canAttemptHubSync()) {

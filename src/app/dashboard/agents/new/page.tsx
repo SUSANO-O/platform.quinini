@@ -60,6 +60,7 @@ export default function NewAgentPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isPlatform, setIsPlatform] = useState(false);
+  const [strictPurposeOnly, setStrictPurposeOnly] = useState(true);
   const [inferenceTemperature, setInferenceTemperature] = useState('');
   const [inferenceMaxTokens, setInferenceMaxTokens] = useState('');
   const [modelQuery, setModelQuery] = useState('');
@@ -137,6 +138,7 @@ export default function NewAgentPage() {
       type: 'agent',
       tools: [],
       ...(isAdmin && isPlatform ? { isPlatform: true } : {}),
+      strictPurposeOnly,
       ...(widgetPublicToken.trim()
         ? { widgetPublicToken: widgetPublicToken.trim().slice(0, 512) }
         : {}),
@@ -529,6 +531,31 @@ export default function NewAgentPage() {
               placeholder={`Eres un asistente de soporte de Acme Corp. Tu misión es ayudar a los clientes con sus dudas de forma amable y precisa. Siempre responde en español. Cuando no sepas algo, dilo claramente y ofrece escalar al equipo humano.`}
               required
             />
+          </FormSection>
+
+          <FormSection>
+            <h2 style={sectionTitle}>Solo propósito</h2>
+            <p className="text-xs m-0 mb-3 leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
+              Limita las respuestas del agente a su rol y a lo que permitan herramientas, skills y RAG. Rechaza temas ajenos (por ejemplo un agente de ventas no responde recetas de cocina).
+            </p>
+            <label
+              className="flex items-start gap-2.5 rounded-xl border p-3.5 cursor-pointer transition-colors card-hover"
+              style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
+            >
+              <input
+                type="checkbox"
+                className="mt-0.5 shrink-0"
+                checked={strictPurposeOnly}
+                onChange={(e) => setStrictPurposeOnly(e.target.checked)}
+              />
+              <span className="text-xs leading-relaxed">
+                <strong style={{ color: 'var(--foreground)' }}>Activar modo solo propósito</strong>
+                <br />
+                <span style={{ color: 'var(--muted-foreground)' }}>
+                  Se aplica en AIBackHub al generar respuestas del widget. Puedes cambiarlo después en la ficha del agente.
+                </span>
+              </span>
+            </label>
           </FormSection>
 
           <FormSection bar="bo">
