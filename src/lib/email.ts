@@ -257,6 +257,15 @@ export async function sendPaidInvoiceEmail(
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
+/** Generic send — use for one-off transactional emails not covered by the typed helpers. */
+export async function sendEmail(params: {
+  to: string;
+  subject: string;
+  html: string;
+}): Promise<EmailSendResult> {
+  return send(params.to, params.subject, params.html);
+}
+
 /**
  * Registro (variant welcome): bienvenida + enlace de verificación.
  * Reenvío desde /verify-email (variant resend): mismo enlace, tono de recordatorio.

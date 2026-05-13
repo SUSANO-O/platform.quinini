@@ -11,13 +11,16 @@
  *     SENTRY_PROJECT=agent-flow-landing
  */
 
-let Sentry: typeof import('@sentry/nextjs') | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let Sentry: any | null = null;
 
 async function getSentry() {
   if (Sentry) return Sentry;
   if (!process.env.NEXT_PUBLIC_SENTRY_DSN) return null;
   try {
-    Sentry = await import('@sentry/nextjs');
+    // Dynamic import — @sentry/nextjs is optional. Install with: npm install @sentry/nextjs
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Sentry = require('@sentry/nextjs');
     return Sentry;
   } catch {
     return null;
@@ -30,7 +33,7 @@ export async function captureError(
 ): Promise<void> {
   const s = await getSentry();
   if (s) {
-    s.withScope((scope) => {
+    s.withScope((scope: { setExtras: (e: Record<string, unknown>) => void }) => {
       if (context) scope.setExtras(context);
       s.captureException(error);
     });
@@ -46,7 +49,7 @@ export async function captureMessage(
 ): Promise<void> {
   const s = await getSentry();
   if (s) {
-    s.withScope((scope) => {
+    s.withScope((scope: { setExtras: (e: Record<string, unknown>) => void }) => {
       if (context) scope.setExtras(context);
       s.captureMessage(message, level);
     });
@@ -61,11 +64,11 @@ export async function captureMessage(
 export function initSentryEdge() {
   const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
   if (!dsn) return;
-  import('@sentry/nextjs').then((s) => {
-    s.init({
-      dsn,
-      tracesSampleRate: 0.1,
-      environment: process.env.NODE_ENV,
-    });
-  }).catch(() => {});
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const s = require('@sentry/nextjs');
+    s.init({ dsn, tracesSampleRate: 0.1, environment: process.env.NODE_ENV });
+  } catch {
+    // @sentry/nextjs not installed — skip
+  }
 }

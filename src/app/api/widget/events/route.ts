@@ -77,11 +77,12 @@ export async function POST(req: NextRequest) {
 
     // Validar token si viene en el payload (eventos autenticados)
     // Si no viene token, se acepta pero sin acceso a datos sensibles (retrocompatibilidad)
-    let row: { userId?: string; _id?: unknown; allowedOrigins?: string[] } | null = null;
+    type WidgetRow = { userId?: string; _id?: unknown; allowedOrigins?: string[] };
+    let row: WidgetRow | null = null;
     if (widgetToken.startsWith('wt_')) {
       row = await Widget.findOne({ afhubToken: widgetToken })
         .select({ userId: 1, _id: 1, allowedOrigins: 1 })
-        .lean() as typeof row;
+        .lean() as WidgetRow | null;
       // Verificar que el agentId del evento corresponde al widget del token
       if (row) {
         const widgetData = await Widget.findById(row._id).select({ agentId: 1 }).lean() as
@@ -93,7 +94,7 @@ export async function POST(req: NextRequest) {
       }
     } else {
       // Sin token: buscar por agentId (modo legacy/retrocompatible)
-      row = await Widget.findOne({ agentId }).select({ userId: 1, _id: 1 }).lean() as typeof row;
+      row = await Widget.findOne({ agentId }).select({ userId: 1, _id: 1 }).lean() as WidgetRow | null;
     }
 
     const uid = row?.userId?.trim();

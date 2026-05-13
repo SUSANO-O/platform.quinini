@@ -85,7 +85,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       id: new mongoose.Types.ObjectId().toString(),
       question: question.trim(),
       answer: answer.trim(),
-      createdAt: new Date().toISOString(),
+      enabled: true,
+      priority: 0,
     };
     const updatedFaqs = [...faqs, newFaq];
 
