@@ -11,8 +11,6 @@
  *   data: {"type":"error","message":"..."}\n\n
  */
 
-export const maxDuration = 60; // Vercel: allow up to 60s for LLM + streaming
-
 import { NextRequest } from 'next/server';
 import { randomUUID } from 'crypto';
 import { getAgentflowhubBaseUrl } from '@/lib/aibackhub-sync';
@@ -26,6 +24,8 @@ import { getActiveVariant } from '@/lib/ab-testing';
 import { isOriginAllowed } from '@/lib/widget-origin-check';
 import { extractAndGuardMessage } from '@/lib/message-guard';
 import { signRequest, SIGNATURE_HEADER } from '@/lib/hub-signature';
+
+export const maxDuration = 60; // Vercel: allow up to 60s for LLM + streaming
 
 const MAX_WIDGET_BODY_BYTES = 64 * 1024;
 const WORD_DELAY_MS = 8;
@@ -145,11 +145,6 @@ export async function POST(req: NextRequest) {
     'X-Request-Id': traceId,
   };
   if (widgetToken) headers['X-Widget-Token'] = widgetToken;
-  const secret = process.env.HUB_TO_LANDING_SECRET?.trim();
-  if (secret && widgetToken.startsWith('wt_')) {
-    headers['X-Landing-Wt-Valid'] = '1';
-    headers[SIGNATURE_HEADER] = signRequest(rawBody, secret);
-  }
 
   // A/B variant selection — override systemPrompt if a running test exists
   let activeVariantId: string | null = null;
@@ -168,6 +163,13 @@ export async function POST(req: NextRequest) {
     } catch {
       /* non-critical */
     }
+  }
+
+  // Sign hubBody (the actual body sent to AgentFlowhub, possibly modified by A/B)
+  const secret = process.env.HUB_TO_LANDING_SECRET?.trim();
+  if (secret && widgetToken.startsWith('wt_')) {
+    headers['X-Landing-Wt-Valid'] = '1';
+    headers[SIGNATURE_HEADER] = signRequest(hubBody, secret);
   }
 
   // SSE stream
