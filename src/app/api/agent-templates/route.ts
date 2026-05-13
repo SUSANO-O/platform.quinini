@@ -48,9 +48,9 @@ export async function POST(req: NextRequest) {
   const limits = getAgentLimits(effectivePlan);
 
   const currentAgentCount = await ClientAgent.countDocuments({ userId, type: 'agent', status: 'active' });
-  if (limits.maxAgents >= 0 && currentAgentCount >= limits.maxAgents) {
+  if (currentAgentCount >= limits.agents) {
     return NextResponse.json({
-      error: `Tu plan ${effectivePlan} permite máximo ${limits.maxAgents} agente(s). Actualiza para crear más.`,
+      error: `Tu plan ${effectivePlan} permite máximo ${limits.agents} agente(s). Actualiza para crear más.`,
       code: 'AGENT_LIMIT_EXCEEDED',
     }, { status: 403 });
   }
