@@ -98,6 +98,9 @@ export async function POST(req: NextRequest) {
     agentFaqs?: Array<{ id: string; question: string; answer: string; enabled?: boolean; priority?: number }>;
     faqCandidates?: Array<{ id: string; key: string; questionSample: string; count: number; lastSeen: string; dismissed?: boolean }>;
     strictPurposeOnly?: boolean;
+    /** Webhook URL top-level (set via AgentFlowhub agent editor) — converted to tools[] entry. */
+    webhookUrl?: string;
+    webhookSecret?: string;
   };
   try {
     body = JSON.parse(rawBody);
@@ -182,6 +185,17 @@ export async function POST(req: NextRequest) {
         return { toolId: x.toolId.trim().slice(0, 80), config: cfg };
       })
       .slice(0, 100);
+  }
+
+  // Convert AgentFlowhub top-level webhookUrl → tools[webhook] entry so AIBackHub can find it.
+  const hubWebhookUrl = typeof body.webhookUrl === 'string' ? body.webhookUrl.trim() : '';
+  if (hubWebhookUrl) {
+    const existing = ($set.tools as Array<{ toolId: string; config: Record<string, string> }> | undefined) ?? [];
+    const alreadyHas = existing.some((t) => t.toolId === 'webhook');
+    if (!alreadyHas) {
+      const secret = typeof body.webhookSecret === 'string' ? body.webhookSecret.trim() : '';
+      $set.tools = [...existing, { toolId: 'webhook', config: { url: hubWebhookUrl, ...(secret ? { secret } : {}) } }];
+    }
   }
   if (body.widgetPublicToken === null) {
     $set.widgetPublicToken = null;
