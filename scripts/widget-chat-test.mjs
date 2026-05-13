@@ -15,14 +15,14 @@
  *   node scripts/widget-chat-test.mjs
  */
 
-import { createConnection } from 'mongoose';
+import { createConnection, Types } from 'mongoose';
 import crypto from 'crypto';
 
 // ── Config ───────────────────────────────────────────────────────────────────
 const BASE_URL   = (process.env.BASE_URL   || 'http://localhost:3201').replace(/\/$/, '');
 const WIDGET_ID  = process.env.WIDGET_ID   || '6a03a54c4f69fa7fa9027170';
 const AGENT_ID   = process.env.AGENT_ID    || '69d5084c78e0af3d5536fe95';
-const MONGO_URI  = process.env.MONGODB_URI || 'mongodb+srv://new_user_from_harold:3CtRuZMnWbasxHP8@cluster0.k0p6b.mongodb.net/agentflowhub_landing';
+const MONGO_URI  = process.env.MONGODB_URI || '';
 let   WT_TOKEN   = process.env.WIDGET_TOKEN || '';
 
 const TIMEOUT_MS = 45_000;
@@ -144,28 +144,15 @@ async function fetchWidgetToken() {
   try {
     process.stdout.write('  Connecting to MongoDB Atlas to fetch widget token ... ');
     const conn = await createConnection(MONGO_URI).asPromise();
-    const widget = await conn.collection('widgets').findOne(
-      { _id: { $oid: WIDGET_ID } },
+    const doc = await conn.collection('widgets').findOne(
+      { _id: new Types.ObjectId(WIDGET_ID) },
       { projection: { afhubToken: 1 } },
-    ).catch(() => null);
-
-    if (!widget) {
-      // Try string match (mongoose ObjectId stored as string varies)
-      const widgets = conn.collection('widgets');
-      const { ObjectId } = (await import('mongodb'));
-      const doc = await widgets.findOne(
-        { _id: new ObjectId(WIDGET_ID) },
-        { projection: { afhubToken: 1 } },
-      );
-      if (doc?.afhubToken) {
-        WT_TOKEN = doc.afhubToken;
-        console.log(green(`✓ Found: ${WT_TOKEN.slice(0, 8)}...`));
-      } else {
-        console.log(yellow('⚠ Widget not found in DB — proceeding without token.'));
-      }
-    } else {
-      WT_TOKEN = widget.afhubToken || '';
+    );
+    if (doc?.afhubToken) {
+      WT_TOKEN = String(doc.afhubToken);
       console.log(green(`✓ Found: ${WT_TOKEN.slice(0, 8)}...`));
+    } else {
+      console.log(yellow('⚠ Widget not found in DB — proceeding without token.'));
     }
 
     await conn.close();
@@ -441,6 +428,95 @@ async function testNonStream() {
   });
 }
 
+function getWebhookFromTools(tools) {
+  if (!Array.isArray(tools)) return null;
+  const row = tools.find((t) => t?.toolId === 'webhook');
+  if (!row?.config || typeof row.config !== 'object') return null;
+  const url = typeof row.config.url === 'string' ? row.config.url.trim() : '';
+  if (!url) return null;
+  const secret = typeof row.config.secret === 'string' ? row.config.secret.trim() : '';
+  return { url, secret };
+}
+
+async function loadAgentWebhookFromMongo() {
+  if (!MONGO_URI) return null;
+  const conn = await createConnection(MONGO_URI).asPromise();
+  try {
+    const doc = await conn.collection('clientagents').findOne(
+      { _id: new Types.ObjectId(AGENT_ID) },
+      { projection: { tools: 1 } },
+    );
+    return getWebhookFromTools(doc?.tools);
+  } finally {
+    await conn.close();
+  }
+}
+
+async function testWebhook() {
+  console.log(bold('\n[10] Webhook (URL en agente → receptor)'));
+
+  if (!MONGO_URI) {
+    skip('Webhook: POST de prueba desde Mongo', 'no MONGODB_URI');
+    skip('Webhook: SSE con email y toolsUsed', 'no MONGODB_URI');
+    return;
+  }
+
+  const hookPreview = await loadAgentWebhookFromMongo();
+  if (!hookPreview?.url) {
+    skip('Webhook: POST de prueba desde Mongo', 'agente sin herramienta webhook / URL vacía');
+    skip('Webhook: SSE con email y toolsUsed', 'agente sin herramienta webhook / URL vacía');
+    return;
+  }
+
+  await check('Webhook: POST de prueba retorna 2xx', async () => {
+    const hook = await loadAgentWebhookFromMongo();
+    assert(hook?.url, 'URL webhook');
+    const headers = {
+      'Content-Type': 'application/json',
+      'User-Agent': 'MatIAs-widget-chat-test/1.0',
+    };
+    if (hook.secret) {
+      headers.Authorization = /^Bearer\s+/i.test(hook.secret) ? hook.secret : `Bearer ${hook.secret}`;
+    }
+    const res = await fetch(hook.url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        event: 'webhook_test',
+        timestamp: new Date().toISOString(),
+        source: 'widget_chat_test',
+        message: 'Prueba desde widget-chat-test.mjs',
+        lead: {
+          name: 'Test',
+          email: 'prueba@ejemplo.invalid',
+          phone: '3000000000',
+          interest: 'test',
+        },
+        conversation: { intent: 'other', priority: 'low', needs_human: false },
+      }),
+      signal: AbortSignal.timeout(12_000),
+    });
+    assert(res.ok, `Webhook HTTP ${res.status}`);
+  });
+
+  if (!WT_TOKEN) {
+    skip('Webhook: SSE con email y toolsUsed', 'no wt_ token');
+    return;
+  }
+
+  await check('Webhook: mensaje con email → toolsUsed incluye webhook', async () => {
+    const email = `suite+${Date.now()}@ejemplo.invalid`;
+    const { done, error } = await chatStream(
+      `Prueba webhook MatIAs: me llamo Suite Test, mi email es ${email}, tel 3001234567. Registrame para pre-aprobado.`,
+      `wh-prefire-${Date.now()}`,
+    );
+    assert(!error, error?.message || 'SSE error');
+    const tools = Array.isArray(done?.toolsUsed) ? done.toolsUsed : [];
+    const has = tools.some((t) => String(t).toLowerCase().includes('webhook'));
+    assert(has, `toolsUsed=${JSON.stringify(tools)} (esperaba tool webhook / mcp:landing:webhook_post)`);
+  });
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 console.log(bold(`\n🤖 Widget Chat Test`));
@@ -467,6 +543,7 @@ try {
   await testRules();
   await testMultiTurn();
   await testNonStream();
+  await testWebhook();
 } catch (err) {
   console.error(red('\nUnhandled error:'), err);
   process.exit(2);

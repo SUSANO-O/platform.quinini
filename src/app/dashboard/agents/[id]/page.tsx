@@ -2445,6 +2445,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   {!readOnly && t.toolId === 'webhook' && (
                     <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
                       <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '0 0 10px', lineHeight: 1.45 }}>
+                        El motor envía un POST automático al guardar un turno con <strong>correo</strong> o <strong>celular colombiano</strong> (10 dígitos, ej. 300…)
+                        en el mismo mensaje, además de cuando el visitante pide confirmar el envío. Tras editar la URL, pulsa <strong>Guardar herramientas</strong> y
+                        reintenta sincronización con el hub si hiciera falta.
+                      </p>
+                      <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '0 0 10px', lineHeight: 1.45 }}>
                         En el chat el modelo puede escribir JSON sin llamar a tu URL. Esta prueba envía un POST real
                         desde el servidor con la configuración <strong>ya guardada</strong> (pulsa Guardar herramientas antes si cambiaste la URL).
                       </p>
