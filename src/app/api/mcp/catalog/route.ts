@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAibackhubBaseUrl, hubCreateHeaders } from '@/lib/aibackhub-sync';
+import { mergeDataSourcesIntoHubCatalogPayload } from '@/lib/mcp-catalog-merge-hub-response';
 import { getSessionUserId } from '@/lib/mcp-landing-auth';
 
 export async function GET(req: NextRequest) {
@@ -23,8 +24,12 @@ export async function GET(req: NextRequest) {
       cache: 'no-store',
       signal: AbortSignal.timeout(15_000),
     });
-    const data = await res.json().catch(() => ({}));
-    return NextResponse.json(data, { status: res.status });
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    const merged =
+      typeof data === 'object' && data !== null && !Array.isArray(data)
+        ? mergeDataSourcesIntoHubCatalogPayload(data)
+        : data;
+    return NextResponse.json(merged, { status: res.status });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: msg, catalog: [] }, { status: 502 });

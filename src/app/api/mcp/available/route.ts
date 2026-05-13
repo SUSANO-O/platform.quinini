@@ -7,6 +7,7 @@
 
 import { NextResponse } from 'next/server';
 import { getAibackhubBaseUrl, hubCreateHeaders } from '@/lib/aibackhub-sync';
+import { mergeDataSourcesIntoHubCatalogPayload } from '@/lib/mcp-catalog-merge-hub-response';
 import type { McpCatalogRow } from '@/lib/mcp-catalog-types';
 
 export async function GET() {
@@ -48,7 +49,14 @@ export async function GET() {
       );
     }
 
-    const catalog: McpCatalogRow[] = raw?.data?.catalog ?? raw?.catalog ?? [];
+    const normalized =
+      typeof raw === 'object' && raw !== null && !Array.isArray(raw)
+        ? mergeDataSourcesIntoHubCatalogPayload(raw as Record<string, unknown>)
+        : raw;
+    const catalog: McpCatalogRow[] =
+      (normalized as { data?: { catalog?: McpCatalogRow[] }; catalog?: McpCatalogRow[] })?.data?.catalog ??
+      (normalized as { catalog?: McpCatalogRow[] })?.catalog ??
+      [];
     return NextResponse.json({
       success: true,
       catalog,

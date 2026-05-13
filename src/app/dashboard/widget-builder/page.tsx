@@ -402,32 +402,24 @@ function MockPreview({ cfg }: { cfg: WidgetConfig }) {
 // ── Snippet generator ─────────────────────────────────────────────────────────
 
 function generateSnippet(
-  cfg: WidgetConfig,
+  _cfg: WidgetConfig,
   token: string = 'YOUR_TOKEN',
-  opts?: { includeToken?: boolean },
+  _opts?: { includeToken?: boolean },
 ) {
-  const includeToken = opts?.includeToken !== false;
   const host =
     typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3200';
-  const lines = [`<script src="${host}/widget.js"></script>`, `<script>`, `  window.AgentFlowhub.init({`];
-  lines.push(`    agentId: '${cfg.agentId || 'TU_AGENT_ID_HUB'}',`);
-  if (includeToken) {
-    lines.push(`    token: '${token}',`);
-  }
-  lines.push(`    host: '${host}',`);
-  if (cfg.title) lines.push(`    title: '${cfg.title}',`);
-  if (cfg.subtitle) lines.push(`    subtitle: '${cfg.subtitle}',`);
-  if (cfg.welcome) lines.push(`    welcome: '${cfg.welcome}',`);
-  if (cfg.fabHint) lines.push(`    fabHint: '${cfg.fabHint}',`);
-  const phone = String(cfg.humanSupportPhone ?? '').trim();
-  if (phone) lines.push(`    humanSupportPhone: ${JSON.stringify(phone)},`);
-  if (cfg.avatar) lines.push(`    avatar: '${cfg.avatar}',`);
-  lines.push(`    color: '${cfg.color}',`);
-  lines.push(`    position: '${cfg.position}',`);
-  lines.push(`    theme: '${cfg.theme}',`);
-  lines.push(`    borderRadius: '${cfg.borderRadius}',`);
-  if (cfg.autoOpen) lines.push(`    autoOpen: true,`);
-  lines.push(`  });`, `</script>`);
+  // Minimal embed: only token needed — widget.js fetches all visual config
+  // (color, title, avatar, etc.) live from the server on every page load.
+  // Changes made in this panel propagate automatically to all embeds.
+  const lines = [
+    `<script src="${host}/widget.js"></script>`,
+    `<script>`,
+    `  window.AgentFlowhub.init({`,
+    `    token: '${token}',`,
+    `    host:  '${host}',`,
+    `  });`,
+    `</script>`,
+  ];
   return lines.join('\n');
 }
 
@@ -439,8 +431,6 @@ export default function WidgetBuilderPage() {
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [editWidgetId, setEditWidgetId] = useState<string | null>(null);
   const [snippetToken, setSnippetToken] = useState('YOUR_TOKEN');
-  /** Si false, el snippet no incluye la línea `token` (p. ej. agentes sin token de widget). */
-  const [includeTokenInSnippet, setIncludeTokenInSnippet] = useState(true);
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -550,7 +540,7 @@ export default function WidgetBuilderPage() {
 
   function copySnippet() {
     navigator.clipboard.writeText(
-      generateSnippet(cfg, snippetToken, { includeToken: includeTokenInSnippet }),
+      generateSnippet(cfg, snippetToken),
     );
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -841,26 +831,9 @@ export default function WidgetBuilderPage() {
           <label htmlFor="autoOpen" style={{ fontSize: '13px', cursor: 'pointer' }}>Abrir automáticamente</label>
         </div>
 
-        {/* Token en snippet */}
-        <div style={{ marginBottom: '18px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-            <input
-              type="checkbox"
-              id="includeTokenSnippet"
-              checked={includeTokenInSnippet}
-              onChange={(e) => setIncludeTokenInSnippet(e.target.checked)}
-              style={{ width: 16, height: 16, cursor: 'pointer', marginTop: 2, flexShrink: 0 }}
-            />
-            <div>
-              <label htmlFor="includeTokenSnippet" style={{ fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}>
-                Incluir token en el código
-              </label>
-              <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '4px 0 0', lineHeight: 1.45 }}>
-                Desactívalo si el agente no exige token de widget. Tras guardar, el token sigue existiendo en el servidor; solo cambia el snippet copiado.
-              </p>
-            </div>
-          </div>
-        </div>
+        <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '0 0 18px', lineHeight: 1.5 }}>
+          El código embed solo contiene el token. El color, título, avatar y demás ajustes se cargan en tiempo real desde el servidor — cualquier cambio aquí se refleja automáticamente en todos los sitios donde esté instalado el widget.
+        </p>
         </div>
 
         {/* Action buttons */}
@@ -949,7 +922,7 @@ export default function WidgetBuilderPage() {
             </div>
           </div>
           <pre className="p-4 text-xs overflow-x-auto m-0 flex-1 min-h-[120px]" style={{ background: '#0f1729', color: '#e2e8f0', lineHeight: 1.6 }}>
-            {generateSnippet(cfg, snippetToken, { includeToken: includeTokenInSnippet })}
+            {generateSnippet(cfg, snippetToken)}
           </pre>
         </div>
       </div>

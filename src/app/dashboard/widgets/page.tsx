@@ -20,6 +20,8 @@ interface Widget {
   _id: string;
   name: string;
   agentId: string;
+  /** Nombre del ClientAgent vinculado (lo añade GET /api/widgets). */
+  agentName?: string | null;
   color: string;
   position: string;
   theme: string;
@@ -237,8 +239,11 @@ export default function WidgetsPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm m-0 mb-0.5">{w.name}</p>
+                    <p className="text-xs m-0 mb-0.5 truncate font-semibold" style={{ color: 'var(--foreground)' }}>
+                      Agente: {w.agentName?.trim() || '—'}
+                    </p>
                     <p className="text-xs m-0 truncate" style={{ color: 'var(--muted-foreground)' }}>
-                      {w.agentId} · {w.position} · {w.theme} · {new Date(w.createdAt).toLocaleDateString('es')}
+                      {w._id} · {w.position} · {w.theme} · {new Date(w.createdAt).toLocaleDateString('es')}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2 items-center justify-end w-full sm:w-auto">
@@ -253,7 +258,7 @@ export default function WidgetsPage() {
                       }}
                     >
                       <Play size={12} />
-                      Preview
+                      Probar
                     </Link>
                     <Link
                       href={`/dashboard/widget-builder?edit=${w._id}`}

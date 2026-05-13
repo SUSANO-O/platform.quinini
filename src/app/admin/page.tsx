@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Users, Boxes, TrendingUp, Clock, XCircle, CheckCircle, AlertTriangle, Ban, Activity, ShoppingBag, LayoutDashboard } from 'lucide-react';
 
 interface UserQuota {
@@ -349,16 +350,21 @@ export default function AdminPage() {
                 </div>
                 <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '12px' }}>
                   <span><strong style={{ color: '#0d9488' }}>{widgetAnalytics.supervision.subAgentsActive}</strong> activos / {widgetAnalytics.supervision.subAgentsTotal} total</span>
-                  {hubUiBase ? (
-                    <a
-                      href={`${hubUiBase}/agents/farm`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ color: '#6366f1', fontWeight: 700, textDecoration: 'none' }}
-                    >
-                      Abrir granja en Hub ↗
-                    </a>
-                  ) : null}
+                  <span style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
+                    <Link href="/admin/sub-agents" style={{ color: '#6366f1', fontWeight: 700, textDecoration: 'none' }}>
+                      Panel sub-agentes →
+                    </Link>
+                    {hubUiBase ? (
+                      <a
+                        href={`${hubUiBase}/agents/farm`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: '#0d9488', fontWeight: 700, textDecoration: 'none' }}
+                      >
+                        Granja en Hub ↗
+                      </a>
+                    ) : null}
+                  </span>
                 </div>
               </div>
               {widgetAnalytics.supervision.inventory.length === 0 ? (

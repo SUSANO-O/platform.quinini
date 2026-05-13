@@ -1,0 +1,17 @@
+{
+  "titulo_catalogo": "Ejemplo RAG — JSON",
+  "items": [
+    {
+      "sku": "SKU-001",
+      "nombre": "Filtro aceite Pro",
+      "precio_lista_usd": 45,
+      "notas": "Compatible Fox 2005–2012. Revisar manual del vehículo."
+    },
+    {
+      "sku": "SKU-002",
+      "nombre": "Kit pastillas delanteras",
+      "precio_lista_usd": 89.99,
+      "notas": "Stock bajo; reposición estimada 2026-06."
+    }
+  ]
+}

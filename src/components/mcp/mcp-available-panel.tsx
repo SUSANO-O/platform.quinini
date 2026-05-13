@@ -19,6 +19,8 @@ const INTEGRATION_ICONS: Record<string, string> = {
   slack: '💬',
   weather: '🌤️',
   webSearch: '🔍',
+  mongodb: '🍃',
+  postgres: '🐘',
 };
 
 export function McpAvailablePanel({ compact, onConnectRequest }: Props) {

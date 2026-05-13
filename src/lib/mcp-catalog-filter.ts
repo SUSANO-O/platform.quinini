@@ -9,6 +9,9 @@ export const MCP_INTEGRATION_MIN_PLAN: Record<string, PlanId> = {
   /** Mismo mínimo que Gmail para conectar CRM en la misma franja de plan. */
   hubspot: 'starter',
   google_calendar: 'growth',
+  /** Fuentes de datos del cliente: requiere plan Growth+ (riesgo / valor). */
+  mongodb: 'growth',
+  postgres: 'growth',
 };
 
 export function minPlanForMcpIntegration(key: string): PlanId {

@@ -13,7 +13,8 @@ import {
   Bot, ChevronLeft, Save, Loader2, Plus, Trash2, Network,
   Zap, Wrench, Settings, Lock, CircleOff, Upload, FileText,
   Image as ImageIcon, File, Link2, AlignLeft, CheckCircle2,
-  AlertCircle, X, KeyRound, RefreshCw,   Sparkles, HelpCircle,
+  AlertCircle, X, KeyRound, RefreshCw, Sparkles, HelpCircle,
+  Copy, Eye, Search,
 } from 'lucide-react';
 import {
   stripManagedFaqPrompt,
@@ -21,6 +22,10 @@ import {
   type AgentFaqRow,
   type FaqCandidateRow,
 } from '@/lib/agent-faq-utils';
+import Link from 'next/link';
+import { McpLandingConnectForm } from '@/components/mcp/mcp-landing-connect-form';
+import { AgentMcpOpenFromQuery } from '@/components/mcp/agent-mcp-open-from-query';
+import { AgentHubspotOauthReturn } from '@/components/mcp/agent-hubspot-oauth-return';
 
 const R = '#e41414';
 const O = '#f87600';
@@ -54,10 +59,33 @@ const BTN_PRIMARY: CSSProperties = {
   border: 'none',
   boxShadow: '0 4px 18px rgba(228,20,20,0.28)',
 };
-import Link from 'next/link';
-import { McpLandingConnectForm } from '@/components/mcp/mcp-landing-connect-form';
-import { AgentMcpOpenFromQuery } from '@/components/mcp/agent-mcp-open-from-query';
-import { AgentHubspotOauthReturn } from '@/components/mcp/agent-hubspot-oauth-return';
+
+/** Plantillas servidas desde `public/assets/exampleRAG` (generar con `npm run gen:rag-examples`). */
+const RAG_EXAMPLE_BASE = '/assets/exampleRAG';
+
+function triggerRagExampleDownload(file: string) {
+  if (typeof document === 'undefined') return;
+  const a = document.createElement('a');
+  a.href = `${RAG_EXAMPLE_BASE}/${file}`;
+  a.download = file;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+const RAG_EXAMPLE_DOWNLOADS = [
+  { icon: '📄', label: 'PDF', file: 'ejemplo-rag.pdf' },
+  { icon: '📝', label: 'DOCX', file: 'ejemplo-rag.docx' },
+  { icon: '📊', label: 'CSV', file: 'ejemplo-rag.csv' },
+  { icon: '🖼️', label: 'Imagen (OCR)', file: 'ejemplo-rag-ocr.png' },
+  { icon: '📋', label: 'TXT', file: 'ejemplo-rag.txt' },
+  { icon: '📑', label: 'JSON', file: 'ejemplo-rag.json' },
+] as const;
+
+/** Alineado con `rag-processor` (truncado al indexar). */
+const RAG_MAX_EXTRACTED_CHARS = 120_000;
+const RAG_MAX_FILE_MB = 10;
 
 type Tab = 'general' | 'rules' | 'faqs' | 'tools' | 'rag' | 'subagents';
 
@@ -293,6 +321,10 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [tools, setTools] = useState<ToolConfig[]>([]);
   const [ragEnabled, setRagEnabled] = useState(false);
   const [ragSources, setRagSources] = useState<RagSource[]>([]);
+  const ragSourcesRef = useRef<RagSource[]>([]);
+  useEffect(() => {
+    ragSourcesRef.current = ragSources;
+  }, [ragSources]);
   const [widgetPublicToken, setWidgetPublicToken] = useState('');
   const [persistConversationHistory, setPersistConversationHistory] = useState(true);
   const [inferenceTemperature, setInferenceTemperature] = useState('');
@@ -317,11 +349,16 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   }, [agent?.enabledMcpToolIds]);
 
   // File upload state
-  const [uploadingFile, setUploadingFile] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [uploadMsg, setUploadMsg] = useState('');
   const [uploadErr, setUploadErr] = useState('');
   const [webhookTestBusy, setWebhookTestBusy] = useState(false);
+  /** Cola de subida: null = inactivo. */
+  const [ragUploadProgress, setRagUploadProgress] = useState<null | { current: number; total: number; fileName: string }>(null);
+  const [ragPreview, setRagPreview] = useState<null | { title: string; snippet: string; totalChars: number }>(null);
+  const [ragSourceQuery, setRagSourceQuery] = useState('');
+  const [ragSourceSort, setRagSourceSort] = useState<'order' | 'name' | 'size' | 'chars'>('order');
+  const [ragRetryHubBusy, setRagRetryHubBusy] = useState(false);
 
   // Sub-agent creation
   const [showNewSub, setShowNewSub] = useState(false);
@@ -353,6 +390,53 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     return [selectedModel, ...filteredModels.slice(0, selectedIndex), ...filteredModels.slice(selectedIndex + 1)];
   }, [filteredModels, model]);
   const visibleModels = showAllModels ? orderedFilteredModels : orderedFilteredModels.slice(0, 12);
+
+  const ragMaxSources = limits.ragSourcesPerAgent > 0 ? limits.ragSourcesPerAgent : 20;
+
+  const ragUsage = useMemo(() => {
+    let bytes = 0;
+    let chars = 0;
+    for (const s of ragSources) {
+      if (typeof s.fileSize === 'number' && Number.isFinite(s.fileSize)) bytes += Math.max(0, s.fileSize);
+      const c =
+        typeof s.charCount === 'number' && Number.isFinite(s.charCount)
+          ? s.charCount
+          : (s.content ? s.content.length : 0);
+      chars += Math.max(0, c);
+    }
+    return { bytes, chars };
+  }, [ragSources]);
+
+  const displayRagEntries = useMemo(() => {
+    const q = ragSourceQuery.trim().toLowerCase();
+    const indexed = ragSources.map((src, i) => ({ src, i }));
+    const filtered = !q
+      ? indexed
+      : indexed.filter(({ src }) => {
+          const blob = `${src.name} ${src.fileName ?? ''} ${src.type} ${(src.content ?? '').slice(0, 500)}`.toLowerCase();
+          return blob.includes(q);
+        });
+    if (ragSourceSort === 'order') return filtered;
+    const sorted = [...filtered];
+    const label = (s: RagSource) => (s.fileName ?? s.name ?? '').toLowerCase();
+    const sizeOf = (s: RagSource) =>
+      typeof s.fileSize === 'number' && Number.isFinite(s.fileSize) ? s.fileSize : (s.content ? s.content.length : 0);
+    const charsOf = (s: RagSource) =>
+      typeof s.charCount === 'number' && Number.isFinite(s.charCount) ? s.charCount : (s.content ? s.content.length : 0);
+    if (ragSourceSort === 'name') sorted.sort((a, b) => label(a.src).localeCompare(label(b.src), 'es'));
+    else if (ragSourceSort === 'size') sorted.sort((a, b) => sizeOf(b.src) - sizeOf(a.src));
+    else if (ragSourceSort === 'chars') sorted.sort((a, b) => charsOf(b.src) - charsOf(a.src));
+    return sorted;
+  }, [ragSources, ragSourceQuery, ragSourceSort]);
+
+  useEffect(() => {
+    if (!ragPreview) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setRagPreview(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [ragPreview]);
 
   useEffect(() => {
     fetch(`/api/agents/${id}`)
@@ -551,6 +635,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     setSaving(false);
     if (!res.ok) { setError(data.error ?? 'Error al guardar.'); return false; }
     setAgent(data.agent);
+    if (Array.isArray(data.agent?.ragSources)) setRagSources(data.agent.ragSources);
     if (data.agent?.tools) setTools(normalizeTools(data.agent.tools));
     if (data.agent && 'widgetPublicToken' in data.agent) {
       setWidgetPublicToken(typeof data.agent.widgetPublicToken === 'string' ? data.agent.widgetPublicToken : '');
@@ -713,39 +798,148 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     }
   }
 
-  async function uploadFile(file: File) {
-    if (agent?.isPlatform) return;
-    setUploadingFile(true);
-    setUploadMsg('');
-    setUploadErr('');
+  function openRagPreviewFromSource(src: RagSource) {
+    const raw = src.content ?? '';
+    const max = 12_000;
+    const body = raw.slice(0, max);
+    setRagPreview({
+      title: src.fileName ?? src.name ?? 'Vista previa',
+      snippet:
+        raw.length > max
+          ? `${body}\n\n… (${raw.length.toLocaleString('es')} caracteres en total; el índice trunca a ~${RAG_MAX_EXTRACTED_CHARS.toLocaleString('es')} por archivo).`
+          : body,
+      totalChars: raw.length,
+    });
+  }
+
+  async function uploadSingleRagFile(file: File): Promise<{ ok: boolean; error?: string; preview?: RagSource }> {
+    if (agent?.isPlatform) return { ok: false, error: 'Agente de solo lectura.' };
+    const maxS = limits.ragSourcesPerAgent > 0 ? limits.ragSourcesPerAgent : 20;
+    if (ragSourcesRef.current.length >= maxS) {
+      return { ok: false, error: `Máximo ${maxS} fuentes en tu plan.` };
+    }
     const form = new FormData();
     form.append('file', file);
     const res = await fetch(`/api/agents/${id}/rag-upload`, { method: 'POST', body: form });
     const data = await res.json();
-    setUploadingFile(false);
-    if (!res.ok) { setUploadErr(data.error ?? 'Error al subir archivo.'); return; }
-    // Refresh agent to get updated ragSources
+    if (!res.ok) return { ok: false, error: typeof data.error === 'string' ? data.error : 'Error al subir archivo.' };
     const agentRes = await fetch(`/api/agents/${id}`);
     const agentData = await agentRes.json();
     if (agentData.agent) {
       setRagSources(agentData.agent.ragSources ?? []);
       setAgent(agentData.agent);
     }
-    setUploadMsg(data.message ?? 'Archivo procesado.');
+    return { ok: true, preview: data.source as RagSource | undefined };
+  }
+
+  async function runRagUploadBatch(files: File[]) {
+    if (agent?.isPlatform || readOnly || !files.length) return;
+    setUploadErr('');
+    setUploadMsg('');
+    const list = Array.from(files).filter((f) => f.size > 0);
+    if (!list.length) return;
+    const maxS = limits.ragSourcesPerAgent > 0 ? limits.ragSourcesPerAgent : 20;
+    let lastPreview: RagSource | undefined;
+    for (let k = 0; k < list.length; k++) {
+      if (ragSourcesRef.current.length >= maxS) {
+        setUploadErr((e) =>
+          (e ? `${e} ` : '') + `Límite de ${maxS} fuentes: no se procesaron más archivos.`,
+        );
+        break;
+      }
+      setRagUploadProgress({ current: k + 1, total: list.length, fileName: list[k].name });
+      const r = await uploadSingleRagFile(list[k]);
+      if (!r.ok) {
+        setUploadErr((e) => (e ? `${e} | ` : '') + `${list[k].name}: ${r.error ?? 'error'}`);
+      } else if (r.preview) {
+        lastPreview = r.preview;
+      }
+    }
+    setRagUploadProgress(null);
+    if (lastPreview) {
+      const raw = String(lastPreview.content ?? '');
+      const max = 12_000;
+      const body = raw.slice(0, max);
+      setRagPreview({
+        title: lastPreview.fileName ?? lastPreview.name ?? 'Texto extraído',
+        snippet:
+          raw.length > max
+            ? `${body}\n\n… (${raw.length.toLocaleString('es')} caracteres en total).`
+            : body,
+        totalChars: raw.length,
+      });
+    }
+    setUploadMsg(list.length > 1 ? `Listo: ${list.length} archivo(s) procesados.` : 'Archivo procesado.');
+    setTimeout(() => setUploadMsg(''), 5000);
+  }
+
+  async function duplicateRagSourceAt(index: number) {
+    if (readOnly || agent?.isPlatform) return;
+    const src = ragSources[index];
+    if (!src) return;
+    const maxS = limits.ragSourcesPerAgent > 0 ? limits.ragSourcesPerAgent : 20;
+    if (ragSources.length >= maxS) {
+      setUploadErr(`Máximo ${maxS} fuentes. Elimina una antes de duplicar.`);
+      return;
+    }
+    const base = (src.fileName ?? src.name ?? 'fuente').slice(0, 180);
+    const slice = (src.content ?? '').slice(0, RAG_MAX_EXTRACTED_CHARS);
+    const newEntry: RagSource =
+      src.type === 'file'
+        ? {
+            type: 'text',
+            name: `Copia — ${base}`,
+            content: slice,
+            charCount: slice.length,
+          }
+        : src.type === 'url'
+          ? {
+              ...src,
+              name: `Copia — ${(src.name || 'URL').slice(0, 160)}`,
+              content: (src.content ?? '').slice(0, RAG_MAX_EXTRACTED_CHARS),
+            }
+          : {
+              ...src,
+              name: `Copia — ${(src.name || 'texto').slice(0, 160)}`,
+              content: slice,
+              charCount: slice.length,
+            };
+    const next = [...ragSources, newEntry];
+    setRagSources(next);
+    const ok = await save({ ragEnabled, ragSources: next });
+    if (!ok) {
+      const ar = await fetch(`/api/agents/${id}`).then((x) => x.json());
+      if (ar.agent) setRagSources(ar.agent.ragSources ?? []);
+    }
+  }
+
+  async function retryRagHubSync() {
+    if (!agent || agent.isPlatform) return;
+    setRagRetryHubBusy(true);
+    setUploadErr('');
+    const res = await fetch(`/api/agents/${id}/retry-hub-sync`, { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    setRagRetryHubBusy(false);
+    if (!res.ok) {
+      setUploadErr(typeof data.error === 'string' ? data.error : 'No se pudo sincronizar el catálogo con el hub.');
+      return;
+    }
+    const ar = await fetch(`/api/agents/${id}`).then((x) => x.json());
+    if (ar.agent) setAgent(ar.agent);
+    setUploadMsg('Catálogo del hub sincronizado.');
     setTimeout(() => setUploadMsg(''), 4000);
   }
 
   function handleFileDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file) uploadFile(file);
+    if (e.dataTransfer.files?.length) runRagUploadBatch(Array.from(e.dataTransfer.files));
   }
 
   function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) uploadFile(file);
-    e.target.value = ''; // reset so same file can be re-uploaded
+    const fl = e.target.files;
+    if (fl?.length) runRagUploadBatch(Array.from(fl));
+    e.target.value = '';
   }
 
   async function createSubAgent() {
@@ -1893,6 +2087,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       gmail: '📧', hubspot: '🏢', slack: '💬',
                       google_calendar: '📅', googleCalendar: '📅',
                       weather: '🌤️', webSearch: '🔍', web_search: '🔍',
+                      mongodb: '🍃', postgres: '🐘',
                     };
                     const icon = MCP_ICONS[srv.integrationKey] ?? '🔌';
                     const allSelected = srv.tools.every((t) => mcpToolIds.includes(t.id));
@@ -2267,9 +2462,13 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               {/* Toggle + description */}
               <SectionCard>
                 <p style={sectionTitle}>RAG — Base de conocimiento</p>
-                <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', marginBottom: '16px' }}>
+                <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', marginBottom: '10px' }}>
                   Sube archivos o agrega texto/URLs para que el agente responda con información precisa de tu negocio.
-                  Soporta PDF, Word, imágenes (OCR automático), TXT, CSV, JSON y más.
+                  Soporta PDF, Word, imágenes (OCR automático), TXT, CSV, JSON y más. Los archivos se convierten a texto
+                  antes de indexarse: conviene títulos claros, bloques cortos y etiquetas repetibles (SKU, política, paso).
+                </p>
+                <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '14px', lineHeight: 1.45 }}>
+                  Descarga una plantilla de ejemplo por formato; edítala en tu equipo y súbela aquí cuando esté lista.
                 </p>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: readOnly ? 'default' : 'pointer' }}>
                   <div onClick={() => !readOnly && setRagEnabled(!ragEnabled)} style={{
@@ -2308,9 +2507,64 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   {/* Upload zone */}
                   <SectionCard bar="bo">
                     <p style={sectionTitle}>Subir archivos</p>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                        gap: '10px',
+                        marginBottom: '14px',
+                        fontSize: '11px',
+                        color: 'var(--muted-foreground)',
+                      }}
+                    >
+                      <div style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--card)' }}>
+                        <p style={{ margin: '0 0 4px', fontWeight: 700, color: 'var(--foreground)' }}>Plan</p>
+                        <p style={{ margin: 0 }}>{plan} · RAG {limits.ragEnabled ? 'incluido' : '—'}</p>
+                      </div>
+                      <div style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--card)' }}>
+                        <p style={{ margin: '0 0 4px', fontWeight: 700, color: 'var(--foreground)' }}>Fuentes</p>
+                        <p style={{ margin: 0 }}>{ragSources.length} / {ragMaxSources}</p>
+                      </div>
+                      <div style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--card)' }}>
+                        <p style={{ margin: '0 0 4px', fontWeight: 700, color: 'var(--foreground)' }}>Archivo</p>
+                        <p style={{ margin: 0 }}>Máx. {RAG_MAX_FILE_MB} MB · ~{RAG_MAX_EXTRACTED_CHARS.toLocaleString('es')} caracteres extraídos por archivo</p>
+                      </div>
+                      {limits.ragStorageMbPerAgent > 0 ? (
+                        <div style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--card)' }}>
+                          <p style={{ margin: '0 0 4px', fontWeight: 700, color: 'var(--foreground)' }}>Almacenamiento</p>
+                          <p style={{ margin: 0 }}>
+                            {(ragUsage.bytes / 1024 / 1024).toFixed(2)} / {limits.ragStorageMbPerAgent} MB
+                          </p>
+                        </div>
+                      ) : null}
+                      <div style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--card)' }}>
+                        <p style={{ margin: '0 0 4px', fontWeight: 700, color: 'var(--foreground)' }}>Caracteres (aprox.)</p>
+                        <p style={{ margin: 0 }}>{ragUsage.chars.toLocaleString('es')} en todas las fuentes</p>
+                      </div>
+                    </div>
+                    <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: '0 0 12px', lineHeight: 1.45 }}>
+                      Las subidas quedan vinculadas a tu sesión y a este agente. Para OCR útil en imágenes, usa fotos nítidas con texto grande y buena luz.
+                      {' '}
+                      <Link href="/docs" className="landing-link-accent no-underline font-semibold">Guía breve en Docs →</Link>
+                    </p>
+                    {plan === 'starter' && (
+                      <p style={{ fontSize: '11px', color: '#d97706', margin: '0 0 12px', padding: '8px 10px', borderRadius: '8px', background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.25)' }}>
+                        Plan Starter: prioriza pocas fuentes bien estructuradas antes de subir muchos archivos pequeños duplicados.
+                      </p>
+                    )}
 
                     {/* Drag-and-drop zone */}
                     <div
+                      role="region"
+                      aria-label="Zona para subir archivos al conocimiento del agente"
+                      tabIndex={readOnly ? -1 : 0}
+                      onKeyDown={(e) => {
+                        if (readOnly) return;
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          document.getElementById('rag-file-input')?.click();
+                        }
+                      }}
                       onDragOver={(e) => { if (!readOnly) { e.preventDefault(); setDragOver(true); } }}
                       onDragLeave={() => setDragOver(false)}
                       onDrop={readOnly ? undefined : handleFileDrop}
@@ -2320,51 +2574,69 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         background: dragOver ? 'rgba(228,20,20,0.05)' : 'transparent',
                         transition: 'all 0.15s', cursor: readOnly ? 'not-allowed' : 'pointer', marginBottom: '14px',
                         pointerEvents: readOnly ? 'none' : 'auto', opacity: readOnly ? 0.65 : 1,
+                        outline: 'none',
                       }}
+                      className="focus-visible:ring-2 focus-visible:ring-offset-2"
                       onClick={() => !readOnly && document.getElementById('rag-file-input')?.click()}
                     >
                       <input
                         id="rag-file-input"
                         type="file"
+                        multiple
                         style={{ display: 'none' }}
                         accept=".pdf,.docx,.doc,.txt,.md,.csv,.json,.png,.jpg,.jpeg,.webp,.gif"
                         onChange={handleFileInput}
                       />
-                      {uploadingFile ? (
+                      {ragUploadProgress ? (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                           <Loader2 size={28} className="animate-spin" style={{ color: R }} />
-                          <p style={{ color: R, fontSize: '13px', fontWeight: 600 }}>Procesando archivo...</p>
+                          <p style={{ color: R, fontSize: '13px', fontWeight: 600 }}>
+                            Subiendo {ragUploadProgress.current}/{ragUploadProgress.total}: {ragUploadProgress.fileName}
+                          </p>
                         </div>
                       ) : (
                         <>
                           <Upload size={28} style={{ color: dragOver ? R : 'var(--muted-foreground)', margin: '0 auto 10px' }} />
                           <p style={{ fontWeight: 700, fontSize: '13px', marginBottom: '4px' }}>
-                            Arrastra un archivo aquí o haz clic para seleccionar
+                            Arrastra uno o varios archivos, o haz clic para seleccionar
                           </p>
                           <p style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
-                            PDF · DOCX · TXT · CSV · JSON · PNG · JPG · WEBP — máx. 10 MB
+                            PDF · DOCX · TXT · CSV · JSON · PNG · JPG · WEBP — máx. {RAG_MAX_FILE_MB} MB por archivo
                           </p>
                         </>
                       )}
                     </div>
 
-                    {/* Format pills */}
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '4px' }}>
-                      {[
-                        { icon: '📄', label: 'PDF' },
-                        { icon: '📝', label: 'DOCX' },
-                        { icon: '📊', label: 'CSV' },
-                        { icon: '🖼️', label: 'Imágenes (OCR)' },
-                        { icon: '📋', label: 'TXT / JSON' },
-                      ].map((f) => (
-                        <span key={f.label} style={{
-                          fontSize: '11px', padding: '3px 10px', borderRadius: '20px',
-                          background: 'var(--border)', color: 'var(--muted-foreground)', fontWeight: 600,
-                        }}>
-                          {f.icon} {f.label}
-                        </span>
+                    {/* Descargar plantillas de ejemplo (public/assets/exampleRAG) */}
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                      {RAG_EXAMPLE_DOWNLOADS.map((row) => (
+                        <button
+                          key={row.file}
+                          type="button"
+                          onClick={() => triggerRagExampleDownload(row.file)}
+                          title={`Descargar ${row.file}`}
+                          className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                          style={{
+                            fontSize: '11px',
+                            padding: '6px 12px',
+                            borderRadius: '20px',
+                            border: '1px solid color-mix(in srgb, var(--foreground) 14%, var(--border))',
+                            background: 'var(--card)',
+                            color: 'var(--foreground)',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                          }}
+                        >
+                          <span aria-hidden>{row.icon}</span> {row.label}
+                        </button>
                       ))}
                     </div>
+                    <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: '0 0 10px', lineHeight: 1.4 }}>
+                      La plantilla PNG es mínima (prueba de subida). Para OCR real, sube capturas con texto legible y resolución suficiente.
+                    </p>
 
                     {/* Upload feedback */}
                     {uploadMsg && (
@@ -2380,28 +2652,118 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                     )}
                   </SectionCard>
 
+                  {agent?.agentHubId && agent.syncStatus === 'failed' && (
+                    <div
+                      style={{
+                        marginBottom: '12px',
+                        padding: '12px 14px',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(239,68,68,0.35)',
+                        background: 'rgba(239,68,68,0.06)',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        gap: '10px',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <p style={{ margin: 0, fontSize: '12px', color: '#ef4444', fontWeight: 600 }}>
+                        El catálogo en el hub no se actualizó tras el último cambio. El widget puede servir datos antiguos hasta que se sincronice.
+                      </p>
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          onClick={retryRagHubSync}
+                          disabled={ragRetryHubBusy}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold shrink-0"
+                          style={{
+                            borderColor: 'var(--border)',
+                            background: 'var(--card)',
+                            cursor: ragRetryHubBusy ? 'wait' : 'pointer',
+                          }}
+                        >
+                          {ragRetryHubBusy ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                          Reintentar sync hub
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   {/* Sources list */}
                   <SectionCard>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                      <p style={{ ...sectionTitle, margin: 0 }}>
-                        Fuentes ({ragSources.length}/20)
-                      </p>
-                      <button onClick={addRagSource} style={{
-                        display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 12px',
-                        borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent',
-                        fontSize: '12px', fontWeight: 600, cursor: 'pointer',
-                      }}>
-                        <Plus size={12} /> Agregar texto/URL
-                      </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                        <div>
+                          <p style={{ ...sectionTitle, margin: 0 }}>
+                            Fuentes ({ragSources.length}/{ragMaxSources})
+                          </p>
+                          {agent?.agentHubId ? (
+                            <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: '4px 0 0' }}>
+                              Hub catálogo:{' '}
+                              <span style={{
+                                fontWeight: 700,
+                                color: agent.syncStatus === 'synced' ? '#22c55e' : agent.syncStatus === 'failed' ? '#ef4444' : '#d97706',
+                              }}>
+                                {agent.syncStatus === 'synced' ? 'sincronizado' : agent.syncStatus === 'failed' ? 'error' : 'pendiente'}
+                              </span>
+                            </p>
+                          ) : (
+                            <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: '4px 0 0' }}>
+                              Sin ID de hub aún; se creará al sincronizar.
+                            </p>
+                          )}
+                        </div>
+                        <button onClick={addRagSource} style={{
+                          display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 12px',
+                          borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent',
+                          fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                        }}>
+                          <Plus size={12} /> Agregar texto/URL
+                        </button>
+                      </div>
+                      {ragSources.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: '1 1 180px', minWidth: 0 }}>
+                            <Search size={14} style={{ color: 'var(--muted-foreground)', flexShrink: 0 }} />
+                            <input
+                              className="landing-input"
+                              type="search"
+                              placeholder="Buscar por nombre o contenido…"
+                              value={ragSourceQuery}
+                              onChange={(e) => setRagSourceQuery(e.target.value)}
+                              style={{ ...inp, padding: '8px 12px', fontSize: '12px', flex: 1, minWidth: 0 }}
+                              aria-label="Filtrar fuentes RAG"
+                            />
+                          </div>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                            Orden
+                            <select
+                              value={ragSourceSort}
+                              onChange={(e) => setRagSourceSort(e.target.value as 'order' | 'name' | 'size' | 'chars')}
+                              className="landing-input"
+                              style={{ ...inp, width: 'auto', padding: '6px 10px', fontSize: '12px' }}
+                            >
+                              <option value="order">Orden guardado</option>
+                              <option value="name">Nombre</option>
+                              <option value="size">Tamaño archivo</option>
+                              <option value="chars">Caracteres</option>
+                            </select>
+                          </label>
+                        </div>
+                      )}
                     </div>
 
                     {ragSources.length === 0 ? (
                       <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', textAlign: 'center', padding: '24px 0' }}>
                         Sin fuentes aún. Sube un archivo o agrega texto/URL.
                       </p>
+                    ) : displayRagEntries.length === 0 ? (
+                      <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', textAlign: 'center', padding: '24px 0' }}>
+                        Ninguna fuente coincide con la búsqueda. Ajusta el filtro o el orden.
+                      </p>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {ragSources.map((src, i) => {
+                        {displayRagEntries.map(({ src, i }) => {
                           if (src.type === 'file') {
                             // File source — read-only display
                             const catIcon: Record<string, ReactNode> = {
@@ -2411,7 +2773,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                               text: <AlignLeft size={16} style={{ color: B }} />,
                             };
                             return (
-                              <div key={src.fileId ?? i} style={{
+                              <div key={src.fileId ?? `file-${i}`} style={{
                                 display: 'flex', alignItems: 'flex-start', gap: '10px',
                                 padding: '12px 14px', border: '1px solid var(--border)', borderRadius: '10px',
                                 background: 'rgba(228,20,20,0.03)',
@@ -2424,6 +2786,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                                     {src.fileName ?? src.name}
                                   </p>
                                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                                    <span style={{ fontWeight: 600, color: B }}>Archivo</span>
                                     {src.fileSize && <span>{(src.fileSize / 1024).toFixed(1)} KB</span>}
                                     {src.charCount ? <span>{src.charCount.toLocaleString()} chars extraídos</span> : null}
                                     {src.uploadedAt && <span>{new Date(src.uploadedAt).toLocaleDateString('es')}</span>}
@@ -2434,23 +2797,59 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                                     </p>
                                   )}
                                 </div>
-                                {!readOnly && (
-                                <button onClick={() => deleteRagSource(src, i)} style={{
-                                  flexShrink: 0, padding: '5px', borderRadius: '6px',
-                                  border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)',
-                                  color: '#ef4444', cursor: 'pointer',
-                                }}>
-                                  <Trash2 size={12} />
-                                </button>
-                                )}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
+                                  {Boolean(src.content && String(src.content).length > 0) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => openRagPreviewFromSource(src)}
+                                      title="Vista previa del texto extraído"
+                                      className="focus-visible:outline-none focus-visible:ring-2 rounded-md"
+                                      style={{
+                                        padding: '6px', borderRadius: '6px',
+                                        border: '1px solid var(--border)', background: 'var(--card)', color: B, cursor: 'pointer',
+                                      }}
+                                    >
+                                      <Eye size={12} />
+                                    </button>
+                                  )}
+                                  {!readOnly && ragSources.length < ragMaxSources && (
+                                    <button
+                                      type="button"
+                                      onClick={() => duplicateRagSourceAt(i)}
+                                      title="Duplicar como fuente de texto (edita el nombre después)"
+                                      className="focus-visible:outline-none focus-visible:ring-2 rounded-md"
+                                      style={{
+                                        padding: '6px', borderRadius: '6px',
+                                        border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer',
+                                      }}
+                                    >
+                                      <Copy size={12} />
+                                    </button>
+                                  )}
+                                  {!readOnly && (
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteRagSource(src, i)}
+                                      title="Eliminar"
+                                      className="focus-visible:outline-none focus-visible:ring-2 rounded-md"
+                                      style={{
+                                        padding: '6px', borderRadius: '6px',
+                                        border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)',
+                                        color: '#ef4444', cursor: 'pointer',
+                                      }}
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             );
                           }
 
                           // Manual text / URL source — editable
                           return (
-                            <div key={i} style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
-                              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                            <div key={`manual-${i}`} style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px' }}>
+                              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                                 {src.type === 'url'
                                   ? <Link2 size={14} style={{ color: R, flexShrink: 0 }} />
                                   : <AlignLeft size={14} style={{ color: B, flexShrink: 0 }} />
@@ -2465,20 +2864,56 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                                   <option value="url">URL</option>
                                 </select>
                                 <input
-                                  style={{ ...inp, flex: 1, fontSize: '12px', padding: '6px 10px' }}
+                                  style={{ ...inp, flex: 1, fontSize: '12px', padding: '6px 10px', minWidth: '120px' }}
                                   value={src.name}
                                   onChange={(e) => setRagSources((prev) => prev.map((s, idx) => idx === i ? { ...s, name: e.target.value } : s))}
                                   placeholder="Nombre (ej: FAQ empresa)"
                                   disabled={readOnly}
                                 />
-                                {!readOnly && (
-                                <button onClick={() => deleteRagSource(src, i)} style={{
-                                  padding: '5px', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.3)',
-                                  background: 'rgba(239,68,68,0.06)', color: '#ef4444', cursor: 'pointer', flexShrink: 0,
-                                }}>
-                                  <Trash2 size={12} />
-                                </button>
-                                )}
+                                <div style={{ display: 'flex', gap: '4px', flexShrink: 0, marginLeft: 'auto' }}>
+                                  {Boolean(src.content && String(src.content).trim().length > 0) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => openRagPreviewFromSource(src)}
+                                      title="Vista previa"
+                                      className="focus-visible:outline-none focus-visible:ring-2 rounded-md"
+                                      style={{
+                                        padding: '6px', borderRadius: '6px',
+                                        border: '1px solid var(--border)', background: 'var(--card)', color: B, cursor: 'pointer',
+                                      }}
+                                    >
+                                      <Eye size={12} />
+                                    </button>
+                                  )}
+                                  {!readOnly && ragSources.length < ragMaxSources && (
+                                    <button
+                                      type="button"
+                                      onClick={() => duplicateRagSourceAt(i)}
+                                      title="Duplicar fuente"
+                                      className="focus-visible:outline-none focus-visible:ring-2 rounded-md"
+                                      style={{
+                                        padding: '6px', borderRadius: '6px',
+                                        border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer',
+                                      }}
+                                    >
+                                      <Copy size={12} />
+                                    </button>
+                                  )}
+                                  {!readOnly && (
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteRagSource(src, i)}
+                                      title="Eliminar"
+                                      className="focus-visible:outline-none focus-visible:ring-2 rounded-md"
+                                      style={{
+                                        padding: '6px', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.3)',
+                                        background: 'rgba(239,68,68,0.06)', color: '#ef4444', cursor: 'pointer',
+                                      }}
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                               {src.type === 'url' ? (
                                 <input
@@ -2522,6 +2957,89 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       </button>
                     )}
                   </SectionCard>
+
+                  {ragPreview ? (
+                    <div
+                      role="dialog"
+                      aria-modal="true"
+                      aria-labelledby="rag-preview-title"
+                      style={{
+                        position: 'fixed',
+                        inset: 0,
+                        zIndex: 70,
+                        background: 'rgba(0,0,0,0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '20px',
+                      }}
+                      onClick={() => setRagPreview(null)}
+                    >
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          maxWidth: '760px',
+                          width: '100%',
+                          maxHeight: '88vh',
+                          overflow: 'auto',
+                          borderRadius: '16px',
+                          background: 'var(--card)',
+                          border: '1px solid var(--border)',
+                          padding: '20px',
+                          boxShadow: '0 24px 60px rgba(0,0,0,0.25)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '10px' }}>
+                          <h2 id="rag-preview-title" style={{ fontSize: '16px', fontWeight: 800, margin: 0, lineHeight: 1.3 }}>
+                            {ragPreview.title}
+                          </h2>
+                          <button
+                            type="button"
+                            onClick={() => setRagPreview(null)}
+                            aria-label="Cerrar vista previa"
+                            style={{
+                              border: 'none',
+                              background: 'transparent',
+                              fontSize: '22px',
+                              lineHeight: 1,
+                              cursor: 'pointer',
+                              color: 'var(--muted-foreground)',
+                              padding: '4px 8px',
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                        <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '0 0 12px' }}>
+                          {ragPreview.totalChars.toLocaleString('es')} caracteres · fragmento para revisión (Esc cierra)
+                        </p>
+                        <pre
+                          style={{
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                            fontSize: '11px',
+                            lineHeight: 1.45,
+                            padding: '12px',
+                            borderRadius: '10px',
+                            background: 'var(--muted)',
+                            border: '1px solid var(--border)',
+                            margin: 0,
+                            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                          }}
+                        >
+                          {ragPreview.snippet}
+                        </pre>
+                        <button
+                          type="button"
+                          onClick={() => setRagPreview(null)}
+                          className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs"
+                          style={{ border: `1px solid ${B}`, background: 'rgba(0,172,248,0.08)', color: B, cursor: 'pointer' }}
+                        >
+                          Cerrar
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </>
               )}
             </>

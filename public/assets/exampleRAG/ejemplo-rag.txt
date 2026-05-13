@@ -1,0 +1,9 @@
+=== EJEMPLO RAG — TEXTO PLANO ===
+Producto: Filtro aceite Pro (SKU-001)
+
+Compatibilidad:
+- Volkswagen Fox 2005–2012
+- Gol 1.0 (motor EA111)
+
+Política de devolución:
+Plazo 30 días con empaque original. No aceptamos piezas instaladas.

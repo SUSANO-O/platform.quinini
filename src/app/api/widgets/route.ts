@@ -7,7 +7,7 @@
 import { randomBytes } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
-import { Widget, Subscription } from '@/lib/db/models';
+import { Widget, Subscription, ClientAgent } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
 import { WIDGET_LIMITS } from '@/lib/agent-plans';
 
@@ -23,7 +23,24 @@ export async function GET(req: NextRequest) {
 
   await connectDB();
   const widgets = await Widget.find({ userId }).sort({ createdAt: -1 }).lean();
-  return NextResponse.json({ widgets });
+  const agentIds = [...new Set(widgets.map((w) => w.agentId).filter(Boolean) as string[])];
+  const nameByAgentId = new Map<string, string>();
+  if (agentIds.length) {
+    const agents = await ClientAgent.find({ _id: { $in: agentIds } })
+      .select('_id name userId isPlatform')
+      .lean();
+    for (const a of agents) {
+      const owner = String(a.userId) === String(userId);
+      const platform = (a as { isPlatform?: boolean }).isPlatform === true;
+      if (!owner && !platform) continue;
+      nameByAgentId.set(String(a._id), typeof a.name === 'string' ? a.name : '');
+    }
+  }
+  const widgetsOut = widgets.map((w) => ({
+    ...w,
+    agentName: nameByAgentId.get(String(w.agentId)) ?? null,
+  }));
+  return NextResponse.json({ widgets: widgetsOut });
 }
 
 export async function POST(req: NextRequest) {

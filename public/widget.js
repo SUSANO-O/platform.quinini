@@ -87,8 +87,104 @@
     onError: null
   };
 
+  /**
+   * Fetches widget config from the landing's /api/widget/config endpoint.
+   * Calls callback(config) on success or callback(null) on timeout/error.
+   */
+  function fetchWidgetConfig(host, token, callback) {
+    var done = false;
+    var timer = setTimeout(function () {
+      if (!done) { done = true; callback(null); }
+    }, 5000);
+    try {
+      var req = new XMLHttpRequest();
+      req.open('GET', host + '/api/widget/config?token=' + encodeURIComponent(token), true);
+      req.onload = function () {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        if (req.status === 200) {
+          try { callback(JSON.parse(req.responseText)); } catch (_e) { callback(null); }
+        } else {
+          callback(null);
+        }
+      };
+      req.onerror = function () { if (!done) { done = true; clearTimeout(timer); callback(null); } };
+      req.send();
+    } catch (_e) {
+      if (!done) { done = true; clearTimeout(timer); callback(null); }
+    }
+  }
+
+  /**
+   * Async init path: only token provided (no agentId).
+   * Fetches config from the server, then creates and mounts the widget.
+   * Returns a proxy API immediately so callers can queue open/close/send calls.
+   */
+  function initDeferred(localInput) {
+    var instanceId = 'afhub_' + (++INSTANCE_COUNT);
+    var resolvedApi = null;
+    var pending = [];
+
+    function enqueue(c) { pending.push(c); }
+    function flush() {
+      var i;
+      for (i = 0; i < pending.length; i++) {
+        var c = pending[i];
+        if (c[0] === 'open')  resolvedApi.open();
+        else if (c[0] === 'close') resolvedApi.close();
+        else if (c[0] === 'send')  resolvedApi.send(c[1]);
+      }
+      pending = [];
+    }
+
+    var proxyApi = {
+      id:       instanceId,
+      open:     function ()  { if (resolvedApi) resolvedApi.open();    else enqueue(['open']); },
+      close:    function ()  { if (resolvedApi) resolvedApi.close();   else enqueue(['close']); },
+      send:     function (m) { if (resolvedApi) resolvedApi.send(m);   else enqueue(['send', m]); },
+      destroy:  function ()  { if (resolvedApi) resolvedApi.destroy(); },
+      getState: function ()  { return resolvedApi ? resolvedApi.getState() : { isOpen: false, isLoading: false }; }
+    };
+
+    var tempHost = String(localInput.host || '').trim() || getScriptOrigin() || window.location.origin;
+    var token    = String(localInput.token || '').trim();
+    var debug    = Boolean(localInput.debug);
+
+    fetchWidgetConfig(tempHost, token, function (remoteCfg) {
+      if (!remoteCfg) {
+        if (debug) console.warn('[AgentFlowhub Widget] No se pudo obtener configuración remota. Token:', token);
+        return;
+      }
+      // remote config is authoritative; localInput keys (callbacks, debug, host, etc.) override last
+      var mergedInput = assign({}, remoteCfg, localInput);
+      var cfg = normalizeConfig(mergedInput);
+      var errors = validateConfig(cfg);
+      if (errors.length) {
+        if (debug) console.error('[AgentFlowhub Widget]', errors.join(' '));
+        return;
+      }
+      var instance = createWidgetInstance(instanceId, cfg);
+      INSTANCES[instanceId] = instance;
+      resolvedApi = instance.api;
+      flush();
+    });
+
+    return proxyApi;
+  }
+
   function init(config) {
-    var cfg = normalizeConfig(config || {});
+    var localInput = config || {};
+    var hasToken   = typeof localInput.token === 'string' && localInput.token.indexOf('wt_') === 0;
+    var hasAgentId = typeof localInput.agentId === 'string' && localInput.agentId.trim().length > 0;
+
+    // Minimal embed: only token provided — fetch full config from server
+    if (hasToken && !hasAgentId) {
+      return initDeferred(localInput);
+    }
+
+    // Legacy / full-config embed: sync path (backward compatible)
+    var cfg = normalizeConfig(localInput);
     var errors = validateConfig(cfg);
     if (errors.length) {
       log(cfg, 'error', errors.join(' '));
@@ -1240,7 +1336,9 @@
   function autoInitFromScript() {
     var script = document.currentScript || findScriptTag();
     if (!script) return;
-    if (!script.getAttribute('data-agent-id')) return;
+    var hasAgentId = script.getAttribute('data-agent-id');
+    var hasToken   = script.getAttribute('data-token');
+    if (!hasAgentId && !hasToken) return;
     var config = {
       agentId: attr(script, 'data-agent-id', ''),
       token: attr(script, 'data-token', ''),

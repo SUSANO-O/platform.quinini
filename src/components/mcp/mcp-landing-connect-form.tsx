@@ -51,7 +51,12 @@ const INTEGRATION_ICONS: Record<string, string> = {
   weather: '🌤️',
   webSearch: '🔍',
   web_search: '🔍',
+  mongodb: '🍃',
+  postgres: '🐘',
 };
+
+/** Integraciones con prueba de URI en la landing (`/api/mcp/data-sources/test`). */
+const DATA_SOURCE_INTEGRATION_KEYS = new Set(['mongodb', 'postgres']);
 
 function integrationIcon(key: string): string {
   return INTEGRATION_ICONS[key] ?? '🔌';
@@ -96,6 +101,12 @@ type StdPreview =
   | { kind: 'ok'; tools: { name: string; description: string }[] }
   | { kind: 'err'; message: string };
 
+type DsTestPreview =
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'ok'; message: string }
+  | { kind: 'err'; message: string };
+
 type Props = {
   landingAgentId: string;
   onConnected?: () => void;
@@ -128,6 +139,7 @@ export function McpLandingConnectForm({
   const appliedInitialKey = useRef(false);
   const [stdPreview, setStdPreview] = useState<StdPreview>({ kind: 'idle' });
   const stdPreviewMatchRef = useRef<string>('');
+  const [dsTest, setDsTest] = useState<DsTestPreview>({ kind: 'idle' });
 
   const primaryCatalog = useMemo(() => catalog, [catalog]);
 
@@ -180,6 +192,10 @@ export function McpLandingConnectForm({
       `${window.location.origin}/api/mcp/hubspot-oauth/callback`,
     );
   }, []);
+
+  useEffect(() => {
+    setDsTest({ kind: 'idle' });
+  }, [integrationKey]);
 
   useEffect(() => {
     if (!initialIntegrationKey?.trim() || catalog.length === 0 || appliedInitialKey.current) return;
@@ -367,6 +383,40 @@ export function McpLandingConnectForm({
       });
     }
   }, [creds.MCP_SERVER_URL, creds.MCP_AUTH_HEADER, creds.MCP_STANDARD_PRESET_ID, entry]);
+
+  const runDataSourceTest = useCallback(async () => {
+    if (!entry || !DATA_SOURCE_INTEGRATION_KEYS.has(entry.key)) return;
+    const uri = String(creds.connectionUri ?? '').trim();
+    if (!uri) {
+      setDsTest({ kind: 'err', message: 'Introduce la connection URI.' });
+      return;
+    }
+    setDsTest({ kind: 'loading' });
+    try {
+      const r = await fetch('/api/mcp/data-sources/test', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          integrationKey: entry.key,
+          credentials: { connectionUri: uri },
+        }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        throw new Error(typeof j?.error === 'string' ? j.error : 'Error al probar la conexión');
+      }
+      setDsTest({
+        kind: 'ok',
+        message: typeof j?.detail === 'string' ? j.detail : 'Conexión OK.',
+      });
+    } catch (e) {
+      setDsTest({
+        kind: 'err',
+        message: e instanceof Error ? e.message : 'Error',
+      });
+    }
+  }, [entry, creds.connectionUri]);
 
   const onSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -979,6 +1029,39 @@ export function McpLandingConnectForm({
         <p className="text-sm text-emerald-700 dark:text-emerald-400" role="status">
           {ok}
         </p>
+      )}
+
+      {entry && DATA_SOURCE_INTEGRATION_KEYS.has(entry.key) && (
+        <div className="flex flex-col gap-2 rounded-md border border-zinc-200 bg-zinc-50/80 p-3 dark:border-zinc-700 dark:bg-zinc-900/40">
+          <p className="text-xs text-zinc-600 dark:text-zinc-400">
+            Prueba conectividad desde esta app (no guarda credenciales). La ejecución de tools la hace AIBackHub.
+          </p>
+          <button
+            type="button"
+            onClick={runDataSourceTest}
+            disabled={dsTest.kind === 'loading'}
+            className="flex w-fit items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-950 dark:hover:bg-zinc-900"
+          >
+            {dsTest.kind === 'loading' ? (
+              <>
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+                Probando…
+              </>
+            ) : (
+              'Probar URI de conexión'
+            )}
+          </button>
+          {dsTest.kind === 'ok' && (
+            <p className="text-xs text-emerald-800 dark:text-emerald-200" role="status">
+              {dsTest.message}
+            </p>
+          )}
+          {dsTest.kind === 'err' && (
+            <p className="text-xs text-red-700 dark:text-red-300" role="alert">
+              {dsTest.message}
+            </p>
+          )}
+        </div>
       )}
 
       <div className="flex justify-end">
