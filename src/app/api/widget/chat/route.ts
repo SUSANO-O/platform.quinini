@@ -4,6 +4,8 @@
  * Los tokens wt_* se validan aquí contra Mongo y se reenvían cabeceras firmadas al hub.
  */
 
+export const maxDuration = 60; // Vercel: allow up to 60s for LLM response
+
 import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAgentflowhubBaseUrl } from '@/lib/aibackhub-sync';

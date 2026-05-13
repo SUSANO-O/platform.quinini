@@ -11,6 +11,8 @@
  *   data: {"type":"error","message":"..."}\n\n
  */
 
+export const maxDuration = 60; // Vercel: allow up to 60s for LLM + streaming
+
 import { NextRequest } from 'next/server';
 import { randomUUID } from 'crypto';
 import { getAgentflowhubBaseUrl } from '@/lib/aibackhub-sync';
@@ -26,7 +28,7 @@ import { extractAndGuardMessage } from '@/lib/message-guard';
 import { signRequest, SIGNATURE_HEADER } from '@/lib/hub-signature';
 
 const MAX_WIDGET_BODY_BYTES = 64 * 1024;
-const WORD_DELAY_MS = 18;
+const WORD_DELAY_MS = 8;
 
 function sseEvent(data: Record<string, unknown>): string {
   return `data: ${JSON.stringify(data)}\n\n`;
