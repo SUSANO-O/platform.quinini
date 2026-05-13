@@ -16,6 +16,7 @@ import { checkRateLimitAsync, getClientIp } from '@/lib/rate-limit';
 import { connectDB } from '@/lib/db/connection';
 import { Widget, ConversationSession } from '@/lib/db/models';
 import { dispatchSaasWebhook } from '@/lib/saas-webhook-outbound';
+import { scheduleWidgetUsageDiskLog } from '@/lib/widget-usage-disk';
 import { randomUUID } from 'crypto';
 
 const MAX_EVENT_BODY_BYTES = 8 * 1024; // 8 KB — events are tiny
@@ -70,6 +71,12 @@ export async function POST(req: NextRequest) {
       { status: 400, headers: corsHeaders() },
     );
   }
+
+  scheduleWidgetUsageDiskLog({
+    event,
+    agentId,
+    instanceId: typeof body.instanceId === 'string' ? body.instanceId : undefined,
+  });
 
   // ── Session analytics + Webhooks SaaS (best-effort) ──────────────────────
   try {
