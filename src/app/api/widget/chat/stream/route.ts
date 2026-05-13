@@ -28,7 +28,6 @@ import { signRequest, SIGNATURE_HEADER } from '@/lib/hub-signature';
 export const maxDuration = 60; // Vercel: allow up to 60s for LLM + streaming
 
 const MAX_WIDGET_BODY_BYTES = 64 * 1024;
-const WORD_DELAY_MS = 8;
 
 function sseEvent(data: Record<string, unknown>): string {
   return `data: ${JSON.stringify(data)}\n\n`;
@@ -201,14 +200,9 @@ export async function POST(req: NextRequest) {
 
         const fullReply = json.reply || json.response || json.text || '';
 
-        // Stream reply word by word
-        const words = fullReply.split(/(?<=\s)/);
-        for (const word of words) {
-          enqueue({ type: 'token', text: word });
-          await new Promise(r => setTimeout(r, WORD_DELAY_MS));
-        }
-
-        // Final done event
+        // Send full reply as a single token so the message bubble is created,
+        // then immediately send done — no word-by-word delay that risks timeout.
+        enqueue({ type: 'token', text: fullReply });
         enqueue({
           type: 'done',
           reply: fullReply,
