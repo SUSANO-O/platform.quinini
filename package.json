@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "smoke": "node scripts/smoke-test.mjs",
+    "test:widget": "node scripts/widget-chat-test.mjs",
     "verify:mcp-phases": "node scripts/verify-mcp-phases.mjs",
     "gen:rag-examples": "node scripts/write-rag-example-assets.mjs"
   },
