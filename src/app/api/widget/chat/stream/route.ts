@@ -203,7 +203,16 @@ export async function POST(req: NextRequest) {
           signal: AbortSignal.timeout(120_000),
         });
 
-        const json = await res.json() as { reply?: string; response?: string; text?: string; agentId?: string; toolsUsed?: string[]; code?: string; error?: string };
+        const json = await res.json() as {
+          reply?: string;
+          response?: string;
+          text?: string;
+          agentId?: string;
+          toolsUsed?: string[];
+          mcpTag?: string;
+          code?: string;
+          error?: string;
+        };
 
         if (!res.ok || json.code === 'AGENT_COOLDOWN' || json.error) {
           const msg = json.error || json.reply || 'Error del agente.';
@@ -219,16 +228,20 @@ export async function POST(req: NextRequest) {
           status: res.status,
           replyLen: fullReply.length,
           toolsUsed: json.toolsUsed || [],
+          mcpTag: typeof json.mcpTag === 'string' ? json.mcpTag : undefined,
         });
 
         // Send full reply as a single token so the message bubble is created,
         // then immediately send done — no word-by-word delay that risks timeout.
+        const mcpTag =
+          typeof json.mcpTag === 'string' && json.mcpTag.trim() ? json.mcpTag.trim() : undefined;
         enqueue({ type: 'token', text: fullReply });
         enqueue({
           type: 'done',
           reply: fullReply,
           agentId: json.agentId || parsedAgentId,
           toolsUsed: json.toolsUsed || [],
+          ...(mcpTag ? { mcpTag } : {}),
         });
 
         // Telemetry (non-blocking)
