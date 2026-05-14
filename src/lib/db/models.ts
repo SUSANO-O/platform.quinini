@@ -173,6 +173,8 @@ const ClientAgentSchema = new Schema({
   isPlatform:      { type: Boolean, default: false },
   /** Si true, el motor en AIBackHub refuerza que el agente no responda fuera de rol + tools/RAG/skills. */
   strictPurposeOnly: { type: Boolean, default: true },
+  /** Tras cada turno del widget: buscar/crear contacto en HubSpot si hay nombre + email o tel. CO (requiere tools HubSpot). */
+  hubspotAutoCaptureContacts: { type: Boolean, default: false },
   /** IDs de skills del catálogo (agent-skills.ts). Sincronizado bidireccional con el hub. */
   skills:          { type: [String], default: [] },
   /** Config runtime de skills (prompt/tools/settings), sincronizada con el hub. */

@@ -13,6 +13,10 @@
  *   WIDGET_TOKEN=wt_xxxx AGENT_ID=69d5084c78e0af3d5536fe95 \
  *   BASE_URL=https://www.quinini.online \
  *   node scripts/widget-chat-test.mjs
+ *
+ * Pruebas unitarias de historias multi-turno (extracción lead HubSpot, sin red):
+ *   npx vitest run src/lib/hubspot-widget-user-stories.spec.ts
+ *   (desde el directorio AIBackHub)
  */
 
 import { createConnection, Types } from 'mongoose';

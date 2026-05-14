@@ -141,6 +141,7 @@ export async function POST(req: NextRequest) {
 
   const base = getAgentflowhubBaseUrl();
   const rawBody = await req.text();
+  let bodyToForward = rawBody;
 
   // Enforce size after read (content-length puede ser falso o ausente)
   if (rawBody.length > MAX_WIDGET_BODY_BYTES) {
@@ -271,6 +272,24 @@ export async function POST(req: NextRequest) {
           );
         }
         faqTrackOwnerId = w.userId;
+
+        try {
+          const agentOr = [
+            ...(parsedAgentId.match(/^[a-f0-9]{24}$/i) ? [{ _id: parsedAgentId }] : []),
+            { agentHubId: parsedAgentId },
+          ];
+          const ca = await ClientAgent.findOne({
+            $and: [{ $or: agentOr }, { $or: [{ userId: w.userId }, { isPlatform: true }] }],
+          })
+            .select({ hubspotAutoCaptureContacts: 1 })
+            .lean() as { hubspotAutoCaptureContacts?: boolean } | null;
+          const j = JSON.parse(rawBody) as Record<string, unknown>;
+          j.hubspotAutoCaptureContacts = ca?.hubspotAutoCaptureContacts === true;
+          bodyToForward = JSON.stringify(j);
+        } catch (mergeErr) {
+          console.warn('[widget/chat] merge hubspotAutoCaptureContacts skipped:', mergeErr);
+        }
+
         // ── Quota check ──────────────────────────────────────────────────
         try {
           const quota = await checkConversationQuota(w.userId);
@@ -373,7 +392,7 @@ export async function POST(req: NextRequest) {
         }
         // HMAC signature: en vez del secreto raw, enviamos una firma con timestamp
         headers['X-Landing-Wt-Valid'] = '1';
-        headers[SIGNATURE_HEADER] = signRequest(rawBody, secret);
+        headers[SIGNATURE_HEADER] = signRequest(bodyToForward, secret);
 
         /** Webhook builtin: AgentFlowhub a veces no usa MCP → solo JSON en texto. Ir directo a AIBackHub ejecuta el POST real. */
         try {
@@ -384,7 +403,7 @@ export async function POST(req: NextRequest) {
           const direct = await tryServeWidgetChatViaHubMcp({
             widgetTokenStartsWithWt: true,
             parsedAgentId,
-            rawBody,
+            rawBody: bodyToForward,
             ownerUserId: w.userId,
           });
           if (!direct) {
@@ -431,7 +450,7 @@ export async function POST(req: NextRequest) {
   const init: RequestInit = {
     method: 'POST',
     headers,
-    body: rawBody,
+    body: bodyToForward,
     signal: AbortSignal.timeout(120_000),
   };
 

@@ -98,6 +98,7 @@ export async function POST(req: NextRequest) {
     agentFaqs?: Array<{ id: string; question: string; answer: string; enabled?: boolean; priority?: number }>;
     faqCandidates?: Array<{ id: string; key: string; questionSample: string; count: number; lastSeen: string; dismissed?: boolean }>;
     strictPurposeOnly?: boolean;
+    hubspotAutoCaptureContacts?: boolean;
     /** Webhook URL top-level (set via AgentFlowhub agent editor) — converted to tools[] entry. */
     webhookUrl?: string;
     webhookSecret?: string;
@@ -208,6 +209,9 @@ export async function POST(req: NextRequest) {
   }
   if (typeof body.strictPurposeOnly === 'boolean') {
     $set.strictPurposeOnly = body.strictPurposeOnly;
+  }
+  if (typeof body.hubspotAutoCaptureContacts === 'boolean') {
+    $set.hubspotAutoCaptureContacts = body.hubspotAutoCaptureContacts;
   }
   if (Array.isArray(body.skillsConfig)) {
     $set.skillsConfig = body.skillsConfig

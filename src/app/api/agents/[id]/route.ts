@@ -125,6 +125,9 @@ export async function GET(req: NextRequest, { params }: Params) {
       if (typeof hub.strictPurposeOnly === 'boolean') {
         $set.strictPurposeOnly = hub.strictPurposeOnly;
       }
+      if (typeof hub.hubspotAutoCaptureContacts === 'boolean') {
+        $set.hubspotAutoCaptureContacts = hub.hubspotAutoCaptureContacts;
+      }
 
       if (typeof hub.isPlatform === 'boolean') $set.isPlatform = hub.isPlatform;
       const landingStatusFromHub = hubCatalogStatusToLandingStatus(hub.status);
@@ -316,6 +319,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       agent.set('strictPurposeOnly', body.strictPurposeOnly);
     } else {
       return NextResponse.json({ error: 'strictPurposeOnly debe ser boolean.' }, { status: 400 });
+    }
+  }
+  if ('hubspotAutoCaptureContacts' in body) {
+    if (typeof body.hubspotAutoCaptureContacts === 'boolean') {
+      agent.set('hubspotAutoCaptureContacts', body.hubspotAutoCaptureContacts);
+    } else {
+      return NextResponse.json(
+        { error: 'hubspotAutoCaptureContacts debe ser boolean.' },
+        { status: 400 },
+      );
     }
   }
 

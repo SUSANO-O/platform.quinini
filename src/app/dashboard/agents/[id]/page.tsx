@@ -185,6 +185,7 @@ interface ClientAgent {
   persistConversationHistory?: boolean;
   strictPurposeOnly?: boolean;
   enabledMcpToolIds?: string[];
+  hubspotAutoCaptureContacts?: boolean;
   /** Catálogo global (solo lectura en la landing; edición en AgentFlowHub). */
   isPlatform?: boolean;
   /** Skills del agente (IDs del catálogo). Sync con hub. */
@@ -344,6 +345,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [mcpServers, setMcpServers] = useState<McpServerGroup[]>([]);
   const [mcpLoading, setMcpLoading] = useState(false);
   const [mcpToolIds, setMcpToolIds] = useState<string[]>([]);
+  const [hubspotAutoCaptureContacts, setHubspotAutoCaptureContacts] = useState(false);
   const [mcpAgentHubLink, setMcpAgentHubLink] = useState<AgentHubLinkInfo | null>(null);
   const enabledMcpSavedRef = useRef<string[] | undefined>(undefined);
   useEffect(() => {
@@ -458,6 +460,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           typeof a.persistConversationHistory === 'boolean' ? a.persistConversationHistory : true,
         );
         setStrictPurposeOnly(a.strictPurposeOnly !== false);
+        setHubspotAutoCaptureContacts(a.hubspotAutoCaptureContacts === true);
         setInferenceTemperature(
           typeof a.inferenceTemperature === 'number' ? String(a.inferenceTemperature) : '',
         );
@@ -627,6 +630,13 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     [mcpServers],
   );
 
+  const hubspotWidgetAutoCaptureEligible = useMemo(
+    () =>
+      mcpToolIds.includes('mcp:hubspot:hubspot_search_contacts') &&
+      mcpToolIds.includes('mcp:hubspot:hubspot_create_contact'),
+    [mcpToolIds],
+  );
+
   async function save(patch: Record<string, unknown>) {
     setSaving(true); setError(''); setSuccess('');
     const res = await fetch(`/api/agents/${id}`, {
@@ -703,7 +713,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   }
 
   async function saveTools() {
-    await save({ tools, enabledMcpToolIds: mcpToolIds });
+    await save({ tools, enabledMcpToolIds: mcpToolIds, hubspotAutoCaptureContacts });
   }
 
   async function saveRules() {
@@ -2292,9 +2302,23 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             <SectionCard innerStyle={{ textAlign: 'center', padding: '28px 16px' }}>
                 <RefreshCw size={24} style={{ color: 'var(--muted-foreground)', margin: '0 auto 10px' }} />
                 <p style={{ fontWeight: 600, fontSize: '13px', margin: '0 0 6px' }}>Sin integraciones MCP</p>
-                <p style={{ color: 'var(--muted-foreground)', fontSize: '12px', margin: 0, lineHeight: 1.5 }}>
+                <p style={{ color: 'var(--muted-foreground)', fontSize: '12px', margin: '0 0 12px', lineHeight: 1.5 }}>
                   Usa el formulario de arriba para conectar Gmail, calendario, HubSpot, etc. Cada agente puede tener su propia cuenta o credenciales.
                 </p>
+                <button
+                  onClick={loadMcp}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '6px',
+                    fontSize: '12px', fontWeight: 500,
+                    padding: '6px 14px', borderRadius: '8px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--background)', color: 'var(--foreground)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <RefreshCw size={13} />
+                  Reintentar
+                </button>
             </SectionCard>
           ) : null}
 
@@ -2379,6 +2403,63 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               </p>
             </SectionCard>
           )}
+
+          <SectionCard bar="bo">
+            <p style={{ ...sectionTitle, margin: '0 0 10px' }}>Captura automática en HubSpot</p>
+            <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
+              Si el visitante indica <strong>nombre</strong> y <strong>correo</strong> o un <strong>móvil colombiano</strong> (10 dígitos, ej. 300…),
+              el servidor puede buscar el contacto en HubSpot y crearlo si no existe. Requiere conexión OAuth HubSpot en estado ok y las herramientas
+              <code style={{ fontSize: '10px' }}> hubspot_search_contacts</code> y <code style={{ fontSize: '10px' }}> hubspot_create_contact</code> activas arriba.
+            </p>
+            {!hubspotWidgetAutoCaptureEligible ? (
+              <p style={{ fontSize: '11px', color: '#d97706', margin: 0, lineHeight: 1.45 }}>
+                Activa ambas herramientas HubSpot de la lista para poder usar esta opción.
+              </p>
+            ) : null}
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: readOnly || !hubspotWidgetAutoCaptureEligible ? 'default' : 'pointer' }}>
+              <div
+                onClick={() =>
+                  !readOnly &&
+                  hubspotWidgetAutoCaptureEligible &&
+                  setHubspotAutoCaptureContacts((prev) => !prev)
+                }
+                style={{
+                  width: 40,
+                  height: 22,
+                  borderRadius: 11,
+                  position: 'relative',
+                  cursor: readOnly || !hubspotWidgetAutoCaptureEligible ? 'not-allowed' : 'pointer',
+                  background:
+                    hubspotAutoCaptureContacts && hubspotWidgetAutoCaptureEligible
+                      ? `linear-gradient(90deg, ${R}, ${O})`
+                      : 'var(--border)',
+                  transition: 'background 0.2s',
+                  opacity: readOnly ? 0.75 : !hubspotWidgetAutoCaptureEligible ? 0.5 : 1,
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 3,
+                    left: hubspotAutoCaptureContacts && hubspotWidgetAutoCaptureEligible ? 21 : 3,
+                    width: 16,
+                    height: 16,
+                    borderRadius: '50%',
+                    background: '#fff',
+                    transition: 'left 0.2s',
+                  }}
+                />
+              </div>
+              <span style={{ fontSize: '13px', fontWeight: 600 }}>
+                {hubspotAutoCaptureContacts && hubspotWidgetAutoCaptureEligible
+                  ? 'Captura automática activada'
+                  : 'Captura automática desactivada'}
+              </span>
+            </label>
+            <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '10px', marginBottom: 0 }}>
+              Pulsa <strong>Guardar herramientas</strong> para sincronizar con AIBackHub.
+            </p>
+          </SectionCard>
 
           {/* ── Built-in tools ── */}
           <SectionCard>
@@ -3137,7 +3218,15 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 <SectionCard outerStyle={{ borderColor: 'rgba(228,20,20,0.35)' }}>
                   <p style={sectionTitle}>Nuevo sub-agente</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <input className="landing-input" style={inp} value={subName} onChange={(e) => setSubName(e.target.value)} placeholder="Nombre del sub-agente (ej: Especialista en facturación)" />
+                    <input
+                      className="landing-input"
+                      style={inp}
+                      value={subName}
+                      onChange={(e) => setSubName(e.target.value)}
+                      placeholder="Nombre del sub-agente (ej: Especialista en facturación)"
+                      required
+                      aria-label="Nombre del sub-agente"
+                    />
                     <select className="landing-input" style={inp} value={subModel} onChange={(e) => setSubModel(e.target.value)}>
                       {displayModels.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.provider})</option>)}
                     </select>
@@ -3147,16 +3236,44 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       value={subPrompt}
                       onChange={(e) => setSubPrompt(e.target.value)}
                       placeholder="System prompt del sub-agente: Define su especialización específica..."
+                      required
+                      aria-label="System prompt del sub-agente"
                     />
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    {(!subName.trim() || !subPrompt.trim()) && (
+                      <p
+                        style={{
+                          fontSize: '12px',
+                          color: 'var(--muted-foreground)',
+                          margin: 0,
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        <strong>Crear</strong> se habilita cuando hay{' '}
+                        {!subName.trim() && !subPrompt.trim()
+                          ? 'nombre y system prompt'
+                          : !subName.trim()
+                            ? 'nombre del sub-agente'
+                            : 'system prompt (texto no vacío)'}
+                        . Ambos son obligatorios para evitar sub-agentes sin instrucciones.
+                      </p>
+                    )}
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                       <button
                         type="button"
                         onClick={createSubAgent}
                         disabled={creatingSubAgent || !subName.trim() || !subPrompt.trim()}
+                        title={
+                          !subName.trim() || !subPrompt.trim()
+                            ? 'Completa nombre y system prompt'
+                            : undefined
+                        }
                         className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs transition-opacity"
                         style={{
                           ...BTN_PRIMARY,
-                          cursor: 'pointer',
+                          cursor:
+                            creatingSubAgent || !subName.trim() || !subPrompt.trim()
+                              ? 'not-allowed'
+                              : 'pointer',
                           opacity: (!subName.trim() || !subPrompt.trim()) ? 0.6 : 1,
                         }}
                       >
