@@ -11,6 +11,7 @@ import {
   hubCreateHeaders,
   syncHubCatalogFromLandingAgentDoc,
 } from '@/lib/aibackhub-sync';
+import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
 
 export function clientAgentHasWebhookUrl(agent: {
   tools?: Array<{ toolId?: string; config?: unknown }>;
@@ -38,9 +39,15 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   rawBody: string;
   ownerUserId: string;
 }): Promise<DirectMcpWidgetChatResult | null> {
-  if (!params.widgetTokenStartsWithWt || !params.parsedAgentId.trim()) return null;
+  if (!params.widgetTokenStartsWithWt || !params.parsedAgentId.trim()) {
+    logWidgetFlow('🚫', 'direct:skip', 'sin wt_ o agentId', { agentId: params.parsedAgentId });
+    return null;
+  }
   const hubBase = getAibackhubBaseUrl();
-  if (!hubBase) return null;
+  if (!hubBase) {
+    logWidgetFlow('🚫', 'direct:skip', 'BACKEND_URL / AIBackHub vacío');
+    return null;
+  }
 
   let parsed: {
     message?: string;
@@ -54,10 +61,19 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   }
 
   const message = typeof parsed.message === 'string' ? parsed.message : '';
-  if (!message.trim()) return null;
+  if (!message.trim()) {
+    logWidgetFlow('🚫', 'direct:skip', 'mensaje vacío');
+    return null;
+  }
 
   await connectDB();
   const id = params.parsedAgentId.trim();
+  logWidgetFlow('🧲', 'direct:start', 'POST /api/mcp/widget-chat en AIBackHub', {
+    agentId: id,
+    hubBase,
+    ...widgetMessageProbe(message),
+  });
+
   const orClause: Array<Record<string, unknown>> = [];
   if (/^[a-f0-9]{24}$/i.test(id)) {
     orClause.push({ _id: id });
@@ -70,7 +86,13 @@ export async function tryServeWidgetChatViaHubMcp(params: {
       { $or: [{ userId: params.ownerUserId }, { isPlatform: true }] },
     ],
   }).lean();
-  if (!ca || !clientAgentHasWebhookUrl(ca)) return null;
+  if (!ca || !clientAgentHasWebhookUrl(ca)) {
+    logWidgetFlow('🚫', 'direct:skip', 'agente sin fila webhook o URL vacía', {
+      agentId: id,
+      foundAgent: Boolean(ca),
+    });
+    return null;
+  }
 
   const hubId = typeof ca.agentHubId === 'string' ? ca.agentHubId.trim() : '';
   if (hubId) {
@@ -100,6 +122,7 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   };
 
   const url = `${hubBase.replace(/\/$/, '')}/api/mcp/widget-chat`;
+  logWidgetFlow('📡', 'direct:fetch', 'llamando hub MCP', { url, enabledToolCount: payload.enabledToolIds.length });
   const res = await fetch(url, {
     method: 'POST',
     headers: { ...hubCreateHeaders(), 'Content-Type': 'application/json' },
@@ -109,6 +132,10 @@ export async function tryServeWidgetChatViaHubMcp(params: {
 
   const rawText = await res.text();
   if (!res.ok) {
+    logWidgetFlow('❌', 'direct:hubHttp', 'AIBackHub respondió error', {
+      status: res.status,
+      bodyHead: rawText.slice(0, 200),
+    });
     console.warn('[widget-chat-direct-mcp] hub MCP failed', res.status, rawText.slice(0, 400));
     return null;
   }
@@ -120,11 +147,21 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   try {
     json = JSON.parse(rawText) as typeof json;
   } catch {
+    logWidgetFlow('❌', 'direct:parse', 'respuesta no es JSON', { bodyHead: rawText.slice(0, 120) });
     return null;
   }
 
   const data = json?.data;
-  if (!data || typeof data.text !== 'string') return null;
+  if (!data || typeof data.text !== 'string') {
+    logWidgetFlow('❌', 'direct:parse', 'JSON sin data.text', { success: json?.success });
+    return null;
+  }
+
+  logWidgetFlow('✅', 'direct:ok', 'respuesta MCP', {
+    replyLen: data.text.length,
+    toolsUsed: data.toolsUsed ?? [],
+    toolRounds: data.toolRounds,
+  });
 
   return {
     reply: data.text,

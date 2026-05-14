@@ -21,6 +21,7 @@ import { isOriginAllowed } from '@/lib/widget-origin-check';
 import { extractAndGuardMessage } from '@/lib/message-guard';
 import { signRequest, SIGNATURE_HEADER } from '@/lib/hub-signature';
 import { logSecurityEvent } from '@/lib/security-log';
+import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
 
 /** Max body size accepted from widget SDK (64 KB) */
 const MAX_WIDGET_BODY_BYTES = 64 * 1024;
@@ -203,11 +204,13 @@ export async function POST(req: NextRequest) {
   let parsedAgentId = '';
   let parsedWidgetId = '';
   let tokenFromBody = '';
+  let parsedMessage = '';
   try {
-    const j = JSON.parse(rawBody) as { agentId?: string; widgetId?: string; token?: string };
+    const j = JSON.parse(rawBody) as { agentId?: string; widgetId?: string; token?: string; message?: string };
     parsedAgentId = typeof j?.agentId === 'string' ? j.agentId.trim() : '';
     parsedWidgetId = typeof j?.widgetId === 'string' ? j.widgetId.trim() : '';
     tokenFromBody = typeof j?.token === 'string' ? j.token.trim() : '';
+    parsedMessage = typeof j?.message === 'string' ? j.message : '';
   } catch {
     /* body no JSON */
   }
@@ -218,6 +221,13 @@ export async function POST(req: NextRequest) {
   ).trim();
 
   const traceId = requestIdEarly;
+  logWidgetFlow('📥', 'chat:POST', 'entrada', {
+    traceId,
+    hub: base,
+    agentId: parsedAgentId || undefined,
+    tokenKind: widgetToken.startsWith('wt_') ? 'wt_' : widgetToken ? 'other' : 'none',
+    ...widgetMessageProbe(parsedMessage),
+  });
 
   /** Dueño del widget (token wt_*): para telemetría de candidatas a FAQ tras respuesta OK. */
   let faqTrackOwnerId: string | null = null;
@@ -367,13 +377,29 @@ export async function POST(req: NextRequest) {
 
         /** Webhook builtin: AgentFlowhub a veces no usa MCP → solo JSON en texto. Ir directo a AIBackHub ejecuta el POST real. */
         try {
+          logWidgetFlow('🔀', 'chat:directTry', 'intentando AIBackHub /api/mcp/widget-chat (agente con webhook en Mongo)', {
+            traceId,
+            agentId: parsedAgentId,
+          });
           const direct = await tryServeWidgetChatViaHubMcp({
             widgetTokenStartsWithWt: true,
             parsedAgentId,
             rawBody,
             ownerUserId: w.userId,
           });
+          if (!direct) {
+            logWidgetFlow('⏭️', 'chat:directSkip', 'no aplica directo (sin webhook URL en agente o hub no respondió)', {
+              traceId,
+              agentId: parsedAgentId,
+            });
+          }
           if (direct) {
+            logWidgetFlow('✅', 'chat:directOk', 'respuesta directa desde AIBackHub', {
+              traceId,
+              agentId: parsedAgentId,
+              replyLen: direct.reply?.length ?? 0,
+              toolsUsed: direct.toolsUsed ?? [],
+            });
             trackWidgetChatUsage(widgetToken, parsedAgentId, true).catch(() => {});
             void trackWidgetUserMessageForFaqCandidates({
               ownerUserId: w.userId,
@@ -390,6 +416,10 @@ export async function POST(req: NextRequest) {
             );
           }
         } catch (directErr) {
+          logWidgetFlow('⚠️', 'chat:directErr', 'falló camino directo AIBackHub', {
+            traceId,
+            err: directErr instanceof Error ? directErr.message : String(directErr),
+          });
           console.error('[widget/chat] direct MCP path error:', directErr);
         }
       }
@@ -406,7 +436,17 @@ export async function POST(req: NextRequest) {
   };
 
   try {
+    logWidgetFlow('↗️', 'chat:proxyHub', 'reenvío a AgentFlowhub /api/widget/chat', {
+      traceId,
+      hub: `${base.replace(/\/$/, '')}/api/widget/chat`,
+      agentId: parsedAgentId || undefined,
+    });
     const res = await fetchHubWidgetChat(base, init);
+    logWidgetFlow('↩️', 'chat:proxyRes', 'respuesta AgentFlowhub', {
+      traceId,
+      status: res.status,
+      ok: res.ok,
+    });
 
     const data = await res.text();
     const out = new Headers();
