@@ -14,6 +14,7 @@
  *   - theme: "light" | "dark"
  *   - welcome / subtitle: textos claros; debug: false en prod
  *   - showMcpUi: true solo en vista previa o con data-show-mcp-ui="true" en el script (chips MCP / tools; oculto en widget público)
+ *   - fabDraggable: arrastrar el orbe para colocarlo (por defecto true; data-fab-draggable="false" para desactivar)
  *   - humanSupportPhone: WhatsApp; si el usuario escribe palabras clave (persona, humano, atención humana…), se muestra en el chat un acceso a WhatsApp
  */
 (function () {
@@ -21,7 +22,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.5.3';
+  var VERSION = '1.5.5';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -30,6 +31,18 @@
   var ICON_BOT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>';
   var ICON_MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
   var ICON_MIC_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
+  /** Barra lateral anclada al borde de la ventana */
+  var ICON_SIDEBAR_DOCK =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="12" height="16" rx="2"/><rect x="15" y="8" width="6" height="10" rx="1"/></svg>';
+  /** Volver al panel flotante sobre el lanzador */
+  var ICON_POPOUT_CHAT =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="14" height="14" rx="2"/><rect x="11" y="10" width="11" height="11" rx="2"/></svg>';
+  /** Ampliar barra lateral (casi pantalla completa) */
+  var ICON_SIDEBAR_WIDE =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>';
+  /** Barra estrecha (vista compacta) */
+  var ICON_SIDEBAR_NARROW =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6"/><path d="M20 10h-6V4"/><path d="M10 20l4-4"/><path d="M14 4l-4 4"/></svg>';
   /** Centrado, ondas suaves (sin conic-spin); funciona con cualquier color de marca */
   var ORB_HTML =
     '<span class="afhub-fab-inner" aria-hidden="true"><span class="afhub-orb">' +
@@ -83,6 +96,8 @@
     humanSupportPhone: '',
     /** Si true: chips MCP / tools y notas técnicas de HubSpot en burbujas (vista previa o data-show-mcp-ui). Producción: false. */
     showMcpUi: false,
+    /** Arrastrar el orbe (FAB) para fijar posición; se recuerda en sessionStorage por agente/widget. */
+    fabDraggable: true,
     onOpen: null,
     onClose: null,
     onMessageSent: null,
@@ -254,6 +269,10 @@
       .trim()
       .substring(0, 48);
     merged.showMcpUi = Boolean(merged.showMcpUi);
+    merged.fabDraggable =
+      input && Object.prototype.hasOwnProperty.call(input, 'fabDraggable')
+        ? Boolean(input.fabDraggable)
+        : true;
     return merged;
   }
 
@@ -455,6 +474,10 @@
     var typingId = 'afhub-typing-' + id;
     var isOpen = false;
     var isLoading = false;
+    var chatLayout = 'floating';
+    var sidebarSize = 'compact';
+    var suppressFabClick = false;
+    var fabDrag = null;
     var history = [];
     var resolvedAgentId = null;
 
@@ -594,11 +617,34 @@
       }
     }
 
+    var headerActions = document.createElement('div');
+    headerActions.className = 'afhub-header-actions';
+
+    var layoutBtn = document.createElement('button');
+    layoutBtn.className = 'afhub-header-icon-btn';
+    layoutBtn.setAttribute('type', 'button');
+    layoutBtn.innerHTML = ICON_SIDEBAR_DOCK;
+    layoutBtn.setAttribute('aria-label', 'Anclar como barra lateral');
+    layoutBtn.title = 'Anclar como barra lateral';
+
+    var expandBtn = document.createElement('button');
+    expandBtn.className = 'afhub-header-icon-btn';
+    expandBtn.setAttribute('type', 'button');
+    expandBtn.style.display = 'none';
+    expandBtn.innerHTML = ICON_SIDEBAR_WIDE;
+    expandBtn.setAttribute('aria-label', 'Ampliar barra');
+    expandBtn.title = 'Ampliar barra';
+
     var closeBtn = document.createElement('button');
     closeBtn.className = 'afhub-close-btn';
     closeBtn.innerHTML = ICON_X;
     closeBtn.setAttribute('aria-label', 'Cerrar chat');
-    header.appendChild(closeBtn);
+    closeBtn.setAttribute('type', 'button');
+
+    headerActions.appendChild(layoutBtn);
+    headerActions.appendChild(expandBtn);
+    headerActions.appendChild(closeBtn);
+    header.appendChild(headerActions);
     chat.appendChild(header);
 
     var messages = document.createElement('div');
@@ -652,8 +698,209 @@
     }
 
     root.appendChild(chat);
-    applyWidgetGeometry(root, chat, cfg);
     document.body.appendChild(root);
+
+    function clearChatInlineLayout() {
+      chat.style.position = '';
+      chat.style.top = '';
+      chat.style.bottom = '';
+      chat.style.left = '';
+      chat.style.right = '';
+      chat.style.transform = '';
+      chat.style.width = '';
+      chat.style.maxWidth = '';
+      chat.style.height = '';
+      chat.style.maxHeight = '';
+      chat.style.minHeight = '';
+      chat.style.marginTop = '';
+      chat.style.marginBottom = '';
+      chat.style.zIndex = '';
+      chat.style.borderRadius = '';
+    }
+
+    function syncChatPanelLayout() {
+      root.classList.toggle('afhub-root--sidebar', chatLayout === 'sidebar');
+      chat.classList.toggle('afhub-chat--sidebar', chatLayout === 'sidebar');
+
+      if (chatLayout === 'floating') {
+        clearChatInlineLayout();
+        applyWidgetGeometry(root, chat, cfg);
+        layoutBtn.innerHTML = ICON_SIDEBAR_DOCK;
+        layoutBtn.setAttribute('aria-label', 'Anclar como barra lateral');
+        layoutBtn.title = 'Anclar como barra lateral';
+        expandBtn.style.display = 'none';
+        expandBtn.innerHTML = ICON_SIDEBAR_WIDE;
+        expandBtn.setAttribute('aria-label', 'Ampliar barra');
+        expandBtn.title = 'Ampliar barra';
+      } else {
+        var dockLeft = launcherAlign(cfg) === 'left';
+        var br = Number(cfg.borderRadius);
+        if (!isFinite(br) || br < 0) br = 16;
+
+        clearChatInlineLayout();
+        chat.style.position = 'fixed';
+        chat.style.top = '0';
+        chat.style.bottom = '0';
+        chat.style.marginTop = '0';
+        chat.style.marginBottom = '0';
+        chat.style.zIndex = '10';
+        chat.style.maxHeight = 'none';
+        var useDvh =
+          typeof CSS !== 'undefined' && CSS.supports && CSS.supports('height', '100dvh');
+        if (useDvh) {
+          chat.style.height = '100dvh';
+          chat.style.minHeight = '100dvh';
+        } else {
+          chat.style.height = '100vh';
+          chat.style.minHeight = '100vh';
+        }
+
+        if (dockLeft) {
+          chat.style.left = '0';
+          chat.style.right = 'auto';
+          chat.style.borderRadius = '0 ' + br + 'px ' + br + 'px 0';
+        } else {
+          chat.style.right = '0';
+          chat.style.left = 'auto';
+          chat.style.borderRadius = br + 'px 0 0 ' + br + 'px';
+        }
+
+        if (sidebarSize === 'compact') {
+          chat.style.width = 'min(380px, 100vw)';
+          chat.style.maxWidth = 'min(380px, 100vw)';
+        } else {
+          chat.style.width = 'min(720px, calc(100vw - 16px))';
+          chat.style.maxWidth = 'min(720px, calc(100vw - 16px))';
+        }
+
+        layoutBtn.innerHTML = ICON_POPOUT_CHAT;
+        layoutBtn.setAttribute('aria-label', 'Volver a ventana flotante');
+        layoutBtn.title = 'Volver a ventana flotante';
+        expandBtn.style.display = '';
+        expandBtn.innerHTML = sidebarSize === 'full' ? ICON_SIDEBAR_NARROW : ICON_SIDEBAR_WIDE;
+        expandBtn.setAttribute(
+          'aria-label',
+          sidebarSize === 'full' ? 'Vista compacta' : 'Ampliar barra'
+        );
+        expandBtn.title = sidebarSize === 'full' ? 'Vista compacta' : 'Ampliar barra';
+      }
+    }
+
+    function fabDragStorageKey() {
+      var h = String(cfg.host || '')
+        .replace(/^https?:\/\//i, '')
+        .replace(/[^a-z0-9]+/gi, '_')
+        .slice(0, 48);
+      return 'afhub-fab-pos:' + h + ':' + String(cfg.agentId || 'na') + ':' + String(cfg.widgetId || id);
+    }
+
+    function restoreFabDragFromSession() {
+      if (!cfg.fabDraggable) return;
+      /** No pisar `position: "custom"` fijado por init() / embed. */
+      if (cfg.position === 'custom') return;
+      try {
+        var raw = sessionStorage.getItem(fabDragStorageKey());
+        if (!raw) return;
+        var o = JSON.parse(raw);
+        if (!o || typeof o !== 'object') return;
+        if (typeof o.l !== 'number' || !isFinite(o.l)) return;
+        cfg.position = 'custom';
+        cfg.offsetLeft = Math.round(o.l);
+        cfg.offsetRight = null;
+        if (typeof o.b === 'number' && isFinite(o.b)) {
+          cfg.offsetBottom = Math.round(o.b);
+          cfg.offsetTop = null;
+        } else if (typeof o.t === 'number' && isFinite(o.t)) {
+          cfg.offsetTop = Math.round(o.t);
+          cfg.offsetBottom = null;
+        } else {
+          return;
+        }
+      } catch (_e) {
+        /* noop */
+      }
+    }
+
+    function persistFabDragToSession() {
+      if (!cfg.fabDraggable || cfg.position !== 'custom') return;
+      try {
+        sessionStorage.setItem(
+          fabDragStorageKey(),
+          JSON.stringify({
+            l: cfg.offsetLeft,
+            b: cfg.offsetBottom,
+            t: cfg.offsetTop
+          })
+        );
+      } catch (_e) {
+        /* noop */
+      }
+    }
+
+    function clampCustomLauncherToViewport() {
+      if (cfg.position !== 'custom') return;
+      var pad = 8;
+      var vw = window.innerWidth || 320;
+      var vh = window.innerHeight || 568;
+      var nw = Math.max(40, root.offsetWidth || 72);
+      var nh = Math.max(40, root.offsetHeight || 72);
+      if (cfg.offsetLeft != null && isFinite(cfg.offsetLeft)) {
+        cfg.offsetLeft = clamp(Math.round(cfg.offsetLeft), pad, Math.max(pad, vw - nw - pad));
+      }
+      if (cfg.offsetRight != null && isFinite(cfg.offsetRight)) {
+        cfg.offsetRight = clamp(Math.round(cfg.offsetRight), pad, Math.max(pad, vw - nw - pad));
+      }
+      if (cfg.offsetTop != null && isFinite(cfg.offsetTop)) {
+        cfg.offsetTop = clamp(Math.round(cfg.offsetTop), pad, Math.max(pad, vh - nh - pad));
+      }
+      if (cfg.offsetBottom != null && isFinite(cfg.offsetBottom)) {
+        cfg.offsetBottom = clamp(Math.round(cfg.offsetBottom), pad, Math.max(pad, vh - nh - pad));
+      }
+    }
+
+    function finalizeFabDragToCfg() {
+      var pad = 8;
+      var r = root.getBoundingClientRect();
+      var nw = Math.max(40, r.width || root.offsetWidth || 72);
+      var nh = Math.max(40, r.height || root.offsetHeight || 72);
+      var vw = window.innerWidth || 320;
+      var vh = window.innerHeight || 568;
+      var left = clamp(Math.round(r.left), pad, Math.max(pad, vw - nw - pad));
+      var top = clamp(Math.round(r.top), pad, Math.max(pad, vh - nh - pad));
+      root.style.left = left + 'px';
+      root.style.top = top + 'px';
+      root.style.right = '';
+      root.style.bottom = '';
+      root.style.transform = '';
+      root.style.width = '';
+      cfg.position = 'custom';
+      cfg.offsetLeft = left;
+      cfg.offsetRight = null;
+      if (top + nh / 2 > vh * 0.42) {
+        cfg.offsetBottom = Math.max(pad, Math.round(vh - top - nh));
+        cfg.offsetTop = null;
+      } else {
+        cfg.offsetTop = Math.max(pad, top);
+        cfg.offsetBottom = null;
+      }
+    }
+
+    restoreFabDragFromSession();
+    clampCustomLauncherToViewport();
+    syncChatPanelLayout();
+
+    var fabResizeTimer = null;
+    function scheduleFabResizeForFab() {
+      clearTimeout(fabResizeTimer);
+      fabResizeTimer = setTimeout(function () {
+        if (cfg.position !== 'custom') return;
+        clampCustomLauncherToViewport();
+        syncChatPanelLayout();
+      }, 140);
+    }
+    if (cfg.fabDraggable) {
+      window.addEventListener('resize', scheduleFabResizeForFab);
+    }
 
     /** Notas añadidas por el servidor (captura HubSpot automática); no deben verse en widget productivo. */
     function stripHubSpotProducerNotes(raw) {
@@ -999,6 +1246,7 @@
       fab.classList.add('open');
       fab.innerHTML = ICON_X;
       fab.setAttribute('aria-label', 'Cerrar chat');
+      syncChatPanelLayout();
       if (history.length === 0) addMessage('bot', cfg.welcome);
       input.focus();
       notify('onOpen');
@@ -1008,6 +1256,9 @@
     function close() {
       if (!isOpen) return;
       isOpen = false;
+      chatLayout = 'floating';
+      sidebarSize = 'compact';
+      syncChatPanelLayout();
       root.classList.remove('afhub-open');
       chat.classList.remove('visible');
       fab.classList.remove('open');
@@ -1022,6 +1273,10 @@
     }
 
     function destroy() {
+      if (cfg.fabDraggable) {
+        window.removeEventListener('resize', scheduleFabResizeForFab);
+        clearTimeout(fabResizeTimer);
+      }
       root.remove();
       delete INSTANCES[id];
     }
@@ -1386,7 +1641,94 @@
     };
     // ── Fin Voice Mode ─────────────────────────────────────────────────────────
 
-    fab.addEventListener('click', toggle);
+    fab.addEventListener('click', function (e) {
+      if (suppressFabClick) {
+        suppressFabClick = false;
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      toggle();
+    });
+    if (cfg.fabDraggable) {
+      fab.style.touchAction = 'none';
+      fab.style.cursor = 'grab';
+      fab.addEventListener('pointerdown', function (e) {
+        if (chatLayout === 'sidebar') return;
+        if (typeof e.button === 'number' && e.button !== 0) return;
+        var rect = root.getBoundingClientRect();
+        fabDrag = {
+          pid: e.pointerId,
+          ox: e.clientX - rect.left,
+          oy: e.clientY - rect.top,
+          sx: e.clientX,
+          sy: e.clientY,
+          moved: false
+        };
+        try {
+          fab.setPointerCapture(e.pointerId);
+        } catch (_err) {
+          /* noop */
+        }
+      });
+      fab.addEventListener('pointermove', function (e) {
+        if (!fabDrag || e.pointerId !== fabDrag.pid) return;
+        var pad = 8;
+        var vw = window.innerWidth || 320;
+        var vh = window.innerHeight || 568;
+        var nw = root.offsetWidth || 72;
+        var nh = root.offsetHeight || 72;
+        if (!fabDrag.moved) {
+          if (Math.abs(e.clientX - fabDrag.sx) < 6 && Math.abs(e.clientY - fabDrag.sy) < 6) return;
+          fabDrag.moved = true;
+          fab.classList.add('afhub-fab--dragging');
+        }
+        var nl = clamp(e.clientX - fabDrag.ox, pad, Math.max(pad, vw - nw - pad));
+        var nt = clamp(e.clientY - fabDrag.oy, pad, Math.max(pad, vh - nh - pad));
+        root.style.left = nl + 'px';
+        root.style.top = nt + 'px';
+        root.style.right = '';
+        root.style.bottom = '';
+        root.style.transform = '';
+        root.style.width = '';
+      });
+      function endFabPointerDrag(e) {
+        if (!fabDrag) return;
+        if (e && e.pointerId != null && e.pointerId !== fabDrag.pid) return;
+        try {
+          fab.releasePointerCapture(fabDrag.pid);
+        } catch (_er) {
+          /* noop */
+        }
+        fab.classList.remove('afhub-fab--dragging');
+        if (fabDrag.moved) {
+          finalizeFabDragToCfg();
+          clampCustomLauncherToViewport();
+          persistFabDragToSession();
+          syncChatPanelLayout();
+          suppressFabClick = true;
+        }
+        fabDrag = null;
+      }
+      fab.addEventListener('pointerup', endFabPointerDrag);
+      fab.addEventListener('pointercancel', endFabPointerDrag);
+    }
+    layoutBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (chatLayout === 'floating') {
+        chatLayout = 'sidebar';
+      } else {
+        chatLayout = 'floating';
+        sidebarSize = 'compact';
+      }
+      syncChatPanelLayout();
+    });
+    expandBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (chatLayout !== 'sidebar') return;
+      sidebarSize = sidebarSize === 'compact' ? 'full' : 'compact';
+      syncChatPanelLayout();
+    });
     closeBtn.addEventListener('click', close);
     sendBtn.addEventListener('click', function () { send(); });
     input.addEventListener('keydown', function (e) {
@@ -1497,7 +1839,8 @@
       humanSupportPhone: attr(script, 'data-human-support-phone', ''),
       showMcpUi:
         script.getAttribute('data-afhub-widget-preview') === '1' ||
-        attr(script, 'data-show-mcp-ui', 'false') === 'true'
+        attr(script, 'data-show-mcp-ui', 'false') === 'true',
+      fabDraggable: attr(script, 'data-fab-draggable', 'true') !== 'false'
     };
     try {
       init(config);
@@ -1742,6 +2085,7 @@
         ' .afhub-fab::after { content:""; position:absolute; inset:-24%; border-radius:50%; pointer-events:none; z-index:0; opacity:.48; mix-blend-mode:soft-light; background:conic-gradient(from 18deg at 50% 50%,hsla(310,88%,62%,.42),hsla(185,92%,58%,.38),hsla(52,95%,68%,.4),hsla(275,82%,58%,.36),hsla(310,88%,62%,.42)); transition:transform .52s cubic-bezier(.22,1,.36,1); }' +
       '#' + rootId + ' .afhub-fab:hover { transform:scale(1.07); box-shadow:0 8px 32px rgba(0,0,0,.26),0 0 0 1px rgba(255,255,255,.22) inset; }' +
       '#' + rootId + ' .afhub-fab:hover::after { transform:none; }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--dragging { cursor:grabbing !important; transform:scale(1.05); user-select:none; -webkit-user-select:none; }' +
       '#' + rootId + ' .afhub-fab svg { width:26px; height:26px; transition:transform .3s; }' +
       '#' + rootId + ' .afhub-fab-inner { position:relative; z-index:2; width:36px; height:36px; display:flex; align-items:center; justify-content:center; }' +
       '#' + rootId + ' .afhub-orb { position:relative; width:32px; height:32px; display:flex; align-items:center; justify-content:center; }' +
@@ -1753,6 +2097,8 @@
       '@media (prefers-reduced-motion:reduce){ #' + rootId + ' .afhub-orb-wave { animation:none; opacity:.35; transform:scale(1.15); } }' +
       '#' + rootId + ' .afhub-chat { position:absolute; width:380px; max-width:calc(100vw - 40px); height:520px; max-height:calc(100vh - 120px); background:#fff; border-radius:' + cfg.borderRadius + 'px; box-shadow:0 12px 48px rgba(0,0,0,.16),0 0 0 1px rgba(0,0,0,.04); display:flex; flex-direction:column; overflow:hidden; transform:scale(.88) translateY(16px); opacity:0; pointer-events:none; transition:transform .28s cubic-bezier(.34,1.2,.64,1),opacity .28s; }' +
       '#' + rootId + ' .afhub-chat.visible { transform:scale(1) translateY(0); opacity:1; pointer-events:auto; }' +
+      '#' + rootId + ' .afhub-chat.afhub-chat--sidebar { transition:transform .28s cubic-bezier(.34,1.2,.64,1),opacity .28s,width .22s ease,max-width .22s ease; }' +
+      '#' + rootId + ' .afhub-chat.afhub-chat--sidebar.visible { transform:none !important; }' +
       '#' +
         rootId +
         ' .afhub-header { padding:16px 18px; color:#fff; display:flex; align-items:center; gap:12px; flex-shrink:0; background:linear-gradient(180deg,rgba(255,255,255,.16) 0%,transparent 45%),' +
@@ -1768,8 +2114,12 @@
       '#' + rootId + ' .afhub-header-info { flex:1; min-width:0; }' +
       '#' + rootId + ' .afhub-header-info h3 { font-size:15px; font-weight:600; letter-spacing:.01em; }' +
       '#' + rootId + ' .afhub-header-info p { font-size:11px; text-transform:uppercase; letter-spacing:.08em; opacity:.88; margin-top:3px; font-weight:500; }' +
-      '#' + rootId + ' .afhub-close-btn { flex-shrink:0; margin-left:auto; background:none; border:none; color:#fff; cursor:pointer; padding:4px; opacity:.85; }' +
-      '#' + rootId + ' .afhub-close-btn:hover { opacity:1; }' +
+      '#' + rootId + ' .afhub-header-actions { display:flex; align-items:center; gap:4px; flex-shrink:0; margin-left:auto; }' +
+      '#' + rootId + ' .afhub-header-icon-btn { flex-shrink:0; background:rgba(255,255,255,.14); border:none; color:#fff; cursor:pointer; padding:6px; border-radius:8px; opacity:.92; display:inline-flex; align-items:center; justify-content:center; line-height:0; }' +
+      '#' + rootId + ' .afhub-header-icon-btn:hover { opacity:1; background:rgba(255,255,255,.26); }' +
+      '#' + rootId + ' .afhub-header-icon-btn svg { width:18px; height:18px; }' +
+      '#' + rootId + ' .afhub-close-btn { flex-shrink:0; margin-left:0; background:rgba(255,255,255,.14); border:none; color:#fff; cursor:pointer; padding:6px; border-radius:8px; opacity:.92; display:inline-flex; align-items:center; justify-content:center; line-height:0; }' +
+      '#' + rootId + ' .afhub-close-btn:hover { opacity:1; background:rgba(255,255,255,.26); }' +
       '#' + rootId + ' .afhub-messages { flex:1; overflow-y:auto; padding:18px 16px; display:flex; flex-direction:column; gap:12px; scroll-behavior:smooth; background:linear-gradient(180deg,#fafbfc 0%,#f4f6f8 100%); font-size:14px; line-height:1.55; }' +
       '#' + rootId + ' .afhub-msg { max-width:88%; padding:11px 15px; border-radius:16px; font-size:14px; line-height:1.55; word-wrap:break-word; }' +
       '#' + rootId + ' .afhub-msg.user { white-space:pre-wrap; background:' + cfg.color + '; color:#fff; align-self:flex-end; border-bottom-right-radius:5px; box-shadow:0 2px 10px rgba(0,0,0,.14); }' +

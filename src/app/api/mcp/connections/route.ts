@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
       headers: hubCreateHeaders(),
       body: JSON.stringify({
         agentId: hubAgentId,
+        landingClientAgentId: landingAgentId,
         integrationKey,
         ...(label ? { label } : {}),
         credentials,
