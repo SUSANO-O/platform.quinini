@@ -331,6 +331,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       );
     }
   }
+  if ('widgetVoiceName' in body) {
+    const v = body.widgetVoiceName;
+    if (v === null || v === '') {
+      agent.set('widgetVoiceName', null);
+    } else if (typeof v === 'string') {
+      agent.set('widgetVoiceName', v.trim().slice(0, 200) || null);
+    }
+  }
 
   if ('skills' in body) {
     const raw = body.skills;

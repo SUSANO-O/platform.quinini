@@ -31,6 +31,8 @@
   var ICON_BOT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>';
   var ICON_MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
   var ICON_MIC_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
+  var ICON_VOLUME_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>';
+  var ICON_VOLUME_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
   /** Barra lateral anclada al borde de la ventana */
   var ICON_SIDEBAR_DOCK =
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="12" height="16" rx="2"/><rect x="15" y="8" width="6" height="10" rx="1"/></svg>';
@@ -92,6 +94,8 @@
     voiceEnabled: true,
     /** Idioma BCP-47 para STT/TTS, por defecto detecta del navegador */
     voiceLang: '',
+    /** Nombre exacto de la voz SpeechSynthesis; vacío = auto */
+    voiceName: '',
     /** WhatsApp: dígitos con código de país; menú ⋯ en la cabecera del chat */
     humanSupportPhone: '',
     /** Si true: chips MCP / tools y notas técnicas de HubSpot en burbujas (vista previa o data-show-mcp-ui). Producción: false. */
@@ -641,6 +645,16 @@
     closeBtn.setAttribute('aria-label', 'Cerrar chat');
     closeBtn.setAttribute('type', 'button');
 
+    var speakerBtn = null;
+    if (cfg.voiceEnabled !== false && typeof window !== 'undefined' && window.speechSynthesis) {
+      speakerBtn = document.createElement('button');
+      speakerBtn.className = 'afhub-header-icon-btn afhub-speaker-btn';
+      speakerBtn.setAttribute('type', 'button');
+      speakerBtn.innerHTML = ICON_VOLUME_OFF;
+      speakerBtn.setAttribute('aria-label', 'Activar lectura en voz alta');
+      speakerBtn.title = 'Leer respuestas en voz alta';
+      headerActions.appendChild(speakerBtn);
+    }
     headerActions.appendChild(layoutBtn);
     headerActions.appendChild(expandBtn);
     headerActions.appendChild(closeBtn);
@@ -1472,6 +1486,7 @@
 
     // ── Voice Mode ─────────────────────────────────────────────────────────────
     var voiceActive = false;
+    var ttsMode = false; // TTS independiente (leer respuestas sin mic)
     var voiceState = 'idle'; // 'idle' | 'listening' | 'thinking' | 'speaking'
     var recognitionRef = null;
     var voiceShouldBeActive = false;
@@ -1489,8 +1504,27 @@
       label.textContent = labels[state] || 'Escuchando...';
     }
 
+    function ttsBestVoice(lang) {
+      var voices = window.speechSynthesis.getVoices();
+      if (!voices.length) return null;
+      // Si hay una voz configurada por nombre, úsala directamente
+      if (cfg.voiceName) {
+        var named = voices.find(function(v) { return v.name === cfg.voiceName; });
+        if (named) return named;
+      }
+      // Preferencia: idioma exacto con nombres de alta calidad (Neural, Premium, Google, Microsoft)
+      var preferred = ['neural', 'premium', 'google', 'microsoft', 'enhanced'];
+      var base = lang.split('-')[0];
+      var byLang = voices.filter(function(v) { return v.lang === lang || v.lang.startsWith(base); });
+      if (!byLang.length) byLang = voices.filter(function(v) { return v.lang.startsWith('es'); });
+      for (var p = 0; p < preferred.length; p++) {
+        var hit = byLang.find(function(v) { return v.name.toLowerCase().indexOf(preferred[p]) !== -1; });
+        if (hit) return hit;
+      }
+      return byLang[0] || null;
+    }
+
     function ttsSpeak(text, onEnd) {
-      // Limpia el texto de markdown básico
       var cleaned = String(text || '')
         .replace(/```[\s\S]*?```/g, '')
         .replace(/`[^`]+`/g, function(m) { return m.slice(1, -1); })
@@ -1498,32 +1532,55 @@
         .replace(/\*([^*]+)\*/g, '$1')
         .replace(/#+\s/g, '')
         .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-        .replace(/\n+/g, ' ')
+        .replace(/\n+/g, '. ')
+        .replace(/\s+/g, ' ')
         .trim()
-        .slice(0, 500); // max 500 chars para TTS
+        .slice(0, 800);
 
       if (!cleaned) { if (onEnd) onEnd(); return; }
 
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel();
+      if (!window.speechSynthesis) { if (onEnd) onEnd(); return; }
+
+      // Fix Chrome: resume si está en pausa (bug tras tab en background)
+      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+      window.speechSynthesis.cancel();
+
+      var lang = cfg.voiceLang || navigator.language || 'es-ES';
+
+      function doSpeak() {
         var utt = new SpeechSynthesisUtterance(cleaned);
-        var lang = cfg.voiceLang || navigator.language || 'es-ES';
         utt.lang = lang;
         utt.rate = 1.05;
         utt.pitch = 1.0;
+        var voice = ttsBestVoice(lang);
+        if (voice) utt.voice = voice;
 
-        // Selecciona voz en el idioma si está disponible
-        var voices = window.speechSynthesis.getVoices();
-        var match = voices.find(function(v) { return v.lang === lang; }) ||
-                    voices.find(function(v) { return v.lang.startsWith(lang.split('-')[0]); });
-        if (match) utt.voice = match;
+        var ended = false;
+        function finish() { if (!ended) { ended = true; clearInterval(watchdog); if (onEnd) onEnd(); } }
 
-        utt.onend = function() { if (onEnd) onEnd(); };
-        utt.onerror = function() { if (onEnd) onEnd(); };
+        // Fix Chrome: onend a veces no se dispara — watchdog verifica que terminó de hablar
+        var watchdog = setInterval(function() {
+          if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending) finish();
+        }, 250);
+
+        utt.onend = finish;
+        utt.onerror = finish;
         ttsUtterance = utt;
         window.speechSynthesis.speak(utt);
+      }
+
+      // Si las voces aún no han cargado, espera el evento voiceschanged una vez
+      var voices = window.speechSynthesis.getVoices();
+      if (!voices.length) {
+        var done = false;
+        window.speechSynthesis.addEventListener('voiceschanged', function onVC() {
+          window.speechSynthesis.removeEventListener('voiceschanged', onVC);
+          if (!done) { done = true; doSpeak(); }
+        });
+        // Fallback si voiceschanged nunca llega (Safari)
+        setTimeout(function() { if (!done) { done = true; doSpeak(); } }, 500);
       } else {
-        if (onEnd) onEnd();
+        doSpeak();
       }
     }
 
@@ -1533,57 +1590,94 @@
       ttsUtterance = null;
     }
 
-    function startListening() {
-      if (!hasSpeechAPI) return;
+    function _doStartRecognition() {
       var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR) return;
-
-      // Cancela instancia anterior
       if (recognitionRef) { try { recognitionRef.abort(); } catch(_) {} }
       voiceShouldBeActive = true;
       setVoiceState('listening');
 
       var rec = new SR();
       rec.lang = cfg.voiceLang || navigator.language || 'es-ES';
-      rec.interimResults = false;
+      rec.interimResults = true;
       rec.maxAlternatives = 1;
-      rec.continuous = false;
+      rec.continuous = true;
 
       rec.onresult = function(event) {
-        var transcript = '';
+        var interim = '';
+        var final = '';
         for (var i = 0; i < event.results.length; i++) {
-          if (event.results[i].isFinal) transcript += event.results[i][0].transcript;
+          if (event.results[i].isFinal) final += event.results[i][0].transcript;
+          else interim += event.results[i][0].transcript;
         }
-        transcript = transcript.trim();
-        if (transcript) {
-          setVoiceState('thinking');
-          input.value = transcript;
-          sendBtn.disabled = false;
-          send(transcript);
-        } else {
-          // No habló — vuelve a escuchar
-          if (voiceShouldBeActive) setTimeout(startListening, 200);
+        if (interim) input.value = interim;
+        if (final) {
+          final = final.trim();
+          input.value = final;
+          if (final) {
+            setVoiceState('thinking');
+            sendBtn.disabled = false;
+            send(final);
+          } else if (voiceShouldBeActive) {
+            setTimeout(startListening, 200);
+          }
         }
       };
 
       rec.onerror = function(event) {
-        if (event.error === 'no-speech' || event.error === 'aborted') {
+        log(cfg, 'warn', 'Voice STT error:', event.error);
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          // Permiso denegado — detener todo
+          stopVoice();
+          if (voiceBar) {
+            var label = voiceBar.querySelector('.afhub-voice-label');
+            if (label) label.textContent = 'Permiso de micrófono denegado';
+          }
+        } else if (event.error === 'no-speech' || event.error === 'aborted') {
           if (voiceShouldBeActive) setTimeout(startListening, 300);
         } else {
-          log(cfg, 'warn', 'Voice STT error:', event.error);
           if (voiceShouldBeActive) setTimeout(startListening, 500);
         }
       };
 
       rec.onend = function() {
-        // Solo reinicia si estamos en modo escucha (no en thinking/speaking)
         if (voiceShouldBeActive && voiceState === 'listening') {
           setTimeout(startListening, 150);
         }
       };
 
       recognitionRef = rec;
-      try { rec.start(); } catch(_) {}
+      try {
+        rec.start();
+      } catch(e) {
+        log(cfg, 'warn', 'rec.start() threw:', e && e.message);
+        stopVoice();
+      }
+    }
+
+    function startListening() {
+      if (!hasSpeechAPI) return;
+      var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) return;
+
+      // Pide permiso de micrófono explícitamente para que el navegador muestre el diálogo
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then(function(stream) {
+            // Libera el stream de getUserMedia — SpeechRecognition lo manejará
+            stream.getTracks().forEach(function(t) { t.stop(); });
+            _doStartRecognition();
+          })
+          .catch(function(err) {
+            log(cfg, 'warn', 'Microphone permission denied:', err && err.message);
+            stopVoice();
+            if (voiceBar) {
+              var label = voiceBar.querySelector('.afhub-voice-label');
+              if (label) label.textContent = 'Permiso de micrófono denegado';
+            }
+          });
+      } else {
+        _doStartRecognition();
+      }
     }
 
     function stopVoice() {
@@ -1608,14 +1702,14 @@
       }
     }
 
-    // Intercepta la respuesta del bot para TTS en modo voz
+    // Intercepta la respuesta del bot para TTS en modo voz o ttsMode
     var _origAddMessage = addMessage;
     function addMessageWithTTS(type, text, imgOpts) {
       var el = _origAddMessage(type, text, imgOpts);
-      if (type === 'bot' && voiceActive) {
-        setVoiceState('speaking');
+      if (type === 'bot' && (voiceActive || ttsMode)) {
+        if (voiceActive) setVoiceState('speaking');
         ttsSpeak(text, function() {
-          if (voiceShouldBeActive) {
+          if (voiceActive && voiceShouldBeActive) {
             setTimeout(startListening, 300);
             setVoiceState('listening');
           }
@@ -1623,8 +1717,18 @@
       }
       return el;
     }
-    // Reemplaza addMessage con versión voice-aware
     addMessage = addMessageWithTTS;
+
+    // Botón speaker: toggle TTS independiente
+    if (speakerBtn) {
+      speakerBtn.addEventListener('click', function() {
+        ttsMode = !ttsMode;
+        speakerBtn.innerHTML = ttsMode ? ICON_VOLUME_ON : ICON_VOLUME_OFF;
+        speakerBtn.title = ttsMode ? 'Desactivar lectura en voz alta' : 'Leer respuestas en voz alta';
+        speakerBtn.classList.toggle('afhub-speaker-btn--active', ttsMode);
+        if (!ttsMode) ttsStop();
+      });
+    }
 
     // Event listener para el botón stop en la barra de voz
     if (voiceBar) {
@@ -1836,6 +1940,7 @@
       theme: attr(script, 'data-theme', DEFAULTS.theme),
       voiceEnabled: attr(script, 'data-voice-enabled', 'true') !== 'false',
       voiceLang: attr(script, 'data-voice-lang', ''),
+      voiceName: attr(script, 'data-voice-name', ''),
       humanSupportPhone: attr(script, 'data-human-support-phone', ''),
       showMcpUi:
         script.getAttribute('data-afhub-widget-preview') === '1' ||
@@ -2118,6 +2223,7 @@
       '#' + rootId + ' .afhub-header-icon-btn { flex-shrink:0; background:rgba(255,255,255,.14); border:none; color:#fff; cursor:pointer; padding:6px; border-radius:8px; opacity:.92; display:inline-flex; align-items:center; justify-content:center; line-height:0; }' +
       '#' + rootId + ' .afhub-header-icon-btn:hover { opacity:1; background:rgba(255,255,255,.26); }' +
       '#' + rootId + ' .afhub-header-icon-btn svg { width:18px; height:18px; }' +
+      '#' + rootId + ' .afhub-speaker-btn--active { background:rgba(255,255,255,.35) !important; opacity:1 !important; box-shadow:0 0 0 2px rgba(255,255,255,.55); }' +
       '#' + rootId + ' .afhub-close-btn { flex-shrink:0; margin-left:0; background:rgba(255,255,255,.14); border:none; color:#fff; cursor:pointer; padding:6px; border-radius:8px; opacity:.92; display:inline-flex; align-items:center; justify-content:center; line-height:0; }' +
       '#' + rootId + ' .afhub-close-btn:hover { opacity:1; background:rgba(255,255,255,.26); }' +
       '#' + rootId + ' .afhub-messages { flex:1; overflow-y:auto; padding:18px 16px; display:flex; flex-direction:column; gap:12px; scroll-behavior:smooth; background:linear-gradient(180deg,#fafbfc 0%,#f4f6f8 100%); font-size:14px; line-height:1.55; }' +

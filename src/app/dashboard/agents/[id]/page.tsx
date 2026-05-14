@@ -14,7 +14,7 @@ import {
   Zap, Wrench, Settings, Lock, CircleOff, Upload, FileText,
   Image as ImageIcon, File, Link2, AlignLeft, CheckCircle2,
   AlertCircle, X, KeyRound, RefreshCw, Sparkles, HelpCircle,
-  Copy, Eye, Search,
+  Copy, Eye, Search, Volume2, Play, Square,
 } from 'lucide-react';
 import {
   stripManagedFaqPrompt,
@@ -87,7 +87,7 @@ const RAG_EXAMPLE_DOWNLOADS = [
 const RAG_MAX_EXTRACTED_CHARS = 120_000;
 const RAG_MAX_FILE_MB = 10;
 
-type Tab = 'general' | 'rules' | 'faqs' | 'tools' | 'rag' | 'subagents';
+type Tab = 'general' | 'rules' | 'faqs' | 'tools' | 'rag' | 'subagents' | 'voice';
 
 interface McpServerGroup {
   integrationKey: string;
@@ -123,6 +123,24 @@ function mcpConnectionBadgeStyle(s: McpServerGroup): { label: string; bg: string
     return { label: 'Error sync MCP', bg: 'rgba(239,68,68,0.12)', color: '#ef4444' };
   }
   return { label: 'Pendiente MCP', bg: 'rgba(217,119,6,0.12)', color: '#d97706' };
+}
+
+const MCP_INTEGRATION_ICONS: Record<string, string> = {
+  gmail: '📧',
+  hubspot: '🏢',
+  slack: '💬',
+  google_calendar: '📅',
+  googleCalendar: '📅',
+  weather: '🌤️',
+  webSearch: '🔍',
+  web_search: '🔍',
+  mongodb: '🍃',
+  postgres: '🐘',
+  mcp_standard: '🔌',
+};
+
+function mcpIntegrationIcon(integrationKey: string): string {
+  return MCP_INTEGRATION_ICONS[integrationKey] ?? '🔌';
 }
 
 function SectionCard({
@@ -182,6 +200,7 @@ interface ClientAgent {
   tools: ToolConfig[]; ragEnabled: boolean; ragSources: RagSource[];
   subAgentIds: string[]; syncStatus: string; agentHubId: string | null;
   widgetPublicToken?: string | null;
+  widgetVoiceName?: string | null;
   persistConversationHistory?: boolean;
   strictPurposeOnly?: boolean;
   enabledMcpToolIds?: string[];
@@ -328,6 +347,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     ragSourcesRef.current = ragSources;
   }, [ragSources]);
   const [widgetPublicToken, setWidgetPublicToken] = useState('');
+  const [widgetVoiceName, setWidgetVoiceName] = useState<string>('');
   const [persistConversationHistory, setPersistConversationHistory] = useState(true);
   const [strictPurposeOnly, setStrictPurposeOnly] = useState(true);
   const [inferenceTemperature, setInferenceTemperature] = useState('');
@@ -456,6 +476,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         setRagEnabled(a.ragEnabled);
         setRagSources(a.ragSources ?? []);
         setWidgetPublicToken(typeof a.widgetPublicToken === 'string' ? a.widgetPublicToken : '');
+        setWidgetVoiceName(typeof a.widgetVoiceName === 'string' ? a.widgetVoiceName : '');
         setPersistConversationHistory(
           typeof a.persistConversationHistory === 'boolean' ? a.persistConversationHistory : true,
         );
@@ -602,6 +623,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   async function deleteMcpConnection(connectionId: string) {
     if (!confirm('¿Quitar esta conexión MCP de este agente? Las credenciales dejarán de aplicarse.')) return;
     setError('');
+    setSuccess('');
     const r = await fetch(
       `/api/mcp/connections/${encodeURIComponent(connectionId)}?landingAgentId=${encodeURIComponent(id)}`,
       { method: 'DELETE', credentials: 'include' },
@@ -617,7 +639,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       setError(msg);
       return;
     }
-    setSuccess('Conexión MCP eliminada.');
+    setSuccess('Conexión eliminada.');
+    setTimeout(() => setSuccess(''), 2200);
     loadMcp();
   }
 
@@ -659,6 +682,9 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     if (data.agent?.tools) setTools(normalizeTools(data.agent.tools));
     if (data.agent && 'widgetPublicToken' in data.agent) {
       setWidgetPublicToken(typeof data.agent.widgetPublicToken === 'string' ? data.agent.widgetPublicToken : '');
+    }
+    if (data.agent && 'widgetVoiceName' in data.agent) {
+      setWidgetVoiceName(typeof data.agent.widgetVoiceName === 'string' ? data.agent.widgetVoiceName : '');
     }
     setSuccess('Guardado.');
     setTimeout(() => setSuccess(''), 2500);
@@ -717,6 +743,10 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       patch.inferenceMaxTokens = n;
     }
     await save(patch);
+  }
+
+  async function saveVoice() {
+    await save({ widgetVoiceName: widgetVoiceName.trim() || null });
   }
 
   async function saveTools() {
@@ -1075,6 +1105,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     { id: 'tools',   label: `Herramientas (${tools.length + mcpToolIds.length})`, icon: <Wrench size={13} /> },
     { id: 'rag',     label: `RAG (${ragN})`, icon: <Zap size={13} /> },
     { id: 'subagents', label: `Sub-agentes (${subAgents.length})`, icon: <Network size={13} /> },
+    { id: 'voice', label: 'Voz', icon: <Volume2 size={13} /> },
   ];
 
   return (
@@ -2146,13 +2177,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {syncedMcpServers.map((srv) => {
-                    const MCP_ICONS: Record<string, string> = {
-                      gmail: '📧', hubspot: '🏢', slack: '💬',
-                      google_calendar: '📅', googleCalendar: '📅',
-                      weather: '🌤️', webSearch: '🔍', web_search: '🔍',
-                      mongodb: '🍃', postgres: '🐘',
-                    };
-                    const icon = MCP_ICONS[srv.integrationKey] ?? '🔌';
+                    const icon = mcpIntegrationIcon(srv.integrationKey);
                     const allSelected = srv.tools.every((t) => mcpToolIds.includes(t.id));
                     const someSelected = srv.tools.some((t) => mcpToolIds.includes(t.id));
                     const badge = mcpConnectionBadgeStyle(srv);
@@ -2332,82 +2357,144 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           {/* Pending/Error MCP connections */}
           {pendingOrErrorMcpServers.length > 0 && (
             <SectionCard bar="bo">
-              <p style={{ ...sectionTitle, margin: '0 0 10px' }}>Integraciones pendientes / con error</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
+                <p style={{ ...sectionTitle, margin: 0 }}>Integraciones pendientes o con error</p>
+                <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                  {pendingOrErrorMcpServers.length} conexión{pendingOrErrorMcpServers.length !== 1 ? 'es' : ''}
+                </span>
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: '0 0 14px', lineHeight: 1.5 }}>
+                Misma cuenta que arriba: reintenta el sync con el servidor MCP o quita la conexión. También puedes gestionarlas en AgentFlowHub.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {pendingOrErrorMcpServers.map((srv) => {
                   const pb = mcpConnectionBadgeStyle(srv);
                   const pLast = formatMcpLastSync(srv.lastSyncAt);
+                  const icon = mcpIntegrationIcon(srv.integrationKey);
+                  const headerTint =
+                    srv.syncStatus === 'error'
+                      ? 'rgba(239,68,68,0.06)'
+                      : 'rgba(217,119,6,0.07)';
                   return (
-                  <div
-                    key={srv.connectionId}
-                    style={{
-                      borderRadius: '10px',
-                      border: '1px solid var(--border)',
-                      overflow: 'hidden',
-                      opacity: 0.9,
-                    }}
-                  >
-                    <div style={{
-                      display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px',
-                    }}>
-                      <span style={{ fontSize: '16px' }}>🔌</span>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: '12px', fontWeight: 600, margin: 0 }}>{srv.serverName}</p>
-                        {pLast ? (
-                          <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: '3px 0 0' }}>
-                            Último intento: {pLast}
+                    <div
+                      key={srv.connectionId}
+                      style={{
+                        borderRadius: '12px',
+                        border: '1px solid var(--border)',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          alignItems: 'flex-start',
+                          gap: '12px',
+                          padding: '12px 14px',
+                          background: headerTint,
+                          borderBottom: '1px solid var(--border)',
+                        }}
+                      >
+                        <span style={{ fontSize: '20px', lineHeight: 1, flexShrink: 0 }} aria-hidden>
+                          {icon}
+                        </span>
+                        <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                          <p style={{ fontSize: '13px', fontWeight: 700, margin: 0, color: 'var(--foreground)' }}>
+                            {srv.serverName}
                           </p>
-                        ) : null}
-                        {srv.syncStatus === 'error' && srv.lastSyncError ? (
-                          <p style={{ fontSize: '10px', color: '#ef4444', margin: '4px 0 0', lineHeight: 1.35 }}>
-                            {srv.lastSyncError.slice(0, 280)}
-                            {srv.lastSyncError.length > 280 ? '…' : ''}
-                          </p>
-                        ) : null}
+                          {pLast ? (
+                            <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '4px 0 0' }}>
+                              Último intento: {pLast}
+                            </p>
+                          ) : null}
+                          {srv.syncStatus === 'error' && srv.lastSyncError ? (
+                            <p
+                              style={{
+                                fontSize: '11px',
+                                color: '#ef4444',
+                                margin: '6px 0 0',
+                                lineHeight: 1.4,
+                                wordBreak: 'break-word',
+                              }}
+                            >
+                              {srv.lastSyncError.slice(0, 320)}
+                              {srv.lastSyncError.length > 320 ? '…' : ''}
+                            </p>
+                          ) : null}
+                        </div>
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            alignItems: 'center',
+                            gap: '8px',
+                            marginLeft: 'auto',
+                            justifyContent: 'flex-end',
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              padding: '3px 10px',
+                              borderRadius: 20,
+                              background: pb.bg,
+                              color: pb.color,
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {pb.label}
+                          </span>
+                          {!readOnly && (
+                            <>
+                              <button
+                                type="button"
+                                title="Reintentar sincronización"
+                                onClick={() => resyncMcpConnection(srv.connectionId)}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  padding: '6px 12px',
+                                  borderRadius: '8px',
+                                  border: '1px solid var(--border)',
+                                  background: 'var(--background)',
+                                  cursor: 'pointer',
+                                  color: 'var(--foreground)',
+                                }}
+                              >
+                                <RefreshCw size={13} /> Reintentar
+                              </button>
+                              <button
+                                type="button"
+                                title="Quitar conexión"
+                                onClick={() => deleteMcpConnection(srv.connectionId)}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  padding: '6px 12px',
+                                  borderRadius: '8px',
+                                  border: '1px solid rgba(239,68,68,0.35)',
+                                  background: 'rgba(239,68,68,0.08)',
+                                  color: '#ef4444',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                <Trash2 size={13} /> Quitar
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <span style={{
-                        fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-                        background: pb.bg, color: pb.color,
-                      }}>
-                        {pb.label}
-                      </span>
-                      {!readOnly && (
-                        <>
-                          <button
-                            type="button"
-                            title="Reintentar sincronización"
-                            onClick={() => resyncMcpConnection(srv.connectionId)}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: '4px',
-                              fontSize: '11px', fontWeight: 600, padding: '4px 10px',
-                              borderRadius: '6px', border: '1px solid var(--border)',
-                              background: 'transparent', cursor: 'pointer', color: 'var(--muted-foreground)',
-                            }}
-                          >
-                            <RefreshCw size={12} /> Reintentar
-                          </button>
-                          <button
-                            type="button"
-                            title="Eliminar conexión"
-                            onClick={() => deleteMcpConnection(srv.connectionId)}
-                            style={{
-                              padding: '4px 8px', borderRadius: '6px',
-                              border: '1px solid rgba(239,68,68,0.35)', background: 'rgba(239,68,68,0.06)',
-                              color: '#ef4444', cursor: 'pointer',
-                            }}
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </>
-                      )}
                     </div>
-                  </div>
-                );
+                  );
                 })}
               </div>
-              <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '10px 0 0', lineHeight: 1.5 }}>
-                Reintenta la sincronización aquí o revisa las credenciales. También puedes gestionar conexiones en AgentFlowHub.
-              </p>
             </SectionCard>
           )}
 
@@ -3345,7 +3432,213 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           )}
         </>
       )}
+
+      {/* ── VOICE TAB ────────────────────────────────────────────────────────── */}
+      {tab === 'voice' && (
+        <VoicePickerTab
+          selected={widgetVoiceName}
+          onSelect={setWidgetVoiceName}
+          onSave={saveVoice}
+          saving={saving}
+          readOnly={readOnly}
+          accentColor={R}
+          inp={inp}
+          sectionTitle={sectionTitle}
+        />
+      )}
+
       </div>
+    </div>
+  );
+}
+
+// ── VoicePickerTab ────────────────────────────────────────────────────────────
+
+interface VoicePickerTabProps {
+  selected: string;
+  onSelect: (name: string) => void;
+  onSave: () => void;
+  saving: boolean;
+  readOnly: boolean;
+  accentColor: string;
+  inp: CSSProperties;
+  sectionTitle: CSSProperties;
+}
+
+function VoicePickerTab({ selected, onSelect, onSave, saving, readOnly, accentColor, inp, sectionTitle }: VoicePickerTabProps) {
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [query, setQuery] = useState('');
+  const [playingName, setPlayingName] = useState<string | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    function load() {
+      const v = window.speechSynthesis?.getVoices() ?? [];
+      if (v.length) setVoices(v);
+    }
+    load();
+    window.speechSynthesis?.addEventListener('voiceschanged', load);
+    return () => window.speechSynthesis?.removeEventListener('voiceschanged', load);
+  }, []);
+
+  function stopPreview() {
+    window.speechSynthesis?.cancel();
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setPlayingName(null);
+  }
+
+  function playPreview(voice: SpeechSynthesisVoice) {
+    stopPreview();
+    const utter = new SpeechSynthesisUtterance('Hola, soy tu asistente de voz. ¿En qué te puedo ayudar hoy?');
+    utter.voice = voice;
+    utter.lang = voice.lang;
+    utter.rate = 1;
+    utter.onend = () => setPlayingName(null);
+    window.speechSynthesis.resume();
+    window.speechSynthesis.speak(utter);
+    setPlayingName(voice.name);
+    timerRef.current = setTimeout(() => {
+      window.speechSynthesis?.cancel();
+      setPlayingName(null);
+    }, 6000);
+  }
+
+  useEffect(() => () => stopPreview(), []);
+
+  const filtered = voices.filter((v) => {
+    const q = query.toLowerCase();
+    return !q || v.name.toLowerCase().includes(q) || v.lang.toLowerCase().includes(q);
+  });
+
+  return (
+    <>
+      <SectionCard>
+        <p style={sectionTitle}><Volume2 size={13} style={{ display: 'inline', marginRight: 6 }} />Voz del widget</p>
+        <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '14px', lineHeight: 1.45 }}>
+          Elige la voz que usará el widget cuando lea respuestas en voz alta. Las voces disponibles dependen del navegador y sistema operativo del usuario.
+          {!voices.length && <span style={{ color: '#d97706' }}> (Cargando voces — abre este panel en un navegador compatible con síntesis de voz.)</span>}
+        </p>
+
+        {/* Search */}
+        <div style={{ position: 'relative', marginBottom: '12px' }}>
+          <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', opacity: 0.4, pointerEvents: 'none' }} />
+          <input
+            className="landing-input"
+            style={{ ...inp, paddingLeft: 30 }}
+            placeholder="Buscar por nombre o idioma…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            disabled={readOnly}
+          />
+        </div>
+
+        {/* Voice list */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '420px', overflowY: 'auto' }}>
+          {/* Auto option */}
+          <VoiceRow
+            name="— Automático (recomendado) —"
+            lang=""
+            isSelected={!selected}
+            isPlaying={false}
+            onSelect={() => !readOnly && onSelect('')}
+            onPlay={null}
+            accentColor={accentColor}
+          />
+          {filtered.map((v) => (
+            <VoiceRow
+              key={v.name}
+              name={v.name}
+              lang={v.lang}
+              isSelected={selected === v.name}
+              isPlaying={playingName === v.name}
+              onSelect={() => !readOnly && onSelect(v.name)}
+              onPlay={() => playPreview(v)}
+              accentColor={accentColor}
+            />
+          ))}
+          {voices.length > 0 && filtered.length === 0 && (
+            <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', textAlign: 'center', padding: '16px 0' }}>
+              Sin resultados para &ldquo;{query}&rdquo;
+            </p>
+          )}
+        </div>
+      </SectionCard>
+
+      {!readOnly && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={saving}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '7px',
+              padding: '10px 20px', borderRadius: '12px', fontWeight: 700, fontSize: '13px',
+              background: accentColor, color: '#fff', border: 'none', cursor: saving ? 'not-allowed' : 'pointer',
+              opacity: saving ? 0.7 : 1,
+            }}
+          >
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+            Guardar voz
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+interface VoiceRowProps {
+  name: string;
+  lang: string;
+  isSelected: boolean;
+  isPlaying: boolean;
+  onSelect: () => void;
+  onPlay: (() => void) | null;
+  accentColor: string;
+}
+
+function VoiceRow({ name, lang, isSelected, isPlaying, onSelect, onPlay, accentColor }: VoiceRowProps) {
+  return (
+    <div
+      onClick={onSelect}
+      style={{
+        display: 'flex', alignItems: 'center', gap: '10px',
+        padding: '10px 12px', borderRadius: '10px', cursor: 'pointer',
+        border: `1px solid ${isSelected ? accentColor + '55' : 'var(--border)'}`,
+        background: isSelected ? accentColor + '0d' : 'var(--background)',
+        transition: 'background 0.15s, border-color 0.15s',
+      }}
+    >
+      <div style={{
+        width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
+        border: `2px solid ${isSelected ? accentColor : 'var(--border)'}`,
+        background: isSelected ? accentColor : 'transparent',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {isSelected && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
+      </div>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ margin: 0, fontSize: '13px', fontWeight: isSelected ? 700 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</p>
+        {lang && <p style={{ margin: 0, fontSize: '11px', color: 'var(--muted-foreground)' }}>{lang}</p>}
+      </div>
+
+      {onPlay && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onPlay(); }}
+          title={isPlaying ? 'Detener' : 'Escuchar (6 s)'}
+          style={{
+            flexShrink: 0, padding: '5px 10px', borderRadius: '8px', border: '1px solid var(--border)',
+            background: isPlaying ? accentColor + '18' : 'var(--background)',
+            color: isPlaying ? accentColor : 'var(--muted-foreground)',
+            cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px',
+            fontSize: '11px', fontWeight: 600,
+          }}
+        >
+          {isPlaying ? <Square size={11} /> : <Play size={11} />}
+          {isPlaying ? 'Stop' : 'Play'}
+        </button>
+      )}
     </div>
   );
 }
