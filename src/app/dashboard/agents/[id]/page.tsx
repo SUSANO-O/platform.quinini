@@ -608,9 +608,16 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     );
     const j = await r.json().catch(() => ({}));
     if (!r.ok) {
-      setError(j?.error ?? 'No se pudo eliminar la conexión.');
+      const msg =
+        typeof j?.error === 'string'
+          ? j.error
+          : typeof j?.error?.message === 'string'
+            ? j.error.message
+            : 'No se pudo eliminar la conexión.';
+      setError(msg);
       return;
     }
+    setSuccess('Conexión MCP eliminada.');
     loadMcp();
   }
 
