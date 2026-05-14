@@ -23,6 +23,20 @@ export function clientAgentHasWebhookUrl(agent: {
   return url.length > 0;
 }
 
+const HUBSPOT_WIDGET_AUTO_TOOL_IDS = [
+  'mcp:hubspot:hubspot_search_contacts',
+  'mcp:hubspot:hubspot_create_contact',
+] as const;
+
+function clientAgentWantsHubspotWidgetAutoCapture(ca: {
+  hubspotAutoCaptureContacts?: boolean;
+  enabledMcpToolIds?: string[];
+}): boolean {
+  if (ca.hubspotAutoCaptureContacts !== true) return false;
+  const ids = ca.enabledMcpToolIds ?? [];
+  return HUBSPOT_WIDGET_AUTO_TOOL_IDS.every((id) => ids.includes(id));
+}
+
 export type DirectMcpWidgetChatResult = {
   reply: string;
   toolsUsed?: string[];
@@ -86,8 +100,8 @@ export async function tryServeWidgetChatViaHubMcp(params: {
       { $or: [{ userId: params.ownerUserId }, { isPlatform: true }] },
     ],
   }).lean();
-  if (!ca || !clientAgentHasWebhookUrl(ca)) {
-    logWidgetFlow('🚫', 'direct:skip', 'agente sin fila webhook o URL vacía', {
+  if (!ca || (!clientAgentHasWebhookUrl(ca) && !clientAgentWantsHubspotWidgetAutoCapture(ca))) {
+    logWidgetFlow('🚫', 'direct:skip', 'agente sin webhook URL ni captura HubSpot auto con tools requeridas', {
       agentId: id,
       foundAgent: Boolean(ca),
     });
@@ -119,6 +133,7 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     replyProvider: 'google-ai',
     ...(typeof ca.inferenceTemperature === 'number' ? { temperature: ca.inferenceTemperature } : {}),
     ...(typeof ca.inferenceMaxTokens === 'number' ? { maxTokens: ca.inferenceMaxTokens } : {}),
+    hubspotAutoCaptureContacts: ca.hubspotAutoCaptureContacts === true,
   };
 
   const url = `${hubBase.replace(/\/$/, '')}/api/mcp/widget-chat`;

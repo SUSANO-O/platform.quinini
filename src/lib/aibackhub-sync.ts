@@ -104,6 +104,7 @@ export type HubCatalogAgent = {
   persistConversationHistory?: boolean;
   isPlatform?: boolean;
   strictPurposeOnly?: boolean;
+  hubspotAutoCaptureContacts?: boolean;
   /** Skills del agente (IDs del catálogo agent-skills.ts). */
   skills?: string[];
   /** Config runtime de skills (prompt/tools/settings). */
@@ -226,6 +227,7 @@ export async function pushClientAgentToHubCatalog(agent: {
     dismissed?: boolean;
   }> | null;
   strictPurposeOnly?: boolean;
+  hubspotAutoCaptureContacts?: boolean;
 }): Promise<boolean> {
   const base = getAibackhubBaseUrl();
   const hid = String(agent.agentHubId || '').trim();
@@ -293,6 +295,9 @@ export async function pushClientAgentToHubCatalog(agent: {
       payload.faqCandidates = agent.faqCandidates;
     }
     payload.strictPurposeOnly = agent.strictPurposeOnly !== false;
+    if (typeof agent.hubspotAutoCaptureContacts === 'boolean') {
+      payload.hubspotAutoCaptureContacts = agent.hubspotAutoCaptureContacts;
+    }
     const res = await fetch(url, {
       method: 'PUT',
       headers: hubCreateHeaders(),
@@ -378,6 +383,7 @@ type LandingAgentDocLike = {
     dismissed?: boolean;
   }>;
   strictPurposeOnly?: boolean;
+  hubspotAutoCaptureContacts?: boolean;
 };
 
 /**
@@ -413,6 +419,9 @@ export async function syncHubCatalogFromLandingAgentDoc(
     isPlatform: Boolean(agent.isPlatform),
     strictPurposeOnly: agent.strictPurposeOnly !== false,
   };
+  if (typeof agent.hubspotAutoCaptureContacts === 'boolean') {
+    payload.hubspotAutoCaptureContacts = agent.hubspotAutoCaptureContacts;
+  }
   if (agent.widgetPublicToken !== undefined) {
     payload.widgetPublicToken =
       agent.widgetPublicToken === null
@@ -461,6 +470,7 @@ export type CreateHubAgentFromLandingInput = {
   isPlatform?: boolean;
   tools?: LandingToolConfig[];
   strictPurposeOnly?: boolean;
+  hubspotAutoCaptureContacts?: boolean;
 };
 
 /**
@@ -503,6 +513,9 @@ export async function postCreateLandingAgentOnHubCatalog(
     payload.isPlatform = true;
   }
   payload.strictPurposeOnly = agent.strictPurposeOnly !== false;
+  if (typeof agent.hubspotAutoCaptureContacts === 'boolean') {
+    payload.hubspotAutoCaptureContacts = agent.hubspotAutoCaptureContacts;
+  }
   if (Array.isArray(agent.tools)) {
     payload.tools = normalizeLandingTools(agent.tools);
   }
