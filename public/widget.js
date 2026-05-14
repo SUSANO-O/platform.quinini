@@ -13,6 +13,7 @@
  *   - token: si el agente exige widget token (cabecera X-Widget-Token)
  *   - theme: "light" | "dark"
  *   - welcome / subtitle: textos claros; debug: false en prod
+ *   - showMcpUi: true solo en vista previa o con data-show-mcp-ui="true" en el script (chips MCP / tools; oculto en widget público)
  *   - humanSupportPhone: WhatsApp; si el usuario escribe palabras clave (persona, humano, atención humana…), se muestra en el chat un acceso a WhatsApp
  */
 (function () {
@@ -20,7 +21,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.5.2';
+  var VERSION = '1.5.3';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -80,6 +81,8 @@
     voiceLang: '',
     /** WhatsApp: dígitos con código de país; menú ⋯ en la cabecera del chat */
     humanSupportPhone: '',
+    /** Si true: chips MCP / tools y notas técnicas de HubSpot en burbujas (vista previa o data-show-mcp-ui). Producción: false. */
+    showMcpUi: false,
     onOpen: null,
     onClose: null,
     onMessageSent: null,
@@ -250,6 +253,7 @@
     merged.humanSupportPhone = String(merged.humanSupportPhone == null ? '' : merged.humanSupportPhone)
       .trim()
       .substring(0, 48);
+    merged.showMcpUi = Boolean(merged.showMcpUi);
     return merged;
   }
 
@@ -651,6 +655,18 @@
     applyWidgetGeometry(root, chat, cfg);
     document.body.appendChild(root);
 
+    /** Notas añadidas por el servidor (captura HubSpot automática); no deben verse en widget productivo. */
+    function stripHubSpotProducerNotes(raw) {
+      var t = String(raw || '');
+      var re = /(?:\r?\n\s*)*\*\([^)]*HubSpot[^)]*\)\*\s*$/;
+      while (re.test(t)) t = t.replace(re, '');
+      return t.replace(/\s+$/, '');
+    }
+
+    function botReplyForDisplay(raw) {
+      return cfg.showMcpUi ? String(raw || '') : stripHubSpotProducerNotes(String(raw || ''));
+    }
+
     function shortMcpToolLabel(toolId) {
       var s = String(toolId || '');
       var mHub = /^mcp:[^:]+:(.+)$/.exec(s);
@@ -766,12 +782,13 @@
       el.className = 'afhub-msg ' + type;
       if (type === 'bot') {
         el.className += ' afhub-msg-rich';
+        var displayBotText = botReplyForDisplay(text);
         var cooldownPrefix =
           imgOpts && imgOpts.cooldown
             ? '<div class="afhub-cooldown-pill" role="status">Agente en espera</div>'
             : '';
         var quotaPrefix = imgOpts && imgOpts.quotaHtml ? imgOpts.quotaHtml : '';
-        el.innerHTML = cooldownPrefix + quotaPrefix + formatBotHtml(text);
+        el.innerHTML = cooldownPrefix + quotaPrefix + formatBotHtml(displayBotText);
         if (imgOpts && imgOpts.images && imgOpts.images.length) {
           for (var j = 0; j < imgOpts.images.length; j++) {
             var item = imgOpts.images[j];
@@ -843,10 +860,12 @@
             }
           }
         }
-        appendMcpMetadataToBubble(el, {
-          mcpTag: imgOpts && imgOpts.mcpTag,
-          toolsUsed: imgOpts && imgOpts.toolsUsed,
-        });
+        if (cfg.showMcpUi) {
+          appendMcpMetadataToBubble(el, {
+            mcpTag: imgOpts && imgOpts.mcpTag,
+            toolsUsed: imgOpts && imgOpts.toolsUsed,
+          });
+        }
       } else {
         el.textContent = text;
       }
@@ -857,7 +876,7 @@
       copyBtn.setAttribute('title', 'Copiar mensaje');
       copyBtn.textContent = '⧉';
       copyBtn.addEventListener('click', function () {
-        var plain = String(text || '');
+        var plain = type === 'bot' ? botReplyForDisplay(text) : String(text || '');
         if (!plain) return;
         try {
           if (navigator && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
@@ -883,6 +902,7 @@
         var fbRow = document.createElement('div');
         fbRow.className = 'afhub-feedback-row';
         fbRow.setAttribute('aria-label', 'Feedback del mensaje');
+        var previewText = botReplyForDisplay(String(text || ''));
 
         function setFeedback(value) {
           var buttons = fbRow.querySelectorAll('.afhub-feedback-btn');
@@ -895,7 +915,7 @@
           emitEvent('message_feedback', {
             value: value,
             feedbackId: feedbackId,
-            messagePreview: String(text || '').slice(0, 180),
+            messagePreview: previewText.slice(0, 180),
             model: imgOpts && typeof imgOpts.model === 'string' ? imgOpts.model : undefined
           });
         }
@@ -1075,17 +1095,19 @@
               try { evt = JSON.parse(rawJson); } catch { continue; }
               if (evt.type === 'token') {
                 streamReply += evt.text;
+                var streamShown = botReplyForDisplay(streamReply);
                 if (!streamBubble) {
-                  streamBubble = addMessage('bot', streamReply, { streaming: true });
+                  streamBubble = addMessage('bot', streamShown, { streaming: true });
                 } else {
                   var textEl = streamBubble.querySelector('.afhub-msg-text');
-                  if (textEl) textEl.textContent = streamReply;
+                  if (textEl) textEl.textContent = streamShown;
                   var msgs = root.querySelector('.afhub-messages');
                   if (msgs) msgs.scrollTop = msgs.scrollHeight;
                 }
               } else if (evt.type === 'done') {
                 streamDone = true;
-                var finalReply = evt.reply || streamReply;
+                var finalRaw = evt.reply || streamReply;
+                var finalReply = botReplyForDisplay(finalRaw);
                 var stTools = evt.toolsUsed;
                 if ((!stTools || !stTools.length) && evt.data && evt.data.toolsUsed && evt.data.toolsUsed.length) {
                   stTools = evt.data.toolsUsed;
@@ -1098,7 +1120,9 @@
                   var te2 = streamBubble.querySelector('.afhub-msg-text');
                   if (te2) te2.textContent = finalReply;
                   streamBubble.classList.remove('afhub-msg--streaming');
-                  appendMcpMetadataToBubble(streamBubble, { toolsUsed: stTools, mcpTag: stMcpTag });
+                  if (cfg.showMcpUi) {
+                    appendMcpMetadataToBubble(streamBubble, { toolsUsed: stTools, mcpTag: stMcpTag });
+                  }
                 }
                 resolvedAgentId = evt.agentId || resolvedAgentId;
                 history.push({ role: 'model', content: finalReply });
@@ -1132,7 +1156,8 @@
       try {
       var data = await fetchJsonWithRetry(endpoint, payload, cfg);
         hideTyping();
-        var reply = data.reply || data.response || data.text || 'Sin respuesta';
+        var replyRaw = data.reply || data.response || data.text || 'Sin respuesta';
+        var reply = botReplyForDisplay(replyRaw);
         resolvedAgentId = data.agentId || resolvedAgentId;
         var imgs = data.images;
         if ((!imgs || !imgs.length) && data.data && data.data.images && data.data.images.length) {
@@ -1151,11 +1176,13 @@
         }
         var cooldown = data.code === 'AGENT_COOLDOWN' || data.cooldown === true;
         var botOpts = undefined;
-        if ((imgs && imgs.length) || (toolsUsed && toolsUsed.length) || mcpTag || cooldown) {
+        var showTools = cfg.showMcpUi && toolsUsed && toolsUsed.length;
+        var showMcpChip = cfg.showMcpUi && mcpTag;
+        if ((imgs && imgs.length) || showTools || showMcpChip || cooldown) {
           botOpts = {};
           if (imgs && imgs.length) botOpts.images = imgs;
-          if (toolsUsed && toolsUsed.length) botOpts.toolsUsed = toolsUsed;
-          if (mcpTag) botOpts.mcpTag = mcpTag;
+          if (showTools) botOpts.toolsUsed = toolsUsed;
+          if (showMcpChip) botOpts.mcpTag = mcpTag;
           if (cooldown) botOpts.cooldown = true;
         }
         var qh = data.quotaHint;
@@ -1467,7 +1494,10 @@
       theme: attr(script, 'data-theme', DEFAULTS.theme),
       voiceEnabled: attr(script, 'data-voice-enabled', 'true') !== 'false',
       voiceLang: attr(script, 'data-voice-lang', ''),
-      humanSupportPhone: attr(script, 'data-human-support-phone', '')
+      humanSupportPhone: attr(script, 'data-human-support-phone', ''),
+      showMcpUi:
+        script.getAttribute('data-afhub-widget-preview') === '1' ||
+        attr(script, 'data-show-mcp-ui', 'false') === 'true'
     };
     try {
       init(config);
