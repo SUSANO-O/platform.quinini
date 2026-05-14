@@ -210,6 +210,7 @@ export async function POST(req: NextRequest) {
           agentId?: string;
           toolsUsed?: string[];
           mcpTag?: string;
+          images?: Array<{ dataUrl: string; mimeType?: string }>;
           code?: string;
           error?: string;
         };
@@ -235,6 +236,7 @@ export async function POST(req: NextRequest) {
         // then immediately send done — no word-by-word delay that risks timeout.
         const mcpTag =
           typeof json.mcpTag === 'string' && json.mcpTag.trim() ? json.mcpTag.trim() : undefined;
+        const images = Array.isArray(json.images) && json.images.length ? json.images : undefined;
         enqueue({ type: 'token', text: fullReply });
         enqueue({
           type: 'done',
@@ -242,6 +244,7 @@ export async function POST(req: NextRequest) {
           agentId: json.agentId || parsedAgentId,
           toolsUsed: json.toolsUsed || [],
           ...(mcpTag ? { mcpTag } : {}),
+          ...(images ? { images } : {}),
         });
 
         // Telemetry (non-blocking)

@@ -1392,6 +1392,27 @@
                   if (cfg.showMcpUi) {
                     appendMcpMetadataToBubble(streamBubble, { toolsUsed: stTools, mcpTag: stMcpTag });
                   }
+                  if (evt.images && evt.images.length) {
+                    for (var si = 0; si < evt.images.length; si++) {
+                      var sItem = evt.images[si];
+                      var sUrl = sItem && (sItem.dataUrl || sItem.url);
+                      if (typeof sUrl === 'string' && (/^data:image\//i.test(sUrl) || /^https?:\/\//i.test(sUrl))) {
+                        var sWrap = document.createElement('div');
+                        sWrap.className = 'afhub-img-wrap';
+                        var sFrame = document.createElement('div');
+                        sFrame.className = 'afhub-img-frame';
+                        var sIm = document.createElement('img');
+                        sIm.className = 'afhub-widget-img';
+                        sIm.alt = 'Imagen generada';
+                        sIm.loading = 'lazy';
+                        sIm.referrerPolicy = 'no-referrer';
+                        sIm.src = sUrl;
+                        sFrame.appendChild(sIm);
+                        sWrap.appendChild(sFrame);
+                        streamBubble.appendChild(sWrap);
+                      }
+                    }
+                  }
                 }
                 resolvedAgentId = evt.agentId || resolvedAgentId;
                 history.push({ role: 'model', content: finalReply });

@@ -51,15 +51,22 @@ interface AgentDoc {
   name: string;
   description?: string;
   model?: string;
+  inferenceTemperature?: number;
+  inferenceMaxTokens?: number;
   status?: string;
   syncStatus?: string;
   agentHubId?: string;
   isPlatform?: boolean;
   tools?: { toolId: string; config?: unknown }[];
+  enabledMcpToolIds?: string[];
   ragEnabled?: boolean;
   ragSources?: { type: string; name: string }[];
   type?: string;
   subAgentIds?: string[];
+  skills?: string[];
+  strictPurposeOnly?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface McpServerGroup {
@@ -476,9 +483,30 @@ export default function WidgetPreviewPage() {
                   </p>
                 ) : null}
                 <Row label="Tipo" value={agent.type === 'sub-agent' ? 'Sub-agente' : 'Agente'} />
+                <Row label="Modelo" value={agent.model || 'gemini-2.5-flash'} mono />
+                <Row label="Proveedor" value={inferProvider(agent.model || '')} />
+                {typeof agent.inferenceTemperature === 'number' && (
+                  <Row label="Temperatura" value={String(agent.inferenceTemperature)} />
+                )}
+                {typeof agent.inferenceMaxTokens === 'number' && (
+                  <Row label="Max tokens" value={agent.inferenceMaxTokens.toLocaleString()} />
+                )}
+                {(agent.tools?.length ?? 0) > 0 && (
+                  <Row label="Herramientas" value={`${agent.tools!.length} configuradas`} />
+                )}
+                {(agent.skills?.length ?? 0) > 0 && (
+                  <Row label="Skills" value={agent.skills!.join(', ')} />
+                )}
+                {agent.strictPurposeOnly !== undefined && (
+                  <Row label="Modo estricto" value={agent.strictPurposeOnly
+                    ? <span style={{ color: '#22c55e' }}>Activado</span>
+                    : <span style={{ color: 'var(--muted-foreground)' }}>Desactivado</span>
+                  } />
+                )}
                 {agent.description && <Row label="Descripción" value={<span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>{agent.description.slice(0, 120)}{agent.description.length > 120 ? '…' : ''}</span>} />}
                 {agent.ragEnabled && <Row label="RAG" value={<span style={{ color: '#22c55e' }}>Activo ({agent.ragSources?.length ?? 0} fuentes)</span>} />}
                 {(agent.subAgentIds?.length ?? 0) > 0 && <Row label="Sub-agentes" value={`${agent.subAgentIds!.length}`} />}
+                {agent.createdAt && <Row label="Creado" value={formatDate(agent.createdAt)} />}
               </>
             ) : (
               <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: '6px 0' }}>
