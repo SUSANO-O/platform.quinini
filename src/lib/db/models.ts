@@ -185,6 +185,8 @@ const ClientAgentSchema = new Schema({
   agentFaqs:       { type: [Schema.Types.Mixed], default: [] },
   /** Preguntas repetidas sin FAQ formal (candidatas; el widget incrementa contadores). */
   faqCandidates:   { type: [Schema.Types.Mixed], default: [] },
+  /** Nombre de la voz del navegador (SpeechSynthesis) para TTS en el widget. Null = auto. */
+  widgetVoiceName: { type: String, default: null },
 }, { timestamps: true });
 
 ClientAgentSchema.index({ userId: 1, type: 1, createdAt: -1 });
