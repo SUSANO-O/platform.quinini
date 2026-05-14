@@ -704,6 +704,38 @@
       return 'MCP';
     }
 
+    /** Misma UI que addMessage(bot): chip MCP + pills de tools (p. ej. al cerrar SSE). */
+    function appendMcpMetadataToBubble(bubbleEl, meta) {
+      if (!bubbleEl) return;
+      if (bubbleEl.querySelector('.afhub-tool-tags') || bubbleEl.querySelector('.afhub-mcp-source-tag')) {
+        return;
+      }
+      var toolsUsed = meta && meta.toolsUsed;
+      var mcpTag = meta && typeof meta.mcpTag === 'string' ? String(meta.mcpTag).trim() : '';
+      if (!mcpTag && toolsUsed && toolsUsed.length) {
+        mcpTag = inferMcpTagFromToolIds(toolsUsed);
+      }
+      if (mcpTag) {
+        var routeChip = document.createElement('div');
+        routeChip.className = 'afhub-mcp-source-tag';
+        routeChip.setAttribute('aria-label', 'Origen MCP');
+        routeChip.textContent = mcpTag;
+        bubbleEl.appendChild(routeChip);
+      }
+      if (toolsUsed && toolsUsed.length) {
+        var tagRow = document.createElement('div');
+        tagRow.className = 'afhub-tool-tags';
+        tagRow.setAttribute('aria-label', 'Herramientas usadas');
+        for (var ti = 0; ti < toolsUsed.length; ti++) {
+          var tspan = document.createElement('span');
+          tspan.className = 'afhub-tool-tag';
+          tspan.textContent = shortMcpToolLabel(toolsUsed[ti]);
+          tagRow.appendChild(tspan);
+        }
+        bubbleEl.appendChild(tagRow);
+      }
+    }
+
     function formatQuotaTagHtml(qh) {
       if (!qh || typeof qh !== 'object') return '';
       var pct = typeof qh.percentUsed === 'number' ? qh.percentUsed : 0;
@@ -811,25 +843,10 @@
             }
           }
         }
-        if (imgOpts && imgOpts.mcpTag && String(imgOpts.mcpTag).trim()) {
-          var routeChip = document.createElement('div');
-          routeChip.className = 'afhub-mcp-source-tag';
-          routeChip.setAttribute('aria-label', 'Origen MCP');
-          routeChip.textContent = String(imgOpts.mcpTag).trim();
-          el.appendChild(routeChip);
-        }
-        if (imgOpts && imgOpts.toolsUsed && imgOpts.toolsUsed.length) {
-          var tagRow = document.createElement('div');
-          tagRow.className = 'afhub-tool-tags';
-          tagRow.setAttribute('aria-label', 'Herramientas usadas');
-          for (var ti = 0; ti < imgOpts.toolsUsed.length; ti++) {
-            var tspan = document.createElement('span');
-            tspan.className = 'afhub-tool-tag';
-            tspan.textContent = shortMcpToolLabel(imgOpts.toolsUsed[ti]);
-            tagRow.appendChild(tspan);
-          }
-          el.appendChild(tagRow);
-        }
+        appendMcpMetadataToBubble(el, {
+          mcpTag: imgOpts && imgOpts.mcpTag,
+          toolsUsed: imgOpts && imgOpts.toolsUsed,
+        });
       } else {
         el.textContent = text;
       }
@@ -1069,15 +1086,31 @@
               } else if (evt.type === 'done') {
                 streamDone = true;
                 var finalReply = evt.reply || streamReply;
+                var stTools = evt.toolsUsed;
+                if ((!stTools || !stTools.length) && evt.data && evt.data.toolsUsed && evt.data.toolsUsed.length) {
+                  stTools = evt.data.toolsUsed;
+                }
+                var stMcpTag = typeof evt.mcpTag === 'string' ? evt.mcpTag.trim() : '';
+                if (!stMcpTag && evt.data && typeof evt.data.mcpTag === 'string') {
+                  stMcpTag = evt.data.mcpTag.trim();
+                }
                 if (streamBubble) {
                   var te2 = streamBubble.querySelector('.afhub-msg-text');
                   if (te2) te2.textContent = finalReply;
                   streamBubble.classList.remove('afhub-msg--streaming');
+                  appendMcpMetadataToBubble(streamBubble, { toolsUsed: stTools, mcpTag: stMcpTag });
                 }
                 resolvedAgentId = evt.agentId || resolvedAgentId;
                 history.push({ role: 'model', content: finalReply });
                 notify('onMessageReceived', finalReply);
-                emitEvent('message_received', { length: finalReply.length, streaming: true });
+                var stTagInf = stMcpTag;
+                if (!stTagInf && stTools && stTools.length) stTagInf = inferMcpTagFromToolIds(stTools);
+                emitEvent('message_received', {
+                  length: finalReply.length,
+                  streaming: true,
+                  mcpTag: stTagInf || null,
+                  toolsUsed: stTools && stTools.length ? stTools : null,
+                });
               } else if (evt.type === 'error') {
                 streamDone = true;
                 hideTyping();
