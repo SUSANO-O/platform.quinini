@@ -108,6 +108,21 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     return null;
   }
 
+  // Modelos de imagen (hf/...stable-diffusion, hf/...flux, vx/...image, etc.) deben ir
+  // por el proxy estándar de AgentFlowhub que tiene la lógica text-to-image.
+  // Este endpoint MCP solo hace chat de texto (replyProvider: google-ai).
+  const agentModel = typeof ca.model === 'string' ? ca.model.trim().toLowerCase() : '';
+  const isImageModel =
+    (agentModel.startsWith('hf/') && (agentModel.includes('stable-diffusion') || agentModel.includes('flux') || agentModel.includes('image-gen'))) ||
+    (agentModel.startsWith('vx/') && agentModel.includes('image'));
+  if (isImageModel) {
+    logWidgetFlow('🖼️', 'direct:skip', 'modelo de imagen — delegando al proxy AgentFlowhub para text-to-image', {
+      agentId: id,
+      model: agentModel,
+    });
+    return null;
+  }
+
   const hubId = typeof ca.agentHubId === 'string' ? ca.agentHubId.trim() : '';
   if (hubId) {
     await syncHubCatalogFromLandingAgentDoc(

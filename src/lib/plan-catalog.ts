@@ -67,20 +67,20 @@ export const PLAN_FEATURE_BULLETS: Record<
   starter: [
     '2 widgets activos en tu sitio',
     '5.000 conversaciones al mes (~167/día)',
-    '1 agente personalizado · Chat AI + analítica básica (sin RAG)',
+    '1 agente personalizado · Chat AI + analítica básica (sin contexto)',
     'Soporte por email (48 h)',
   ],
   growth: [
     '5 widgets activos en tu sitio',
     '25.000 conversaciones al mes (~833/día)',
-    'Agentes ilimitados + RAG + analítica avanzada',
+    'Agentes ilimitados + contexto + analítica avanzada',
     'RAG: hasta 100 MB o 50 fuentes por agente',
     'Soporte prioritario por chat (24 h)',
   ],
   business: [
     '15 widgets activos en tu sitio',
     '100.000 conversaciones al mes (~3.300/día)',
-    'Agentes + RAG + integraciones MCP',
+    'Agentes + contexto + integraciones',
     'Soporte dedicado · SLA 99,9 % · Onboarding incluido',
   ],
 };
