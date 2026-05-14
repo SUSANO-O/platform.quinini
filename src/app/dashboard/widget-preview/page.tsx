@@ -289,6 +289,8 @@ export default function WidgetPreviewPage() {
           borderRadius: parseBorderRadius(w.borderRadius),
           autoOpen: true,
           token,
+          /** Vista previa interna: mostrar chips MCP y notas técnicas HubSpot. */
+          showMcpUi: true,
         };
 
         const api = window.AgentFlowhub.init(cfg);
