@@ -24,6 +24,7 @@ import { getActiveVariant } from '@/lib/ab-testing';
 import { isOriginAllowed } from '@/lib/widget-origin-check';
 import { extractAndGuardMessage } from '@/lib/message-guard';
 import { signRequest, SIGNATURE_HEADER } from '@/lib/hub-signature';
+import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
 
 export const maxDuration = 60; // Vercel: allow up to 60s for LLM + streaming
 
@@ -180,8 +181,21 @@ export async function POST(req: NextRequest) {
       };
 
       try {
-        // Call the regular (non-streaming) hub endpoint
+        let streamMsg = '';
+        try {
+          const hb = JSON.parse(hubBody) as { message?: string };
+          streamMsg = typeof hb?.message === 'string' ? hb.message : '';
+        } catch {
+          /* ignore */
+        }
         const hubUrl = `${base.replace(/\/$/, '')}/api/widget/chat`;
+        logWidgetFlow('🌊', 'stream:fetch', 'SSE → AgentFlowhub', {
+          traceId,
+          hubUrl,
+          agentId: parsedAgentId || undefined,
+          ...widgetMessageProbe(streamMsg),
+        });
+        // Call the regular (non-streaming) hub endpoint
         const res = await fetch(hubUrl, {
           method: 'POST',
           headers,
@@ -199,6 +213,13 @@ export async function POST(req: NextRequest) {
         }
 
         const fullReply = json.reply || json.response || json.text || '';
+
+        logWidgetFlow('✅', 'stream:done', 'respuesta hub para SSE', {
+          traceId,
+          status: res.status,
+          replyLen: fullReply.length,
+          toolsUsed: json.toolsUsed || [],
+        });
 
         // Send full reply as a single token so the message bubble is created,
         // then immediately send done — no word-by-word delay that risks timeout.
