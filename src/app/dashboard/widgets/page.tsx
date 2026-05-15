@@ -28,6 +28,7 @@ interface Widget {
   createdAt: string;
   afhubToken?: string | null;
   humanSupportPhone?: string;
+  avatar?: string | null;
 }
 
 function widgetIridescentOrbInnerStyle(baseHex: string, widgetId: string): CSSProperties {
@@ -225,17 +226,27 @@ export default function WidgetsPage() {
                     className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full shadow-md ring-1 ring-white/40"
                     aria-hidden
                   >
-                    <div
-                      className="absolute inset-[-38%] rounded-full"
-                      style={widgetIridescentOrbInnerStyle(w.color, w._id)}
-                    />
-                    <div
-                      className="pointer-events-none absolute inset-0 rounded-full"
-                      style={{
-                        boxShadow:
-                          'inset 0 2px 10px rgba(255,255,255,0.55), inset 0 -6px 14px rgba(0,0,0,0.22), inset 0 0 0 1px rgba(255,255,255,0.25)',
-                      }}
-                    />
+                    {w.avatar ? (
+                      <img
+                        src={w.avatar}
+                        alt=""
+                        className="absolute inset-0 h-full w-full object-cover"
+                      />
+                    ) : (
+                      <>
+                        <div
+                          className="absolute inset-[-38%] rounded-full"
+                          style={widgetIridescentOrbInnerStyle(w.color, w._id)}
+                        />
+                        <div
+                          className="pointer-events-none absolute inset-0 rounded-full"
+                          style={{
+                            boxShadow:
+                              'inset 0 2px 10px rgba(255,255,255,0.55), inset 0 -6px 14px rgba(0,0,0,0.22), inset 0 0 0 1px rgba(255,255,255,0.25)',
+                          }}
+                        />
+                      </>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm m-0 mb-0.5">{w.name}</p>
