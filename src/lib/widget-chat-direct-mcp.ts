@@ -130,6 +130,17 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     );
   }
 
+  const resolvedModel = (typeof ca.model === 'string' && ca.model.trim()) ? ca.model.trim() : 'gemini-2.5-flash';
+  // Inferir provider desde prefijo del modelo para ser agnóstico al modelo configurado
+  function inferReplyProvider(model: string): string {
+    const m = model.toLowerCase();
+    if (m.startsWith('claude') || m.startsWith('anthropic/')) return 'anthropic';
+    if (m.startsWith('hf/')) return 'huggingface';
+    if (m.startsWith('vx/')) return 'vertex';
+    if (m.startsWith('deepseek')) return 'deepseek';
+    return 'google-ai';
+  }
+
   const payload = {
     agentId: typeof parsed.agentId === 'string' && parsed.agentId.trim() ? parsed.agentId.trim() : id,
     message,
@@ -142,10 +153,10 @@ export async function tryServeWidgetChatViaHubMcp(params: {
             typeof h.content === 'string',
         )
       : [],
-    model: (typeof ca.model === 'string' && ca.model.trim()) ? ca.model.trim() : 'gemini-2.5-flash',
+    model: resolvedModel,
     systemPrompt: typeof ca.systemPrompt === 'string' ? ca.systemPrompt : '',
     enabledToolIds: Array.isArray(ca.enabledMcpToolIds) ? ca.enabledMcpToolIds : [],
-    replyProvider: 'google-ai',
+    replyProvider: inferReplyProvider(resolvedModel),
     ...(typeof ca.inferenceTemperature === 'number' ? { temperature: ca.inferenceTemperature } : {}),
     ...(typeof ca.inferenceMaxTokens === 'number' ? { maxTokens: ca.inferenceMaxTokens } : {}),
     hubspotAutoCaptureContacts: ca.hubspotAutoCaptureContacts === true,
