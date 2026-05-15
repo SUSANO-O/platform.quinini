@@ -63,12 +63,19 @@ export default function AiConfigPage() {
     setLoadingModels(true);
     setError(null);
     fetch(`/api/admin/ai-config/models?provider=${encodeURIComponent(provider)}`)
-      .then(r => r.json())
-      .then(json => {
-        const list = json?.data?.models as AiModelOption[] | undefined;
-        setModels(list ?? []);
+      .then(async r => {
+        const json = await r.json() as { success?: boolean; data?: { models?: AiModelOption[] }; error?: string; detail?: string };
+        if (!r.ok || json?.error) {
+          const msg = json?.error ?? 'Error al cargar modelos.';
+          const detail = json?.detail ? ` (${json.detail})` : '';
+          setError(msg + detail);
+          setModels([]);
+          return;
+        }
+        const list = json?.data?.models;
+        setModels(Array.isArray(list) ? list : []);
       })
-      .catch(() => setError('No se pudieron cargar los modelos. Verifica que el hub esté activo.'))
+      .catch(() => setError('No se pudo conectar con el servidor.'))
       .finally(() => setLoadingModels(false));
   }, []);
 

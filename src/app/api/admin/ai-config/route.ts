@@ -40,45 +40,57 @@ const DEFAULT_CONFIG: AiAssistantConfig = {
 };
 
 export async function GET(req: NextRequest) {
-  const adminId = await requireAdmin(req);
-  if (!adminId) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
+  try {
+    const adminId = await requireAdmin(req);
+    if (!adminId) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
 
-  const col = getPlatformConfig();
-  const doc = await col.findOne({ key: 'ai_assistant' });
+    const col = getPlatformConfig();
+    const doc = await col.findOne({ key: 'ai_assistant' });
 
-  const config: AiAssistantConfig = doc
-    ? { provider: doc.provider, modelId: doc.modelId, updatedAt: doc.updatedAt, updatedBy: doc.updatedBy }
-    : DEFAULT_CONFIG;
+    const config: AiAssistantConfig = doc
+      ? { provider: doc.provider, modelId: doc.modelId, updatedAt: doc.updatedAt, updatedBy: doc.updatedBy }
+      : DEFAULT_CONFIG;
 
-  return NextResponse.json({ success: true, data: config });
+    return NextResponse.json({ success: true, data: config });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[ai-config] GET error:', msg);
+    return NextResponse.json({ error: 'Error interno del servidor.', detail: msg }, { status: 500 });
+  }
 }
 
 export async function PUT(req: NextRequest) {
-  const adminId = await requireAdmin(req);
-  if (!adminId) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
+  try {
+    const adminId = await requireAdmin(req);
+    if (!adminId) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
 
-  const body = await req.json().catch(() => null);
-  if (!body || typeof body.provider !== 'string' || typeof body.modelId !== 'string') {
-    return NextResponse.json({ error: 'provider y modelId son requeridos.' }, { status: 400 });
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body.provider !== 'string' || typeof body.modelId !== 'string') {
+      return NextResponse.json({ error: 'provider y modelId son requeridos.' }, { status: 400 });
+    }
+
+    const { provider, modelId } = body as { provider: string; modelId: string };
+
+    if (!provider.trim() || !modelId.trim()) {
+      return NextResponse.json({ error: 'provider y modelId no pueden estar vacíos.' }, { status: 400 });
+    }
+
+    const col = getPlatformConfig();
+    const now = new Date().toISOString();
+
+    await col.updateOne(
+      { key: 'ai_assistant' },
+      { $set: { key: 'ai_assistant', provider, modelId, updatedAt: now, updatedBy: adminId } },
+      { upsert: true },
+    );
+
+    return NextResponse.json({
+      success: true,
+      data: { provider, modelId, updatedAt: now },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[ai-config] PUT error:', msg);
+    return NextResponse.json({ error: 'Error interno del servidor.', detail: msg }, { status: 500 });
   }
-
-  const { provider, modelId } = body as { provider: string; modelId: string };
-
-  if (!provider.trim() || !modelId.trim()) {
-    return NextResponse.json({ error: 'provider y modelId no pueden estar vacíos.' }, { status: 400 });
-  }
-
-  const col = getPlatformConfig();
-  const now = new Date().toISOString();
-
-  await col.updateOne(
-    { key: 'ai_assistant' },
-    { $set: { key: 'ai_assistant', provider, modelId, updatedAt: now, updatedBy: adminId } },
-    { upsert: true },
-  );
-
-  return NextResponse.json({
-    success: true,
-    data: { provider, modelId, updatedAt: now },
-  });
 }

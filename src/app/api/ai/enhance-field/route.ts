@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db/connection';
 import { verifySessionToken } from '@/lib/auth';
-import { getAibackhubBaseUrl, hubCreateHeaders } from '@/lib/aibackhub-sync';
+import { hubFetch, hubCreateHeaders } from '@/lib/aibackhub-sync';
 
 interface AiAssistantConfig {
   provider: string;
@@ -43,25 +43,20 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: 'Body inválido.' }, { status: 400 });
 
-  const baseUrl = getAibackhubBaseUrl();
-  if (!baseUrl) return NextResponse.json({ error: 'Hub no configurado.' }, { status: 503 });
-
   const config = await getAiConfig();
 
-  // Los modelos vertex tienen prefijo "vx/" en la landing, pero AIBackHub los maneja internamente
   const headers: Record<string, string> = {
     ...hubCreateHeaders(),
     'x-ai-provider': config.provider,
-    'x-ai-model': config.modelId,
+    'x-ai-model':    config.modelId,
   };
 
   try {
-    const resp = await fetch(`${baseUrl}/api/ai-assist/enhance-field`, {
-      method: 'POST',
+    const resp = await hubFetch('/api/ai-assist/enhance-field', {
+      method:  'POST',
       headers,
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(20000),
-    });
+      body:    JSON.stringify(body),
+    }, 20_000);
 
     const json = await resp.json();
     return NextResponse.json(json, { status: resp.status });
