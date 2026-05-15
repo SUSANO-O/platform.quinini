@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { Copy, Check, Save, ExternalLink, Plus, Trash2, Sparkles, Loader2 } from 'lucide-react';
+import { AvatarEditor } from '@/components/ui/AvatarEditor';
 import {
   defaultHueFromHex,
   fabOrbitBlendModes,
@@ -928,6 +929,11 @@ export default function WidgetBuilderPage() {
         <div style={fieldStyle}>
           <label style={labelStyle}>URL de avatar / orbe</label>
           <input style={inputStyle} value={cfg.avatar} onChange={(e) => update({ avatar: e.target.value })} placeholder="https://..." />
+          <AvatarEditor
+            currentUrl={cfg.avatar}
+            agentContext={{ name: cfg.title, purpose: cfg.title }}
+            onResult={(url) => update({ avatar: url })}
+          />
         </div>
         <div style={fieldStyle}>
           <label style={labelStyle}>Border radius</label>
