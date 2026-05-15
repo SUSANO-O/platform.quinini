@@ -484,6 +484,7 @@
     var fabDrag = null;
     var history = [];
     var resolvedAgentId = null;
+    var lastGeneratedImageDataUrl = '';
 
     var root = document.createElement('div');
     root.id = rootId;
@@ -669,6 +670,26 @@
     powered.className = 'afhub-powered';
     powered.innerHTML = 'Powered by <a href="https://www.quinini.online" target="_blank" rel="noopener">MatAIs</a>';
     chat.appendChild(powered);
+
+    // Shortcuts pills (above input area)
+    var shortcutsBar = null;
+    if (cfg.shortcuts && cfg.shortcuts.length > 0) {
+      shortcutsBar = document.createElement('div');
+      shortcutsBar.className = 'afhub-shortcuts';
+      cfg.shortcuts.forEach(function(sc) {
+        var pill = document.createElement('button');
+        pill.className = 'afhub-shortcut-pill';
+        pill.type = 'button';
+        pill.textContent = (sc.emoji ? sc.emoji + ' ' : '') + sc.label;
+        pill.addEventListener('click', function() {
+          input.value = sc.message;
+          input.dispatchEvent(new Event('input'));
+          send();
+        });
+        shortcutsBar.appendChild(pill);
+      });
+      chat.appendChild(shortcutsBar);
+    }
 
     var inputArea = document.createElement('div');
     inputArea.className = 'afhub-input-area';
@@ -1295,6 +1316,48 @@
       delete INSTANCES[id];
     }
 
+    function isImageModificationIntent(text) {
+      var t = text.toLowerCase();
+      var kw = [
+        'mejora','mejorar','mejórala','mejóralo','mejorala','mejoralo',
+        'modifica','modificar','modifícala','modifícalo','modificala','modificalo',
+        'cambia','cambiar','cámbiala','cámbialo','cambiala','cambialo',
+        'ajusta','ajustar','ajústala','ajústalo','ajustala','ajustalo',
+        'refina','refinar','transforma','transformar',
+        'modify','improve','edit the image','change the image','update the image',
+        'hazla','hazlo','ponla','ponlo'
+      ];
+      for (var ki = 0; ki < kw.length; ki++) {
+        if (t.indexOf(kw[ki]) !== -1) return true;
+      }
+      return false;
+    }
+
+    function resizeImageForI2IAsync(srcUrl, maxPx) {
+      return new Promise(function (resolve) {
+        var img = new Image();
+        img.onload = function () {
+          try {
+            var w = img.naturalWidth || img.width;
+            var h = img.naturalHeight || img.height;
+            if (!w || !h) { resolve(null); return; }
+            var scale = Math.min(maxPx / w, maxPx / h, 1);
+            var tw = Math.max(1, Math.round(w * scale));
+            var th = Math.max(1, Math.round(h * scale));
+            var canvas = document.createElement('canvas');
+            canvas.width = tw;
+            canvas.height = th;
+            var ctx = canvas.getContext('2d');
+            if (!ctx) { resolve(null); return; }
+            ctx.drawImage(img, 0, 0, tw, th);
+            resolve(canvas.toDataURL('image/jpeg', 0.5));
+          } catch (e) { resolve(null); }
+        };
+        img.onerror = function () { resolve(null); };
+        img.src = srcUrl;
+      });
+    }
+
     async function send(textArg) {
       var text = typeof textArg === 'string' ? textArg.trim() : input.value.trim();
       if (!text || isLoading) return;
@@ -1325,6 +1388,16 @@
       }
       if (cfg.token && String(cfg.token).trim()) {
         payload.token = String(cfg.token).trim();
+      }
+
+      // ── Image-to-image: attach resized thumbnail when user asks to modify previous image ──
+      if (lastGeneratedImageDataUrl && isImageModificationIntent(text)) {
+        try {
+          var resizedI2I = await resizeImageForI2IAsync(lastGeneratedImageDataUrl, 128);
+          if (resizedI2I) payload.previousImageDataUrl = resizedI2I;
+        } catch (e) {
+          log(cfg, 'warn', 'Could not resize previous image for i2i', e);
+        }
       }
 
       // ── SSE Streaming (cuando el servidor lo soporta) ──────────────────────
@@ -1393,6 +1466,11 @@
                     appendMcpMetadataToBubble(streamBubble, { toolsUsed: stTools, mcpTag: stMcpTag });
                   }
                   if (evt.images && evt.images.length) {
+                    var firstEvtImg = evt.images[0];
+                    var firstEvtUrl = firstEvtImg && (firstEvtImg.dataUrl || firstEvtImg.url);
+                    if (typeof firstEvtUrl === 'string' && /^data:image\//i.test(firstEvtUrl)) {
+                      lastGeneratedImageDataUrl = firstEvtUrl;
+                    }
                     for (var si = 0; si < evt.images.length; si++) {
                       var sItem = evt.images[si];
                       var sUrl = sItem && (sItem.dataUrl || sItem.url);
@@ -1452,6 +1530,13 @@
         var imgs = data.images;
         if ((!imgs || !imgs.length) && data.data && data.data.images && data.data.images.length) {
           imgs = data.data.images;
+        }
+        if (imgs && imgs.length) {
+          var firstImg = imgs[0];
+          var firstImgUrl = firstImg && (firstImg.dataUrl || firstImg.url);
+          if (typeof firstImgUrl === 'string' && /^data:image\//i.test(firstImgUrl)) {
+            lastGeneratedImageDataUrl = firstImgUrl;
+          }
         }
         var toolsUsed = data.toolsUsed;
         if ((!toolsUsed || !toolsUsed.length) && data.data && data.data.toolsUsed && data.data.toolsUsed.length) {
@@ -2298,6 +2383,9 @@
       '#' + rootId + ' .afhub-persona-offer-hint { color:#5a5a6e; font-size:13px; }' +
       '#' + rootId + ' .afhub-persona-tag { display:inline-flex; align-items:center; justify-content:center; padding:4px 11px; border-radius:999px; font-size:11px; font-weight:700; letter-spacing:.03em; text-decoration:none; border:1px solid rgba(0,0,0,.1); background:rgba(0,0,0,.03); color:' + cfg.color + '; cursor:pointer; font-family:inherit; transition:background .15s; }' +
       '#' + rootId + ' .afhub-persona-tag:hover { background:rgba(0,0,0,.07); }' +
+      '#' + rootId + ' .afhub-shortcuts { display:flex; flex-wrap:wrap; gap:6px; padding:8px 14px 0; flex-shrink:0; }' +
+      '#' + rootId + ' .afhub-shortcut-pill { display:inline-flex; align-items:center; padding:5px 12px; border-radius:999px; border:1.5px solid ' + cfg.color + '33; background:' + cfg.color + '0d; color:' + cfg.color + '; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; transition:background .15s; white-space:nowrap; }' +
+      '#' + rootId + ' .afhub-shortcut-pill:hover { background:' + cfg.color + '22; }' +
       '#' + rootId + ' .afhub-input-area { padding:12px 14px 14px; border-top:1px solid #e8eaed; display:flex; gap:8px; flex-shrink:0; background:#fff; }' +
       '#' + rootId + ' .afhub-input { flex:1; border:1px solid #ddd; border-radius:22px; padding:10px 16px; font-size:14px; outline:none; resize:none; min-height:0; max-height:100px; line-height:1.45; font-family:inherit; }' +
       '#' + rootId + ' .afhub-input:focus { border-color:' + cfg.color + '; box-shadow:0 0 0 3px rgba(0,0,0,.08); }' +

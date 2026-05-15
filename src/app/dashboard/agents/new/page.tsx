@@ -9,6 +9,7 @@ import { McpAvailablePanel } from '@/components/mcp/mcp-available-panel';
 import { McpConnectModal } from '@/components/mcp/mcp-connect-modal';
 import type { McpCatalogRow } from '@/lib/mcp-catalog-types';
 import { Bot, ChevronLeft, Loader2, KeyRound, Plug, X, Sparkles } from 'lucide-react';
+import { AIInputButton } from '@/components/ui/AIInputButton';
 import Link from 'next/link';
 
 const R = '#e41414';
@@ -67,6 +68,40 @@ export default function NewAgentPage() {
   const [showAllModels, setShowAllModels] = useState(false);
   /** Tras crear el agente, abrir modal de MCP en la ficha con esta integración. */
   const [pendingMcp, setPendingMcp] = useState<{ key: string; name: string } | null>(null);
+
+  // ── AI Suggestions ────────────────────────────────────────────────────────
+  const [aiSuggesting, setAiSuggesting] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<{
+    systemPrompt: string;
+    faqs: Array<{ question: string; answer: string }>;
+    rules: Array<{ title: string; description: string }>;
+  } | null>(null);
+  const [suggestFaqsAdded, setSuggestFaqsAdded] = useState<Set<number>>(new Set());
+  const [suggestRulesAdded, setSuggestRulesAdded] = useState<Set<number>>(new Set());
+  const [pendingFaqs, setPendingFaqs] = useState<Array<{ question: string; answer: string }>>([]);
+  const [pendingRules, setPendingRules] = useState<Array<{ title: string; description: string }>>([]);
+
+  async function handleSuggestAgent() {
+    if (!name.trim()) return;
+    setAiSuggesting(true);
+    setAiSuggestions(null);
+    setSuggestFaqsAdded(new Set());
+    setSuggestRulesAdded(new Set());
+    try {
+      const resp = await fetch('/api/ai/suggest-agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentName: name.trim(), agentPurpose: description.trim() || name.trim() }),
+      });
+      const json = await resp.json() as { success?: boolean; data?: typeof aiSuggestions; error?: string };
+      if (!resp.ok || !json.success) throw new Error(json.error ?? 'Error al generar sugerencias');
+      setAiSuggestions(json.data ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al generar sugerencias');
+    } finally {
+      setAiSuggesting(false);
+    }
+  }
   const [mcpInfoModal, setMcpInfoModal] = useState<McpCatalogRow | null>(null);
   const { models: clientModels, hubError: modelsHubError } = useClientModels(plan);
   const filteredModels = useMemo(() => {
@@ -139,6 +174,8 @@ export default function NewAgentPage() {
       tools: [],
       ...(isAdmin && isPlatform ? { isPlatform: true } : {}),
       strictPurposeOnly,
+      ...(pendingFaqs.length > 0 ? { agentFaqs: pendingFaqs.map((f, i) => ({ id: `faq_${i}`, question: f.question, answer: f.answer, enabled: true, priority: i * 10 })) } : {}),
+      ...(pendingRules.length > 0 ? { behaviorRules: pendingRules.map((r, i) => ({ id: `rule_${i}`, title: r.title, interpretedRule: r.description, enabled: true, priority: i * 10 })) } : {}),
       ...(widgetPublicToken.trim()
         ? { widgetPublicToken: widgetPublicToken.trim().slice(0, 512) }
         : {}),
@@ -322,29 +359,187 @@ export default function NewAgentPage() {
                 <label className="block text-xs font-semibold mb-1.5">
                   Nombre del agente <span style={{ color: '#ef4444' }}>*</span>
                 </label>
-                <input
-                  className="landing-input"
-                  style={inp}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Ej: Agente de soporte al cliente"
-                  required
-                />
+                <div style={{ position: 'relative' }}>
+                  <input
+                    className="landing-input"
+                    style={{ ...inp, paddingRight: '36px' }}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Ej: Agente de soporte al cliente"
+                    required
+                  />
+                  <AIInputButton
+                    fieldType="agent_name"
+                    fieldName="Nombre del agente"
+                    agentContext={{ purpose: description }}
+                    onResult={(text) => setName(text)}
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-semibold mb-1.5">
                   Descripción{' '}
                   <span style={{ color: 'var(--muted-foreground)', fontWeight: 400 }}>(opcional)</span>
                 </label>
-                <input
-                  className="landing-input"
-                  style={inp}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Breve descripción de qué hace este agente"
-                />
+                <div style={{ position: 'relative' }}>
+                  <input
+                    className="landing-input"
+                    style={{ ...inp, paddingRight: '36px' }}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Breve descripción de qué hace este agente"
+                  />
+                  <AIInputButton
+                    fieldType="agent_description"
+                    fieldName="Descripción del agente"
+                    agentContext={{ name, purpose: description }}
+                    onResult={(text) => setDescription(text)}
+                  />
+                </div>
               </div>
             </div>
+          </FormSection>
+
+          {/* ── Panel sugerencias AI ──────────────────────────────────────── */}
+          <FormSection bar="bo">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: aiSuggestions ? 16 : 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Sparkles size={14} style={{ color: '#6366f1' }} />
+                <h2 style={{ ...sectionTitle, marginBottom: 0, color: '#6366f1' }}>Sugerir con AI</h2>
+              </div>
+              <button
+                type="button"
+                onClick={handleSuggestAgent}
+                disabled={!name.trim() || aiSuggesting}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '7px 16px', borderRadius: 10, border: 'none',
+                  background: name.trim() && !aiSuggesting ? '#6366f1' : 'var(--border)',
+                  color: name.trim() && !aiSuggesting ? '#fff' : 'var(--muted-foreground)',
+                  fontSize: 12, fontWeight: 600,
+                  cursor: name.trim() && !aiSuggesting ? 'pointer' : 'not-allowed',
+                }}
+              >
+                {aiSuggesting
+                  ? <><Loader2 size={12} className="animate-spin" /> Generando...</>
+                  : <><Sparkles size={12} /> Generar sugerencias</>}
+              </button>
+            </div>
+            {!name.trim() && !aiSuggestions && (
+              <p className="text-xs m-0" style={{ color: 'var(--muted-foreground)' }}>
+                Llena el nombre del agente para activar las sugerencias de system prompt, FAQs y reglas.
+              </p>
+            )}
+            {aiSuggestions && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {/* System Prompt sugerido */}
+                <div style={{ padding: '12px 14px', background: 'var(--background)', border: '1px solid var(--border)', borderRadius: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--foreground)' }}>System Prompt sugerido</span>
+                    <button
+                      type="button"
+                      onClick={() => setSystemPrompt(aiSuggestions.systemPrompt)}
+                      style={{ fontSize: 11, fontWeight: 600, color: '#6366f1', background: 'rgba(99,102,241,0.1)', border: 'none', padding: '4px 10px', borderRadius: 7, cursor: 'pointer' }}
+                    >
+                      Aplicar
+                    </button>
+                  </div>
+                  <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5, whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'auto' }}>
+                    {aiSuggestions.systemPrompt}
+                  </p>
+                </div>
+
+                {/* FAQs sugeridas */}
+                {aiSuggestions.faqs.length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--foreground)' }}>FAQs sugeridas</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPendingFaqs(aiSuggestions.faqs);
+                          setSuggestFaqsAdded(new Set(aiSuggestions.faqs.map((_, i) => i)));
+                        }}
+                        style={{ fontSize: 11, fontWeight: 600, color: '#6366f1', background: 'rgba(99,102,241,0.1)', border: 'none', padding: '4px 10px', borderRadius: 7, cursor: 'pointer' }}
+                      >
+                        Agregar todas
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {aiSuggestions.faqs.map((faq, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', background: 'var(--background)', border: '1px solid var(--border)', borderRadius: 8 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 12, fontWeight: 600, margin: '0 0 3px', color: 'var(--foreground)' }}>{faq.question}</p>
+                            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.4 }}>{faq.answer}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!suggestFaqsAdded.has(i)) {
+                                setPendingFaqs((prev) => [...prev, faq]);
+                                setSuggestFaqsAdded((prev) => new Set([...prev, i]));
+                              }
+                            }}
+                            disabled={suggestFaqsAdded.has(i)}
+                            style={{ fontSize: 11, fontWeight: 600, flexShrink: 0, color: suggestFaqsAdded.has(i) ? '#22c55e' : '#6366f1', background: suggestFaqsAdded.has(i) ? 'rgba(34,197,94,0.1)' : 'rgba(99,102,241,0.1)', border: 'none', padding: '4px 10px', borderRadius: 7, cursor: suggestFaqsAdded.has(i) ? 'default' : 'pointer' }}
+                          >
+                            {suggestFaqsAdded.has(i) ? '✓ Agregada' : '+ Agregar'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Reglas sugeridas */}
+                {aiSuggestions.rules.length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--foreground)' }}>Reglas sugeridas</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPendingRules(aiSuggestions.rules);
+                          setSuggestRulesAdded(new Set(aiSuggestions.rules.map((_, i) => i)));
+                        }}
+                        style={{ fontSize: 11, fontWeight: 600, color: '#6366f1', background: 'rgba(99,102,241,0.1)', border: 'none', padding: '4px 10px', borderRadius: 7, cursor: 'pointer' }}
+                      >
+                        Agregar todas
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {aiSuggestions.rules.map((rule, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', background: 'var(--background)', border: '1px solid var(--border)', borderRadius: 8 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 12, fontWeight: 600, margin: '0 0 3px', color: 'var(--foreground)' }}>{rule.title}</p>
+                            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.4 }}>{rule.description}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!suggestRulesAdded.has(i)) {
+                                setPendingRules((prev) => [...prev, rule]);
+                                setSuggestRulesAdded((prev) => new Set([...prev, i]));
+                              }
+                            }}
+                            disabled={suggestRulesAdded.has(i)}
+                            style={{ fontSize: 11, fontWeight: 600, flexShrink: 0, color: suggestRulesAdded.has(i) ? '#22c55e' : '#6366f1', background: suggestRulesAdded.has(i) ? 'rgba(34,197,94,0.1)' : 'rgba(99,102,241,0.1)', border: 'none', padding: '4px 10px', borderRadius: 7, cursor: suggestRulesAdded.has(i) ? 'default' : 'pointer' }}
+                          >
+                            {suggestRulesAdded.has(i) ? '✓ Agregada' : '+ Agregar'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(pendingFaqs.length > 0 || pendingRules.length > 0) && (
+                  <p style={{ fontSize: 11, color: '#22c55e', margin: 0 }}>
+                    ✓ {pendingFaqs.length} FAQ{pendingFaqs.length !== 1 ? 's' : ''} y {pendingRules.length} regla{pendingRules.length !== 1 ? 's' : ''} se guardarán al crear el agente.
+                  </p>
+                )}
+              </div>
+            )}
           </FormSection>
 
           <FormSection>
@@ -523,14 +718,23 @@ export default function NewAgentPage() {
             <p className="text-xs m-0 mb-3" style={{ color: 'var(--muted-foreground)' }}>
               Define el comportamiento y personalidad de tu agente.
             </p>
-            <textarea
-              className="landing-input"
-              style={{ ...inp, minHeight: '140px', resize: 'vertical', fontFamily: 'inherit' }}
-              value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
-              placeholder={`Eres un asistente de soporte de Acme Corp. Tu misión es ayudar a los clientes con sus dudas de forma amable y precisa. Siempre responde en español. Cuando no sepas algo, dilo claramente y ofrece escalar al equipo humano.`}
-              required
-            />
+            <div style={{ position: 'relative' }}>
+              <textarea
+                className="landing-input"
+                style={{ ...inp, minHeight: '140px', resize: 'vertical', fontFamily: 'inherit', paddingRight: '36px' }}
+                value={systemPrompt}
+                onChange={(e) => setSystemPrompt(e.target.value)}
+                placeholder={`Eres un asistente de soporte de Acme Corp. Tu misión es ayudar a los clientes con sus dudas de forma amable y precisa. Siempre responde en español. Cuando no sepas algo, dilo claramente y ofrece escalar al equipo humano.`}
+                required
+              />
+              <AIInputButton
+                fieldType="system_prompt"
+                fieldName="System Prompt"
+                agentContext={{ name, purpose: description }}
+                onResult={(text) => setSystemPrompt(text)}
+                position="right-top"
+              />
+            </div>
           </FormSection>
 
           <FormSection>

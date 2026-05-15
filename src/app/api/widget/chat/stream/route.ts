@@ -28,7 +28,7 @@ import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
 
 export const maxDuration = 60; // Vercel: allow up to 60s for LLM + streaming
 
-const MAX_WIDGET_BODY_BYTES = 64 * 1024;
+const MAX_WIDGET_BODY_BYTES = 512 * 1024;
 
 function sseEvent(data: Record<string, unknown>): string {
   return `data: ${JSON.stringify(data)}\n\n`;

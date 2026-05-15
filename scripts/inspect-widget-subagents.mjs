@@ -7,8 +7,8 @@
  */
 import { createConnection, Types } from 'mongoose';
 
-const AGENT_ID = process.env.AGENT_ID || '69d5084c78e0af3d5536fe95';
-const WIDGET_ID = process.env.WIDGET_ID || '6a03a54c4f69fa7fa9027170';
+const AGENT_ID = process.env.AGENT_ID || '';
+const WIDGET_ID = process.env.WIDGET_ID || '';
 const uri = process.env.MONGODB_URI || '';
 
 if (!uri) {

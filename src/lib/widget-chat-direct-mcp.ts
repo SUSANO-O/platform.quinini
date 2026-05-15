@@ -114,7 +114,7 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   const agentModel = typeof ca.model === 'string' ? ca.model.trim().toLowerCase() : '';
   const isImageModel =
     (agentModel.startsWith('hf/') && (agentModel.includes('stable-diffusion') || agentModel.includes('flux') || agentModel.includes('image-gen'))) ||
-    (agentModel.startsWith('vx/') && agentModel.includes('image'));
+    (agentModel.startsWith('vx/') && (agentModel.includes('image') || agentModel.includes('nano-banana')));
   if (isImageModel) {
     logWidgetFlow('🖼️', 'direct:skip', 'modelo de imagen — delegando al proxy AgentFlowhub para text-to-image', {
       agentId: id,

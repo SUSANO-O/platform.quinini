@@ -24,6 +24,7 @@ import {
 } from '@/lib/agent-faq-utils';
 import Link from 'next/link';
 import { McpLandingConnectForm } from '@/components/mcp/mcp-landing-connect-form';
+import { AIInputButton } from '@/components/ui/AIInputButton';
 import { AgentMcpOpenFromQuery } from '@/components/mcp/agent-mcp-open-from-query';
 import { AgentHubspotOauthReturn } from '@/components/mcp/agent-hubspot-oauth-return';
 
@@ -333,6 +334,38 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // ── AI Suggestions ────────────────────────────────────────────────────────
+  const [aiSuggesting, setAiSuggesting] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<{
+    systemPrompt: string;
+    faqs: Array<{ question: string; answer: string }>;
+    rules: Array<{ title: string; description: string }>;
+  } | null>(null);
+  const [suggestFaqsAdded, setSuggestFaqsAdded] = useState<Set<number>>(new Set());
+  const [suggestRulesAdded, setSuggestRulesAdded] = useState<Set<number>>(new Set());
+
+  async function handleSuggestAgent() {
+    if (!name.trim()) return;
+    setAiSuggesting(true);
+    setAiSuggestions(null);
+    setSuggestFaqsAdded(new Set());
+    setSuggestRulesAdded(new Set());
+    try {
+      const resp = await fetch('/api/ai/suggest-agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentName: name.trim(), agentPurpose: description.trim() || name.trim() }),
+      });
+      const json = await resp.json() as { success?: boolean; data?: typeof aiSuggestions; error?: string };
+      if (!resp.ok || !json.success) throw new Error(json.error ?? 'Error al generar sugerencias');
+      setAiSuggestions(json.data ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al generar sugerencias');
+    } finally {
+      setAiSuggesting(false);
+    }
+  }
 
   // Editable fields
   const [name, setName] = useState('');
@@ -1234,11 +1267,17 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '5px' }}>Nombre</label>
-                <input className="landing-input" style={inp} value={name} onChange={(e) => setName(e.target.value)} disabled={readOnly} />
+                <div style={{ position: 'relative' }}>
+                  <input className="landing-input" style={{ ...inp, paddingRight: readOnly ? undefined : '36px' }} value={name} onChange={(e) => setName(e.target.value)} disabled={readOnly} />
+                  {!readOnly && <AIInputButton fieldType="agent_name" fieldName="Nombre del agente" agentContext={{ purpose: description }} onResult={(t) => setName(t)} />}
+                </div>
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '5px' }}>Descripción</label>
-                <input className="landing-input" style={inp} value={description} onChange={(e) => setDescription(e.target.value)} disabled={readOnly} />
+                <div style={{ position: 'relative' }}>
+                  <input className="landing-input" style={{ ...inp, paddingRight: readOnly ? undefined : '36px' }} value={description} onChange={(e) => setDescription(e.target.value)} disabled={readOnly} />
+                  {!readOnly && <AIInputButton fieldType="agent_description" fieldName="Descripción del agente" agentContext={{ name, purpose: description }} onResult={(t) => setDescription(t)} />}
+                </div>
               </div>
             </div>
           </SectionCard>
@@ -1645,15 +1684,146 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
           <SectionCard bar="bo">
             <p style={sectionTitle}>System Prompt</p>
-            <textarea
-              className="landing-input"
-              style={{ ...inp, minHeight: '160px', resize: 'vertical', fontFamily: 'inherit' }}
-              value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
-              disabled={readOnly}
-              readOnly={readOnly}
-            />
+            <div style={{ position: 'relative' }}>
+              <textarea
+                className="landing-input"
+                style={{ ...inp, minHeight: '160px', resize: 'vertical', fontFamily: 'inherit', paddingRight: readOnly ? undefined : '36px' }}
+                value={systemPrompt}
+                onChange={(e) => setSystemPrompt(e.target.value)}
+                disabled={readOnly}
+                readOnly={readOnly}
+              />
+              {!readOnly && <AIInputButton fieldType="system_prompt" fieldName="System Prompt" agentContext={{ name, purpose: description }} onResult={(t) => setSystemPrompt(t)} position="right-top" />}
+            </div>
           </SectionCard>
+
+          {!readOnly && (
+            <SectionCard bar="bo">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Sparkles size={14} style={{ color: '#6366f1' }} />
+                  <p style={{ ...sectionTitle, marginBottom: 0, color: '#6366f1' }}>Sugerir con AI</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSuggestAgent}
+                  disabled={!name.trim() || aiSuggesting}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '7px 16px', borderRadius: 10, border: 'none',
+                    background: name.trim() && !aiSuggesting ? '#6366f1' : 'var(--border)',
+                    color: name.trim() && !aiSuggesting ? '#fff' : 'var(--muted-foreground)',
+                    fontSize: 12, fontWeight: 600,
+                    cursor: name.trim() && !aiSuggesting ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  {aiSuggesting
+                    ? <><Loader2 size={12} className="animate-spin" /> Generando...</>
+                    : <><Sparkles size={12} /> Generar sugerencias</>}
+                </button>
+              </div>
+
+              {aiSuggestions && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 16 }}>
+                  {/* System Prompt */}
+                  <div style={{ padding: '12px 14px', background: 'var(--background)', border: '1px solid var(--border)', borderRadius: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700 }}>System Prompt sugerido</span>
+                      <button type="button" onClick={() => setSystemPrompt(aiSuggestions.systemPrompt)}
+                        style={{ fontSize: 11, fontWeight: 600, color: '#6366f1', background: 'rgba(99,102,241,0.1)', border: 'none', padding: '4px 10px', borderRadius: 7, cursor: 'pointer' }}>
+                        Aplicar
+                      </button>
+                    </div>
+                    <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5, whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'auto' }}>
+                      {aiSuggestions.systemPrompt}
+                    </p>
+                  </div>
+
+                  {/* FAQs */}
+                  {aiSuggestions.faqs.length > 0 && (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700 }}>FAQs sugeridas</span>
+                        <button type="button"
+                          onClick={() => {
+                            setAgentFaqs((prev) => [
+                              ...prev,
+                              ...aiSuggestions.faqs.map((f, i) => ({ id: crypto.randomUUID(), question: f.question, answer: f.answer, enabled: true, priority: (prev.length + i) * 10 })),
+                            ]);
+                            setSuggestFaqsAdded(new Set(aiSuggestions.faqs.map((_, i) => i)));
+                          }}
+                          style={{ fontSize: 11, fontWeight: 600, color: '#6366f1', background: 'rgba(99,102,241,0.1)', border: 'none', padding: '4px 10px', borderRadius: 7, cursor: 'pointer' }}>
+                          Agregar todas
+                        </button>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {aiSuggestions.faqs.map((faq, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', background: 'var(--background)', border: '1px solid var(--border)', borderRadius: 8 }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontSize: 12, fontWeight: 600, margin: '0 0 3px' }}>{faq.question}</p>
+                              <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.4 }}>{faq.answer}</p>
+                            </div>
+                            <button type="button"
+                              onClick={() => {
+                                if (!suggestFaqsAdded.has(i)) {
+                                  setAgentFaqs((prev) => [...prev, { id: crypto.randomUUID(), question: faq.question, answer: faq.answer, enabled: true, priority: prev.length * 10 }]);
+                                  setSuggestFaqsAdded((prev) => new Set([...prev, i]));
+                                }
+                              }}
+                              disabled={suggestFaqsAdded.has(i)}
+                              style={{ fontSize: 11, fontWeight: 600, flexShrink: 0, color: suggestFaqsAdded.has(i) ? '#22c55e' : '#6366f1', background: suggestFaqsAdded.has(i) ? 'rgba(34,197,94,0.1)' : 'rgba(99,102,241,0.1)', border: 'none', padding: '4px 10px', borderRadius: 7, cursor: suggestFaqsAdded.has(i) ? 'default' : 'pointer' }}>
+                              {suggestFaqsAdded.has(i) ? '✓ Agregada' : '+ Agregar'}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Reglas */}
+                  {aiSuggestions.rules.length > 0 && (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700 }}>Reglas sugeridas</span>
+                        <button type="button"
+                          onClick={() => {
+                            setBehaviorRules((prev) => [
+                              ...prev,
+                              ...aiSuggestions.rules.map((r) => ({ ...createEmptyRule(), title: r.title, interpretedRule: r.description })),
+                            ]);
+                            setSuggestRulesAdded(new Set(aiSuggestions.rules.map((_, i) => i)));
+                          }}
+                          style={{ fontSize: 11, fontWeight: 600, color: '#6366f1', background: 'rgba(99,102,241,0.1)', border: 'none', padding: '4px 10px', borderRadius: 7, cursor: 'pointer' }}>
+                          Agregar todas
+                        </button>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {aiSuggestions.rules.map((rule, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', background: 'var(--background)', border: '1px solid var(--border)', borderRadius: 8 }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontSize: 12, fontWeight: 600, margin: '0 0 3px' }}>{rule.title}</p>
+                              <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.4 }}>{rule.description}</p>
+                            </div>
+                            <button type="button"
+                              onClick={() => {
+                                if (!suggestRulesAdded.has(i)) {
+                                  setBehaviorRules((prev) => [...prev, { ...createEmptyRule(), title: rule.title, interpretedRule: rule.description }]);
+                                  setSuggestRulesAdded((prev) => new Set([...prev, i]));
+                                }
+                              }}
+                              disabled={suggestRulesAdded.has(i)}
+                              style={{ fontSize: 11, fontWeight: 600, flexShrink: 0, color: suggestRulesAdded.has(i) ? '#22c55e' : '#6366f1', background: suggestRulesAdded.has(i) ? 'rgba(34,197,94,0.1)' : 'rgba(99,102,241,0.1)', border: 'none', padding: '4px 10px', borderRadius: 7, cursor: suggestRulesAdded.has(i) ? 'default' : 'pointer' }}>
+                              {suggestRulesAdded.has(i) ? '✓ Agregada' : '+ Agregar'}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </SectionCard>
+          )}
 
           {!readOnly && (
           <button
@@ -1798,18 +1968,21 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       </select>
                     </div>
                     <div style={{ marginTop: 10, display: 'grid', gap: 10 }}>
-                      <textarea
-                        className="landing-input"
-                        style={{ ...inp, minHeight: 70, resize: 'vertical', fontFamily: 'inherit' }}
-                        value={rule.interpretedRule}
-                        disabled={readOnly}
-                        onChange={(e) =>
-                          setBehaviorRules((prev) =>
-                            prev.map((x) => (x.id === rule.id ? { ...x, interpretedRule: e.target.value } : x)),
-                          )
-                        }
-                        placeholder="Regla interpretada (qué debe hacer exactamente el agente)"
-                      />
+                      <div style={{ position: 'relative' }}>
+                        <textarea
+                          className="landing-input"
+                          style={{ ...inp, minHeight: 70, resize: 'vertical', fontFamily: 'inherit', paddingRight: readOnly ? undefined : '36px' }}
+                          value={rule.interpretedRule}
+                          disabled={readOnly}
+                          onChange={(e) =>
+                            setBehaviorRules((prev) =>
+                              prev.map((x) => (x.id === rule.id ? { ...x, interpretedRule: e.target.value } : x)),
+                            )
+                          }
+                          placeholder="Regla interpretada (qué debe hacer exactamente el agente)"
+                        />
+                        {!readOnly && <AIInputButton fieldType="behavior_rule" fieldName="Regla de comportamiento" agentContext={{ name, purpose: description }} onResult={(t) => setBehaviorRules((prev) => prev.map((x) => (x.id === rule.id ? { ...x, interpretedRule: t } : x)))} position="right-top" />}
+                      </div>
                       <input
                         className="landing-input"
                         style={inp}
@@ -1940,18 +2113,21 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       )}
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 10 }}>
-                      <input
-                        className="landing-input"
-                        style={inp}
-                        value={faq.question}
-                        disabled={readOnly}
-                        placeholder="Pregunta que hace el usuario"
-                        onChange={(e) =>
-                          setAgentFaqs((prev) =>
-                            prev.map((x) => (x.id === faq.id ? { ...x, question: e.target.value } : x)),
-                          )
-                        }
-                      />
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          className="landing-input"
+                          style={{ ...inp, paddingRight: readOnly ? undefined : '36px' }}
+                          value={faq.question}
+                          disabled={readOnly}
+                          placeholder="Pregunta que hace el usuario"
+                          onChange={(e) =>
+                            setAgentFaqs((prev) =>
+                              prev.map((x) => (x.id === faq.id ? { ...x, question: e.target.value } : x)),
+                            )
+                          }
+                        />
+                        {!readOnly && <AIInputButton fieldType="faq_question" fieldName="Pregunta FAQ" agentContext={{ name, purpose: description }} onResult={(t) => setAgentFaqs((prev) => prev.map((x) => (x.id === faq.id ? { ...x, question: t } : x)))} />}
+                      </div>
                       <input
                         className="landing-input"
                         style={inp}
@@ -1972,18 +2148,21 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         }
                       />
                     </div>
-                    <textarea
-                      className="landing-input"
-                      style={{ ...inp, minHeight: 88, resize: 'vertical', fontFamily: 'inherit', marginTop: 10 }}
-                      value={faq.answer}
-                      disabled={readOnly}
-                      placeholder="Respuesta canónica del agente"
-                      onChange={(e) =>
-                        setAgentFaqs((prev) =>
-                          prev.map((x) => (x.id === faq.id ? { ...x, answer: e.target.value } : x)),
-                        )
-                      }
-                    />
+                    <div style={{ position: 'relative', marginTop: 10 }}>
+                      <textarea
+                        className="landing-input"
+                        style={{ ...inp, minHeight: 88, resize: 'vertical', fontFamily: 'inherit', paddingRight: readOnly ? undefined : '36px' }}
+                        value={faq.answer}
+                        disabled={readOnly}
+                        placeholder="Respuesta canónica del agente"
+                        onChange={(e) =>
+                          setAgentFaqs((prev) =>
+                            prev.map((x) => (x.id === faq.id ? { ...x, answer: e.target.value } : x)),
+                          )
+                        }
+                      />
+                      {!readOnly && <AIInputButton fieldType="faq_answer" fieldName="Respuesta FAQ" agentContext={{ name, purpose: description }} onResult={(t) => setAgentFaqs((prev) => prev.map((x) => (x.id === faq.id ? { ...x, answer: t } : x)))} position="right-top" />}
+                    </div>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginTop: 8 }}>
                       <input
                         type="checkbox"

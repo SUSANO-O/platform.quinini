@@ -1,9 +1,11 @@
 /**
- * GET /api/status — estado de salud de todos los servicios del ecosistema.
- * Usado por la página pública /status para mostrar uptime y latencia.
+ * GET /api/status
+ *
+ * Verifica la salud de todos los servicios del ecosistema.
+ * Público — no requiere autenticación. Cache desactivado.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { getAgentflowhubBaseUrl, getAibackhubBaseUrl } from '@/lib/aibackhub-sync';
 
@@ -12,14 +14,27 @@ export const revalidate = 0;
 
 type ServiceStatus = 'operational' | 'degraded' | 'down';
 
-interface ServiceCheck {
+export interface ServiceCheck {
   name: string;
   status: ServiceStatus;
   latencyMs: number | null;
   message?: string;
 }
 
-async function checkUrl(name: string, url: string, timeoutMs = 5000): Promise<ServiceCheck> {
+function classifyError(err: unknown, elapsed: number, timeoutMs: number): { message: string; timedOut: boolean } {
+  const msg = err instanceof Error ? err.message : String(err);
+  const timedOut = elapsed >= timeoutMs - 100 || msg.includes('TimeoutError') || msg.includes('AbortError');
+  if (timedOut) return { message: 'timeout', timedOut: true };
+  if (msg.includes('ECONNREFUSED')) return { message: 'connection refused', timedOut: false };
+  if (msg.includes('ENOTFOUND')) return { message: 'DNS not found', timedOut: false };
+  if (msg.includes('ECONNRESET')) return { message: 'connection reset', timedOut: false };
+  return { message: 'unreachable', timedOut: false };
+}
+
+async function checkHttp(name: string, url: string, timeoutMs = 5000): Promise<ServiceCheck> {
+  if (!url) {
+    return { name, status: 'down', latencyMs: null, message: 'URL not configured' };
+  }
   const start = Date.now();
   try {
     const res = await fetch(url, {
@@ -29,52 +44,55 @@ async function checkUrl(name: string, url: string, timeoutMs = 5000): Promise<Se
     });
     const latencyMs = Date.now() - start;
     if (res.ok) return { name, status: 'operational', latencyMs };
-    return { name, status: 'degraded', latencyMs, message: `HTTP ${res.status}` };
+    const status = res.status >= 500 ? 'down' : 'degraded';
+    return { name, status, latencyMs, message: `HTTP ${res.status}` };
   } catch (err) {
-    const latencyMs = Date.now() - start;
-    const msg = err instanceof Error ? err.message : 'connection failed';
-    return { name, status: 'down', latencyMs: latencyMs > timeoutMs ? null : latencyMs, message: msg };
+    const elapsed = Date.now() - start;
+    const { message } = classifyError(err, elapsed, timeoutMs);
+    return { name, status: 'down', latencyMs: null, message };
   }
 }
 
 async function checkMongo(): Promise<ServiceCheck> {
   const start = Date.now();
   try {
-    await connectDB();
-    return { name: 'Database (MongoDB)', status: 'operational', latencyMs: Date.now() - start };
+    const mongoose = await connectDB();
+    // isConnected es suficiente — evita el overhead de admin().ping()
+    const ready = mongoose.connection.readyState === 1;
+    const latencyMs = Date.now() - start;
+    if (ready) return { name: 'Base de datos (MongoDB)', status: 'operational', latencyMs };
+    return { name: 'Base de datos (MongoDB)', status: 'degraded', latencyMs, message: 'connecting' };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'connection failed';
-    return { name: 'Database (MongoDB)', status: 'down', latencyMs: null, message: msg };
+    const msg = err instanceof Error ? err.message.slice(0, 80) : 'connection failed';
+    return { name: 'Base de datos (MongoDB)', status: 'down', latencyMs: null, message: msg };
   }
 }
 
-export async function GET(_req: NextRequest) {
-  const hubBase = getAgentflowhubBaseUrl();
-  const aiBase = getAibackhubBaseUrl();
+export async function GET() {
+  const hubBase  = getAgentflowhubBaseUrl();
+  const aiBase   = getAibackhubBaseUrl();
 
   const [mongoCheck, hubCheck, aiCheck] = await Promise.all([
     checkMongo(),
-    checkUrl('AgentFlowhub (Hub)', `${hubBase}/api/health`.replace(/\/+/, '/').replace('://', '://'), 5000),
-    checkUrl('AIBackHub (AI Engine)', `${aiBase}/api/health`.replace(/\/+/, '/').replace('://', '://'), 5000),
+    checkHttp('AgentFlowhub (Hub)',     hubBase ? `${hubBase}/api/health` : '', 5000),
+    checkHttp('AIBackHub (AI Engine)', aiBase  ? `${aiBase}/health`      : '', 5000),
   ]);
 
-  // Landing itself
-  const landingCheck: ServiceCheck = { name: 'Landing (this service)', status: 'operational', latencyMs: 0 };
+  // Landing itself is always operational if we're executing
+  const selfCheck: ServiceCheck = {
+    name: 'Landing (plataforma)',
+    status: 'operational',
+    latencyMs: 0,
+  };
 
-  const services = [landingCheck, mongoCheck, hubCheck, aiCheck];
-  const allOk = services.every(s => s.status === 'operational');
-  const anyDown = services.some(s => s.status === 'down');
+  const services: ServiceCheck[] = [selfCheck, mongoCheck, hubCheck, aiCheck];
+
+  const allOk   = services.every((s) => s.status === 'operational');
+  const anyDown = services.some((s) => s.status === 'down');
   const overall: ServiceStatus = allOk ? 'operational' : anyDown ? 'down' : 'degraded';
 
   return NextResponse.json(
-    {
-      status: overall,
-      timestamp: new Date().toISOString(),
-      services,
-    },
-    {
-      status: 200,
-      headers: { 'Cache-Control': 'no-store, max-age=0' },
-    },
+    { status: overall, timestamp: new Date().toISOString(), services },
+    { headers: { 'Cache-Control': 'no-store, max-age=0' } },
   );
 }
