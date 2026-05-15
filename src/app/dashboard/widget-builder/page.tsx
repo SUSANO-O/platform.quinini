@@ -200,7 +200,7 @@ const DEFAULT: WidgetConfig = {
 
 // ── Mock preview ─────────────────────────────────────────────────────────────
 
-function MockPreview({ cfg }: { cfg: WidgetConfig }) {
+function MockPreview({ cfg, shortcuts = [] }: { cfg: WidgetConfig; shortcuts?: WidgetShortcut[] }) {
   const [chatOpen, setChatOpen] = useState(false);
   /** Evita mutar el DOM con innerHTML en onError (rompe a React). */
   const [fabAvatarFailed, setFabAvatarFailed] = useState(false);
@@ -341,6 +341,25 @@ function MockPreview({ cfg }: { cfg: WidgetConfig }) {
                 </div>
               );
             })()}
+            {shortcuts.filter((s) => s.enabled !== false).length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, paddingTop: 4 }}>
+                {shortcuts.filter((s) => s.enabled !== false).map((sc) => (
+                  <span
+                    key={sc.id}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center',
+                      padding: '2px 8px', borderRadius: 999,
+                      border: `1.5px solid ${cfg.color}33`,
+                      background: `${cfg.color}0d`,
+                      color: cfg.color,
+                      fontSize: 9, fontWeight: 600, whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {sc.emoji ? `${sc.emoji} ` : ''}{sc.label}
+                  </span>
+                ))}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
               <div style={{ flex: 1, height: 26, background: cfg.theme === 'dark' ? '#2d2d4e' : '#f1f5f9', borderRadius: 8 }} />
               <div style={{ width: 26, height: 26, background: cfg.color, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>➤</div>
@@ -412,14 +431,10 @@ function MockPreview({ cfg }: { cfg: WidgetConfig }) {
 function generateSnippet(
   _cfg: WidgetConfig,
   token: string = 'YOUR_TOKEN',
-  _opts?: { includeToken?: boolean },
 ) {
   const host =
-    typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3200';
-  // Minimal embed: only token needed — widget.js fetches all visual config
-  // (color, title, avatar, etc.) live from the server on every page load.
-  // Changes made in this panel propagate automatically to all embeds.
-  const lines = [
+    typeof window !== 'undefined' ? window.location.origin : 'https://tudominio.com';
+  return [
     `<script src="${host}/widget.js"></script>`,
     `<script>`,
     `  window.AgentFlowhub.init({`,
@@ -427,8 +442,55 @@ function generateSnippet(
     `    host:  '${host}',`,
     `  });`,
     `</script>`,
-  ];
-  return lines.join('\n');
+  ].join('\n');
+}
+
+function generateFullSnippet(token: string = 'YOUR_TOKEN') {
+  const host =
+    typeof window !== 'undefined' ? window.location.origin : 'https://tudominio.com';
+  return [
+    `<script src="${host}/widget.js"></script>`,
+    `<script>`,
+    `  window.AgentFlowhub.init({`,
+    `    // — Identificación (requerido) —`,
+    `    token: '${token}',`,
+    `    host:  '${host}',`,
+    ``,
+    `    // — Posición —`,
+    `    // position:     'bottom-right', // bottom-right | bottom-left | bottom`,
+    `    //                               // top | left | right | center | custom`,
+    `    // edgeInset:    20,             // distancia al borde (px)`,
+    `    // offsetBottom: 20,             // distancia al borde inferior (px)`,
+    `    // autoOpen:     false,          // abrir chat automáticamente`,
+    `    // fabDraggable: true,           // usuario puede reubicar el botón`,
+    ``,
+    `    // — Visual (si usas token, el servidor lo gestiona) —`,
+    `    // color:        '#6366f1',      // color principal HEX`,
+    `    // title:        'Asistente',    // nombre en la cabecera`,
+    `    // subtitle:     'En línea',`,
+    `    // welcome:      '¡Hola! ¿En qué puedo ayudarte?',`,
+    `    // fabHint:      '¿Necesitas ayuda?', // texto flotante`,
+    `    // avatar:       '',             // URL de imagen de avatar`,
+    `    // theme:        'light',        // 'light' | 'dark'`,
+    `    // borderRadius: 16,             // radio borde chat (0-32 px)`,
+    ``,
+    `    // — Voz —`,
+    `    // voiceEnabled: true,           // micrófono + lectura en voz alta`,
+    `    // voiceLang:    'es-MX',        // idioma BCP-47 (ej: 'en-US')`,
+    `    // voiceName:    '',             // nombre exacto de voz SpeechSynthesis`,
+    ``,
+    `    // — Soporte humano —`,
+    `    // humanSupportPhone: '521234567890', // WhatsApp con código de país`,
+    ``,
+    `    // — Callbacks —`,
+    `    // onOpen:            () => {},`,
+    `    // onClose:           () => {},`,
+    `    // onMessageSent:     (msg) => console.log('enviado', msg),`,
+    `    // onMessageReceived: (msg) => console.log('recibido', msg),`,
+    `    // onError:           (err) => console.error(err),`,
+    `  });`,
+    `</script>`,
+  ].join('\n');
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -444,6 +506,7 @@ export default function WidgetBuilderPage() {
   const [saved, setSaved] = useState(false);
   const [shortcuts, setShortcuts] = useState<WidgetShortcut[]>([]);
   const [suggestingShortcuts, setSuggestingShortcuts] = useState(false);
+  const [snippetTab, setSnippetTab] = useState<'minimal' | 'full'>('minimal');
 
   useEffect(() => {
     let cancelled = false;
@@ -597,9 +660,10 @@ export default function WidgetBuilderPage() {
   }
 
   function copySnippet() {
-    navigator.clipboard.writeText(
-      generateSnippet(cfg, snippetToken),
-    );
+    const code = snippetTab === 'full'
+      ? generateFullSnippet(snippetToken)
+      : generateSnippet(cfg, snippetToken);
+    navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -664,7 +728,7 @@ export default function WidgetBuilderPage() {
       <div className="hero-glow pointer-events-none" style={{ background: BRAND_R, top: '-200px', right: '-80px' }} />
       <div className="hero-glow pointer-events-none" style={{ background: BRAND_B, top: '120px', left: '-100px' }} />
 
-      <div className="relative flex flex-col xl:flex-row gap-8 max-w-7xl mx-auto px-6 py-10">
+      <div className="relative flex flex-col xl:flex-row gap-[3px] max-w-7xl mx-auto px-1 py-2">
         {/* Formulario */}
         <div className="w-full xl:w-[360px] shrink-0 xl:max-h-[calc(100vh-5rem)] overflow-y-auto pr-1">
           <div className="card-texture rounded-2xl border p-6" style={{ borderColor: 'var(--border)' }}>
@@ -979,55 +1043,100 @@ export default function WidgetBuilderPage() {
             Vista previa — prueba el botón
           </p>
           <div className="rounded-2xl overflow-hidden border shadow-sm" style={{ borderColor: 'var(--border)', boxShadow: '0 8px 32px rgba(0,0,0,0.06)' }}>
-            <MockPreview cfg={cfg} />
+            <MockPreview cfg={cfg} shortcuts={shortcuts} />
           </div>
         </div>
 
         {/* Code snippet */}
         <div
-          className="rounded-2xl overflow-hidden border flex flex-col flex-1 min-h-0 card-texture"
-          style={{ borderColor: 'var(--border)' }}
+          className="rounded-2xl overflow-hidden border flex flex-col flex-1 min-h-0"
+          style={{ borderColor: 'var(--border)', background: '#0d1117' }}
           data-tour="widget-builder-snippet-panel"
         >
-          <div
-            className="flex items-center justify-between gap-3 px-4 py-3 border-b"
-            style={{ background: 'var(--muted)', borderColor: 'var(--border)' }}
-          >
-            <div className="flex items-center gap-2 min-w-0">
+          {/* Header bar */}
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)', background: '#161b22' }}>
+            <div className="flex items-center gap-3 min-w-0">
+              {/* Traffic lights */}
               <div className="flex items-center gap-1.5 shrink-0">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#ef4444' }} />
-                <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#f59e0b' }} />
-                <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#22c55e' }} />
+                <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#ff5f57' }} />
+                <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#febc2e' }} />
+                <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#28c840' }} />
               </div>
-              <span className="text-xs font-bold font-mono truncate" style={{ color: 'var(--muted-foreground)' }}>
-                embed-snippet.html
-              </span>
+              {/* Tab switcher */}
+              <div className="flex items-center gap-1 rounded-lg p-0.5" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                {(['minimal', 'full'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setSnippetTab(tab)}
+                    className="px-3 py-1 rounded-md text-[11px] font-semibold transition-all border-0 cursor-pointer"
+                    style={{
+                      background: snippetTab === tab ? 'rgba(255,255,255,0.12)' : 'transparent',
+                      color: snippetTab === tab ? '#e2e8f0' : '#6b7280',
+                    }}
+                  >
+                    {tab === 'minimal' ? 'Mínimo' : 'SDK Completo'}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
                 onClick={copySnippet}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border cursor-pointer transition-colors hover:bg-white/80"
-                style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold border-0 cursor-pointer transition-all"
+                style={{
+                  background: copied ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.08)',
+                  color: copied ? '#4ade80' : '#94a3b8',
+                }}
               >
-                {copied ? <Check size={12} style={{ color: '#22c55e' }} /> : <Copy size={12} />}
-                {copied ? 'Copiado' : 'Copiar'}
+                {copied ? <Check size={12} /> : <Copy size={12} />}
+                {copied ? '¡Copiado!' : 'Copiar'}
               </button>
               <a
                 href="/widget"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border no-underline transition-colors hover:bg-white/80"
-                style={{ background: 'var(--card)', borderColor: 'var(--border)', color: BRAND_R }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold no-underline transition-all"
+                style={{ background: 'rgba(255,255,255,0.06)', color: '#6b7280' }}
               >
-                <ExternalLink size={12} />
-                Docs SDK
+                <ExternalLink size={11} />
+                Docs
               </a>
             </div>
           </div>
-          <pre className="p-4 text-xs overflow-x-auto m-0 flex-1 min-h-[120px]" style={{ background: '#0f1729', color: '#e2e8f0', lineHeight: 1.6 }}>
-            {generateSnippet(cfg, snippetToken)}
+
+          {/* Token badge — solo si ya está guardado */}
+          {snippetToken !== 'YOUR_TOKEN' && (
+            <div className="flex items-center gap-2 px-4 py-2.5 border-b" style={{ borderColor: 'rgba(255,255,255,0.05)', background: 'rgba(99,102,241,0.07)' }}>
+              <span className="text-[10px] font-semibold uppercase tracking-widest shrink-0" style={{ color: '#818cf8' }}>Token</span>
+              <code className="text-[11px] font-mono flex-1 truncate" style={{ color: '#c7d2fe' }}>{snippetToken}</code>
+              <button
+                type="button"
+                onClick={() => { void navigator.clipboard.writeText(snippetToken); }}
+                className="shrink-0 border-0 cursor-pointer rounded px-2 py-0.5 text-[10px] font-semibold transition-all"
+                style={{ background: 'rgba(99,102,241,0.18)', color: '#818cf8' }}
+              >
+                Copiar
+              </button>
+            </div>
+          )}
+
+          {/* Code block */}
+          <pre className="p-4 text-[11px] overflow-auto m-0 flex-1" style={{ color: '#e2e8f0', lineHeight: 1.7, fontFamily: "'Fira Code', 'Cascadia Code', 'Consolas', monospace", tabSize: 2 }}>
+            {snippetTab === 'full'
+              ? generateFullSnippet(snippetToken)
+              : generateSnippet(cfg, snippetToken)}
           </pre>
+
+          {/* Footer hint */}
+          <div className="px-4 py-2.5 border-t flex items-center gap-2" style={{ borderColor: 'rgba(255,255,255,0.05)', background: '#161b22' }}>
+            <span style={{ fontSize: 10, color: '#4b5563' }}>
+              {snippetTab === 'minimal'
+                ? '✓ Pega esto antes de </body>. Los cambios del panel se propagan automáticamente a todos los embeds.'
+                : '✓ Descomenta solo las opciones que quieras sobreescribir. Con token, el servidor gestiona el resto.'}
+            </span>
+          </div>
         </div>
       </div>
       </div>

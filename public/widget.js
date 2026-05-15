@@ -45,6 +45,9 @@
   /** Barra estrecha (vista compacta) */
   var ICON_SIDEBAR_NARROW =
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6"/><path d="M20 10h-6V4"/><path d="M10 20l4-4"/><path d="M14 4l-4 4"/></svg>';
+  /** Pantalla completa */
+  var ICON_FULLSCREEN =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>';
   /** Centrado, ondas suaves (sin conic-spin); funciona con cualquier color de marca */
   var ORB_HTML =
     '<span class="afhub-fab-inner" aria-hidden="true"><span class="afhub-orb">' +
@@ -666,21 +669,30 @@
     messages.className = 'afhub-messages';
     chat.appendChild(messages);
 
-    var powered = document.createElement('div');
-    powered.className = 'afhub-powered';
-    powered.innerHTML = 'Powered by <a href="https://www.quinini.online" target="_blank" rel="noopener">MatAIs</a>';
-    chat.appendChild(powered);
-
-    // Shortcuts pills (above input area)
+    // Shortcuts collapsible section (above input area)
     var shortcutsBar = null;
     if (cfg.shortcuts && cfg.shortcuts.length > 0) {
+      var shortcutsWrap = document.createElement('div');
+      shortcutsWrap.className = 'afhub-shortcuts-wrap';
+
+      var shortcutsToggle = document.createElement('button');
+      shortcutsToggle.className = 'afhub-shortcuts-toggle';
+      shortcutsToggle.type = 'button';
+      shortcutsToggle.innerHTML =
+        '<span class="afhub-shortcuts-toggle-label">Accesos rápidos</span>' +
+        '<span class="afhub-shortcuts-toggle-chevron">‹</span>';
+
       shortcutsBar = document.createElement('div');
       shortcutsBar.className = 'afhub-shortcuts';
+
       cfg.shortcuts.forEach(function(sc) {
         var pill = document.createElement('button');
         pill.className = 'afhub-shortcut-pill';
         pill.type = 'button';
-        pill.textContent = (sc.emoji ? sc.emoji + ' ' : '') + sc.label;
+        pill.innerHTML =
+          '<span class="afhub-pill-icon">' + (sc.emoji || '💬') + '</span>' +
+          '<span class="afhub-pill-text">' + (sc.label || sc.message || '') + '</span>' +
+          '<span class="afhub-pill-arrow">›</span>';
         pill.addEventListener('click', function() {
           input.value = sc.message;
           input.dispatchEvent(new Event('input'));
@@ -688,7 +700,18 @@
         });
         shortcutsBar.appendChild(pill);
       });
-      chat.appendChild(shortcutsBar);
+
+      var scOpen = true;
+      shortcutsToggle.addEventListener('click', function() {
+        scOpen = !scOpen;
+        shortcutsBar.style.display = scOpen ? 'flex' : 'none';
+        shortcutsToggle.querySelector('.afhub-shortcuts-toggle-chevron').style.transform =
+          scOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+      });
+
+      shortcutsWrap.appendChild(shortcutsToggle);
+      shortcutsWrap.appendChild(shortcutsBar);
+      chat.appendChild(shortcutsWrap);
     }
 
     var inputArea = document.createElement('div');
@@ -732,7 +755,19 @@
       chat.insertBefore(voiceBar, inputArea);
     }
 
+    var powered = document.createElement('div');
+    powered.className = 'afhub-powered';
+    powered.innerHTML = 'Powered by <a href="https://www.quinini.online" target="_blank" rel="noopener">MatAIs</a>';
+    chat.appendChild(powered);
+
     root.appendChild(chat);
+    var scrim = document.createElement('div');
+    scrim.className = 'afhub-scrim';
+    scrim.addEventListener('click', function() {
+      sidebarSize = 'compact';
+      syncChatPanelLayout();
+    });
+    document.body.appendChild(scrim);
     document.body.appendChild(root);
 
     function clearChatInlineLayout() {
@@ -803,22 +838,40 @@
         if (sidebarSize === 'compact') {
           chat.style.width = 'min(380px, 100vw)';
           chat.style.maxWidth = 'min(380px, 100vw)';
-        } else {
+        } else if (sidebarSize === 'full') {
           chat.style.width = 'min(720px, calc(100vw - 16px))';
           chat.style.maxWidth = 'min(720px, calc(100vw - 16px))';
+        } else {
+          // fullscreen — cubre toda la pantalla
+          chat.style.width = '100vw';
+          chat.style.maxWidth = '100vw';
+          chat.style.left = '0';
+          chat.style.right = '0';
+          chat.style.borderRadius = '0';
         }
+
+        scrim.style.display = sidebarSize === 'fullscreen' ? 'block' : 'none';
 
         layoutBtn.innerHTML = ICON_POPOUT_CHAT;
         layoutBtn.setAttribute('aria-label', 'Volver a ventana flotante');
         layoutBtn.title = 'Volver a ventana flotante';
         expandBtn.style.display = '';
-        expandBtn.innerHTML = sidebarSize === 'full' ? ICON_SIDEBAR_NARROW : ICON_SIDEBAR_WIDE;
-        expandBtn.setAttribute(
-          'aria-label',
-          sidebarSize === 'full' ? 'Vista compacta' : 'Ampliar barra'
-        );
-        expandBtn.title = sidebarSize === 'full' ? 'Vista compacta' : 'Ampliar barra';
+        if (sidebarSize === 'compact') {
+          expandBtn.innerHTML = ICON_SIDEBAR_WIDE;
+          expandBtn.setAttribute('aria-label', 'Ampliar barra');
+          expandBtn.title = 'Ampliar barra';
+        } else if (sidebarSize === 'full') {
+          expandBtn.innerHTML = ICON_FULLSCREEN;
+          expandBtn.setAttribute('aria-label', 'Pantalla completa');
+          expandBtn.title = 'Pantalla completa';
+        } else {
+          expandBtn.innerHTML = ICON_SIDEBAR_NARROW;
+          expandBtn.setAttribute('aria-label', 'Vista compacta');
+          expandBtn.title = 'Vista compacta';
+        }
       }
+
+      if (chatLayout === 'floating') scrim.style.display = 'none';
     }
 
     function fabDragStorageKey() {
@@ -1936,7 +1989,9 @@
     expandBtn.addEventListener('click', function (e) {
       e.stopPropagation();
       if (chatLayout !== 'sidebar') return;
-      sidebarSize = sidebarSize === 'compact' ? 'full' : 'compact';
+      if (sidebarSize === 'compact') sidebarSize = 'full';
+      else if (sidebarSize === 'full') sidebarSize = 'fullscreen';
+      else sidebarSize = 'compact';
       syncChatPanelLayout();
     });
     closeBtn.addEventListener('click', close);
@@ -2310,6 +2365,7 @@
       '#' + rootId + ' .afhub-chat.visible { transform:scale(1) translateY(0); opacity:1; pointer-events:auto; }' +
       '#' + rootId + ' .afhub-chat.afhub-chat--sidebar { transition:transform .28s cubic-bezier(.34,1.2,.64,1),opacity .28s,width .22s ease,max-width .22s ease; }' +
       '#' + rootId + ' .afhub-chat.afhub-chat--sidebar.visible { transform:none !important; }' +
+      '#' + rootId + '-scrim,.afhub-scrim { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9; backdrop-filter:blur(2px); transition:opacity .25s; }' +
       '#' +
         rootId +
         ' .afhub-header { padding:16px 18px; color:#fff; display:flex; align-items:center; gap:12px; flex-shrink:0; background:linear-gradient(180deg,rgba(255,255,255,.16) 0%,transparent 45%),' +
@@ -2375,7 +2431,7 @@
       '#' + rootId + ' .afhub-dot { width:8px; height:8px; background:#aaa; border-radius:50%; animation:afhub-bounce .6s infinite alternate; }' +
       '#' + rootId + ' .afhub-dot:nth-child(2) { animation-delay:.2s; }' +
       '#' + rootId + ' .afhub-dot:nth-child(3) { animation-delay:.4s; }' +
-      '#' + rootId + ' .afhub-powered { text-align:center; font-size:10px; letter-spacing:.04em; text-transform:uppercase; color:#aaa; padding:6px 0 4px; flex-shrink:0; }' +
+      '#' + rootId + ' .afhub-powered { text-align:center; font-size:8px; letter-spacing:.03em; text-transform:uppercase; color:#ccc; padding:3px 0 3px; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-powered a { color:#888; text-decoration:none; }' +
       '#' + rootId + ' .afhub-powered a:hover { text-decoration:underline; }' +
       '#' + rootId + ' .afhub-persona-offer { align-self:flex-start; max-width:92%; padding:10px 14px; border-radius:12px; border:1px solid rgba(0,0,0,.08); background:rgba(0,0,0,.03); font-size:13px; line-height:1.45; }' +
@@ -2383,9 +2439,18 @@
       '#' + rootId + ' .afhub-persona-offer-hint { color:#5a5a6e; font-size:13px; }' +
       '#' + rootId + ' .afhub-persona-tag { display:inline-flex; align-items:center; justify-content:center; padding:4px 11px; border-radius:999px; font-size:11px; font-weight:700; letter-spacing:.03em; text-decoration:none; border:1px solid rgba(0,0,0,.1); background:rgba(0,0,0,.03); color:' + cfg.color + '; cursor:pointer; font-family:inherit; transition:background .15s; }' +
       '#' + rootId + ' .afhub-persona-tag:hover { background:rgba(0,0,0,.07); }' +
-      '#' + rootId + ' .afhub-shortcuts { display:flex; flex-wrap:wrap; gap:6px; padding:8px 14px 0; flex-shrink:0; }' +
-      '#' + rootId + ' .afhub-shortcut-pill { display:inline-flex; align-items:center; padding:5px 12px; border-radius:999px; border:1.5px solid ' + cfg.color + '33; background:' + cfg.color + '0d; color:' + cfg.color + '; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; transition:background .15s; white-space:nowrap; }' +
-      '#' + rootId + ' .afhub-shortcut-pill:hover { background:' + cfg.color + '22; }' +
+      '#' + rootId + ' .afhub-shortcuts-wrap { flex-shrink:0; border-top:1px solid #e8eaed; }' +
+      '#' + rootId + ' .afhub-shortcuts-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; padding:7px 14px; background:transparent; border:none; cursor:pointer; font-family:inherit; }' +
+      '#' + rootId + ' .afhub-shortcuts-toggle:hover { background:' + cfg.color + '0a; }' +
+      '#' + rootId + ' .afhub-shortcuts-toggle-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:' + cfg.color + '; }' +
+      '#' + rootId + ' .afhub-shortcuts-toggle-chevron { font-size:18px; color:' + cfg.color + '; transition:transform .2s; line-height:1; }' +
+      '#' + rootId + ' .afhub-shortcuts { display:flex; flex-direction:column; gap:6px; padding:0 10px 8px; flex-shrink:0; max-height:200px; overflow-y:auto; scrollbar-width:none; }' +
+      '#' + rootId + ' .afhub-shortcuts::-webkit-scrollbar { display:none; }' +
+      '#' + rootId + ' .afhub-shortcut-pill { display:flex; align-items:center; gap:10px; padding:11px 14px; border-radius:12px; border:1px solid ' + cfg.color + '28; background:' + cfg.color + '0a; color:var(--afhub-fg,#1e293b); font-size:13px; font-weight:500; cursor:pointer; font-family:inherit; transition:background .15s,border-color .15s; text-align:left; width:100%; box-sizing:border-box; }' +
+      '#' + rootId + ' .afhub-shortcut-pill:hover { background:' + cfg.color + '18; border-color:' + cfg.color + '55; }' +
+      '#' + rootId + ' .afhub-pill-icon { font-size:15px; flex-shrink:0; width:22px; text-align:center; }' +
+      '#' + rootId + ' .afhub-pill-text { flex:1; line-height:1.3; }' +
+      '#' + rootId + ' .afhub-pill-arrow { font-size:18px; color:' + cfg.color + '; flex-shrink:0; font-weight:400; line-height:1; }' +
       '#' + rootId + ' .afhub-input-area { padding:12px 14px 14px; border-top:1px solid #e8eaed; display:flex; gap:8px; flex-shrink:0; background:#fff; }' +
       '#' + rootId + ' .afhub-input { flex:1; border:1px solid #ddd; border-radius:22px; padding:10px 16px; font-size:14px; outline:none; resize:none; min-height:0; max-height:100px; line-height:1.45; font-family:inherit; }' +
       '#' + rootId + ' .afhub-input:focus { border-color:' + cfg.color + '; box-shadow:0 0 0 3px rgba(0,0,0,.08); }' +

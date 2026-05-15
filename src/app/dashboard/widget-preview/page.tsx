@@ -26,6 +26,14 @@ declare global {
   }
 }
 
+interface WidgetShortcut {
+  id: string;
+  label: string;
+  message: string;
+  emoji?: string;
+  enabled: boolean;
+}
+
 interface WidgetDoc {
   _id: string;
   name: string;
@@ -42,6 +50,7 @@ interface WidgetDoc {
   borderRadius?: string;
   autoOpen?: boolean;
   afhubToken?: string | null;
+  shortcuts?: WidgetShortcut[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -110,6 +119,24 @@ const syncBadge = (status?: string) => {
   return <span style={{ color: '#f59e0b', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12 }}><Clock size={13} /> Pendiente</span>;
 };
 
+/** Carga widget.js con cache por minuto (evita re-descarga en cada vista previa). */
+function loadWidgetScript(origin: string): Promise<void> {
+  try {
+    document.querySelectorAll('script[data-afhub-widget-preview]').forEach((n) => n.remove());
+  } catch { /* ignore */ }
+  try { delete (window as unknown as Record<string, unknown>).AgentFlowhub; } catch { /* ignore */ }
+
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = `${origin}/widget.js?v=${Math.floor(Date.now() / 60000)}`; // cache 1 min
+    s.async = true;
+    s.setAttribute('data-afhub-widget-preview', '1');
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('No se pudo cargar widget.js'));
+    document.body.appendChild(s);
+  });
+}
+
 export default function WidgetPreviewPage() {
   const [widget, setWidget] = useState<WidgetDoc | null>(null);
   const [agent, setAgent] = useState<AgentDoc | null>(null);
@@ -119,12 +146,13 @@ export default function WidgetPreviewPage() {
   const [hubRetryLoading, setHubRetryLoading] = useState(false);
   const [hubRetryHint, setHubRetryHint] = useState('');
   const instanceRef = useRef<{ destroy?: () => void } | null>(null);
+  /** Empieza a cargar widget.js en cuanto el componente monta, en paralelo con los fetch de datos. */
+  const scriptPromiseRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
-    const id =
-      typeof window !== 'undefined'
-        ? new URLSearchParams(window.location.search).get('id')
-        : null;
+    if (typeof window === 'undefined') return;
+
+    const id = new URLSearchParams(window.location.search).get('id');
     const valid = id && /^[a-f0-9]{24}$/i.test(id) ? id : null;
 
     if (!valid) {
@@ -133,27 +161,67 @@ export default function WidgetPreviewPage() {
       return;
     }
 
+    const origin = window.location.origin;
     let cancelled = false;
+
+    // Arranca la carga del script EN PARALELO con el fetch de datos (no secuencial)
+    scriptPromiseRef.current = loadWidgetScript(origin);
 
     (async () => {
       try {
-        const wRes = await fetch(`/api/widgets/${valid}`);
-        const wData = await wRes.json();
+        // Script + datos del widget en paralelo
+        const [, wData] = await Promise.all([
+          scriptPromiseRef.current,
+          fetch(`/api/widgets/${valid}`).then((r) => r.json()),
+        ]);
         if (cancelled) return;
+
         if (!wData.widget) {
           setError(wData.error || 'Widget no encontrado.');
           setLoading(false);
           return;
         }
+
         const w = wData.widget as WidgetDoc;
         setWidget(w);
+        setLoading(false);
 
+        // Init del widget inmediatamente — script ya está listo gracias al Promise.all
+        if (w.agentId?.trim() && !cancelled && window.AgentFlowhub) {
+          try { instanceRef.current?.destroy?.(); } catch { /* ignore */ }
+          const token = typeof w.afhubToken === 'string' && w.afhubToken.startsWith('wt_') ? w.afhubToken : '';
+          const cfg: Record<string, unknown> = {
+            agentId:   w.agentId,
+            widgetId:  w._id,
+            host:      origin,
+            color:     w.color || '#0d9488',
+            title:     w.title || 'Asistente',
+            subtitle:  w.subtitle || '',
+            welcome:   w.welcome || '',
+            fabHint:   w.fabHint || '',
+            humanSupportPhone: typeof w.humanSupportPhone === 'string' ? w.humanSupportPhone : '',
+            avatar:    w.avatar || '',
+            position:  w.position || 'bottom-right',
+            theme:     w.theme === 'dark' ? 'dark' : 'light',
+            borderRadius: parseBorderRadius(w.borderRadius),
+            autoOpen:  true,
+            showMcpUi: true,
+            // Shortcuts directamente del doc — sin fetch extra a /api/widget/config
+            shortcuts: Array.isArray(w.shortcuts)
+              ? w.shortcuts.filter((s) => s.enabled !== false)
+              : [],
+            ...(token ? { token } : {}),
+          };
+          const api = window.AgentFlowhub.init(cfg);
+          instanceRef.current = api && typeof api === 'object' ? api : null;
+        }
+
+        // Agente + MCP en background (no bloquean el widget)
         if (w.agentId?.trim()) {
           const [agentRes, mcpRes] = await Promise.all([
             fetch(`/api/agents/${w.agentId}`).catch(() => null),
             fetch(`/api/mcp/agent-tools?agentId=${encodeURIComponent(w.agentId)}`).catch(() => null),
           ]);
-
           if (!cancelled && agentRes?.ok) {
             const aData = await agentRes.json().catch(() => ({}));
             const ag = aData?.agent ?? aData?.data ?? null;
@@ -164,14 +232,19 @@ export default function WidgetPreviewPage() {
             setMcpServers(mData?.servers ?? []);
           }
         }
-      } catch {
-        if (!cancelled) setError('No se pudo cargar el widget.');
-      } finally {
-        if (!cancelled) setLoading(false);
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : 'No se pudo cargar el widget.');
+          setLoading(false);
+        }
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      try { instanceRef.current?.destroy?.(); } catch { /* ignore */ }
+      instanceRef.current = null;
+    };
   }, []);
 
   const retryCatalogHubSync = useCallback(async () => {
@@ -225,91 +298,6 @@ export default function WidgetPreviewPage() {
     }
   }, [agent, widget?.agentId]);
 
-  const teardown = useCallback(() => {
-    try { instanceRef.current?.destroy?.(); } catch { /* ignore */ }
-    instanceRef.current = null;
-  }, []);
-
-  useEffect(() => {
-    if (!widget || typeof window === 'undefined') return;
-    if (!widget.agentId?.trim()) return;
-
-    const host = window.location.origin;
-    if (!/^https?:\/\//i.test(host)) return;
-
-    const snapshot = widget;
-    let cancelled = false;
-
-    async function boot() {
-      teardown();
-      const origin = window.location.origin;
-
-      const loadScript = (): Promise<void> => {
-        /**
-         * `public/widget.js` solo registra el SDK si `window.AgentFlowhub` no existe (guard global).
-         * Si el navegador sirvió una copia cacheada antigua, cualquier script nuevo se ignora por completo.
-         * En vista previa forzamos siempre la última versión del archivo y permitimos re-ejecutar el IIFE.
-         */
-        try {
-          document.querySelectorAll('script[data-afhub-widget-preview]').forEach((node) => node.remove());
-        } catch {
-          /* ignore */
-        }
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          delete (window as any).AgentFlowhub;
-        } catch {
-          /* ignore */
-        }
-
-        return new Promise((resolve, reject) => {
-          const s = document.createElement('script');
-          s.src = `${origin}/widget.js?v=${encodeURIComponent(String(Date.now()))}`;
-          s.async = true;
-          s.setAttribute('data-afhub-widget-preview', '1');
-          s.onload = () => resolve();
-          s.onerror = () => reject(new Error('No se pudo cargar widget.js'));
-          document.body.appendChild(s);
-        });
-      };
-
-      try {
-        await loadScript();
-        if (cancelled || !window.AgentFlowhub) return;
-
-        const w = snapshot;
-        const token = typeof w.afhubToken === 'string' && w.afhubToken.startsWith('wt_') ? w.afhubToken : '';
-
-        const cfg: Record<string, unknown> = {
-          agentId: w.agentId,
-          widgetId: w._id,
-          host,
-          color: w.color || '#0d9488',
-          title: w.title || 'Asistente',
-          subtitle: w.subtitle || '',
-          welcome: w.welcome || '',
-          fabHint: w.fabHint || '',
-          humanSupportPhone: typeof w.humanSupportPhone === 'string' ? w.humanSupportPhone : '',
-          avatar: w.avatar || '',
-          position: w.position || 'bottom-right',
-          theme: w.theme === 'dark' ? 'dark' : 'light',
-          borderRadius: parseBorderRadius(w.borderRadius),
-          autoOpen: true,
-          token,
-          /** Vista previa interna: mostrar chips MCP y notas técnicas HubSpot. */
-          showMcpUi: true,
-        };
-
-        const api = window.AgentFlowhub.init(cfg);
-        instanceRef.current = api && typeof api === 'object' ? api : null;
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Error al iniciar el widget.');
-      }
-    }
-
-    boot();
-    return () => { cancelled = true; teardown(); };
-  }, [widget, teardown]);
 
   const totalMcpTools = mcpServers.reduce((s, g) => s + g.tools.length, 0);
   const syncedServers = mcpServers.filter((s) => s.syncStatus === 'ok');
