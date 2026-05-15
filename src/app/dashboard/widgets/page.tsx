@@ -8,7 +8,7 @@ import {
   iridescentOrbBlendModes,
 } from '@/lib/widget-iridescent';
 import Link from 'next/link';
-import { Trash2, Plus, Code2, Boxes, Pencil, Play, Sparkles } from 'lucide-react';
+import { Trash2, Plus, Code2, Boxes, Pencil, Play, Sparkles, Copy, Check } from 'lucide-react';
 import { useSubscription } from '@/hooks/use-subscription';
 import { getWidgetLimit } from '@/lib/agent-plans';
 
@@ -20,7 +20,6 @@ interface Widget {
   _id: string;
   name: string;
   agentId: string;
-  /** Nombre del ClientAgent vinculado (lo añade GET /api/widgets). */
   agentName?: string | null;
   color: string;
   position: string;
@@ -41,6 +40,64 @@ function widgetIridescentOrbInnerStyle(baseHex: string, widgetId: string): CSSPr
   };
 }
 
+function buildMinimalSnippet(w: Widget, origin: string) {
+  return [
+    `<script src="${origin}/widget.js"></script>`,
+    `<script>`,
+    `  window.AgentFlowhub.init({`,
+    `    token: '${w.afhubToken || 'wt_…'}',`,
+    `    host:  '${origin}',`,
+    `  });`,
+    `</script>`,
+  ].join('\n');
+}
+
+function buildFullSnippet(w: Widget, origin: string) {
+  return [
+    `<script src="${origin}/widget.js"></script>`,
+    `<script>`,
+    `  window.AgentFlowhub.init({`,
+    `    // — Identificación (requerido) —`,
+    `    token: '${w.afhubToken || 'wt_…'}',`,
+    `    host:  '${origin}',`,
+    ``,
+    `    // — Posición —`,
+    `    // position:     'bottom-right', // bottom-right | bottom-left | bottom`,
+    `    //                               // top | left | right | center | custom`,
+    `    // edgeInset:    20,             // distancia al borde (px)`,
+    `    // offsetBottom: 20,             // distancia al borde inferior (px)`,
+    `    // autoOpen:     false,          // abrir chat automáticamente`,
+    `    // fabDraggable: true,           // usuario puede reubicar el botón`,
+    ``,
+    `    // — Visual (si usas token, el servidor lo gestiona) —`,
+    `    // color:        '#6366f1',      // color principal HEX`,
+    `    // title:        'Asistente',    // nombre en la cabecera`,
+    `    // subtitle:     'En línea',`,
+    `    // welcome:      '¡Hola! ¿En qué puedo ayudarte?',`,
+    `    // fabHint:      '¿Necesitas ayuda?', // texto flotante`,
+    `    // avatar:       '',             // URL de imagen de avatar`,
+    `    // theme:        'light',        // 'light' | 'dark'`,
+    `    // borderRadius: 16,             // radio borde chat (0-32 px)`,
+    ``,
+    `    // — Voz —`,
+    `    // voiceEnabled: true,           // micrófono + lectura en voz alta`,
+    `    // voiceLang:    'es-MX',        // idioma BCP-47 (ej: 'en-US')`,
+    `    // voiceName:    '',             // nombre exacto de voz SpeechSynthesis`,
+    ``,
+    `    // — Soporte humano —`,
+    `    // humanSupportPhone: '521234567890', // WhatsApp con código de país`,
+    ``,
+    `    // — Callbacks —`,
+    `    // onOpen:            () => {},`,
+    `    // onClose:           () => {},`,
+    `    // onMessageSent:     (msg) => console.log('enviado', msg),`,
+    `    // onMessageReceived: (msg) => console.log('recibido', msg),`,
+    `    // onError:           (err) => console.error(err),`,
+    `  });`,
+    `</script>`,
+  ].join('\n');
+}
+
 export default function WidgetsPage() {
   const { subscription } = useSubscription();
   const hasActivePlan = subscription?.status === 'active' || subscription?.status === 'trialing';
@@ -50,6 +107,8 @@ export default function WidgetsPage() {
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [snippetTab, setSnippetTab] = useState<'minimal' | 'full'>('minimal');
+  const [copied, setCopied] = useState(false);
   const [origin, setOrigin] = useState('');
 
   const usedWidgets = widgets.length;
@@ -75,6 +134,24 @@ export default function WidgetsPage() {
     if (!confirm('¿Eliminar este widget?')) return;
     await fetch(`/api/widgets?id=${id}`, { method: 'DELETE' });
     setWidgets((prev) => prev.filter((w) => w._id !== id));
+  }
+
+  function copySnippet(w: Widget) {
+    const code = snippetTab === 'full' ? buildFullSnippet(w, origin) : buildMinimalSnippet(w, origin);
+    void navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  // Reset tab when expanding a different widget
+  function toggleExpanded(id: string) {
+    if (expanded === id) {
+      setExpanded(null);
+    } else {
+      setExpanded(id);
+      setSnippetTab('minimal');
+      setCopied(false);
+    }
   }
 
   useEffect(() => {
@@ -285,7 +362,7 @@ export default function WidgetsPage() {
                     </Link>
                     <button
                       type="button"
-                      onClick={() => setExpanded(expanded === w._id ? null : w._id)}
+                      onClick={() => toggleExpanded(w._id)}
                       className="inline-flex items-center gap-1 px-2.5 py-2 rounded-lg text-[11px] font-bold border cursor-pointer transition-colors hover:bg-slate-50"
                       style={{ borderColor: 'var(--border)', background: 'var(--muted)', color: 'var(--foreground)' }}
                     >
@@ -309,37 +386,95 @@ export default function WidgetsPage() {
                 </div>
 
                 {expanded === w._id && (
-                  <div className="border-t overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+                  <div className="border-t overflow-hidden" style={{ borderColor: 'var(--border)', background: '#0d1117' }}>
+                    {/* Header bar */}
                     <div
-                      className="flex items-center gap-2 px-4 py-2.5 border-b"
-                      style={{ background: 'var(--muted)', borderColor: 'var(--border)' }}
+                      className="flex items-center justify-between gap-3 px-4 py-3 border-b"
+                      style={{ borderColor: 'rgba(255,255,255,0.06)', background: '#161b22' }}
                     >
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <div className="w-2 h-2 rounded-full" style={{ background: '#ef4444' }} />
-                        <div className="w-2 h-2 rounded-full" style={{ background: '#f59e0b' }} />
-                        <div className="w-2 h-2 rounded-full" style={{ background: '#22c55e' }} />
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#ff5f57' }} />
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#febc2e' }} />
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#28c840' }} />
+                        </div>
+                        {/* Tab switcher */}
+                        <div className="flex items-center gap-1 rounded-lg p-0.5" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                          {(['minimal', 'full'] as const).map((tab) => (
+                            <button
+                              key={tab}
+                              type="button"
+                              onClick={() => setSnippetTab(tab)}
+                              className="px-3 py-1 rounded-md text-[11px] font-semibold transition-all border-0 cursor-pointer"
+                              style={{
+                                background: snippetTab === tab ? 'rgba(255,255,255,0.12)' : 'transparent',
+                                color: snippetTab === tab ? '#e2e8f0' : '#6b7280',
+                              }}
+                            >
+                              {tab === 'minimal' ? 'Mínimo' : 'SDK Completo'}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                      <span className="text-[10px] font-mono font-semibold truncate" style={{ color: 'var(--muted-foreground)' }}>
-                        {(w.name?.trim() || 'widget').replace(/\s+/g, '-').toLowerCase()}-embed.html
+                      <button
+                        type="button"
+                        onClick={() => copySnippet(w)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold border-0 cursor-pointer transition-all shrink-0"
+                        style={{
+                          background: copied ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.08)',
+                          color: copied ? '#4ade80' : '#94a3b8',
+                        }}
+                      >
+                        {copied ? <Check size={12} /> : <Copy size={12} />}
+                        {copied ? '¡Copiado!' : 'Copiar'}
+                      </button>
+                    </div>
+
+                    {/* Token badge */}
+                    {w.afhubToken && w.afhubToken.startsWith('wt_') && (
+                      <div
+                        className="flex items-center gap-2 px-4 py-2.5 border-b"
+                        style={{ borderColor: 'rgba(255,255,255,0.05)', background: 'rgba(99,102,241,0.07)' }}
+                      >
+                        <span className="text-[10px] font-semibold uppercase tracking-widest shrink-0" style={{ color: '#818cf8' }}>Token</span>
+                        <code className="text-[11px] font-mono flex-1 truncate" style={{ color: '#c7d2fe' }}>{w.afhubToken}</code>
+                        <button
+                          type="button"
+                          onClick={() => { void navigator.clipboard.writeText(w.afhubToken!); }}
+                          className="shrink-0 border-0 cursor-pointer rounded px-2 py-0.5 text-[10px] font-semibold transition-all"
+                          style={{ background: 'rgba(99,102,241,0.18)', color: '#818cf8' }}
+                        >
+                          Copiar
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Code block */}
+                    <pre
+                      className="p-4 text-[11px] overflow-x-auto m-0"
+                      style={{
+                        color: '#e2e8f0',
+                        lineHeight: 1.7,
+                        fontFamily: "'Fira Code', 'Cascadia Code', Consolas, monospace",
+                        tabSize: 2,
+                      }}
+                    >
+                      {snippetTab === 'full'
+                        ? buildFullSnippet(w, origin)
+                        : buildMinimalSnippet(w, origin)}
+                    </pre>
+
+                    {/* Footer */}
+                    <div
+                      className="px-4 py-2.5 border-t flex items-center gap-2"
+                      style={{ borderColor: 'rgba(255,255,255,0.05)', background: '#161b22' }}
+                    >
+                      <span style={{ fontSize: 10, color: '#4b5563' }}>
+                        {snippetTab === 'minimal'
+                          ? '✓ Pega esto antes de </body>. Los cambios del builder se propagan automáticamente.'
+                          : '✓ Descomenta solo las opciones que quieras sobreescribir. Con token, el servidor gestiona el resto.'}
                       </span>
                     </div>
-                    <pre
-                      className="p-4 m-0 text-[11px] overflow-x-auto leading-relaxed"
-                      style={{ background: '#0f1729', color: '#e2e8f0' }}
-                    >
-                      {`<script src="${origin || 'https://TU-DOMINIO'}/widget.js"></script>
-<script>
-  window.AgentFlowhub.init({
-    agentId: '${w.agentId}',
-    token: '${w.afhubToken || 'wt_…'}',
-    host: '${origin || 'https://TU-DOMINIO'}',
-    color: '${w.color}',
-    position: '${w.position}',
-    theme: '${w.theme}',${w.humanSupportPhone?.trim() ? `
-    humanSupportPhone: ${JSON.stringify(w.humanSupportPhone.trim())},` : ''}
-  });
-</script>`}
-                    </pre>
                   </div>
                 )}
               </div>
@@ -350,4 +485,3 @@ export default function WidgetsPage() {
     </div>
   );
 }
-
