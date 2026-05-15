@@ -26,6 +26,35 @@ export function hubCreateHeaders(): Record<string, string> {
   return h;
 }
 
+/** Intenta la URL alternativa localhost ↔ 127.0.0.1 (en Windows a veces solo una resuelve). */
+function alternateOrigin(base: string): string | null {
+  try {
+    const u = new URL(base);
+    if (u.hostname === '127.0.0.1') { u.hostname = 'localhost'; return u.origin; }
+    if (u.hostname === 'localhost')  { u.hostname = '127.0.0.1'; return u.origin; }
+  } catch { /* ignore */ }
+  return null;
+}
+
+/** fetch a AIBackHub con retry automático localhost ↔ 127.0.0.1 si la primera conexión falla. */
+export async function hubFetch(path: string, init: RequestInit, timeoutMs = 30_000): Promise<Response> {
+  const base = getAibackhubBaseUrl();
+  if (!base) throw new Error('BACKEND_URL no configurado');
+  const url = `${base}${path}`;
+  const signal = AbortSignal.timeout(timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal });
+  } catch (first) {
+    const alt = alternateOrigin(base);
+    if (!alt) throw first;
+    try {
+      return await fetch(`${alt}${path}`, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+    } catch {
+      throw first; // lanza el error original
+    }
+  }
+}
+
 /** AIBackHub sendCreated returns { success: true, data: { id, ... } }. */
 export function parseCreatedAgentId(data: unknown): string | undefined {
   if (!data || typeof data !== 'object') return undefined;
