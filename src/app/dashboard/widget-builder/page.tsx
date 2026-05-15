@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { Copy, Check, Save, ExternalLink } from 'lucide-react';
+import { Copy, Check, Save, ExternalLink, Plus, Trash2, Sparkles, Loader2 } from 'lucide-react';
 import {
   defaultHueFromHex,
   fabOrbitBlendModes,
@@ -156,6 +156,14 @@ const POSITIONS = [
 ];
 
 // ── Config type ───────────────────────────────────────────────────────────────
+
+interface WidgetShortcut {
+  id: string;
+  label: string;
+  message: string;
+  emoji: string;
+  enabled: boolean;
+}
 
 interface WidgetConfig {
   name: string;
@@ -434,6 +442,8 @@ export default function WidgetBuilderPage() {
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [shortcuts, setShortcuts] = useState<WidgetShortcut[]>([]);
+  const [suggestingShortcuts, setSuggestingShortcuts] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -505,6 +515,15 @@ export default function WidgetBuilderPage() {
               borderRadius: String(widget.borderRadius ?? '16px'),
               autoOpen: Boolean(widget.autoOpen),
             });
+            if (Array.isArray(widget.shortcuts)) {
+              setShortcuts((widget.shortcuts as WidgetShortcut[]).map((s) => ({
+                id: s.id || crypto.randomUUID(),
+                label: s.label || '',
+                message: s.message || '',
+                emoji: s.emoji || '',
+                enabled: s.enabled !== false,
+              })));
+            }
           }
         } else {
           setCfg((prev) => {
@@ -538,6 +557,45 @@ export default function WidgetBuilderPage() {
     setCfg((prev) => ({ ...prev, ...patch }));
   }, []);
 
+  async function suggestShortcuts() {
+    const agentName = agents.find((a) => effectiveWidgetAgentId(a) === cfg.agentId)?.name ?? cfg.title ?? '';
+    if (!agentName) return;
+    setSuggestingShortcuts(true);
+    try {
+      const resp = await fetch('/api/ai/suggest-agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentName,
+          agentPurpose: cfg.subtitle || cfg.title || agentName,
+          faqCount: 3,
+          rulesCount: 3,
+        }),
+      });
+      const json = await resp.json() as {
+        success?: boolean;
+        data?: { faqs?: Array<{ question: string }>; rules?: Array<{ title: string; description: string }> };
+      };
+      if (!json.success || !json.data) return;
+
+      const suggested: WidgetShortcut[] = [
+        ...(json.data.faqs ?? []).slice(0, 3).map((f) => ({
+          id: crypto.randomUUID(), label: f.question.slice(0, 35), message: f.question, emoji: '❓', enabled: true,
+        })),
+        ...(json.data.rules ?? []).slice(0, 2).map((r) => ({
+          id: crypto.randomUUID(), label: r.title.slice(0, 35), message: r.description.slice(0, 150), emoji: '⚡', enabled: true,
+        })),
+      ];
+      setShortcuts((prev) => {
+        const existingMessages = new Set(prev.map((s) => s.message));
+        const newOnes = suggested.filter((s) => !existingMessages.has(s.message));
+        return [...prev, ...newOnes].slice(0, 20);
+      });
+    } catch { /* ignore */ } finally {
+      setSuggestingShortcuts(false);
+    }
+  }
+
   function copySnippet() {
     navigator.clipboard.writeText(
       generateSnippet(cfg, snippetToken),
@@ -553,7 +611,7 @@ export default function WidgetBuilderPage() {
         const res = await fetch(`/api/widgets/${editWidgetId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(cfg),
+          body: JSON.stringify({ ...cfg, shortcuts }),
         });
         if (res.ok) {
           setSaved(true);
@@ -834,6 +892,52 @@ export default function WidgetBuilderPage() {
         <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '0 0 18px', lineHeight: 1.5 }}>
           El código embed solo contiene el token. El color, título, avatar y demás ajustes se cargan en tiempo real desde el servidor — cualquier cambio aquí se refleja automáticamente en todos los sitios donde esté instalado el widget.
         </p>
+        </div>
+
+        {/* Shortcuts */}
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Sparkles size={13} style={{ color: '#6366f1' }} />
+              <label style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6366f1' }}>
+                Shortcuts del widget
+              </label>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button type="button" onClick={suggestShortcuts} disabled={suggestingShortcuts || !cfg.agentId}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 8, border: 'none', background: cfg.agentId && !suggestingShortcuts ? 'rgba(99,102,241,0.1)' : 'var(--border)', color: cfg.agentId && !suggestingShortcuts ? '#6366f1' : 'var(--muted-foreground)', cursor: cfg.agentId && !suggestingShortcuts ? 'pointer' : 'not-allowed' }}>
+                {suggestingShortcuts ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+                {suggestingShortcuts ? 'Generando...' : 'Sugerir con AI'}
+              </button>
+              <button type="button"
+                onClick={() => setShortcuts((prev) => [...prev, { id: crypto.randomUUID(), label: '', message: '', emoji: '', enabled: true }])}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--foreground)', cursor: 'pointer' }}>
+                <Plus size={11} /> Agregar
+              </button>
+            </div>
+          </div>
+          {shortcuts.length === 0 ? (
+            <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0 }}>
+              Sin shortcuts. Agrega acciones rápidas que aparecerán como pills en el chat.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {shortcuts.map((sc, i) => (
+                <div key={sc.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--background)' }}>
+                  <input value={sc.emoji} onChange={(e) => setShortcuts((p) => p.map((x, j) => j === i ? { ...x, emoji: e.target.value } : x))}
+                    placeholder="🚀" style={{ width: 34, textAlign: 'center', border: '1px solid var(--border)', borderRadius: 6, padding: '4px', fontSize: 14, background: 'var(--card)' }} />
+                  <input value={sc.label} onChange={(e) => setShortcuts((p) => p.map((x, j) => j === i ? { ...x, label: e.target.value } : x))}
+                    placeholder="Etiqueta" style={{ flex: '0 0 120px', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 8px', fontSize: 12, background: 'var(--card)' }} />
+                  <input value={sc.message} onChange={(e) => setShortcuts((p) => p.map((x, j) => j === i ? { ...x, message: e.target.value } : x))}
+                    placeholder="Mensaje que se envía al hacer clic" style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 6, padding: '5px 8px', fontSize: 12, background: 'var(--card)' }} />
+                  <button type="button" onClick={() => setShortcuts((p) => p.filter((_, j) => j !== i))}
+                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444', padding: 4, display: 'flex' }}>
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Action buttons */}

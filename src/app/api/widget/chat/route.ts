@@ -23,8 +23,8 @@ import { signRequest, SIGNATURE_HEADER } from '@/lib/hub-signature';
 import { logSecurityEvent } from '@/lib/security-log';
 import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
 
-/** Max body size accepted from widget SDK (64 KB) */
-const MAX_WIDGET_BODY_BYTES = 64 * 1024;
+/** Max body size accepted from widget SDK (512 KB — allows image-to-image thumbnail). */
+const MAX_WIDGET_BODY_BYTES = 512 * 1024;
 
 /** Reintenta con localhost ↔ 127.0.0.1 (a veces solo uno resuelve en Windows). */
 function alternateHubOrigin(base: string): string | null {

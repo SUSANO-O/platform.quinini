@@ -108,6 +108,16 @@ const WidgetSchema = new Schema({
    * Si está vacío, se acepta cualquier origen (modo permisivo / dev).
    */
   allowedOrigins: { type: [String], default: [] },
+  shortcuts: {
+    type: [{
+      id:      { type: String, required: true },
+      label:   { type: String, required: true },
+      message: { type: String, required: true },
+      emoji:   { type: String, default: '' },
+      enabled: { type: Boolean, default: true },
+    }],
+    default: [],
+  },
 }, { timestamps: true });
 
 WidgetSchema.index({ userId: 1, createdAt: -1 });

@@ -33,6 +33,14 @@ const PATCHABLE = [
 
 type PatchableKey = (typeof PATCHABLE)[number];
 
+interface WidgetShortcut {
+  id: string;
+  label: string;
+  message: string;
+  emoji?: string;
+  enabled: boolean;
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -69,7 +77,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'JSON inválido.' }, { status: 400 });
   }
 
-  const $set: Partial<Record<PatchableKey, unknown>> = {};
+  const $set: Partial<Record<PatchableKey, unknown>> & { shortcuts?: WidgetShortcut[] } = {};
 
   for (const key of PATCHABLE) {
     if (!(key in raw)) continue;
@@ -93,6 +101,20 @@ export async function PATCH(
         $set[key] = v;
       }
     }
+  }
+
+  // Handle shortcuts array separately
+  if ('shortcuts' in raw && Array.isArray(raw.shortcuts)) {
+    $set.shortcuts = (raw.shortcuts as WidgetShortcut[])
+      .filter((s) => s && typeof s.id === 'string' && typeof s.label === 'string' && typeof s.message === 'string')
+      .slice(0, 20)
+      .map((s) => ({
+        id: String(s.id).slice(0, 64),
+        label: String(s.label).slice(0, 40),
+        message: String(s.message).slice(0, 500),
+        emoji: typeof s.emoji === 'string' ? s.emoji.slice(0, 8) : '',
+        enabled: s.enabled !== false,
+      }));
   }
 
   if (Object.keys($set).length === 0) {

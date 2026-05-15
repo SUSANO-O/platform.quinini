@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useEffect } from 'react';
-import { LayoutDashboard, Users, LogOut, Shield, UserPlus, BarChart3, Wallet, Box, Network } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Shield, UserPlus, BarChart3, Wallet, Box, Network, Bot } from 'lucide-react';
 
 const NAV = [
   { href: '/admin', label: 'Resumen', icon: LayoutDashboard },
@@ -14,6 +14,7 @@ const NAV = [
   { href: '/admin/finance', label: 'Finanzas clientes', icon: Wallet },
   { href: '/admin/users', label: 'Usuarios', icon: Users },
   { href: '/admin/promote', label: 'Promover admin', icon: UserPlus },
+  { href: '/admin/ai-config', label: 'Asistente AI', icon: Bot },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
