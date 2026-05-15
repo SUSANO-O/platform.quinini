@@ -1,32 +1,20 @@
 /**
  * POST /api/ai/generate-avatar
  *
- * Usa un modelo ligero para optimizar el prompt del usuario y genera
- * una imagen de avatar via pollinations.ai (gratuito, sin API key).
+ * Genera una imagen de avatar via pollinations.ai (Flux) usando la
+ * descripción del usuario directamente, sin pasar por el hub.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import mongoose from 'mongoose';
-import { connectDB } from '@/lib/db/connection';
 import { verifySessionToken } from '@/lib/auth';
-import { hubFetch, hubCreateHeaders } from '@/lib/aibackhub-sync';
 
-interface AiAssistantConfig { provider: string; modelId: string; }
+export const maxDuration = 60;
 
-const DEFAULT_CONFIG: AiAssistantConfig = {
-  provider: 'google',
-  // Modelo ligero (nano) para generación de prompts — rápido y económico
-  modelId: process.env.VERTEX_GEMINI_MODEL ?? 'gemini-2.0-flash',
-};
-
-async function getAiConfig(): Promise<AiAssistantConfig> {
-  try {
-    await connectDB();
-    const col = mongoose.connection.db!.collection<{ key: string } & AiAssistantConfig>('platform_config');
-    const doc = await col.findOne({ key: 'ai_assistant' });
-    if (doc?.provider && doc?.modelId) return { provider: doc.provider, modelId: doc.modelId };
-  } catch { /* silencioso */ }
-  return DEFAULT_CONFIG;
+/** Añade modificadores de calidad en inglés sin sobreescribir la intención del usuario. */
+function buildFluxPrompt(description: string): string {
+  const base = description.trim();
+  // Append quality modifiers that Flux understands well
+  return `${base}, professional photo, sharp focus, high quality, clean background, natural lighting, 8k`;
 }
 
 export async function POST(req: NextRequest) {
@@ -44,60 +32,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'description es requerido.' }, { status: 400 });
   }
 
-  const { description, agentContext = {} } = body;
-  const config = await getAiConfig();
-
-  const userMsg = [
-    `Describe in English a professional AI assistant avatar image.`,
-    `User request: ${description}`,
-    agentContext.name     ? `Agent name: ${agentContext.name}`       : '',
-    agentContext.purpose  ? `Purpose: ${agentContext.purpose}`       : '',
-    agentContext.industry ? `Industry: ${agentContext.industry}`     : '',
-    ``,
-    `Rules: respond ONLY with an English image generation prompt (max 200 chars).`,
-    `Focus on: photorealistic, professional, clean background, good lighting, high quality.`,
-    `No markdown, no explanations, no quotes.`,
-  ].filter(Boolean).join('\n');
-
-  let optimizedPrompt = description.trim();
-
-  try {
-    const resp = await hubFetch('/api/ai-assist/enhance-field', {
-      method:  'POST',
-      headers: {
-        ...hubCreateHeaders(),
-        'Content-Type':   'application/json',
-        'x-ai-provider': config.provider,
-        'x-ai-model':    config.modelId,
-      },
-      body: JSON.stringify({
-        fieldType:       'generic',
-        fieldName:       'image_prompt',
-        userDescription: userMsg,
-        // language:'en' fuerza respuesta en inglés aunque la plataforma esté en español
-        agentContext:    { ...agentContext, language: 'en' },
-      }),
-    }, 12_000);
-
-    const json = await resp.json() as { success?: boolean; data?: { content?: string } };
-    if (json.success && json.data?.content?.trim()) {
-      let raw = json.data.content.trim();
-      // Truncar en límite de palabra (evita cortar caracteres multi-byte)
-      if (raw.length > 300) {
-        raw = raw.slice(0, 300);
-        const lastSpace = raw.lastIndexOf(' ');
-        if (lastSpace > 100) raw = raw.slice(0, lastSpace);
-      }
-      optimizedPrompt = raw;
-    }
-  } catch {
-    // Fallback: usa la descripción original (en español) — pollinations.ai la acepta igual
-  }
-
-  const seed = Math.floor(Math.random() * 99_999) + 1;
+  const prompt = buildFluxPrompt(body.description);
+  const seed   = Math.floor(Math.random() * 99_999) + 1;
   const imageUrl =
-    `https://image.pollinations.ai/prompt/${encodeURIComponent(optimizedPrompt)}` +
+    `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}` +
     `?width=512&height=512&seed=${seed}&nologo=true&model=flux`;
 
-  return NextResponse.json({ url: imageUrl, prompt: optimizedPrompt });
+  // Proxy the image so the browser gets a data URL immediately (no 20-30s wait in <img>)
+  try {
+    const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(55_000) });
+    if (imgRes.ok) {
+      const buf     = await imgRes.arrayBuffer();
+      const mime    = imgRes.headers.get('content-type') || 'image/jpeg';
+      const dataUrl = `data:${mime};base64,${Buffer.from(buf).toString('base64')}`;
+      return NextResponse.json({ url: dataUrl, prompt });
+    }
+  } catch {
+    // timeout o error de red — devuelve la URL directa como fallback
+  }
+
+  return NextResponse.json({ url: imageUrl, prompt });
 }

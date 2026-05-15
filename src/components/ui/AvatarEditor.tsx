@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Scissors, Sliders, Sparkles, X, Check, Loader2, Minus, Plus, RotateCcw } from 'lucide-react';
 
@@ -70,7 +70,7 @@ export function AvatarEditor({ currentUrl, agentContext, onResult }: AvatarEdito
 
   useEffect(() => { setMounted(true); }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return;
     setOffsetX(0); setOffsetY(0); setZoom(1);
     setImgStatus('loading');
@@ -78,11 +78,6 @@ export function AvatarEditor({ currentUrl, agentContext, onResult }: AvatarEdito
     setGeneratedUrl(''); setAiError(''); setAiPrompt('');
     setTab('crop');
   }, [open]);
-
-  // Reset imgStatus when URL changes
-  useEffect(() => {
-    setImgStatus('loading');
-  }, [activeUrl]);
 
   // Focus AI textarea
   useEffect(() => {
@@ -233,15 +228,19 @@ export function AvatarEditor({ currentUrl, agentContext, onResult }: AvatarEdito
                   onPointerMove={tab === 'crop' ? onPointerMove : undefined}
                   onPointerUp={tab === 'crop' ? onPointerUp : undefined}
                 >
-                  {/* Loading spinner (while pollinations.ai generates, can take ~20s) */}
-                  {imgStatus === 'loading' && (
+                  {/* No image yet — guide user to AI tab */}
+                  {!activeUrl && (
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, textAlign: 'center' }}>
+                      <span style={{ fontSize: 28 }}>🖼️</span>
+                      <span style={{ fontSize: 11, color: 'var(--muted-foreground)', lineHeight: 1.4 }}>
+                        Sin imagen.<br />Genera una con AI o pega una URL.
+                      </span>
+                    </div>
+                  )}
+                  {/* Loading spinner — only when there IS a URL but it hasn't loaded yet */}
+                  {activeUrl && imgStatus === 'loading' && (
                     <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                       <Loader2 size={22} style={{ color: 'var(--muted-foreground)', animation: 'spin .8s linear infinite' }} />
-                      {generatedUrl && (
-                        <span style={{ fontSize: 10, color: 'var(--muted-foreground)', textAlign: 'center', padding: '0 12px' }}>
-                          Generando imagen…<br />puede tardar ~20s
-                        </span>
-                      )}
                     </div>
                   )}
                   {imgStatus === 'error' && (
@@ -256,9 +255,10 @@ export function AvatarEditor({ currentUrl, agentContext, onResult }: AvatarEdito
                   {/* The actual image — CSS transform handles pan/zoom/filter */}
                   {activeUrl && (
                     <img
-                      key={activeUrl}
+                      key={activeUrl.startsWith('data:') ? activeUrl.slice(0, 40) : activeUrl}
                       src={activeUrl}
                       alt="Avatar preview"
+                      referrerPolicy="no-referrer"
                       onLoad={() => setImgStatus('ok')}
                       onError={() => setImgStatus('error')}
                       style={{
