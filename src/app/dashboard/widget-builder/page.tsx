@@ -342,22 +342,35 @@ function MockPreview({ cfg, shortcuts = [] }: { cfg: WidgetConfig; shortcuts?: W
               );
             })()}
             {shortcuts.filter((s) => s.enabled !== false).length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, paddingTop: 4 }}>
-                {shortcuts.filter((s) => s.enabled !== false).map((sc) => (
-                  <span
-                    key={sc.id}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center',
-                      padding: '2px 8px', borderRadius: 999,
-                      border: `1.5px solid ${cfg.color}33`,
-                      background: `${cfg.color}0d`,
-                      color: cfg.color,
-                      fontSize: 9, fontWeight: 600, whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {sc.emoji ? `${sc.emoji} ` : ''}{sc.label}
-                  </span>
-                ))}
+              <div style={{ borderTop: `1px solid ${cfg.color}18`, marginTop: 4 }}>
+                <div style={{ padding: '4px 6px 2px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 7, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: cfg.color }}>Accesos rápidos</span>
+                  <span style={{ fontSize: 11, color: cfg.color, lineHeight: 1 }}>‹</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '0 6px 6px' }}>
+                  {shortcuts.filter((s) => s.enabled !== false).slice(0, 3).map((sc) => (
+                    <div
+                      key={sc.id}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 5,
+                        padding: '5px 8px', borderRadius: 7,
+                        border: `1px solid ${cfg.color}28`,
+                        background: `${cfg.color}0a`,
+                        fontSize: 8, fontWeight: 500,
+                        color: cfg.theme === 'dark' ? '#e2e8f0' : '#1e293b',
+                      }}
+                    >
+                      <span style={{ fontSize: 9, flexShrink: 0, width: 14, textAlign: 'center' }}>{sc.emoji || '💬'}</span>
+                      <span style={{ flex: 1, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sc.label}</span>
+                      <span style={{ fontSize: 11, color: cfg.color, flexShrink: 0 }}>›</span>
+                    </div>
+                  ))}
+                  {shortcuts.filter((s) => s.enabled !== false).length > 3 && (
+                    <div style={{ textAlign: 'center', fontSize: 7, color: cfg.color, opacity: 0.7 }}>
+                      +{shortcuts.filter((s) => s.enabled !== false).length - 3} más
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
