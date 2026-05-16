@@ -756,7 +756,7 @@ export default function WidgetBuilderPage() {
       <div className="relative flex flex-col xl:flex-row gap-[3px] max-w-7xl mx-auto px-1 py-2">
         {/* Formulario */}
         <div className="w-full xl:w-[360px] shrink-0 xl:max-h-[calc(100vh-5rem)] overflow-y-auto pr-1">
-          <div className="card-texture rounded-2xl border p-6" style={{ borderColor: 'var(--border)' }}>
+          <div className="card-texture rounded-2xl border p-4" style={{ borderColor: 'var(--border)' }}>
             <div className="badge-primary mb-3 w-fit">Widget</div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight m-0 mb-1" data-tour="widget-builder-header">
               {editWidgetId ? (
@@ -1022,17 +1022,19 @@ export default function WidgetBuilderPage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {shortcuts.map((sc, i) => (
-                <div key={sc.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--background)' }}>
-                  <input value={sc.emoji} onChange={(e) => setShortcuts((p) => p.map((x, j) => j === i ? { ...x, emoji: e.target.value } : x))}
-                    placeholder="🚀" style={{ width: 34, textAlign: 'center', border: '1px solid var(--border)', borderRadius: 6, padding: '4px', fontSize: 14, background: 'var(--card)' }} />
-                  <input value={sc.label} onChange={(e) => setShortcuts((p) => p.map((x, j) => j === i ? { ...x, label: e.target.value } : x))}
-                    placeholder="Etiqueta" style={{ flex: '0 0 120px', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 8px', fontSize: 12, background: 'var(--card)' }} />
+                <div key={sc.id} style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--background)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                    <input value={sc.emoji} onChange={(e) => setShortcuts((p) => p.map((x, j) => j === i ? { ...x, emoji: e.target.value } : x))}
+                      placeholder="🚀" style={{ width: 34, textAlign: 'center', border: '1px solid var(--border)', borderRadius: 6, padding: '4px', fontSize: 14, background: 'var(--card)', flexShrink: 0 }} />
+                    <input value={sc.label} onChange={(e) => setShortcuts((p) => p.map((x, j) => j === i ? { ...x, label: e.target.value } : x))}
+                      placeholder="Etiqueta" style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 6, padding: '5px 8px', fontSize: 12, background: 'var(--card)' }} />
+                    <button type="button" onClick={() => setShortcuts((p) => p.filter((_, j) => j !== i))}
+                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444', padding: 4, display: 'flex', flexShrink: 0 }}>
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                   <input value={sc.message} onChange={(e) => setShortcuts((p) => p.map((x, j) => j === i ? { ...x, message: e.target.value } : x))}
-                    placeholder="Mensaje que se envía al hacer clic" style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 6, padding: '5px 8px', fontSize: 12, background: 'var(--card)' }} />
-                  <button type="button" onClick={() => setShortcuts((p) => p.filter((_, j) => j !== i))}
-                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444', padding: 4, display: 'flex' }}>
-                    <Trash2 size={13} />
-                  </button>
+                    placeholder="Mensaje que se envía al hacer clic" style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 8px', fontSize: 12, background: 'var(--card)' }} />
                 </div>
               ))}
             </div>
