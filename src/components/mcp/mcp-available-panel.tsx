@@ -97,14 +97,6 @@ export function McpAvailablePanel({ compact, onConnectRequest }: Props) {
         </div>
       )}
 
-      {!loading && !error && backendBase && (
-        <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: compact ? '10px' : '14px', lineHeight: 1.5 }}>
-          Origen del catálogo:{' '}
-          <code style={{ fontSize: '11px', background: 'var(--background)', padding: '2px 6px', borderRadius: '6px' }}>{backendBase}</code>
-          {' '}→ <code style={{ fontSize: '11px' }}>/api/mcp/catalog</code>
-        </p>
-      )}
-
       {!loading && !error && shown.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? '8px' : '10px' }}>
           {shown.map((row) => (
