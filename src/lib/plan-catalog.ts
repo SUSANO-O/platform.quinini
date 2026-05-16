@@ -9,9 +9,9 @@ export const PLAN_DISPLAY: Record<
   { label: string; priceLabel: string; widgets: number }
 > = {
   free: { label: 'Free', priceLabel: '$0', widgets: 1 },
-  starter: { label: 'Starter', priceLabel: '$39/mes', widgets: 2 },
-  growth: { label: 'Growth', priceLabel: '$99/mes', widgets: 5 },
-  business: { label: 'Business', priceLabel: '$349/mes', widgets: 15 },
+  starter: { label: 'Starter', priceLabel: '$39/mes', widgets: 20 },
+  growth: { label: 'Growth', priceLabel: '$99/mes', widgets: 60 },
+  business: { label: 'Business', priceLabel: '$349/mes', widgets: 200 },
   enterprise: { label: 'Enterprise', priceLabel: 'Contacto', widgets: 999 },
 };
 
@@ -65,20 +65,20 @@ export const PLAN_FEATURE_BULLETS: Record<
   string[]
 > = {
   starter: [
-    '2 widgets activos en tu sitio',
+    '20 widgets activos en tu sitio',
     '5.000 conversaciones al mes (~167/día)',
     '1 agente personalizado · Chat AI + analítica básica (sin contexto)',
     'Soporte por email (48 h)',
   ],
   growth: [
-    '5 widgets activos en tu sitio',
+    '60 widgets activos en tu sitio',
     '25.000 conversaciones al mes (~833/día)',
     'Agentes ilimitados + contexto + analítica avanzada',
     'RAG: hasta 100 MB o 50 fuentes por agente',
     'Soporte prioritario por chat (24 h)',
   ],
   business: [
-    '15 widgets activos en tu sitio',
+    '200 widgets activos en tu sitio',
     '100.000 conversaciones al mes (~3.300/día)',
     'Agentes + contexto + integraciones',
     'Soporte dedicado · SLA 99,9 % · Onboarding incluido',
