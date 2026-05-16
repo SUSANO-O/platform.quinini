@@ -769,9 +769,7 @@ export default function NewAgentPage() {
             </div>
             <div className="text-xs mb-3.5 leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
               <p className="m-0 mb-2.5">
-                <strong style={{ color: 'var(--foreground)' }}>Pulsa una integración</strong> para indicar que quieres conectarla después de crear el agente (se abrirá un aviso y el formulario de credenciales en la ficha). El catálogo viene de AIBackHub (
-                <code className="text-[11px]">BACKEND_URL</code> → <code className="text-[11px]">/api/mcp/catalog</code>
-                ).
+                <strong style={{ color: 'var(--foreground)' }}>Pulsa una integración</strong> para indicar que quieres conectarla después de crear el agente (se abrirá un aviso y el formulario de credenciales en la ficha).
               </p>
               <p className="m-0 mb-2 font-bold text-[11px]" style={{ color: 'var(--foreground)' }}>
                 Cómo conectar MCP a este agente (credenciales por agente)
