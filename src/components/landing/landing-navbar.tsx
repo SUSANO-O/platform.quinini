@@ -77,68 +77,89 @@ export function LandingNavbar() {
         </div>
 
         {/* Mobile toggle */}
-        <button className="md:hidden" onClick={() => setOpen(!open)}>
-          {open ? <X size={22} /> : <Menu size={22} />}
+        <button
+          className="md:hidden flex items-center justify-center w-9 h-9 rounded-xl transition-colors"
+          style={{ border: '1px solid var(--border)', background: open ? 'rgba(228,20,20,0.07)' : 'transparent', color: open ? '#e41414' : 'var(--foreground)' }}
+          onClick={() => setOpen(!open)}
+          aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
+        >
+          {open ? <X size={18} /> : <Menu size={18} />}
         </button>
       </div>
 
       {/* Mobile menu */}
-      {open && (
-        <div className="md:hidden px-6 pb-4 space-y-3" style={{ background: 'var(--background)' }}>
+      <div
+        className="md:hidden overflow-hidden transition-all duration-300 ease-in-out"
+        style={{
+          maxHeight: open ? '400px' : '0px',
+          opacity: open ? 1 : 0,
+          borderTop: open ? '1px solid var(--border)' : '1px solid transparent',
+        }}
+      >
+        <div
+          className="px-5 py-4 flex flex-col gap-1"
+          style={{ background: 'var(--card)', boxShadow: '0 12px 32px rgba(0,0,0,0.12)' }}
+        >
           <Link
             href="#pricing"
-            className="block text-sm font-medium py-2"
-            style={{ color: 'var(--muted-foreground)' }}
+            className="flex items-center text-sm font-medium px-3 py-2.5 rounded-xl transition-colors"
+            style={{ color: 'var(--foreground)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             onClick={() => setOpen(false)}
           >
             {t('pricing')}
           </Link>
           <Link
             href="/preguntas-frecuentes"
-            className="block text-sm font-medium py-2"
-            style={{ color: 'var(--muted-foreground)' }}
+            className="flex items-center text-sm font-medium px-3 py-2.5 rounded-xl transition-colors"
+            style={{ color: 'var(--foreground)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             onClick={() => setOpen(false)}
           >
             {t('faq')}
           </Link>
 
-          <div className="py-1">
+          <div className="px-3 py-1">
             <LanguageSwitcher />
           </div>
 
-          {!loading && (
-            user ? (
-              <Link
-                href="/dashboard"
-                className="block text-center text-sm font-semibold px-5 py-2.5 rounded-xl text-white"
-                style={{ background: 'linear-gradient(135deg, #e41414, #f87600)' }}
-                onClick={() => setOpen(false)}
-              >
-                {t('dashboard')}
-              </Link>
-            ) : (
-              <>
+          <div className="mt-2 pt-3 flex flex-col gap-2" style={{ borderTop: '1px solid var(--border)' }}>
+            {!loading && (
+              user ? (
                 <Link
-                  href="/login"
-                  className="block text-sm font-medium py-2"
-                  style={{ color: 'var(--muted-foreground)' }}
+                  href="/dashboard"
+                  className="text-center text-sm font-bold px-5 py-2.5 rounded-xl text-white"
+                  style={{ background: 'linear-gradient(135deg, #e41414, #f87600)', boxShadow: '0 4px 14px rgba(228,20,20,0.25)' }}
                   onClick={() => setOpen(false)}
                 >
-                  {t('signIn')}
+                  {t('dashboard')}
                 </Link>
-                <Link
-                  href="/register"
-                  className="block text-center text-sm font-semibold px-5 py-2.5 rounded-xl text-white"
-                  style={{ background: 'linear-gradient(135deg, #e41414, #f87600)' }}
-                  onClick={() => setOpen(false)}
-                >
-                  {t('startFree')}
-                </Link>
-              </>
-            )
-          )}
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    className="text-center text-sm font-semibold px-5 py-2.5 rounded-xl border transition-colors"
+                    style={{ color: 'var(--foreground)', borderColor: 'var(--border)' }}
+                    onClick={() => setOpen(false)}
+                  >
+                    {t('signIn')}
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="text-center text-sm font-bold px-5 py-2.5 rounded-xl text-white"
+                    style={{ background: 'linear-gradient(135deg, #e41414, #f87600)', boxShadow: '0 4px 14px rgba(228,20,20,0.25)' }}
+                    onClick={() => setOpen(false)}
+                  >
+                    {t('startFree')}
+                  </Link>
+                </>
+              )
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </nav>
   );
 }
