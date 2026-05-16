@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useSubscription } from '@/hooks/use-subscription';
@@ -8,7 +8,7 @@ import { useClientModels } from '@/hooks/use-client-models';
 import { McpAvailablePanel } from '@/components/mcp/mcp-available-panel';
 import { McpConnectModal } from '@/components/mcp/mcp-connect-modal';
 import type { McpCatalogRow } from '@/lib/mcp-catalog-types';
-import { Bot, ChevronLeft, Loader2, KeyRound, Plug, X, Sparkles } from 'lucide-react';
+import { Bot, ChevronLeft, Loader2, KeyRound, Plug, Plus, X, Sparkles } from 'lucide-react';
 import { AIInputButton } from '@/components/ui/AIInputButton';
 import Link from 'next/link';
 
@@ -66,6 +66,11 @@ export default function NewAgentPage() {
   const [inferenceMaxTokens, setInferenceMaxTokens] = useState('');
   const [modelQuery, setModelQuery] = useState('');
   const [showAllModels, setShowAllModels] = useState(false);
+  const [modelCatFilter, setModelCatFilter] = useState<string>('all');
+  const [modelTierFilter, setModelTierFilter] = useState<string>('all');
+  const [fallbackModels, setFallbackModels] = useState<string[]>([]);
+  const [showFallbackPanel, setShowFallbackPanel] = useState(false);
+  const [fallbackQuery, setFallbackQuery] = useState('');
   /** Tras crear el agente, abrir modal de MCP en la ficha con esta integración. */
   const [pendingMcp, setPendingMcp] = useState<{ key: string; name: string } | null>(null);
 
@@ -104,21 +109,6 @@ export default function NewAgentPage() {
   }
   const [mcpInfoModal, setMcpInfoModal] = useState<McpCatalogRow | null>(null);
   const { models: clientModels, hubError: modelsHubError } = useClientModels(plan);
-  const filteredModels = useMemo(() => {
-    const q = modelQuery.trim().toLowerCase();
-    if (!q) return clientModels;
-    return clientModels.filter((m) =>
-      `${m.name} ${m.id} ${m.provider} ${m.description ?? ''}`.toLowerCase().includes(q)
-    );
-  }, [clientModels, modelQuery]);
-  const orderedFilteredModels = useMemo(() => {
-    const selectedIndex = filteredModels.findIndex((m) => m.id === model);
-    if (selectedIndex <= 0) return filteredModels;
-    const selectedModel = filteredModels[selectedIndex];
-    return [selectedModel, ...filteredModels.slice(0, selectedIndex), ...filteredModels.slice(selectedIndex + 1)];
-  }, [filteredModels, model]);
-  const visibleModels = showAllModels ? orderedFilteredModels : orderedFilteredModels.slice(0, 12);
-
   const hubUiBase = (process.env.NEXT_PUBLIC_AGENTFLOWHUB_URL || 'http://127.0.0.1:9010').replace(
     /\/$/,
     '',
@@ -176,6 +166,7 @@ export default function NewAgentPage() {
       strictPurposeOnly,
       ...(pendingFaqs.length > 0 ? { agentFaqs: pendingFaqs.map((f, i) => ({ id: `faq_${i}`, question: f.question, answer: f.answer, enabled: true, priority: i * 10 })) } : {}),
       ...(pendingRules.length > 0 ? { behaviorRules: pendingRules.map((r, i) => ({ id: `rule_${i}`, title: r.title, interpretedRule: r.description, enabled: true, priority: i * 10 })) } : {}),
+      ...(fallbackModels.length > 0 ? { fallbackModels } : {}),
       ...(widgetPublicToken.trim()
         ? { widgetPublicToken: widgetPublicToken.trim().slice(0, 512) }
         : {}),
@@ -550,87 +541,139 @@ export default function NewAgentPage() {
                 {modelsHubError} Se muestran modelos de respaldo; revisa severback esté en marcha.
               </p>
             )}
-            <div className="rounded-xl p-3 mb-3" style={{ border: '1px solid var(--border)', background: 'var(--muted)' }}>
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <p className="text-[11px] font-semibold m-0" style={{ color: 'var(--muted-foreground)' }}>
-                  Selecciona un modelo (busca por nombre, proveedor o capacidad)
-                </p>
-                <span className="text-[11px] font-semibold" style={{ color: 'var(--muted-foreground)' }}>
-                  {filteredModels.length} resultados
-                </span>
-              </div>
+            {/* Buscador */}
+            <div style={{ border: '1px solid var(--border)', background: 'var(--muted)', borderRadius: 12, padding: 12, marginBottom: 10 }}>
               <input
                 className="landing-input"
                 style={inp}
                 value={modelQuery}
-                onChange={(e) => {
-                  setModelQuery(e.target.value);
-                  setShowAllModels(false);
-                }}
-                placeholder="Buscar modelo..."
+                onChange={(e) => { setModelQuery(e.target.value); setShowAllModels(false); }}
+                placeholder="Buscar por nombre, proveedor o capacidad..."
               />
             </div>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2.5">
-              {visibleModels.map((m) => {
-                const selected = model === m.id;
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => setModel(m.id)}
-                    className="text-left rounded-xl p-3 cursor-pointer transition-all border"
-                    style={{
-                      borderColor: selected ? `${R}55` : 'var(--border)',
-                      background: selected ? `${R}0d` : 'transparent',
-                      boxShadow: selected ? `0 0 0 1px ${R}22` : undefined,
-                    }}
-                  >
-                    <p
-                      className="text-xs font-bold m-0 mb-0.5"
-                      style={{ color: selected ? R : 'var(--foreground)' }}
-                    >
-                      {m.name}
-                      {m.deprecated ? (
-                        <span className="text-[10px] ml-1.5" style={{ color: '#d97706' }}>
-                          (deprecado)
-                        </span>
-                      ) : null}
-                    </p>
-                    <p className="text-[11px] m-0" style={{ color: 'var(--muted-foreground)' }}>
-                      {m.provider}
-                      {m.badge ? ` · ${m.badge}` : ''}
-                      {m.maxTokens != null ? ` · hasta ${m.maxTokens.toLocaleString()} ctx` : ''}
-                    </p>
-                    {m.description ? (
-                      <p
-                        className="text-[10px] m-0 mt-1.5 leading-snug"
-                        style={{ color: 'var(--muted-foreground)' }}
-                      >
-                        {m.description}
-                      </p>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-            {filteredModels.length > 12 && (
-              <div className="mt-3">
-                <button
-                  type="button"
-                  onClick={() => setShowAllModels((v) => !v)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors"
-                  style={{ borderColor: 'var(--border)', background: 'var(--background)', color: 'var(--foreground)' }}
-                >
-                  {showAllModels ? 'Ver menos modelos' : `Ver todos (${filteredModels.length})`}
-                </button>
-              </div>
-            )}
+
+            {/* Tabs categoría + tier */}
+            {(() => {
+              const CATS: { id: string; label: string }[] = [
+                { id: 'all', label: 'Todos' },
+                { id: 'multimodal', label: 'Multimodal' },
+                { id: 'chat', label: 'Chat' },
+                { id: 'vision', label: 'Visión' },
+                { id: 'audio', label: 'Audio' },
+                { id: 'tts', label: 'TTS' },
+                { id: 'image', label: 'Imagen' },
+              ];
+              const TIERS: { id: string; label: string; color: string }[] = [
+                { id: 'all', label: 'Todos', color: 'var(--foreground)' },
+                { id: 'stable', label: 'Stable', color: '#16a34a' },
+                { id: 'pro', label: 'Pro', color: '#7c3aed' },
+                { id: 'flash', label: 'Flash', color: '#0284c7' },
+                { id: 'lite', label: 'Lite', color: '#d97706' },
+                { id: 'preview', label: 'Preview', color: '#6366f1' },
+              ];
+              const TIER_COLOR: Record<string, string> = {
+                stable: '#16a34a', pro: '#7c3aed', flash: '#0284c7', lite: '#d97706', preview: '#6366f1',
+              };
+
+              const filtered = clientModels.filter((m) => {
+                const q = modelQuery.trim().toLowerCase();
+                if (q && !(m.name.toLowerCase().includes(q) || m.provider?.toLowerCase().includes(q) || m.id.toLowerCase().includes(q))) return false;
+                if (modelCatFilter !== 'all' && (m.category ?? 'chat') !== modelCatFilter) return false;
+                if (modelTierFilter !== 'all' && (m.tier ?? 'stable') !== modelTierFilter) return false;
+                return true;
+              });
+
+              const selectedFirst = (() => {
+                const idx = filtered.findIndex((m) => m.id === model);
+                if (idx <= 0) return filtered;
+                return [filtered[idx], ...filtered.slice(0, idx), ...filtered.slice(idx + 1)];
+              })();
+
+              const visible = showAllModels ? selectedFirst : selectedFirst.slice(0, 12);
+
+              const activeCatTabStyle = (id: string): React.CSSProperties => ({
+                padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                border: `1px solid ${modelCatFilter === id ? R : 'var(--border)'}`,
+                background: modelCatFilter === id ? `rgba(228,20,20,0.08)` : 'var(--background)',
+                color: modelCatFilter === id ? R : 'var(--muted-foreground)',
+              });
+              const activeTierTabStyle = (id: string, color: string): React.CSSProperties => ({
+                padding: '3px 9px', borderRadius: 20, fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                border: `1px solid ${modelTierFilter === id ? color : 'var(--border)'}`,
+                background: modelTierFilter === id ? `${color}18` : 'var(--background)',
+                color: modelTierFilter === id ? color : 'var(--muted-foreground)',
+              });
+
+              return (
+                <>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
+                    {CATS.filter((c) => c.id === 'all' || clientModels.some((m) => (m.category ?? 'chat') === c.id)).map((c) => (
+                      <button key={c.id} type="button" style={activeCatTabStyle(c.id)}
+                        onClick={() => { setModelCatFilter(c.id); setShowAllModels(false); }}>
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
+                    {TIERS.filter((t) => t.id === 'all' || clientModels.some((m) => (m.tier ?? 'stable') === t.id)).map((t) => (
+                      <button key={t.id} type="button" style={activeTierTabStyle(t.id, t.color)}
+                        onClick={() => { setModelTierFilter(t.id); setShowAllModels(false); }}>
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '0 0 8px' }}>
+                    {filtered.length} modelo{filtered.length !== 1 ? 's' : ''}
+                  </p>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 7 }}>
+                    {visible.map((m) => {
+                      const isSelected = model === m.id;
+                      const tierColor = TIER_COLOR[m.tier ?? 'stable'] ?? 'var(--muted-foreground)';
+                      return (
+                        <button key={m.id} type="button" onClick={() => setModel(m.id)} style={{
+                          padding: '10px 12px', borderRadius: 10, textAlign: 'left', cursor: 'pointer',
+                          border: `1px solid ${isSelected ? R : 'var(--border)'}`,
+                          background: isSelected ? 'rgba(228,20,20,0.07)' : 'var(--background)',
+                          position: 'relative',
+                        }}>
+                          <span style={{
+                            position: 'absolute', top: 6, right: 7,
+                            fontSize: 9, fontWeight: 800, padding: '1px 5px', borderRadius: 8,
+                            background: `${tierColor}18`, color: tierColor, textTransform: 'uppercase', letterSpacing: '0.04em',
+                          }}>
+                            {m.tier ?? 'stable'}
+                          </span>
+                          <p style={{ fontSize: 11, fontWeight: 700, margin: '0 0 2px', paddingRight: 40, color: isSelected ? R : 'var(--foreground)' }}>
+                            {m.name}
+                            {m.deprecated ? <span style={{ fontSize: 9, color: '#d97706', marginLeft: 5 }}>(deprecado)</span> : null}
+                          </p>
+                          <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0 }}>
+                            {m.provider}
+                            {m.maxTokens != null ? ` · ${(m.maxTokens / 1000).toFixed(0)}k ctx` : ''}
+                          </p>
+                          {m.description ? (
+                            <p style={{ fontSize: 9, color: 'var(--muted-foreground)', margin: '3px 0 0', lineHeight: 1.35 }}>{m.description}</p>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {filtered.length > 12 && (
+                    <button type="button" onClick={() => setShowAllModels((v) => !v)}
+                      style={{ marginTop: 10, padding: '6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--foreground)', cursor: 'pointer' }}>
+                      {showAllModels ? 'Ver menos' : `Ver todos (${filtered.length})`}
+                    </button>
+                  )}
+                </>
+              );
+            })()}
+
             <div className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
               <div>
-                <label
-                  className="block text-[11px] font-semibold mb-1.5"
-                  style={{ color: 'var(--muted-foreground)' }}
-                >
+                <label className="block text-[11px] font-semibold mb-1.5" style={{ color: 'var(--muted-foreground)' }}>
                   Temperatura (opcional, 0–2)
                 </label>
                 <input
@@ -643,10 +686,7 @@ export default function NewAgentPage() {
                 />
               </div>
               <div>
-                <label
-                  className="block text-[11px] font-semibold mb-1.5"
-                  style={{ color: 'var(--muted-foreground)' }}
-                >
+                <label className="block text-[11px] font-semibold mb-1.5" style={{ color: 'var(--muted-foreground)' }}>
                   Max tokens salida (opcional)
                 </label>
                 <input
@@ -658,6 +698,107 @@ export default function NewAgentPage() {
                   inputMode="numeric"
                 />
               </div>
+            </div>
+
+            {/* Modelos de respaldo */}
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: '12px', fontWeight: 700, color: 'var(--foreground)' }}>
+                    Modelos de respaldo
+                  </p>
+                  <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                    Se usan si el modelo principal falla o llega al límite. Máx. 3
+                  </p>
+                </div>
+                {fallbackModels.length < 3 && (
+                  <button
+                    type="button"
+                    onClick={() => { setShowFallbackPanel((v) => !v); setFallbackQuery(''); }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                      border: `1px solid ${showFallbackPanel ? R : 'var(--border)'}`,
+                      background: showFallbackPanel ? `rgba(228,20,20,0.08)` : 'var(--background)',
+                      color: showFallbackPanel ? R : 'var(--foreground)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Plus size={13} />
+                    Agregar
+                  </button>
+                )}
+              </div>
+
+              {fallbackModels.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: showFallbackPanel ? 12 : 0 }}>
+                  {fallbackModels.map((mid, idx) => {
+                    const info = clientModels.find((m) => m.id === mid);
+                    return (
+                      <div key={mid} style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                        border: '1px solid var(--border)', background: 'var(--muted)', color: 'var(--foreground)',
+                      }}>
+                        <span style={{ fontSize: 10, color: 'var(--muted-foreground)', marginRight: 2 }}>#{idx + 1}</span>
+                        {info?.name ?? mid}
+                        <button
+                          type="button"
+                          onClick={() => setFallbackModels((p) => p.filter((x) => x !== mid))}
+                          style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444', padding: 0, display: 'flex', lineHeight: 1 }}
+                        >
+                          <X size={11} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {showFallbackPanel && (
+                <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 12, background: 'var(--muted)' }}>
+                  <input
+                    className="landing-input"
+                    style={{ ...inp, marginBottom: 10 }}
+                    placeholder="Buscar modelo de respaldo..."
+                    value={fallbackQuery}
+                    onChange={(e) => setFallbackQuery(e.target.value)}
+                  />
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 6, maxHeight: 260, overflowY: 'auto' }}>
+                    {clientModels
+                      .filter((m) => {
+                        if (m.id === model) return false;
+                        if (fallbackModels.includes(m.id)) return false;
+                        const q = fallbackQuery.trim().toLowerCase();
+                        if (!q) return true;
+                        return m.name.toLowerCase().includes(q) || m.provider?.toLowerCase().includes(q) || m.id.toLowerCase().includes(q);
+                      })
+                      .map((m) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => {
+                            if (fallbackModels.length >= 3) return;
+                            setFallbackModels((p) => [...p, m.id]);
+                            if (fallbackModels.length + 1 >= 3) setShowFallbackPanel(false);
+                          }}
+                          style={{
+                            padding: '8px 10px', borderRadius: 8, textAlign: 'left', cursor: 'pointer',
+                            border: '1px solid var(--border)', background: 'var(--background)',
+                          }}
+                        >
+                          <p style={{ fontSize: 11, fontWeight: 700, margin: '0 0 1px', color: 'var(--foreground)' }}>{m.name}</p>
+                          <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0 }}>
+                            {m.provider}{m.maxTokens ? ` · ${(m.maxTokens / 1000).toFixed(0)}k ctx` : ''}
+                          </p>
+                        </button>
+                      ))}
+                  </div>
+                  {fallbackModels.length >= 3 && (
+                    <p style={{ fontSize: 11, color: '#d97706', margin: '8px 0 0' }}>Máximo 3 modelos de respaldo alcanzado.</p>
+                  )}
+                </div>
+              )}
             </div>
             </div>
           </FormSection>
