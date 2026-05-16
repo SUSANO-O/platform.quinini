@@ -431,6 +431,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [scrapeTitle, setScrapeTitle] = useState('');
   const [scrapeExtractedBy, setScrapeExtractedBy] = useState<'ai' | 'chunk' | null>(null);
   const [scrapeSelected, setScrapeSelected] = useState<Set<number>>(new Set());
+  const [scrapeExpanded, setScrapeExpanded] = useState<Set<number>>(new Set());
 
   // Sub-agent creation
   const [showNewSub, setShowNewSub] = useState(false);
@@ -976,6 +977,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     save({ ragEnabled, ragSources: next });
     setScrapeBlocks(null);
     setScrapeSelected(new Set());
+    setScrapeExpanded(new Set());
     setScrapeStatus('idle');
     setScrapeUrl('');
     setScrapeStep('');
@@ -3283,43 +3285,72 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                             </button>
                           </div>
 
-                          {/* Lista de bloques con checkbox */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '400px', overflowY: 'auto' }}>
+                          {/* Lista de bloques con checkbox + expandible */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '480px', overflowY: 'auto' }}>
                             {scrapeBlocks.map((block, bi) => {
                               const selected = scrapeSelected.has(bi);
+                              const expanded = scrapeExpanded.has(bi);
                               return (
                                 <div
                                   key={bi}
-                                  onClick={() => setScrapeSelected((prev) => {
-                                    const next = new Set(prev);
-                                    next.has(bi) ? next.delete(bi) : next.add(bi);
-                                    return next;
-                                  })}
                                   style={{
                                     borderRadius: '8px',
                                     border: `1px solid ${selected ? R : 'var(--border)'}`,
                                     background: selected ? 'rgba(228,20,20,0.03)' : 'var(--card)',
                                     overflow: 'hidden',
-                                    cursor: 'pointer',
                                     transition: 'border-color 0.15s, background 0.15s',
                                   }}
                                 >
-                                  <div style={{ padding: '7px 12px', borderBottom: `1px solid ${selected ? 'rgba(228,20,20,0.15)' : 'var(--border)'}`, background: selected ? 'rgba(228,20,20,0.06)' : 'rgba(0,0,0,0.03)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    {/* Checkbox visual */}
-                                    <div style={{
-                                      width: 15, height: 15, borderRadius: 4, border: `2px solid ${selected ? R : 'var(--border)'}`,
-                                      background: selected ? R : 'transparent', flexShrink: 0,
-                                      display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s',
-                                    }}>
+                                  {/* Header: checkbox + título + badges + expand toggle */}
+                                  <div style={{ padding: '7px 10px', background: selected ? 'rgba(228,20,20,0.06)' : 'rgba(0,0,0,0.03)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    {/* Checkbox — solo selecciona */}
+                                    <div
+                                      onClick={() => setScrapeSelected((prev) => {
+                                        const next = new Set(prev);
+                                        next.has(bi) ? next.delete(bi) : next.add(bi);
+                                        return next;
+                                      })}
+                                      style={{
+                                        width: 15, height: 15, borderRadius: 4, border: `2px solid ${selected ? R : 'var(--border)'}`,
+                                        background: selected ? R : 'transparent', flexShrink: 0,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', cursor: 'pointer',
+                                      }}
+                                    >
                                       {selected && <svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                                     </div>
-                                    <span style={{ fontSize: '11px', fontWeight: 700, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{block.title}</span>
+                                    {/* Título (click = expand) */}
+                                    <span
+                                      onClick={() => setScrapeExpanded((prev) => {
+                                        const next = new Set(prev);
+                                        next.has(bi) ? next.delete(bi) : next.add(bi);
+                                        return next;
+                                      })}
+                                      style={{ fontSize: '11px', fontWeight: 700, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
+                                    >{block.title}</span>
                                     <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', padding: '2px 6px', borderRadius: '4px', background: 'var(--border)', flexShrink: 0 }}>{block.type}</span>
                                     <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', flexShrink: 0 }}>{block.content.length.toLocaleString('es')} ch</span>
+                                    {/* Botón expand */}
+                                    <button
+                                      type="button"
+                                      onClick={() => setScrapeExpanded((prev) => {
+                                        const next = new Set(prev);
+                                        next.has(bi) ? next.delete(bi) : next.add(bi);
+                                        return next;
+                                      })}
+                                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', flexShrink: 0, transition: 'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                                      title={expanded ? 'Colapsar' : 'Ver contenido'}
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                                    </button>
                                   </div>
-                                  <p style={{ margin: 0, padding: '8px 12px', fontSize: '11px', color: 'var(--muted-foreground)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: '90px', overflowY: 'auto', lineHeight: 1.5 }}>
-                                    {block.content.slice(0, 400)}{block.content.length > 400 ? '…' : ''}
-                                  </p>
+                                  {/* Contenido expandible */}
+                                  {expanded && (
+                                    <div style={{ borderTop: `1px solid ${selected ? 'rgba(228,20,20,0.15)' : 'var(--border)'}` }}>
+                                      <pre style={{ margin: 0, padding: '10px 14px', fontSize: '11px', color: 'var(--muted-foreground)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: '220px', overflowY: 'auto', lineHeight: 1.6, fontFamily: 'inherit' }}>
+                                        {block.content}
+                                      </pre>
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}
@@ -3327,7 +3358,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
                           <button
                             type="button"
-                            onClick={() => { setScrapeStatus('idle'); setScrapeBlocks(null); setScrapeSelected(new Set()); setScrapeUrl(''); setScrapeStep(''); setScrapeTitle(''); }}
+                            onClick={() => { setScrapeStatus('idle'); setScrapeBlocks(null); setScrapeSelected(new Set()); setScrapeExpanded(new Set()); setScrapeUrl(''); setScrapeStep(''); setScrapeTitle(''); }}
                             style={{ marginTop: '10px', fontSize: '11px', color: 'var(--muted-foreground)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
                           >
                             Limpiar resultado

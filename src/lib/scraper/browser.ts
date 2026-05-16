@@ -43,10 +43,10 @@ export class JinaScraper implements IPageScraper {
     const titleMatch = markdown.match(/^Title:\s*(.+)/m);
     const title = titleMatch?.[1]?.trim() ?? url;
 
-    // Elimina el bloque de metadatos que Jina agrega al inicio
+    // Elimina bloque de metadatos que Jina agrega al inicio
     const content = markdown
-      .replace(/^(Title|URL|Published Time|Description):.*\n?/gm, '')
-      .replace(/^={3,}\s*\n?/gm, '')
+      .replace(/^(Title|URL Source|URL|Published Time|Description|Markdown Content):.*\n?/gim, '')
+      .replace(/^[=\-]{3,}\s*$/gm, '')
       .trim();
 
     return { title, html: content, isMarkdown: true };
