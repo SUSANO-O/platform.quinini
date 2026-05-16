@@ -192,6 +192,12 @@ interface RagSource {
   warning?: string | null;
   uploadedAt?: string | null;
 }
+interface ScrapeBlock {
+  title: string;
+  content: string;
+  type: string;
+  order: number;
+}
 interface ClientAgent {
   _id: string; name: string; description: string; systemPrompt: string;
   model: string;
@@ -416,6 +422,15 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [ragSourceQuery, setRagSourceQuery] = useState('');
   const [ragSourceSort, setRagSourceSort] = useState<'order' | 'name' | 'size' | 'chars'>('order');
   const [ragRetryHubBusy, setRagRetryHubBusy] = useState(false);
+  const [scrapeUrl, setScrapeUrl] = useState('');
+  const [scrapeStatus, setScrapeStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
+  const [scrapeStep, setScrapeStep] = useState('');
+  const [scrapeProgress, setScrapeProgress] = useState(0);
+  const [scrapeBlocks, setScrapeBlocks] = useState<ScrapeBlock[] | null>(null);
+  const [scrapeError, setScrapeError] = useState('');
+  const [scrapeTitle, setScrapeTitle] = useState('');
+  const [scrapeExtractedBy, setScrapeExtractedBy] = useState<'ai' | 'chunk' | null>(null);
+  const [scrapeSelected, setScrapeSelected] = useState<Set<number>>(new Set());
 
   // Sub-agent creation
   const [showNewSub, setShowNewSub] = useState(false);
@@ -864,6 +879,108 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
   function addRagSource() {
     setRagSources((prev) => [...prev, { type: 'text', name: '', content: '' }]);
+  }
+
+  async function scrapeAndSegment() {
+    if (!scrapeUrl.trim() || scrapeStatus === 'running') return;
+    setScrapeStatus('running');
+    setScrapeBlocks(null);
+    setScrapeError('');
+    setScrapeTitle('');
+    setScrapeExtractedBy(null);
+    setScrapeProgress(0);
+    setScrapeStep('Iniciando…');
+
+    // Animación continua basada en tiempo — nunca se congela
+    // Cada fase avanza suavemente hacia su target; la última se arrastra
+    // hasta 98% para nunca prometer "casi listo" antes de tiempo.
+    const phases = [
+      { target: 12,  ms: 1_200,  label: 'Iniciando navegador…' },
+      { target: 52,  ms: 14_000, label: 'Cargando página con Chrome…' },
+      { target: 68,  ms: 3_000,  label: 'Extrayendo contenido…' },
+      { target: 92,  ms: 28_000, label: 'Analizando con IA…' },
+      { target: 98,  ms: 20_000, label: 'Finalizando…' },
+    ];
+
+    let phaseIdx   = 0;
+    let phaseFrom  = 0;
+    let phaseStart = Date.now();
+
+    const tick = setInterval(() => {
+      if (phaseIdx >= phases.length) return;
+      const phase   = phases[phaseIdx];
+      const elapsed = Date.now() - phaseStart;
+      const ratio   = Math.min(1, elapsed / phase.ms);
+      // ease-out: desacelera al acercarse al target de cada fase
+      const eased   = 1 - Math.pow(1 - ratio, 2);
+      const pct     = phaseFrom + (phase.target - phaseFrom) * eased;
+
+      setScrapeProgress(Math.round(pct * 10) / 10);
+      setScrapeStep(phase.label);
+
+      if (ratio >= 0.99) {
+        phaseFrom  = phase.target;
+        phaseStart = Date.now();
+        phaseIdx++;
+      }
+    }, 80); // tick cada 80ms → animación fluida sin sobrecargar
+
+    try {
+      const res  = await fetch(`/api/agents/${id}/rag/scrape`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ url: scrapeUrl }),
+      });
+      clearInterval(tick);
+      const data = await res.json();
+      if (!res.ok) {
+        setScrapeError(data.error ?? 'Error al procesar la URL.');
+        setScrapeStatus('error');
+        setScrapeProgress(0);
+        return;
+      }
+      const blocks = data.blocks ?? [];
+      setScrapeBlocks(blocks);
+      setScrapeSelected(new Set(blocks.map((_: unknown, i: number) => i)));
+      setScrapeTitle(data.title ?? '');
+      setScrapeExtractedBy(data.extractedBy ?? null);
+      setScrapeProgress(100);
+      setScrapeStep('¡Listo!');
+      setScrapeStatus('done');
+    } catch (err) {
+      clearInterval(tick);
+      setScrapeError(err instanceof Error ? err.message : 'Error de red.');
+      setScrapeStatus('error');
+      setScrapeProgress(0);
+    }
+  }
+
+  function addScrapedBlocksToRag() {
+    if (!scrapeBlocks?.length || scrapeSelected.size === 0) return;
+    const available = ragMaxSources - ragSources.length;
+    const toAdd = scrapeBlocks
+      .filter((_, i) => scrapeSelected.has(i))
+      .slice(0, available)
+      .map((b) => ({
+        type: 'text' as const,
+        name: b.title,
+        content: b.content,
+        charCount: b.content.length,
+      }));
+    if (toAdd.length === 0) {
+      setUploadErr(`Límite de ${ragMaxSources} fuentes alcanzado.`);
+      return;
+    }
+    const next = [...ragSources, ...toAdd];
+    setRagSources(next);
+    save({ ragEnabled, ragSources: next });
+    setScrapeBlocks(null);
+    setScrapeSelected(new Set());
+    setScrapeStatus('idle');
+    setScrapeUrl('');
+    setScrapeStep('');
+    setScrapeTitle('');
+    setScrapeExtractedBy(null);
   }
 
   function removeRagSource(i: number) {
@@ -3056,6 +3173,169 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       </div>
                     )}
                   </SectionCard>
+
+                  {/* ── Scraping de URL ─────────────────────────────────── */}
+                  {!readOnly && (
+                    <SectionCard bar="bo">
+                      <p style={sectionTitle}>Scraping de URL con IA (BETA)</p>
+                      <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', marginBottom: '12px' }}>
+                        Extrae el contenido de cualquier página web y segméntalo automáticamente con IA para agregarlo al RAG.
+                      </p>
+
+                      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                        <input
+                          className="landing-input"
+                          type="url"
+                          placeholder="https://ejemplo.com/pagina"
+                          value={scrapeUrl}
+                          onChange={(e) => setScrapeUrl(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') scrapeAndSegment(); }}
+                          disabled={scrapeStatus === 'running'}
+                          style={{ ...inp, flex: 1, fontSize: '13px' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={scrapeAndSegment}
+                          disabled={!scrapeUrl.trim() || scrapeStatus === 'running'}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs shrink-0"
+                          style={{
+                            ...BTN_PRIMARY,
+                            cursor: (!scrapeUrl.trim() || scrapeStatus === 'running') ? 'not-allowed' : 'pointer',
+                            opacity: (!scrapeUrl.trim() || scrapeStatus === 'running') ? 0.6 : 1,
+                          }}
+                        >
+                          {scrapeStatus === 'running' ? (
+                            <><Loader2 size={13} className="animate-spin" /> Procesando…</>
+                          ) : (
+                            <><Link2 size={13} /> Extraer</>
+                          )}
+                        </button>
+                      </div>
+
+                      {scrapeStatus === 'running' && (
+                        <div style={{ marginBottom: '12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{ fontSize: '12px', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Loader2 size={12} className="animate-spin" style={{ color: R }} />
+                              {scrapeStep}
+                            </span>
+                            <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>{scrapeProgress}%</span>
+                          </div>
+                          <div style={{ height: '6px', borderRadius: '3px', background: 'var(--border)', overflow: 'hidden' }}>
+                            <div style={{
+                              height: '100%',
+                              borderRadius: '3px',
+                              background: `linear-gradient(90deg, ${R}, ${O})`,
+                              width: `${scrapeProgress}%`,
+                              transition: 'width 0.5s ease',
+                            }} />
+                          </div>
+                        </div>
+                      )}
+
+                      {scrapeStatus === 'error' && scrapeError && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', fontSize: '12px', marginBottom: '8px' }}>
+                          <AlertCircle size={14} /> {scrapeError}
+                          <button onClick={() => { setScrapeStatus('idle'); setScrapeError(''); }} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
+                            <X size={12} />
+                          </button>
+                        </div>
+                      )}
+
+                      {scrapeStatus === 'done' && scrapeBlocks && scrapeBlocks.length > 0 && (
+                        <div>
+                          {/* Header: título + badge + botón agregar */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+                            <p style={{ margin: 0, fontSize: '13px', fontWeight: 700 }}>
+                              <CheckCircle2 size={14} style={{ display: 'inline', marginRight: '5px', color: '#22c55e' }} />
+                              {scrapeBlocks.length} bloque{scrapeBlocks.length !== 1 ? 's' : ''} de <span style={{ color: B }}>{scrapeTitle}</span>
+                              {scrapeExtractedBy && (
+                                <span style={{ marginLeft: '8px', fontSize: '10px', fontWeight: 500, padding: '2px 7px', borderRadius: '20px', background: scrapeExtractedBy === 'ai' ? 'rgba(34,197,94,0.1)' : 'rgba(0,172,248,0.1)', color: scrapeExtractedBy === 'ai' ? '#22c55e' : B }}>
+                                  {scrapeExtractedBy === 'ai' ? '🤖 IA' : '📄 Chunk'}
+                                </span>
+                              )}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={addScrapedBlocksToRag}
+                              disabled={scrapeSelected.size === 0 || ragSources.length >= ragMaxSources}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs shrink-0"
+                              style={{
+                                ...BTN_PRIMARY,
+                                cursor: (scrapeSelected.size === 0 || ragSources.length >= ragMaxSources) ? 'not-allowed' : 'pointer',
+                                opacity: (scrapeSelected.size === 0 || ragSources.length >= ragMaxSources) ? 0.5 : 1,
+                              }}
+                            >
+                              <Plus size={12} />
+                              Agregar {scrapeSelected.size} bloque{scrapeSelected.size !== 1 ? 's' : ''} al RAG
+                            </button>
+                          </div>
+
+                          {/* Controles de selección */}
+                          <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
+                            <button type="button" onClick={() => setScrapeSelected(new Set(scrapeBlocks.map((_, i) => i)))}
+                              style={{ fontSize: '11px', color: B, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
+                              Seleccionar todos
+                            </button>
+                            <button type="button" onClick={() => setScrapeSelected(new Set())}
+                              style={{ fontSize: '11px', color: 'var(--muted-foreground)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
+                              Ninguno
+                            </button>
+                          </div>
+
+                          {/* Lista de bloques con checkbox */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '400px', overflowY: 'auto' }}>
+                            {scrapeBlocks.map((block, bi) => {
+                              const selected = scrapeSelected.has(bi);
+                              return (
+                                <div
+                                  key={bi}
+                                  onClick={() => setScrapeSelected((prev) => {
+                                    const next = new Set(prev);
+                                    next.has(bi) ? next.delete(bi) : next.add(bi);
+                                    return next;
+                                  })}
+                                  style={{
+                                    borderRadius: '8px',
+                                    border: `1px solid ${selected ? R : 'var(--border)'}`,
+                                    background: selected ? 'rgba(228,20,20,0.03)' : 'var(--card)',
+                                    overflow: 'hidden',
+                                    cursor: 'pointer',
+                                    transition: 'border-color 0.15s, background 0.15s',
+                                  }}
+                                >
+                                  <div style={{ padding: '7px 12px', borderBottom: `1px solid ${selected ? 'rgba(228,20,20,0.15)' : 'var(--border)'}`, background: selected ? 'rgba(228,20,20,0.06)' : 'rgba(0,0,0,0.03)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    {/* Checkbox visual */}
+                                    <div style={{
+                                      width: 15, height: 15, borderRadius: 4, border: `2px solid ${selected ? R : 'var(--border)'}`,
+                                      background: selected ? R : 'transparent', flexShrink: 0,
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s',
+                                    }}>
+                                      {selected && <svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                    </div>
+                                    <span style={{ fontSize: '11px', fontWeight: 700, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{block.title}</span>
+                                    <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', padding: '2px 6px', borderRadius: '4px', background: 'var(--border)', flexShrink: 0 }}>{block.type}</span>
+                                    <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', flexShrink: 0 }}>{block.content.length.toLocaleString('es')} ch</span>
+                                  </div>
+                                  <p style={{ margin: 0, padding: '8px 12px', fontSize: '11px', color: 'var(--muted-foreground)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: '90px', overflowY: 'auto', lineHeight: 1.5 }}>
+                                    {block.content.slice(0, 400)}{block.content.length > 400 ? '…' : ''}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => { setScrapeStatus('idle'); setScrapeBlocks(null); setScrapeSelected(new Set()); setScrapeUrl(''); setScrapeStep(''); setScrapeTitle(''); }}
+                            style={{ marginTop: '10px', fontSize: '11px', color: 'var(--muted-foreground)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                          >
+                            Limpiar resultado
+                          </button>
+                        </div>
+                      )}
+                    </SectionCard>
+                  )}
 
                   {agent?.agentHubId && agent.syncStatus === 'failed' && (
                     <div
