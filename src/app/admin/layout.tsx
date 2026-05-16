@@ -74,7 +74,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Sidebar — solo desktop */}
       <aside style={{
         width: '200px', flexShrink: 0, background: 'var(--card)',
-        borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column',
+        borderRight: '1px solid var(--border)', flexDirection: 'column',
         padding: '20px 12px', position: 'sticky', top: 0, height: '100vh',
       }} className="hidden md:flex">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px', marginBottom: '24px' }}>
@@ -101,8 +101,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         {/* Topbar móvil */}
-        <header className="md:hidden" style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        <header className="flex md:hidden" style={{
+          alignItems: 'center', justifyContent: 'space-between',
           padding: '0 16px', height: '56px', background: 'var(--card)',
           borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 40,
         }}>
