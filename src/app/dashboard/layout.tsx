@@ -17,7 +17,6 @@ import {
   Bot,
   Shield,
   ShieldAlert,
-  Plug,
   Route,
   RotateCcw,
   PieChart,
@@ -33,7 +32,6 @@ const SIDEBAR_COLLAPSED_KEY = 'dashboard-sidebar-collapsed';
 const NAV = [
   { href: '/dashboard', label: 'Inicio', icon: LayoutDashboard },
   { href: '/dashboard/agents', label: 'Mis Agentes', icon: Bot },
-  { href: '/dashboard/mcp', label: 'Integraciones MCP', icon: Plug },
   { href: '/dashboard/widget-builder', label: 'Widget Builder', icon: Cpu },
   { href: '/dashboard/widgets', label: 'Mis Widgets', icon: Boxes },
   { href: '/dashboard/compliance', label: 'Cumplimiento', icon: Shield },
@@ -44,7 +42,6 @@ const NAV = [
 const SIDEBAR_TOUR_KEY_BY_HREF: Record<string, string> = {
   '/dashboard': 'sidebar-inicio',
   '/dashboard/agents': 'sidebar-agentes',
-  '/dashboard/mcp': 'sidebar-mcp',
   '/dashboard/widget-builder': 'sidebar-widget-builder',
   '/dashboard/widgets': 'sidebar-widgets',
   '/dashboard/compliance': 'sidebar-cumplimiento',
