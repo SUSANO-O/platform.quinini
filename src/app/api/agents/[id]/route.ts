@@ -515,6 +515,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     agent.set('faqCandidates', cleaned);
   }
 
+  if ('fallbackModels' in body) {
+    const raw = body.fallbackModels;
+    if (!Array.isArray(raw)) {
+      return NextResponse.json({ error: 'fallbackModels debe ser un array.' }, { status: 400 });
+    }
+    const cleaned = raw
+      .filter((x: unknown): x is string => typeof x === 'string' && x.trim().length > 0)
+      .map((x) => x.trim())
+      .slice(0, 3);
+    agent.set('fallbackModels', cleaned);
+  }
+
   await agent.save();
 
   const hubId = typeof agent.agentHubId === 'string' ? agent.agentHubId.trim() : '';
