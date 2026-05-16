@@ -520,6 +520,7 @@ export default function WidgetBuilderPage() {
   const [saved, setSaved] = useState(false);
   const [shortcuts, setShortcuts] = useState<WidgetShortcut[]>([]);
   const [suggestingShortcuts, setSuggestingShortcuts] = useState(false);
+  const [shortcutSuggestErr, setShortcutSuggestErr] = useState('');
   const [snippetTab, setSnippetTab] = useState<'minimal' | 'full'>('minimal');
 
   useEffect(() => {
@@ -638,6 +639,7 @@ export default function WidgetBuilderPage() {
     const agentName = agents.find((a) => effectiveWidgetAgentId(a) === cfg.agentId)?.name ?? cfg.title ?? '';
     if (!agentName) return;
     setSuggestingShortcuts(true);
+    setShortcutSuggestErr('');
     try {
       const resp = await fetch('/api/ai/suggest-agent', {
         method: 'POST',
@@ -652,8 +654,15 @@ export default function WidgetBuilderPage() {
       const json = await resp.json() as {
         success?: boolean;
         data?: { faqs?: Array<{ question: string }>; rules?: Array<{ title: string; description: string }> };
+        error?: { code?: string; userMessage?: string; message?: string };
       };
-      if (!json.success || !json.data) return;
+
+      if (!json.success) {
+        const msg = json.error?.userMessage ?? json.error?.message ?? 'No se pudieron generar shortcuts. Intenta de nuevo.';
+        setShortcutSuggestErr(msg);
+        return;
+      }
+      if (!json.data) return;
 
       const suggested: WidgetShortcut[] = [
         ...(json.data.faqs ?? []).slice(0, 3).map((f) => ({
@@ -668,7 +677,9 @@ export default function WidgetBuilderPage() {
         const newOnes = suggested.filter((s) => !existingMessages.has(s.message));
         return [...prev, ...newOnes].slice(0, 20);
       });
-    } catch { /* ignore */ } finally {
+    } catch {
+      setShortcutSuggestErr('Error de conexión. Intenta de nuevo.');
+    } finally {
       setSuggestingShortcuts(false);
     }
   }
@@ -999,6 +1010,11 @@ export default function WidgetBuilderPage() {
               </button>
             </div>
           </div>
+          {shortcutSuggestErr && (
+            <p style={{ fontSize: 11, color: '#ef4444', margin: '0 0 8px', padding: '6px 10px', background: 'rgba(239,68,68,0.07)', borderRadius: 7, lineHeight: 1.4 }}>
+              {shortcutSuggestErr}
+            </p>
+          )}
           {shortcuts.length === 0 ? (
             <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0 }}>
               Sin shortcuts. Agrega acciones rápidas que aparecerán como pills en el chat.
