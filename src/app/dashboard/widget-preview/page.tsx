@@ -363,7 +363,28 @@ export default function WidgetPreviewPage() {
           }}
         >
           {/* Widget Card */}
-          <InfoCard title="Widget" icon={<Palette size={15} />}>
+          <InfoCard
+            title="Widget"
+            icon={<Palette size={15} />}
+            headerActions={
+              <Link
+                href={`/dashboard/widget-builder?edit=${widget._id}`}
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: 'var(--primary)',
+                  textDecoration: 'none',
+                  whiteSpace: 'nowrap',
+                  padding: '5px 11px',
+                  borderRadius: 8,
+                  border: '1px solid color-mix(in oklab, var(--primary) 38%, transparent)',
+                  background: 'color-mix(in oklab, var(--primary) 10%, transparent)',
+                }}
+              >
+                Editar widget →
+              </Link>
+            }
+          >
             <Row label="Nombre" value={widget.name} />
             <Row label="ID" value={widget._id} mono />
             <Row label="Tema" value={widget.theme} />
