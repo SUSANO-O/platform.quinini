@@ -65,7 +65,7 @@ export default function DashboardPage() {
       <div className="hero-glow pointer-events-none" style={{ background: R, top: '-200px', right: '-80px' }} />
       <div className="hero-glow pointer-events-none" style={{ background: B, top: '120px', left: '-100px' }} />
 
-      <div className="relative px-6 py-10 max-w-4xl mx-auto">
+      <div className="relative px-4 py-4 max-w-4xl mx-auto">
         {usage && (
           <QuotaTopupBanner
             percentUsed={usage.percentUsed}

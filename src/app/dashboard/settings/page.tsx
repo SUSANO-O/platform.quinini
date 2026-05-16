@@ -246,7 +246,7 @@ export default function SettingsPage() {
       <div className="hero-glow pointer-events-none" style={{ background: BRAND_R, top: '-200px', right: '-80px' }} />
       <div className="hero-glow pointer-events-none" style={{ background: BRAND_B, top: '100px', left: '-120px' }} />
 
-      <div className="relative max-w-2xl mx-auto px-6 py-10">
+      <div className="relative max-w-2xl mx-auto px-4 py-4">
       <UpdatePaymentModal
         open={paymentModalOpen}
         onClose={() => setPaymentModalOpen(false)}
