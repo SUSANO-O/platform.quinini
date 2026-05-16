@@ -22,6 +22,8 @@ import {
   PieChart,
   ChevronLeft,
   ChevronRight,
+  Menu,
+  X,
 } from 'lucide-react';
 import { PwaInstallButton } from '@/components/shared/pwa-install-button';
 
@@ -338,6 +340,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -438,9 +441,93 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         )}
         <div style={{ display: 'flex', flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
+
+        {/* Topbar móvil */}
+        <header className="md:hidden" style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
+          height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0 14px', background: 'var(--card)', borderBottom: '1px solid var(--border)',
+        }}>
+          <Link href="/" className="flex items-center gap-2 no-underline">
+            <Image src="/t1.png" alt="MatIAs" width={30} height={30} className="rounded-xl object-cover" style={{ aspectRatio: '1/1' }} />
+            <span className="text-base font-bold gradient-text">MatIAs</span>
+          </Link>
+          <button
+            type="button"
+            onClick={() => setMobileOpen((v) => !v)}
+            aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 36, height: 36, borderRadius: 10, cursor: 'pointer',
+              border: '1px solid var(--border)',
+              background: mobileOpen ? 'rgba(228,20,20,0.08)' : 'transparent',
+              color: mobileOpen ? '#e41414' : 'var(--foreground)',
+            }}
+          >
+            {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
+        </header>
+
+        {/* Overlay móvil */}
+        {mobileOpen && (
+          <div
+            className="md:hidden"
+            onClick={() => setMobileOpen(false)}
+            style={{ position: 'fixed', inset: 0, zIndex: 48, background: 'rgba(0,0,0,0.4)' }}
+          />
+        )}
+
+        {/* Sidebar drawer móvil */}
+        <div
+          className="md:hidden"
+          style={{
+            position: 'fixed', top: 52, left: 0, bottom: 0, zIndex: 49,
+            width: 220, background: 'var(--card)', borderRight: '1px solid var(--border)',
+            display: 'flex', flexDirection: 'column', padding: '14px 10px',
+            transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
+            transition: 'transform 0.25s ease',
+            overflowY: 'auto',
+          }}
+        >
+          <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {NAV.map(({ href, label, icon: Icon }) => {
+              const active = href === '/dashboard' ? pathname === href : pathname.startsWith(href);
+              return (
+                <Link key={href} href={href} onClick={() => setMobileOpen(false)} style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px',
+                  borderRadius: 10, textDecoration: 'none', fontSize: 13,
+                  fontWeight: active ? 700 : 500,
+                  background: active ? 'rgba(228,20,20,0.1)' : 'transparent',
+                  color: active ? 'var(--primary)' : 'var(--foreground)',
+                  border: active ? '1px solid rgba(228,20,20,0.18)' : '1px solid transparent',
+                }}>
+                  <Icon size={17} style={{ flexShrink: 0 }} aria-hidden />
+                  <span>{label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+            <p style={{ fontSize: 11, fontWeight: 600, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user.displayName || user.email}
+            </p>
+            <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user.email}
+            </p>
+            <button type="button" onClick={handleLogout} style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
+              borderRadius: 10, border: '1px solid var(--border)', background: 'transparent',
+              color: 'var(--muted-foreground)', fontSize: 13, cursor: 'pointer', width: '100%',
+            }}>
+              <LogOut size={16} aria-hidden /> Cerrar sesión
+            </button>
+          </div>
+        </div>
+
         {/* Sidebar: altura fija al viewport; solo la zona nav hace scroll si hay mucho contenido */}
         <aside
           aria-label="Navegación del panel"
+          className="hidden md:flex"
           style={{
             width: sidebarCollapsed ? SIDEBAR_COLLAPSED_PX : SIDEBAR_EXPANDED_PX,
             flexShrink: 0,
@@ -591,7 +678,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </aside>
 
         {/* Main content — única columna que crece con el documento; scroll vertical aquí */}
-        <main style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+        <main style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}
+          className="pt-[52px] md:pt-0">
           {children}
         </main>
         </div>
