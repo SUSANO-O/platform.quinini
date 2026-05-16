@@ -210,6 +210,7 @@ export async function POST(req: NextRequest) {
           agentId?: string;
           toolsUsed?: string[];
           mcpTag?: string;
+          usedModel?: string;
           images?: Array<{ dataUrl: string; mimeType?: string }>;
           code?: string;
           error?: string;
@@ -237,6 +238,8 @@ export async function POST(req: NextRequest) {
         const mcpTag =
           typeof json.mcpTag === 'string' && json.mcpTag.trim() ? json.mcpTag.trim() : undefined;
         const images = Array.isArray(json.images) && json.images.length ? json.images : undefined;
+        const usedModel =
+          typeof json.usedModel === 'string' && json.usedModel.trim() ? json.usedModel.trim() : undefined;
         enqueue({ type: 'token', text: fullReply });
         enqueue({
           type: 'done',
@@ -245,6 +248,7 @@ export async function POST(req: NextRequest) {
           toolsUsed: json.toolsUsed || [],
           ...(mcpTag ? { mcpTag } : {}),
           ...(images ? { images } : {}),
+          ...(usedModel ? { usedModel } : {}),
         });
 
         // Telemetry (non-blocking)

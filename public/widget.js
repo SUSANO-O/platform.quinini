@@ -1087,6 +1087,17 @@
       }
     }
 
+    function appendFallbackTagToBubble(bubbleEl, modelId, isDebug) {
+      if (!bubbleEl || !modelId) return;
+      if (bubbleEl.querySelector('.afhub-fallback-tag')) return;
+      var tag = document.createElement('div');
+      tag.className = 'afhub-fallback-tag' + (isDebug ? ' afhub-fallback-tag--debug' : '');
+      tag.setAttribute('aria-label', 'Modelo de respaldo usado');
+      tag.setAttribute('title', 'Respuesta generada con modelo de respaldo: ' + modelId);
+      tag.textContent = isDebug ? ('↩ fallback · ' + modelId) : '↩ fallback';
+      bubbleEl.appendChild(tag);
+    }
+
     function formatQuotaTagHtml(qh) {
       if (!qh || typeof qh !== 'object') return '';
       var pct = typeof qh.percentUsed === 'number' ? qh.percentUsed : 0;
@@ -1511,6 +1522,10 @@
                 if (!stMcpTag && evt.data && typeof evt.data.mcpTag === 'string') {
                   stMcpTag = evt.data.mcpTag.trim();
                 }
+                var stUsedModel = typeof evt.usedModel === 'string' ? evt.usedModel.trim() : '';
+                if (!stUsedModel && evt.data && typeof evt.data.usedModel === 'string') {
+                  stUsedModel = evt.data.usedModel.trim();
+                }
                 if (streamBubble) {
                   var te2 = streamBubble.querySelector('.afhub-msg-text');
                   if (te2) te2.textContent = finalReply;
@@ -1518,6 +1533,7 @@
                   if (cfg.showMcpUi) {
                     appendMcpMetadataToBubble(streamBubble, { toolsUsed: stTools, mcpTag: stMcpTag });
                   }
+                  if (stUsedModel) appendFallbackTagToBubble(streamBubble, stUsedModel, cfg.debug);
                   if (evt.images && evt.images.length) {
                     var firstEvtImg = evt.images[0];
                     var firstEvtUrl = firstEvtImg && (firstEvtImg.dataUrl || firstEvtImg.url);
@@ -1602,6 +1618,10 @@
         if (!mcpTag && toolsUsed && toolsUsed.length) {
           mcpTag = inferMcpTagFromToolIds(toolsUsed);
         }
+        var usedModel = typeof data.usedModel === 'string' ? data.usedModel.trim() : '';
+        if (!usedModel && data.data && typeof data.data.usedModel === 'string') {
+          usedModel = data.data.usedModel.trim();
+        }
         var cooldown = data.code === 'AGENT_COOLDOWN' || data.cooldown === true;
         var botOpts = undefined;
         var showTools = cfg.showMcpUi && toolsUsed && toolsUsed.length;
@@ -1621,7 +1641,8 @@
             botOpts.quotaHtml = qHtml;
           }
         }
-        addMessage('bot', reply, botOpts);
+        var botBubble = addMessage('bot', reply, botOpts);
+        if (usedModel) appendFallbackTagToBubble(botBubble, usedModel, cfg.debug);
         history.push({ role: 'model', content: reply });
         notify('onMessageReceived', reply);
         emitEvent('message_received', {
@@ -2312,7 +2333,9 @@
           '#' + rootId + ' .afhub-fab-hint { background:#252530; color:#ececf1; border-color:rgba(255,255,255,.06); }' +
           '#' + rootId + ' .afhub-fab-hint::after { border-top-color:#252530 !important; }' +
           '#' + rootId + ' .afhub-tool-tag { background:rgba(255,255,255,.08); color:#a8a8b8; border-color:rgba(255,255,255,.12); }' +
-          '#' + rootId + ' .afhub-mcp-source-tag { background:rgba(255,255,255,.08); color:#c8c8d8; border-color:rgba(255,255,255,.12); }'
+          '#' + rootId + ' .afhub-mcp-source-tag { background:rgba(255,255,255,.08); color:#c8c8d8; border-color:rgba(255,255,255,.12); }' +
+          '#' + rootId + ' .afhub-fallback-tag { color:rgba(255,255,255,.28) !important; border-color:rgba(255,255,255,.1) !important; background:rgba(255,255,255,.04) !important; }' +
+          '#' + rootId + ' .afhub-fallback-tag--debug { color:#fbbf24 !important; background:rgba(251,191,36,.1) !important; border-color:rgba(251,191,36,.3) !important; }'
         : '';
     return '' +
       '#' + rootId + ' * { box-sizing:border-box; margin:0; padding:0; }' +
@@ -2412,6 +2435,8 @@
         '; background:rgba(0,0,0,.04); border:1px solid rgba(0,0,0,.1); }' +
       '#' + rootId + ' .afhub-tool-tags { margin-top:8px; display:flex; flex-wrap:wrap; gap:4px; align-items:center; }' +
       '#' + rootId + ' .afhub-msg-rich:has(.afhub-mcp-source-tag) .afhub-tool-tags { margin-top:6px; }' +
+      '#' + rootId + ' .afhub-fallback-tag { margin-top:6px; display:inline-block; font-size:9px; font-weight:500; letter-spacing:.03em; padding:2px 6px; border-radius:4px; color:rgba(0,0,0,.28); background:rgba(0,0,0,.03); border:1px solid rgba(0,0,0,.07); }' +
+      '#' + rootId + ' .afhub-fallback-tag--debug { font-size:10px; font-weight:700; color:#92400e; background:rgba(251,191,36,.12); border-color:rgba(217,119,6,.3); }' +
       '#' + rootId + ' .afhub-tool-tag { font-size:10px; line-height:1.25; letter-spacing:.02em; padding:2px 6px; border-radius:6px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:rgba(0,0,0,.06); color:#5a5a6e; border:1px solid rgba(0,0,0,.08); }' +
       '#' + rootId + ' .afhub-img-wrap { margin-top:10px; max-width:100%; display:flex; flex-direction:column; gap:8px; }' +
       '#' + rootId + ' .afhub-img-frame { border-radius:12px; overflow:hidden; border:1px solid rgba(0,0,0,.08); }' +
