@@ -4,5 +4,11 @@
       "path": "/api/internal/subscription-reminders",
       "schedule": "0 13 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "src/app/api/agents/[id]/rag/scrape/route.ts": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  }
 }

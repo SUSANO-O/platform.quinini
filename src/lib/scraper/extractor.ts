@@ -69,14 +69,21 @@ function extractTitle(html: string): string {
 
 export class MarkdownExtractor implements IExtractor {
   extract(html: string): { title: string; text: string } {
-    const title   = extractTitle(html);
-    const cleaned = html.replace(STRIP_TAGS, ' ');
+    const title    = extractTitle(html);
+    const cleaned  = html.replace(STRIP_TAGS, ' ');
     const markdown = td.turndown(cleaned);
 
-    const normalized = markdown
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
+    return { title, text: markdown.replace(/\n{3,}/g, '\n\n').trim() };
+  }
+}
 
-    return { title, text: normalized };
+/**
+ * PassthroughExtractor — para cuando el scraper ya devuelve Markdown limpio
+ * (ej. Firecrawl). No hace ninguna transformación, solo normaliza whitespace.
+ */
+export class PassthroughExtractor implements IExtractor {
+  extract(markdown: string): { title: string; text: string } {
+    const title = markdown.match(/^#\s+(.+)/m)?.[1]?.trim() ?? 'Contenido';
+    return { title, text: markdown.replace(/\n{3,}/g, '\n\n').trim() };
   }
 }
