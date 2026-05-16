@@ -14,7 +14,10 @@ const withPWA = withPWAInit({
 
 const nextConfig: NextConfig = {
   output: 'standalone',
-  serverExternalPackages: ['mongoose', 'stripe', 'bcryptjs', 'pdf-parse', 'mammoth'],
+  serverExternalPackages: [
+    'mongoose', 'stripe', 'bcryptjs', 'pdf-parse', 'mammoth',
+    'puppeteer-core', '@sparticuz/chromium', 'jsdom', '@mozilla/readability',
+  ],
 
   async redirects() {
     return [{ source: '/favicon.ico', destination: '/favicon.svg', permanent: false }];

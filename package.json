@@ -25,6 +25,7 @@
     "@paddle/paddle-node-sdk": "^1.10.0",
     "@react-three/drei": "^10.0.3",
     "@react-three/fiber": "^9.0.4",
+    "@sparticuz/chromium": "^148.0.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/pdf-parse": "^1.1.5",
     "@types/web-push": "^3.6.4",
