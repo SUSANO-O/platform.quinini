@@ -189,7 +189,7 @@ export function McpAvailablePanel({ compact, onConnectRequest }: Props) {
         <p style={{ fontSize: '13px', color: 'var(--muted-foreground)' }}>El backend devolvió un catálogo vacío.</p>
       )}
 
-      {compact && catalog.length > 6 && (
+      {/* {compact && catalog.length > 6 && ( 
         <Link
           href="/dashboard/mcp"
           style={{
@@ -206,7 +206,7 @@ export function McpAvailablePanel({ compact, onConnectRequest }: Props) {
           <Plug size={14} />
           Ver todas las integraciones MCP ({catalog.length})
         </Link>
-      )}
+      )} */}
     </div>
   );
 }
