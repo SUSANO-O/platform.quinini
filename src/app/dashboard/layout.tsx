@@ -443,9 +443,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div style={{ display: 'flex', flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
 
         {/* Topbar móvil */}
-        <header className="md:hidden" style={{
+        <header className="flex md:hidden" style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
-          height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          height: 52, alignItems: 'center', justifyContent: 'space-between',
           padding: '0 14px', background: 'var(--card)', borderBottom: '1px solid var(--border)',
         }}>
           <Link href="/" className="flex items-center gap-2 no-underline">
@@ -535,7 +535,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             height: '100%',
             background: 'var(--card)',
             borderRight: '1px solid var(--border)',
-            display: 'flex',
             flexDirection: 'column',
             padding: sidebarCollapsed ? '16px 8px' : '20px 12px',
             overflow: 'hidden',
