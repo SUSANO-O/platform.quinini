@@ -42,8 +42,28 @@ Abriendo el agente en **Mis agentes** (`/dashboard/agents/[id]`):
 |---------|---------------------------|
 | **General** | Cambiar nombre, descripción, modelo, system prompt, token público del widget, temperatura y tokens de salida. |
 | **Herramientas** | Activar herramientas nativas permitidas por su plan (búsqueda web, webhook, Gmail, Slack, calendario, CRM, etc., según plan). Conectar **MCP** con credenciales **por este agente**, revisar sincronización y marcar qué herramientas remotas usa el modelo. |
-| **RAG** | Activar conocimiento a partir de **URLs**, **texto** o **archivos** subidos; ideal para FAQs, manuales y políticas internas. En **plan free** el RAG del producto no está habilitado. |
+| **RAG** | Activar conocimiento a partir de **URLs** (scraping automático con IA), **texto** manual o **archivos** subidos; ideal para FAQs, manuales y políticas internas. Ver §1.5. En **plan free** el RAG del producto no está habilitado. |
 | **Subagentes** | Crear “mini agentes” especializados bajo el principal, hasta el máximo que permita el plan. |
+
+### 1.5 RAG — Scraping de URLs
+
+El sistema de RAG permite al usuario pegar una URL (su web de precios, documentación, FAQ pública, etc.) y el sistema extrae el contenido automáticamente en bloques listos para el agente.
+
+**Flujo desde la pestaña RAG:**
+1. Introducir la URL en el campo «Scraping de URL».
+2. Pulsar el botón → aparece una barra de progreso con descripción de la fase actual.
+3. Al terminar, aparece una lista de **bloques de contenido** (cada uno con título, tipo y nº de caracteres).
+4. El usuario puede:
+   - **Ver** cada bloque pulsando «Ver» → se abre un **modal** con el contenido completo.
+   - **Editar** el contenido dentro del modal antes de añadirlo (limpiar links rotos, recortar partes irrelevantes).
+   - **Seleccionar** qué bloques incluir con los checkboxes o desde el modal con «Incluir en RAG».
+5. Pulsar **«Agregar X bloques al RAG»** añade los seleccionados (con las ediciones aplicadas si las hubiera).
+
+**Indicador de calidad del scraping:**
+- Badge `🤖 IA` → Gemini analizó la página y filtró ruido automáticamente (mejor calidad).
+- Badge `📄 Chunk` → el sistema hizo cortes mecánicos (Gemini no disponible; calidad aceptable pero sin filtrado semántico).
+
+**Si todos los bloques muestran `📄 Chunk` en producción:** falta la variable `GEMINI_API_KEY` en Vercel (ver doc técnico `docs/rag-scraping-system.md`).
 
 **Herramientas típicas en plan free:** búsqueda web y webhook. A partir de **starter** suelen sumarse más (p. ej. subida de archivos, Gmail, Slack); en planes superiores entran calendario, HubSpot, WhatsApp, Notion, etc.
 
@@ -85,7 +105,13 @@ R: Si ya completaste todos los pasos, **es normal** que desaparezca. Puedes usar
 R: Depende de tu **plan** (tabla de la §1.1). Si no te deja crear más, has llegado al límite o necesitas subir de plan.
 
 **P: ¿Puedo ponerle documentación a mi agente?**  
-R: Sí, en la ficha del agente, pestaña **RAG**, si tu plan lo incluye (desde **starter** en la tabla típica). En **free** no suele estar disponible el RAG del producto.
+R: Sí, en la ficha del agente, pestaña **RAG**, si tu plan lo incluye (desde **starter** en la tabla típica). En **free** no suele estar disponible. Puedes subir archivos, pegar texto o **pegar una URL** para que el sistema extraiga el contenido automáticamente.
+
+**P: Pegué una URL en RAG pero los bloques dicen `📄 Chunk`, ¿es un error?**  
+R: No es un error, los bloques se crearon correctamente. El indicador `📄 Chunk` significa que el filtrado inteligente (IA) no está activo en ese entorno: el contenido puede incluir algún ruido de navegación. El equipo técnico puede activarlo añadiendo `GEMINI_API_KEY` en las variables de entorno del servidor.
+
+**P: ¿Puedo editar el contenido de un bloque antes de añadirlo?**  
+R: Sí. Al pulsar «Ver» en cualquier bloque se abre un modal con un editor de texto. Puedes modificar, recortar o limpiar el contenido antes de marcarlo como incluido.
 
 **P: ¿Dónde conecto Gmail o Slack?**  
 R: En la ficha del agente → **Herramientas**, si tu plan incluye esa herramienta.
@@ -190,7 +216,10 @@ Espera breve al DOM entre pasos; overlay oscurece el fondo a propósito; botón 
 - Estilos del popover: `src/app/globals.css`
 - Límites de planes (agentes, herramientas, RAG): `src/lib/agent-plans.ts`
 - Alta de agente: `src/app/dashboard/agents/new/page.tsx`
-- Ficha de agente: `src/app/dashboard/agents/[id]/page.tsx`
+- Ficha de agente (incluye UI de RAG scraping): `src/app/dashboard/agents/[id]/page.tsx`
+- Sistema de scraping RAG (módulo SOLID): `src/lib/scraper/`
+- API route de scraping: `src/app/api/agents/[id]/rag/scrape/route.ts`
+- Doc técnico completo del scraping: `docs/rag-scraping-system.md`
 
 ### 7.8 Matriz síntoma → acción (técnico)
 

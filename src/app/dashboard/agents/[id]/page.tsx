@@ -3358,7 +3358,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                                 onClick={(e) => { if (e.target === e.currentTarget) setScrapePreviewBlock(null); }}
                                 style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}
                               >
-                                <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', width: '100%', maxWidth: '700px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(0,0,0,0.35)', overflow: 'hidden' }}>
+                                <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', width: '100%', maxWidth: '700px', height: '650px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(0,0,0,0.35)', overflow: 'hidden' }}>
 
                                   {/* Header */}
                                   <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'var(--muted)', flexShrink: 0 }}>
