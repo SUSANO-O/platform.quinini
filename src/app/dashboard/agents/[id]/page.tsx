@@ -4,6 +4,7 @@ import {
   useEffect, useState, use, useMemo, useCallback, useRef,
   type CSSProperties, type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useClientModels, mergeSavedModelOptions } from '@/hooks/use-client-models';
@@ -432,6 +433,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [scrapeExtractedBy, setScrapeExtractedBy] = useState<'ai' | 'chunk' | null>(null);
   const [scrapeSelected, setScrapeSelected] = useState<Set<number>>(new Set());
   const [scrapePreviewBlock, setScrapePreviewBlock] = useState<number | null>(null);
+  const [scrapeEdits, setScrapeEdits] = useState<Map<number, string>>(new Map());
 
   // Sub-agent creation
   const [showNewSub, setShowNewSub] = useState(false);
@@ -960,14 +962,13 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     if (!scrapeBlocks?.length || scrapeSelected.size === 0) return;
     const available = ragMaxSources - ragSources.length;
     const toAdd = scrapeBlocks
-      .filter((_, i) => scrapeSelected.has(i))
+      .map((b, i) => ({ b, i }))
+      .filter(({ i }) => scrapeSelected.has(i))
       .slice(0, available)
-      .map((b) => ({
-        type: 'text' as const,
-        name: b.title,
-        content: b.content,
-        charCount: b.content.length,
-      }));
+      .map(({ b, i }) => {
+        const content = scrapeEdits.get(i) ?? b.content;
+        return { type: 'text' as const, name: b.title, content, charCount: content.length };
+      });
     if (toAdd.length === 0) {
       setUploadErr(`Límite de ${ragMaxSources} fuentes alcanzado.`);
       return;
@@ -978,6 +979,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     setScrapeBlocks(null);
     setScrapeSelected(new Set());
     setScrapePreviewBlock(null);
+    setScrapeEdits(new Map());
     setScrapeStatus('idle');
     setScrapeUrl('');
     setScrapeStep('');
@@ -3344,64 +3346,73 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                             })}
                           </div>
 
-                          {/* Modal preview de bloque */}
-                          {scrapePreviewBlock !== null && scrapeBlocks[scrapePreviewBlock] && (() => {
+                          {/* Modal — renderizado via Portal fuera del DOM anidado */}
+                          {scrapePreviewBlock !== null && scrapeBlocks[scrapePreviewBlock] && typeof document !== 'undefined' && createPortal((() => {
                             const bi = scrapePreviewBlock;
                             const block = scrapeBlocks[bi];
                             const selected = scrapeSelected.has(bi);
+                            const editedContent = scrapeEdits.get(bi) ?? block.content;
+                            const isEdited = scrapeEdits.has(bi) && scrapeEdits.get(bi) !== block.content;
                             return (
                               <div
                                 onClick={(e) => { if (e.target === e.currentTarget) setScrapePreviewBlock(null); }}
-                                style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}
+                                style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}
                               >
-                                <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', width: '100%', maxWidth: '680px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 64px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
-                                  {/* Header modal */}
-                                  <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'var(--muted)' }}>
+                                <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', width: '100%', maxWidth: '700px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(0,0,0,0.35)', overflow: 'hidden' }}>
+
+                                  {/* Header */}
+                                  <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'var(--muted)', flexShrink: 0 }}>
                                     <div style={{ flex: 1, minWidth: 0 }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
-                                        <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontWeight: 500 }}>Bloque {bi + 1} de {scrapeBlocks.length}</span>
-                                        <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '4px', background: 'var(--border)', color: 'var(--muted-foreground)' }}>{block.type}</span>
-                                        <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{block.content.length.toLocaleString('es')} caracteres</span>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px', flexWrap: 'wrap' }}>
+                                        <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Bloque {bi + 1} / {scrapeBlocks.length}</span>
+                                        <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'var(--border)', color: 'var(--muted-foreground)' }}>{block.type}</span>
+                                        <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{editedContent.length.toLocaleString('es')} ch</span>
+                                        {isEdited && <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(234,179,8,0.15)', color: '#ca8a04', fontWeight: 600 }}>editado</span>}
                                       </div>
                                       <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, lineHeight: 1.3 }}>{block.title}</p>
                                     </div>
-                                    <button type="button" onClick={() => setScrapePreviewBlock(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted-foreground)', padding: '2px', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-                                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                    <button type="button" onClick={() => setScrapePreviewBlock(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted-foreground)', padding: '4px', flexShrink: 0, display: 'flex', borderRadius: '6px' }}>
+                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                                     </button>
                                   </div>
 
-                                  {/* Contenido */}
-                                  <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
-                                    <pre style={{ margin: 0, fontSize: '12px', lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'var(--foreground)', fontFamily: 'inherit' }}>
-                                      {block.content}
-                                    </pre>
+                                  {/* Textarea editable */}
+                                  <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                                    <div style={{ padding: '8px 18px 4px', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
+                                      <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Edita el contenido antes de agregar al RAG</span>
+                                      {isEdited && (
+                                        <button type="button" onClick={() => setScrapeEdits((prev) => { const m = new Map(prev); m.delete(bi); return m; })} style={{ fontSize: '10px', color: 'var(--muted-foreground)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+                                          Restaurar original
+                                        </button>
+                                      )}
+                                    </div>
+                                    <textarea
+                                      value={editedContent}
+                                      onChange={(e) => setScrapeEdits((prev) => new Map(prev).set(bi, e.target.value))}
+                                      spellCheck={false}
+                                      style={{ flex: 1, width: '100%', border: 'none', outline: 'none', resize: 'none', padding: '16px 18px', fontSize: '12px', lineHeight: 1.7, fontFamily: 'inherit', color: 'var(--foreground)', background: 'var(--card)', boxSizing: 'border-box' }}
+                                    />
                                   </div>
 
-                                  {/* Footer modal */}
-                                  <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', background: 'var(--muted)' }}>
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                      <button type="button" onClick={() => setScrapePreviewBlock(bi > 0 ? bi - 1 : scrapeBlocks.length - 1)} style={{ fontSize: '11px', padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--card)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                                  {/* Footer */}
+                                  <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', background: 'var(--muted)', flexShrink: 0 }}>
+                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                      <button type="button" onClick={() => setScrapePreviewBlock(bi > 0 ? bi - 1 : scrapeBlocks.length - 1)} style={{ fontSize: '11px', padding: '6px 11px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--card)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                                         Anterior
                                       </button>
-                                      <button type="button" onClick={() => setScrapePreviewBlock(bi < scrapeBlocks.length - 1 ? bi + 1 : 0)} style={{ fontSize: '11px', padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--card)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                      <button type="button" onClick={() => setScrapePreviewBlock(bi < scrapeBlocks.length - 1 ? bi + 1 : 0)} style={{ fontSize: '11px', padding: '6px 11px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--card)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                         Siguiente
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                                       </button>
                                     </div>
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        setScrapeSelected((prev) => {
-                                          const next = new Set(prev);
-                                          next.has(bi) ? next.delete(bi) : next.add(bi);
-                                          return next;
-                                        });
-                                      }}
+                                      onClick={() => setScrapeSelected((prev) => { const next = new Set(prev); next.has(bi) ? next.delete(bi) : next.add(bi); return next; })}
                                       style={{ fontSize: '12px', padding: '7px 16px', borderRadius: '7px', border: `1px solid ${selected ? R : 'var(--border)'}`, background: selected ? R : 'var(--card)', color: selected ? 'white' : 'var(--foreground)', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.15s' }}
                                     >
                                       {selected
-                                        ? <><svg width="13" height="13" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg> Incluido</>
+                                        ? <><svg width="12" height="12" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg> Incluido</>
                                         : '+ Incluir en RAG'
                                       }
                                     </button>
@@ -3409,11 +3420,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                                 </div>
                               </div>
                             );
-                          })()}
+                          })(), document.body)}
 
                           <button
                             type="button"
-                            onClick={() => { setScrapeStatus('idle'); setScrapeBlocks(null); setScrapeSelected(new Set()); setScrapePreviewBlock(null); setScrapeUrl(''); setScrapeStep(''); setScrapeTitle(''); }}
+                            onClick={() => { setScrapeStatus('idle'); setScrapeBlocks(null); setScrapeSelected(new Set()); setScrapePreviewBlock(null); setScrapeEdits(new Map()); setScrapeUrl(''); setScrapeStep(''); setScrapeTitle(''); }}
                             style={{ marginTop: '10px', fontSize: '11px', color: 'var(--muted-foreground)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
                           >
                             Limpiar resultado
