@@ -78,12 +78,29 @@ export class MarkdownExtractor implements IExtractor {
 }
 
 /**
- * PassthroughExtractor — para cuando el scraper ya devuelve Markdown limpio
- * (ej. Firecrawl). No hace ninguna transformación, solo normaliza whitespace.
+ * PassthroughExtractor — para output de Jina AI Reader.
+ * Limpia artefactos propios de Jina antes de pasar a Gemini.
  */
 export class PassthroughExtractor implements IExtractor {
   extract(markdown: string): { title: string; text: string } {
+    let text = markdown;
+
+    // Elimina bloque de metadatos de Jina al inicio (Title:, URL Source:, etc.)
+    text = text.replace(/^(Title|URL Source|URL|Published Time|Description|Markdown Content):.*\n?/gim, '');
+
+    // Elimina separadores de sección de Jina (===, ---)
+    text = text.replace(/^[=\-]{3,}\s*$/gm, '');
+
+    // Elimina imágenes markdown (ruido puro para RAG): ![Image N: ...](...)
+    text = text.replace(/!\[[^\]]*\]\([^)]*\)/g, '');
+
+    // Elimina líneas que son solo URLs
+    text = text.replace(/^https?:\/\/\S+\s*$/gm, '');
+
+    // Colapsa líneas vacías múltiples
+    text = text.replace(/\n{3,}/g, '\n\n').trim();
+
     const title = markdown.match(/^#\s+(.+)/m)?.[1]?.trim() ?? 'Contenido';
-    return { title, text: markdown.replace(/\n{3,}/g, '\n\n').trim() };
+    return { title, text };
   }
 }
