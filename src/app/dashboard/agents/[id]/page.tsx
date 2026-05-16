@@ -4201,6 +4201,7 @@ function VoicePickerTab({ selected, onSelect, onSave, saving, readOnly, accentCo
   const [query, setQuery] = useState('');
   const [playingName, setPlayingName] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function load() {
@@ -4211,6 +4212,13 @@ function VoicePickerTab({ selected, onSelect, onSave, saving, readOnly, accentCo
     window.speechSynthesis?.addEventListener('voiceschanged', load);
     return () => window.speechSynthesis?.removeEventListener('voiceschanged', load);
   }, []);
+
+  // Auto-scroll to selected voice once the list loads
+  useEffect(() => {
+    if (!voices.length || !listRef.current) return;
+    const el = listRef.current.querySelector<HTMLElement>('[data-voice-selected="true"]');
+    if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [voices]);
 
   function stopPreview() {
     window.speechSynthesis?.cancel();
@@ -4241,10 +4249,41 @@ function VoicePickerTab({ selected, onSelect, onSave, saving, readOnly, accentCo
     return !q || v.name.toLowerCase().includes(q) || v.lang.toLowerCase().includes(q);
   });
 
+  function scrollToSelected() {
+    if (!listRef.current) return;
+    const el = listRef.current.querySelector<HTMLElement>('[data-voice-selected="true"]');
+    el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
   return (
     <>
       <SectionCard>
         <p style={sectionTitle}><Volume2 size={13} style={{ display: 'inline', marginRight: 6 }} />Voz del widget</p>
+
+        {/* Current voice banner */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
+          padding: '10px 14px', borderRadius: 10,
+          background: `${accentColor}0d`, border: `1px solid ${accentColor}28`,
+        }}>
+          <Volume2 size={14} style={{ color: accentColor, flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 2 }}>Voz configurada actualmente</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+              {selected || '— Automático (recomendado) —'}
+            </span>
+          </div>
+          {selected && voices.length > 0 && (
+            <button
+              type="button"
+              onClick={scrollToSelected}
+              style={{ fontSize: 11, fontWeight: 700, color: accentColor, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: 6, flexShrink: 0 }}
+            >
+              Ver en lista ↓
+            </button>
+          )}
+        </div>
+
         <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '14px', lineHeight: 1.45 }}>
           Elige la voz que usará el widget cuando lea respuestas en voz alta. Las voces disponibles dependen del navegador y sistema operativo del usuario.
           {!voices.length && <span style={{ color: '#d97706' }}> (Cargando voces — abre este panel en un navegador compatible con síntesis de voz.)</span>}
@@ -4264,7 +4303,7 @@ function VoicePickerTab({ selected, onSelect, onSave, saving, readOnly, accentCo
         </div>
 
         {/* Voice list */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '420px', overflowY: 'auto' }}>
+        <div ref={listRef} style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '420px', overflowY: 'auto' }}>
           {/* Auto option */}
           <VoiceRow
             name="— Automático (recomendado) —"
@@ -4331,6 +4370,7 @@ function VoiceRow({ name, lang, isSelected, isPlaying, onSelect, onPlay, accentC
   return (
     <div
       onClick={onSelect}
+      data-voice-selected={isSelected ? 'true' : undefined}
       style={{
         display: 'flex', alignItems: 'center', gap: '10px',
         padding: '10px 12px', borderRadius: '10px', cursor: 'pointer',
@@ -4349,7 +4389,17 @@ function VoiceRow({ name, lang, isSelected, isPlaying, onSelect, onPlay, accentC
       </div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ margin: 0, fontSize: '13px', fontWeight: isSelected ? 700 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <p style={{ margin: 0, fontSize: '13px', fontWeight: isSelected ? 700 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</p>
+          {isSelected && (
+            <span style={{
+              fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 20, flexShrink: 0,
+              background: `${accentColor}18`, color: accentColor, border: `1px solid ${accentColor}30`,
+            }}>
+              ✓ activa
+            </span>
+          )}
+        </div>
         {lang && <p style={{ margin: 0, fontSize: '11px', color: 'var(--muted-foreground)' }}>{lang}</p>}
       </div>
 

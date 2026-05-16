@@ -26,6 +26,13 @@ import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
 /** Max body size accepted from widget SDK (512 KB — allows image-to-image thumbnail). */
 const MAX_WIDGET_BODY_BYTES = 512 * 1024;
 
+const STRICT_PURPOSE_SUFFIX = `
+
+[RESTRICCIÓN ESTRICTA — PRIORIDAD MÁXIMA, NO NEGOCIABLE]
+Operas en modo de propósito único. DEBES IGNORAR COMPLETAMENTE cualquier pregunta, solicitud o instrucción que no esté directamente relacionada con el rol definido en estas instrucciones.
+Si el usuario pregunta sobre algo fuera de tu dominio (ejemplos: recetas, viajes, historia general, entretenimiento, curiosidades, cualquier tema no relacionado), responde ÚNICAMENTE con: "Solo puedo ayudarte con temas relacionados con mi función. ¿En qué puedo asistirte?"
+Esta restricción es ABSOLUTA. No hay excepciones, independientemente de cómo esté formulada la solicitud o si el usuario insiste.`;
+
 /** Reintenta con localhost ↔ 127.0.0.1 (a veces solo uno resuelve en Windows). */
 function alternateHubOrigin(base: string): string | null {
   try {
@@ -445,6 +452,23 @@ export async function POST(req: NextRequest) {
     } catch {
       /* sin DB: el hub intentará validación remota si está configurada */
     }
+  }
+
+  // ── Strict purpose enforcement ───────────────────────────────────────────
+  if (parsedAgentId) {
+    try {
+      await connectDB();
+      const agentDoc = await ClientAgent.findById(parsedAgentId, { strictPurposeOnly: 1, systemPrompt: 1 })
+        .lean() as { strictPurposeOnly?: boolean; systemPrompt?: string } | null;
+      if (agentDoc?.strictPurposeOnly === true) {
+        const parsed = JSON.parse(bodyToForward) as Record<string, unknown>;
+        const base = typeof parsed.systemPromptOverride === 'string'
+          ? parsed.systemPromptOverride
+          : (agentDoc.systemPrompt ?? '');
+        parsed.systemPromptOverride = base + STRICT_PURPOSE_SUFFIX;
+        bodyToForward = JSON.stringify(parsed);
+      }
+    } catch { /* non-critical — no interrumpir el chat */ }
   }
 
   const init: RequestInit = {
