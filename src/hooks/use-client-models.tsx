@@ -8,11 +8,22 @@ export type ClientModelOption = {
   name: string;
   provider: string;
   badge?: string;
+  category?: string;
+  tier?: 'stable' | 'pro' | 'flash' | 'lite' | 'preview';
   description?: string;
   maxTokens?: number;
   minPlan?: string;
   deprecated?: boolean;
 };
+
+function deriveTier(name: string, badge?: string): ClientModelOption['tier'] {
+  const n = name.toLowerCase();
+  if (badge === 'preview' || n.includes('preview')) return 'preview';
+  if (n.includes('lite')) return 'lite';
+  if (n.includes('flash')) return 'flash';
+  if (n.includes('pro')) return 'pro';
+  return 'stable';
+}
 
 type CatalogDoc = {
   modelId: string;
@@ -91,6 +102,8 @@ export function useClientModels(userPlan?: string) {
             name: m.name,
             provider: m.providerLabel || m.provider,
             badge: m.badge,
+            category: m.category,
+            tier: deriveTier(m.name, m.badge),
             description: m.description,
             maxTokens: m.maxTokens,
             minPlan: m.minPlan,
