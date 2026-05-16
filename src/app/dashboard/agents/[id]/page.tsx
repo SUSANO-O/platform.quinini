@@ -431,7 +431,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [scrapeTitle, setScrapeTitle] = useState('');
   const [scrapeExtractedBy, setScrapeExtractedBy] = useState<'ai' | 'chunk' | null>(null);
   const [scrapeSelected, setScrapeSelected] = useState<Set<number>>(new Set());
-  const [scrapeExpanded, setScrapeExpanded] = useState<Set<number>>(new Set());
+  const [scrapePreviewBlock, setScrapePreviewBlock] = useState<number | null>(null);
 
   // Sub-agent creation
   const [showNewSub, setShowNewSub] = useState(false);
@@ -977,7 +977,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     save({ ragEnabled, ragSources: next });
     setScrapeBlocks(null);
     setScrapeSelected(new Set());
-    setScrapeExpanded(new Set());
+    setScrapePreviewBlock(null);
     setScrapeStatus('idle');
     setScrapeUrl('');
     setScrapeStep('');
@@ -3285,25 +3285,23 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                             </button>
                           </div>
 
-                          {/* Lista de bloques con checkbox + expandible */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '480px', overflowY: 'auto' }}>
+                          {/* Lista de bloques */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '420px', overflowY: 'auto', paddingRight: '2px' }}>
                             {scrapeBlocks.map((block, bi) => {
                               const selected = scrapeSelected.has(bi);
-                              const expanded = scrapeExpanded.has(bi);
                               return (
                                 <div
                                   key={bi}
                                   style={{
                                     borderRadius: '8px',
                                     border: `1px solid ${selected ? R : 'var(--border)'}`,
-                                    background: selected ? 'rgba(228,20,20,0.03)' : 'var(--card)',
+                                    background: selected ? 'rgba(228,20,20,0.04)' : 'var(--card)',
                                     overflow: 'hidden',
                                     transition: 'border-color 0.15s, background 0.15s',
                                   }}
                                 >
-                                  {/* Header: checkbox + título + badges + expand toggle */}
-                                  <div style={{ padding: '7px 10px', background: selected ? 'rgba(228,20,20,0.06)' : 'rgba(0,0,0,0.03)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    {/* Checkbox — solo selecciona */}
+                                  <div style={{ padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    {/* Checkbox */}
                                     <div
                                       onClick={() => setScrapeSelected((prev) => {
                                         const next = new Set(prev);
@@ -3311,54 +3309,111 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                                         return next;
                                       })}
                                       style={{
-                                        width: 15, height: 15, borderRadius: 4, border: `2px solid ${selected ? R : 'var(--border)'}`,
-                                        background: selected ? R : 'transparent', flexShrink: 0,
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', cursor: 'pointer',
+                                        width: 16, height: 16, borderRadius: 4,
+                                        border: `2px solid ${selected ? R : 'var(--border)'}`,
+                                        background: selected ? R : 'transparent',
+                                        flexShrink: 0, display: 'flex', alignItems: 'center',
+                                        justifyContent: 'center', transition: 'all 0.15s', cursor: 'pointer',
                                       }}
                                     >
                                       {selected && <svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                                     </div>
-                                    {/* Título (click = expand) */}
-                                    <span
-                                      onClick={() => setScrapeExpanded((prev) => {
-                                        const next = new Set(prev);
-                                        next.has(bi) ? next.delete(bi) : next.add(bi);
-                                        return next;
-                                      })}
-                                      style={{ fontSize: '11px', fontWeight: 700, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}
-                                    >{block.title}</span>
-                                    <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', padding: '2px 6px', borderRadius: '4px', background: 'var(--border)', flexShrink: 0 }}>{block.type}</span>
+
+                                    {/* Título */}
+                                    <span style={{ fontSize: '12px', fontWeight: 600, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {block.title}
+                                    </span>
+
+                                    {/* Badges */}
+                                    <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', padding: '2px 6px', borderRadius: '4px', background: 'var(--muted)', flexShrink: 0 }}>{block.type}</span>
                                     <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', flexShrink: 0 }}>{block.content.length.toLocaleString('es')} ch</span>
-                                    {/* Botón expand */}
+
+                                    {/* Botón ver contenido */}
                                     <button
                                       type="button"
-                                      onClick={() => setScrapeExpanded((prev) => {
-                                        const next = new Set(prev);
-                                        next.has(bi) ? next.delete(bi) : next.add(bi);
-                                        return next;
-                                      })}
-                                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', flexShrink: 0, transition: 'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
-                                      title={expanded ? 'Colapsar' : 'Ver contenido'}
+                                      onClick={() => setScrapePreviewBlock(bi)}
+                                      title="Ver contenido"
+                                      style={{ background: 'none', border: `1px solid var(--border)`, borderRadius: '5px', cursor: 'pointer', padding: '3px 6px', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '3px', flexShrink: 0, fontSize: '10px', transition: 'background 0.15s' }}
                                     >
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                      Ver
                                     </button>
                                   </div>
-                                  {/* Contenido expandible */}
-                                  {expanded && (
-                                    <div style={{ borderTop: `1px solid ${selected ? 'rgba(228,20,20,0.15)' : 'var(--border)'}` }}>
-                                      <pre style={{ margin: 0, padding: '10px 14px', fontSize: '11px', color: 'var(--muted-foreground)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: '220px', overflowY: 'auto', lineHeight: 1.6, fontFamily: 'inherit' }}>
-                                        {block.content}
-                                      </pre>
-                                    </div>
-                                  )}
                                 </div>
                               );
                             })}
                           </div>
 
+                          {/* Modal preview de bloque */}
+                          {scrapePreviewBlock !== null && scrapeBlocks[scrapePreviewBlock] && (() => {
+                            const bi = scrapePreviewBlock;
+                            const block = scrapeBlocks[bi];
+                            const selected = scrapeSelected.has(bi);
+                            return (
+                              <div
+                                onClick={(e) => { if (e.target === e.currentTarget) setScrapePreviewBlock(null); }}
+                                style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}
+                              >
+                                <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', width: '100%', maxWidth: '680px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 64px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+                                  {/* Header modal */}
+                                  <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'var(--muted)' }}>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                                        <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontWeight: 500 }}>Bloque {bi + 1} de {scrapeBlocks.length}</span>
+                                        <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '4px', background: 'var(--border)', color: 'var(--muted-foreground)' }}>{block.type}</span>
+                                        <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{block.content.length.toLocaleString('es')} caracteres</span>
+                                      </div>
+                                      <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, lineHeight: 1.3 }}>{block.title}</p>
+                                    </div>
+                                    <button type="button" onClick={() => setScrapePreviewBlock(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted-foreground)', padding: '2px', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                    </button>
+                                  </div>
+
+                                  {/* Contenido */}
+                                  <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+                                    <pre style={{ margin: 0, fontSize: '12px', lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'var(--foreground)', fontFamily: 'inherit' }}>
+                                      {block.content}
+                                    </pre>
+                                  </div>
+
+                                  {/* Footer modal */}
+                                  <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', background: 'var(--muted)' }}>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                      <button type="button" onClick={() => setScrapePreviewBlock(bi > 0 ? bi - 1 : scrapeBlocks.length - 1)} style={{ fontSize: '11px', padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--card)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                                        Anterior
+                                      </button>
+                                      <button type="button" onClick={() => setScrapePreviewBlock(bi < scrapeBlocks.length - 1 ? bi + 1 : 0)} style={{ fontSize: '11px', padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--card)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        Siguiente
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                                      </button>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setScrapeSelected((prev) => {
+                                          const next = new Set(prev);
+                                          next.has(bi) ? next.delete(bi) : next.add(bi);
+                                          return next;
+                                        });
+                                      }}
+                                      style={{ fontSize: '12px', padding: '7px 16px', borderRadius: '7px', border: `1px solid ${selected ? R : 'var(--border)'}`, background: selected ? R : 'var(--card)', color: selected ? 'white' : 'var(--foreground)', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.15s' }}
+                                    >
+                                      {selected
+                                        ? <><svg width="13" height="13" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg> Incluido</>
+                                        : '+ Incluir en RAG'
+                                      }
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
+
                           <button
                             type="button"
-                            onClick={() => { setScrapeStatus('idle'); setScrapeBlocks(null); setScrapeSelected(new Set()); setScrapeExpanded(new Set()); setScrapeUrl(''); setScrapeStep(''); setScrapeTitle(''); }}
+                            onClick={() => { setScrapeStatus('idle'); setScrapeBlocks(null); setScrapeSelected(new Set()); setScrapePreviewBlock(null); setScrapeUrl(''); setScrapeStep(''); setScrapeTitle(''); }}
                             style={{ marginTop: '10px', fontSize: '11px', color: 'var(--muted-foreground)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
                           >
                             Limpiar resultado
