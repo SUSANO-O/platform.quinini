@@ -249,9 +249,9 @@ export function planMeetsModelMin(userPlan: string, minPlan?: string): boolean {
 
 export const WIDGET_LIMITS: Record<string, number> = {
   free: 1,
-  starter: 3,
-  growth: 6,
-  business: 12,
+  starter: 20,
+  growth: 60,
+  business: 200,
   enterprise: 999,
 };
 

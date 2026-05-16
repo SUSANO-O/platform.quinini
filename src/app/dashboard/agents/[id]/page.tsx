@@ -4244,7 +4244,15 @@ function VoicePickerTab({ selected, onSelect, onSave, saving, readOnly, accentCo
 
   useEffect(() => () => stopPreview(), []);
 
-  const filtered = voices.filter((v) => {
+  // Google voices are the only ones available in Chrome across Windows, macOS, Android and iOS.
+  // Fall back to all voices if the current browser has none (Safari, Firefox).
+  const googleVoices = voices.filter((v) => v.name.startsWith('Google '));
+  const baseVoices = googleVoices.length > 0 ? googleVoices : voices;
+  const isFiltered = googleVoices.length > 0;
+
+  const filtered = baseVoices.filter((v) => {
+    // Always include the currently saved voice even if it's not in the universal set
+    if (selected && v.name === selected) return true;
     const q = query.toLowerCase();
     return !q || v.name.toLowerCase().includes(q) || v.lang.toLowerCase().includes(q);
   });
@@ -4285,8 +4293,11 @@ function VoicePickerTab({ selected, onSelect, onSave, saving, readOnly, accentCo
         </div>
 
         <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '14px', lineHeight: 1.45 }}>
-          Elige la voz que usará el widget cuando lea respuestas en voz alta. Las voces disponibles dependen del navegador y sistema operativo del usuario.
-          {!voices.length && <span style={{ color: '#d97706' }}> (Cargando voces — abre este panel en un navegador compatible con síntesis de voz.)</span>}
+          {isFiltered
+            ? <>Solo se muestran <strong>voces Google</strong> — son las únicas disponibles en Chrome en Windows, macOS, Android e iOS. La voz elegida funcionará para la mayoría de tus usuarios.</>
+            : <>No se detectaron voces Google en este navegador (normal en Safari/Firefox). Se muestran todas las voces locales, que pueden variar por OS.</>
+          }
+          {!voices.length && <span style={{ color: '#d97706' }}> (Cargando voces — abre este panel en Chrome para ver las opciones universales.)</span>}
         </p>
 
         {/* Search */}
