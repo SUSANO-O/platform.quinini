@@ -153,6 +153,8 @@ export type HubCatalogAgent = {
   }>;
   /** Herramientas built-in del agente (incluye `webhook` con su config). */
   tools?: LandingToolConfig[];
+  /** Modelos de respaldo (máx. 3); el widget los prueba en orden si el principal falla. */
+  fallbackModels?: string[];
   /** Catálogo hub: Active | Inactive | Error */
   status?: string;
 };
@@ -257,6 +259,8 @@ export async function pushClientAgentToHubCatalog(agent: {
   }> | null;
   strictPurposeOnly?: boolean;
   hubspotAutoCaptureContacts?: boolean;
+  /** Modelos de respaldo (máx. 3) a intentar en orden si el modelo principal falla. */
+  fallbackModels?: string[] | null;
 }): Promise<boolean> {
   const base = getAibackhubBaseUrl();
   const hid = String(agent.agentHubId || '').trim();
@@ -326,6 +330,9 @@ export async function pushClientAgentToHubCatalog(agent: {
     payload.strictPurposeOnly = agent.strictPurposeOnly !== false;
     if (typeof agent.hubspotAutoCaptureContacts === 'boolean') {
       payload.hubspotAutoCaptureContacts = agent.hubspotAutoCaptureContacts;
+    }
+    if (Array.isArray(agent.fallbackModels)) {
+      payload.fallbackModels = agent.fallbackModels;
     }
     const res = await fetch(url, {
       method: 'PUT',
@@ -413,6 +420,7 @@ type LandingAgentDocLike = {
   }>;
   strictPurposeOnly?: boolean;
   hubspotAutoCaptureContacts?: boolean;
+  fallbackModels?: string[];
 };
 
 /**
@@ -480,6 +488,9 @@ export async function syncHubCatalogFromLandingAgentDoc(
   }
   if (Array.isArray(agent.faqCandidates)) {
     payload.faqCandidates = agent.faqCandidates;
+  }
+  if (Array.isArray(agent.fallbackModels)) {
+    payload.fallbackModels = agent.fallbackModels;
   }
   return pushClientAgentToHubCatalog(payload);
 }

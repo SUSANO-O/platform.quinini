@@ -197,6 +197,8 @@ const ClientAgentSchema = new Schema({
   faqCandidates:   { type: [Schema.Types.Mixed], default: [] },
   /** Nombre de la voz del navegador (SpeechSynthesis) para TTS en el widget. Null = auto. */
   widgetVoiceName: { type: String, default: null },
+  /** Modelos de respaldo (máx. 3). Se prueban en orden cuando el modelo principal falla. */
+  fallbackModels:  { type: [String], default: [] },
 }, { timestamps: true });
 
 ClientAgentSchema.index({ userId: 1, type: 1, createdAt: -1 });
