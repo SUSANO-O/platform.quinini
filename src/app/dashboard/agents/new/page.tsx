@@ -781,22 +781,6 @@ export default function NewAgentPage() {
                   (Opcional) Elige una integración abajo y luego pulsa <strong>Crear agente</strong>. Tras el sync con el hub tendrás{' '}
                   <code className="text-[11px]">agentHubId</code> y el modal de credenciales.
                 </li>
-                <li className="mb-1.5">
-                  <strong>Opción A:</strong> en la ficha del agente → pestaña <strong>Herramientas</strong> → formulario{' '}
-                  <strong>Conectar integración MCP</strong>. Cada agente puede usar un login distinto para la misma integración.
-                </li>
-                <li className="mb-1.5">
-                  <strong>Opción B:</strong> en <strong>AgentFlowHub</strong>{' '}
-                  <a
-                    href={`${hubUiBase}/mcp`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-bold landing-link-accent"
-                  >
-                    {hubUiBase}/mcp
-                  </a>{' '}
-                  (pestaña Conexiones), elige el agente del hub y añade credenciales allí.
-                </li>
                 <li>
                   En la ficha → <strong>Herramientas</strong> marca qué tools MCP usa el agente (y el widget) y guarda.
                 </li>
