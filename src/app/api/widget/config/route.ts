@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
-import { Widget } from '@/lib/db/models';
+import { Widget, ClientAgent } from '@/lib/db/models';
 
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token');
@@ -29,6 +29,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Widget no encontrado.' }, { status: 404 });
   }
 
+  // Fetch voice name from the linked agent (stored there, not on Widget)
+  let voiceName = '';
+  if (widget.agentId) {
+    try {
+      const agent = await ClientAgent.findById(widget.agentId as string)
+        .select('widgetVoiceName')
+        .lean() as { widgetVoiceName?: string | null } | null;
+      voiceName = typeof agent?.widgetVoiceName === 'string' ? agent.widgetVoiceName : '';
+    } catch { /* non-critical — fallback to auto voice */ }
+  }
+
   return NextResponse.json(
     {
       agentId:           widget.agentId,
@@ -43,6 +54,7 @@ export async function GET(req: NextRequest) {
       borderRadius:      widget.borderRadius,
       autoOpen:          widget.autoOpen,
       humanSupportPhone: widget.humanSupportPhone,
+      voiceName,
       shortcuts:         Array.isArray(widget.shortcuts)
         ? (widget.shortcuts as Array<{ id: string; label: string; message: string; emoji?: string; enabled: boolean }>)
             .filter((s) => s.enabled !== false)
