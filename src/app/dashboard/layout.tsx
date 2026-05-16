@@ -20,16 +20,10 @@ import {
   Route,
   RotateCcw,
   PieChart,
-  ChevronLeft,
-  ChevronRight,
   Menu,
   X,
 } from 'lucide-react';
 import { PwaInstallButton } from '@/components/shared/pwa-install-button';
-
-const SIDEBAR_EXPANDED_PX = 220;
-const SIDEBAR_COLLAPSED_PX = 72;
-const SIDEBAR_COLLAPSED_KEY = 'dashboard-sidebar-collapsed';
 
 const NAV = [
   { href: '/dashboard', label: 'Inicio', icon: LayoutDashboard },
@@ -339,28 +333,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, loading, logout, stopImpersonating } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  useEffect(() => {
-    try {
-      setSidebarCollapsed(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1');
-    } catch {
-      /* noop */
-    }
-  }, []);
-
-  const toggleSidebar = () => {
-    setSidebarCollapsed((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? '1' : '0');
-      } catch {
-        /* noop */
-      }
-      return next;
-    });
-  };
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
@@ -442,8 +415,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
         <div style={{ display: 'flex', flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
 
-        {/* Topbar móvil */}
-        <header className="md:hidden" style={{
+        {/* Topbar */}
+        <header style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
           height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '0 14px', background: 'var(--card)', borderBottom: '1px solid var(--border)',
@@ -468,18 +441,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
         </header>
 
-        {/* Overlay móvil */}
+        {/* Overlay */}
         {mobileOpen && (
           <div
-            className="md:hidden"
             onClick={() => setMobileOpen(false)}
             style={{ position: 'fixed', inset: 0, zIndex: 48, background: 'rgba(0,0,0,0.4)' }}
           />
         )}
 
-        {/* Sidebar drawer móvil */}
+        {/* Sidebar drawer */}
         <div
-          className="md:hidden"
           style={{
             position: 'fixed', top: 52, left: 0, bottom: 0, zIndex: 49,
             width: 220, background: 'var(--card)', borderRight: '1px solid var(--border)',
@@ -508,12 +479,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             })}
           </nav>
           <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+            <SidebarExpiryBadge />
+            <JourneyProgress />
+            <TourActions />
             <p style={{ fontSize: 11, fontWeight: 600, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {user.displayName || user.email}
             </p>
             <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {user.email}
             </p>
+            <PwaInstallButton collapsed={false} />
             <button type="button" onClick={handleLogout} style={{
               display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
               borderRadius: 10, border: '1px solid var(--border)', background: 'transparent',
@@ -524,162 +499,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
 
-        {/* Sidebar: altura fija al viewport; solo la zona nav hace scroll si hay mucho contenido */}
-        <aside
-          aria-label="Navegación del panel"
-          className="hidden md:flex"
-          style={{
-            width: sidebarCollapsed ? SIDEBAR_COLLAPSED_PX : SIDEBAR_EXPANDED_PX,
-            flexShrink: 0,
-            minHeight: 0,
-            height: '100%',
-            background: 'var(--card)',
-            borderRight: '1px solid var(--border)',
-            display: 'flex',
-            flexDirection: 'column',
-            padding: sidebarCollapsed ? '16px 8px' : '20px 12px',
-            overflow: 'hidden',
-            transition: 'width 0.2s ease, padding 0.2s ease',
-          }}
-        >
-          {/* Logo + colapsar */}
-          <div
-            className="shrink-0 mb-3"
-            style={{
-              display: 'flex',
-              flexDirection: sidebarCollapsed ? 'column' : 'row',
-              alignItems: 'center',
-              justifyContent: sidebarCollapsed ? 'center' : 'space-between',
-              gap: sidebarCollapsed ? 8 : 6,
-            }}
-          >
-            <Link
-              href="/"
-              className={`flex items-center no-underline ${sidebarCollapsed ? 'justify-center p-0' : 'gap-2.5 px-2'}`}
-              title="Ir al inicio"
-            >
-              <Image src="/t1.png" alt="MatIAs" width={36} height={36} className="rounded-xl object-cover shrink-0" style={{ aspectRatio: '1/1' }} />
-              {!sidebarCollapsed ? <span className="text-lg font-bold gradient-text">MatIAs</span> : null}
-            </Link>
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              aria-expanded={!sidebarCollapsed}
-              aria-controls="dashboard-sidebar-nav"
-              title={sidebarCollapsed ? 'Expandir menú' : 'Solo iconos'}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 34,
-                height: 34,
-                flexShrink: 0,
-                borderRadius: '10px',
-                border: '1px solid var(--border)',
-                background: 'color-mix(in oklab, var(--foreground) 4%, transparent)',
-                color: 'var(--muted-foreground)',
-                cursor: 'pointer',
-              }}
-            >
-              {sidebarCollapsed ? <ChevronRight size={18} aria-hidden /> : <ChevronLeft size={18} aria-hidden />}
-            </button>
-          </div>
-
-          {/* Nav — ocupa el espacio sobrante y hace scroll si crece */}
-          <nav
-            id="dashboard-sidebar-nav"
-            style={{
-              flex: 1,
-              minHeight: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '4px',
-              overflowY: 'auto',
-              overflowX: 'hidden',
-              WebkitOverflowScrolling: 'touch',
-            }}
-          >
-            {NAV.map(({ href, label, icon: Icon }) => {
-              const active = href === '/dashboard' ? pathname === href : pathname.startsWith(href);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  data-tour={SIDEBAR_TOUR_KEY_BY_HREF[href]}
-                  title={label}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-                    gap: sidebarCollapsed ? 0 : '10px',
-                    padding: sidebarCollapsed ? '10px 8px' : '9px 12px',
-                    borderRadius: '10px',
-                    textDecoration: 'none',
-                    fontSize: '13px',
-                    fontWeight: active ? 700 : 500,
-                    background: active ? 'rgba(228,20,20,0.1)' : 'transparent',
-                    color: active ? 'var(--primary)' : 'var(--foreground)',
-                    border: active ? '1px solid rgba(228,20,20,0.18)' : '1px solid transparent',
-                    transition: 'background 0.15s, border-color 0.15s',
-                  }}
-                >
-                  <Icon size={18} style={{ flexShrink: 0 }} aria-hidden />
-                  {!sidebarCollapsed ? <span className="truncate">{label}</span> : null}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* User + logout */}
-          <div
-            style={{
-              flexShrink: 0,
-              borderTop: '1px solid var(--border)',
-              paddingTop: sidebarCollapsed ? 12 : 16,
-            }}
-          >
-            {!sidebarCollapsed ? (
-              <>
-                <SidebarExpiryBadge />
-                <JourneyProgress />
-                <TourActions />
-                <p style={{ fontSize: '12px', fontWeight: 600, marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {user.displayName || user.email}
-                </p>
-                <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {user.email}
-                </p>
-              </>
-            ) : null}
-            <PwaInstallButton collapsed={sidebarCollapsed} />
-            <button
-              type="button"
-              onClick={handleLogout}
-              title="Cerrar sesión"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: sidebarCollapsed ? 0 : '8px',
-                padding: sidebarCollapsed ? '10px 8px' : '8px 12px',
-                borderRadius: '10px',
-                border: '1px solid var(--border)',
-                background: 'transparent',
-                color: 'var(--muted-foreground)',
-                fontSize: '13px',
-                cursor: 'pointer',
-                width: '100%',
-              }}
-            >
-              <LogOut size={18} aria-hidden />
-              {!sidebarCollapsed ? 'Cerrar sesión' : null}
-            </button>
-          </div>
-        </aside>
-
-        {/* Main content — única columna que crece con el documento; scroll vertical aquí */}
+        {/* Main content */}
         <main style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}
-          className="pt-[52px] md:pt-0">
+          className="pt-[52px]">
           {children}
         </main>
         </div>
