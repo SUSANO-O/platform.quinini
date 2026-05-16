@@ -262,7 +262,7 @@ export default function AgentsPage() {
       <div className="hero-glow pointer-events-none" style={{ background: R, top: '-200px', right: '-60px' }} />
       <div className="hero-glow pointer-events-none" style={{ background: B, top: '100px', left: '-120px' }} />
 
-      <div className="relative px-6 py-10 max-w-4xl mx-auto">
+      <div className="relative px-4 py-4 max-w-4xl mx-auto">
         {/* Cabecera */}
         <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
           <div>
