@@ -27,6 +27,21 @@ export function ensureLSSetup() {
 export const LS_STORE_ID = parseInt(process.env.LEMONSQUEEZY_STORE_ID || '0', 10);
 
 export const PLANS = {
+  solo: {
+    name: 'Solo',
+    price: 3,
+    priceId: process.env.LEMONSQUEEZY_VARIANT_SOLO || '',
+    widgets: 1,
+    requests: '300 conv/mo',
+    features: [
+      '1 widget',
+      '300 conversations/month',
+      '1 agent · Web Search, Webhook, Gmail',
+      'Training videos on YouTube',
+      'Training & onboarding included',
+      'Email support (42h)',
+    ],
+  },
   basic: {
     name: 'Basic',
     price: 14,
@@ -46,10 +61,10 @@ export const PLANS = {
     name: 'Starter',
     price: 39,
     priceId: process.env.LEMONSQUEEZY_VARIANT_STARTER || '',
-    widgets: 300,
+    widgets: 60,
     requests: '6k conv/mo',
     features: [
-      '300 widgets',
+      '60 widgets',
       '6,000 conversations/month',
       '30 agents · RAG 1 GB · Gmail + Slack',
       '90-day history',
@@ -61,10 +76,10 @@ export const PLANS = {
     name: 'Growth',
     price: 99,
     priceId: process.env.LEMONSQUEEZY_VARIANT_GROWTH || '',
-    widgets: 1000,
+    widgets: 200,
     requests: '30k conv/mo',
     features: [
-      '1,000 widgets',
+      '200 widgets',
       '30,000 conversations/month',
       '100 agents · RAG 10 GB · all integrations',
       '1-year history · advanced analytics',
@@ -76,10 +91,10 @@ export const PLANS = {
     name: 'Business',
     price: 349,
     priceId: process.env.LEMONSQUEEZY_VARIANT_BUSINESS || '',
-    widgets: 3000,
+    widgets: 1000,
     requests: '150k conv/mo',
     features: [
-      '3,000 widgets',
+      '1,000 widgets',
       '150,000 conversations/month',
       '300 agents · RAG 100 GB · all tools',
       'Unlimited history · MCP integrations',

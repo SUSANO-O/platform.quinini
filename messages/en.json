@@ -108,48 +108,72 @@
       "cta": "Start free — 7 days",
       "ragNotIncluded": "No context & memory — available from Starter",
       "ragTechnical": "Context & memory: {mb} MB · {sources} sources per agent",
+      "solo": {
+        "widgets": "1 widget",
+        "requests": "300 conv/mo",
+        "features": [
+          "1 active widget on your site",
+          "300 conversations per month (~10/day)",
+          "1 agent · 3 tools · Web Search, Webhook, Gmail",
+          "Training videos on YouTube",
+          "Training & onboarding included",
+          "Email support (42h)"
+        ]
+      },
       "basic": {
         "widgets": "10 widgets",
         "requests": "1,500 conv/mo",
         "features": [
           "10 active widgets on your site",
           "1,500 conversations per month (~50/day)",
-          "5 agents · 3 tools · Gmail included",
+          "5 agents · 5 tools · Gmail + Slack included",
           "Training & onboarding included",
           "Email support (72h)"
         ]
       },
       "starter": {
-        "widgets": "300 widgets",
+        "widgets": "60 widgets",
         "requests": "6,000 conv/mo",
         "features": [
-          "300 active widgets on your site",
+          "60 active widgets on your site",
           "6,000 conversations per month (~200/day)",
-          "30 agents · Context & memory 1 GB · Gmail + Slack",
+          "30 agents · 30 tools · Context & memory 1 GB",
           "Training & onboarding included",
           "Email support (48h)"
         ]
       },
       "growth": {
-        "widgets": "1,000 widgets",
+        "widgets": "200 widgets",
         "requests": "30,000 conv/mo",
         "features": [
-          "1,000 active widgets on your site",
+          "200 active widgets on your site",
           "30,000 conversations per month (~1,000/day)",
-          "100 agents · Context & memory 10 GB · all integrations",
+          "100 agents · 100 tools · Context & memory 10 GB",
           "Training & onboarding included",
           "Priority chat support (24h)"
         ]
       },
       "business": {
-        "widgets": "3,000 widgets",
+        "widgets": "1,000 widgets",
         "requests": "150,000 conv/mo",
         "features": [
-          "3,000 active widgets on your site",
+          "1,000 active widgets on your site",
           "150,000 conversations per month (~5,000/day)",
-          "300 agents · Context & memory 100 GB · unlimited tools",
+          "500 agents · Context & memory 100 GB · unlimited tools",
           "Training & onboarding included",
           "Dedicated support · 99.9% SLA · Onboarding included"
+        ]
+      },
+      "enterprise": {
+        "widgets": "Unlimited",
+        "requests": "Custom",
+        "features": [
+          "Unlimited widgets on your site",
+          "Unlimited conversations",
+          "Custom volume agreements",
+          "White-label available",
+          "Dedicated 24/7 support",
+          "Custom enterprise SLA"
         ]
       }
     },

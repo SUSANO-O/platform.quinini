@@ -46,6 +46,12 @@ export default async function LandingPage() {
 
   const PLANS = [
     {
+      name: 'Solo',     price: '$3',   period: t('pricing.period'),
+      widgets: t('pricing.solo.widgets'),    requests: t('pricing.solo.requests'),
+      features: t.raw('pricing.solo.features') as string[],
+      color: Rd, id: 'solo',
+    },
+    {
       name: 'Basic',    price: '$14',  period: t('pricing.period'),
       widgets: t('pricing.basic.widgets'),   requests: t('pricing.basic.requests'),
       features: t.raw('pricing.basic.features') as string[],
@@ -672,7 +678,7 @@ export default async function LandingPage() {
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-5">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
             {PLANS.map((plan) => (
               <div
                 key={plan.name}
@@ -738,6 +744,45 @@ export default async function LandingPage() {
                 </Link>
               </div>
             ))}
+          </div>
+
+          {/* Enterprise — tarjeta completa con contacto */}
+          <div
+            className="mt-5 rounded-2xl p-7 card-hover"
+            style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+          >
+            <div className="flex flex-col md:flex-row md:items-center gap-6 justify-between">
+              <div className="flex-shrink-0">
+                <h3 className="text-xl font-extrabold mb-1">Enterprise</h3>
+                <div className="flex items-end gap-1 mb-1">
+                  <span className="text-4xl font-extrabold" style={{ color: '#8B5CF6' }}>
+                    {t('pricing.enterprise.widgets')}
+                  </span>
+                </div>
+                <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                  {t('pricing.enterprise.requests')}
+                </p>
+              </div>
+
+              <ul className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-2 flex-1">
+                {(t.raw('pricing.enterprise.features') as string[]).map((feat: string) => (
+                  <li key={feat} className="flex items-center gap-2 text-sm">
+                    <Check size={14} style={{ color: '#8B5CF6', flexShrink: 0 }} />
+                    {feat}
+                  </li>
+                ))}
+              </ul>
+
+              <a
+                href="https://wa.me/573196748729"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-center py-3 px-8 rounded-xl font-bold text-sm transition-all hover:opacity-90 hover:shadow-lg text-white whitespace-nowrap flex-shrink-0"
+                style={{ background: '#8B5CF6' }}
+              >
+                Contactar — +57 319 674 8729
+              </a>
+            </div>
           </div>
         </div>
       </section>

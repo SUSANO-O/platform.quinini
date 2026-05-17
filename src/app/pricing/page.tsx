@@ -75,22 +75,35 @@ export default function PricingPage() {
                   </p>
                 )}
 
-                <Link
-                  href="/dashboard"
-                  className="mt-8 flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm transition-all"
-                  style={
-                    plan.highlighted
-                      ? {
-                          background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))',
-                          color: '#fff',
-                          boxShadow: '0 4px 20px rgba(228,20,20,0.25)',
-                        }
-                      : { border: '1px solid var(--border)', color: 'var(--foreground)' }
-                  }
-                >
-                  {plan.id === 'free' ? 'Empezar gratis' : plan.id === 'enterprise' ? 'Contactar ventas' : 'Probar 7 días'}
-                  <ArrowRight size={14} />
-                </Link>
+                {plan.id === 'enterprise' ? (
+                  <a
+                    href="https://wa.me/573196748729"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-8 flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm transition-all"
+                    style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
+                  >
+                    Contactar — +57 319 674 8729
+                    <ArrowRight size={14} />
+                  </a>
+                ) : (
+                  <Link
+                    href={plan.id === 'free' ? '/register' : '/dashboard'}
+                    className="mt-8 flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm transition-all"
+                    style={
+                      plan.highlighted
+                        ? {
+                            background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))',
+                            color: '#fff',
+                            boxShadow: '0 4px 20px rgba(228,20,20,0.25)',
+                          }
+                        : { border: '1px solid var(--border)', color: 'var(--foreground)' }
+                    }
+                  >
+                    {plan.id === 'free' ? 'Empezar gratis' : 'Probar 7 días'}
+                    <ArrowRight size={14} />
+                  </Link>
+                )}
               </div>
             ))}
           </div>
