@@ -11,7 +11,7 @@ const FAQS: FaqItem[] = [
   {
     source: 'Landing principal',
     question: '¿Qué incluye el trial de 7 días?',
-    answer: 'Incluye acceso completo al Widget Builder, todos los agentes y el SDK durante el periodo de prueba.',
+    answer: 'Incluye acceso completo al Widget Builder, todos los agentes y el codigo durante el periodo de prueba.',
   },
   {
     source: 'Landing principal',
