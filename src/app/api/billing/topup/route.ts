@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken, isUserEmailVerified, isImpersonationSession } from '@/lib/auth';
+import { isDisposableEmail } from '@/lib/disposable-email';
 import { connectDB } from '@/lib/db/connection';
 import { User, Subscription } from '@/lib/db/models';
 import { CONVERSATION_PACKS, type PackId } from '@/lib/plan-catalog';
@@ -67,6 +68,13 @@ export async function POST(req: NextRequest) {
   if (!isImpersonationSession(req.cookies) && !isUserEmailVerified(user)) {
     return NextResponse.json(
       { error: 'Debes verificar tu correo antes de comprar packs de conversaciones.', code: 'EMAIL_NOT_VERIFIED' },
+      { status: 403 },
+    );
+  }
+
+  if (!isImpersonationSession(req.cookies) && isDisposableEmail(user.email ?? '')) {
+    return NextResponse.json(
+      { error: 'No se permiten correos temporales para operaciones de pago. Usa un correo permanente.', code: 'DISPOSABLE_EMAIL' },
       { status: 403 },
     );
   }

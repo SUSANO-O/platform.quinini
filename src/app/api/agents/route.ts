@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { Subscription, ClientAgent, User } from '@/lib/db/models';
-import { verifySessionToken } from '@/lib/auth';
+import { verifySessionToken, isUserEmailVerified, isImpersonationSession } from '@/lib/auth';
 import { getAgentLimits } from '@/lib/agent-plans';
 import mongoose from 'mongoose';
 import {
@@ -168,8 +168,15 @@ export async function POST(req: NextRequest) {
     strictPurposeOnly: bodyStrictPurpose,
   } = body;
 
-  const user = await User.findById(userId).select({ role: 1 }).lean() as { role?: string } | null;
+  const user = await User.findById(userId).select({ role: 1, emailVerified: 1 }).lean() as { role?: string; emailVerified?: boolean } | null;
   const isAdmin = user?.role === 'admin';
+
+  if (!isImpersonationSession(req.cookies) && !isUserEmailVerified(user)) {
+    return NextResponse.json(
+      { error: 'Debes verificar tu correo electrónico antes de crear agentes.', code: 'EMAIL_NOT_VERIFIED' },
+      { status: 403 },
+    );
+  }
   let isPlatform = false;
   if (body.isPlatform === true) {
     if (!isAdmin) {

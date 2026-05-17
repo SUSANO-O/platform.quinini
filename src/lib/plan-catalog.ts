@@ -9,18 +9,18 @@ export const PLAN_DISPLAY: Record<
   { label: string; priceLabel: string; widgets: number }
 > = {
   free: { label: 'Free', priceLabel: '$0', widgets: 1 },
-  starter: { label: 'Starter', priceLabel: '$39/mes', widgets: 20 },
-  growth: { label: 'Growth', priceLabel: '$99/mes', widgets: 60 },
-  business: { label: 'Business', priceLabel: '$349/mes', widgets: 200 },
-  enterprise: { label: 'Enterprise', priceLabel: 'Contacto', widgets: 999 },
+  starter: { label: 'Starter', priceLabel: '$39/mes', widgets: 300 },
+  growth: { label: 'Growth', priceLabel: '$99/mes', widgets: 1000 },
+  business: { label: 'Business', priceLabel: '$349/mes', widgets: 3000 },
+  enterprise: { label: 'Enterprise', priceLabel: 'Contacto', widgets: 9999 },
 };
 
 /** Sub-agentes por agente orquestador según el plan. */
 export const PLAN_SUBAGENT_LIMITS: Record<string, number> = {
   free:       0,
-  starter:    1,
-  growth:     3,
-  business:   10,
+  starter:    15,
+  growth:     50,
+  business:   150,
   enterprise: 999,
 };
 
@@ -36,19 +36,28 @@ export type PackId = typeof CONVERSATION_PACKS[number]['id'];
 /** Límite mensual de conversaciones por plan (-1 = ilimitado). */
 export const PLAN_CONVERSATION_LIMITS: Record<string, number> = {
   free:       50,
-  starter:    5_000,
-  growth:     25_000,
-  business:   100_000,
+  starter:    6_000,
+  growth:     30_000,
+  business:   150_000,
+  enterprise: -1,
+};
+
+/** Retención de historial de conversaciones en días (-1 = ilimitado). */
+export const PLAN_HISTORY_RETENTION_DAYS: Record<string, number> = {
+  free:       7,
+  starter:    90,
+  growth:     365,
+  business:   -1,
   enterprise: -1,
 };
 
 /** Límite técnico de conocimiento RAG por agente (null = no aplica/no habilitado). */
 export const PLAN_RAG_LIMITS: Record<string, { mb: number; sources: number } | null> = {
-  free: null,
-  starter: null,
-  growth: { mb: 100, sources: 50 },
-  business: { mb: 1024, sources: 200 },
-  enterprise: { mb: 10_240, sources: 1000 },
+  free:       null,
+  starter:    { mb: 1_024,   sources: 60   },
+  growth:     { mb: 10_240,  sources: 300  },
+  business:   { mb: 102_400, sources: 2000 },
+  enterprise: { mb: 999_999, sources: 9999 },
 };
 
 export function planRank(plan: string): number {
@@ -65,22 +74,27 @@ export const PLAN_FEATURE_BULLETS: Record<
   string[]
 > = {
   starter: [
-    '20 widgets activos en tu sitio',
-    '5.000 conversaciones al mes (~167/día)',
-    '1 agente personalizado · Chat AI + analítica básica (sin contexto)',
+    '300 widgets activos en tu sitio',
+    '6.000 conversaciones al mes (~200/día)',
+    '30 agentes · 15 sub-agentes por agente · 5 herramientas',
+    'RAG: 1 GB · 60 fuentes por agente',
+    'Historial de conversaciones: 3 meses',
     'Soporte por email (48 h)',
   ],
   growth: [
-    '60 widgets activos en tu sitio',
-    '25.000 conversaciones al mes (~833/día)',
-    'Agentes ilimitados + contexto + analítica avanzada',
-    'RAG: hasta 100 MB o 50 fuentes por agente',
+    '1.000 widgets activos en tu sitio',
+    '30.000 conversaciones al mes (~1.000/día)',
+    '100 agentes · 50 sub-agentes por agente · 10 herramientas',
+    'RAG: 10 GB · 300 fuentes por agente · analítica avanzada',
+    'Historial de conversaciones: 1 año',
     'Soporte prioritario por chat (24 h)',
   ],
   business: [
-    '200 widgets activos en tu sitio',
-    '100.000 conversaciones al mes (~3.300/día)',
-    'Agentes + contexto + integraciones',
+    '3.000 widgets activos en tu sitio',
+    '150.000 conversaciones al mes (~5.000/día)',
+    '300 agentes · 150 sub-agentes por agente · herramientas ilimitadas',
+    'RAG: 100 GB · 2.000 fuentes por agente',
+    'Historial de conversaciones: ilimitado',
     'Soporte dedicado · SLA 99,9 % · Onboarding incluido',
   ],
 };
