@@ -239,6 +239,7 @@ export async function POST(req: NextRequest) {
           images?: Array<{ dataUrl: string; mimeType?: string }>;
           code?: string;
           error?: string;
+          usage?: { inputTokens?: number; outputTokens?: number };
         };
 
         if (!res.ok || json.code === 'AGENT_COOLDOWN' || json.error) {
@@ -278,7 +279,7 @@ export async function POST(req: NextRequest) {
 
         // Telemetry (non-blocking)
         if (widgetToken.startsWith('wt_') && parsedAgentId) {
-          void trackWidgetChatUsage(widgetToken, parsedAgentId, true).catch(() => {});
+          void trackWidgetChatUsage(widgetToken, parsedAgentId, true, json.usage).catch(() => {});
           if (faqTrackOwnerId) {
             void trackWidgetUserMessageForFaqCandidates({
               ownerUserId: faqTrackOwnerId,

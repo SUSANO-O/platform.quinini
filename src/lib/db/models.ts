@@ -126,10 +126,12 @@ WidgetSchema.index({ userId: 1, createdAt: -1 });
 // Aggregated monthly counters: one doc per (userId, widgetId, month)
 
 const RequestLogSchema = new Schema({
-  userId:   { type: String, required: true },
-  widgetId: { type: String, required: true },
-  month:    { type: String, required: true }, // "YYYY-MM"
-  count:    { type: Number, default: 0 },
+  userId:       { type: String, required: true },
+  widgetId:     { type: String, required: true },
+  month:        { type: String, required: true }, // "YYYY-MM"
+  count:        { type: Number, default: 0 },
+  inputTokens:  { type: Number, default: 0 },
+  outputTokens: { type: Number, default: 0 },
 }, { timestamps: true });
 
 RequestLogSchema.index({ userId: 1, month: -1 });

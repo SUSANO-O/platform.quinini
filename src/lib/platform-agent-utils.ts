@@ -55,6 +55,7 @@ export async function trackWidgetChatUsage(
   widgetToken: string,
   parsedAgentId: string,
   ok: boolean,
+  tokens?: { inputTokens?: number; outputTokens?: number },
 ): Promise<void> {
   if (!ok || !widgetToken.startsWith('wt_') || !parsedAgentId.trim()) return;
 
@@ -90,9 +91,13 @@ export async function trackWidgetChatUsage(
     }
   }
 
+  const inc: Record<string, number> = { count: 1 };
+  if (tokens?.inputTokens) inc.inputTokens = tokens.inputTokens;
+  if (tokens?.outputTokens) inc.outputTokens = tokens.outputTokens;
+
   await RequestLog.updateOne(
     { userId: w.userId, widgetId: w._id.toString(), month },
-    { $inc: { count: 1 } },
+    { $inc: inc },
     { upsert: true },
   );
 }
