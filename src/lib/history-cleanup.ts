@@ -1,6 +1,11 @@
 /**
  * Limpieza de historial de conversaciones según el plan del usuario.
  * Elimina ConversationSession más antiguas que el límite de retención del plan.
+ *
+ * Diseño para escala:
+ * - Suscripciones procesadas en cursor (sin cargar todo en memoria)
+ * - $in por lotes de MAX_BATCH_SIZE en vez de arrays gigantes
+ * - Usuarios sin suscripción: $lookup aggregation en vez de $nin masivo
  */
 
 import { connectDB } from '@/lib/db/connection';
@@ -15,78 +20,137 @@ export interface HistoryCleanupResult {
   dryRun: boolean;
 }
 
+const MAX_BATCH_SIZE = 500;
+
+function cutoffFor(plan: string): Date | null {
+  const days = PLAN_HISTORY_RETENTION_DAYS[plan] ?? PLAN_HISTORY_RETENTION_DAYS.free;
+  if (days === -1) return null; // ilimitado
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+}
+
+async function deleteBatch(
+  userIds: string[],
+  cutoff: Date,
+  dryRun: boolean,
+): Promise<number> {
+  if (dryRun) {
+    return ConversationSession.countDocuments({
+      userId: { $in: userIds },
+      startedAt: { $lt: cutoff },
+    });
+  }
+  const { deletedCount } = await ConversationSession.deleteMany({
+    userId: { $in: userIds },
+    startedAt: { $lt: cutoff },
+  });
+  return deletedCount ?? 0;
+}
+
 export async function runHistoryCleanup(opts: { dryRun?: boolean } = {}): Promise<HistoryCleanupResult> {
   const { dryRun = false } = opts;
   await connectDB();
 
   const result: HistoryCleanupResult = { processed: 0, deleted: 0, skipped: 0, errors: 0, dryRun };
 
-  // Agrupa usuarios por plan para hacer el borrado por lotes
-  const planGroups: Record<string, string[]> = {};
+  // ── 1. Procesar usuarios con suscripción agrupados por plan ──────────────
+  // Usamos cursor para no cargar millones de docs en memoria
+  const planBatches: Record<string, string[]> = {};
 
-  const subs = await Subscription.find({}).select({ userId: 1, plan: 1, status: 1 }).lean() as {
-    userId: string;
-    plan?: string;
-    status?: string;
-  }[];
+  const cursor = Subscription.find({})
+    .select({ userId: 1, plan: 1, status: 1 })
+    .lean()
+    .cursor();
 
-  for (const sub of subs) {
-    const isActive = sub.status === 'active' || sub.status === 'trialing';
-    const plan = isActive ? (sub.plan ?? 'free') : 'free';
-    if (!planGroups[plan]) planGroups[plan] = [];
-    planGroups[plan].push(String(sub.userId));
+  for await (const sub of cursor) {
+    const s = sub as { userId: unknown; plan?: string; status?: string };
+    const isActive = s.status === 'active' || s.status === 'trialing';
+    const plan = isActive ? (s.plan ?? 'free') : 'free';
+    const userId = String(s.userId);
+
+    if (!planBatches[plan]) planBatches[plan] = [];
+    planBatches[plan].push(userId);
+
+    // Procesar el lote cuando alcanza el tamaño máximo
+    if (planBatches[plan].length >= MAX_BATCH_SIZE) {
+      const batch = planBatches[plan].splice(0, MAX_BATCH_SIZE);
+      const cutoff = cutoffFor(plan);
+      if (!cutoff) { result.skipped += batch.length; continue; }
+      result.processed += batch.length;
+      try {
+        result.deleted += await deleteBatch(batch, cutoff, dryRun);
+      } catch {
+        result.errors++;
+      }
+    }
   }
 
-  for (const [plan, userIds] of Object.entries(planGroups)) {
-    const retentionDays = PLAN_HISTORY_RETENTION_DAYS[plan] ?? PLAN_HISTORY_RETENTION_DAYS.free;
-
-    // Ilimitado: no borrar nada
-    if (retentionDays === -1) {
-      result.skipped += userIds.length;
-      continue;
-    }
-
+  // Vaciar los lotes restantes
+  for (const [plan, userIds] of Object.entries(planBatches)) {
+    if (!userIds.length) continue;
+    const cutoff = cutoffFor(plan);
+    if (!cutoff) { result.skipped += userIds.length; continue; }
     result.processed += userIds.length;
 
-    const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
-
-    try {
-      if (dryRun) {
-        const count = await ConversationSession.countDocuments({
-          userId: { $in: userIds },
-          startedAt: { $lt: cutoff },
-        });
-        result.deleted += count;
-      } else {
-        const { deletedCount } = await ConversationSession.deleteMany({
-          userId: { $in: userIds },
-          startedAt: { $lt: cutoff },
-        });
-        result.deleted += deletedCount ?? 0;
+    // Procesar en sub-lotes si quedan muchos
+    for (let i = 0; i < userIds.length; i += MAX_BATCH_SIZE) {
+      const chunk = userIds.slice(i, i + MAX_BATCH_SIZE);
+      try {
+        result.deleted += await deleteBatch(chunk, cutoff, dryRun);
+      } catch {
+        result.errors++;
       }
-    } catch {
-      result.errors++;
     }
   }
 
-  // Usuarios sin suscripción → tratar como free
-  const usersWithSub = new Set(subs.map((s) => String(s.userId)));
-  const freeCutoff = new Date(Date.now() - PLAN_HISTORY_RETENTION_DAYS.free * 24 * 60 * 60 * 1000);
+  // ── 2. Usuarios sin suscripción → $lookup en vez de $nin masivo ──────────
+  // Busca sesiones antiguas cuyo userId no tenga ninguna suscripción en DB.
+  // $lookup es O(indexed join) — no depende del número de usuarios suscritos.
+  const freeCutoff = cutoffFor('free')!;
 
   try {
-    if (dryRun) {
-      const count = await ConversationSession.countDocuments({
-        userId: { $nin: Array.from(usersWithSub) },
-        startedAt: { $lt: freeCutoff },
-      });
-      result.deleted += count;
-    } else {
-      const { deletedCount } = await ConversationSession.deleteMany({
-        userId: { $nin: Array.from(usersWithSub) },
-        startedAt: { $lt: freeCutoff },
-      });
-      result.deleted += deletedCount ?? 0;
+    const pipeline = [
+      { $match: { startedAt: { $lt: freeCutoff } } },
+      {
+        $lookup: {
+          from: 'subscriptions',
+          localField: 'userId',
+          foreignField: 'userId',
+          as: '_sub',
+        },
+      },
+      { $match: { _sub: { $size: 0 } } },
+      { $project: { _id: 1 } },
+    ];
+
+    // Procesar en lotes para no acumular IDs en memoria
+    const aggCursor = ConversationSession.aggregate(pipeline).cursor();
+    let idBatch: string[] = [];
+    let batchDeleted = 0;
+
+    for await (const doc of aggCursor) {
+      idBatch.push(String(doc._id));
+      if (idBatch.length >= MAX_BATCH_SIZE) {
+        if (dryRun) {
+          batchDeleted += idBatch.length;
+        } else {
+          const { deletedCount } = await ConversationSession.deleteMany({ _id: { $in: idBatch } });
+          batchDeleted += deletedCount ?? 0;
+        }
+        idBatch = [];
+      }
     }
+
+    // Último lote
+    if (idBatch.length) {
+      if (dryRun) {
+        batchDeleted += idBatch.length;
+      } else {
+        const { deletedCount } = await ConversationSession.deleteMany({ _id: { $in: idBatch } });
+        batchDeleted += deletedCount ?? 0;
+      }
+    }
+
+    result.deleted += batchDeleted;
   } catch {
     result.errors++;
   }
