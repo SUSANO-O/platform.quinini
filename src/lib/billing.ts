@@ -8,6 +8,7 @@ import { NextResponse } from 'next/server';
 import { PLANS } from '@/lib/lemonsqueezy';
 import { getPaymentService } from '@/lib/payment';
 import { verifySessionToken, isUserEmailVerified, isImpersonationSession } from '@/lib/auth';
+import { isDisposableEmail } from '@/lib/disposable-email';
 import { connectDB } from '@/lib/db/connection';
 import { Subscription as SubscriptionModel, User } from '@/lib/db/models';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
@@ -74,6 +75,13 @@ export async function postSubscribePlan(req: NextRequest): Promise<NextResponse>
     if (!isImpersonationSession(req.cookies) && !isUserEmailVerified(user)) {
       return NextResponse.json(
         { error: 'Debes verificar tu correo antes de contratar o cambiar de plan.', code: 'EMAIL_NOT_VERIFIED' },
+        { status: 403 },
+      );
+    }
+
+    if (!isImpersonationSession(req.cookies) && isDisposableEmail(user.email)) {
+      return NextResponse.json(
+        { error: 'No se permiten correos temporales para operaciones de pago. Usa un correo permanente.', code: 'DISPOSABLE_EMAIL' },
         { status: 403 },
       );
     }

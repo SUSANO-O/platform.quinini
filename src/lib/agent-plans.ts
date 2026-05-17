@@ -175,21 +175,21 @@ export const AGENT_PLAN_LIMITS: Record<string, AgentPlanLimits> = {
     availableToolIds: ['web-search', 'webhook'],
   },
   starter: {
-    agents: 2,
-    subAgentsPerAgent: 1,
-    toolsPerAgent: 3,
-    ragEnabled: false,
-    ragSourcesPerAgent: 0,
-    ragStorageMbPerAgent: 0,
+    agents: 30,
+    subAgentsPerAgent: 15,
+    toolsPerAgent: 5,
+    ragEnabled: true,
+    ragSourcesPerAgent: 60,
+    ragStorageMbPerAgent: 1024,
     availableToolIds: ['web-search', 'webhook', 'gmail', 'slack'],
   },
   growth: {
-    agents: 5,
-    subAgentsPerAgent: 3,
-    toolsPerAgent: 5,
+    agents: 100,
+    subAgentsPerAgent: 50,
+    toolsPerAgent: 10,
     ragEnabled: true,
-    ragSourcesPerAgent: 50,
-    ragStorageMbPerAgent: 100,
+    ragSourcesPerAgent: 300,
+    ragStorageMbPerAgent: 10240,
     availableToolIds: [
       'web-search',
       'webhook',
@@ -205,12 +205,12 @@ export const AGENT_PLAN_LIMITS: Record<string, AgentPlanLimits> = {
     ],
   },
   business: {
-    agents: 15,
-    subAgentsPerAgent: 10,
-    toolsPerAgent: 10,
+    agents: 300,
+    subAgentsPerAgent: 150,
+    toolsPerAgent: 999,
     ragEnabled: true,
-    ragSourcesPerAgent: 200,
-    ragStorageMbPerAgent: 1024,
+    ragSourcesPerAgent: 2000,
+    ragStorageMbPerAgent: 102400,
     availableToolIds: ALL_TOOL_IDS,
   },
   enterprise: {
@@ -218,8 +218,8 @@ export const AGENT_PLAN_LIMITS: Record<string, AgentPlanLimits> = {
     subAgentsPerAgent: 999,
     toolsPerAgent: 999,
     ragEnabled: true,
-    ragSourcesPerAgent: 1000,
-    ragStorageMbPerAgent: 10240,
+    ragSourcesPerAgent: 9999,
+    ragStorageMbPerAgent: 999999,
     availableToolIds: ALL_TOOL_IDS,
   },
 };
@@ -249,10 +249,10 @@ export function planMeetsModelMin(userPlan: string, minPlan?: string): boolean {
 
 export const WIDGET_LIMITS: Record<string, number> = {
   free: 1,
-  starter: 20,
-  growth: 60,
-  business: 200,
-  enterprise: 999,
+  starter: 300,
+  growth: 1000,
+  business: 3000,
+  enterprise: 9999,
 };
 
 export function getWidgetLimit(plan: string): number {

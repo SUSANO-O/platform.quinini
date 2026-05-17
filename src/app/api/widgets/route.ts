@@ -7,8 +7,8 @@
 import { randomBytes } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
-import { Widget, Subscription, ClientAgent } from '@/lib/db/models';
-import { verifySessionToken } from '@/lib/auth';
+import { Widget, Subscription, ClientAgent, User } from '@/lib/db/models';
+import { verifySessionToken, isUserEmailVerified, isImpersonationSession } from '@/lib/auth';
 import { WIDGET_LIMITS } from '@/lib/agent-plans';
 
 function getUserId(req: NextRequest): string | null {
@@ -48,6 +48,15 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
 
   await connectDB();
+
+  // ── Check email verified ──────────────────────────────────────────────────
+  const user = await User.findById(userId).select({ emailVerified: 1 }).lean() as { emailVerified?: boolean } | null;
+  if (!isImpersonationSession(req.cookies) && !isUserEmailVerified(user)) {
+    return NextResponse.json(
+      { error: 'Debes verificar tu correo electrónico antes de crear widgets.', code: 'EMAIL_NOT_VERIFIED' },
+      { status: 403 },
+    );
+  }
 
   // ── Check plan limit ──────────────────────────────────────────────────────
   const sub = await Subscription.findOne({ userId }).lean() as { plan?: string; status?: string } | null;
