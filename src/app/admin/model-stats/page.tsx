@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Cpu, RefreshCw, TrendingUp, Clock, AlertTriangle, Layers } from 'lucide-react';
+import { Cpu, RefreshCw, TrendingUp, Clock, AlertTriangle, Layers, Zap, DollarSign } from 'lucide-react';
 import type { ModelStatRow } from '@/app/api/admin/model-stats/route';
 
 const PROVIDER_COLORS: Record<string, string> = {
@@ -129,6 +129,14 @@ export default function ModelStatsPage() {
   const totalRequests = rows.reduce((s, r) => s + r.totalRequests, 0);
   const totalAgents = rows.reduce((s, r) => s + r.primaryCount, 0);
   const activeModels = rows.filter((r) => r.totalRequests > 0).length;
+  const totalTokens = rows.reduce((s, r) => s + r.estimatedTokens, 0);
+  const totalUsd = rows.reduce((s, r) => s + r.estimatedUsd, 0);
+
+  function fmtTokens(n: number): string {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+    return String(n);
+  }
 
   return (
     <div style={{ padding: '24px 20px', maxWidth: 900, margin: '0 auto' }}>
@@ -176,6 +184,8 @@ export default function ModelStatsPage() {
             { label: 'Con peticiones reales', value: activeModels, icon: <TrendingUp size={14} />, color: '#10b981' },
             { label: 'Agentes totales', value: totalAgents, icon: <Cpu size={14} />, color: '#f59e0b' },
             { label: 'Peticiones acumuladas', value: totalRequests.toLocaleString('es'), icon: <Clock size={14} />, color: '#0284c7' },
+            { label: 'Tokens estimados', value: fmtTokens(totalTokens), icon: <Zap size={14} />, color: '#8b5cf6' },
+            { label: 'Coste estimado (USD)', value: `$${totalUsd.toFixed(2)}`, icon: <DollarSign size={14} />, color: '#ef4444' },
           ].map((s) => (
             <div key={s.label} style={{ ...card, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: s.color }}>{s.icon}</div>
@@ -260,6 +270,11 @@ export default function ModelStatsPage() {
                     {/* Stats row */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px 20px' }}>
                       <StatChip label="Peticiones" value={row.totalRequests.toLocaleString('es')} color={hasActivity ? color : undefined} />
+                      <StatChip label="Tokens estimados" value={fmtTokens(row.estimatedTokens)} color={hasActivity ? '#8b5cf6' : undefined} />
+                      <StatChip label="↑ Input tkns" value={fmtTokens(row.estimatedInputTokens)} />
+                      <StatChip label="↓ Output tkns" value={fmtTokens(row.estimatedOutputTokens)} />
+                      <StatChip label="Coste est. (USD)" value={`$${row.estimatedUsd.toFixed(2)}`} color={hasActivity ? '#ef4444' : undefined} />
+                      <StatChip label="Clase modelo" value={row.modelClass} />
                       <StatChip label="Agentes principales" value={row.primaryCount} />
                       <StatChip
                         label="Último uso (widget)"
