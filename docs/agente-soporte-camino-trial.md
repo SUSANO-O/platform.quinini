@@ -8,19 +8,24 @@ Documento para **soporte al cliente** sobre qué puede hacer un usuario en el pa
 
 ## 1. Agentes: cuántos puedo crear, cómo los creo y qué hago después
 
-### 1.1 Cuántos agentes (y subagentes) según el plan
+### 1.1 Cuántos agentes, widgets y recursos según el plan
 
-Los números concretos pueden cambiar con el producto; la referencia viva está en la lógica de planes del repositorio. Orientación típica:
+| Plan | Precio | Widgets | Agentes | Sub-agentes | Herramientas | RAG storage | Fuentes RAG | Conv/mes | Historial |
+|------|--------|---------|---------|-------------|--------------|-------------|-------------|----------|-----------|
+| **Free** | $0 | 1 | 1 | 0 | 2 | — | — | 50 | 7 días |
+| **Starter** | $39/mes | 300 | 30 | 15 | 5 | 1 GB | 60 | 6.000 | 3 meses |
+| **Growth** | $99/mes | 1.000 | 100 | 50 | 10 | 10 GB | 300 | 30.000 | 1 año |
+| **Business** | $349/mes | 3.000 | 300 | 150 | Ilimitadas | 100 GB | 2.000 | 150.000 | Ilimitado |
+| **Enterprise** | Contacto | 9.999 | 999 | 999 | Ilimitadas | Ilimitado | Ilimitado | Ilimitado | Ilimitado |
 
-| Plan (nombre en producto) | Agentes principales (máx.) | Subagentes por agente (máx.) | Herramientas nativas por agente (máx.) | RAG (conocimiento en documentos) |
-|---------------------------|----------------------------|------------------------------|----------------------------------------|----------------------------------|
-| **Free** | 1 | 0 | 2 | No |
-| **Starter** | 2 | 1 | 3 | Sí |
-| **Growth** | 5 | 3 | 5 | Sí |
-| **Business** | 15 | 10 | 10 | Sí |
-| **Enterprise** | Muy alto (según contrato) | Muy alto | Muy alto | Sí |
+**Notas importantes:**
+- El límite de **conversaciones** es el principal driver de upgrade: se acumula sumando todos los widgets del usuario en el mes.
+- El **RAG** (base de conocimiento) permite al agente responder con información propia del cliente (documentos, URLs, texto).
+- El **historial** se limpia automáticamente según el plan — las sesiones más antiguas se borran en el cron diario.
+- Los **widgets** tienen un costo marginal cero: el límite es comercial, no técnico.
+- Los correos temporales (Guerrilla Mail, Temp-Mail, Mailinator, etc.) están **bloqueados en operaciones de pago**.
 
-Si el cliente “no puede crear más agentes”, suele ser **tope del plan**, no un fallo: debe **mejorar plan** o borrar/agentar recursos.
+Si el cliente “no puede crear más agentes o widgets”, suele ser **tope del plan**, no un fallo: debe **mejorar plan** o eliminar recursos no usados.
 
 ### 1.2 Cómo crear un agente (pasos en pantalla)
 
@@ -65,7 +70,11 @@ El sistema de RAG permite al usuario pegar una URL (su web de precios, documenta
 
 **Si todos los bloques muestran `📄 Chunk` en producción:** falta la variable `GEMINI_API_KEY` en Vercel (ver doc técnico `docs/rag-scraping-system.md`).
 
-**Herramientas típicas en plan free:** búsqueda web y webhook. A partir de **starter** suelen sumarse más (p. ej. subida de archivos, Gmail, Slack); en planes superiores entran calendario, HubSpot, WhatsApp, Notion, etc.
+**Herramientas por plan:**
+- **Free:** búsqueda web, webhook
+- **Starter:** búsqueda web, webhook, Gmail, Slack
+- **Growth:** todo lo anterior + subida de archivos, Google Calendar, HubSpot, WhatsApp, Notion, MongoDB, PostgreSQL
+- **Business / Enterprise:** todas las anteriores + Zapier y cualquier integración futura
 
 ### 1.4 Widgets: cuántos y relación con el agente
 
@@ -101,11 +110,17 @@ R: Hay que **crearlo** en **Nuevo agente** y guardar; la guía no sustituye ese 
 **P: Perdí la barra de progreso del camino trial.**  
 R: Si ya completaste todos los pasos, **es normal** que desaparezca. Puedes usar **Reiniciar guía** si quieres repetir.
 
-**P: ¿Cuántos agentes puedo tener?**  
-R: Depende de tu **plan** (tabla de la §1.1). Si no te deja crear más, has llegado al límite o necesitas subir de plan.
+**P: ¿Cuántos agentes / widgets puedo tener?**  
+R: Depende de tu **plan** (tabla de la §1.1). Starter incluye 30 agentes y 300 widgets. Si no te deja crear más, has llegado al límite o necesitas subir de plan.
 
 **P: ¿Puedo ponerle documentación a mi agente?**  
-R: Sí, en la ficha del agente, pestaña **RAG**, si tu plan lo incluye (desde **starter** en la tabla típica). En **free** no suele estar disponible. Puedes subir archivos, pegar texto o **pegar una URL** para que el sistema extraiga el contenido automáticamente.
+R: Sí, en la ficha del agente, pestaña **RAG**, desde el plan **Starter** (1 GB, 60 fuentes). En **Free** no está disponible. Puedes subir archivos, pegar texto o **pegar una URL** para que el sistema extraiga el contenido automáticamente.
+
+**P: ¿Por qué no puedo pagar con mi correo actual?**  
+R: Los correos de servicios temporales (Mailinator, Temp-Mail, Guerrilla Mail, etc.) están **bloqueados en pagos**. Debes usar un correo permanente (Gmail, Outlook, corporativo, etc.).
+
+**P: ¿Hasta cuándo guarda el sistema mi historial de conversaciones?**  
+R: Depende del plan. Free conserva 7 días, Starter 3 meses, Growth 1 año, Business y Enterprise conservan todo indefinidamente.
 
 **P: Pegué una URL en RAG pero los bloques dicen `📄 Chunk`, ¿es un error?**  
 R: No es un error, los bloques se crearon correctamente. El indicador `📄 Chunk` significa que el filtrado inteligente (IA) no está activo en ese entorno: el contenido puede incluir algún ruido de navegación. El equipo técnico puede activarlo añadiendo `GEMINI_API_KEY` en las variables de entorno del servidor.
@@ -214,7 +229,10 @@ Espera breve al DOM entre pasos; overlay oscurece el fondo a propósito; botón 
 - Onboarding: `src/components/onboarding/`
 - Sidebar del dashboard: `src/app/dashboard/layout.tsx`
 - Estilos del popover: `src/app/globals.css`
-- Límites de planes (agentes, herramientas, RAG): `src/lib/agent-plans.ts`
+- Límites de planes (agentes, herramientas, RAG, widgets): `src/lib/agent-plans.ts` y `src/lib/plan-catalog.ts`
+- Retención de historial: `src/lib/plan-catalog.ts` → `PLAN_HISTORY_RETENTION_DAYS`
+- Limpieza automática de historial: `src/lib/history-cleanup.ts` + `src/app/api/internal/history-cleanup/route.ts`
+- Dominios de correo temporal bloqueados: `src/lib/disposable-email.ts`
 - Alta de agente: `src/app/dashboard/agents/new/page.tsx`
 - Ficha de agente (incluye UI de RAG scraping): `src/app/dashboard/agents/[id]/page.tsx`
 - Sistema de scraping RAG (módulo SOLID): `src/lib/scraper/`
@@ -240,4 +258,4 @@ No cubre precios legales ni runbooks de base de datos. Los números de plan debe
 
 ---
 
-*Última revisión alineada con el panel MatIAs (dashboard). Prioridad: secciones 1–6 para soporte al cliente; sección 7 para incidencias.*
+*Última revisión: mayo 2026 — actualizado con nueva estructura de planes (widgets 300/1k/3k, agentes 30/100/300, RAG 1GB/10GB/100GB, historial 3m/1a/ilimitado), bloqueo de correos temporales en pagos y limpieza automática de historial. Prioridad: secciones 1–6 para soporte al cliente; sección 7 para incidencias.*

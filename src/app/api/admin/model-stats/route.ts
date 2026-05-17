@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { User, ClientAgent, Widget, RequestLog } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
+import { financeRateConfig } from '@/lib/finance-aggregate';
 
 async function requireAdmin(req: NextRequest) {
   const token = req.cookies.get('afhub_session')?.value;
@@ -48,6 +49,11 @@ export type ModelStatRow = {
   primaryCount: number;
   fallbackCount: number;
   totalRequests: number;
+  estimatedTokens: number;
+  estimatedInputTokens: number;
+  estimatedOutputTokens: number;
+  estimatedUsd: number;
+  modelClass: 'flash' | 'default' | 'premium';
   lastUsedMonth: string | null;
   lastUsedAt: string | null;
   lastWidgetId: string | null;
@@ -100,7 +106,31 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // ── 3. Para cada modelo → widgets → RequestLog ────────────────────────────
+  // ── 3. Helpers de tokens y coste ─────────────────────────────────────────
+  const rates = financeRateConfig();
+
+  type ModelClass = 'flash' | 'default' | 'premium';
+
+  function classifyModel(modelId: string): ModelClass {
+    const m = modelId.toLowerCase();
+    if (m.includes('flash') || m.includes('mini') || m.includes('nano') || m.includes('small')) return 'flash';
+    if (m.includes('pro') || m.includes('ultra') || m.includes('claude') || m.includes('gpt-4') || m.includes('gpt-5') || m.includes('sonnet') || m.includes('opus')) return 'premium';
+    return 'default';
+  }
+
+  /** Tokens estimados por petición según clase de modelo */
+  const TOKEN_EST: Record<ModelClass, { input: number; output: number }> = {
+    flash:   { input: 350, output: 100 },
+    default: { input: 550, output: 150 },
+    premium: { input: 750, output: 200 },
+  };
+
+  function usdForModel(modelClass: ModelClass, requests: number): number {
+    const base = modelClass === 'flash' ? rates.flashRate : modelClass === 'premium' ? rates.premiumRate : rates.defaultRate;
+    return Math.round(requests * base * 10000) / 10000;
+  }
+
+  // ── 4. Para cada modelo → widgets → RequestLog ────────────────────────────
   const rows: ModelStatRow[] = [];
 
   // Pre-fetch all widgets (evita N queries)
@@ -147,11 +177,21 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    const modelClass = classifyModel(modelId);
+    const tokEst = TOKEN_EST[modelClass];
+    const estimatedInputTokens = Math.round(totalRequests * tokEst.input);
+    const estimatedOutputTokens = Math.round(totalRequests * tokEst.output);
+
     rows.push({
       modelId,
       primaryCount: entry.primaryCount,
       fallbackCount: entry.fallbackCount,
       totalRequests,
+      estimatedTokens: estimatedInputTokens + estimatedOutputTokens,
+      estimatedInputTokens,
+      estimatedOutputTokens,
+      estimatedUsd: usdForModel(modelClass, totalRequests),
+      modelClass,
       lastUsedMonth,
       lastUsedAt,
       lastWidgetId,
@@ -162,7 +202,7 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // ── 4. Ordenar: más peticiones → más agentes → nombre ────────────────────
+  // ── 5. Ordenar: más peticiones → más agentes → nombre ────────────────────
   rows.sort((a, b) => {
     if (b.totalRequests !== a.totalRequests) return b.totalRequests - a.totalRequests;
     if (b.primaryCount !== a.primaryCount) return b.primaryCount - a.primaryCount;
