@@ -480,3 +480,154 @@ h1, h2, h3, h4, h5, h6 {
 svg.lucide.lucide-code-xml {
   display: none !important;
 }
+
+/* ── AI Visual System ─────────────────────────────────────────────────────── */
+
+/* Grid mesh overlay — posiciona como hijo de relative overflow-hidden */
+.ai-mesh {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(rgba(228,20,20,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,172,248,0.025) 1px, transparent 1px),
+    linear-gradient(rgba(0,0,0,0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,0.018) 1px, transparent 1px);
+  background-size: 80px 80px, 80px 80px, 16px 16px, 16px 16px;
+  mask-image: radial-gradient(ellipse 95% 95% at 50% 50%, black 10%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 95% 95% at 50% 50%, black 10%, transparent 100%);
+}
+
+/* Registrar --card-angle como propiedad animable (interpolación suave del ángulo) */
+@property --card-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 118deg;
+}
+
+/* Card con borde tipo acero pulido — ángulo sigue al cursor vía JS */
+.card-pro {
+  position: relative;
+  border-radius: 18px;
+  background: var(--card);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  isolation: isolate;
+}
+.card-pro::before {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: 19.5px;
+  background: linear-gradient(
+    var(--card-angle, 118deg),
+    rgba(255,255,255,0.97) 0%,
+    rgba(228,20,20,0.28)   18%,
+    rgba(255,255,255,0.99) 36%,
+    rgba(0,172,248,0.28)   54%,
+    rgba(255,255,255,0.97) 70%,
+    rgba(248,118,0,0.24)   86%,
+    rgba(255,255,255,0.98) 100%
+  );
+  opacity: 0;
+  z-index: -1;
+  transition: opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+              --card-angle 0.6s ease;
+}
+.card-pro:hover::before { opacity: 0.85; }
+.card-pro:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 28px 56px rgba(0,0,0,0.11),
+    0 6px 20px rgba(0,0,0,0.06),
+    0 0 0 1px rgba(255,255,255,0.60) inset,
+    0 1px 0   rgba(255,255,255,0.88) inset;
+}
+
+/* Contenedor de ícono premium con anillo exterior */
+.icon-pro {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  position: relative;
+  flex-shrink: 0;
+}
+.icon-pro::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 25px;
+  border: 1px solid currentColor;
+  opacity: 0.14;
+  pointer-events: none;
+}
+
+/* Beacon pulse para indicadores de estado en vivo */
+@keyframes beacon {
+  0%   { transform: scale(1);   opacity: 0.8; }
+  100% { transform: scale(2.5); opacity: 0;   }
+}
+.beacon {
+  position: relative;
+  display: inline-flex;
+}
+.beacon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: beacon 1.8s ease-out infinite;
+}
+
+/* Float suave para elementos decorativos */
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-7px); }
+}
+.float-gentle { animation: float-gentle 4.5s ease-in-out infinite; }
+
+/* Línea divisora degradada AI */
+.ai-divider {
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(228,20,20,0.4) 20%,
+    rgba(248,118,0,0.5) 50%,
+    rgba(0,172,248,0.4) 80%,
+    transparent
+  );
+}
+
+/* Hero glow más intenso (override) */
+.hero-glow-strong {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.24;
+  pointer-events: none;
+}
+
+/* Scan line sweep sobre cards */
+@keyframes scanline {
+  0%   { top: -3px; opacity: 0.7; }
+  85%  { opacity: 0.4; }
+  100% { top: 100%; opacity: 0; }
+}
+.scan-wrap {
+  position: relative;
+  overflow: hidden;
+}
+.scan-wrap::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent) 40%, transparent);
+  animation: scanline 4s linear infinite;
+  pointer-events: none;
+  z-index: 10;
+}

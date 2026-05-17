@@ -3,6 +3,7 @@ import './globals.css';
 import { AuthProvider } from '@/hooks/use-auth';
 import { AppToasterLoader } from '@/components/ui/app-toaster-loader';
 import { LandingWidgetScript } from '@/components/landing/landing-widget-script';
+import { CardProTracker } from '@/components/landing/card-pro-tracker';
 
 export const metadata: Metadata = {
   title: 'MatIAs— AI Agents for Your App',
@@ -47,6 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body suppressHydrationWarning>
         <AuthProvider>
           {children}
+          <CardProTracker />
           <LandingWidgetScript />
           <AppToasterLoader />
         </AuthProvider>

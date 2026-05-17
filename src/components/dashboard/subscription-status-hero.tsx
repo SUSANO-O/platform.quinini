@@ -317,7 +317,7 @@ export function SubscriptionStatusHero({
               ) : null}
               <p className="m-0 text-[13px] leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
                 Tienes acceso completo a widgets, agentes y límites según tu plan. La facturación se gestiona de forma
-                segura con Stripe.
+                segura.
               </p>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1 text-[12px]">
                 {periodLabel && (

@@ -1,5 +1,7 @@
 {
   "nav": {
+    "agents": "Agentes",
+    "training": "Capacitación",
     "pricing": "Precios",
     "faq": "Preguntas frecuentes",
     "signIn": "Iniciar sesión",
@@ -7,35 +9,38 @@
     "dashboard": "Dashboard →"
   },
   "footer": {
-    "tagline": "Agentes de IA como servicio. API REST full, integración en minutos.",
+    "tagline": "Despliega un agente de IA en tu sitio en menos de 10 minutos. Sin código, sin servidores.",
     "product": "Producto",
     "company": "Empresa",
     "legal": "Legal",
+    "contact": "Contacto",
     "home": "Inicio",
     "plans": "Planes",
     "terms": "Términos",
     "privacy": "Privacidad",
     "cookies": "Cookies",
-    "refunds": "Reembolsos"
+    "refunds": "Reembolsos",
+    "email": "soporte@matias.ai",
+    "rights": "Todos los derechos reservados."
   },
   "landing": {
     "badge": "7 días gratis — sin tarjeta de crédito",
     "hero": {
       "title1": "Agentes de IA para",
       "title2": "cualquier industria",
-      "description": "Crea tu propio chat widget inteligente en tu sitio web en minutos. Crea agentes especializados, una API REST FULL, y Widgets API que funciona en cualquier página todo en un solo lugar.",
+      "description": "Despliega un agente de IA en tu sitio web en menos de 10 minutos. Sin código, sin servidores — solo pega el widget y empieza a atender clientes las 24 horas.",
       "ctaPrimary": "Empezar gratis — 7 días de trial",
       "ctaAccount": "Ya tengo cuenta",
       "ctaDocs": "Ver docs"
     },
     "stats": {
-      "agents": "Agentes creados",
-      "conversations": "Conversaciones al día",
-      "companies": "Empresas que confían en nosotros"
+      "trial": "Prueba gratuita — sin tarjeta",
+      "setup": "Minutos para el primer widget",
+      "models": "Modelos de IA disponibles"
     },
     "how": {
       "title": "Funciona en 4 pasos",
-      "subtitle": "De cero a un chat widget en tu sitio en menos de 10 minutos.",
+      "subtitle": "Integra un agente de IA en tu sitio en menos de 10 minutos.",
       "step1Title": "Crea tu cuenta",
       "step1Desc": "7 días gratis, sin tarjeta. Acceso completo al Widget Builder y los 9 agentes.",
       "step2Title": "Diseña tu widget",
@@ -57,7 +62,7 @@
     },
     "features": {
       "title": "Todo lo que necesitas para integrar IA",
-      "subtitle": "Desde embeddings hasta facturación — manejamos la infraestructura para que te enfoques en tu producto.",
+      "subtitle": "Desde contexto y memoria hasta facturación — manejamos la infraestructura para que te enfoques en tu producto.",
       "secureTitle": "Seguro por defecto",
       "secureDesc": "Auth por API key, rate limiting por plan, datos aislados por tenant.",
       "secureMetric": "API key auth",
@@ -101,38 +106,76 @@
       "period": "/mes",
       "popular": "Más popular",
       "cta": "Empezar gratis — 7 días",
-      "ragNotIncluded": "Sin RAG en documentos — disponible desde Growth",
-      "ragTechnical": "Límite técnico RAG: {mb} MB o {sources} fuentes por agente",
-      "starter": {
-        "widgets": "2 widgets",
-        "requests": "5,000 conv/mes",
+      "ragNotIncluded": "Sin contexto y memoria — disponible desde Starter",
+      "ragTechnical": "Contexto y memoria: {mb} MB · {sources} fuentes por agente",
+      "basic": {
+        "widgets": "10 widgets",
+        "requests": "1.500 conv/mes",
         "features": [
-          "2 widgets activos en tu sitio",
-          "5.000 conversaciones al mes (~167/día)",
-          "1 agente personalizado · Chat AI + analítica básica (sin contexto)",
+          "10 widgets activos en tu sitio",
+          "1.500 conversaciones al mes (~50/día)",
+          "5 agentes · 3 herramientas · Gmail incluido",
+          "Capacitación y acompañamiento incluido",
+          "Soporte por email (72 h)"
+        ]
+      },
+      "starter": {
+        "widgets": "300 widgets",
+        "requests": "6.000 conv/mes",
+        "features": [
+          "300 widgets activos en tu sitio",
+          "6.000 conversaciones al mes (~200/día)",
+          "30 agentes · Contexto y memoria 1 GB · Gmail + Slack",
+          "Capacitación y acompañamiento incluido",
           "Soporte por email (48 h)"
         ]
       },
       "growth": {
-        "widgets": "5 widgets",
-        "requests": "25,000 conv/mes",
+        "widgets": "1.000 widgets",
+        "requests": "30.000 conv/mes",
         "features": [
-          "5 widgets activos en tu sitio",
-          "25.000 conversaciones al mes (~833/día)",
-          "Agentes ilimitados + contexto + analítica avanzada",
+          "1.000 widgets activos en tu sitio",
+          "30.000 conversaciones al mes (~1.000/día)",
+          "100 agentes · Contexto y memoria 10 GB · todas las integraciones",
+          "Capacitación y acompañamiento incluido",
           "Soporte prioritario por chat (24 h)"
         ]
       },
       "business": {
-        "widgets": "15 widgets",
-        "requests": "100k conv/mes",
+        "widgets": "3.000 widgets",
+        "requests": "150.000 conv/mes",
         "features": [
-          "15 widgets activos en tu sitio",
-          "100.000 conversaciones al mes (~3.300/día)",
-          "Agentes + contexto + integraciones",
+          "3.000 widgets activos en tu sitio",
+          "150.000 conversaciones al mes (~5.000/día)",
+          "300 agentes · Contexto y memoria 100 GB · herramientas ilimitadas",
+          "Capacitación y acompañamiento incluido",
           "Soporte dedicado · SLA 99,9 % · Onboarding incluido"
         ]
       }
+    },
+    "testimonials": {
+      "title": "Lo que dicen nuestros clientes",
+      "subtitle": "Empresas reales usando MatIAs para atender clientes, calificar leads y escalar sin contratar.",
+      "items": [
+        {
+          "quote": "Implementamos MatIAs en nuestra concesionaria y en dos semanas ya respondía el 70% de las consultas sin intervención humana. El onboarding fue muy sencillo.",
+          "author": "Carlos M.",
+          "role": "Director de Ventas",
+          "company": "Auto Group"
+        },
+        {
+          "quote": "Lo usamos para guiar a nuestros estudiantes con dudas frecuentes. Se integró en nuestra plataforma en una tarde y lleva meses funcionando sin problemas.",
+          "author": "Andrea R.",
+          "role": "Coordinadora Tech",
+          "company": "EduPlus"
+        },
+        {
+          "quote": "El widget clasifica los leads automáticamente. Nuestro equipo de ventas ahora solo atiende prospectos calificados. Valió la pena desde el primer mes.",
+          "author": "Miguel T.",
+          "role": "Fundador",
+          "company": "Tienda Online MX"
+        }
+      ]
     },
     "faq": {
       "title": "Preguntas frecuentes",
@@ -158,6 +201,21 @@
           "a": "Te notificamos antes de llegar al límite. Puedes actualizar tu plan o esperar el próximo ciclo."
         }
       ]
+    },
+    "training": {
+      "badge": "Capacitación y Acompañamiento",
+      "title": "De cero a producción, contigo en cada paso",
+      "subtitle": "No solo te damos la plataforma — te guiamos desde la idea inicial hasta que tu primer agente esté respondiendo a clientes reales.",
+      "step1Title": "Sesión de kickoff",
+      "step1Desc": "Una sesión 1:1 para configurar tu cuenta, crear tu primer agente y entender el flujo completo de la plataforma desde el inicio.",
+      "step2Title": "Workshop de diseño",
+      "step2Desc": "Te enseñamos a construir el prompt ideal, configurar herramientas, conectar integraciones y ajustar la personalidad del agente a tu negocio.",
+      "step3Title": "Deploy a producción",
+      "step3Desc": "Acompañamiento paso a paso hasta que tu widget esté publicado y respondiendo a clientes reales en tu sitio web o aplicación.",
+      "step4Title": "Ejemplo de uso real",
+      "step4Desc": "Una demostración en vivo con un caso de uso concreto de tu industria — para que veas el valor generado desde el primer día.",
+      "included": "Incluido en todos los planes de pago",
+      "cta": "Empezar con acompañamiento"
     },
     "cta": {
       "title1": "Empieza hoy.",

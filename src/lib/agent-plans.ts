@@ -174,6 +174,15 @@ export const AGENT_PLAN_LIMITS: Record<string, AgentPlanLimits> = {
     ragStorageMbPerAgent: 0,
     availableToolIds: ['web-search', 'webhook'],
   },
+  basic: {
+    agents: 5,
+    subAgentsPerAgent: 5,
+    toolsPerAgent: 3,
+    ragEnabled: false,
+    ragSourcesPerAgent: 0,
+    ragStorageMbPerAgent: 0,
+    availableToolIds: ['web-search', 'webhook', 'gmail'],
+  },
   starter: {
     agents: 30,
     subAgentsPerAgent: 15,
@@ -231,10 +240,11 @@ export function getAgentLimits(plan: string): AgentPlanLimits {
 /** Orden para comparar planes (modelos del catálogo con `minPlan`). */
 const PLAN_RANK: Record<string, number> = {
   free: 0,
-  starter: 1,
-  growth: 2,
-  business: 3,
-  enterprise: 4,
+  basic: 1,
+  starter: 2,
+  growth: 3,
+  business: 4,
+  enterprise: 5,
 };
 
 /** True si el plan del usuario cumple el mínimo exigido por el modelo. */
@@ -249,6 +259,7 @@ export function planMeetsModelMin(userPlan: string, minPlan?: string): boolean {
 
 export const WIDGET_LIMITS: Record<string, number> = {
   free: 1,
+  basic: 10,
   starter: 300,
   growth: 1000,
   business: 3000,

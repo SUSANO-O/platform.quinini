@@ -137,6 +137,7 @@ const RequestLogSchema = new Schema({
 RequestLogSchema.index({ userId: 1, month: -1 });
 RequestLogSchema.index({ widgetId: 1, month: -1 });
 RequestLogSchema.index({ userId: 1, widgetId: 1, month: 1 }, { unique: true });
+RequestLogSchema.index({ month: 1 }); // para filtros solo por rango de fecha
 
 // ── CLIENT AGENTS ─────────────────────────────────────────────────────────────
 // Agents created by landing users. Cannot be deleted — only disabled.

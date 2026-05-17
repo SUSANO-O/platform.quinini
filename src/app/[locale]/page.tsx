@@ -5,10 +5,11 @@ import { LandingFooter } from '@/components/landing/landing-footer';
 import Link from 'next/link';
 import {
   Zap, Shield, BarChart3, MessageSquare, Database,
-  ArrowRight, Code2, Globe, Sparkles, Check,
+  ArrowRight, Terminal, Globe, Sparkles, Check,
   HeartPulse, Sprout,
   GraduationCap, TrendingUp, Lock, Wrench,
   UserPlus, Palette, Rocket,
+  Users, BookOpen, PlayCircle, BadgeCheck, Star,
 } from 'lucide-react';
 import { PLAN_RAG_LIMITS } from '@/lib/plan-catalog';
 
@@ -39,20 +40,26 @@ export default async function LandingPage() {
   const HOW = [
     { step: '01', title: t('how.step1Title'), desc: t('how.step1Desc'), Icon: UserPlus, accent: R,  grad: `linear-gradient(135deg,${R},${O})` },
     { step: '02', title: t('how.step2Title'), desc: t('how.step2Desc'), Icon: Palette,  accent: O,  grad: `linear-gradient(135deg,${O},${B})` },
-    { step: '03', title: t('how.step3Title'), desc: t('how.step3Desc'), Icon: Code2,    accent: B,  grad: `linear-gradient(135deg,${B},${C})` },
+    { step: '03', title: t('how.step3Title'), desc: t('how.step3Desc'), Icon: Terminal,  accent: B,  grad: `linear-gradient(135deg,${B},${C})` },
     { step: '04', title: t('how.step4Title'), desc: t('how.step4Desc'), Icon: Rocket,   accent: C,  grad: `linear-gradient(135deg,${C},${R})` },
   ];
 
   const PLANS = [
     {
-      name: 'Starter', price: '$39', period: t('pricing.period'),
+      name: 'Basic',    price: '$14',  period: t('pricing.period'),
+      widgets: t('pricing.basic.widgets'),   requests: t('pricing.basic.requests'),
+      features: t.raw('pricing.basic.features') as string[],
+      color: C, id: 'basic',
+    },
+    {
+      name: 'Starter',  price: '$39',  period: t('pricing.period'),
       widgets: t('pricing.starter.widgets'), requests: t('pricing.starter.requests'),
       features: t.raw('pricing.starter.features') as string[],
       color: B, id: 'starter',
     },
     {
-      name: 'Growth', price: '$99', period: t('pricing.period'),
-      widgets: t('pricing.growth.widgets'), requests: t('pricing.growth.requests'),
+      name: 'Growth',   price: '$99',  period: t('pricing.period'),
+      widgets: t('pricing.growth.widgets'),  requests: t('pricing.growth.requests'),
       features: t.raw('pricing.growth.features') as string[],
       color: R, id: 'growth', popular: true,
     },
@@ -64,6 +71,8 @@ export default async function LandingPage() {
     },
   ];
 
+  const TESTIMONIALS = t.raw('testimonials.items') as { quote: string; author: string; role: string; company: string }[];
+
   const WIDGET_BENEFITS = [
     { color: R,  title: t('widget.b1Title'), desc: t('widget.b1Desc') },
     { color: O,  title: t('widget.b2Title'), desc: t('widget.b2Desc') },
@@ -72,12 +81,19 @@ export default async function LandingPage() {
     { color: Rd, title: t('widget.b5Title'), desc: t('widget.b5Desc') },
   ];
 
+  const TRAINING_STEPS = [
+    { step: '01', Icon: Users,       color: R, title: t('training.step1Title'), desc: t('training.step1Desc'), grad: `linear-gradient(135deg,${R},${O})` },
+    { step: '02', Icon: BookOpen,    color: O, title: t('training.step2Title'), desc: t('training.step2Desc'), grad: `linear-gradient(135deg,${O},${B})` },
+    { step: '03', Icon: Rocket,      color: B, title: t('training.step3Title'), desc: t('training.step3Desc'), grad: `linear-gradient(135deg,${B},${C})` },
+    { step: '04', Icon: PlayCircle,  color: C, title: t('training.step4Title'), desc: t('training.step4Desc'), grad: `linear-gradient(135deg,${C},${R})` },
+  ];
+
   const FAQ_ITEMS = t.raw('faq.items') as { q: string; a: string }[];
 
   const STATS = [
-    { value: '1,200+', label: t('stats.agents'),        gradient: `linear-gradient(135deg,${R},${O})` },
-    { value: '4,800+', label: t('stats.conversations'), gradient: `linear-gradient(135deg,${O},${B})` },
-    { value: '320+',   label: t('stats.companies'),     gradient: `linear-gradient(135deg,${B},${C})` },
+    { value: '7 días', label: t('stats.trial'),  gradient: `linear-gradient(135deg,${R},${O})` },
+    { value: '< 10',   label: t('stats.setup'),  gradient: `linear-gradient(135deg,${O},${B})` },
+    { value: '8+',     label: t('stats.models'), gradient: `linear-gradient(135deg,${B},${C})` },
   ];
 
   return (
@@ -86,9 +102,10 @@ export default async function LandingPage() {
 
       {/* ── HERO ─────────────────────────────────────────────────────────────── */}
       <section className="relative pt-36 pb-24 overflow-hidden">
-        <div className="hero-glow" style={{ background: R, top: '-180px', left: '8%' }} />
-        <div className="hero-glow" style={{ background: O, top: '-80px',  right: '4%' }} />
-        <div className="hero-glow" style={{ background: B, top: '220px',  left: '42%' }} />
+        <div className="ai-mesh" />
+        <div className="hero-glow-strong" style={{ background: R, top: '-200px', left: '5%' }} />
+        <div className="hero-glow-strong" style={{ background: O, top: '-100px', right: '3%' }} />
+        <div className="hero-glow-strong" style={{ background: B, top: '200px',  left: '40%', opacity: 0.18 }} />
 
         <div className="relative max-w-5xl mx-auto px-6 text-center">
           <div className="badge-primary mb-8 mx-auto w-fit">
@@ -129,7 +146,7 @@ export default async function LandingPage() {
               className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl font-semibold text-sm transition-all hover:bg-slate-50"
               style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
             >
-              <Code2 size={16} /> {t('hero.ctaDocs')}
+              <Terminal size={16} /> {t('hero.ctaDocs')}
             </Link>
           </div>
 
@@ -139,16 +156,19 @@ export default async function LandingPage() {
               {STATS.map(({ value, label, gradient }) => (
                 <div
                   key={label}
-                  className="card-texture rounded-2xl p-6 flex flex-col items-center gap-2 text-center"
+                  className="card-pro rounded-2xl overflow-hidden flex flex-col items-center text-center"
                   style={{ border: '1px solid var(--border)', boxShadow: '0 8px 32px rgba(0,0,0,0.06)' }}
                 >
-                  <span
-                    className="text-4xl md:text-5xl font-extrabold"
-                    style={{ background: gradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
-                  >
-                    {value}
-                  </span>
-                  <span className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>{label}</span>
+                  <div style={{ height: 3, width: '100%', background: gradient }} />
+                  <div className="p-6 flex flex-col items-center gap-2">
+                    <span
+                      className="text-4xl md:text-5xl font-extrabold"
+                      style={{ background: gradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
+                    >
+                      {value}
+                    </span>
+                    <span className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>{label}</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -158,11 +178,12 @@ export default async function LandingPage() {
 
       {/* ── HOW IT WORKS ─────────────────────────────────────────────────────── */}
       <section className="py-24 px-6 relative overflow-hidden" style={{ background: 'var(--muted)' }}>
+        <div className="ai-mesh" />
         <div style={{
           position: 'absolute', top: '50%', left: '50%',
           transform: 'translate(-50%,-50%)',
           width: 700, height: 500, pointerEvents: 'none',
-          background: `radial-gradient(ellipse, ${R}07 0%, transparent 70%)`,
+          background: `radial-gradient(ellipse, ${R}09 0%, transparent 70%)`,
         }} />
 
         <div className="max-w-3xl mx-auto relative">
@@ -183,21 +204,33 @@ export default async function LandingPage() {
             <div className="space-y-4">
               {HOW.map((s, i) => (
                 <div key={s.step} className="relative flex gap-5 items-stretch group">
-                  <div className="relative flex flex-col items-center shrink-0" style={{ width: 56 }}>
-                    <div
-                      className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 relative z-10"
-                      style={{ background: s.grad, boxShadow: `0 4px 20px ${s.accent}35` }}
-                    >
-                      <s.Icon size={22} color="white" strokeWidth={1.75} />
+                  <div className="relative flex flex-col items-center shrink-0" style={{ width: 64 }}>
+                    <div style={{ position: 'relative', display: 'inline-flex' }}>
                       <div style={{
-                        position: 'absolute', top: -7, right: -7,
-                        width: 20, height: 20, borderRadius: 999,
-                        background: 'var(--muted)',
-                        border: `2px solid ${s.accent}`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 9, fontWeight: 800, color: s.accent, lineHeight: 1,
-                      }}>
-                        {i + 1}
+                        position: 'absolute', inset: -5, borderRadius: 24,
+                        border: `1px solid ${s.accent}25`, pointerEvents: 'none',
+                      }} />
+                      <div
+                        className="icon-pro relative z-10"
+                        style={{
+                          width: 60, height: 60,
+                          background: s.grad,
+                          boxShadow: `0 4px 20px ${s.accent}42, 0 0 0 6px ${s.accent}0a`,
+                          color: 'white',
+                        }}
+                      >
+                        <s.Icon size={26} color="white" strokeWidth={1.5} />
+                        <div style={{
+                          position: 'absolute', top: -8, right: -8,
+                          width: 22, height: 22, borderRadius: 999,
+                          background: 'var(--muted)',
+                          border: `2px solid ${s.accent}`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 9, fontWeight: 800, color: s.accent, lineHeight: 1,
+                          zIndex: 11,
+                        }}>
+                          {i + 1}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -235,8 +268,9 @@ export default async function LandingPage() {
       </section>
 
       {/* ── AGENTS ───────────────────────────────────────────────────────────── */}
-      <section className="py-24 px-6">
-        <div className="max-w-7xl mx-auto">
+      <section id="agents" className="py-24 px-6 relative overflow-hidden">
+        <div className="ai-mesh" />
+        <div className="max-w-7xl mx-auto relative">
           <div className="text-center mb-14">
             <h2 className="text-3xl md:text-4xl font-bold">
               <span className="gradient-text">{t('agents.title')}</span>
@@ -254,8 +288,8 @@ export default async function LandingPage() {
             {AGENTS.map((a) => (
               <div
                 key={a.name}
-                className="card-hover rounded-2xl overflow-hidden relative h-full flex flex-col"
-                style={{ background: 'var(--card)', border: `1px solid ${a.color}28`, boxShadow: '0 8px 32px rgba(0,0,0,0.04)' }}
+                className="card-pro overflow-hidden relative h-full flex flex-col"
+                style={{ border: `1px solid ${a.color}28`, boxShadow: '0 8px 32px rgba(0,0,0,0.05)' }}
               >
                 <div style={{
                   position: 'absolute', inset: 0, pointerEvents: 'none',
@@ -272,11 +306,26 @@ export default async function LandingPage() {
                 <div style={{ height: 3, background: `linear-gradient(90deg, ${a.color}, ${a.color}33)`, position: 'relative' }} />
                 <div className="p-6 relative flex-1 flex flex-col">
                   <div className="flex items-start justify-between gap-3">
-                    <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center"
-                      style={{ background: `${a.color}14`, border: `1px solid ${a.color}30`, boxShadow: `0 0 18px ${a.color}18, inset 0 1px 0 ${a.color}20` }}
-                    >
-                      <a.Icon size={22} style={{ color: a.color }} strokeWidth={1.75} />
+                    <div style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
+                      {/* outer ring halo */}
+                      <div style={{
+                        position: 'absolute', inset: -8, borderRadius: 28,
+                        border: `1px solid ${a.color}20`,
+                        background: `radial-gradient(circle at 30% 30%, ${a.color}09, transparent 65%)`,
+                        pointerEvents: 'none',
+                      }} />
+                      <div
+                        className="icon-pro"
+                        style={{
+                          width: 72, height: 72,
+                          background: `linear-gradient(145deg, ${a.color}1c, ${a.color}08)`,
+                          border: `1.5px solid ${a.color}38`,
+                          boxShadow: `0 0 0 8px ${a.color}07, 0 0 32px ${a.color}25, inset 0 1px 0 ${a.color}20`,
+                          color: a.color,
+                        }}
+                      >
+                        <a.Icon size={30} style={{ color: a.color }} strokeWidth={1.5} />
+                      </div>
                     </div>
                     <span
                       className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md"
@@ -310,8 +359,9 @@ export default async function LandingPage() {
 
       {/* ── FEATURES ─────────────────────────────────────────────────────────── */}
       <section className="py-24 px-6 relative overflow-hidden" style={{ background: 'var(--muted)' }}>
-        <div style={{ position: 'absolute', top: -80, left: -80, width: 320, height: 320, borderRadius: '50%', background: `radial-gradient(circle, ${R}08, transparent 70%)`, pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', bottom: -80, right: -80, width: 320, height: 320, borderRadius: '50%', background: `radial-gradient(circle, ${B}08, transparent 70%)`, pointerEvents: 'none' }} />
+        <div className="ai-mesh" />
+        <div style={{ position: 'absolute', top: -80, left: -80, width: 360, height: 360, borderRadius: '50%', background: `radial-gradient(circle, ${R}10, transparent 70%)`, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: -80, right: -80, width: 360, height: 360, borderRadius: '50%', background: `radial-gradient(circle, ${B}10, transparent 70%)`, pointerEvents: 'none' }} />
 
         <div className="max-w-7xl mx-auto relative">
           <div className="text-center mb-16">
@@ -325,8 +375,8 @@ export default async function LandingPage() {
             {FEATURES.map((f) => (
               <div
                 key={f.title}
-                className="card-hover rounded-2xl overflow-hidden relative group"
-                style={{ background: 'var(--card)', border: `1px solid ${f.color}22` }}
+                className="card-pro overflow-hidden relative group"
+                style={{ border: `1px solid ${f.color}28` }}
               >
                 <div style={{ height: 3, background: `linear-gradient(90deg, ${f.color}, ${f.color}33)` }} />
                 <div style={{
@@ -336,14 +386,26 @@ export default async function LandingPage() {
                   maskImage: 'linear-gradient(135deg, black 0%, transparent 55%)',
                   WebkitMaskImage: 'linear-gradient(135deg, black 0%, transparent 55%)',
                 }} />
-                <div style={{ position: 'absolute', top: -30, left: -30, width: 140, height: 140, pointerEvents: 'none', background: `radial-gradient(circle, ${f.color}16 0%, transparent 70%)` }} />
+                <div style={{ position: 'absolute', top: -30, left: -30, width: 160, height: 160, pointerEvents: 'none', background: `radial-gradient(circle, ${f.color}18 0%, transparent 70%)` }} />
                 <div className="p-7 relative">
-                  <div className="flex items-start justify-between mb-5">
-                    <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center"
-                      style={{ background: `${f.color}14`, border: `1px solid ${f.color}30`, boxShadow: `0 0 18px ${f.color}18, inset 0 1px 0 ${f.color}22` }}
-                    >
-                      <f.icon size={21} style={{ color: f.color }} strokeWidth={1.75} />
+                  <div className="flex items-start justify-between mb-6">
+                    <div style={{ position: 'relative', display: 'inline-flex' }}>
+                      <div style={{
+                        position: 'absolute', inset: -6, borderRadius: 22,
+                        border: `1px solid ${f.color}18`, pointerEvents: 'none',
+                      }} />
+                      <div
+                        className="icon-pro"
+                        style={{
+                          width: 56, height: 56,
+                          background: `linear-gradient(145deg, ${f.color}18, ${f.color}08)`,
+                          border: `1.5px solid ${f.color}35`,
+                          boxShadow: `0 0 0 6px ${f.color}07, 0 0 28px ${f.color}22, inset 0 1px 0 ${f.color}22`,
+                          color: f.color,
+                        }}
+                      >
+                        <f.icon size={24} style={{ color: f.color }} strokeWidth={1.5} />
+                      </div>
                     </div>
                     <span style={{
                       fontSize: 11, fontWeight: 700, letterSpacing: '0.03em',
@@ -459,9 +521,150 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── PRICING ──────────────────────────────────────────────────────────── */}
-      <section id="pricing" className="py-24 px-6" style={{ background: 'var(--muted)' }}>
+      {/* ── TESTIMONIOS ──────────────────────────────────────────────────────── */}
+      <section className="py-24 px-6" style={{ background: 'var(--muted)' }}>
         <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl md:text-4xl font-bold">{t('testimonials.title')}</h2>
+            <p className="mt-4 text-lg" style={{ color: 'var(--muted-foreground)' }}>
+              {t('testimonials.subtitle')}
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {TESTIMONIALS.map((item, i) => {
+              const accentColor = [R, B, O][i % 3];
+              return (
+                <div
+                  key={item.author}
+                  className="card-pro p-7 flex flex-col gap-5 relative overflow-hidden"
+                  style={{ border: `1px solid ${accentColor}25`, boxShadow: '0 4px 24px rgba(0,0,0,0.04)' }}
+                >
+                  <div style={{
+                    position: 'absolute', top: -20, right: -10, width: 120, height: 90,
+                    background: `radial-gradient(circle, ${accentColor}12, transparent 70%)`,
+                    pointerEvents: 'none',
+                  }} />
+                  <div style={{
+                    fontSize: 64, lineHeight: 1, fontFamily: 'Georgia, serif',
+                    color: accentColor, opacity: 0.18, position: 'absolute', top: 12, left: 20,
+                    userSelect: 'none', pointerEvents: 'none',
+                  }}>
+                    "
+                  </div>
+                  <div className="flex gap-0.5 relative">
+                    {[1,2,3,4,5].map((s) => (
+                      <Star key={s} size={13} fill={accentColor} style={{ color: accentColor }} />
+                    ))}
+                  </div>
+                  <p className="text-sm leading-relaxed relative" style={{ color: 'var(--foreground)' }}>
+                    &ldquo;{item.quote}&rdquo;
+                  </p>
+                  <div className="flex items-center gap-3 mt-auto pt-4 relative" style={{ borderTop: `1px solid ${accentColor}20` }}>
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
+                      style={{ background: `linear-gradient(135deg, ${accentColor}, ${accentColor}99)` }}
+                    >
+                      {item.author.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold">{item.author}</p>
+                      <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{item.role} · {item.company}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CAPACITACIÓN Y ACOMPAÑAMIENTO ───────────────────────────────────── */}
+      <section id="training" className="py-24 px-6 relative overflow-hidden">
+        <div style={{ position: 'absolute', top: -60, right: -60, width: 320, height: 320, borderRadius: '50%', background: `radial-gradient(circle, ${B}08, transparent 70%)`, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: -60, left: -60, width: 320, height: 320, borderRadius: '50%', background: `radial-gradient(circle, ${O}08, transparent 70%)`, pointerEvents: 'none' }} />
+
+        <div className="max-w-5xl mx-auto relative">
+          <div className="text-center mb-14">
+            <span className="inline-block text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4" style={{ background: `rgba(0,172,248,0.08)`, color: B }}>
+              {t('training.badge')}
+            </span>
+            <h2 className="text-3xl md:text-4xl font-bold">{t('training.title')}</h2>
+            <p className="mt-4 max-w-2xl mx-auto text-lg" style={{ color: 'var(--muted-foreground)' }}>
+              {t('training.subtitle')}
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-5">
+            {TRAINING_STEPS.map((s) => (
+              <div
+                key={s.step}
+                className="card-hover rounded-2xl overflow-hidden relative group"
+                style={{ background: 'var(--card)', border: `1px solid ${s.color}22`, boxShadow: '0 4px 24px rgba(0,0,0,0.04)' }}
+              >
+                <div style={{ height: 3, background: s.grad }} />
+                <div style={{
+                  position: 'absolute', inset: 0, pointerEvents: 'none',
+                  backgroundImage: `radial-gradient(circle, ${s.color}20 1px, transparent 1px)`,
+                  backgroundSize: '18px 18px',
+                  maskImage: 'radial-gradient(ellipse 80% 80% at 95% 5%, black 30%, transparent 70%)',
+                  WebkitMaskImage: 'radial-gradient(ellipse 80% 80% at 95% 5%, black 30%, transparent 70%)',
+                }} />
+                <div style={{
+                  position: 'absolute', right: 14, bottom: -10,
+                  fontSize: 80, fontWeight: 900, lineHeight: 1,
+                  color: s.color, opacity: 0.045,
+                  fontFamily: 'monospace', userSelect: 'none', pointerEvents: 'none',
+                }}>
+                  {s.step}
+                </div>
+                <div className="p-6 relative flex gap-4 items-start">
+                  <div style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
+                    <div style={{
+                      position: 'absolute', inset: -5, borderRadius: 22,
+                      border: `1px solid ${s.color}22`, pointerEvents: 'none',
+                    }} />
+                    <div
+                      className="icon-pro"
+                      style={{
+                        width: 56, height: 56,
+                        background: s.grad,
+                        boxShadow: `0 4px 20px ${s.color}40, 0 0 0 6px ${s.color}09`,
+                        color: 'white',
+                      }}
+                    >
+                      <s.Icon size={24} color="white" strokeWidth={1.5} />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold mb-1.5" style={{ letterSpacing: '-0.01em' }}>{s.title}</h3>
+                    <p className="text-sm leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>{s.desc}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold" style={{ background: `${C}10`, color: C, border: `1px solid ${C}30` }}>
+              <BadgeCheck size={15} />
+              {t('training.included')}
+            </div>
+            <Link
+              href="/register"
+              className="inline-flex items-center gap-2 px-7 py-3 rounded-xl text-white font-semibold text-sm transition-all hover:scale-[1.03]"
+              style={{ background: `linear-gradient(135deg, ${B}, ${C})`, boxShadow: `0 4px 20px rgba(0,172,248,0.28)` }}
+            >
+              {t('training.cta')} <ArrowRight size={16} />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── PRICING ──────────────────────────────────────────────────────────── */}
+      <section id="pricing" className="py-24 px-6 relative overflow-hidden" style={{ background: 'var(--muted)' }}>
+        <div className="ai-mesh" />
+        <div className="max-w-5xl mx-auto relative">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold">{t('pricing.title')}</h2>
             <p className="mt-4" style={{ color: 'var(--muted-foreground)' }}>
@@ -469,19 +672,21 @@ export default async function LandingPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-5">
             {PLANS.map((plan) => (
               <div
                 key={plan.name}
-                className="rounded-2xl p-7 relative"
+                className={plan.popular ? 'card-pro rounded-2xl p-7 relative' : 'card-hover rounded-2xl p-7 relative'}
                 style={{
                   backgroundImage: plan.popular
-                    ? `linear-gradient(145deg, rgba(228,20,20,0.04), rgba(248,118,0,0.04)), radial-gradient(circle, rgba(0,0,0,0.05) 1px, transparent 1px)`
+                    ? `linear-gradient(145deg, rgba(228,20,20,0.05), rgba(248,118,0,0.04)), radial-gradient(circle, rgba(0,0,0,0.05) 1px, transparent 1px)`
                     : `radial-gradient(circle, rgba(0,0,0,0.06) 1px, transparent 1px)`,
                   backgroundSize: plan.popular ? 'auto, 20px 20px' : '20px 20px',
                   backgroundColor: 'var(--card)',
                   border: `1px solid ${plan.popular ? plan.color : 'var(--border)'}`,
-                  boxShadow: plan.popular ? `0 8px 32px rgba(228,20,20,0.1)` : undefined,
+                  boxShadow: plan.popular
+                    ? `0 0 0 4px ${plan.color}12, 0 12px 40px rgba(228,20,20,0.14), 0 4px 16px rgba(0,0,0,0.06)`
+                    : undefined,
                 }}
               >
                 {plan.popular && (
@@ -559,9 +764,10 @@ export default async function LandingPage() {
 
       {/* ── CTA ──────────────────────────────────────────────────────────────── */}
       <section className="py-28 px-6 text-center relative overflow-hidden" style={{ background: 'var(--muted)' }}>
-        <div className="hero-glow" style={{ background: R, bottom: '-220px', left: '15%' }} />
-        <div className="hero-glow" style={{ background: O, bottom: '-120px', right: '15%' }} />
-        <div className="hero-glow" style={{ background: B, top: '-100px', left: '50%' }} />
+        <div className="ai-mesh" />
+        <div className="hero-glow-strong" style={{ background: R, bottom: '-220px', left: '15%' }} />
+        <div className="hero-glow-strong" style={{ background: O, bottom: '-120px', right: '15%' }} />
+        <div className="hero-glow-strong" style={{ background: B, top: '-100px', left: '50%', opacity: 0.18 }} />
 
         <div className="relative max-w-2xl mx-auto">
           <h2 className="text-4xl md:text-5xl font-extrabold mb-6">
