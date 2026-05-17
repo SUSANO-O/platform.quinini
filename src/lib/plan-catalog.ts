@@ -1,6 +1,6 @@
 /** Datos de UI para planes (seguro en cliente; sin Stripe SDK). */
 
-export const PLAN_ORDER = ['free', 'starter', 'growth', 'business', 'enterprise'] as const;
+export const PLAN_ORDER = ['free', 'basic', 'starter', 'growth', 'business', 'enterprise'] as const;
 
 export type PlanId = (typeof PLAN_ORDER)[number];
 
@@ -8,16 +8,18 @@ export const PLAN_DISPLAY: Record<
   string,
   { label: string; priceLabel: string; widgets: number }
 > = {
-  free: { label: 'Free', priceLabel: '$0', widgets: 1 },
-  starter: { label: 'Starter', priceLabel: '$39/mes', widgets: 300 },
-  growth: { label: 'Growth', priceLabel: '$99/mes', widgets: 1000 },
-  business: { label: 'Business', priceLabel: '$349/mes', widgets: 3000 },
-  enterprise: { label: 'Enterprise', priceLabel: 'Contacto', widgets: 9999 },
+  free:       { label: 'Free',       priceLabel: '$0',        widgets: 1    },
+  basic:      { label: 'Basic',      priceLabel: '$14/mes',   widgets: 10   },
+  starter:    { label: 'Starter',    priceLabel: '$39/mes',   widgets: 300  },
+  growth:     { label: 'Growth',     priceLabel: '$99/mes',   widgets: 1000 },
+  business:   { label: 'Business',   priceLabel: '$349/mes',  widgets: 3000 },
+  enterprise: { label: 'Enterprise', priceLabel: 'Contacto',  widgets: 9999 },
 };
 
 /** Sub-agentes por agente orquestador según el plan. */
 export const PLAN_SUBAGENT_LIMITS: Record<string, number> = {
   free:       0,
+  basic:      5,
   starter:    15,
   growth:     50,
   business:   150,
@@ -36,6 +38,7 @@ export type PackId = typeof CONVERSATION_PACKS[number]['id'];
 /** Límite mensual de conversaciones por plan (-1 = ilimitado). */
 export const PLAN_CONVERSATION_LIMITS: Record<string, number> = {
   free:       50,
+  basic:      1_500,
   starter:    6_000,
   growth:     30_000,
   business:   150_000,
@@ -45,6 +48,7 @@ export const PLAN_CONVERSATION_LIMITS: Record<string, number> = {
 /** Retención de historial de conversaciones en días (-1 = ilimitado). */
 export const PLAN_HISTORY_RETENTION_DAYS: Record<string, number> = {
   free:       7,
+  basic:      30,
   starter:    90,
   growth:     365,
   business:   -1,
@@ -54,6 +58,7 @@ export const PLAN_HISTORY_RETENTION_DAYS: Record<string, number> = {
 /** Límite técnico de conocimiento RAG por agente (null = no aplica/no habilitado). */
 export const PLAN_RAG_LIMITS: Record<string, { mb: number; sources: number } | null> = {
   free:       null,
+  basic:      null,
   starter:    { mb: 1_024,   sources: 60   },
   growth:     { mb: 10_240,  sources: 300  },
   business:   { mb: 102_400, sources: 2000 },
@@ -66,13 +71,22 @@ export function planRank(plan: string): number {
 }
 
 /** Planes de pago ordenados para “mejorar plan” (excluye free si ya pagó). */
-export const PAID_PLAN_IDS: Array<'starter' | 'growth' | 'business'> = ['starter', 'growth', 'business'];
+export const PAID_PLAN_IDS: Array<'basic' | 'starter' | 'growth' | 'business'> = ['basic', 'starter', 'growth', 'business'];
 
 /** Incluye cada plan de pago (texto para modales / UI). */
 export const PLAN_FEATURE_BULLETS: Record<
-  'starter' | 'growth' | 'business',
+  'basic' | 'starter' | 'growth' | 'business',
   string[]
 > = {
+  basic: [
+    '10 widgets activos en tu sitio',
+    '1.500 conversaciones al mes (~50/día)',
+    '5 agentes · 5 sub-agentes por agente · 3 herramientas',
+    'Herramientas: Web Search, Webhook, Gmail',
+    'Historial de conversaciones: 30 días',
+    'Capacitación y acompañamiento incluido',
+    'Soporte por email (72 h)',
+  ],
   starter: [
     '300 widgets activos en tu sitio',
     '6.000 conversaciones al mes (~200/día)',

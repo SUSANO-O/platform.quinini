@@ -26,6 +26,24 @@ export function LandingNavbar() {
         {/* Desktop */}
         <div className="hidden md:flex items-center gap-6">
           <Link
+            href="#agents"
+            className="text-sm font-medium transition-colors"
+            style={{ color: 'var(--muted-foreground)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
+          >
+            {t('agents')}
+          </Link>
+          <Link
+            href="#training"
+            className="text-sm font-medium transition-colors"
+            style={{ color: 'var(--muted-foreground)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
+          >
+            {t('training')}
+          </Link>
+          <Link
             href="#pricing"
             className="text-sm font-medium transition-colors"
             style={{ color: 'var(--muted-foreground)' }}
@@ -100,6 +118,26 @@ export function LandingNavbar() {
           className="px-5 py-4 flex flex-col gap-1"
           style={{ background: 'var(--card)', boxShadow: '0 12px 32px rgba(0,0,0,0.12)' }}
         >
+          <Link
+            href="#agents"
+            className="flex items-center text-sm font-medium px-3 py-2.5 rounded-xl transition-colors"
+            style={{ color: 'var(--foreground)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            onClick={() => setOpen(false)}
+          >
+            {t('agents')}
+          </Link>
+          <Link
+            href="#training"
+            className="flex items-center text-sm font-medium px-3 py-2.5 rounded-xl transition-colors"
+            style={{ color: 'var(--foreground)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            onClick={() => setOpen(false)}
+          >
+            {t('training')}
+          </Link>
           <Link
             href="#pricing"
             className="flex items-center text-sm font-medium px-3 py-2.5 rounded-xl transition-colors"
