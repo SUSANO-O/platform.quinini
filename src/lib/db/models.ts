@@ -59,7 +59,7 @@ const SubscriptionSchema = new Schema({
   },
   plan: {
     type: String,
-    enum: ['free', 'starter', 'growth', 'business', 'enterprise'],
+    enum: ['free', 'solo', 'basic', 'starter', 'growth', 'business', 'enterprise'],
     default: 'free',
   },
   currentPeriodEnd: { type: Number, default: 0 },

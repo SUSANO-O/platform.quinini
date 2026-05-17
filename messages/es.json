@@ -108,48 +108,72 @@
       "cta": "Empezar gratis — 7 días",
       "ragNotIncluded": "Sin contexto y memoria — disponible desde Starter",
       "ragTechnical": "Contexto y memoria: {mb} MB · {sources} fuentes por agente",
+      "solo": {
+        "widgets": "1 widget",
+        "requests": "300 conv/mes",
+        "features": [
+          "1 widget activo en tu sitio",
+          "300 conversaciones al mes (~10/día)",
+          "1 agente · 3 herramientas · Web Search, Webhook, Gmail",
+          "Videos de capacitación en YouTube",
+          "Capacitación y acompañamiento incluido",
+          "Soporte por email (42 h)"
+        ]
+      },
       "basic": {
         "widgets": "10 widgets",
         "requests": "1.500 conv/mes",
         "features": [
           "10 widgets activos en tu sitio",
           "1.500 conversaciones al mes (~50/día)",
-          "5 agentes · 3 herramientas · Gmail incluido",
+          "5 agentes · 5 herramientas · Gmail + Slack incluido",
           "Capacitación y acompañamiento incluido",
           "Soporte por email (72 h)"
         ]
       },
       "starter": {
-        "widgets": "300 widgets",
+        "widgets": "60 widgets",
         "requests": "6.000 conv/mes",
         "features": [
-          "300 widgets activos en tu sitio",
+          "60 widgets activos en tu sitio",
           "6.000 conversaciones al mes (~200/día)",
-          "30 agentes · Contexto y memoria 1 GB · Gmail + Slack",
+          "30 agentes · 30 herramientas · Contexto y memoria 1 GB",
           "Capacitación y acompañamiento incluido",
           "Soporte por email (48 h)"
         ]
       },
       "growth": {
-        "widgets": "1.000 widgets",
+        "widgets": "200 widgets",
         "requests": "30.000 conv/mes",
         "features": [
-          "1.000 widgets activos en tu sitio",
+          "200 widgets activos en tu sitio",
           "30.000 conversaciones al mes (~1.000/día)",
-          "100 agentes · Contexto y memoria 10 GB · todas las integraciones",
+          "100 agentes · 100 herramientas · Contexto y memoria 10 GB",
           "Capacitación y acompañamiento incluido",
           "Soporte prioritario por chat (24 h)"
         ]
       },
       "business": {
-        "widgets": "3.000 widgets",
+        "widgets": "1.000 widgets",
         "requests": "150.000 conv/mes",
         "features": [
-          "3.000 widgets activos en tu sitio",
+          "1.000 widgets activos en tu sitio",
           "150.000 conversaciones al mes (~5.000/día)",
-          "300 agentes · Contexto y memoria 100 GB · herramientas ilimitadas",
+          "500 agentes · Contexto y memoria 100 GB · herramientas ilimitadas",
           "Capacitación y acompañamiento incluido",
           "Soporte dedicado · SLA 99,9 % · Onboarding incluido"
+        ]
+      },
+      "enterprise": {
+        "widgets": "Ilimitado",
+        "requests": "Personalizado",
+        "features": [
+          "Widgets ilimitados en tu sitio",
+          "Conversaciones sin límite",
+          "Acuerdos de volumen personalizados",
+          "White-label disponible",
+          "Soporte dedicado 24/7",
+          "SLA empresarial personalizado"
         ]
       }
     },

@@ -111,7 +111,7 @@ R: Hay que **crearlo** en **Nuevo agente** y guardar; la guía no sustituye ese 
 R: Si ya completaste todos los pasos, **es normal** que desaparezca. Puedes usar **Reiniciar guía** si quieres repetir.
 
 **P: ¿Cuántos agentes / widgets puedo tener?**  
-R: Depende de tu **plan** (tabla de la §1.1). Starter incluye 30 agentes y 300 widgets. Si no te deja crear más, has llegado al límite o necesitas subir de plan.
+R: Depende de tu **plan** (tabla de la §1.1). Solo incluye 1 agente y 1 widget; Starter incluye 30 agentes y 60 widgets; Growth 100 agentes y 200 widgets; Business 500 agentes y 1.000 widgets. Si no te deja crear más, has llegado al límite o necesitas subir de plan.
 
 **P: ¿Puedo ponerle documentación a mi agente?**  
 R: Sí, en la ficha del agente, pestaña **RAG**, desde el plan **Starter** (1 GB, 60 fuentes). En **Free** no está disponible. Puedes subir archivos, pegar texto o **pegar una URL** para que el sistema extraiga el contenido automáticamente.
