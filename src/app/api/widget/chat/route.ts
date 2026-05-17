@@ -506,7 +506,12 @@ export async function POST(req: NextRequest) {
     );
 
     if (res.ok && widgetToken.startsWith('wt_') && parsedAgentId) {
-      trackWidgetChatUsage(widgetToken, parsedAgentId, true).catch(() => {});
+      let hubUsage: { inputTokens?: number; outputTokens?: number } | undefined;
+      try {
+        const parsed = JSON.parse(data) as { usage?: { inputTokens?: number; outputTokens?: number } };
+        hubUsage = parsed.usage;
+      } catch { /* not JSON or no usage — fine */ }
+      trackWidgetChatUsage(widgetToken, parsedAgentId, true, hubUsage).catch(() => {});
       if (faqTrackOwnerId) {
         void trackWidgetUserMessageForFaqCandidates({
           ownerUserId: faqTrackOwnerId,

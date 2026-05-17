@@ -41,7 +41,21 @@ type LogDoc = {
   widgetId: string;
   month: string;
   count: number;
+  inputTokens?: number;
+  outputTokens?: number;
   updatedAt?: Date;
+};
+
+export type WidgetBreakdownRow = {
+  widgetId: string;
+  widgetName: string | null;
+  requests: number;
+  realInputTokens: number;
+  realOutputTokens: number;
+  realTotalTokens: number;
+  estimatedTokens: number;
+  estimatedUsd: number;
+  hasRealTokens: boolean;
 };
 
 export type ModelStatRow = {
@@ -53,12 +67,17 @@ export type ModelStatRow = {
   estimatedInputTokens: number;
   estimatedOutputTokens: number;
   estimatedUsd: number;
+  realInputTokens: number;
+  realOutputTokens: number;
+  realTotalTokens: number;
+  hasRealTokens: boolean;
   modelClass: 'flash' | 'default' | 'premium';
   lastUsedMonth: string | null;
   lastUsedAt: string | null;
   lastWidgetId: string | null;
   lastWidgetName: string | null;
   lastAgentUpdatedAt: string | null;
+  widgets: WidgetBreakdownRow[];
 };
 
 export async function GET(req: NextRequest) {
@@ -67,6 +86,11 @@ export async function GET(req: NextRequest) {
   }
 
   await connectDB();
+
+  // Optional date filter: ?from=YYYY-MM&to=YYYY-MM (inclusive)
+  const { searchParams } = new URL(req.url);
+  const fromMonth = searchParams.get('from') ?? null; // e.g. "2025-01"
+  const toMonth = searchParams.get('to') ?? null;     // e.g. "2025-12"
 
   // ── 1. Leer todos los agentes ─────────────────────────────────────────────
   const agents = (await ClientAgent.find(
@@ -142,8 +166,15 @@ export async function GET(req: NextRequest) {
     widgetByAgent.get(aid)!.push(w);
   }
 
-  // Pre-fetch all request logs
-  const allLogs = (await RequestLog.find({}, { widgetId: 1, month: 1, count: 1, updatedAt: 1 }).lean()) as LogDoc[];
+  // Pre-fetch request logs — apply month range filter if provided
+  const logFilter: Record<string, unknown> = {};
+  if (fromMonth || toMonth) {
+    const range: Record<string, string> = {};
+    if (fromMonth) range.$gte = fromMonth;
+    if (toMonth) range.$lte = toMonth;
+    logFilter.month = range;
+  }
+  const allLogs = (await RequestLog.find(logFilter, { widgetId: 1, month: 1, count: 1, inputTokens: 1, outputTokens: 1, updatedAt: 1 }).lean()) as LogDoc[];
   const logsByWidget = new Map<string, LogDoc[]>();
   for (const l of allLogs) {
     if (!logsByWidget.has(l.widgetId)) logsByWidget.set(l.widgetId, []);
@@ -152,35 +183,67 @@ export async function GET(req: NextRequest) {
 
   for (const [modelId, entry] of map) {
     let totalRequests = 0;
+    let realInputTokens = 0;
+    let realOutputTokens = 0;
     let lastUsedMonth: string | null = null;
     let lastUsedAt: string | null = null;
     let lastWidgetId: string | null = null;
     let lastWidgetName: string | null = null;
+
+    const modelClass = classifyModel(modelId);
+    const tokEst = TOKEN_EST[modelClass];
+    const widgetBreakdown: WidgetBreakdownRow[] = [];
 
     for (const agentId of entry.agentIds) {
       const widgets = widgetByAgent.get(agentId) ?? [];
       for (const w of widgets) {
         const wid = w._id.toString();
         const logs = logsByWidget.get(wid) ?? [];
+        let wRequests = 0;
+        let wInputTokens = 0;
+        let wOutputTokens = 0;
+
         for (const l of logs) {
-          totalRequests += l.count ?? 0;
+          const cnt = l.count ?? 0;
+          wRequests += cnt;
+          wInputTokens += l.inputTokens ?? 0;
+          wOutputTokens += l.outputTokens ?? 0;
           if (!lastUsedMonth || l.month > lastUsedMonth) {
             lastUsedMonth = l.month;
             lastWidgetId = wid;
             lastWidgetName = w.name ?? null;
-            // Approximate date from month string "YYYY-MM" → last day of month
             lastUsedAt = l.updatedAt
               ? new Date(l.updatedAt).toISOString()
               : `${l.month}-28T00:00:00.000Z`;
           }
         }
+
+        if (wRequests > 0) {
+          totalRequests += wRequests;
+          realInputTokens += wInputTokens;
+          realOutputTokens += wOutputTokens;
+          const wHasReal = wInputTokens + wOutputTokens > 0;
+          const wEst = Math.round(wRequests * (tokEst.input + tokEst.output));
+          widgetBreakdown.push({
+            widgetId: wid,
+            widgetName: w.name ?? null,
+            requests: wRequests,
+            realInputTokens: wInputTokens,
+            realOutputTokens: wOutputTokens,
+            realTotalTokens: wInputTokens + wOutputTokens,
+            estimatedTokens: wEst,
+            estimatedUsd: usdForModel(modelClass, wRequests),
+            hasRealTokens: wHasReal,
+          });
+        }
       }
     }
 
-    const modelClass = classifyModel(modelId);
-    const tokEst = TOKEN_EST[modelClass];
+    widgetBreakdown.sort((a, b) => b.requests - a.requests);
+
     const estimatedInputTokens = Math.round(totalRequests * tokEst.input);
     const estimatedOutputTokens = Math.round(totalRequests * tokEst.output);
+    const hasRealTokens = realInputTokens + realOutputTokens > 0;
 
     rows.push({
       modelId,
@@ -191,6 +254,10 @@ export async function GET(req: NextRequest) {
       estimatedInputTokens,
       estimatedOutputTokens,
       estimatedUsd: usdForModel(modelClass, totalRequests),
+      realInputTokens,
+      realOutputTokens,
+      realTotalTokens: realInputTokens + realOutputTokens,
+      hasRealTokens,
       modelClass,
       lastUsedMonth,
       lastUsedAt,
@@ -199,6 +266,7 @@ export async function GET(req: NextRequest) {
       lastAgentUpdatedAt: entry.lastAgentUpdatedAt
         ? entry.lastAgentUpdatedAt.toISOString()
         : null,
+      widgets: widgetBreakdown,
     });
   }
 
@@ -209,5 +277,10 @@ export async function GET(req: NextRequest) {
     return a.modelId.localeCompare(b.modelId);
   });
 
-  return NextResponse.json({ ok: true, models: rows, total: rows.length });
+  return NextResponse.json({
+    ok: true,
+    models: rows,
+    total: rows.length,
+    filter: { from: fromMonth, to: toMonth },
+  });
 }
