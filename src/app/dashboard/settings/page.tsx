@@ -10,7 +10,15 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CreditCard, ExternalLink, Settings, Sparkles, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
-import { PLAN_DISPLAY, PLAN_ORDER, PLAN_RAG_LIMITS } from '@/lib/plan-catalog';
+import {
+  PLAN_DISPLAY,
+  PLAN_ORDER,
+  PLAN_RAG_LIMITS,
+  PLAN_FEATURE_BULLETS,
+  PLAN_CONVERSATION_LIMITS,
+  PAID_PLAN_IDS,
+  planRank,
+} from '@/lib/plan-catalog';
 
 const BRAND_R = '#e41414';
 const BRAND_O = '#f87600';
@@ -43,12 +51,14 @@ export default function SettingsPage() {
     openBillingPortal,
     cancelSubscription,
     resumeSubscription,
+    startCheckout,
     loading,
     refresh,
   } = useSubscription();
   const [copyMsg, setCopyMsg] = useState('');
   const [billingMsg, setBillingMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [planBusy, setPlanBusy] = useState<string | null>(null);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
 
   const [displayNameDraft, setDisplayNameDraft] = useState('');
@@ -231,6 +241,14 @@ export default function SettingsPage() {
     setBusy(null);
     if (r && 'error' in r && r.error) setBillingMsg(r.error);
     else if (r && 'message' in r && r.message) setBillingMsg(r.message);
+  }
+
+  async function handlePlanCheckout(planId: string) {
+    if (billingRestricted) return;
+    setPlanBusy(planId);
+    const r = await startCheckout(planId);
+    setPlanBusy(null);
+    if (r && 'error' in r && r.error) toast.error(r.error);
   }
 
   const hasActivePaidPlan =
@@ -513,6 +531,111 @@ export default function SettingsPage() {
           <p className="text-[13px] mb-4 m-0 leading-snug font-medium" style={{ color: 'var(--primary)' }}>
             {billingMsg}
           </p>
+        )}
+
+        {/* ── Plan cards grid ─────────────────────────────────────────────── */}
+        {!loading && (
+          <div className="mb-6">
+            <p className="text-[11px] font-bold uppercase tracking-widest mb-3 m-0" style={{ color: 'var(--muted-foreground)' }}>
+              Planes disponibles
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {PAID_PLAN_IDS.map((planId) => {
+                const display = PLAN_DISPLAY[planId];
+                const bullets = PLAN_FEATURE_BULLETS[planId];
+                const convLimit = PLAN_CONVERSATION_LIMITS[planId];
+                const isPopular = planId === 'growth';
+                const effectivePlan = hasActivePaidPlan ? (subscription?.plan ?? 'free') : 'free';
+                const isCurrent =
+                  subscription?.plan === planId &&
+                  ['active', 'trialing', 'past_due'].includes(subscription?.status ?? '');
+                const isUpgrade = planRank(planId) > planRank(effectivePlan);
+                const ACCENT: Record<string, string> = {
+                  solo: BRAND_R,
+                  basic: BRAND_O,
+                  starter: BRAND_B,
+                  growth: '#00f8e5',
+                  business: '#9333ea',
+                };
+                const accent = ACCENT[planId] ?? BRAND_R;
+
+                return (
+                  <div
+                    key={planId}
+                    className="rounded-2xl border overflow-hidden flex flex-col"
+                    style={{
+                      borderColor: isPopular ? '#00f8e540' : isCurrent ? `${BRAND_R}40` : 'var(--border)',
+                      background: isPopular
+                        ? 'linear-gradient(145deg,rgba(0,248,229,0.06),rgba(0,172,248,0.06))'
+                        : isCurrent
+                        ? `${BRAND_R}06`
+                        : 'var(--card)',
+                      position: 'relative',
+                    }}
+                  >
+                    {isPopular && (
+                      <div
+                        className="absolute top-3 right-3 text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                        style={{ background: '#00f8e5', color: '#000' }}
+                      >
+                        Popular
+                      </div>
+                    )}
+                    <div style={{ height: 3, background: `linear-gradient(90deg,${accent},${accent}88)` }} />
+                    <div className="p-4 flex flex-col flex-1">
+                      <div className="mb-3">
+                        <p className="text-[14px] font-extrabold m-0 capitalize">{display.label}</p>
+                        <p
+                          className="text-[22px] font-black m-0 mt-0.5"
+                          style={{ letterSpacing: '-0.04em', color: accent }}
+                        >
+                          {display.priceLabel}
+                        </p>
+                        <p className="text-[11px] m-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                          {convLimit === -1
+                            ? 'conversaciones ilimitadas'
+                            : `${convLimit.toLocaleString('es')} conv/mes`}
+                        </p>
+                      </div>
+
+                      <ul className="list-none p-0 m-0 flex flex-col gap-1.5 flex-1 mb-4">
+                        {bullets.slice(0, 4).map((b, i) => (
+                          <li key={i} className="flex items-start gap-2 text-[11px]">
+                            <CheckCircle2 size={11} className="mt-0.5 shrink-0" style={{ color: accent }} />
+                            <span style={{ color: 'var(--muted-foreground)' }}>{b}</span>
+                          </li>
+                        ))}
+                      </ul>
+
+                      <button
+                        type="button"
+                        disabled={isCurrent || !!planBusy || billingRestricted}
+                        onClick={() => handlePlanCheckout(planId)}
+                        className="w-full py-2.5 rounded-xl font-bold text-[12px] border-0 transition-opacity hover:opacity-90"
+                        style={{
+                          background: isCurrent
+                            ? 'var(--muted)'
+                            : `linear-gradient(135deg,${accent},${accent}bb)`,
+                          color: isCurrent ? 'var(--muted-foreground)' : '#fff',
+                          cursor: isCurrent || planBusy || billingRestricted ? 'not-allowed' : 'pointer',
+                          opacity: billingRestricted ? 0.55 : 1,
+                          boxShadow: !isCurrent ? `0 4px 14px ${accent}30` : undefined,
+                        }}
+                      >
+                        {planBusy === planId
+                          ? 'Procesando…'
+                          : isCurrent
+                          ? 'Plan actual ✓'
+                          : isUpgrade
+                          ? 'Mejorar plan →'
+                          : 'Seleccionar →'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         )}
 
         {!loading && <SubscriptionPlanPanel checkoutDisabled={billingRestricted} />}
