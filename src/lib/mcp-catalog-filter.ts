@@ -26,6 +26,7 @@ export function isMcpIntegrationAllowedForPlan(integrationKey: string, userPlan:
 export function planLabelForMin(min: PlanId): string {
   const m: Record<PlanId, string> = {
     free:       'Free',
+    solo:       'Solo',
     basic:      'Basic',
     starter:    'Starter',
     growth:     'Growth',
