@@ -32,7 +32,7 @@ const SIDEBAR_COLLAPSED_PX = 72;
 const SIDEBAR_COLLAPSED_KEY = 'dashboard-sidebar-collapsed';
 
 const NAV = [
-  { href: '/dashboard', label: 'Inicio', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/agents', label: 'Mis Agentes', icon: Bot },
   { href: '/dashboard/widget-builder', label: 'Widget Builder', icon: Cpu },
   { href: '/dashboard/widgets', label: 'Mis Widgets', icon: Boxes },
