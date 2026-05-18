@@ -356,7 +356,7 @@ export default function WidgetsPage() {
                                 color: snippetTab === tab ? '#e2e8f0' : '#6b7280',
                               }}
                             >
-                              {tab === 'minimal' ? 'Mínimo' : 'SDK Completo'}
+                              {tab === 'minimal' ? 'Mínimo' : 'Completo'}
                             </button>
                           ))}
                         </div>

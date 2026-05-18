@@ -181,6 +181,7 @@ interface WidgetConfig {
   theme: 'light' | 'dark';
   borderRadius: string;
   autoOpen: boolean;
+  voiceEnabled: boolean;
 }
 
 const DEFAULT: WidgetConfig = {
@@ -196,6 +197,7 @@ const DEFAULT: WidgetConfig = {
   theme: 'light',
   borderRadius: '16px',
   autoOpen: false,
+  voiceEnabled: true,
   humanSupportPhone: '',
 };
 
@@ -592,6 +594,7 @@ export default function WidgetBuilderPage() {
               theme: th,
               borderRadius: String(widget.borderRadius ?? '16px'),
               autoOpen: Boolean(widget.autoOpen),
+              voiceEnabled: widget.voiceEnabled !== false,
             });
             if (Array.isArray(widget.shortcuts)) {
               setShortcuts((widget.shortcuts as WidgetShortcut[]).map((s) => ({
@@ -977,10 +980,43 @@ export default function WidgetBuilderPage() {
 
         {/* Auto open + token snippet (comportamiento del embed) */}
         <div data-tour="widget-builder-embed-options">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-          <input type="checkbox" id="autoOpen" checked={cfg.autoOpen} onChange={(e) => update({ autoOpen: e.target.checked })}
-            style={{ width: 16, height: 16, cursor: 'pointer' }} />
-          <label htmlFor="autoOpen" style={{ fontSize: '13px', cursor: 'pointer' }}>Abrir automáticamente</label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <input type="checkbox" id="autoOpen" checked={cfg.autoOpen} onChange={(e) => update({ autoOpen: e.target.checked })}
+              style={{ width: 16, height: 16, cursor: 'pointer' }} />
+            <label htmlFor="autoOpen" style={{ fontSize: '13px', cursor: 'pointer' }}>Abrir automáticamente</label>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={cfg.voiceEnabled}
+              onClick={() => update({ voiceEnabled: !cfg.voiceEnabled })}
+              style={{
+                position: 'relative', flexShrink: 0,
+                width: 36, height: 20, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 0,
+                background: cfg.voiceEnabled ? cfg.color : 'var(--border)',
+                transition: 'background 0.2s',
+              }}
+            >
+              <span style={{
+                position: 'absolute', top: 3, left: cfg.voiceEnabled ? 19 : 3,
+                width: 14, height: 14, borderRadius: '50%', background: '#fff',
+                transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+              }} />
+            </button>
+            <label
+              style={{ fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+              onClick={() => update({ voiceEnabled: !cfg.voiceEnabled })}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: cfg.voiceEnabled ? 1 : 0.4 }}>
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              </svg>
+              Lectura en voz alta
+            </label>
+          </div>
         </div>
 
         <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '0 0 18px', lineHeight: 1.5 }}>
@@ -1112,7 +1148,7 @@ export default function WidgetBuilderPage() {
                       color: snippetTab === tab ? '#e2e8f0' : '#6b7280',
                     }}
                   >
-                    {tab === 'minimal' ? 'Mínimo' : 'SDK Completo'}
+                    {tab === 'minimal' ? 'Mínimo' : 'Completo'}
                   </button>
                 ))}
               </div>

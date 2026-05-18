@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   await connectDB();
 
   const widget = await Widget.findOne({ afhubToken: token })
-    .select('agentId color title subtitle welcome fabHint avatar position theme borderRadius autoOpen humanSupportPhone shortcuts')
+    .select('agentId color title subtitle welcome fabHint avatar position theme borderRadius autoOpen voiceEnabled humanSupportPhone shortcuts')
     .lean() as Record<string, unknown> | null;
 
   if (!widget) {
@@ -53,6 +53,7 @@ export async function GET(req: NextRequest) {
       theme:             widget.theme,
       borderRadius:      widget.borderRadius,
       autoOpen:          widget.autoOpen,
+      voiceEnabled:      widget.voiceEnabled !== false,
       humanSupportPhone: widget.humanSupportPhone,
       voiceName,
       shortcuts:         Array.isArray(widget.shortcuts)
