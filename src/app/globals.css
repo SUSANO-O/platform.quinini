@@ -631,3 +631,36 @@ svg.lucide.lucide-code-xml {
   pointer-events: none;
   z-index: 10;
 }
+
+/* ── Metric cards: skeleton shimmer + valor aparece ──────────────────────── */
+@keyframes metric-shimmer {
+  0%   { background-position: -300% 0; }
+  100% { background-position:  300% 0; }
+}
+@keyframes metric-value-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)  scale(1);    }
+}
+@keyframes metric-accent-sweep {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.metric-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--border)           20%,
+    rgba(100,116,139,0.18)  45%,
+    var(--border)           70%
+  );
+  background-size: 300% 100%;
+  animation: metric-shimmer 1.6s ease-in-out infinite;
+  border-radius: 6px;
+}
+.metric-value-appear {
+  animation: metric-value-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.metric-accent-loading {
+  background-size: 200% 100% !important;
+  animation: metric-accent-sweep 1.6s ease-in-out infinite !important;
+}

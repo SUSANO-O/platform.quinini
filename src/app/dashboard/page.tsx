@@ -523,9 +523,20 @@ function MetricCard({
   sub: string;
   bar?: { pct: number; color: string };
 }) {
+  const loading = value === '—';
+
   return (
     <div className="rounded-2xl border card-texture overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-      <div style={{ height: 2, background: accent }} />
+      {/* Barra superior: barre el acento mientras carga, sólida cuando tiene datos */}
+      <div
+        className={loading ? 'metric-accent-loading' : undefined}
+        style={{
+          height: 2,
+          background: loading
+            ? `linear-gradient(90deg, ${accent}30, ${accent}, ${accent}cc, ${accent}30)`
+            : accent,
+        }}
+      />
       <div className="p-4">
         <div className="flex items-center gap-1.5 mb-3">
           {icon}
@@ -533,15 +544,33 @@ function MetricCard({
             {label}
           </span>
         </div>
-        <p className="text-2xl font-extrabold m-0" style={{ letterSpacing: '-0.03em' }}>
-          {value}
-        </p>
-        <p className="text-[11px] m-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-          {sub}
-        </p>
-        {bar && (
+
+        {loading ? (
+          /* Skeleton */
+          <div className="flex flex-col gap-2 mt-1">
+            <div className="metric-skeleton" style={{ height: 28, width: '55%' }} />
+            <div className="metric-skeleton" style={{ height: 11, width: '75%' }} />
+          </div>
+        ) : (
+          /* Valor real — aparece con slide-up */
+          <div key={value} className="metric-value-appear">
+            <p className="text-2xl font-extrabold m-0" style={{ letterSpacing: '-0.03em' }}>
+              {value}
+            </p>
+            <p className="text-[11px] m-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+              {sub}
+            </p>
+          </div>
+        )}
+
+        {bar && !loading && (
           <div className="mt-2.5 h-1 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
-            <div style={{ height: '100%', width: `${bar.pct}%`, background: bar.color, borderRadius: 999, transition: 'width 0.4s ease' }} />
+            <div style={{ height: '100%', width: `${bar.pct}%`, background: bar.color, borderRadius: 999, transition: 'width 0.6s cubic-bezier(0.22,1,0.36,1)' }} />
+          </div>
+        )}
+        {bar && loading && (
+          <div className="mt-2.5 h-1 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+            <div className="metric-skeleton" style={{ height: '100%', width: '40%', borderRadius: 999 }} />
           </div>
         )}
       </div>
