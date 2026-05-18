@@ -19,7 +19,6 @@ import {
   ShieldAlert,
   Route,
   RotateCcw,
-  PieChart,
   ChevronLeft,
   ChevronRight,
   Menu,
@@ -37,7 +36,6 @@ const NAV = [
   { href: '/dashboard/widget-builder', label: 'Widget Builder', icon: Cpu },
   { href: '/dashboard/widgets', label: 'Mis Widgets', icon: Boxes },
   { href: '/dashboard/compliance', label: 'Cumplimiento', icon: Shield },
-  { href: '/dashboard/finance', label: 'Costes (interno)', icon: PieChart },
   { href: '/dashboard/settings', label: 'Ajustes', icon: Settings },
 ];
 
@@ -47,7 +45,6 @@ const SIDEBAR_TOUR_KEY_BY_HREF: Record<string, string> = {
   '/dashboard/widget-builder': 'sidebar-widget-builder',
   '/dashboard/widgets': 'sidebar-widgets',
   '/dashboard/compliance': 'sidebar-cumplimiento',
-  '/dashboard/finance': 'sidebar-finanzas',
   '/dashboard/settings': 'sidebar-ajustes',
 };
 
