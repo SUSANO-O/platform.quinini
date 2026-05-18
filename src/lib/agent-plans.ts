@@ -253,18 +253,3 @@ export function planMeetsModelMin(userPlan: string, minPlan?: string): boolean {
   return u >= m;
 }
 
-// ── Widgets per plan (alineado con POST /api/widgets) ─────────────────────────
-
-export const WIDGET_LIMITS: Record<string, number> = {
-  free: 1,
-  solo: 1,
-  basic: 10,
-  starter: 60,
-  growth: 200,
-  business: 1000,
-  enterprise: 9999,
-};
-
-export function getWidgetLimit(plan: string): number {
-  return WIDGET_LIMITS[plan] ?? WIDGET_LIMITS.free;
-}

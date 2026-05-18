@@ -118,6 +118,8 @@ const WidgetSchema = new Schema({
     }],
     default: [],
   },
+  /** IDs de agentes adicionales para routing multi-agente (feature en desarrollo, no expuesto en UI). */
+  agentIds: { type: [String], default: [] },
 }, { timestamps: true });
 
 WidgetSchema.index({ userId: 1, createdAt: -1 });

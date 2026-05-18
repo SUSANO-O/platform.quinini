@@ -9,8 +9,6 @@ import {
 } from '@/lib/widget-iridescent';
 import Link from 'next/link';
 import { Trash2, Plus, Code2, Boxes, Pencil, Play, Sparkles, Copy, Check } from 'lucide-react';
-import { useSubscription } from '@/hooks/use-subscription';
-import { getWidgetLimit } from '@/lib/agent-plans';
 
 const BRAND_R = '#e41414';
 const BRAND_O = '#f87600';
@@ -99,21 +97,12 @@ function buildFullSnippet(w: Widget, origin: string) {
 }
 
 export default function WidgetsPage() {
-  const { subscription } = useSubscription();
-  const hasActivePlan = subscription?.status === 'active' || subscription?.status === 'trialing';
-  const plan = hasActivePlan ? (subscription?.plan ?? 'free') : 'free';
-  const widgetLimit = getWidgetLimit(plan);
-
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [snippetTab, setSnippetTab] = useState<'minimal' | 'full'>('minimal');
   const [copied, setCopied] = useState(false);
   const [origin, setOrigin] = useState('');
-
-  const usedWidgets = widgets.length;
-  const atLimit = usedWidgets >= widgetLimit;
-  const pct = widgetLimit > 0 ? Math.min(100, (usedWidgets / widgetLimit) * 100) : 0;
 
   useEffect(() => {
     setOrigin(typeof window !== 'undefined' ? window.location.origin : '');
@@ -189,69 +178,25 @@ export default function WidgetsPage() {
             href="/dashboard/widget-builder"
             data-tour="widgets-new"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold no-underline shrink-0 transition-all"
-            style={
-              atLimit
-                ? {
-                    background: 'var(--muted)',
-                    color: 'var(--muted-foreground)',
-                    pointerEvents: 'none',
-                    opacity: 0.65,
-                  }
-                : {
-                    background: `linear-gradient(135deg, ${BRAND_R}, ${BRAND_O})`,
-                    color: '#fff',
-                    boxShadow: '0 4px 18px rgba(228,20,20,0.28)',
-                  }
-            }
+            style={{
+              background: `linear-gradient(135deg, ${BRAND_R}, ${BRAND_O})`,
+              color: '#fff',
+              boxShadow: '0 4px 18px rgba(228,20,20,0.28)',
+            }}
           >
             <Plus size={16} strokeWidth={2.5} />
             Nuevo widget
           </Link>
         </div>
 
-        {/* Uso del plan */}
+        {/* Info: widgets ilimitados */}
         <div
-          className="card-texture rounded-2xl border p-5 mb-8"
-          style={{ borderColor: 'var(--border)' }}
+          className="card-texture rounded-2xl border p-4 mb-8 flex items-center gap-3"
+          style={{ borderColor: `${BRAND_B}30`, background: `${BRAND_B}07` }}
         >
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <div className="flex justify-between text-xs font-semibold mb-2">
-                <span>Widgets usados</span>
-                <span style={{ color: atLimit ? '#ef4444' : 'var(--muted-foreground)' }}>
-                  {usedWidgets} / {widgetLimit}
-                </span>
-              </div>
-              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
-                <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{
-                    width: `${pct}%`,
-                    background: atLimit ? '#ef4444' : `linear-gradient(90deg, ${BRAND_R}, ${BRAND_B})`,
-                  }}
-                />
-              </div>
-            </div>
-            <div className="text-xs shrink-0" style={{ color: 'var(--muted-foreground)' }}>
-              Plan:{' '}
-              <span className="font-bold capitalize" style={{ color: 'var(--foreground)' }}>
-                {plan}
-              </span>
-            </div>
-            {atLimit && (
-              <Link
-                href="/dashboard"
-                className="text-xs font-bold px-3 py-1.5 rounded-full no-underline transition-opacity hover:opacity-90"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(228,20,20,0.12), rgba(0,172,248,0.1))',
-                  color: 'var(--primary)',
-                  border: '1px solid rgba(228,20,20,0.22)',
-                }}
-              >
-                Actualizar plan →
-              </Link>
-            )}
-          </div>
+          <span className="text-xs font-semibold" style={{ color: BRAND_B }}>
+            Puedes crear tantos widgets como necesites — cada widget debe tener un nombre único.
+          </span>
         </div>
 
         {loading ? (

@@ -3357,10 +3357,32 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   {!readOnly && (
                     <SectionCard bar="bo">
                       <p style={sectionTitle}>Scraping de URL con IA (BETA)</p>
-                      <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', marginBottom: '12px' }}>
+                      <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', marginBottom: '8px' }}>
                         Extrae el contenido de cualquier página web y segméntalo automáticamente con IA para agregarlo al RAG.
                       </p>
 
+                      {/* Disclaimer de responsabilidad */}
+                      <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.5, padding: '7px 10px', borderRadius: '8px', background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                        Al escanear una página web el usuario acepta y asume toda la responsabilidad sobre el cumplimiento de los términos de uso del sitio escaneado.{' '}
+                        <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>
+                          Ver política de uso responsable
+                        </a>
+                      </p>
+
+                      {!limits.ragEnabled ? (
+                        <div style={{ padding: '16px', borderRadius: '10px', background: 'var(--muted)', border: '1px solid var(--border)', textAlign: 'center' }}>
+                          <p style={{ fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Plan Starter o superior requerido</p>
+                          <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px' }}>
+                            El scraping de URL con IA está disponible desde el plan Starter.
+                          </p>
+                          <a
+                            href="/dashboard/settings?tab=billing"
+                            style={{ display: 'inline-block', padding: '8px 18px', borderRadius: '10px', fontSize: '12px', fontWeight: 700, background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))', color: '#fff', textDecoration: 'none' }}
+                          >
+                            Actualizar plan
+                          </a>
+                        </div>
+                      ) : (<>
                       <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
                         <input
                           className="landing-input"
@@ -3606,6 +3628,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                           </button>
                         </div>
                       )}
+                      </>)}
                     </SectionCard>
                   )}
 

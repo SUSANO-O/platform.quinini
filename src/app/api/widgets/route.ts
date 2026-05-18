@@ -1,15 +1,14 @@
 /**
  * GET  /api/widgets          — list user's widgets
- * POST /api/widgets          — create widget (checks plan limit)
+ * POST /api/widgets          — create widget (unique name per user, no plan limit)
  * DELETE /api/widgets?id=xxx — delete widget
  */
 
 import { randomBytes } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
-import { Widget, Subscription, ClientAgent, User } from '@/lib/db/models';
+import { Widget, ClientAgent, User } from '@/lib/db/models';
 import { verifySessionToken, isUserEmailVerified, isImpersonationSession } from '@/lib/auth';
-import { WIDGET_LIMITS } from '@/lib/agent-plans';
 
 function getUserId(req: NextRequest): string | null {
   const token = req.cookies.get('afhub_session')?.value;
@@ -58,28 +57,27 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── Check plan limit ──────────────────────────────────────────────────────
-  const sub = await Subscription.findOne({ userId }).lean() as { plan?: string; status?: string } | null;
-  const hasActivePlan = sub?.status === 'active' || sub?.status === 'trialing';
-  const plan = hasActivePlan ? (sub?.plan ?? 'free') : 'free';
-  const maxWidgets = WIDGET_LIMITS[plan] ?? 1;
+  const body = await req.json() as Record<string, unknown>;
 
-  const existingCount = await Widget.countDocuments({ userId });
-  if (existingCount >= maxWidgets) {
+  // ── Unicidad: no dos widgets con el mismo nombre para el mismo usuario ────
+  const nameStr = typeof body.name === 'string' ? body.name.trim() : '';
+  if (!nameStr) {
+    return NextResponse.json({ error: 'El nombre del widget es requerido.' }, { status: 400 });
+  }
+  const nameExists = await Widget.exists({ userId, name: nameStr });
+  if (nameExists) {
     return NextResponse.json(
-      { error: `Tu plan ${plan} permite máximo ${maxWidgets} widget${maxWidgets !== 1 ? 's' : ''}. Actualiza tu suscripción para crear más.` },
-      { status: 403 },
+      { error: 'Ya tienes un widget con ese nombre. Usa un nombre diferente para crear uno nuevo.' },
+      { status: 409 },
     );
   }
-
-  const body = await req.json() as Record<string, unknown>;
   const afhubToken =
     typeof body.afhubToken === 'string' && body.afhubToken.trim().startsWith('wt_')
       ? body.afhubToken.trim()
       : `wt_${randomBytes(24).toString('hex')}`;
 
-  const { afhubToken: _ignoredToken, userId: _ignoredUid, ...rest } = body;
-  const widget = await Widget.create({ ...rest, userId, afhubToken });
+  const { afhubToken: _ignoredToken, userId: _ignoredUid, name: _ignoredName, ...rest } = body;
+  const widget = await Widget.create({ ...rest, name: nameStr, userId, afhubToken });
   return NextResponse.json({ widget }, { status: 201 });
 }
 

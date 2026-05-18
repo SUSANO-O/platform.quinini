@@ -8,7 +8,7 @@ import {
   ArrowRight, Terminal, Globe, Sparkles, Check,
   HeartPulse, Sprout,
   GraduationCap, TrendingUp, Lock, Wrench,
-  UserPlus, Palette, Rocket,
+  UserPlus, Palette, Rocket, Brain,
   Users, BookOpen, PlayCircle, BadgeCheck, Star,
 } from 'lucide-react';
 import { PLAN_RAG_LIMITS } from '@/lib/plan-catalog';
@@ -39,39 +39,40 @@ export default async function LandingPage() {
 
   const HOW = [
     { step: '01', title: t('how.step1Title'), desc: t('how.step1Desc'), Icon: UserPlus, accent: R,  grad: `linear-gradient(135deg,${R},${O})` },
-    { step: '02', title: t('how.step2Title'), desc: t('how.step2Desc'), Icon: Palette,  accent: O,  grad: `linear-gradient(135deg,${O},${B})` },
-    { step: '03', title: t('how.step3Title'), desc: t('how.step3Desc'), Icon: Terminal,  accent: B,  grad: `linear-gradient(135deg,${B},${C})` },
-    { step: '04', title: t('how.step4Title'), desc: t('how.step4Desc'), Icon: Rocket,   accent: C,  grad: `linear-gradient(135deg,${C},${R})` },
+    { step: '02', title: t('how.step2Title'), desc: t('how.step2Desc'), Icon: Brain,    accent: O,  grad: `linear-gradient(135deg,${O},${B})` },
+    { step: '03', title: t('how.step3Title'), desc: t('how.step3Desc'), Icon: Palette,  accent: B,  grad: `linear-gradient(135deg,${B},${C})` },
+    { step: '04', title: t('how.step4Title'), desc: t('how.step4Desc'), Icon: Terminal, accent: C,  grad: `linear-gradient(135deg,${C},${Rd})` },
+    { step: '05', title: t('how.step5Title'), desc: t('how.step5Desc'), Icon: Rocket,   accent: Rd, grad: `linear-gradient(135deg,${Rd},${R})` },
   ];
 
   const PLANS = [
     {
       name: 'Solo',     price: '$3',   period: t('pricing.period'),
-      widgets: t('pricing.solo.widgets'),    requests: t('pricing.solo.requests'),
+      requests: t('pricing.solo.requests'),
       features: t.raw('pricing.solo.features') as string[],
       color: Rd, id: 'solo',
     },
     {
       name: 'Basic',    price: '$14',  period: t('pricing.period'),
-      widgets: t('pricing.basic.widgets'),   requests: t('pricing.basic.requests'),
+      requests: t('pricing.basic.requests'),
       features: t.raw('pricing.basic.features') as string[],
       color: C, id: 'basic',
     },
     {
       name: 'Starter',  price: '$39',  period: t('pricing.period'),
-      widgets: t('pricing.starter.widgets'), requests: t('pricing.starter.requests'),
+      requests: t('pricing.starter.requests'),
       features: t.raw('pricing.starter.features') as string[],
       color: B, id: 'starter',
     },
     {
       name: 'Growth',   price: '$99',  period: t('pricing.period'),
-      widgets: t('pricing.growth.widgets'),  requests: t('pricing.growth.requests'),
+      requests: t('pricing.growth.requests'),
       features: t.raw('pricing.growth.features') as string[],
       color: R, id: 'growth', popular: true,
     },
     {
       name: 'Business', price: '$349', period: t('pricing.period'),
-      widgets: t('pricing.business.widgets'), requests: t('pricing.business.requests'),
+      requests: t('pricing.business.requests'),
       features: t.raw('pricing.business.features') as string[],
       color: O, id: 'business',
     },
@@ -286,8 +287,8 @@ export default async function LandingPage() {
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-2">
               <span className="px-3 py-1 rounded-full text-xs font-semibold" style={{ background: `${R}12`, color: R, border: `1px solid ${R}30` }}>Especializados por dominio</span>
-              <span className="px-3 py-1 rounded-full text-xs font-semibold" style={{ background: `${O}12`, color: O, border: `1px solid ${O}30` }}>Listos para usar</span>
-              <span className="px-3 py-1 rounded-full text-xs font-semibold" style={{ background: `${B}12`, color: B, border: `1px solid ${B}30` }}>Integracion via widget</span>
+              <span className="px-3 py-1 rounded-full text-xs font-semibold" style={{ background: `${O}12`, color: O, border: `1px solid ${O}30` }}>Ejemplos ilustrativos</span>
+              <span className="px-3 py-1 rounded-full text-xs font-semibold" style={{ background: `${B}12`, color: B, border: `1px solid ${B}30` }}>Crea el tuyo en minutos</span>
             </div>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -344,17 +345,10 @@ export default async function LandingPage() {
                   <h3 className="text-lg font-bold mt-5 mb-2" style={{ letterSpacing: '-0.01em' }}>{a.name}</h3>
                   <p className="text-sm leading-relaxed min-h-[62px]" style={{ color: 'var(--muted-foreground)' }}>{a.desc}</p>
 
-                  <div className="mt-5 pt-4 flex items-center justify-between" style={{ borderTop: `1px solid ${a.color}30` }}>
-                    <span className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>
-                      Ideal para equipos operativos
+                  <div className="mt-5 pt-4" style={{ borderTop: `1px solid ${a.color}20` }}>
+                    <span className="text-xs italic" style={{ color: 'var(--muted-foreground)' }}>
+                      Ejemplo — crea el tuyo con tu propio agente
                     </span>
-                    <Link
-                      href="/register"
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg"
-                      style={{ background: `${a.color}14`, color: a.color, border: `1px solid ${a.color}35` }}
-                    >
-                      Probar <ArrowRight size={12} />
-                    </Link>
                   </div>
                 </div>
               </div>
@@ -711,7 +705,7 @@ export default async function LandingPage() {
                   <span className="text-4xl font-extrabold" style={{ color: plan.color }}>{plan.price}</span>
                   <span className="text-sm pb-1" style={{ color: 'var(--muted-foreground)' }}>{plan.period}</span>
                 </div>
-                <p className="text-sm mb-6" style={{ color: 'var(--muted-foreground)' }}>{plan.widgets} · {plan.requests}</p>
+                <p className="text-sm mb-6" style={{ color: 'var(--muted-foreground)' }}>{plan.requests}</p>
 
                 <ul className="space-y-3 mb-4">
                   {plan.features.map((feat) => (
@@ -756,7 +750,7 @@ export default async function LandingPage() {
                 <h3 className="text-xl font-extrabold mb-1">Enterprise</h3>
                 <div className="flex items-end gap-1 mb-1">
                   <span className="text-4xl font-extrabold" style={{ color: '#8B5CF6' }}>
-                    {t('pricing.enterprise.widgets')}
+                    {t('pricing.enterprise.price')}
                   </span>
                 </div>
                 <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
@@ -780,7 +774,7 @@ export default async function LandingPage() {
                 className="block text-center py-3 px-8 rounded-xl font-bold text-sm transition-all hover:opacity-90 hover:shadow-lg text-white whitespace-nowrap flex-shrink-0"
                 style={{ background: '#8B5CF6' }}
               >
-                Contactar — +57 319 674 8729
+                Contactar asesor
               </a>
             </div>
           </div>
