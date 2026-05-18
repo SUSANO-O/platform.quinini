@@ -233,6 +233,27 @@ export default function ModelStatsPage() {
   // Draft — what the user is typing before hitting "Filtrar"
   const [draft, setDraft] = useState<Filters>(filters);
 
+  // User search autocomplete
+  type UserSuggestion = { id: string; email: string; displayName: string };
+  const [userQuery, setUserQuery]       = useState('');
+  const [userSuggestions, setUserSuggestions] = useState<UserSuggestion[]>([]);
+  const [userLabel, setUserLabel]       = useState('');  // display label for active filter
+  const [userSearching, setUserSearching] = useState(false);
+
+  useEffect(() => {
+    if (userQuery.length < 2) { setUserSuggestions([]); return; }
+    const t = setTimeout(async () => {
+      setUserSearching(true);
+      try {
+        const r = await fetch(`/api/admin/users/lookup?q=${encodeURIComponent(userQuery)}`);
+        const d = await r.json() as { users?: UserSuggestion[] };
+        setUserSuggestions(d.users ?? []);
+      } catch { setUserSuggestions([]); }
+      finally { setUserSearching(false); }
+    }, 280);
+    return () => clearTimeout(t);
+  }, [userQuery]);
+
   async function load(f: Filters) {
     setLoading(true);
     setError('');
@@ -264,6 +285,7 @@ export default function ModelStatsPage() {
   }
 
   function removeFilter(key: keyof Filters) {
+    if (key === 'userId') { setUserLabel(''); setUserQuery(''); setUserSuggestions([]); }
     const next = { ...filters, [key]: '' };
     applyFilters(next);
   }
@@ -277,6 +299,20 @@ export default function ModelStatsPage() {
   function filterByModel(model: string) {
     const next = { ...filters, model };
     applyFilters(next);
+  }
+
+  function selectUser(u: UserSuggestion) {
+    setUserQuery('');
+    setUserSuggestions([]);
+    setUserLabel(u.email || u.id);
+    applyFilters({ ...filters, userId: u.id });
+  }
+
+  function clearUser() {
+    setUserLabel('');
+    setUserQuery('');
+    setUserSuggestions([]);
+    applyFilters({ ...filters, userId: '' });
   }
 
   useEffect(() => { void load(filters); }, []);
@@ -294,7 +330,7 @@ export default function ModelStatsPage() {
   const activeChips: Array<{ key: keyof Filters; label: string }> = [];
   if (filters.widgetId) activeChips.push({ key: 'widgetId', label: `Widget: ${filters.widgetId.slice(-8)}` });
   if (filters.agentId)  activeChips.push({ key: 'agentId',  label: `Agente: ${filters.agentId.slice(-8)}` });
-  if (filters.userId)   activeChips.push({ key: 'userId',   label: `Usuario: ${filters.userId.slice(-8)}` });
+  if (filters.userId)   activeChips.push({ key: 'userId',   label: `Usuario: ${userLabel || filters.userId.slice(-8)}` });
   if (filters.model)    activeChips.push({ key: 'model',    label: `Modelo: ${filters.model}` });
 
   const btnBase: React.CSSProperties = {
@@ -371,6 +407,65 @@ export default function ModelStatsPage() {
               <span style={{ background: '#6366f1', color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 10, fontWeight: 800 }}>{activeChips.length}</span>
             )}
           </button>
+        </div>
+
+        {/* User row — always visible */}
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted-foreground)', minWidth: 52 }}>Usuario</span>
+
+          {filters.userId ? (
+            /* Active user chip */
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 20, background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)', fontSize: 12, fontWeight: 600, color: '#6366f1' }}>
+              {userLabel || filters.userId.slice(-12)}
+              <button onClick={clearUser} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'inherit', display: 'flex', alignItems: 'center' }}>
+                <X size={11} />
+              </button>
+            </div>
+          ) : (
+            /* Search input with suggestions */
+            <div style={{ position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <input
+                  value={userQuery}
+                  placeholder="Email o nombre del usuario…"
+                  onChange={(e) => setUserQuery(e.target.value)}
+                  style={{ ...inputStyle, width: 240 }}
+                />
+                {userSearching && (
+                  <span style={{ fontSize: 10, color: 'var(--muted-foreground)' }}>…</span>
+                )}
+              </div>
+              {userSuggestions.length > 0 && (
+                <div style={{
+                  position: 'absolute', top: '110%', left: 0, zIndex: 50,
+                  background: 'var(--card)', border: '1px solid var(--border)',
+                  borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
+                  minWidth: 280, overflow: 'hidden',
+                }}>
+                  {userSuggestions.map((u) => (
+                    <button
+                      key={u.id}
+                      onClick={() => selectUser(u)}
+                      style={{
+                        display: 'block', width: '100%', textAlign: 'left',
+                        padding: '8px 12px', border: 'none', background: 'none',
+                        cursor: 'pointer', fontSize: 12,
+                        borderBottom: '1px solid var(--border)',
+                      }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--muted)'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'none'; }}
+                    >
+                      <div style={{ fontWeight: 700, color: 'var(--foreground)' }}>{u.email}</div>
+                      {u.displayName && (
+                        <div style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 1 }}>{u.displayName}</div>
+                      )}
+                      <div style={{ fontFamily: 'monospace', fontSize: 10, color: 'var(--muted-foreground)', opacity: 0.6, marginTop: 1 }}>{u.id}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Advanced filters */}
