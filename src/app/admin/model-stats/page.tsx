@@ -474,7 +474,6 @@ export default function ModelStatsPage() {
             {([
               { key: 'widgetId' as keyof Filters, label: 'Widget ID', placeholder: '507f1f77…' },
               { key: 'agentId'  as keyof Filters, label: 'Agente ID', placeholder: '507f1f77…' },
-              { key: 'userId'   as keyof Filters, label: 'Usuario ID', placeholder: '507f1f77…' },
               { key: 'model'    as keyof Filters, label: 'Modelo',     placeholder: 'gemini-2.5-flash' },
             ] as const).map(({ key, label, placeholder }) => (
               <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
