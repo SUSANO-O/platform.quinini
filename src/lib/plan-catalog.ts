@@ -6,15 +6,15 @@ export type PlanId = (typeof PLAN_ORDER)[number];
 
 export const PLAN_DISPLAY: Record<
   string,
-  { label: string; priceLabel: string; widgets: number }
+  { label: string; priceLabel: string }
 > = {
-  free:       { label: 'Free',       priceLabel: '$0',        widgets: 1  },
-  solo:       { label: 'Solo',       priceLabel: '$3/mes',    widgets: 1  },
-  basic:      { label: 'Basic',      priceLabel: '$14/mes',   widgets: 10 },
-  starter:    { label: 'Starter',    priceLabel: '$39/mes',   widgets: 60   },
-  growth:     { label: 'Growth',     priceLabel: '$99/mes',   widgets: 200  },
-  business:   { label: 'Business',   priceLabel: '$349/mes',  widgets: 1000 },
-  enterprise: { label: 'Enterprise', priceLabel: 'Contacto',  widgets: 9999 },
+  free:       { label: 'Free',       priceLabel: '$0'       },
+  solo:       { label: 'Solo',       priceLabel: '$3/mes'   },
+  basic:      { label: 'Basic',      priceLabel: '$14/mes'  },
+  starter:    { label: 'Starter',    priceLabel: '$39/mes'  },
+  growth:     { label: 'Growth',     priceLabel: '$99/mes'  },
+  business:   { label: 'Business',   priceLabel: '$349/mes' },
+  enterprise: { label: 'Enterprise', priceLabel: 'Contacto' },
 };
 
 /** Sub-agentes por agente orquestador según el plan. */
@@ -84,43 +84,43 @@ export const PLAN_FEATURE_BULLETS: Record<
   string[]
 > = {
   solo: [
-    '1 widget activo en tu sitio',
     '300 conversaciones al mes (~10/día)',
     '1 agente · 3 herramientas · Web Search, Webhook, Gmail',
+    'Widgets ilimitados (nombre único por widget)',
     'Videos de capacitación en YouTube',
     'Capacitación y acompañamiento incluido',
     'Soporte por email (42 h)',
   ],
   basic: [
-    '10 widgets activos en tu sitio',
     '1.500 conversaciones al mes (~50/día)',
     '5 agentes · 5 sub-agentes por agente · 5 herramientas',
     'Herramientas: Web Search, Webhook, Gmail, Slack, WhatsApp',
+    'Widgets ilimitados (nombre único por widget)',
     'Historial de conversaciones: 30 días',
     'Capacitación y acompañamiento incluido',
     'Soporte por email (72 h)',
   ],
   starter: [
-    '60 widgets activos en tu sitio',
     '6.000 conversaciones al mes (~200/día)',
     '30 agentes · 15 sub-agentes por agente · 30 herramientas',
     'RAG: 1 GB · 60 fuentes por agente',
+    'Widgets ilimitados (nombre único por widget)',
     'Historial de conversaciones: 3 meses',
     'Soporte por email (48 h)',
   ],
   growth: [
-    '200 widgets activos en tu sitio',
     '30.000 conversaciones al mes (~1.000/día)',
     '100 agentes · 50 sub-agentes por agente · 100 herramientas',
     'RAG: 10 GB · 300 fuentes por agente · analítica avanzada',
+    'Widgets ilimitados (nombre único por widget)',
     'Historial de conversaciones: 1 año',
     'Soporte prioritario por chat (24 h)',
   ],
   business: [
-    '1.000 widgets activos en tu sitio',
     '150.000 conversaciones al mes (~5.000/día)',
     '500 agentes · 150 sub-agentes por agente · herramientas ilimitadas',
     'RAG: 100 GB · 2.000 fuentes por agente',
+    'Widgets ilimitados (nombre único por widget)',
     'Historial de conversaciones: ilimitado',
     'Soporte dedicado · SLA 99,9 % · Onboarding incluido',
   ],

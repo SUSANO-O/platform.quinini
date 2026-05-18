@@ -39,16 +39,18 @@
       "models": "Modelos de IA disponibles"
     },
     "how": {
-      "title": "Funciona en 4 pasos",
+      "title": "Funciona en 5 pasos",
       "subtitle": "Integra un agente de IA en tu sitio en menos de 10 minutos.",
       "step1Title": "Crea tu cuenta",
       "step1Desc": "7 días gratis, sin tarjeta. Acceso completo al Widget Builder y los 9 agentes.",
-      "step2Title": "Diseña tu widget",
-      "step2Desc": "Elige el agente, personaliza colores, textos y posición con el Widget Builder visual.",
-      "step3Title": "Copia el snippet",
-      "step3Desc": "Un bloque de código. Pégalo en tu HTML y el chat aparece al instante.",
-      "step4Title": "Escala cuando estés listo",
-      "step4Desc": "Actualiza al plan que necesites. Sin contratos, cancela cuando quieras."
+      "step2Title": "Entrena tu agente",
+      "step2Desc": "Sube documentos, agrega URLs o configura herramientas para que el agente conozca tu negocio a la perfección.",
+      "step3Title": "Diseña tu widget",
+      "step3Desc": "Elige el agente, personaliza colores, textos y posición con el Widget Builder visual.",
+      "step4Title": "Copia el snippet",
+      "step4Desc": "Un bloque de código. Pégalo en tu HTML y el chat aparece al instante.",
+      "step5Title": "Escala cuando estés listo",
+      "step5Desc": "Actualiza al plan que necesites. Sin contratos, cancela cuando quieras."
     },
     "agents": {
       "title": "6 Agentes especializados",
@@ -100,6 +102,16 @@
       "inputPlaceholder": "Escribe tu mensaje…",
       "socialProof": "<red>+320 empresas</red> ya usan MatIAs para convertir más visitantes en clientes"
     },
+    "embed": {
+      "badge": "2 líneas de código",
+      "title": "Funciona en cualquier web",
+      "subtitle": "Pega dos líneas en tu HTML y el chat aparece. Sin frameworks, sin build — solo copia y listo.",
+      "compatible": "Compatible con cualquier web",
+      "feat1": "WordPress, Shopify, Webflow…",
+      "feat2": "Sin frameworks requeridos",
+      "feat3": "Copiar y pegar, nada más",
+      "cta": "Obtén tu token"
+    },
     "pricing": {
       "title": "Precios transparentes",
       "subtitle": "7 días de prueba gratuita. Sin contratos. Cancela cuando quieras.",
@@ -109,66 +121,60 @@
       "ragNotIncluded": "Sin contexto y memoria — disponible desde Starter",
       "ragTechnical": "Contexto y memoria: {mb} MB · {sources} fuentes por agente",
       "solo": {
-        "widgets": "1 widget",
         "requests": "300 conv/mes",
         "features": [
-          "1 widget activo en tu sitio",
           "300 conversaciones al mes (~10/día)",
           "1 agente · 3 herramientas · Web Search, Webhook, Gmail",
+          "Widgets ilimitados (nombre único por widget)",
           "Videos de capacitación en YouTube",
           "Capacitación y acompañamiento incluido",
           "Soporte por email (42 h)"
         ]
       },
       "basic": {
-        "widgets": "10 widgets",
         "requests": "1.500 conv/mes",
         "features": [
-          "10 widgets activos en tu sitio",
           "1.500 conversaciones al mes (~50/día)",
           "5 agentes · 5 herramientas · Gmail + Slack incluido",
+          "Widgets ilimitados (nombre único por widget)",
           "Capacitación y acompañamiento incluido",
           "Soporte por email (72 h)"
         ]
       },
       "starter": {
-        "widgets": "60 widgets",
         "requests": "6.000 conv/mes",
         "features": [
-          "60 widgets activos en tu sitio",
           "6.000 conversaciones al mes (~200/día)",
           "30 agentes · 30 herramientas · Contexto y memoria 1 GB",
+          "Widgets ilimitados (nombre único por widget)",
           "Capacitación y acompañamiento incluido",
           "Soporte por email (48 h)"
         ]
       },
       "growth": {
-        "widgets": "200 widgets",
         "requests": "30.000 conv/mes",
         "features": [
-          "200 widgets activos en tu sitio",
           "30.000 conversaciones al mes (~1.000/día)",
           "100 agentes · 100 herramientas · Contexto y memoria 10 GB",
+          "Widgets ilimitados (nombre único por widget)",
           "Capacitación y acompañamiento incluido",
           "Soporte prioritario por chat (24 h)"
         ]
       },
       "business": {
-        "widgets": "1.000 widgets",
         "requests": "150.000 conv/mes",
         "features": [
-          "1.000 widgets activos en tu sitio",
           "150.000 conversaciones al mes (~5.000/día)",
           "500 agentes · Contexto y memoria 100 GB · herramientas ilimitadas",
+          "Widgets ilimitados (nombre único por widget)",
           "Capacitación y acompañamiento incluido",
           "Soporte dedicado · SLA 99,9 % · Onboarding incluido"
         ]
       },
       "enterprise": {
-        "widgets": "Ilimitado",
-        "requests": "Personalizado",
+        "price": "Personalizado",
+        "requests": "Conversaciones sin límite",
         "features": [
-          "Widgets ilimitados en tu sitio",
           "Conversaciones sin límite",
           "Acuerdos de volumen personalizados",
           "White-label disponible",

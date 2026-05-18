@@ -39,16 +39,18 @@
       "models": "AI models available"
     },
     "how": {
-      "title": "Works in 4 steps",
+      "title": "Works in 5 steps",
       "subtitle": "Integrate an AI agent into your site in less than 10 minutes.",
       "step1Title": "Create your account",
       "step1Desc": "7 days free, no card. Full access to the Widget Builder and all 9 agents.",
-      "step2Title": "Design your widget",
-      "step2Desc": "Choose the agent, customize colors, text and position with the visual Widget Builder.",
-      "step3Title": "Copy the snippet",
-      "step3Desc": "One code block. Paste it in your HTML and the chat appears instantly.",
-      "step4Title": "Scale when you're ready",
-      "step4Desc": "Upgrade to the plan you need. No contracts, cancel anytime."
+      "step2Title": "Train your agent",
+      "step2Desc": "Upload documents, add URLs or configure tools so the agent knows your business perfectly.",
+      "step3Title": "Design your widget",
+      "step3Desc": "Choose the agent, customize colors, text and position with the visual Widget Builder.",
+      "step4Title": "Copy the snippet",
+      "step4Desc": "One code block. Paste it in your HTML and the chat appears instantly.",
+      "step5Title": "Scale when you're ready",
+      "step5Desc": "Upgrade to the plan you need. No contracts, cancel anytime."
     },
     "agents": {
       "title": "6 Specialized Agents",
@@ -100,6 +102,16 @@
       "inputPlaceholder": "Type your message…",
       "socialProof": "<red>+320 companies</red> already use MatIAs to convert more visitors into customers"
     },
+    "embed": {
+      "badge": "2 lines of code",
+      "title": "Works on any website",
+      "subtitle": "Paste two lines into your HTML and the chat widget appears. No frameworks, no build steps — just copy and go.",
+      "compatible": "Works on any web",
+      "feat1": "WordPress, Shopify, Webflow…",
+      "feat2": "No frameworks required",
+      "feat3": "Copy & paste, nothing else",
+      "cta": "Get your token"
+    },
     "pricing": {
       "title": "Transparent pricing",
       "subtitle": "7-day free trial. No contracts. Cancel anytime.",
@@ -109,66 +121,60 @@
       "ragNotIncluded": "No context & memory — available from Starter",
       "ragTechnical": "Context & memory: {mb} MB · {sources} sources per agent",
       "solo": {
-        "widgets": "1 widget",
         "requests": "300 conv/mo",
         "features": [
-          "1 active widget on your site",
           "300 conversations per month (~10/day)",
           "1 agent · 3 tools · Web Search, Webhook, Gmail",
+          "Unlimited widgets (unique name per widget)",
           "Training videos on YouTube",
           "Training & onboarding included",
           "Email support (42h)"
         ]
       },
       "basic": {
-        "widgets": "10 widgets",
         "requests": "1,500 conv/mo",
         "features": [
-          "10 active widgets on your site",
           "1,500 conversations per month (~50/day)",
           "5 agents · 5 tools · Gmail + Slack included",
+          "Unlimited widgets (unique name per widget)",
           "Training & onboarding included",
           "Email support (72h)"
         ]
       },
       "starter": {
-        "widgets": "60 widgets",
         "requests": "6,000 conv/mo",
         "features": [
-          "60 active widgets on your site",
           "6,000 conversations per month (~200/day)",
           "30 agents · 30 tools · Context & memory 1 GB",
+          "Unlimited widgets (unique name per widget)",
           "Training & onboarding included",
           "Email support (48h)"
         ]
       },
       "growth": {
-        "widgets": "200 widgets",
         "requests": "30,000 conv/mo",
         "features": [
-          "200 active widgets on your site",
           "30,000 conversations per month (~1,000/day)",
           "100 agents · 100 tools · Context & memory 10 GB",
+          "Unlimited widgets (unique name per widget)",
           "Training & onboarding included",
           "Priority chat support (24h)"
         ]
       },
       "business": {
-        "widgets": "1,000 widgets",
         "requests": "150,000 conv/mo",
         "features": [
-          "1,000 active widgets on your site",
           "150,000 conversations per month (~5,000/day)",
           "500 agents · Context & memory 100 GB · unlimited tools",
+          "Unlimited widgets (unique name per widget)",
           "Training & onboarding included",
           "Dedicated support · 99.9% SLA · Onboarding included"
         ]
       },
       "enterprise": {
-        "widgets": "Unlimited",
-        "requests": "Custom",
+        "price": "Custom",
+        "requests": "Unlimited conversations",
         "features": [
-          "Unlimited widgets on your site",
           "Unlimited conversations",
           "Custom volume agreements",
           "White-label available",

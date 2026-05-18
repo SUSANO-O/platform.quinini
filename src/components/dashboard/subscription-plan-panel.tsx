@@ -145,7 +145,7 @@ export function SubscriptionPlanPanel({ checkoutDisabled = false }: { checkoutDi
             {current.label}
           </p>
           <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '2px 0 0' }}>
-            {current.priceLabel} · {current.widgets} widget{current.widgets !== 1 ? 's' : ''}
+            {current.priceLabel}
           </p>
           {PLAN_RAG_LIMITS[effectivePlan] ? (
             <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: '2px 0 0', lineHeight: 1.35 }}>

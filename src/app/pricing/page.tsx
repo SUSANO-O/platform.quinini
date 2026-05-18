@@ -83,7 +83,7 @@ export default function PricingPage() {
                     className="mt-8 flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm transition-all"
                     style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
                   >
-                    Contactar — +57 319 674 8729
+                    Contactar asesor
                     <ArrowRight size={14} />
                   </a>
                 ) : (
