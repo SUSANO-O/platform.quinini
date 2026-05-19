@@ -35,8 +35,9 @@ export function isLandingMarketingPath(pathname: string | null | undefined): boo
   return EXACT.has(normalizePathname(pathname));
 }
 
-/** Panel de usuario: widget **math-ais** (no en /admin: rutas privadas). */
+/** Panel de usuario: widget **math-ais** (no en /admin ni en widget-preview: colisiona con el widget del usuario). */
 export function isAppMatiasWidgetPath(pathname: string | null | undefined): boolean {
   if (!pathname) return false;
+  if (pathname.startsWith('/dashboard/widget-preview')) return false;
   return pathname.startsWith('/dashboard');
 }
