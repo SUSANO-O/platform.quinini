@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
   Cpu, Boxes, Bot, Sparkles, Activity, MessageSquare,
-  TrendingUp, Crown, Clock, Zap, ArrowUpRight, Shield,
+  TrendingUp, Crown, Clock, Zap, ArrowUpRight, Shield, RefreshCw,
 } from 'lucide-react';
 
 const R = '#e41414';
@@ -66,10 +66,11 @@ export default function DashboardPage() {
   const router = useRouter();
   const { isPremium, isTrialActive, trialDaysRemaining, subscription, loading } = useSubscription();
 
-  const [usage,       setUsage]       = useState<UsageData | null>(null);
-  const [agentCount,  setAgentCount]  = useState<number | null>(null);
-  const [widgetCount, setWidgetCount] = useState<number | null>(null);
-  const [sysStatus,   setSysStatus]   = useState<SystemStatus | null>(null);
+  const [usage,           setUsage]           = useState<UsageData | null>(null);
+  const [agentCount,      setAgentCount]      = useState<number | null>(null);
+  const [widgetCount,     setWidgetCount]     = useState<number | null>(null);
+  const [sysStatus,       setSysStatus]       = useState<SystemStatus | null>(null);
+  const [refreshingStatus, setRefreshingStatus] = useState(false);
 
   useEffect(() => {
     if (user?.role === 'admin') router.replace('/admin');
@@ -82,6 +83,16 @@ export default function DashboardPage() {
     fetch('/api/widgets').then(r => r.ok ? r.json() : null).then(d => d && setWidgetCount(d.widgets?.length ?? 0)).catch(() => {});
     fetch('/api/status').then(r => r.ok ? r.json() : null).then(d => d && setSysStatus(d)).catch(() => {});
   }, [user]);
+
+  const refreshStatus = async () => {
+    setRefreshingStatus(true);
+    try {
+      const d = await fetch('/api/status').then(r => r.ok ? r.json() : null);
+      if (d) setSysStatus(d);
+    } finally {
+      setRefreshingStatus(false);
+    }
+  };
 
   const planLabel = subscription?.plan
     ? subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)
@@ -361,26 +372,46 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-2 mb-3">
                   <Activity size={14} style={{ color: C }} />
                   <h3 className="text-[13px] font-bold m-0">Estado del sistema</h3>
+                  <button
+                    onClick={refreshStatus}
+                    disabled={refreshingStatus}
+                    title="Actualizar estado"
+                    className="ml-auto"
+                    style={{ background: 'none', border: 'none', cursor: refreshingStatus ? 'not-allowed' : 'pointer', padding: 2, color: 'var(--muted-foreground)', opacity: refreshingStatus ? 0.5 : 1 }}
+                  >
+                    <RefreshCw size={12} style={{ animation: refreshingStatus ? 'spin 0.7s linear infinite' : undefined }} />
+                  </button>
                 </div>
                 {sysStatus ? (
-                  <div className="metric-value-appear flex items-center gap-2.5 rounded-xl px-3 py-2.5"
-                    style={{
-                      background: sysStatus.status === 'operational' ? 'rgba(34,197,94,0.08)' : sysStatus.status === 'degraded' ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.08)',
-                      border: `1px solid ${sysStatus.status === 'operational' ? 'rgba(34,197,94,0.25)' : sysStatus.status === 'degraded' ? 'rgba(245,158,11,0.25)' : 'rgba(239,68,68,0.25)'}`,
-                    }}>
-                    <div className="w-2 h-2 rounded-full shrink-0"
-                      style={{
-                        background: STATUS_COLOR[sysStatus.status] ?? '#94a3b8',
-                        boxShadow: sysStatus.status === 'operational' ? '0 0 6px rgba(34,197,94,0.6)' : undefined,
-                      }} />
-                    <span className="text-xs font-bold"
-                      style={{ color: sysStatus.status === 'operational' ? '#16a34a' : sysStatus.status === 'degraded' ? '#b45309' : '#dc2626' }}>
-                      {sysStatus.status === 'operational' ? 'Todos los sistemas operativos' : sysStatus.status === 'degraded' ? 'Rendimiento reducido' : 'Servicio interrumpido'}
-                    </span>
+                  <div className="metric-value-appear">
+                    {sysStatus.status === 'operational' ? (
+                      <p className="text-sm font-semibold m-0" style={{ color: '#16a34a' }}>
+                        ✅ Todo funciona correctamente
+                      </p>
+                    ) : sysStatus.status === 'degraded' ? (
+                      <>
+                        <p className="text-sm font-semibold m-0" style={{ color: '#b45309' }}>
+                          ⚠️ Estamos trabajando en ello
+                        </p>
+                        <p className="text-[11px] mt-1 m-0" style={{ color: 'var(--muted-foreground)' }}>
+                          Puede haber demoras. Vuelve a intentarlo en unos minutos.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm font-semibold m-0" style={{ color: '#dc2626' }}>
+                          🔴 Servicio temporalmente no disponible
+                        </p>
+                        <p className="text-[11px] mt-1 m-0" style={{ color: 'var(--muted-foreground)' }}>
+                          Nuestro equipo ya está al tanto. Disculpa los inconvenientes.
+                        </p>
+                      </>
+                    )}
                   </div>
                 ) : (
-                  <div className="rounded-xl px-3 py-2.5" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
-                    <Skel w="65%" h={12} />
+                  <div className="flex flex-col gap-1.5">
+                    <Skel w="70%" h={14} />
+                    <Skel w="90%" h={11} />
                   </div>
                 )}
               </div>

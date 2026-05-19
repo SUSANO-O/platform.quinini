@@ -23,9 +23,10 @@ async function trackRequest(token: string | null) {
     await connectDB();
     const widget = await Widget.findOne({ afhubToken: token }, { _id: 1, userId: 1 }).lean() as { _id: { toString(): string }; userId: string } | null;
     if (!widget) return;
-    const month = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+    const { getPlatformGiftCycleKey } = await import('@/lib/platform-agent-utils');
+    const cycleKey = await getPlatformGiftCycleKey(widget.userId);
     await RequestLog.updateOne(
-      { userId: widget.userId, widgetId: widget._id.toString(), month },
+      { userId: widget.userId, widgetId: widget._id.toString(), month: cycleKey },
       { $inc: { count: 1 } },
       { upsert: true },
     );
