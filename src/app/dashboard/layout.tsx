@@ -511,6 +511,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {user.email}
             </p>
+            <PwaInstallButton />
             <button type="button" onClick={handleLogout} style={{
               display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
               borderRadius: 10, border: '1px solid var(--border)', background: 'transparent',
