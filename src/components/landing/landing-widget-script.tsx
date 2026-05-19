@@ -94,6 +94,9 @@ export function LandingWidgetScript() {
         /* noop */
       }
       instanceRef.current = null;
+      // Force-remove any orphaned widget DOM the SDK may leave behind
+      document.querySelector('.afhub-launcher')?.remove();
+      document.querySelector('.afhub-chat-container')?.remove();
       document
         .querySelector<HTMLScriptElement>(`script[data-agentflowhub-sdk="${SCRIPT_DATA_ATTR}"]`)
         ?.remove();

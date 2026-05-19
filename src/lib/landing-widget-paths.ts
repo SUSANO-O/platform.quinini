@@ -8,8 +8,6 @@ const EXACT = new Set<string>([
   '/es',
   '/en',
   '/pricing',
-  '/login',
-  '/register',
   '/forgot-password',
   '/reset-password',
   '/verify-email',
