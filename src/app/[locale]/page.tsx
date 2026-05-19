@@ -157,29 +157,6 @@ export default async function LandingPage() {
             </Link>
           </div>
 
-          {/* Stats */}
-          <div className="mt-16 max-w-3xl mx-auto">
-            <div className="grid grid-cols-3 gap-6">
-              {STATS.map(({ value, label, gradient }) => (
-                <div
-                  key={label}
-                  className="card-pro rounded-2xl overflow-hidden flex flex-col items-center text-center"
-                  style={{ border: '1px solid var(--border)', boxShadow: '0 8px 32px rgba(0,0,0,0.06)' }}
-                >
-                  <div style={{ height: 3, width: '100%', background: gradient }} />
-                  <div className="p-6 flex flex-col items-center gap-2">
-                    <span
-                      className="text-4xl md:text-5xl font-extrabold"
-                      style={{ background: gradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
-                    >
-                      {value}
-                    </span>
-                    <span className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>{label}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </section>
 
