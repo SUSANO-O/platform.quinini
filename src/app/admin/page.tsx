@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Users, Boxes, TrendingUp, Clock, XCircle, CheckCircle, AlertTriangle, Ban, Activity, ShoppingBag, LayoutDashboard } from 'lucide-react';
+import { Users, Boxes, TrendingUp, Clock, XCircle, CheckCircle, AlertTriangle, Ban, Activity, ShoppingBag, LayoutDashboard, Database, Cpu, Network, HardDrive } from 'lucide-react';
 
 interface UserQuota {
   userId: string;
@@ -86,6 +86,33 @@ interface WidgetAnalyticsPayload {
   supervision?: WidgetAnalyticsSupervision;
 }
 
+interface ServiceCheck {
+  name: string;
+  status: 'operational' | 'degraded' | 'down';
+  latencyMs: number | null;
+  message?: string;
+}
+
+interface SystemStatus {
+  status: 'operational' | 'degraded' | 'down';
+  timestamp: string;
+  services: ServiceCheck[];
+}
+
+const SVC_STATUS_COLOR: Record<string, string> = {
+  operational: '#22c55e',
+  degraded: '#f59e0b',
+  down: '#ef4444',
+};
+
+const SVC_ICON: Record<string, React.ComponentType<{ size: number; style?: React.CSSProperties }>> = {
+  'Plataforma': Cpu,
+  'Base de datos': Database,
+  'Procesamiento': Network,
+  'Coordinación': Network,
+  'Caché': HardDrive,
+};
+
 const PLAN_COLOR: Record<string, string> = {
   free: '#64748b',
   starter: '#00acf8',
@@ -126,6 +153,7 @@ export default function AdminPage() {
   const [reminderPlans, setReminderPlans] = useState<Array<'free' | 'starter' | 'growth' | 'business' | 'enterprise'>>(['free', 'starter', 'growth', 'business', 'enterprise']);
   const [reminderLimit, setReminderLimit] = useState(500);
   const [widgetAnalytics, setWidgetAnalytics] = useState<WidgetAnalyticsPayload | null>(null);
+  const [sysStatus, setSysStatus] = useState<SystemStatus | null>(null);
 
   useEffect(() => {
     fetch('/api/admin/stats').then((r) => r.json()).then(setStats);
@@ -133,6 +161,7 @@ export default function AdminPage() {
     fetch('/api/admin/widget-analytics')
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d && setWidgetAnalytics(d as WidgetAnalyticsPayload));
+    fetch('/api/status').then((r) => r.ok ? r.json() : null).then((d) => d && setSysStatus(d));
   }, []);
 
   /** Misma base que dashboard MCP; enlaces del panel Admin solo exponen vars NEXT_PUBLIC_* en el cliente. */
@@ -318,6 +347,56 @@ export default function AdminPage() {
             )}
           </div>
         )}
+      </div>
+
+      {/* ── System Status ── */}
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', overflow: 'hidden', marginBottom: '24px' }}>
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Activity size={15} style={{ color: '#6366f1' }} />
+          <p style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>Estado de infraestructura</p>
+          {sysStatus && (
+            <span style={{
+              marginLeft: 'auto', fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '999px',
+              background: sysStatus.status === 'operational' ? 'rgba(34,197,94,0.1)' : sysStatus.status === 'degraded' ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)',
+              color: SVC_STATUS_COLOR[sysStatus.status],
+              border: `1px solid ${SVC_STATUS_COLOR[sysStatus.status]}40`,
+            }}>
+              {sysStatus.status === 'operational' ? 'Todo operativo' : sysStatus.status === 'degraded' ? 'Degradado' : 'Caído'}
+            </span>
+          )}
+        </div>
+        <div style={{ padding: '16px 20px' }}>
+          {!sysStatus ? (
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted-foreground)' }}>Verificando servicios...</p>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
+              {sysStatus.services.map((svc) => {
+                const Icon = SVC_ICON[svc.name] ?? Activity;
+                return (
+                  <div key={svc.name} style={{
+                    borderRadius: '10px', padding: '12px 14px',
+                    background: `${SVC_STATUS_COLOR[svc.status]}08`,
+                    border: `1px solid ${SVC_STATUS_COLOR[svc.status]}30`,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <Icon size={13} style={{ color: SVC_STATUS_COLOR[svc.status] }} />
+                      <div style={{ width: 7, height: 7, borderRadius: '50%', background: SVC_STATUS_COLOR[svc.status], boxShadow: svc.status === 'operational' ? `0 0 5px ${SVC_STATUS_COLOR[svc.status]}` : undefined }} />
+                    </div>
+                    <p style={{ fontSize: '12px', fontWeight: 700, margin: '0 0 2px' }}>{svc.name}</p>
+                    <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: 0 }}>
+                      {svc.latencyMs != null ? `${svc.latencyMs} ms` : svc.message ?? '—'}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {sysStatus && (
+            <p style={{ margin: '10px 0 0', fontSize: '10px', color: 'var(--muted-foreground)' }}>
+              Última verificación: {new Date(sysStatus.timestamp).toLocaleString('es')}
+            </p>
+          )}
+        </div>
       </div>
 
       {!stats ? spin : (

@@ -346,7 +346,7 @@ export default function DashboardPage() {
           {/* ── RIGHT ───────────────────────────────────────────────────────── */}
           <div className="flex flex-col gap-4">
 
-            {/* System status — siempre visible, skeleton mientras carga */}
+            {/* System status — semáforo simple */}
             <div className="rounded-2xl border card-texture overflow-hidden" style={{ borderColor: 'var(--border)' }}>
               <div
                 className={!sysStatus ? 'metric-accent-loading' : undefined}
@@ -358,58 +358,29 @@ export default function DashboardPage() {
                 }}
               />
               <div className="p-5">
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-2 mb-3">
                   <Activity size={14} style={{ color: C }} />
                   <h3 className="text-[13px] font-bold m-0">Estado del sistema</h3>
                 </div>
-
                 {sysStatus ? (
-                  <div className="metric-value-appear">
-                    <div className="flex items-center gap-2 rounded-xl px-3 py-2.5 mb-4"
+                  <div className="metric-value-appear flex items-center gap-2.5 rounded-xl px-3 py-2.5"
+                    style={{
+                      background: sysStatus.status === 'operational' ? 'rgba(34,197,94,0.08)' : sysStatus.status === 'degraded' ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.08)',
+                      border: `1px solid ${sysStatus.status === 'operational' ? 'rgba(34,197,94,0.25)' : sysStatus.status === 'degraded' ? 'rgba(245,158,11,0.25)' : 'rgba(239,68,68,0.25)'}`,
+                    }}>
+                    <div className="w-2 h-2 rounded-full shrink-0"
                       style={{
-                        background: sysStatus.status === 'operational' ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
-                        border: `1px solid ${sysStatus.status === 'operational' ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.25)'}`,
-                      }}>
-                      <div className="w-2 h-2 rounded-full shrink-0"
-                        style={{
-                          background: STATUS_COLOR[sysStatus.status] ?? '#94a3b8',
-                          boxShadow: sysStatus.status === 'operational' ? '0 0 6px rgba(34,197,94,0.6)' : undefined,
-                        }} />
-                      <span className="text-xs font-bold"
-                        style={{ color: sysStatus.status === 'operational' ? '#16a34a' : '#dc2626' }}>
-                        {sysStatus.status === 'operational' ? 'Todo operativo' : sysStatus.status === 'degraded' ? 'Rendimiento reducido' : 'Servicio caído'}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-2.5">
-                      {sysStatus.services.map((svc) => (
-                        <div key={svc.name} className="flex items-center justify-between">
-                          <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{svc.name}</span>
-                          <div className="flex items-center gap-1.5">
-                            {svc.latencyMs != null && (
-                              <span className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>{svc.latencyMs}ms</span>
-                            )}
-                            <div className="w-1.5 h-1.5 rounded-full"
-                              style={{ background: STATUS_COLOR[svc.status] ?? '#94a3b8' }} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        background: STATUS_COLOR[sysStatus.status] ?? '#94a3b8',
+                        boxShadow: sysStatus.status === 'operational' ? '0 0 6px rgba(34,197,94,0.6)' : undefined,
+                      }} />
+                    <span className="text-xs font-bold"
+                      style={{ color: sysStatus.status === 'operational' ? '#16a34a' : sysStatus.status === 'degraded' ? '#b45309' : '#dc2626' }}>
+                      {sysStatus.status === 'operational' ? 'Todos los sistemas operativos' : sysStatus.status === 'degraded' ? 'Rendimiento reducido' : 'Servicio interrumpido'}
+                    </span>
                   </div>
                 ) : (
-                  /* Skeleton status */
-                  <div className="flex flex-col gap-3">
-                    <div className="rounded-xl px-3 py-2.5 mb-1" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
-                      <Skel w="55%" h={12} />
-                    </div>
-                    {[1, 2, 3, 4].map((i) => (
-                      <div key={i} className="flex items-center justify-between">
-                        <Skel w={`${40 + i * 10}%`} h={11} />
-                        <div className="flex items-center gap-1.5">
-                          <Skel w={28} h={10} />
-                          <Skel w={6} h={6} r={999} />
-                        </div>
-                      </div>
-                    ))}
+                  <div className="rounded-xl px-3 py-2.5" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
+                    <Skel w="65%" h={12} />
                   </div>
                 )}
               </div>
