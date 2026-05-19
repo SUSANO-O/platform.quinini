@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, KeyRound } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
 export default function RegisterPage() {
@@ -13,18 +13,23 @@ export default function RegisterPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [registrationCode, setRegistrationCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    if (!registrationCode.trim()) {
+      setError('El código de autorización es requerido.');
+      return;
+    }
     if (password.length < 6) {
       setError('La contraseña debe tener al menos 6 caracteres.');
       return;
     }
     setLoading(true);
-    const result = await register(email, password, name || undefined);
+    const result = await register(email, password, name || undefined, registrationCode.trim());
     setLoading(false);
     if (result.error) {
       setError(result.error);
@@ -57,17 +62,33 @@ export default function RegisterPage() {
             borderColor: 'rgba(228,20,20,0.22)',
           }}
         >
-          <Sparkles className="shrink-0 mt-0.5" size={18} style={{ color: 'var(--primary)' }} />
+          <KeyRound className="shrink-0 mt-0.5" size={18} style={{ color: 'var(--primary)' }} />
           <div>
-            <p className="font-bold text-[13px] m-0">7 días gratis, sin tarjeta</p>
+            <p className="font-bold text-[13px] m-0">Acceso por invitación</p>
             <p className="text-xs m-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-              Acceso completo al Widget Builder y todos los agentes
+              Necesitas un código de autorización para crear tu cuenta
             </p>
           </div>
         </div>
 
         <div className="landing-card p-8">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div>
+              <label className="block text-[13px] font-semibold mb-1.5">
+                Código de autorización
+              </label>
+              <input
+                type="text"
+                value={registrationCode}
+                onChange={(e) => setRegistrationCode(e.target.value.toUpperCase())}
+                required
+                placeholder="XXXX-XXXX"
+                autoCapitalize="characters"
+                spellCheck={false}
+                className="landing-input"
+                style={{ letterSpacing: '0.08em', fontFamily: 'monospace' }}
+              />
+            </div>
             <div>
               <label className="block text-[13px] font-semibold mb-1.5">Nombre</label>
               <input
@@ -108,11 +129,14 @@ export default function RegisterPage() {
             )}
 
             <button type="submit" disabled={loading} className="landing-btn-primary">
-              {loading ? 'Creando cuenta...' : 'Crear cuenta gratis'}
+              {loading ? 'Verificando código...' : 'Crear cuenta'}
             </button>
 
             <p className="text-[11px] text-center leading-relaxed m-0" style={{ color: 'var(--muted-foreground)' }}>
-              Al registrarte aceptas los Términos de Servicio. Después de 7 días se requiere suscripción.
+              Al registrarte aceptas los{' '}
+              <Link href="/terminos-y-condiciones" className="landing-link-accent">Términos de Servicio</Link>
+              {' '}y la{' '}
+              <Link href="/politica-de-privacidad" className="landing-link-accent">Política de Privacidad</Link>.
             </p>
           </form>
         </div>

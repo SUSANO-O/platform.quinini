@@ -63,6 +63,30 @@ export async function POST(req: NextRequest) {
 
     // ── Register ──────────────────────────────────────────────────────────
     if (action === 'register') {
+      // ── Código de autorización ────────────────────────────────────────
+      const rawCodes = (process.env.REGISTRATION_CODES ?? '').trim();
+      const validCodes = rawCodes
+        ? rawCodes.split(',').map((c) => c.trim().toUpperCase()).filter(Boolean)
+        : [];
+
+      if (validCodes.length === 0) {
+        return NextResponse.json(
+          { error: 'El registro no está disponible en este momento. Contacta al administrador para obtener acceso.' },
+          { status: 403 },
+        );
+      }
+
+      const submittedCode = typeof body.registrationCode === 'string'
+        ? body.registrationCode.trim().toUpperCase()
+        : '';
+
+      if (!submittedCode || !validCodes.includes(submittedCode)) {
+        return NextResponse.json(
+          { error: 'Código de autorización inválido.' },
+          { status: 403 },
+        );
+      }
+
       // Rate limit: 5 registrations per hour per IP
       const rl = checkRateLimit('register', ip, 5, 60 * 60 * 1000);
       if (!rl.success) {
