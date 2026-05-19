@@ -20,7 +20,7 @@ interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ error?: string; user?: AuthUser }>;
-  register: (email: string, password: string, displayName?: string) => Promise<{ error?: string; user?: AuthUser }>;
+  register: (email: string, password: string, displayName?: string, registrationCode?: string) => Promise<{ error?: string; user?: AuthUser }>;
   logout: () => Promise<void>;
   /** Recarga usuario desde la sesión (tras cambiar email o nombre en Ajustes). */
   refreshUser: () => Promise<void>;
@@ -75,11 +75,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { user: data.user as AuthUser };
   }, []);
 
-  const register = useCallback(async (email: string, password: string, displayName?: string) => {
+  const register = useCallback(async (email: string, password: string, displayName?: string, registrationCode?: string) => {
     const res = await fetch('/api/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'register', email, password, displayName }),
+      body: JSON.stringify({ action: 'register', email, password, displayName, registrationCode }),
     });
     const data = await res.json();
     if (!res.ok) return { error: data.error || 'Error al registrarse.' };
