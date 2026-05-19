@@ -96,7 +96,7 @@ export async function trackWidgetChatUsage(
   if (tokens?.outputTokens) inc.outputTokens = tokens.outputTokens;
 
   await RequestLog.updateOne(
-    { userId: w.userId, widgetId: w._id.toString(), month },
+    { userId: w.userId, widgetId: w._id.toString(), month: cycleKey },
     { $inc: inc },
     { upsert: true },
   );

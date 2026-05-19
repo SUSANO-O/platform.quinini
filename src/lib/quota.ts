@@ -1,7 +1,7 @@
 /**
- * Verifica si un usuario puede seguir enviando conversaciones este mes.
+ * Verifica si un usuario puede seguir enviando conversaciones en el ciclo actual.
  * Suma: cuota base del plan + conversaciones de packs activos no vencidos.
- * También dispara email de alerta al 80% (una vez por mes).
+ * También dispara email de alerta al 80% (una vez por ciclo de suscripción).
  */
 
 import { connectDB } from '@/lib/db/connection';
@@ -9,6 +9,7 @@ import { RequestLog, Subscription, User, ConversationPack } from '@/lib/db/model
 import { PLAN_CONVERSATION_LIMITS } from '@/lib/plan-catalog';
 import { sendQuotaWarningEmail } from '@/lib/email';
 import { sendPushToUser } from '@/lib/push-notifications';
+import { getPlatformGiftCycleKey } from '@/lib/platform-agent-utils';
 
 export interface QuotaResult {
   allowed: boolean;
@@ -49,20 +50,20 @@ export async function checkConversationQuota(userId: string): Promise<QuotaResul
   if (baseLimit === -1) return { allowed: true, used: 0, baseLimit: -1, packLimit, limit: -1, plan: effectivePlan };
 
   const totalLimit = baseLimit + packLimit;
-  const month = new Date().toISOString().slice(0, 7);
+  const cycleKey = await getPlatformGiftCycleKey(userId);
 
-  const logs = await RequestLog.find({ userId, month })
+  const logs = await RequestLog.find({ userId, month: cycleKey })
     .select({ count: 1 })
     .lean() as { count?: number }[];
 
   const used = logs.reduce((sum, l) => sum + (l.count ?? 0), 0);
   const percent = (used / totalLimit) * 100;
 
-  // Alerta al 80% — una vez por mes (email + push notification)
+  // Alerta al 80% — una vez por ciclo de suscripción (email + push notification)
   if (percent >= 80 && percent < 100) {
-    if (await shouldSendWarning(sub, month)) {
+    if (await shouldSendWarning(sub, cycleKey)) {
       Promise.all([
-        Subscription.updateOne({ userId }, { $set: { quotaWarningSentMonth: month } }),
+        Subscription.updateOne({ userId }, { $set: { quotaWarningSentMonth: cycleKey } }),
         User.findById(userId).select({ email: 1, displayName: 1, pushSubscription: 1 }).lean().then((u: unknown) => {
           const user = u as { email?: string; displayName?: string; pushSubscription?: unknown } | null;
           if (!user) return;
@@ -93,9 +94,9 @@ export async function checkConversationQuota(userId: string): Promise<QuotaResul
  */
 export async function consumePackConversation(userId: string): Promise<void> {
   await connectDB();
-  const month = new Date().toISOString().slice(0, 7);
+  const cycleKey = await getPlatformGiftCycleKey(userId);
 
-  const logs = await RequestLog.find({ userId, month }).select({ count: 1 }).lean() as { count?: number }[];
+  const logs = await RequestLog.find({ userId, month: cycleKey }).select({ count: 1 }).lean() as { count?: number }[];
   const used = logs.reduce((sum, l) => sum + (l.count ?? 0), 0);
 
   const sub = await Subscription.findOne({ userId }).select({ plan: 1, status: 1 }).lean() as
