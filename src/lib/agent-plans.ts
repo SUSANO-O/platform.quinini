@@ -172,7 +172,7 @@ export const AGENT_PLAN_LIMITS: Record<string, AgentPlanLimits> = {
     ragEnabled: false,
     ragSourcesPerAgent: 0,
     ragStorageMbPerAgent: 0,
-    availableToolIds: ['web-search', 'webhook'],
+    availableToolIds: ['web-search'],
   },
   solo: {
     agents: 1,

@@ -3,6 +3,9 @@
  */
 import mongoose from 'mongoose';
 import { Widget, ClientAgent } from '@/lib/db/models';
+import { redis } from '@/lib/redis';
+
+const WT_CACHE_TTL = 300; // 5 minutos
 
 function normalizeAgentField(v: unknown): string {
   if (v == null) return '';
@@ -27,6 +30,14 @@ export async function findWidgetForWtToken(
   const t = token.trim();
   if (!t.startsWith('wt_')) return null;
 
+  const cacheKey = `wt:${widgetId ?? t}`;
+  try {
+    const cached = await redis.get<WidgetInfo>(cacheKey);
+    if (cached) return cached;
+  } catch { /* redis no bloquea si falla */ }
+
+  let result: WidgetInfo | null = null;
+
   if (widgetId && mongoose.Types.ObjectId.isValid(widgetId)) {
     const w = await Widget.findById(widgetId)
       .select({ agentId: 1, userId: 1, afhubToken: 1, allowedOrigins: 1 })
@@ -34,7 +45,7 @@ export async function findWidgetForWtToken(
     if (w) {
       const stored = w.afhubToken != null ? String(w.afhubToken).trim() : '';
       if (stored && stored !== t) return null;
-      return {
+      result = {
         agentId: w.agentId,
         userId: String(w.userId),
         allowedOrigins: Array.isArray(w.allowedOrigins) ? w.allowedOrigins : [],
@@ -42,17 +53,24 @@ export async function findWidgetForWtToken(
     }
   }
 
-  const w = await Widget.findOne({ afhubToken: t })
-    .select({ agentId: 1, userId: 1, allowedOrigins: 1 })
-    .lean() as { agentId: unknown; userId: unknown; allowedOrigins?: string[] } | null;
-
-  return w
-    ? {
+  if (!result) {
+    const w = await Widget.findOne({ afhubToken: t })
+      .select({ agentId: 1, userId: 1, allowedOrigins: 1 })
+      .lean() as { agentId: unknown; userId: unknown; allowedOrigins?: string[] } | null;
+    if (w) {
+      result = {
         agentId: w.agentId,
         userId: String(w.userId),
         allowedOrigins: Array.isArray(w.allowedOrigins) ? w.allowedOrigins : [],
-      }
-    : null;
+      };
+    }
+  }
+
+  if (result) {
+    try { await redis.set(cacheKey, result, { ex: WT_CACHE_TTL }); } catch { /* no fatal */ }
+  }
+
+  return result;
 }
 
 /**

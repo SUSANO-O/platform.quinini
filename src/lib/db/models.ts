@@ -307,6 +307,53 @@ ConversationSessionSchema.index({ userId: 1, month: -1 });
 ConversationSessionSchema.index({ sessionId: 1 }, { unique: true });
 ConversationSessionSchema.index({ startedAt: -1 });
 
+// ── REGISTRATION CODES ───────────────────────────────────────────────────────
+// Códigos de invitación generados desde el admin. Reemplazan la variable REGISTRATION_CODES.
+
+const RegistrationCodeSchema = new Schema({
+  code:       { type: String, required: true, unique: true, uppercase: true, trim: true },
+  plan:       { type: String, enum: ['free', 'solo', 'basic', 'starter', 'growth', 'business'], required: true },
+  /** Máximo de registros permitidos con este código. 1 = un solo uso. */
+  maxUses:    { type: Number, default: 1, min: 1 },
+  /** Contador de veces que se ha usado. */
+  usedCount:  { type: Number, default: 0 },
+  /** Registro de cada uso: quién y cuándo. */
+  uses: [{
+    userId:   { type: String, required: true },
+    email:    { type: String, required: true },
+    usedAt:   { type: Date, default: Date.now },
+  }],
+  /** Si false, el código queda bloqueado aunque no haya agotado maxUses. */
+  active:     { type: Boolean, default: true },
+  /** Expiración opcional. Si es null, no expira. */
+  expiresAt:  { type: Date, default: null },
+  /** Admin que lo creó. */
+  createdBy:  { type: String, required: true },
+  /** Nota libre para identificar al cliente o campaña. */
+  note:       { type: String, default: '' },
+}, { timestamps: true });
+
+RegistrationCodeSchema.index({ code: 1 }, { unique: true });
+RegistrationCodeSchema.index({ active: 1, createdAt: -1 });
+
+// ── WIDGET MESSAGES ───────────────────────────────────────────────────────────
+// Transcripción real de cada intercambio usuario ↔ asistente por widget.
+// Se guarda de forma fire-and-forget en el stream route.
+
+const WidgetMessageSchema = new Schema({
+  widgetId:  { type: String, required: true },
+  userId:    { type: String, required: true }, // dueño del widget
+  agentId:   { type: String, default: '' },
+  sessionId: { type: String, default: '' },
+  role:      { type: String, enum: ['user', 'assistant'], required: true },
+  content:   { type: String, required: true },
+  traceId:   { type: String, default: '' },
+}, { timestamps: true });
+
+WidgetMessageSchema.index({ widgetId: 1, createdAt: -1 });
+WidgetMessageSchema.index({ userId: 1, createdAt: -1 });
+WidgetMessageSchema.index({ sessionId: 1, createdAt: 1 });
+
 // ── TEAM / ORGANIZATIONS ───────────────────────────────────────────────────────
 // Permite que múltiples usuarios compartan el mismo workspace.
 
@@ -396,3 +443,5 @@ export const ConversationSession  = mongoose.models.ConversationSession  || mong
 export const Organization         = mongoose.models.Organization         || mongoose.model('Organization', OrganizationSchema);
 export const Referral             = mongoose.models.Referral             || mongoose.model('Referral', ReferralSchema);
 export const AbTest               = mongoose.models.AbTest               || mongoose.model('AbTest', AbTestSchema);
+export const WidgetMessage        = mongoose.models.WidgetMessage        || mongoose.model('WidgetMessage', WidgetMessageSchema);
+export const RegistrationCode     = mongoose.models.RegistrationCode     || mongoose.model('RegistrationCode', RegistrationCodeSchema);

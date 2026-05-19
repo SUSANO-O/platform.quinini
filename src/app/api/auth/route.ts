@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
-import { User } from '@/lib/db/models';
+import { User, Subscription, RegistrationCode } from '@/lib/db/models';
 import {
   hashPassword,
   verifyPassword,
@@ -64,28 +64,46 @@ export async function POST(req: NextRequest) {
     // ── Register ──────────────────────────────────────────────────────────
     if (action === 'register') {
       // ── Código de autorización ────────────────────────────────────────
-      const rawCodes = (process.env.REGISTRATION_CODES ?? '').trim();
-      const validCodes = rawCodes
-        ? rawCodes.split(',').map((c) => c.trim().toUpperCase()).filter(Boolean)
-        : [];
-
-      if (validCodes.length === 0) {
-        return NextResponse.json(
-          { error: 'El registro no está disponible en este momento. Contacta al administrador para obtener acceso.' },
-          { status: 403 },
-        );
-      }
-
       const submittedCode = typeof body.registrationCode === 'string'
         ? body.registrationCode.trim().toUpperCase()
         : '';
 
-      if (!submittedCode || !validCodes.includes(submittedCode)) {
+      if (!submittedCode) {
+        return NextResponse.json(
+          { error: 'El código de autorización es requerido.' },
+          { status: 403 },
+        );
+      }
+
+      const codeDoc = await RegistrationCode.findOne({ code: submittedCode }).lean() as {
+        _id: { toString(): string };
+        plan: string;
+        active: boolean;
+        maxUses: number;
+        usedCount: number;
+        expiresAt?: Date | null;
+      } | null;
+
+      if (!codeDoc || !codeDoc.active) {
         return NextResponse.json(
           { error: 'Código de autorización inválido.' },
           { status: 403 },
         );
       }
+      if (codeDoc.expiresAt && new Date() > codeDoc.expiresAt) {
+        return NextResponse.json(
+          { error: 'El código de autorización ha expirado.' },
+          { status: 403 },
+        );
+      }
+      if (codeDoc.usedCount >= codeDoc.maxUses) {
+        return NextResponse.json(
+          { error: 'El código de autorización ya no está disponible.' },
+          { status: 403 },
+        );
+      }
+
+      const assignedPlan = codeDoc.plan;
 
       // Rate limit: 5 registrations per hour per IP
       const rl = checkRateLimit('register', ip, 5, 60 * 60 * 1000);
@@ -120,6 +138,27 @@ export async function POST(req: NextRequest) {
         verifyToken,
         verifyTokenExpiry,
       });
+
+      // Marcar código como usado
+      await RegistrationCode.updateOne(
+        { _id: codeDoc._id },
+        {
+          $inc: { usedCount: 1 },
+          $push: { uses: { userId: user._id.toString(), email: normalizedEmail, usedAt: new Date() } },
+        },
+      );
+
+      // Asignar plan del código
+      if (assignedPlan && assignedPlan !== 'free') {
+        const now = Math.floor(Date.now() / 1000);
+        await Subscription.create({
+          userId: user._id.toString(),
+          plan: assignedPlan,
+          status: 'active',
+          currentPeriodStart: now,
+          currentPeriodEnd: now + 30 * 24 * 60 * 60, // 1 mes
+        });
+      }
 
       const emailResult = await sendVerificationEmail(normalizedEmail, user.displayName, verifyToken);
       if (!emailResult.ok) {

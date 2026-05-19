@@ -8,7 +8,7 @@ import {
   iridescentOrbBlendModes,
 } from '@/lib/widget-iridescent';
 import Link from 'next/link';
-import { Trash2, Plus, Code2, Boxes, Pencil, Play, Sparkles, Copy, Check } from 'lucide-react';
+import { Trash2, Plus, Code2, Boxes, Pencil, Play, Sparkles, Copy, Check, Download } from 'lucide-react';
 
 const BRAND_R = '#e41414';
 const BRAND_O = '#f87600';
@@ -305,6 +305,16 @@ export default function WidgetsPage() {
                       <Pencil size={12} />
                       Editar
                     </Link>
+                    <a
+                      href={`/api/widgets/${w._id}/export?format=json&months=3`}
+                      download
+                      className="inline-flex items-center gap-1 px-2.5 py-2 rounded-lg text-[11px] font-bold no-underline border cursor-pointer transition-colors hover:opacity-90"
+                      style={{ borderColor: 'rgba(0,172,248,0.3)', background: 'rgba(0,172,248,0.07)', color: BRAND_B }}
+                      title="Descargar historial de conversaciones (JSON)"
+                    >
+                      <Download size={12} />
+                      Historial
+                    </a>
                     <button
                       type="button"
                       onClick={() => toggleExpanded(w._id)}
