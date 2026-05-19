@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { getAibackhubBaseUrl, getAgentflowhubBaseUrl } from '@/lib/aibackhub-sync';
+import { redis } from '@/lib/redis';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -44,6 +45,20 @@ async function checkBaseDatos(): Promise<ServiceCheck> {
   }
 }
 
+async function checkCache(): Promise<ServiceCheck> {
+  const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL ?? process.env.REDIS_URL;
+  if (!REDIS_URL) return { name: 'Caché', status: 'degraded', latencyMs: null, message: 'No configurado' };
+  const start = Date.now();
+  try {
+    await redis.set('__status_ping', '1', { ex: 10 });
+    const val = await redis.get('__status_ping');
+    const latencyMs = Date.now() - start;
+    return { name: 'Caché', status: val === '1' ? 'operational' : 'degraded', latencyMs };
+  } catch {
+    return { name: 'Caché', status: 'down', latencyMs: null };
+  }
+}
+
 async function checkCoordenacion(): Promise<ServiceCheck> {
   const explicit = (process.env.AGENTFLOWHUB_URL ?? '').trim();
   // Si no hay URL explícita configurada, el servicio es co-ubicado — no monitoreamos externamente.
@@ -58,15 +73,16 @@ async function checkCoordenacion(): Promise<ServiceCheck> {
 export async function GET() {
   const aiBase = getAibackhubBaseUrl();
 
-  const [dbCheck, procesamiento, coordinacion] = await Promise.all([
+  const [dbCheck, procesamiento, coordinacion, cacheCheck] = await Promise.all([
     checkBaseDatos(),
     checkHttp('Procesamiento', aiBase ? `${aiBase}/health` : '', 5000),
     checkCoordenacion(),
+    checkCache(),
   ]);
 
   const plataforma: ServiceCheck = { name: 'Plataforma', status: 'operational', latencyMs: 0 };
 
-  const services: ServiceCheck[] = [plataforma, dbCheck, procesamiento, coordinacion];
+  const services: ServiceCheck[] = [plataforma, dbCheck, procesamiento, coordinacion, cacheCheck];
 
   const allOk   = services.every((s) => s.status === 'operational');
   const anyDown = services.some((s) => s.status === 'down');
