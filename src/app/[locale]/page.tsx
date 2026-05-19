@@ -653,22 +653,36 @@ export default async function LandingPage() {
             {PLANS.map((plan) => (
               <div
                 key={plan.name}
-                className={plan.popular ? 'card-pro rounded-2xl p-7 relative' : 'card-hover rounded-2xl p-7 relative'}
+                className="card-pro rounded-2xl p-7 flex flex-col gap-4 relative overflow-hidden"
                 style={{
-                  backgroundImage: plan.popular
-                    ? `linear-gradient(145deg, rgba(228,20,20,0.05), rgba(248,118,0,0.04)), radial-gradient(circle, rgba(0,0,0,0.05) 1px, transparent 1px)`
-                    : `radial-gradient(circle, rgba(0,0,0,0.06) 1px, transparent 1px)`,
-                  backgroundSize: plan.popular ? 'auto, 20px 20px' : '20px 20px',
-                  backgroundColor: 'var(--card)',
-                  border: `1px solid ${plan.popular ? plan.color : 'var(--border)'}`,
+                  border: `1px solid ${plan.color}${plan.popular ? '55' : '28'}`,
                   boxShadow: plan.popular
-                    ? `0 0 0 4px ${plan.color}12, 0 12px 40px rgba(228,20,20,0.14), 0 4px 16px rgba(0,0,0,0.06)`
-                    : undefined,
+                    ? `0 0 0 3px ${plan.color}12, 0 12px 40px rgba(0,0,0,0.1)`
+                    : '0 4px 24px rgba(0,0,0,0.04)',
                 }}
               >
+                {/* Corner glow decoration */}
+                <div style={{
+                  position: 'absolute', top: '-20px', right: '-10px',
+                  width: '120px', height: '90px',
+                  background: `radial-gradient(circle, ${plan.color}12, transparent 70%)`,
+                  pointerEvents: 'none',
+                }} />
+
+                {/* Large decorative initial */}
+                <div style={{
+                  fontSize: '72px', lineHeight: 1, fontFamily: 'Georgia, serif',
+                  color: plan.color, opacity: 0.1,
+                  position: 'absolute', top: '10px', left: '18px',
+                  userSelect: 'none', pointerEvents: 'none', fontWeight: 700,
+                }}>
+                  {plan.name[0]}
+                </div>
+
+                {/* Popular badge */}
                 {plan.popular && (
                   <div style={{
-                    position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)',
+                    position: 'absolute', top: '-13px', left: '50%', transform: 'translateX(-50%)',
                     background: `linear-gradient(135deg, ${R}, ${O})`,
                     color: '#fff', fontSize: '11px', fontWeight: 700,
                     padding: '4px 16px', borderRadius: '20px', whiteSpace: 'nowrap', letterSpacing: '0.04em',
@@ -677,42 +691,49 @@ export default async function LandingPage() {
                   </div>
                 )}
 
-                <h3 className="text-xl font-extrabold mb-1">{plan.name}</h3>
-                <div className="flex items-end gap-1 mb-1">
-                  <span className="text-4xl font-extrabold" style={{ color: plan.color }}>{plan.price}</span>
-                  <span className="text-sm pb-1" style={{ color: 'var(--muted-foreground)' }}>{plan.period}</span>
+                {/* Header */}
+                <div className="relative">
+                  <h3 className="text-xl font-extrabold mb-1">{plan.name}</h3>
+                  <div className="flex items-end gap-1 mb-1">
+                    <span className="text-4xl font-extrabold" style={{ color: plan.color }}>{plan.price}</span>
+                    <span className="text-sm pb-1" style={{ color: 'var(--muted-foreground)' }}>{plan.period}</span>
+                  </div>
+                  <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>{plan.requests}</p>
                 </div>
-                <p className="text-sm mb-6" style={{ color: 'var(--muted-foreground)' }}>{plan.requests}</p>
 
-                <ul className="space-y-3 mb-4">
+                {/* Features */}
+                <ul className="space-y-2.5 flex-1 relative">
                   {plan.features.map((feat) => (
-                    <li key={feat} className="flex items-center gap-2 text-sm">
-                      <Check size={14} style={{ color: plan.color, flexShrink: 0 }} />
+                    <li key={feat} className="flex items-start gap-2 text-sm">
+                      <Check size={14} className="mt-0.5 shrink-0" style={{ color: plan.color }} />
                       {feat}
                     </li>
                   ))}
+                  {plan.id === 'starter' && (
+                    <li className="text-xs pt-1" style={{ color: 'var(--muted-foreground)' }}>
+                      {t('pricing.ragNotIncluded')}
+                    </li>
+                  )}
+                  {PLAN_RAG_LIMITS[plan.id] && (
+                    <li className="text-xs pt-1" style={{ color: 'var(--muted-foreground)' }}>
+                      {t('pricing.ragTechnical', {
+                        mb: PLAN_RAG_LIMITS[plan.id]!.mb.toLocaleString(),
+                        sources: PLAN_RAG_LIMITS[plan.id]!.sources,
+                      })}
+                    </li>
+                  )}
                 </ul>
-                {plan.id === 'starter' && (
-                  <p className="text-xs font-semibold mb-6 leading-snug" style={{ color: 'var(--muted-foreground)' }}>
-                    {t('pricing.ragNotIncluded')}
-                  </p>
-                )}
-                {PLAN_RAG_LIMITS[plan.id] && (
-                  <p className="text-xs font-semibold mb-6 leading-snug" style={{ color: 'var(--muted-foreground)' }}>
-                    {t('pricing.ragTechnical', {
-                      mb: PLAN_RAG_LIMITS[plan.id]!.mb.toLocaleString(),
-                      sources: PLAN_RAG_LIMITS[plan.id]!.sources,
-                    })}
-                  </p>
-                )}
 
-                <Link
-                  href="/register"
-                  className="block text-center py-3 rounded-xl font-bold text-sm transition-all hover:opacity-90 hover:shadow-lg text-white"
-                  style={{ background: plan.popular ? `linear-gradient(135deg, ${R}, ${O})` : plan.color }}
-                >
-                  {t('pricing.cta')}
-                </Link>
+                {/* CTA with separator (like testimonial author section) */}
+                <div className="mt-auto pt-4 relative" style={{ borderTop: `1px solid ${plan.color}20` }}>
+                  <Link
+                    href="/register"
+                    className="block text-center py-3 rounded-xl font-bold text-sm transition-all hover:opacity-90 hover:shadow-lg text-white"
+                    style={{ background: plan.popular ? `linear-gradient(135deg, ${R}, ${O})` : plan.color }}
+                  >
+                    {t('pricing.cta')}
+                  </Link>
+                </div>
               </div>
             ))}
           </div>
