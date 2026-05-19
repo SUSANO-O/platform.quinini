@@ -50,10 +50,10 @@ async function checkCache(): Promise<ServiceCheck> {
   if (!REDIS_URL) return { name: 'Caché', status: 'degraded', latencyMs: null, message: 'No configurado' };
   const start = Date.now();
   try {
-    await redis.set('__status_ping', '1', { ex: 10 });
+    await redis.set('__status_ping', 'ok', { ex: 10 });
     const val = await redis.get('__status_ping');
     const latencyMs = Date.now() - start;
-    return { name: 'Caché', status: val === '1' ? 'operational' : 'degraded', latencyMs };
+    return { name: 'Caché', status: val != null ? 'operational' : 'degraded', latencyMs };
   } catch {
     return { name: 'Caché', status: 'down', latencyMs: null };
   }
@@ -84,8 +84,10 @@ export async function GET() {
 
   const services: ServiceCheck[] = [plataforma, dbCheck, procesamiento, coordinacion, cacheCheck];
 
-  const allOk   = services.every((s) => s.status === 'operational');
-  const anyDown = services.some((s) => s.status === 'down');
+  // El caché es infraestructura interna — no afecta el estado visible al usuario
+  const coreServices = [plataforma, dbCheck, procesamiento, coordinacion];
+  const allOk   = coreServices.every((s) => s.status === 'operational');
+  const anyDown = coreServices.some((s) => s.status === 'down');
   const overall: ServiceStatus = allOk ? 'operational' : anyDown ? 'down' : 'degraded';
 
   return NextResponse.json(
