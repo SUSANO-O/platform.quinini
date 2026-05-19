@@ -286,6 +286,26 @@ export async function POST(req: NextRequest) {
               agentIdOrHubId: parsedAgentId,
               rawBody,
             }).catch(() => {});
+
+            // Persist transcript (fire-and-forget — never blocks stream)
+            if (streamMsg && fullReply && parsedWidgetId) {
+              void (async () => {
+                try {
+                  const { WidgetMessage } = await import('@/lib/db/models');
+                  const base = {
+                    widgetId: parsedWidgetId,
+                    userId: faqTrackOwnerId,
+                    agentId: parsedAgentId,
+                    sessionId: parsedSessionId || traceId,
+                    traceId,
+                  };
+                  await WidgetMessage.insertMany([
+                    { ...base, role: 'user',      content: streamMsg.slice(0, 4000) },
+                    { ...base, role: 'assistant', content: fullReply.slice(0, 8000) },
+                  ]);
+                } catch { /* non-critical */ }
+              })();
+            }
           }
         }
 

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useEffect, useState } from 'react';
-import { LayoutDashboard, Users, LogOut, Shield, UserPlus, BarChart3, Wallet, Box, Network, Bot, Cpu, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Shield, UserPlus, BarChart3, Wallet, Box, Network, Bot, Cpu, Menu, X, KeyRound } from 'lucide-react';
 
 const NAV = [
   { href: '/admin', label: 'Resumen', icon: LayoutDashboard },
@@ -14,6 +14,7 @@ const NAV = [
   { href: '/admin/embeddings-3d', label: 'Embeddings 3D', icon: Box },
   { href: '/admin/finance', label: 'Finanzas clientes', icon: Wallet },
   { href: '/admin/users', label: 'Usuarios', icon: Users },
+  { href: '/admin/registration-codes', label: 'Códigos acceso', icon: KeyRound },
   { href: '/admin/promote', label: 'Promover admin', icon: UserPlus },
   { href: '/admin/ai-config', label: 'Asistente AI', icon: Bot },
 ];
