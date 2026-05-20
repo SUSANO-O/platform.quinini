@@ -90,16 +90,26 @@ function groupAuditEntries(entries: AuditEntry[]): Array<{ dayKey: string; label
 
 /* ── sub-components ──────────────────────────────────────────────── */
 
-function SectionCard({ icon, title, headerAction, children }: {
+function SectionCard({ icon, title, accent, headerAction, children }: {
   icon: React.ReactNode;
   title: string;
+  accent?: string;
   headerAction?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <section className="card-texture" style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+    <section
+      className="card-texture"
+      style={{
+        borderRadius: 14,
+        border: '1px solid rgba(255,255,255,0.08)',
+        /* 8-digit hex: last two digits = alpha ~33% */
+        borderTop: `1px solid ${accent ? accent + '55' : 'rgba(255,255,255,0.1)'}`,
+        overflow: 'hidden',
+      }}
+    >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 18px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <span style={{ opacity: 0.35, display: 'flex' }}>{icon}</span>
+        <span style={{ display: 'flex', color: accent ?? 'rgba(255,255,255,0.6)', opacity: accent ? 0.7 : 0.35 }}>{icon}</span>
         <h2 style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', opacity: 0.45, flex: 1 }}>
           {title}
         </h2>
@@ -252,7 +262,7 @@ export default function CompliancePage() {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginTop: 10, gap: 16 }}>
           <div>
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Shield size={22} style={{ opacity: 0.4 }} aria-hidden />
+              <Shield size={22} style={{ opacity: 0.45, color: '#00acf8' }} aria-hidden />
               Cumplimiento y datos
             </h1>
             <p style={{ margin: '10px 0 0', opacity: 0.55, maxWidth: 560, fontSize: 13.5, lineHeight: 1.65 }}>
@@ -263,24 +273,24 @@ export default function CompliancePage() {
           {!loadingAudit && totalEvents > 0 && (
             <div style={{
               flexShrink: 0, padding: '12px 18px', borderRadius: 12,
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'rgba(0,172,248,0.06)',
+              border: '1px solid rgba(0,172,248,0.18)',
               textAlign: 'right',
             }}>
-              <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{totalEvents}</div>
-              <div style={{ fontSize: 11, opacity: 0.45, marginTop: 4, whiteSpace: 'nowrap' }}>eventos recientes</div>
+              <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1, color: 'rgba(0,172,248,0.9)' }}>{totalEvents}</div>
+              <div style={{ fontSize: 11, opacity: 0.5, marginTop: 4, whiteSpace: 'nowrap' }}>eventos recientes</div>
             </div>
           )}
         </div>
       </div>
 
-      {/* ── Section stack ────────────────────────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-        {/* Data rights — 2 columns */}
+        {/* ── Data rights — 2 columns ──────────────────────────── */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
 
-          <SectionCard icon={<Download size={14} />} title="Exportar mis datos">
+          {/* Export — blue */}
+          <SectionCard icon={<Download size={14} />} title="Exportar mis datos" accent="#00acf8">
             <p style={{ margin: '0 0 20px', fontSize: 13, opacity: 0.65, lineHeight: 1.65 }}>
               Descarga un JSON con perfil, suscripción, widgets, agentes (metadatos), uso mensual y últimas entradas de auditoría.
             </p>
@@ -288,14 +298,22 @@ export default function CompliancePage() {
               type="button"
               disabled={busyExport}
               onClick={() => void downloadExport()}
-              onMouseEnter={(e) => { if (!busyExport) { const b = e.currentTarget; b.style.background = 'rgba(255,255,255,0.12)'; b.style.borderColor = 'rgba(255,255,255,0.25)'; } }}
-              onMouseLeave={(e) => { const b = e.currentTarget; b.style.background = 'rgba(255,255,255,0.07)'; b.style.borderColor = 'rgba(255,255,255,0.15)'; }}
+              onMouseEnter={(e) => {
+                if (!busyExport) {
+                  e.currentTarget.style.background = 'rgba(0,172,248,0.15)';
+                  e.currentTarget.style.borderColor = 'rgba(0,172,248,0.45)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(0,172,248,0.09)';
+                e.currentTarget.style.borderColor = 'rgba(0,172,248,0.3)';
+              }}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8,
                 padding: '10px 18px', borderRadius: 10,
-                border: '1px solid rgba(255,255,255,0.15)',
-                background: 'rgba(255,255,255,0.07)',
-                color: 'rgba(255,255,255,0.85)',
+                border: '1px solid rgba(0,172,248,0.3)',
+                background: 'rgba(0,172,248,0.09)',
+                color: 'rgba(0,172,248,0.9)',
                 cursor: busyExport ? 'wait' : 'pointer',
                 fontSize: 13, fontWeight: 600,
                 transition: 'background 0.15s, border-color 0.15s',
@@ -306,7 +324,8 @@ export default function CompliancePage() {
             </button>
           </SectionCard>
 
-          <SectionCard icon={<Trash2 size={14} />} title="Borrar cuenta">
+          {/* Delete — red */}
+          <SectionCard icon={<Trash2 size={14} />} title="Borrar cuenta" accent="#e41414">
             <p style={{ margin: '0 0 14px', fontSize: 13, opacity: 0.65, lineHeight: 1.65 }}>
               Elimina widgets, agentes, uso almacenado y tu usuario de esta plataforma.
             </p>
@@ -340,29 +359,36 @@ export default function CompliancePage() {
           </SectionCard>
         </div>
 
-        {/* ── Webhook ──────────────────────────────────────────── */}
-        <SectionCard icon={<Webhook size={14} />} title="Webhook SaaS (saliente)">
+        {/* ── Webhook — cyan ───────────────────────────────────── */}
+        <SectionCard icon={<Webhook size={14} />} title="Webhook SaaS (saliente)" accent="#00f8e5">
 
-          {/* Info grid: events + payload */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 }}>
-            <div style={{ padding: '11px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}>
-              <p style={{ margin: '0 0 8px', fontSize: 10, opacity: 0.4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            {/* Events panel */}
+            <div style={{
+              padding: '11px 14px', borderRadius: 10,
+              background: 'rgba(0,248,229,0.04)', border: '1px solid rgba(0,248,229,0.12)',
+            }}>
+              <p style={{ margin: '0 0 8px', fontSize: 10, color: 'rgba(0,248,229,0.55)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Eventos emitidos
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                 {['conversation.closed', 'conversation.handoff', 'quota.reached'].map((ev) => (
                   <code key={ev} style={{
                     padding: '3px 8px', borderRadius: 5,
-                    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)',
+                    background: 'rgba(0,248,229,0.06)', border: '1px solid rgba(0,248,229,0.15)',
                     fontFamily: 'ui-monospace, SFMono-Regular, monospace',
-                    fontSize: 11, color: 'rgba(255,255,255,0.5)',
+                    fontSize: 11, color: 'rgba(0,248,229,0.75)',
                   }}>
                     {ev}
                   </code>
                 ))}
               </div>
             </div>
-            <div style={{ padding: '11px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            {/* Payload panel */}
+            <div style={{
+              padding: '11px 14px', borderRadius: 10,
+              background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)',
+            }}>
               <p style={{ margin: '0 0 8px', fontSize: 10, opacity: 0.4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Payload · Firma
               </p>
@@ -400,14 +426,14 @@ export default function CompliancePage() {
                 <button
                   type="submit"
                   disabled={busyWh}
-                  onMouseEnter={(e) => { if (!busyWh) e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; }}
+                  onMouseEnter={(e) => { if (!busyWh) e.currentTarget.style.background = 'rgba(0,248,229,0.13)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(0,248,229,0.07)'; }}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6,
                     padding: '10px 16px', borderRadius: 10, flexShrink: 0,
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    background: 'rgba(255,255,255,0.07)',
-                    color: 'rgba(255,255,255,0.8)',
+                    border: '1px solid rgba(0,248,229,0.28)',
+                    background: 'rgba(0,248,229,0.07)',
+                    color: 'rgba(0,248,229,0.85)',
                     cursor: busyWh ? 'wait' : 'pointer',
                     fontSize: 13, fontWeight: 600,
                     transition: 'background 0.15s',
@@ -423,10 +449,10 @@ export default function CompliancePage() {
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
                 padding: '11px 14px', borderRadius: 10,
-                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)',
+                background: 'rgba(0,248,229,0.03)', border: '1px solid rgba(0,248,229,0.12)',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                  <Lock size={13} style={{ opacity: 0.35, flexShrink: 0 }} />
+                  <Lock size={13} style={{ color: 'rgba(0,248,229,0.5)', flexShrink: 0 }} />
                   <div style={{ minWidth: 0 }}>
                     <p style={{ margin: '0 0 2px', fontSize: 10, opacity: 0.4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       Secreto HMAC-SHA256
@@ -440,13 +466,13 @@ export default function CompliancePage() {
                   type="button"
                   disabled={busyWh}
                   onClick={() => void rotateSecret()}
-                  onMouseEnter={(e) => { if (!busyWh) e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
+                  onMouseEnter={(e) => { if (!busyWh) e.currentTarget.style.background = 'rgba(0,248,229,0.07)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 5,
                     padding: '7px 12px', borderRadius: 8, flexShrink: 0,
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    background: 'transparent', color: 'rgba(255,255,255,0.45)',
+                    border: '1px solid rgba(0,248,229,0.18)',
+                    background: 'transparent', color: 'rgba(0,248,229,0.55)',
                     cursor: busyWh ? 'wait' : 'pointer',
                     fontSize: 12, transition: 'background 0.15s',
                   }}
@@ -468,24 +494,33 @@ export default function CompliancePage() {
           </form>
         </SectionCard>
 
-        {/* ── Audit log ────────────────────────────────────────── */}
+        {/* ── Audit log — orange ────────────────────────────────── */}
         <SectionCard
           icon={<ClipboardList size={14} />}
           title="Registro de auditoría"
+          accent="#f87600"
           headerAction={
             !loadingAudit ? (
               <button
                 type="button"
                 onClick={() => void fetchAudit()}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(248,118,0,0.1)';
+                  e.currentTarget.style.color = 'rgba(248,118,0,0.85)';
+                  e.currentTarget.style.borderColor = 'rgba(248,118,0,0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = 'rgba(255,255,255,0.4)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                }}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 5,
                   padding: '5px 10px', borderRadius: 6,
                   border: '1px solid rgba(255,255,255,0.1)',
                   background: 'transparent', color: 'rgba(255,255,255,0.4)',
                   cursor: 'pointer', fontSize: 11,
-                  transition: 'background 0.15s',
+                  transition: 'background 0.15s, color 0.15s, border-color 0.15s',
                 }}
               >
                 <RefreshCw size={11} />
@@ -516,16 +551,16 @@ export default function CompliancePage() {
                 <div key={dayKey} style={{ marginBottom: 8 }}>
                   {/* Day separator */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '12px 0 6px' }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.4, whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(248,118,0,0.65)', whiteSpace: 'nowrap' }}>
                       {label}
                     </span>
-                    <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.07)' }} />
-                    <span style={{ fontSize: 10, opacity: 0.3, whiteSpace: 'nowrap' }}>
+                    <div style={{ flex: 1, height: 1, background: 'rgba(248,118,0,0.15)' }} />
+                    <span style={{ fontSize: 10, color: 'rgba(248,118,0,0.45)', whiteSpace: 'nowrap' }}>
                       {groups.reduce((s, g) => s + g.count, 0)} eventos
                     </span>
                   </div>
 
-                  {/* Grouped rows */}
+                  {/* Rows */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {groups.map((g) => (
                       <div
@@ -554,8 +589,8 @@ export default function CompliancePage() {
                           <span style={{
                             fontSize: 10, fontWeight: 700,
                             padding: '2px 7px', borderRadius: 20,
-                            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
-                            color: 'rgba(255,255,255,0.3)', flexShrink: 0, whiteSpace: 'nowrap',
+                            background: 'rgba(248,118,0,0.08)', border: '1px solid rgba(248,118,0,0.18)',
+                            color: 'rgba(248,118,0,0.65)', flexShrink: 0, whiteSpace: 'nowrap',
                           }}>
                             ×{g.count}
                           </span>
