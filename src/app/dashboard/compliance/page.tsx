@@ -56,6 +56,52 @@ function getActionStyle(action: string): ActionStyle {
   return { color: '#94a3b8', label: action };
 }
 
+/* ── audit grouping ──────────────────────────────────────────────── */
+
+type AuditGroup = {
+  key: string;
+  action: string;
+  resource: string;
+  ip: string;
+  count: number;
+  newestAt: string;
+  oldestAt: string;
+};
+
+function isoDay(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+function dayLabel(dayKey: string): string {
+  const d = new Date(dayKey + 'T12:00:00');
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return 'Hoy';
+  if (d.toDateString() === yesterday.toDateString()) return 'Ayer';
+  return d.toLocaleDateString('es', { day: 'numeric', month: 'long' });
+}
+
+function groupAuditEntries(entries: AuditEntry[]): Array<{ dayKey: string; label: string; groups: AuditGroup[] }> {
+  const days: Array<{ dayKey: string; label: string; groups: AuditGroup[] }> = [];
+  for (const e of entries) {
+    const dk = isoDay(e.createdAt);
+    let day = days.find((d) => d.dayKey === dk);
+    if (!day) {
+      day = { dayKey: dk, label: dayLabel(dk), groups: [] };
+      days.push(day);
+    }
+    const last = day.groups[day.groups.length - 1];
+    if (last && last.action === e.action && last.ip === e.ip && last.resource === e.resource) {
+      last.count++;
+      last.oldestAt = e.createdAt;
+    } else {
+      day.groups.push({ key: e.id, action: e.action, resource: e.resource, ip: e.ip, count: 1, newestAt: e.createdAt, oldestAt: e.createdAt });
+    }
+  }
+  return days;
+}
+
 /* ── sub-components ──────────────────────────────────────────────── */
 
 function SectionCard({
@@ -118,20 +164,23 @@ function ActionBadge({ action }: { action: string }) {
   return (
     <span
       style={{
-        display: 'inline-block',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 5,
         padding: '3px 10px',
         borderRadius: 6,
-        background: `${color}14`,
-        color,
-        border: `1px solid ${color}30`,
-        fontWeight: 600,
+        background: 'rgba(255,255,255,0.04)',
+        border: '1px solid rgba(255,255,255,0.08)',
         fontSize: 11,
         whiteSpace: 'nowrap',
-        letterSpacing: '0.03em',
-        minWidth: 108,
-        textAlign: 'center',
+        letterSpacing: '0.02em',
+        minWidth: 112,
+        color: 'rgba(255,255,255,0.6)',
+        fontWeight: 500,
       }}
     >
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: color, flexShrink: 0, opacity: 0.9 }} />
       {label}
     </span>
   );
@@ -478,65 +527,85 @@ export default function CompliancePage() {
         ) : audit.length === 0 ? (
           <p style={{ opacity: 0.6, fontSize: 13 }}>Sin entradas todavía.</p>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {audit.map((a) => (
-              <div
-                key={a.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '9px 12px',
-                  borderRadius: 10,
-                  background: 'rgba(255,255,255,0.025)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  transition: 'background 0.15s',
-                }}
-                onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.05)')}
-                onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.025)')}
-              >
-                {/* Action badge */}
-                <ActionBadge action={a.action} />
+          <div style={{ maxHeight: 440, overflowY: 'auto', paddingRight: 2, display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {groupAuditEntries(audit).map(({ dayKey, label, groups }) => (
+              <div key={dayKey}>
+                {/* Day separator */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0 8px' }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.4, whiteSpace: 'nowrap' }}>
+                    {label}
+                  </span>
+                  <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.07)' }} />
+                  <span style={{ fontSize: 10, opacity: 0.3 }}>{groups.reduce((s, g) => s + g.count, 0)} eventos</span>
+                </div>
 
-                {/* Resource */}
-                <span style={{
-                  fontSize: 12,
-                  color: 'var(--muted-foreground)',
-                  opacity: 0.75,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  flex: 1,
-                  minWidth: 0,
-                }}>
-                  {a.resource || '—'}
-                </span>
+                {/* Grouped rows */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  {groups.map((g) => (
+                    <div
+                      key={g.key}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '8px 12px', borderRadius: 10,
+                        background: 'rgba(255,255,255,0.025)',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.05)')}
+                      onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.025)')}
+                    >
+                      {/* Action badge */}
+                      <ActionBadge action={g.action} />
 
-                {/* IP chip */}
-                {a.ip && a.ip !== '—' && (
-                  <code style={{
-                    padding: '2px 8px', borderRadius: 6, fontSize: 11,
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    color: '#64748b',
-                    flexShrink: 0,
-                    fontFamily: 'ui-monospace, SFMono-Regular, monospace',
-                    letterSpacing: '-0.01em',
-                  }}>
-                    {a.ip}
-                  </code>
-                )}
+                      {/* Resource */}
+                      <span style={{
+                        fontSize: 12, opacity: 0.6,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        flex: 1, minWidth: 0,
+                      }}>
+                        {g.resource || '—'}
+                      </span>
 
-                {/* Timestamp */}
-                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 4 }}>
-                  <div style={{ fontSize: 12, color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>
-                    {relTime(a.createdAt)}
-                  </div>
-                  <div style={{ fontSize: 10, opacity: 0.4, whiteSpace: 'nowrap', marginTop: 1 }}>
-                    {new Date(a.createdAt).toLocaleDateString('es', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                    {' '}
-                    {new Date(a.createdAt).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
-                  </div>
+                      {/* Count bubble */}
+                      {g.count > 1 && (
+                        <span style={{
+                          fontSize: 10, fontWeight: 700,
+                          padding: '2px 7px', borderRadius: 20,
+                          background: 'rgba(255,255,255,0.06)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          color: '#64748b', flexShrink: 0, whiteSpace: 'nowrap',
+                        }}>
+                          ×{g.count}
+                        </span>
+                      )}
+
+                      {/* IP chip */}
+                      {g.ip && g.ip !== '—' && (
+                        <code style={{
+                          padding: '2px 8px', borderRadius: 6, fontSize: 11,
+                          background: 'rgba(255,255,255,0.05)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          color: '#64748b', flexShrink: 0,
+                          fontFamily: 'ui-monospace, SFMono-Regular, monospace',
+                          letterSpacing: '-0.01em',
+                        }}>
+                          {g.ip}
+                        </code>
+                      )}
+
+                      {/* Timestamp */}
+                      <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 4 }}>
+                        <div style={{ fontSize: 12, color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>
+                          {new Date(g.newestAt).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                        {g.count > 1 && (
+                          <div style={{ fontSize: 10, opacity: 0.35, whiteSpace: 'nowrap', marginTop: 1 }}>
+                            {'→ '}{new Date(g.oldestAt).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
