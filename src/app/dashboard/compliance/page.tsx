@@ -366,25 +366,25 @@ export default function CompliancePage() {
           </SectionCard>
         </div>
 
-        {/* ── Webhook — cyan ───────────────────────────────────── */}
-        <SectionCard icon={<Webhook size={14} />} title="Webhook SaaS (saliente)" accent="#00f8e5">
+        {/* ── Webhook — orange ─────────────────────────────────── */}
+        <SectionCard icon={<Webhook size={14} />} title="Webhook SaaS (saliente)" accent="#f87600">
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 }}>
             {/* Events panel */}
             <div style={{
               padding: '11px 14px', borderRadius: 10,
-              background: 'rgba(0,248,229,0.06)', border: '1px solid rgba(0,248,229,0.2)',
+              background: 'rgba(248,118,0,0.08)', border: '1px solid rgba(248,118,0,0.28)',
             }}>
-              <p style={{ margin: '0 0 8px', fontSize: 10, color: '#00f8e5', textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.8 }}>
+              <p style={{ margin: '0 0 8px', fontSize: 10, color: '#c45a00', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
                 Eventos emitidos
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                 {['conversation.closed', 'conversation.handoff', 'quota.reached'].map((ev) => (
                   <code key={ev} style={{
                     padding: '3px 8px', borderRadius: 5,
-                    background: 'rgba(0,248,229,0.1)', border: '1px solid rgba(0,248,229,0.25)',
+                    background: 'rgba(248,118,0,0.12)', border: '1px solid rgba(248,118,0,0.35)',
                     fontFamily: 'ui-monospace, SFMono-Regular, monospace',
-                    fontSize: 11, color: '#00f8e5',
+                    fontSize: 11, color: '#b45300', fontWeight: 600,
                   }}>
                     {ev}
                   </code>
@@ -433,14 +433,14 @@ export default function CompliancePage() {
                 <button
                   type="submit"
                   disabled={busyWh}
-                  onMouseEnter={(e) => { if (!busyWh) e.currentTarget.style.background = 'rgba(0,248,229,0.15)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(0,248,229,0.08)'; }}
+                  onMouseEnter={(e) => { if (!busyWh) e.currentTarget.style.background = 'rgba(248,118,0,0.18)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(248,118,0,0.1)'; }}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6,
                     padding: '10px 16px', borderRadius: 10, flexShrink: 0,
-                    border: '1px solid rgba(0,248,229,0.35)',
-                    background: 'rgba(0,248,229,0.08)',
-                    color: '#00f8e5',
+                    border: '1px solid rgba(248,118,0,0.4)',
+                    background: 'rgba(248,118,0,0.1)',
+                    color: '#c45a00',
                     cursor: busyWh ? 'wait' : 'pointer',
                     fontSize: 13, fontWeight: 600,
                     transition: 'background 0.15s',
@@ -456,10 +456,10 @@ export default function CompliancePage() {
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
                 padding: '11px 14px', borderRadius: 10,
-                background: 'rgba(0,248,229,0.05)', border: '1px solid rgba(0,248,229,0.2)',
+                background: 'rgba(248,118,0,0.06)', border: '1px solid rgba(248,118,0,0.28)',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                  <Lock size={13} style={{ color: '#00f8e5', opacity: 0.7, flexShrink: 0 }} />
+                  <Lock size={13} style={{ color: '#f87600', opacity: 0.85, flexShrink: 0 }} />
                   <div style={{ minWidth: 0 }}>
                     <p style={{ margin: '0 0 2px', fontSize: 10, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       Secreto HMAC-SHA256
@@ -476,15 +476,15 @@ export default function CompliancePage() {
                   type="button"
                   disabled={busyWh}
                   onClick={() => void rotateSecret()}
-                  onMouseEnter={(e) => { if (!busyWh) e.currentTarget.style.background = 'rgba(0,248,229,0.1)'; }}
+                  onMouseEnter={(e) => { if (!busyWh) e.currentTarget.style.background = 'rgba(248,118,0,0.12)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 5,
                     padding: '7px 12px', borderRadius: 8, flexShrink: 0,
-                    border: '1px solid rgba(0,248,229,0.25)',
-                    background: 'transparent', color: '#00f8e5',
+                    border: '1px solid rgba(248,118,0,0.35)',
+                    background: 'transparent', color: '#c45a00',
                     cursor: busyWh ? 'wait' : 'pointer',
-                    fontSize: 12, transition: 'background 0.15s',
+                    fontSize: 12, fontWeight: 600, transition: 'background 0.15s',
                   }}
                 >
                   <RefreshCw size={12} /> Rotar
