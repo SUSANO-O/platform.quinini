@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db/connection';
-import { User, Widget, RequestLog, PlatformUsage, ClientAgent } from '@/lib/db/models';
+import { User, Widget, RequestLog, PlatformUsage, ClientAgent, ConversationSession } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
 
 function currentMonthKey(): string {
@@ -42,6 +42,8 @@ export async function GET(req: NextRequest) {
     byWidgetMonth,
     byWidgetAllTime,
     platformAgg,
+    sessionStatsAgg,
+    hourDistribAgg,
     widgets,
     agentsMinimal,
   ] = await Promise.all([
@@ -72,6 +74,20 @@ export async function GET(req: NextRequest) {
         updatedAt?: Date;
       }>
     >,
+    ConversationSession.aggregate([
+      { $match: { month: { $in: [month, prevMonth] } } },
+      { $group: {
+        _id: null,
+        totalSessions:  { $sum: 1 },
+        totalMessages:  { $sum: '$messageCount' },
+        escalatedCount: { $sum: { $cond: [{ $eq: ['$escalated', true] }, 1, 0] } },
+        droppedCount:   { $sum: { $cond: [{ $eq: ['$dropped',   true] }, 1, 0] } },
+      }},
+    ]),
+    ConversationSession.aggregate([
+      { $match: { month: { $in: [month, prevMonth] }, hourOfDay: { $ne: null } } },
+      { $group: { _id: '$hourOfDay', count: { $sum: 1 } } },
+    ]),
     ClientAgent.find({})
       .select({
         _id: 1,
@@ -102,6 +118,21 @@ export async function GET(req: NextRequest) {
 
   const requestsThisMonth = requestsThisMonthAgg[0]?.total ?? 0;
   const platformChatsThisMonth = platformAgg[0]?.total ?? 0;
+
+  const ss = sessionStatsAgg[0] as { totalSessions?: number; totalMessages?: number; escalatedCount?: number; droppedCount?: number } | undefined;
+  const totalSessions   = ss?.totalSessions   ?? 0;
+  const totalMessages   = ss?.totalMessages   ?? 0;
+  const escalatedCount  = ss?.escalatedCount  ?? 0;
+  const droppedCount    = ss?.droppedCount    ?? 0;
+  const avgMsgsPerSess  = totalSessions > 0 ? Math.round(totalMessages / totalSessions) : 0;
+  const escalationRate  = totalSessions > 0 ? Math.round((escalatedCount / totalSessions) * 100) : 0;
+  const dropOffRate     = totalSessions > 0 ? Math.round((droppedCount   / totalSessions) * 100) : 0;
+
+  const hourBuckets = new Array(24).fill(0) as number[];
+  for (const row of hourDistribAgg as { _id: number; count: number }[]) {
+    if (row._id >= 0 && row._id < 24) hourBuckets[row._id] = row.count;
+  }
+  const peakHour = hourBuckets.indexOf(Math.max(...hourBuckets));
 
   const monthCounts = new Map<string, { cur: number; prev: number }>();
   for (const row of byWidgetMonth) {
@@ -199,6 +230,14 @@ export async function GET(req: NextRequest) {
       requestsThisMonth,
       requestsLastMonthWindow: [...monthCounts.values()].reduce((s, v) => s + v.prev, 0),
       platformChatsThisMonth,
+    },
+    sessions: {
+      totalSessions,
+      avgMsgsPerSess,
+      escalationRate,
+      dropOffRate,
+      peakHour,
+      hourDistribution: hourBuckets,
     },
     note:
       'Contadores de chat vía gateway/widget (RequestLog) y mensajes gratis a agentes de plataforma (PlatformUsage). ' +

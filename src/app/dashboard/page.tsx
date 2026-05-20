@@ -7,8 +7,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
-  Cpu, Boxes, Bot, Sparkles, Activity, MessageSquare,
-  TrendingUp, Crown, Clock, Zap, ArrowUpRight, Shield, RefreshCw,
+  Sparkles, Activity, MessageSquare,
+  TrendingUp, Crown, Clock, Zap, ArrowUpRight, RefreshCw,
+  BarChart2, Users, UserCheck, Bot,
 } from 'lucide-react';
 
 const R = '#e41414';
@@ -39,17 +40,31 @@ interface SystemStatus {
   services: StatusService[];
 }
 
+interface WidgetInfo { _id: string; name: string; }
+
+interface WidgetAnalytics {
+  summary: {
+    totalSessions: number;
+    avgMessagesPerSession: number;
+    escalationRate: number;
+    dropOffRate: number;
+  };
+  peakHour: number;
+  byMonth: { month: string; sessions: number; conversations: number }[];
+}
+
+function formatHour(h: number) {
+  if (h === 0) return '12 AM';
+  if (h < 12) return `${h} AM`;
+  if (h === 12) return '12 PM';
+  return `${h - 12} PM`;
+}
+
 const STATUS_COLOR: Record<string, string> = {
   operational: '#22c55e',
   degraded: '#f59e0b',
   down: '#ef4444',
 };
-
-const QUICK = [
-  { href: '/dashboard/widget-builder', icon: Cpu,   title: 'Widget Builder', desc: 'Diseña y configura widgets de chat',    color: R },
-  { href: '/dashboard/widgets',        icon: Boxes,  title: 'Mis Widgets',    desc: 'Gestiona tus widgets desplegados',      color: B },
-  { href: '/dashboard/agents',         icon: Bot,    title: 'Mis Agentes',    desc: 'Crea y entrena tus agentes de IA',      color: O },
-] as const;
 
 /* ── Barra esqueleto reutilizable ─────────────────────────────────────────── */
 function Skel({ w, h, r = 6 }: { w: string | number; h: number; r?: number }) {
@@ -66,11 +81,15 @@ export default function DashboardPage() {
   const router = useRouter();
   const { isPremium, isTrialActive, trialDaysRemaining, subscription, loading } = useSubscription();
 
-  const [usage,           setUsage]           = useState<UsageData | null>(null);
-  const [agentCount,      setAgentCount]      = useState<number | null>(null);
-  const [widgetCount,     setWidgetCount]     = useState<number | null>(null);
-  const [sysStatus,       setSysStatus]       = useState<SystemStatus | null>(null);
+  const [usage,            setUsage]            = useState<UsageData | null>(null);
+  const [agentCount,       setAgentCount]       = useState<number | null>(null);
+  const [widgetCount,      setWidgetCount]      = useState<number | null>(null);
+  const [sysStatus,        setSysStatus]        = useState<SystemStatus | null>(null);
   const [refreshingStatus, setRefreshingStatus] = useState(false);
+  const [widgets,          setWidgets]          = useState<WidgetInfo[]>([]);
+  const [selectedWidget,   setSelectedWidget]   = useState<string | null>(null);
+  const [widgetAnalytics,  setWidgetAnalytics]  = useState<WidgetAnalytics | null>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
   useEffect(() => {
     if (user?.role === 'admin') router.replace('/admin');
@@ -80,9 +99,26 @@ export default function DashboardPage() {
     if (!user) return;
     fetch('/api/billing/usage').then(r => r.ok ? r.json() : null).then(d => d && setUsage(d)).catch(() => {});
     fetch('/api/agents').then(r => r.ok ? r.json() : null).then(d => d && setAgentCount(d.agents?.length ?? 0)).catch(() => {});
-    fetch('/api/widgets').then(r => r.ok ? r.json() : null).then(d => d && setWidgetCount(d.widgets?.length ?? 0)).catch(() => {});
+    fetch('/api/widgets').then(r => r.ok ? r.json() : null).then(d => {
+      if (!d) return;
+      const list: WidgetInfo[] = (d.widgets || []).map((w: { _id: string; name?: string }) => ({ _id: String(w._id), name: w.name || 'Widget' }));
+      setWidgetCount(list.length);
+      setWidgets(list);
+      if (list.length > 0) setSelectedWidget(list[0]._id);
+    }).catch(() => {});
     fetch('/api/status').then(r => r.ok ? r.json() : null).then(d => d && setSysStatus(d)).catch(() => {});
   }, [user]);
+
+  useEffect(() => {
+    if (!selectedWidget) return;
+    setLoadingAnalytics(true);
+    setWidgetAnalytics(null);
+    fetch(`/api/analytics/widget/${selectedWidget}?months=3`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d && setWidgetAnalytics(d))
+      .catch(() => {})
+      .finally(() => setLoadingAnalytics(false));
+  }, [selectedWidget]);
 
   const refreshStatus = async () => {
     setRefreshingStatus(true);
@@ -185,7 +221,7 @@ export default function DashboardPage() {
           />
           <MetricCard
             accent={`linear-gradient(90deg,${C},${R})`}
-            icon={<Boxes size={13} style={{ color: C }} />}
+            icon={<BarChart2 size={13} style={{ color: C }} />}
             label="Widgets"
             value={widgetCount === null ? '—' : String(widgetCount)}
             sub={widgetCount === null ? '—' : widgetCount === 0 ? 'crea tu primer widget' : widgetCount === 1 ? 'widget desplegado' : 'widgets desplegados'}
@@ -329,29 +365,6 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Acceso rápido — siempre visible */}
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-widest mb-3 m-0" style={{ color: 'var(--muted-foreground)' }}>
-                Acceso rápido
-              </p>
-              <div className="grid sm:grid-cols-3 gap-3" data-tour="dashboard-quick-actions">
-                {QUICK.map((item) => (
-                  <Link key={item.href} href={item.href}
-                    className="card-hover rounded-2xl overflow-hidden no-underline text-inherit group border"
-                    style={{ borderColor: 'var(--border)', background: 'var(--card)' }}>
-                    <div style={{ height: 3, background: `linear-gradient(90deg,${item.color},${item.color}66)` }} />
-                    <div className="p-4">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-transform group-hover:scale-105"
-                        style={{ background: `${item.color}12`, border: `1px solid ${item.color}28` }}>
-                        <item.icon size={18} style={{ color: item.color }} strokeWidth={1.75} />
-                      </div>
-                      <p className="font-bold text-[13px] mb-1 m-0">{item.title}</p>
-                      <p className="text-[11px] leading-relaxed m-0" style={{ color: 'var(--muted-foreground)' }}>{item.desc}</p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
           </div>
 
           {/* ── RIGHT ───────────────────────────────────────────────────────── */}
@@ -466,19 +479,134 @@ export default function DashboardPage() {
               <ArrowUpRight size={15} style={{ color: 'var(--muted-foreground)', flexShrink: 0 }} />
             </Link>
 
-            {/* Seguridad — siempre visible */}
-            <div className="rounded-2xl border card-texture p-4" style={{ borderColor: 'var(--border)' }}>
-              <div className="flex items-center gap-2 mb-2">
-                <Shield size={13} style={{ color: B }} />
-                <span className="text-[12px] font-bold">Seguridad</span>
-              </div>
-              <p className="text-[11px] leading-relaxed m-0" style={{ color: 'var(--muted-foreground)' }}>
-                Auth por API key, rate limiting por plan y datos aislados por tenant.
-              </p>
-            </div>
           </div>
         </div>
+        {/* ── WIDGET ANALYTICS ─────────────────────────────────────────────── */}
+        {widgetCount !== null && (
+          <div className="rounded-2xl border card-texture overflow-hidden mb-8" style={{ borderColor: 'var(--border)' }}>
+            <div style={{ height: 3, background: `linear-gradient(90deg,${O},${B},${C})` }} />
+            <div className="p-5 md:p-6">
+
+              {/* Header */}
+              <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+                <div className="flex items-center gap-2">
+                  <BarChart2 size={15} style={{ color: O }} />
+                  <h3 className="text-[13px] font-bold m-0">Analítica de widgets</h3>
+                </div>
+                {widgets.length > 1 && (
+                  <select
+                    value={selectedWidget || ''}
+                    onChange={e => { setSelectedWidget(e.target.value); }}
+                    className="text-xs rounded-lg px-2.5 py-1.5"
+                    style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}
+                  >
+                    {widgets.map(w => <option key={w._id} value={w._id}>{w.name}</option>)}
+                  </select>
+                )}
+                {widgets.length === 1 && (
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                    style={{ background: `${O}10`, color: O, border: `1px solid ${O}25` }}>
+                    {widgets[0].name}
+                  </span>
+                )}
+              </div>
+
+              {widgetCount === 0 ? (
+                <div className="text-center py-6">
+                  <p className="text-sm m-0" style={{ color: 'var(--muted-foreground)' }}>
+                    Crea tu primer widget para ver analíticas aquí.
+                  </p>
+                  <Link href="/dashboard/widget-builder"
+                    className="inline-flex items-center gap-1.5 mt-3 text-xs font-bold no-underline"
+                    style={{ color: O }}>
+                    Crear widget <ArrowUpRight size={12} />
+                  </Link>
+                </div>
+              ) : loadingAnalytics || !widgetAnalytics ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="rounded-xl p-4" style={{ background: 'rgba(15,23,42,0.04)', border: '1px solid var(--border)' }}>
+                      <Skel w="50%" h={11} />
+                      <div className="mt-2"><Skel w="65%" h={28} /></div>
+                      <div className="mt-1"><Skel w="40%" h={11} /></div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="metric-value-appear">
+                  {/* Stat tiles */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <AnalyticTile color={R} icon={<Users size={12} style={{ color: R }} />}
+                      label="Aperturas" value={widgetAnalytics.summary.totalSessions.toLocaleString('es')}
+                      sub="sesiones en 3 meses" />
+                    <AnalyticTile color={B} icon={<MessageSquare size={12} style={{ color: B }} />}
+                      label="Mensajes / sesión" value={String(widgetAnalytics.summary.avgMessagesPerSession)}
+                      sub="promedio por conversación" />
+                    <AnalyticTile color={O} icon={<UserCheck size={12} style={{ color: O }} />}
+                      label="Leads (handoff)" value={`${widgetAnalytics.summary.escalationRate}%`}
+                      sub="pidieron hablar con humano" />
+                    <AnalyticTile color={C} icon={<TrendingUp size={12} style={{ color: C }} />}
+                      label="Abandono" value={`${widgetAnalytics.summary.dropOffRate}%`}
+                      sub="abrieron sin escribir" />
+                  </div>
+
+                  {/* Peak hour + monthly bars */}
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="rounded-xl p-4" style={{ background: 'rgba(15,23,42,0.03)', border: '1px solid var(--border)' }}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Clock size={12} style={{ color: O }} />
+                        <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>Hora pico</span>
+                      </div>
+                      <p className="text-3xl font-extrabold m-0" style={{ letterSpacing: '-0.03em', color: O }}>
+                        {formatHour(widgetAnalytics.peakHour)}
+                      </p>
+                      <p className="text-[11px] m-0 mt-1" style={{ color: 'var(--muted-foreground)' }}>mayor actividad del widget</p>
+                    </div>
+
+                    <div className="rounded-xl p-4" style={{ background: 'rgba(15,23,42,0.03)', border: '1px solid var(--border)' }}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <BarChart2 size={12} style={{ color: B }} />
+                        <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>Sesiones por mes</span>
+                      </div>
+                      <div className="flex items-end gap-2" style={{ height: 56 }}>
+                        {[...widgetAnalytics.byMonth].reverse().map((m) => {
+                          const max = Math.max(...widgetAnalytics.byMonth.map(x => x.sessions), 1);
+                          const pct = Math.max((m.sessions / max) * 100, 6);
+                          return (
+                            <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
+                              <span className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>{m.sessions}</span>
+                              <div className="w-full rounded-t-md" style={{
+                                height: `${pct}%`, minHeight: 4,
+                                background: `linear-gradient(180deg,${B},${C})`, opacity: 0.85,
+                              }} />
+                              <span className="text-[9px]" style={{ color: 'var(--muted-foreground)' }}>{m.month.slice(5)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
       </div>
+    </div>
+  );
+}
+
+/* ── Analytic tile ─────────────────────────────────────────────────────────── */
+function AnalyticTile({ color, icon, label, value, sub }: { color: string; icon: React.ReactNode; label: string; value: string; sub: string }) {
+  return (
+    <div className="rounded-xl p-4" style={{ background: `${color}08`, border: `1px solid ${color}22` }}>
+      <div className="flex items-center gap-1.5 mb-2">
+        {icon}
+        <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>{label}</span>
+      </div>
+      <p className="text-2xl font-extrabold m-0" style={{ letterSpacing: '-0.03em', color }}>{value}</p>
+      <p className="text-[10px] m-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{sub}</p>
     </div>
   );
 }
