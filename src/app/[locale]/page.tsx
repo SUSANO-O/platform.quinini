@@ -649,11 +649,11 @@ export default async function LandingPage() {
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {PLANS.map((plan) => (
               <div
                 key={plan.name}
-                className="card-pro rounded-2xl p-7 flex flex-col gap-4 relative overflow-hidden"
+                className="card-pro rounded-2xl p-7 flex flex-col gap-4 relative"
                 style={{
                   border: `1px solid ${plan.color}${plan.popular ? '55' : '28'}`,
                   boxShadow: plan.popular
@@ -736,15 +736,29 @@ export default async function LandingPage() {
                 </div>
               </div>
             ))}
-          </div>
 
-          {/* Enterprise — tarjeta completa con contacto */}
-          <div
-            className="mt-5 rounded-2xl p-7 card-hover"
-            style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
-          >
-            <div className="flex flex-col md:flex-row md:items-center gap-6 justify-between">
-              <div className="flex-shrink-0">
+            {/* Enterprise — 6ta card dentro del grid */}
+            <div
+              className="card-pro rounded-2xl p-7 flex flex-col gap-4 relative"
+              style={{
+                border: '1px solid #8B5CF628',
+                boxShadow: '0 4px 24px rgba(0,0,0,0.04)',
+              }}
+            >
+              <div style={{
+                position: 'absolute', top: '-20px', right: '-10px',
+                width: '120px', height: '90px',
+                background: 'radial-gradient(circle, #8B5CF612, transparent 70%)',
+                pointerEvents: 'none',
+              }} />
+              <div style={{
+                fontSize: '72px', lineHeight: 1, fontFamily: 'Georgia, serif',
+                color: '#8B5CF6', opacity: 0.1,
+                position: 'absolute', top: '10px', left: '18px',
+                userSelect: 'none', pointerEvents: 'none', fontWeight: 700,
+              }}>E</div>
+
+              <div className="relative">
                 <h3 className="text-xl font-extrabold mb-1">Enterprise</h3>
                 <div className="flex items-end gap-1 mb-1">
                   <span className="text-4xl font-extrabold" style={{ color: '#8B5CF6' }}>
@@ -756,24 +770,26 @@ export default async function LandingPage() {
                 </p>
               </div>
 
-              <ul className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-2 flex-1">
+              <ul className="space-y-2.5 flex-1 relative">
                 {(t.raw('pricing.enterprise.features') as string[]).map((feat: string) => (
-                  <li key={feat} className="flex items-center gap-2 text-sm">
-                    <Check size={14} style={{ color: '#8B5CF6', flexShrink: 0 }} />
+                  <li key={feat} className="flex items-start gap-2 text-sm">
+                    <Check size={14} className="mt-0.5 shrink-0" style={{ color: '#8B5CF6' }} />
                     {feat}
                   </li>
                 ))}
               </ul>
 
-              <a
-                href="https://wa.me/573196748729"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-center py-3 px-8 rounded-xl font-bold text-sm transition-all hover:opacity-90 hover:shadow-lg text-white whitespace-nowrap flex-shrink-0"
-                style={{ background: '#8B5CF6' }}
-              >
-                Contactar asesor
-              </a>
+              <div className="mt-auto pt-4 relative" style={{ borderTop: '1px solid #8B5CF620' }}>
+                <a
+                  href="https://wa.me/573196748729"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-center py-3 rounded-xl font-bold text-sm transition-all hover:opacity-90 hover:shadow-lg text-white"
+                  style={{ background: '#8B5CF6' }}
+                >
+                  Contactar asesor
+                </a>
+              </div>
             </div>
           </div>
         </div>

@@ -9,6 +9,10 @@ import {
   Download,
   RefreshCw,
   Calendar,
+  Users,
+  UserCheck,
+  TrendingDown,
+  Clock,
 } from 'lucide-react';
 
 type Row = {
@@ -33,6 +37,14 @@ type Payload = {
     requestsLastMonthWindow: number;
     platformChatsThisMonth: number;
   };
+  sessions: {
+    totalSessions: number;
+    avgMsgsPerSess: number;
+    escalationRate: number;
+    dropOffRate: number;
+    peakHour: number;
+    hourDistribution: number[];
+  };
   note: string;
   topByMonth: Array<{
     widgetId: string;
@@ -42,6 +54,13 @@ type Payload = {
   }>;
   rows: Row[];
 };
+
+function fmtHour(h: number) {
+  if (h === 0) return '12 AM';
+  if (h < 12) return `${h} AM`;
+  if (h === 12) return '12 PM';
+  return `${h - 12} PM`;
+}
 
 function csvEscape(v: string | number | boolean): string {
   const s = String(v);
@@ -260,6 +279,70 @@ export default function AdminWidgetAnalyticsPage() {
               </div>
             ))}
           </div>
+
+          {/* ── Métricas de sesión ── */}
+          {data.sessions && (
+            <>
+              <h2 style={{ fontSize: '15px', fontWeight: 700, marginTop: '36px', marginBottom: '12px' }}>
+                Analítica de sesiones (últimos 2 meses)
+              </h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
+                {[
+                  { label: 'Aperturas totales', value: data.sessions.totalSessions.toLocaleString(), icon: Users, color: '#e41414' },
+                  { label: 'Mensajes / sesión', value: String(data.sessions.avgMsgsPerSess), icon: MessageSquare, color: '#00acf8' },
+                  { label: 'Leads (handoff)', value: `${data.sessions.escalationRate}%`, icon: UserCheck, color: '#f87600' },
+                  { label: 'Abandono', value: `${data.sessions.dropOffRate}%`, icon: TrendingDown, color: '#00f8e5' },
+                  { label: 'Hora pico global', value: fmtHour(data.sessions.peakHour), icon: Clock, color: '#8B5CF6' },
+                ].map((c) => (
+                  <div key={c.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '18px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontWeight: 600 }}>{c.label}</span>
+                      <c.icon size={15} style={{ color: c.color }} />
+                    </div>
+                    <p style={{ fontSize: '26px', fontWeight: 800, color: c.color, margin: 0 }}>{c.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* ── Gráfico de tráfico por hora (24 h) ── */}
+              <h2 style={{ fontSize: '15px', fontWeight: 700, marginTop: '32px', marginBottom: '4px' }}>
+                Tráfico por hora del día
+              </h2>
+              <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '14px' }}>
+                Aperturas acumuladas de todos los widgets en los últimos 2 meses
+              </p>
+              <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '100px' }}>
+                  {data.sessions.hourDistribution.map((count, h) => {
+                    const max = Math.max(...data.sessions.hourDistribution, 1);
+                    const pct = Math.max((count / max) * 100, 3);
+                    const isPeak = h === data.sessions.peakHour;
+                    return (
+                      <div key={h} title={`${fmtHour(h)}: ${count} sesiones`}
+                        style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                        <div style={{
+                          width: '100%', borderRadius: '4px 4px 0 0',
+                          height: `${pct}%`, minHeight: 3,
+                          background: isPeak
+                            ? 'linear-gradient(180deg, #e41414, #f87600)'
+                            : 'linear-gradient(180deg, #00acf8, #00f8e5)',
+                          opacity: isPeak ? 1 : 0.65,
+                        }} />
+                        {(h % 6 === 0 || h === 23) && (
+                          <span style={{ fontSize: '9px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>
+                            {fmtHour(h)}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '10px', marginBottom: 0 }}>
+                  🔴 Hora pico: <strong>{fmtHour(data.sessions.peakHour)}</strong> con {data.sessions.hourDistribution[data.sessions.peakHour]} sesiones
+                </p>
+              </div>
+            </>
+          )}
 
           <h2 style={{ fontSize: '15px', fontWeight: 700, marginTop: '36px', marginBottom: '12px' }}>
             Top widgets (este mes)
