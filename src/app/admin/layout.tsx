@@ -17,6 +17,7 @@ const NAV = [
   { href: '/admin/registration-codes', label: 'Códigos acceso', icon: KeyRound },
   { href: '/admin/promote', label: 'Promover admin', icon: UserPlus },
   { href: '/admin/ai-config', label: 'Asistente AI', icon: Bot },
+  { href: '/admin/security-log', label: 'Log de seguridad', icon: Activity },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -47,7 +48,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const navLinks = (
     <>
       {NAV.map(({ href, label, icon: Icon }) => {
-        const active = pathname === href;
+        const active = pathname === href || (href !== '/admin' && pathname.startsWith(href));
         return (
           <Link key={href} href={href} onClick={() => setMobileOpen(false)} style={{
             display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px',
@@ -127,17 +128,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </button>
         </header>
 
+        {/* Overlay móvil */}
+        {mobileOpen && (
+          <div
+            className="md:hidden"
+            onClick={() => setMobileOpen(false)}
+            style={{ position: 'fixed', inset: 0, zIndex: 38, background: 'rgba(0,0,0,0.4)' }}
+            aria-hidden
+          />
+        )}
+
         {/* Drawer móvil */}
         <div
           className="md:hidden"
           style={{
-            overflow: 'hidden',
-            maxHeight: mobileOpen ? '600px' : '0px',
-            opacity: mobileOpen ? 1 : 0,
-            transition: 'max-height 0.3s ease, opacity 0.2s ease',
-            background: 'var(--card)',
-            borderBottom: mobileOpen ? '1px solid var(--border)' : 'none',
+            position: 'fixed',
+            top: 56,
+            left: 0,
+            bottom: 0,
             zIndex: 39,
+            width: 240,
+            background: 'var(--card)',
+            borderRight: '1px solid var(--border)',
+            transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
+            transition: 'transform 0.25s ease',
+            overflowY: 'auto',
           }}
         >
           <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '12px' }}>
@@ -148,6 +163,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               {user.email}
             </p>
             <button
+              type="button"
               onClick={async () => { await logout(); router.push('/'); }}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--muted-foreground)', fontSize: '12px', cursor: 'pointer', flexShrink: 0 }}
             >
@@ -156,7 +172,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </div>
 
-        <main style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
+        <main style={{ flex: 1, minWidth: 0, overflowY: 'auto' }} className="md:pt-0">
           {children}
         </main>
       </div>

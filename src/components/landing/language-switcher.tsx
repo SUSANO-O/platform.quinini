@@ -15,7 +15,10 @@ export function LanguageSwitcher() {
   return (
     <div className="flex items-center gap-0.5 text-xs font-bold">
       <button
+        type="button"
         onClick={() => switchTo('es')}
+        aria-label="Cambiar idioma a español"
+        aria-pressed={locale === 'es'}
         className="px-2 py-1 rounded-lg transition-colors"
         style={{
           color: locale === 'es' ? '#e41414' : 'var(--muted-foreground)',
@@ -26,7 +29,10 @@ export function LanguageSwitcher() {
       </button>
       <span style={{ color: 'var(--border)' }}>|</span>
       <button
+        type="button"
         onClick={() => switchTo('en')}
+        aria-label="Switch language to English"
+        aria-pressed={locale === 'en'}
         className="px-2 py-1 rounded-lg transition-colors"
         style={{
           color: locale === 'en' ? '#e41414' : 'var(--muted-foreground)',

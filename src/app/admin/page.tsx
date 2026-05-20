@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { BRAND, STATE, PLAN_ACCENTS, METRIC } from '@/lib/brand-colors';
 import Link from 'next/link';
 import { Users, Boxes, TrendingUp, Clock, XCircle, CheckCircle, AlertTriangle, Ban, Activity, ShoppingBag, LayoutDashboard, Database, Cpu, Network, HardDrive } from 'lucide-react';
 
@@ -100,9 +101,9 @@ interface SystemStatus {
 }
 
 const SVC_STATUS_COLOR: Record<string, string> = {
-  operational: '#22c55e',
-  degraded: '#f59e0b',
-  down: '#ef4444',
+  operational: STATE.success,
+  degraded: STATE.warning,
+  down: STATE.error,
 };
 
 const SVC_ICON: Record<string, React.ComponentType<{ size: number; style?: React.CSSProperties }>> = {
@@ -114,16 +115,14 @@ const SVC_ICON: Record<string, React.ComponentType<{ size: number; style?: React
 };
 
 const PLAN_COLOR: Record<string, string> = {
-  free: '#64748b',
-  starter: '#00acf8',
-  growth: '#e41414',
-  business: '#f87600',
+  free: METRIC.neutral,
+  ...PLAN_ACCENTS,
   enterprise: '#a855f7',
 };
 
 function QuotaBar({ percent }: { percent: number }) {
   const clamped = Math.min(percent, 100);
-  const color = percent >= 100 ? '#ef4444' : percent >= 80 ? '#f87600' : '#22c55e';
+  const color = percent >= 100 ? STATE.error : percent >= 80 ? STATE.warning : STATE.success;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
       <div style={{ flex: 1, height: '6px', borderRadius: '999px', background: 'var(--border)', overflow: 'hidden' }}>
@@ -168,15 +167,15 @@ export default function AdminPage() {
   const hubUiBase = (process.env.NEXT_PUBLIC_AGENTFLOWHUB_URL || 'http://127.0.0.1:9010').replace(/\/$/, '');
 
   const metricCards = stats ? [
-    { label: 'Usuarios totales',       value: stats.totalUsers,         icon: Users,         color: '#6366f1' },
-    { label: 'Widgets creados',        value: stats.totalWidgets,        icon: Boxes,         color: '#0d9488' },
-    { label: 'En trial',               value: stats.trialing,            icon: Clock,         color: '#f59e0b' },
-    { label: 'Suscripciones activas',  value: stats.active,              icon: CheckCircle,   color: '#22c55e' },
-    { label: 'Canceladas',             value: stats.canceled,            icon: XCircle,       color: '#ef4444' },
-    { label: 'MRR estimado',           value: `$${stats.mrr}`,           icon: TrendingUp,    color: '#a855f7' },
-    { label: 'Conversaciones este mes',value: stats.requestsThisMonth.toLocaleString('es'), icon: Activity, color: '#00acf8' },
-    { label: 'Usuarios sobre límite',  value: stats.usersOverQuota,      icon: Ban,           color: '#ef4444' },
-    { label: 'Usuarios al 80 %+',      value: stats.usersNearQuota,      icon: AlertTriangle, color: '#f87600' },
+    { label: 'Usuarios totales',       value: stats.totalUsers,         icon: Users,         color: METRIC.neutral },
+    { label: 'Widgets creados',        value: stats.totalWidgets,        icon: Boxes,         color: METRIC.neutral },
+    { label: 'En trial',               value: stats.trialing,            icon: Clock,         color: STATE.warning },
+    { label: 'Suscripciones activas',  value: stats.active,              icon: CheckCircle,   color: STATE.success },
+    { label: 'Canceladas',             value: stats.canceled,            icon: XCircle,       color: STATE.error },
+    { label: 'MRR estimado',           value: `$${stats.mrr}`,           icon: TrendingUp,    color: BRAND.warm },
+    { label: 'Conversaciones este mes',value: stats.requestsThisMonth.toLocaleString('es'), icon: Activity, color: BRAND.primary },
+    { label: 'Usuarios sobre límite',  value: stats.usersOverQuota,      icon: Ban,           color: STATE.error },
+    { label: 'Usuarios al 80 %+',      value: stats.usersNearQuota,      icon: AlertTriangle, color: STATE.warning },
   ] : [];
 
   const filteredUsers = (stats?.perUserRequests ?? []).filter((u) => {
@@ -312,8 +311,8 @@ export default function AdminPage() {
             style={{
               padding: '7px 12px',
               borderRadius: '9px',
-              border: '1px solid #e41414',
-              background: '#e41414',
+              border: `1px solid ${BRAND.primary}`,
+              background: BRAND.primary,
               color: '#fff',
               fontSize: '12px',
               fontWeight: 700,
@@ -495,7 +494,7 @@ export default function AdminPage() {
                   <div style={{
                     height: '100%',
                     width: `${Math.min(Math.round((stats.requestsThisMonth / stats.totalCapacity) * 100), 100)}%`,
-                    background: 'linear-gradient(90deg,#e41414,#f87600)',
+                    background: `linear-gradient(90deg,${BRAND.primary},${BRAND.warm})`,
                     borderRadius: '999px',
                   }} />
                 </div>
@@ -522,7 +521,7 @@ export default function AdminPage() {
                     style={{
                       padding: '5px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 600, cursor: 'pointer',
                       border: '1px solid var(--border)',
-                      background: quotaFilter === f ? '#e41414' : 'var(--muted)',
+                      background: quotaFilter === f ? BRAND.primary : 'var(--muted)',
                       color: quotaFilter === f ? '#fff' : 'var(--foreground)',
                     }}
                   >{l}</button>
@@ -580,7 +579,7 @@ export default function AdminPage() {
                 {[
                   { label: 'Packs vendidos',      value: packs.totalPacks,                                  icon: ShoppingBag, color: '#a855f7' },
                   { label: 'Ingresos por packs',  value: `$${packs.totalRevenue}`,                          icon: TrendingUp,  color: '#22c55e' },
-                  { label: 'Conv. vendidas',       value: packs.totalConversationsSold.toLocaleString('es'), icon: Activity,    color: '#00acf8' },
+                  { label: 'Conv. vendidas',       value: packs.totalConversationsSold.toLocaleString('es'), icon: Activity,    color: BRAND.cool },
                 ].map((c) => (
                   <div key={c.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '18px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>

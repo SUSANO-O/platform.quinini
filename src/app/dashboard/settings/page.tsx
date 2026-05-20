@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CreditCard, ExternalLink, Settings, Sparkles, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   PLAN_DISPLAY,
   PLAN_ORDER,
@@ -20,9 +21,7 @@ import {
   planRank,
 } from '@/lib/plan-catalog';
 
-const BRAND_R = '#e41414';
-const BRAND_O = '#f87600';
-const BRAND_B = '#00acf8';
+import { BRAND, PREMIUM, STATE, PLAN_ACCENTS } from '@/lib/brand-colors';
 
 interface RagUsageData {
   plan: string;
@@ -69,6 +68,7 @@ export default function SettingsPage() {
   const [busyEmailConfirm, setBusyEmailConfirm] = useState(false);
   const [busyVerifyResend, setBusyVerifyResend] = useState(false);
   const [ragUsage, setRagUsage] = useState<RagUsageData | null>(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -225,13 +225,18 @@ export default function SettingsPage() {
   }
 
   async function scheduleCancel() {
-    if (!confirm('¿Programar la cancelación al final del periodo actual? Seguirás con acceso hasta esa fecha.')) return;
     setBusy('cancel');
     setBillingMsg(null);
     const r = await cancelSubscription(true);
     setBusy(null);
-    if (r && 'error' in r && r.error) setBillingMsg(r.error);
-    else if (r && 'message' in r && r.message) setBillingMsg(r.message);
+    setShowCancelConfirm(false);
+    if (r && 'error' in r && r.error) {
+      toast.error(r.error);
+      setBillingMsg(r.error);
+    } else if (r && 'message' in r && r.message) {
+      toast.success(r.message);
+      setBillingMsg(r.message);
+    }
   }
 
   async function resume() {
@@ -261,10 +266,20 @@ export default function SettingsPage() {
 
   return (
     <div className="relative overflow-hidden min-h-full">
-      <div className="hero-glow pointer-events-none" style={{ background: BRAND_R, top: '-200px', right: '-80px' }} />
-      <div className="hero-glow pointer-events-none" style={{ background: BRAND_B, top: '100px', left: '-120px' }} />
+      <div className="hero-glow pointer-events-none" style={{ background: BRAND.primary, top: '-200px', right: '-80px' }} />
+      <div className="hero-glow pointer-events-none" style={{ background: BRAND.cool, top: '100px', left: '-120px' }} />
 
       <div className="relative max-w-2xl mx-auto px-4 py-4">
+      <ConfirmDialog
+        open={showCancelConfirm}
+        title="Cancelar suscripción"
+        description="¿Programar la cancelación al final del periodo actual? Seguirás con acceso hasta esa fecha."
+        confirmLabel="Programar cancelación"
+        variant="danger"
+        loading={busy === 'cancel'}
+        onConfirm={() => void scheduleCancel()}
+        onCancel={() => setShowCancelConfirm(false)}
+      />
       <UpdatePaymentModal
         open={paymentModalOpen}
         onClose={() => setPaymentModalOpen(false)}
@@ -278,21 +293,46 @@ export default function SettingsPage() {
       <h1 className="text-2xl md:text-3xl font-bold tracking-tight m-0 flex items-center gap-2 flex-wrap">
         <span
           className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-          style={{ background: `${BRAND_R}12`, border: `1px solid ${BRAND_R}28` }}
+          style={{ background: `${BRAND.primary}12`, border: `1px solid ${BRAND.primary}28` }}
         >
-          <Settings size={20} style={{ color: BRAND_R }} strokeWidth={1.75} />
+          <Settings size={20} style={{ color: BRAND.primary }} strokeWidth={1.75} />
         </span>
         <span>
           <span className="gradient-text">Ajustes</span>
         </span>
       </h1>
-      <p className="text-sm mt-2 mb-8 m-0" style={{ color: 'var(--muted-foreground)' }}>
+      <p className="text-sm mt-2 mb-4 m-0" style={{ color: 'var(--muted-foreground)' }}>
         Información de tu cuenta y suscripción — misma línea visual que el resto del dashboard.
       </p>
 
+      <nav
+        className="sticky top-[52px] md:top-0 z-10 flex flex-wrap gap-2 mb-6 p-2 rounded-xl border card-texture"
+        style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
+        aria-label="Secciones de ajustes"
+      >
+        {[
+          { id: 'settings-account', label: 'Cuenta' },
+          { id: 'settings-billing', label: 'Plan' },
+          { id: 'settings-rag-limits', label: 'RAG' },
+          { id: 'settings-invoices', label: 'Facturas' },
+        ].map((s) => (
+          <a
+            key={s.id}
+            href={`#${s.id}`}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold no-underline transition-colors hover:opacity-90"
+            style={{ background: 'var(--muted)', color: 'var(--foreground)' }}
+          >
+            {s.label}
+          </a>
+        ))}
+        <Link href="/dashboard/finance" className="px-3 py-1.5 rounded-lg text-xs font-semibold no-underline" style={{ color: BRAND.cool }}>
+          Uso estimado →
+        </Link>
+      </nav>
+
       {/* Account info */}
-      <div className="rounded-2xl overflow-hidden border mb-5 card-texture" style={{ borderColor: 'var(--border)' }} data-tour="settings-account">
-        <div style={{ height: 3, background: `linear-gradient(90deg, ${BRAND_R}, ${BRAND_B})` }} />
+      <div id="settings-account" className="scroll-mt-24 rounded-2xl overflow-hidden border mb-5 card-texture" style={{ borderColor: 'var(--border)' }} data-tour="settings-account">
+        <div style={{ height: 3, background: `linear-gradient(90deg, ${BRAND.primary}, ${BRAND.cool})` }} />
         <div className="p-6">
         <h2 className="text-[15px] font-bold m-0 mb-4">Cuenta</h2>
 
@@ -321,7 +361,7 @@ export default function SettingsPage() {
               onClick={resendVerificationFromSettings}
               className="inline-flex items-center justify-center shrink-0 px-4 py-2 rounded-xl text-xs font-bold border-0 cursor-pointer transition-opacity hover:opacity-90 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
               style={{
-                background: `linear-gradient(135deg, ${BRAND_R}, ${BRAND_O})`,
+                background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.warm})`,
                 color: '#fff',
                 boxShadow: '0 4px 14px rgba(228,20,20,0.22)',
               }}
@@ -357,9 +397,9 @@ export default function SettingsPage() {
               onClick={saveDisplayName}
               className="px-4 py-2.5 rounded-xl font-bold text-[13px] border transition-opacity hover:opacity-95 disabled:opacity-60"
               style={{
-                background: `${BRAND_R}12`,
-                color: BRAND_R,
-                borderColor: `${BRAND_R}35`,
+                background: `${BRAND.primary}12`,
+                color: BRAND.primary,
+                borderColor: `${BRAND.primary}35`,
                 cursor: busyProfile ? 'wait' : billingRestricted ? 'not-allowed' : 'pointer',
               }}
             >
@@ -412,7 +452,7 @@ export default function SettingsPage() {
           <div
             className="rounded-xl p-3.5 mb-4 border"
             style={{
-              borderColor: `${BRAND_B}40`,
+              borderColor: `${BRAND.cool}40`,
               background: `linear-gradient(135deg, rgba(0,172,248,0.08), rgba(228,20,20,0.05))`,
             }}
           >
@@ -446,7 +486,7 @@ export default function SettingsPage() {
                 onClick={confirmEmailChange}
                 className="px-4 py-2.5 rounded-xl font-bold text-[13px] text-white border-0 transition-opacity"
                 style={{
-                  background: `linear-gradient(135deg, ${BRAND_R}, ${BRAND_O})`,
+                  background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.warm})`,
                   boxShadow: emailCode.length === 6 ? '0 4px 14px rgba(228,20,20,0.25)' : undefined,
                   cursor: busyEmailConfirm || emailCode.length !== 6 ? 'not-allowed' : 'pointer',
                   opacity: emailCode.length !== 6 ? 0.6 : 1,
@@ -487,9 +527,9 @@ export default function SettingsPage() {
               onClick={requestEmailChange}
               className="px-4 py-2.5 rounded-xl font-bold text-[13px] border transition-opacity"
               style={{
-                background: `${BRAND_R}12`,
-                color: BRAND_R,
-                borderColor: `${BRAND_R}35`,
+                background: `${BRAND.primary}12`,
+                color: BRAND.primary,
+                borderColor: `${BRAND.primary}35`,
                 cursor: busyEmailReq || !newEmail.trim() ? 'wait' : 'pointer',
                 opacity: !newEmail.trim() ? 0.6 : 1,
               }}
@@ -522,8 +562,8 @@ export default function SettingsPage() {
       </div>
 
       {/* Subscription info */}
-      <div className="rounded-2xl overflow-hidden border card-texture" style={{ borderColor: 'var(--border)' }} data-tour="settings-billing">
-        <div style={{ height: 3, background: `linear-gradient(90deg, ${BRAND_B}, ${BRAND_O})` }} />
+      <div id="settings-billing" className="scroll-mt-24 rounded-2xl overflow-hidden border card-texture" style={{ borderColor: 'var(--border)' }} data-tour="settings-billing">
+        <div style={{ height: 3, background: `linear-gradient(90deg, ${BRAND.cool}, ${BRAND.warm})` }} />
         <div className="p-6">
         <h2 className="text-[15px] font-bold m-0 mb-4">Suscripción y facturación</h2>
 
@@ -550,25 +590,19 @@ export default function SettingsPage() {
                   subscription?.plan === planId &&
                   ['active', 'trialing', 'past_due'].includes(subscription?.status ?? '');
                 const isUpgrade = planRank(planId) > planRank(effectivePlan);
-                const ACCENT: Record<string, string> = {
-                  solo: BRAND_R,
-                  basic: BRAND_O,
-                  starter: BRAND_B,
-                  growth: '#00f8e5',
-                  business: '#9333ea',
-                };
-                const accent = ACCENT[planId] ?? BRAND_R;
+                const ACCENT = PLAN_ACCENTS;
+                const accent = ACCENT[planId] ?? BRAND.primary;
 
                 return (
                   <div
                     key={planId}
                     className="rounded-2xl border overflow-hidden flex flex-col"
                     style={{
-                      borderColor: isPopular ? '#00f8e540' : isCurrent ? `${BRAND_R}40` : 'var(--border)',
+                      borderColor: isPopular ? PREMIUM.border : isCurrent ? `${BRAND.primary}40` : 'var(--border)',
                       background: isPopular
-                        ? 'linear-gradient(145deg,rgba(0,248,229,0.06),rgba(0,172,248,0.06))'
+                        ? PREMIUM.gradient
                         : isCurrent
-                        ? `${BRAND_R}06`
+                        ? `${BRAND.primary}06`
                         : 'var(--card)',
                       position: 'relative',
                     }}
@@ -576,7 +610,7 @@ export default function SettingsPage() {
                     {isPopular && (
                       <div
                         className="absolute top-3 right-3 text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full"
-                        style={{ background: '#00f8e5', color: '#000' }}
+                        style={{ background: PREMIUM.accent, color: '#000' }}
                       >
                         Popular
                       </div>
@@ -642,7 +676,8 @@ export default function SettingsPage() {
 
         {ragUsage && (
           <div
-            className="rounded-xl border p-4 mb-5 card-texture"
+            id="settings-rag-limits"
+            className="scroll-mt-24 rounded-xl border p-4 mb-5 card-texture"
             style={{ borderColor: 'var(--border)' }}
             data-tour="settings-rag-limits"
           >
@@ -675,8 +710,8 @@ export default function SettingsPage() {
                     key={planId}
                     className="rounded-lg px-3 py-2"
                     style={{
-                      border: isCurrent ? `1px solid ${BRAND_R}40` : '1px solid var(--border)',
-                      background: isCurrent ? `${BRAND_R}10` : 'var(--background)',
+                      border: isCurrent ? `1px solid ${BRAND.primary}40` : '1px solid var(--border)',
+                      background: isCurrent ? `${BRAND.primary}10` : 'var(--background)',
                     }}
                   >
                     <p className="text-[11px] m-0">
@@ -815,9 +850,9 @@ export default function SettingsPage() {
                 onClick={() => setPaymentModalOpen(true)}
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-[13px] border mb-3.5 transition-opacity hover:opacity-95"
                 style={{
-                  background: `${BRAND_R}12`,
-                  color: BRAND_R,
-                  borderColor: `${BRAND_R}35`,
+                  background: `${BRAND.primary}12`,
+                  color: BRAND.primary,
+                  borderColor: `${BRAND.primary}35`,
                   cursor: busy || billingRestricted ? 'not-allowed' : 'pointer',
                   opacity: billingRestricted ? 0.55 : 1,
                 }}
@@ -825,8 +860,10 @@ export default function SettingsPage() {
                 <CreditCard size={16} />
                 Actualizar método de pago
               </button>
+            <div id="settings-invoices" className="scroll-mt-24 mt-4">
               <p style={{ fontSize: '12px', fontWeight: 600, marginBottom: '8px', color: 'var(--foreground)' }}>Facturas recientes</p>
               <InvoiceList />
+            </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -860,9 +897,9 @@ export default function SettingsPage() {
                   onClick={resume}
                   className="px-4 py-2.5 rounded-xl font-bold text-[13px] border transition-opacity"
                   style={{
-                    background: `${BRAND_R}12`,
-                    color: BRAND_R,
-                    borderColor: `${BRAND_R}35`,
+                    background: `${BRAND.primary}12`,
+                    color: BRAND.primary,
+                    borderColor: `${BRAND.primary}35`,
                     cursor: busy ? 'wait' : 'pointer',
                   }}
                 >
@@ -872,7 +909,7 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   disabled={!!busy}
-                  onClick={scheduleCancel}
+                  onClick={() => setShowCancelConfirm(true)}
                   style={{
                     padding: '10px 16px', borderRadius: '10px', fontWeight: 600, fontSize: '13px',
                     background: 'transparent', color: 'var(--muted-foreground)', border: '1px solid var(--border)', cursor: busy ? 'wait' : 'pointer',

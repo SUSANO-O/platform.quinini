@@ -50,25 +50,29 @@ function LoginForm() {
         <div className="landing-card p-8">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
-              <label className="block text-[13px] font-semibold mb-1.5">Email</label>
+              <label htmlFor="login-email" className="block text-[13px] font-semibold mb-1.5">Email</label>
               <input
+                id="login-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="tu@email.com"
                 className="landing-input"
+                autoComplete="email"
               />
             </div>
             <div>
-              <label className="block text-[13px] font-semibold mb-1.5">Contraseña</label>
+              <label htmlFor="login-password" className="block text-[13px] font-semibold mb-1.5">Contraseña</label>
               <input
+                id="login-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 placeholder="••••••••"
                 className="landing-input"
+                autoComplete="current-password"
               />
             </div>
 

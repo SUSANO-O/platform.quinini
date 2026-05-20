@@ -5,11 +5,9 @@ import Image from 'next/image';
 import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { SITE_NAV_LINKS } from '@/lib/site-nav';
 
-const NAV_LINKS = [
-  { href: '/#pricing', label: 'Precios' },
-  { href: '/preguntas-frecuentes', label: 'Preguntas frecuentes' },
-];
+const NAV_LINKS = SITE_NAV_LINKS;
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
@@ -71,7 +69,13 @@ export function Navbar() {
         </div>
 
         {/* Mobile toggle */}
-        <button className="md:hidden" onClick={() => setOpen(!open)}>
+        <button
+          type="button"
+          className="md:hidden"
+          aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+        >
           {open ? <X size={22} /> : <Menu size={22} />}
         </button>
       </div>

@@ -1,5 +1,6 @@
 import { Navbar } from '@/components/shared/navbar';
 import { Footer } from '@/components/shared/footer';
+import { FaqDetails } from '@/components/ui/faq-details';
 
 type FaqItem = {
   question: string;
@@ -79,27 +80,9 @@ export default function PreguntasFrecuentesPage() {
 
           <div className="space-y-3">
             {FAQS.map((faq) => (
-              <details
-                key={`${faq.source}-${faq.question}`}
-                className="rounded-xl overflow-hidden card-texture"
-                style={{ border: '1px solid var(--border)' }}
-              >
-                <summary
-                  className="px-6 py-4 font-semibold cursor-pointer text-sm flex items-center justify-between"
-                  style={{ listStyle: 'none' }}
-                >
-                  {faq.question}
-                  <span style={{ color: 'var(--primary)', fontSize: 18, fontWeight: 300 }}>+</span>
-                </summary>
-                <div className="px-6 pb-5">
-                  <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--accent)' }}>
-                    {faq.source}
-                  </p>
-                  <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                    {faq.answer}
-                  </p>
-                </div>
-              </details>
+              <div key={`${faq.source}-${faq.question}`}>
+                <FaqDetails question={faq.question} answer={`${faq.answer} (Fuente: ${faq.source})`} />
+              </div>
             ))}
           </div>
         </div>

@@ -5,7 +5,7 @@ import {
   type CSSProperties, type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useClientModels, mergeSavedModelOptions } from '@/hooks/use-client-models';
 import { TOOLS, getAgentLimits, TOOL_MAP } from '@/lib/agent-plans';
@@ -24,6 +24,8 @@ import {
   type FaqCandidateRow,
 } from '@/lib/agent-faq-utils';
 import Link from 'next/link';
+import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { McpLandingConnectForm } from '@/components/mcp/mcp-landing-connect-form';
 import { AIInputButton } from '@/components/ui/AIInputButton';
 import { AgentMcpOpenFromQuery } from '@/components/mcp/agent-mcp-open-from-query';
@@ -90,6 +92,13 @@ const RAG_MAX_EXTRACTED_CHARS = 120_000;
 const RAG_MAX_FILE_MB = 10;
 
 type Tab = 'general' | 'rules' | 'faqs' | 'tools' | 'rag' | 'subagents' | 'voice';
+
+const VALID_TABS: Tab[] = ['general', 'rules', 'faqs', 'tools', 'rag', 'subagents', 'voice'];
+
+function tabFromParam(raw: string | null): Tab {
+  if (raw && VALID_TABS.includes(raw as Tab)) return raw as Tab;
+  return 'general';
+}
 
 interface McpServerGroup {
   integrationKey: string;
@@ -330,17 +339,26 @@ function createEmptyFaq(): AgentFaqRow {
 export default function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { subscription } = useSubscription();
   const plan = subscription?.plan ?? 'free';
   const limits = getAgentLimits(plan);
 
   const [agent, setAgent] = useState<ClientAgent | null>(null);
   const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
-  const [tab, setTab] = useState<Tab>('general');
+  const tab = tabFromParam(searchParams.get('tab'));
+  const setTab = useCallback((next: Tab) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', next);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [router, pathname, searchParams]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [mcpDeleteTarget, setMcpDeleteTarget] = useState<string | null>(null);
+  const [mcpDeleting, setMcpDeleting] = useState(false);
 
   // ── AI Suggestions ────────────────────────────────────────────────────────
   const [aiSuggesting, setAiSuggesting] = useState(false);
@@ -578,7 +596,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       .finally(() => setLoading(false));
   }, [id, router]);
 
-  const onOpenToolsTab = useCallback(() => setTab('tools'), []);
+  const onOpenToolsTab = useCallback(() => setTab('tools'), [setTab]);
 
   const loadMcp = useCallback(() => {
     if (!id) return;
@@ -664,14 +682,16 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   }
 
   async function deleteMcpConnection(connectionId: string) {
-    if (!confirm('¿Quitar esta conexión MCP de este agente? Las credenciales dejarán de aplicarse.')) return;
     setError('');
     setSuccess('');
+    setMcpDeleting(true);
     const r = await fetch(
       `/api/mcp/connections/${encodeURIComponent(connectionId)}?landingAgentId=${encodeURIComponent(id)}`,
       { method: 'DELETE', credentials: 'include' },
     );
     const j = await r.json().catch(() => ({}));
+    setMcpDeleting(false);
+    setMcpDeleteTarget(null);
     if (!r.ok) {
       const msg =
         typeof j?.error === 'string'
@@ -683,6 +703,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       return;
     }
     setSuccess('Conexión eliminada.');
+    toast.success('Conexión MCP eliminada');
     setTimeout(() => setSuccess(''), 2200);
     loadMcp();
   }
@@ -730,6 +751,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       setWidgetVoiceName(typeof data.agent.widgetVoiceName === 'string' ? data.agent.widgetVoiceName : '');
     }
     setSuccess('Guardado.');
+    toast.success('Agente guardado');
     setTimeout(() => setSuccess(''), 2500);
     return true;
   }
@@ -1217,7 +1239,24 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       </div>
     );
   }
-  if (!agent) return null;
+  if (!agent) {
+    return (
+      <div className="relative px-6 py-20 max-w-lg mx-auto text-center">
+        <AlertCircle size={40} className="mx-auto mb-4" style={{ color: R }} />
+        <h1 className="text-xl font-bold m-0 mb-2">Agente no encontrado</h1>
+        <p className="text-sm m-0 mb-6" style={{ color: 'var(--muted-foreground)' }}>
+          El agente que buscas no existe o no tienes permiso para verlo.
+        </p>
+        <Link
+          href="/dashboard/agents"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white no-underline"
+          style={{ background: `linear-gradient(135deg, ${R}, #f87600)` }}
+        >
+          <ChevronLeft size={16} /> Volver a mis agentes
+        </Link>
+      </div>
+    );
+  }
 
   const readOnly = Boolean(agent.isPlatform);
   const isDisabled = agent.status === 'disabled';
@@ -1261,6 +1300,16 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       <div className="hero-glow pointer-events-none" style={{ background: B, top: '120px', left: '-120px' }} />
 
       <div className="relative px-4 py-4 max-w-3xl mx-auto">
+      <ConfirmDialog
+        open={mcpDeleteTarget !== null}
+        title="Quitar conexión MCP"
+        description="¿Quitar esta conexión MCP de este agente? Las credenciales dejarán de aplicarse."
+        confirmLabel="Quitar"
+        variant="danger"
+        loading={mcpDeleting}
+        onConfirm={() => mcpDeleteTarget && void deleteMcpConnection(mcpDeleteTarget)}
+        onCancel={() => setMcpDeleteTarget(null)}
+      />
       {agent && (
         <>
           <AgentMcpOpenFromQuery
@@ -1341,14 +1390,28 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-6 p-1 rounded-2xl border card-texture" style={{ borderColor: 'var(--border)' }}>
+      {/* Tabs — select en móvil, scroll en tablet, fila en desktop */}
+      <div className="md:hidden mb-4">
+        <label htmlFor="agent-tab-select" className="sr-only">Sección del agente</label>
+        <select
+          id="agent-tab-select"
+          value={tab}
+          onChange={(e) => setTab(e.target.value as Tab)}
+          className="w-full px-3 py-2.5 rounded-xl border text-sm font-semibold"
+          style={{ borderColor: 'var(--border)', background: 'var(--card)', color: 'var(--foreground)' }}
+        >
+          {TABS.map(({ id: tabId, label }) => (
+            <option key={tabId} value={tabId}>{label}</option>
+          ))}
+        </select>
+      </div>
+      <div className="hidden md:flex gap-1 mb-6 p-1 rounded-2xl border card-texture overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
         {TABS.map(({ id: tabId, label, icon }) => (
           <button
             key={tabId}
             onClick={() => setTab(tabId)}
             type="button"
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl border-0 cursor-pointer text-xs transition-all whitespace-nowrap min-w-0"
+            className="shrink-0 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border-0 cursor-pointer text-xs transition-all whitespace-nowrap"
             style={{
               fontWeight: tab === tabId ? 700 : 500,
               background: tab === tabId ? 'var(--background)' : 'transparent',
@@ -1356,7 +1419,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               boxShadow: tab === tabId ? `0 0 0 1px ${R}22` : 'none',
             }}
           >
-            {icon} <span className="truncate">{label}</span>
+            {icon} <span>{label}</span>
           </button>
         ))}
       </div>
@@ -2708,7 +2771,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                               <button
                                 type="button"
                                 title="Quitar conexión de este agente"
-                                onClick={() => deleteMcpConnection(srv.connectionId)}
+                                onClick={() => setMcpDeleteTarget(srv.connectionId)}
                                 style={{
                                   display: 'flex', alignItems: 'center', gap: '4px',
                                   fontSize: '11px', fontWeight: 600, padding: '4px 10px',
@@ -2945,7 +3008,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                               <button
                                 type="button"
                                 title="Quitar conexión"
-                                onClick={() => deleteMcpConnection(srv.connectionId)}
+                                onClick={() => setMcpDeleteTarget(srv.connectionId)}
                                 style={{
                                   display: 'inline-flex',
                                   alignItems: 'center',

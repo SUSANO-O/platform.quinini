@@ -143,7 +143,7 @@ export default function PricingPage() {
                 )}
 
                 <Link
-                  href="/dashboard"
+                  href="/register"
                   className="mt-8 flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm transition-all"
                   style={
                     plan.highlighted

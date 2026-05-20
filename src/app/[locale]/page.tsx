@@ -2,6 +2,7 @@ import React from 'react';
 import { getTranslations } from 'next-intl/server';
 import { LandingNavbar } from '@/components/landing/landing-navbar';
 import { LandingFooter } from '@/components/landing/landing-footer';
+import { LandingSectionNav } from '@/components/landing/landing-section-nav';
 import Link from 'next/link';
 import {
   Zap, Shield, BarChart3, MessageSquare, Database,
@@ -12,36 +13,33 @@ import {
   Users, BookOpen, PlayCircle, BadgeCheck, Star,
 } from 'lucide-react';
 import { PLAN_RAG_LIMITS } from '@/lib/plan-catalog';
+import { FaqDetails } from '@/components/ui/faq-details';
 
-const R  = '#e41414';
-const O  = '#f87600';
-const B  = '#00acf8';
-const C  = '#00f8e5';
-const Rd = '#bb1b14';
+import { PREMIUM, R, O, B, Rd } from '@/lib/brand-colors';
 
 export default async function LandingPage() {
   const t = await getTranslations('landing');
 
   const AGENTS = [
-    { name: 'Health Monitor',    desc: t('agents.health'),       Icon: HeartPulse,    color: R,  focus: 'Salud' },
-    { name: 'Smart Agriculture', desc: t('agents.agriculture'),   Icon: Sprout,        color: C,  focus: 'Agro' },
-    { name: 'Education AI',      desc: t('agents.education'),     Icon: GraduationCap, color: O,  focus: 'Educacion' },
-    { name: 'Geoeconomics',      desc: t('agents.geoeconomics'),  Icon: TrendingUp,    color: B,  focus: 'Economia' },
-    { name: 'Cybersecurity',     desc: t('agents.cybersecurity'), Icon: Lock,          color: R,  focus: 'Seguridad' },
-    { name: 'Maximo',            desc: t('agents.maximo'),        Icon: Wrench,        color: Rd, focus: 'Industria' },
+    { name: 'Health Monitor',    desc: t('agents.health'),       Icon: HeartPulse,    color: R,  focus: 'Salud',       slug: 'health' },
+    { name: 'Smart Agriculture', desc: t('agents.agriculture'),   Icon: Sprout,        color: O,  focus: 'Agro',        slug: 'agriculture' },
+    { name: 'Education AI',      desc: t('agents.education'),     Icon: GraduationCap, color: O,  focus: 'Educacion',   slug: 'education' },
+    { name: 'Geoeconomics',      desc: t('agents.geoeconomics'),  Icon: TrendingUp,    color: B,  focus: 'Economia',    slug: 'geoeconomics' },
+    { name: 'Cybersecurity',     desc: t('agents.cybersecurity'), Icon: Lock,          color: R,  focus: 'Seguridad',   slug: 'cybersecurity' },
+    { name: 'Maximo',            desc: t('agents.maximo'),        Icon: Wrench,        color: Rd, focus: 'Industria',   slug: 'maximo' },
   ];
 
   const FEATURES = [
     { icon: Shield,    title: t('features.secureTitle'),      desc: t('features.secureDesc'),      color: Rd, metric: t('features.secureMetric')      },
-    { icon: BarChart3, title: t('features.analyticsTitle'),   desc: t('features.analyticsDesc'),   color: C,  metric: t('features.analyticsMetric')   },
+    { icon: BarChart3, title: t('features.analyticsTitle'),   desc: t('features.analyticsDesc'),   color: B,  metric: t('features.analyticsMetric')   },
     { icon: Globe,     title: t('features.multitenantTitle'), desc: t('features.multitenantDesc'), color: B,  metric: t('features.multitenantMetric') },
   ];
 
   const HOW = [
     { step: '01', title: t('how.step1Title'), desc: t('how.step1Desc'), Icon: UserPlus, accent: R,  grad: `linear-gradient(135deg,${R},${O})` },
     { step: '02', title: t('how.step2Title'), desc: t('how.step2Desc'), Icon: Brain,    accent: O,  grad: `linear-gradient(135deg,${O},${B})` },
-    { step: '03', title: t('how.step3Title'), desc: t('how.step3Desc'), Icon: Palette,  accent: B,  grad: `linear-gradient(135deg,${B},${C})` },
-    { step: '04', title: t('how.step4Title'), desc: t('how.step4Desc'), Icon: Terminal, accent: C,  grad: `linear-gradient(135deg,${C},${Rd})` },
+    { step: '03', title: t('how.step3Title'), desc: t('how.step3Desc'), Icon: Palette,  accent: B,  grad: `linear-gradient(135deg,${B},${Rd})` },
+    { step: '04', title: t('how.step4Title'), desc: t('how.step4Desc'), Icon: Terminal, accent: Rd, grad: `linear-gradient(135deg,${Rd},${R})` },
     { step: '05', title: t('how.step5Title'), desc: t('how.step5Desc'), Icon: Rocket,   accent: Rd, grad: `linear-gradient(135deg,${Rd},${R})` },
   ];
 
@@ -56,7 +54,7 @@ export default async function LandingPage() {
       name: 'Basic',    price: '$14',  period: t('pricing.period'),
       requests: t('pricing.basic.requests'),
       features: t.raw('pricing.basic.features') as string[],
-      color: C, id: 'basic',
+      color: O, id: 'basic',
     },
     {
       name: 'Starter',  price: '$39',  period: t('pricing.period'),
@@ -68,7 +66,7 @@ export default async function LandingPage() {
       name: 'Growth',   price: '$99',  period: t('pricing.period'),
       requests: t('pricing.growth.requests'),
       features: t.raw('pricing.growth.features') as string[],
-      color: R, id: 'growth', popular: true,
+      color: PREMIUM.accent, id: 'growth', popular: true,
     },
     {
       name: 'Business', price: '$349', period: t('pricing.period'),
@@ -84,15 +82,15 @@ export default async function LandingPage() {
     { color: R,  title: t('widget.b1Title'), desc: t('widget.b1Desc') },
     { color: O,  title: t('widget.b2Title'), desc: t('widget.b2Desc') },
     { color: B,  title: t('widget.b3Title'), desc: t('widget.b3Desc') },
-    { color: C,  title: t('widget.b4Title'), desc: t('widget.b4Desc') },
+    { color: Rd, title: t('widget.b4Title'), desc: t('widget.b4Desc') },
     { color: Rd, title: t('widget.b5Title'), desc: t('widget.b5Desc') },
   ];
 
   const TRAINING_STEPS = [
     { step: '01', Icon: Users,       color: R, title: t('training.step1Title'), desc: t('training.step1Desc'), grad: `linear-gradient(135deg,${R},${O})` },
     { step: '02', Icon: BookOpen,    color: O, title: t('training.step2Title'), desc: t('training.step2Desc'), grad: `linear-gradient(135deg,${O},${B})` },
-    { step: '03', Icon: Rocket,      color: B, title: t('training.step3Title'), desc: t('training.step3Desc'), grad: `linear-gradient(135deg,${B},${C})` },
-    { step: '04', Icon: PlayCircle,  color: C, title: t('training.step4Title'), desc: t('training.step4Desc'), grad: `linear-gradient(135deg,${C},${R})` },
+    { step: '03', Icon: Rocket,      color: B, title: t('training.step3Title'), desc: t('training.step3Desc'), grad: `linear-gradient(135deg,${B},${Rd})` },
+    { step: '04', Icon: PlayCircle,  color: Rd, title: t('training.step4Title'), desc: t('training.step4Desc'), grad: `linear-gradient(135deg,${Rd},${R})` },
   ];
 
   const FAQ_ITEMS = t.raw('faq.items') as { q: string; a: string }[];
@@ -100,12 +98,13 @@ export default async function LandingPage() {
   const STATS = [
     { value: '7 días', label: t('stats.trial'),  gradient: `linear-gradient(135deg,${R},${O})` },
     { value: '< 10',   label: t('stats.setup'),  gradient: `linear-gradient(135deg,${O},${B})` },
-    { value: '8+',     label: t('stats.models'), gradient: `linear-gradient(135deg,${B},${C})` },
+    { value: '8+',     label: t('stats.models'), gradient: `linear-gradient(135deg,${B},${Rd})` },
   ];
 
   return (
     <div style={{ background: 'var(--background)', color: 'var(--foreground)', position: 'relative' }}>
       <LandingNavbar />
+      <LandingSectionNav />
 
       {/* ── HERO ─────────────────────────────────────────────────────────────── */}
       <section className="relative pt-36 pb-24 overflow-hidden">
@@ -149,12 +148,27 @@ export default async function LandingPage() {
               {t('hero.ctaAccount')}
             </Link>
             <Link
-              href="/widget"
+              href="/docs"
               className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl font-semibold text-sm transition-all hover:bg-slate-50"
               style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
             >
               <Terminal size={16} /> {t('hero.ctaDocs')}
             </Link>
+          </div>
+
+          <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
+            {STATS.map((s) => (
+              <div
+                key={s.label}
+                className="rounded-xl p-4 card-texture text-center"
+                style={{ border: '1px solid var(--border)' }}
+              >
+                <p className="text-2xl font-extrabold m-0" style={{ background: s.gradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                  {s.value}
+                </p>
+                <p className="text-xs mt-1 m-0" style={{ color: 'var(--muted-foreground)' }}>{s.label}</p>
+              </div>
+            ))}
           </div>
 
         </div>
@@ -181,7 +195,7 @@ export default async function LandingPage() {
           <div className="relative">
             <div style={{
               position: 'absolute', left: 27, top: 28, bottom: 28, width: 2,
-              background: `linear-gradient(to bottom, ${R}, ${O}, ${B}, ${C})`,
+              background: `linear-gradient(to bottom, ${R}, ${O}, ${B})`,
               opacity: 0.25, borderRadius: 2,
             }} />
 
@@ -270,10 +284,11 @@ export default async function LandingPage() {
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {AGENTS.map((a) => (
-              <div
+              <Link
                 key={a.name}
-                className="card-pro overflow-hidden relative h-full flex flex-col"
-                style={{ border: `1px solid ${a.color}28`, boxShadow: '0 8px 32px rgba(0,0,0,0.05)' }}
+                href={`/agents/${a.slug}`}
+                className="card-pro overflow-hidden relative h-full flex flex-col no-underline transition-transform hover:scale-[1.01]"
+                style={{ border: `1px solid ${a.color}28`, boxShadow: '0 8px 32px rgba(0,0,0,0.05)', color: 'inherit' }}
               >
                 <div style={{
                   position: 'absolute', inset: 0, pointerEvents: 'none',
@@ -323,12 +338,12 @@ export default async function LandingPage() {
                   <p className="text-sm leading-relaxed min-h-[62px]" style={{ color: 'var(--muted-foreground)' }}>{a.desc}</p>
 
                   <div className="mt-5 pt-4" style={{ borderTop: `1px solid ${a.color}20` }}>
-                    <span className="text-xs italic" style={{ color: 'var(--muted-foreground)' }}>
-                      Ejemplo — crea el tuyo con tu propio agente
+                    <span className="text-xs font-semibold" style={{ color: a.color }}>
+                      Ver demo →
                     </span>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -623,14 +638,14 @@ export default async function LandingPage() {
           </div>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold" style={{ background: `${C}10`, color: C, border: `1px solid ${C}30` }}>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold" style={{ background: `${PREMIUM.accent}10`, color: PREMIUM.accent, border: `1px solid ${PREMIUM.border}` }}>
               <BadgeCheck size={15} />
               {t('training.included')}
             </div>
             <Link
               href="/register"
               className="inline-flex items-center gap-2 px-7 py-3 rounded-xl text-white font-semibold text-sm transition-all hover:scale-[1.03]"
-              style={{ background: `linear-gradient(135deg, ${B}, ${C})`, boxShadow: `0 4px 20px rgba(0,172,248,0.28)` }}
+              style={{ background: `linear-gradient(135deg, ${R}, ${O})`, boxShadow: `0 4px 20px rgba(228,20,20,0.22)` }}
             >
               {t('training.cta')} <ArrowRight size={16} />
             </Link>
@@ -800,17 +815,7 @@ export default async function LandingPage() {
         <div className="max-w-3xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-12">{t('faq.title')}</h2>
           {FAQ_ITEMS.map((faq) => (
-            <details
-              key={faq.q}
-              className="mb-3 rounded-xl overflow-hidden card-texture"
-              style={{ border: '1px solid var(--border)' }}
-            >
-              <summary className="px-6 py-4 font-semibold cursor-pointer text-sm flex items-center justify-between" style={{ listStyle: 'none' }}>
-                {faq.q}
-                <span style={{ color: R, fontSize: 18, fontWeight: 300 }}>+</span>
-              </summary>
-              <p className="px-6 pb-5 text-sm" style={{ color: 'var(--muted-foreground)' }}>{faq.a}</p>
-            </details>
+            <FaqDetails key={faq.q} question={faq.q} answer={faq.a} accent={R} />
           ))}
         </div>
       </section>

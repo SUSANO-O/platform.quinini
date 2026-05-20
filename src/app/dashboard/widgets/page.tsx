@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState, type CSSProperties } from 'react';
+import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   defaultHueFromHex,
   hashWidgetSeed,
@@ -103,6 +105,8 @@ export default function WidgetsPage() {
   const [snippetTab, setSnippetTab] = useState<'minimal' | 'full'>('minimal');
   const [copied, setCopied] = useState(false);
   const [origin, setOrigin] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     setOrigin(typeof window !== 'undefined' ? window.location.origin : '');
@@ -111,24 +115,37 @@ export default function WidgetsPage() {
   async function loadWidgets() {
     try {
       const res = await fetch('/api/widgets');
+      if (!res.ok) throw new Error();
       const data = await res.json();
       setWidgets(data.widgets || []);
     } catch {
-      /* ignore */
+      toast.error('No se pudieron cargar los widgets');
     }
     setLoading(false);
   }
 
-  async function deleteWidget(id: string) {
-    if (!confirm('¿Eliminar este widget?')) return;
-    await fetch(`/api/widgets?id=${id}`, { method: 'DELETE' });
-    setWidgets((prev) => prev.filter((w) => w._id !== id));
+  async function confirmDeleteWidget() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/widgets?id=${deleteTarget}`, { method: 'DELETE' });
+      if (!res.ok) {
+        toast.error('No se pudo eliminar el widget');
+        return;
+      }
+      setWidgets((prev) => prev.filter((w) => w._id !== deleteTarget));
+      toast.success('Widget eliminado');
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   function copySnippet(w: Widget) {
     const code = snippetTab === 'full' ? buildFullSnippet(w, origin) : buildMinimalSnippet(w, origin);
     void navigator.clipboard.writeText(code);
     setCopied(true);
+    toast.success('Código copiado al portapapeles');
     setTimeout(() => setCopied(false), 2000);
   }
 
@@ -149,6 +166,16 @@ export default function WidgetsPage() {
 
   return (
     <div className="relative overflow-hidden min-h-full">
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Eliminar widget"
+        description="¿Eliminar este widget? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        variant="danger"
+        loading={deleting}
+        onConfirm={() => void confirmDeleteWidget()}
+        onCancel={() => setDeleteTarget(null)}
+      />
       <div className="hero-glow pointer-events-none" style={{ background: BRAND_R, top: '-200px', right: '-60px' }} />
       <div className="hero-glow pointer-events-none" style={{ background: BRAND_B, top: '100px', left: '-100px' }} />
 
@@ -326,7 +353,7 @@ export default function WidgetsPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => deleteWidget(w._id)}
+                      onClick={() => setDeleteTarget(w._id)}
                       className="inline-flex items-center justify-center p-2 rounded-lg border cursor-pointer transition-colors hover:bg-red-50"
                       style={{
                         background: 'rgba(239,68,68,0.08)',

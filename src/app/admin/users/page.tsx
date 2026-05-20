@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Search, ChevronLeft, ChevronRight, RefreshCw, UserRound } from 'lucide-react';
+import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useAuth } from '@/hooks/use-auth';
 
 interface UserRow {
@@ -49,6 +51,8 @@ export default function AdminUsersPage() {
   const [filter, setFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [savingPolicyUid, setSavingPolicyUid] = useState<string | null>(null);
+  const [impersonateTarget, setImpersonateTarget] = useState<string | null>(null);
+  const [impersonating, setImpersonating] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -73,15 +77,17 @@ export default function AdminUsersPage() {
   const cols = '2fr 1fr 1fr 0.7fr 0.7fr 1fr 1fr 1.6fr';
 
   async function impersonate(uid: string) {
-    if (!confirm('¿Abrir el dashboard como este usuario? Podrás ver su cuenta como si hubieras iniciado sesión con él.')) return;
+    setImpersonating(true);
     const res = await fetch('/api/admin/impersonate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ targetUserId: uid }),
     });
     const data = (await res.json().catch(() => ({}))) as { error?: string };
+    setImpersonating(false);
+    setImpersonateTarget(null);
     if (!res.ok) {
-      alert(data.error || 'No se pudo suplantar.');
+      toast.error(data.error || 'No se pudo suplantar.');
       return;
     }
     window.location.href = '/dashboard';
@@ -97,9 +103,10 @@ export default function AdminUsersPage() {
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        alert(data.error || 'No se pudo guardar la política de proveedores.');
+        toast.error(data.error || 'No se pudo guardar la política de proveedores.');
         return;
       }
+      toast.success('Política de proveedores actualizada');
       setUsers((prev) => prev.map((u) => (u.uid === uid ? { ...u, allowedModelProviders: providers } : u)));
     } finally {
       setSavingPolicyUid(null);
@@ -108,6 +115,15 @@ export default function AdminUsersPage() {
 
   return (
     <div style={{ padding: '32px' }}>
+      <ConfirmDialog
+        open={impersonateTarget !== null}
+        title="Suplantar usuario"
+        description="¿Abrir el dashboard como este usuario? Podrás ver su cuenta como si hubieras iniciado sesión con él."
+        confirmLabel="Suplantar"
+        loading={impersonating}
+        onConfirm={() => impersonateTarget && void impersonate(impersonateTarget)}
+        onCancel={() => setImpersonateTarget(null)}
+      />
       <h1 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '4px' }}>Usuarios</h1>
       <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', marginBottom: '24px' }}>
         {total} usuarios registrados
@@ -144,8 +160,8 @@ export default function AdminUsersPage() {
         </button>
       </div>
 
-      {/* Table */}
-      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', overflow: 'auto' }}>
+      {/* Desktop table */}
+      <div className="hidden md:block" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', overflow: 'auto' }}>
         <div style={{ minWidth: 820 }}>
           {/* Header */}
           <div style={{ display: 'grid', gridTemplateColumns: cols, gap: '10px', padding: '11px 20px', borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.02)' }}>
@@ -219,7 +235,7 @@ export default function AdminUsersPage() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
                         <button
                           type="button"
-                          onClick={() => impersonate(u.uid)}
+                          onClick={() => setImpersonateTarget(u.uid)}
                           title="Abrir el dashboard como este usuario"
                           style={{
                             display: 'inline-flex',
@@ -269,6 +285,135 @@ export default function AdminUsersPage() {
             })
           )}
         </div>
+      </div>
+
+      {/* Mobile cards */}
+      <div className="md:hidden" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {loading ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '13px', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px' }}>
+            Cargando...
+          </div>
+        ) : users.length === 0 ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '13px', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px' }}>
+            No hay usuarios con ese filtro.
+          </div>
+        ) : (
+          users.map((u) => {
+            const st = STATUS_LABELS[u.status] || STATUS_LABELS.no_sub;
+            const { trialDaysRemaining } = u;
+            return (
+              <article
+                key={u.uid}
+                style={{
+                  background: 'var(--card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '14px',
+                  padding: '16px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '12px' }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <p style={{ fontSize: '14px', fontWeight: 700, marginBottom: '2px', wordBreak: 'break-all' }}>{u.email}</p>
+                    {u.displayName && <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: 0 }}>{u.displayName}</p>}
+                    {u.role === 'admin' && (
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: '#6366f1', background: 'rgba(99,102,241,0.1)', padding: '1px 6px', borderRadius: '4px', marginTop: '4px', display: 'inline-block' }}>admin</span>
+                    )}
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: st.color, background: st.bg, padding: '3px 8px', borderRadius: '6px', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                    {st.label}
+                  </span>
+                </div>
+
+                {u.status === 'trialing' && (
+                  <p style={{ fontSize: '11px', color: trialDaysRemaining <= 1 ? '#ef4444' : 'var(--muted-foreground)', margin: '0 0 12px' }}>
+                    {trialDaysRemaining === 0 ? 'Último día de trial' : `${trialDaysRemaining} días de trial restantes`}
+                  </p>
+                )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+                  <div>
+                    <p style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 2px' }}>Plan</p>
+                    <p style={{ fontSize: '13px', margin: 0, textTransform: 'capitalize' }}>{u.plan}</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 2px' }}>Registro</p>
+                    <p style={{ fontSize: '12px', margin: 0, color: 'var(--muted-foreground)' }}>
+                      {new Date(u.createdAt).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 2px' }}>Widgets</p>
+                    <p style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: u.widgets > 0 ? '#0d9488' : 'var(--muted-foreground)' }}>{u.widgets}</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 2px' }}>Agentes</p>
+                    <p style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: u.agents > 0 ? '#6366f1' : 'var(--muted-foreground)' }}>{u.agents}</p>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <p style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 2px' }}>Req/mes</p>
+                    <p style={{ fontSize: '14px', fontWeight: u.requestsThisMonth > 0 ? 700 : 400, margin: 0, color: u.requestsThisMonth > 0 ? '#a855f7' : 'var(--muted-foreground)' }}>
+                      {u.requestsThisMonth > 999 ? `${(u.requestsThisMonth / 1000).toFixed(1)}k` : u.requestsThisMonth}
+                    </p>
+                  </div>
+                </div>
+
+                {u.role === 'admin' || u.uid === currentUser?.uid ? (
+                  <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Sin acciones de suplantación</span>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setImpersonateTarget(u.uid)}
+                      title="Abrir el dashboard como este usuario"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '5px',
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        border: '1px solid rgba(99,102,241,0.45)',
+                        background: 'rgba(99,102,241,0.08)',
+                        color: '#6366f1',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <UserRound size={13} />
+                      Suplantar
+                    </button>
+                    <select
+                      value={(u.allowedModelProviders ?? []).join(',')}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        const providers = value ? value.split(',').filter(Boolean) : [];
+                        void saveProviderPolicy(u.uid, providers);
+                      }}
+                      disabled={savingPolicyUid === u.uid}
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border)',
+                        background: 'var(--background)',
+                        color: 'var(--foreground)',
+                        fontSize: '12px',
+                      }}
+                    >
+                      <option value="">Todos los proveedores</option>
+                      {PROVIDER_OPTIONS.map((p) => (
+                        <option key={p} value={p}>Solo {p}</option>
+                      ))}
+                      <option value="google,vertex">Solo google + vertex</option>
+                    </select>
+                  </div>
+                )}
+              </article>
+            );
+          })
+        )}
       </div>
 
       {/* Pagination */}

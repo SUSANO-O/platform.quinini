@@ -9,7 +9,7 @@ export default function TerminosPage() {
       
       <main className="flex-grow pt-32 pb-20">
         <div className="max-w-4xl mx-auto px-6">
-          <h1 className="text-4xl font-bold mb-8" style={{ color: '#e41414' }}>Términos y Condiciones de Uso</h1>
+          <h1 className="text-4xl font-bold mb-8" style={{ color: 'var(--brand-primary)' }}>Términos y Condiciones de Uso</h1>
           
           <div className="max-w-none space-y-10 text-sm md:text-base" style={{ color: 'var(--muted-foreground)' }}>
             <p>Última actualización: 18 de abril de 2026</p>
