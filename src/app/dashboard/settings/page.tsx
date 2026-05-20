@@ -325,9 +325,6 @@ export default function SettingsPage() {
             {s.label}
           </a>
         ))}
-        <Link href="/dashboard/finance" className="px-3 py-1.5 rounded-lg text-xs font-semibold no-underline" style={{ color: BRAND.cool }}>
-          Uso estimado →
-        </Link>
       </nav>
 
       {/* Account info */}

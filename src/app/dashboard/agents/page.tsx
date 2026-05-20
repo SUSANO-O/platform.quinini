@@ -390,9 +390,6 @@ export default function AgentsPage() {
           <Link href="/dashboard/mcp" className="font-semibold landing-link-accent no-underline">
             Catálogo MCP →
           </Link>
-          <Link href="/dashboard/finance" className="font-semibold landing-link-accent no-underline">
-            Uso estimado →
-          </Link>
         </div>
 
         {/* Lista: ancla `agents-list` siempre en el DOM (también en carga) para que el onboarding reanude al llegar desde /dashboard */}
