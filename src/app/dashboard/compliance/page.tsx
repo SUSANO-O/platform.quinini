@@ -288,7 +288,7 @@ export default function CompliancePage() {
           Cuenta
         </p>
         <h1 style={{ margin: '8px 0 0', fontSize: 26, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Shield size={24} style={{ color: '#00acf8' }} aria-hidden />
+          <Shield size={24} style={{ opacity: 0.5 }} aria-hidden />
           Cumplimiento y datos (RGPD)
         </h1>
         <p style={{ margin: '10px 0 0', opacity: 0.75, maxWidth: 680, fontSize: 14, lineHeight: 1.6 }}>
@@ -310,9 +310,9 @@ export default function CompliancePage() {
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,
             padding: '9px 16px', borderRadius: 10,
-            border: '1px solid rgba(0,172,248,0.3)',
-            background: 'rgba(0,172,248,0.1)',
-            color: '#7dd3fc',
+            border: '1px solid rgba(255,255,255,0.15)',
+            background: 'rgba(255,255,255,0.07)',
+            color: 'rgba(255,255,255,0.8)',
             cursor: busyExport ? 'wait' : 'pointer',
             fontSize: 13, fontWeight: 600,
           }}
