@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function WidgetPage() {
-  redirect('/dashboard/widget-builder');
+  redirect('/docs');
 }

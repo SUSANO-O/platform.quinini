@@ -33,8 +33,8 @@ const SIDEBAR_COLLAPSED_KEY = 'dashboard-sidebar-collapsed';
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/agents', label: 'Mis Agentes', icon: Bot },
-  { href: '/dashboard/widget-builder', label: 'Widget Builder', icon: Cpu },
   { href: '/dashboard/widgets', label: 'Mis Widgets', icon: Boxes },
+  { href: '/dashboard/widget-builder', label: 'Widget Builder', icon: Cpu },
   { href: '/dashboard/compliance', label: 'Cumplimiento', icon: Shield },
   { href: '/dashboard/settings', label: 'Ajustes', icon: Settings },
 ];
@@ -88,7 +88,8 @@ function SubscriptionExpiryGate() {
       {openModal ? (
         <div
           role="dialog"
-          aria-modal="false"
+          aria-modal="true"
+          aria-labelledby="trial-expired-title"
           onClick={() => { setOpenModal(false); setDismissed(true); }}
           style={{
             position: 'fixed',
@@ -121,7 +122,7 @@ function SubscriptionExpiryGate() {
                 <p style={{ margin: 0, fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.78 }}>
                   Sesion vencida
                 </p>
-                <h3 style={{ margin: '8px 0 0', fontSize: '22px', lineHeight: 1.18 }}>
+                <h3 id="trial-expired-title" style={{ margin: '8px 0 0', fontSize: '22px', lineHeight: 1.18 }}>
                   Tu trial ya expiro
                 </h3>
               </div>
@@ -487,6 +488,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           }}
         >
           <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <SidebarExpiryBadge />
+            <JourneyProgress />
+            <TourActions />
             {NAV.map(({ href, label, icon: Icon }) => {
               const active = href === '/dashboard' ? pathname === href : pathname.startsWith(href);
               return (

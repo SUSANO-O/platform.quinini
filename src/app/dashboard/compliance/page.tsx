@@ -14,6 +14,9 @@ import {
   Lock,
   Save,
 } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { SecretRevealModal } from '@/components/ui/secret-reveal-modal';
+import { BRAND, STATE, METRIC } from '@/lib/brand-colors';
 
 /* ── types ───────────────────────────────────────────────────────── */
 
@@ -41,21 +44,21 @@ type AuditGroup = {
 type ActionStyle = { color: string; label: string };
 
 const ACTION_MAP: Record<string, ActionStyle> = {
-  'auth.login':            { color: '#00acf8', label: 'Inicio sesión'  },
-  'auth.logout':           { color: '#94a3b8', label: 'Cierre sesión'  },
-  'auth.register':         { color: '#00f8e5', label: 'Registro'       },
-  'auth.password-change':  { color: '#f87600', label: 'Cambio clave'   },
-  'gdpr.export':           { color: '#f87600', label: 'Exportación'    },
-  'gdpr.delete-account':   { color: '#e41414', label: 'Borrar cuenta'  },
+  'auth.login':            { color: BRAND.cool, label: 'Inicio sesión'  },
+  'auth.logout':           { color: STATE.muted, label: 'Cierre sesión'  },
+  'auth.register':         { color: BRAND.warm, label: 'Registro'       },
+  'auth.password-change':  { color: STATE.info, label: 'Cambio clave'   },
+  'gdpr.export':           { color: BRAND.warm, label: 'Exportación'    },
+  'gdpr.delete-account':   { color: STATE.error, label: 'Borrar cuenta'  },
 };
 
 function getActionStyle(action: string): ActionStyle {
   if (ACTION_MAP[action]) return ACTION_MAP[action];
-  if (action.startsWith('agent.'))   return { color: '#00f8e5', label: action.replace('agent.', '') };
-  if (action.startsWith('widget.'))  return { color: '#a855f7', label: action.replace('widget.', '') };
-  if (action.startsWith('billing.')) return { color: '#f87600', label: action.replace('billing.', '') };
-  if (action.startsWith('mcp.'))     return { color: '#00acf8', label: action.replace('mcp.', '')    };
-  return { color: '#94a3b8', label: action };
+  if (action.startsWith('agent.'))   return { color: BRAND.cool, label: action.replace('agent.', '') };
+  if (action.startsWith('widget.'))  return { color: METRIC.neutral, label: action.replace('widget.', '') };
+  if (action.startsWith('billing.')) return { color: BRAND.warm, label: action.replace('billing.', '') };
+  if (action.startsWith('mcp.'))     return { color: BRAND.cool, label: action.replace('mcp.', '')    };
+  return { color: STATE.muted, label: action };
 }
 
 /* ── audit grouping ──────────────────────────────────────────────── */
@@ -156,6 +159,8 @@ export default function CompliancePage() {
   const [whUrl, setWhUrl] = useState('');
   const [whSecretPreview, setWhSecretPreview] = useState<string | null>(null);
   const [busyWh, setBusyWh] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [revealedSecret, setRevealedSecret] = useState<string | null>(null);
 
   const fetchAudit = useCallback(async () => {
     setLoadingAudit(true);
@@ -209,7 +214,7 @@ export default function CompliancePage() {
       if (!r.ok) { toast.error(d.error || 'No se pudo guardar.'); return; }
       toast.success('Webhook guardado.');
       setWhSecretPreview(typeof d.secretPreview === 'string' ? d.secretPreview : null);
-      if (d.secretPlain) toast.message(`Secreto (guárdalo ahora): ${d.secretPlain}`, { duration: 20_000 });
+      if (typeof d.secretPlain === 'string') setRevealedSecret(d.secretPlain);
     } finally { setBusyWh(false); }
   }
 
@@ -225,13 +230,11 @@ export default function CompliancePage() {
       if (!r.ok) { toast.error(d.error || 'Error'); return; }
       toast.success('Secreto rotado.');
       setWhSecretPreview(typeof d.secretPreview === 'string' ? d.secretPreview : null);
-      if (d.secretPlain) toast.message(`Nuevo secreto: ${d.secretPlain}`, { duration: 25_000 });
+      if (typeof d.secretPlain === 'string') setRevealedSecret(d.secretPlain);
     } finally { setBusyWh(false); }
   }
 
-  async function deleteAccount(e: React.FormEvent) {
-    e.preventDefault();
-    if (!confirm('¿Eliminar definitivamente tu cuenta y datos en esta plataforma? Esta acción no se puede deshacer.')) return;
+  async function deleteAccount() {
     setBusyDel(true);
     try {
       const r = await fetch('/api/gdpr/delete-account', {
@@ -243,7 +246,7 @@ export default function CompliancePage() {
       if (!r.ok) { toast.error(d.error || 'No se pudo eliminar.'); return; }
       toast.success(d.message || 'Cuenta eliminada.');
       window.location.href = '/';
-    } finally { setBusyDel(false); }
+    } finally { setBusyDel(false); setShowDeleteConfirm(false); }
   }
 
   const inp: React.CSSProperties = {
@@ -260,6 +263,23 @@ export default function CompliancePage() {
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '28px 16px 80px' }}>
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="Eliminar cuenta"
+        description="¿Eliminar definitivamente tu cuenta y datos en esta plataforma? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar cuenta"
+        variant="danger"
+        loading={busyDel}
+        onConfirm={() => void deleteAccount()}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+      <SecretRevealModal
+        open={revealedSecret !== null}
+        title="Secreto HMAC del webhook"
+        description="Copia y guarda este secreto en un lugar seguro. Lo usarás para verificar la firma X-Matias-Signature."
+        secret={revealedSecret ?? ''}
+        onClose={() => setRevealedSecret(null)}
+      />
 
       {/* ── Header ───────────────────────────────────────────────── */}
       <div style={{ marginBottom: 32 }}>
@@ -336,7 +356,7 @@ export default function CompliancePage() {
             <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--muted-foreground)', lineHeight: 1.65 }}>
               Elimina widgets, agentes, uso almacenado y tu usuario de esta plataforma.
             </p>
-            <form onSubmit={deleteAccount} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <form onSubmit={(e) => { e.preventDefault(); setShowDeleteConfirm(true); }} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <label style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>
                 Email de confirmación
                 <input type="email" required value={delEmail} onChange={(e) => setDelEmail(e.target.value)}

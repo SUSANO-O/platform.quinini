@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { CONVERSATION_PACKS } from '@/lib/plan-catalog';
 import { Zap, X } from 'lucide-react';
-
+import { BRAND, STATE, BRAND_GRADIENT } from '@/lib/brand-colors';
 interface Props {
   percentUsed: number;
   used: number;
@@ -11,9 +11,6 @@ interface Props {
   plan: string;
   activePacks: { packId: string; remaining: number; total: number; expiresAt: string }[];
 }
-
-const R = '#e41414';
-const O = '#f87600';
 
 export function QuotaTopupBanner({ percentUsed, used, limit, plan, activePacks }: Props) {
   const [showModal, setShowModal] = useState(false);
@@ -23,8 +20,8 @@ export function QuotaTopupBanner({ percentUsed, used, limit, plan, activePacks }
   if (percentUsed < 80 && activePacks.length === 0) return null;
 
   const isOver = percentUsed >= 100;
-  const bannerColor = isOver ? R : O;
-  const bannerBg    = isOver ? 'rgba(228,20,20,0.07)' : 'rgba(248,118,0,0.07)';
+  const bannerColor = isOver ? STATE.error : BRAND.warm;
+  const bannerBg    = isOver ? STATE.errorBg : 'rgba(248,118,0,0.07)';
 
   async function buyPack(packId: string) {
     setLoading(packId);
@@ -65,7 +62,7 @@ export function QuotaTopupBanner({ percentUsed, used, limit, plan, activePacks }
           onClick={() => setShowModal(true)}
           style={{
             padding: '6px 14px', borderRadius: '8px', border: 'none',
-            background: `linear-gradient(135deg,${R},${O})`, color: '#fff',
+            background: BRAND_GRADIENT, color: '#fff',
             fontSize: '12px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
           }}
         >
@@ -116,7 +113,7 @@ export function QuotaTopupBanner({ percentUsed, used, limit, plan, activePacks }
             </div>
 
             {error && (
-              <p style={{ fontSize: '12px', color: R, background: 'rgba(228,20,20,0.08)', padding: '8px 12px', borderRadius: '8px', marginBottom: '12px' }}>
+              <p style={{ fontSize: '12px', color: STATE.error, background: STATE.errorBg, padding: '8px 12px', borderRadius: '8px', marginBottom: '12px' }}>
                 {error}
               </p>
             )}
@@ -144,7 +141,7 @@ export function QuotaTopupBanner({ percentUsed, used, limit, plan, activePacks }
                     disabled={loading === pack.id}
                     style={{
                       padding: '7px 16px', borderRadius: '8px', border: 'none',
-                      background: loading === pack.id ? 'var(--border)' : `linear-gradient(135deg,${R},${O})`,
+                      background: loading === pack.id ? 'var(--border)' : BRAND_GRADIENT,
                       color: '#fff', fontSize: '13px', fontWeight: 700, cursor: loading === pack.id ? 'not-allowed' : 'pointer',
                       whiteSpace: 'nowrap', flexShrink: 0,
                     }}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { BRAND, STATE, METRIC } from '@/lib/brand-colors';
 import {
   BarChart3,
   Boxes,
@@ -228,7 +229,7 @@ export default function AdminWidgetAnalyticsPage() {
       `}</style>
 
       {err ? (
-        <p style={{ color: '#ef4444', marginTop: '24px', fontSize: '14px' }}>{err}</p>
+        <p style={{ color: STATE.error, marginTop: '24px', fontSize: '14px' }}>{err}</p>
       ) : null}
 
       {loading && !data ? (
@@ -288,11 +289,11 @@ export default function AdminWidgetAnalyticsPage() {
               </h2>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
                 {[
-                  { label: 'Aperturas totales', value: data.sessions.totalSessions.toLocaleString(), icon: Users, color: '#e41414' },
-                  { label: 'Mensajes / sesión', value: String(data.sessions.avgMsgsPerSess), icon: MessageSquare, color: '#00acf8' },
-                  { label: 'Leads (handoff)', value: `${data.sessions.escalationRate}%`, icon: UserCheck, color: '#f87600' },
-                  { label: 'Abandono', value: `${data.sessions.dropOffRate}%`, icon: TrendingDown, color: '#00f8e5' },
-                  { label: 'Hora pico global', value: fmtHour(data.sessions.peakHour), icon: Clock, color: '#8B5CF6' },
+                  { label: 'Aperturas totales', value: data.sessions.totalSessions.toLocaleString(), icon: Users, color: BRAND.primary },
+                  { label: 'Mensajes / sesión', value: String(data.sessions.avgMsgsPerSess), icon: MessageSquare, color: BRAND.cool },
+                  { label: 'Leads (handoff)', value: `${data.sessions.escalationRate}%`, icon: UserCheck, color: BRAND.warm },
+                  { label: 'Abandono', value: `${data.sessions.dropOffRate}%`, icon: TrendingDown, color: STATE.warning },
+                  { label: 'Hora pico global', value: fmtHour(data.sessions.peakHour), icon: Clock, color: METRIC.neutral },
                 ].map((c) => (
                   <div key={c.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '18px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
@@ -324,8 +325,8 @@ export default function AdminWidgetAnalyticsPage() {
                           width: '100%', borderRadius: '4px 4px 0 0',
                           height: `${pct}%`, minHeight: 3,
                           background: isPeak
-                            ? 'linear-gradient(180deg, #e41414, #f87600)'
-                            : 'linear-gradient(180deg, #00acf8, #00f8e5)',
+                            ? `linear-gradient(180deg, ${BRAND.primary}, ${BRAND.warm})`
+                            : `linear-gradient(180deg, ${BRAND.cool}, ${BRAND.cool}88)`,
                           opacity: isPeak ? 1 : 0.65,
                         }} />
                         {(h % 6 === 0 || h === 23) && (

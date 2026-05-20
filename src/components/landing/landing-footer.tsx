@@ -32,7 +32,7 @@ export async function LandingFooter() {
               <li><Link href="/playground" className="hover:underline">Playground</Link></li>
               <li><Link href="#pricing" className="hover:underline">{t('plans')}</Link></li>
               <li><Link href="#agents" className="hover:underline">Agentes</Link></li>
-              <li><Link href="/widget" className="hover:underline">Widget API</Link></li>
+              <li><Link href="/docs" className="hover:underline">Widget API</Link></li>
             </ul>
           </div>
 
@@ -50,8 +50,9 @@ export async function LandingFooter() {
             <ul className="space-y-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
               <li><Link href="/terminos-y-condiciones" className="hover:underline">{t('terms')}</Link></li>
               <li><Link href="/politica-de-privacidad" className="hover:underline">{t('privacy')}</Link></li>
-              <li><Link href="/politica-de-cookies" className="hover:underform">{t('cookies')}</Link></li>
+              <li><Link href="/politica-de-cookies" className="hover:underline">{t('cookies')}</Link></li>
               <li><Link href="/politica-de-reembolso" className="hover:underline">{t('refunds')}</Link></li>
+              <li><Link href="/compliance" className="hover:underline">Tratamiento de datos</Link></li>
             </ul>
           </div>
         </div>

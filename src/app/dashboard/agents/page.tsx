@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useClientModels } from '@/hooks/use-client-models';
 import { getAgentLimits, TOOL_MAP } from '@/lib/agent-plans';
@@ -211,6 +212,7 @@ export default function AgentsPage() {
 
   const [agents, setAgents] = useState<ClientAgent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
   const { models: clientModels } = useClientModels(plan);
 
@@ -225,9 +227,14 @@ export default function AgentsPage() {
   const getModelLabel = (modelId: string) => modelLabelById[modelId] ?? modelId;
 
   useEffect(() => {
+    setFetchError(null);
     fetch('/api/agents')
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) throw new Error('No se pudieron cargar los agentes.');
+        return r.json();
+      })
       .then((d) => setAgents(d.agents ?? []))
+      .catch((e) => setFetchError(e instanceof Error ? e.message : 'Error de red'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -251,6 +258,9 @@ export default function AgentsPage() {
     });
     if (res.ok) {
       setAgents((prev) => prev.map((a) => (a._id === agent._id ? { ...a, status: newStatus } : a)));
+      toast.success(newStatus === 'active' ? 'Agente activado' : 'Agente desactivado');
+    } else {
+      toast.error('No se pudo cambiar el estado del agente');
     }
     setToggling(null);
   }
@@ -285,27 +295,33 @@ export default function AgentsPage() {
               Tus agentes y el catálogo global van separados: el cupo del plan solo aplica a los tuyos.
             </p>
           </div>
+          {atLimit ? (
+            <Link
+              href="/dashboard/settings#settings-billing"
+              title={`Límite alcanzado (${usedAgents}/${limits.agents})`}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold no-underline transition-all shrink-0"
+              style={{
+                background: 'rgba(228,20,20,0.1)',
+                color: R,
+                border: `1px solid ${R}35`,
+              }}
+            >
+              <Plus size={16} strokeWidth={2.5} /> Límite alcanzado — Ver planes
+            </Link>
+          ) : (
           <Link
             href="/dashboard/agents/new"
             data-tour="agents-new"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold no-underline transition-all shrink-0"
-            style={
-              atLimit
-                ? {
-                    background: 'var(--muted)',
-                    color: 'var(--muted-foreground)',
-                    pointerEvents: 'none',
-                    opacity: 0.65,
-                  }
-                : {
-                    background: `linear-gradient(135deg, ${R}, #f87600)`,
-                    color: '#fff',
-                    boxShadow: '0 4px 18px rgba(228,20,20,0.28)',
-                  }
-            }
+            style={{
+              background: `linear-gradient(135deg, ${R}, #f87600)`,
+              color: '#fff',
+              boxShadow: '0 4px 18px rgba(228,20,20,0.28)',
+            }}
           >
             <Plus size={16} strokeWidth={2.5} /> Nuevo agente
           </Link>
+          )}
         </div>
 
         {/* Uso del plan */}
@@ -351,6 +367,32 @@ export default function AgentsPage() {
               </Link>
             )}
           </div>
+        </div>
+
+        {fetchError && (
+          <div
+            className="rounded-xl border p-4 mb-6 flex flex-wrap items-center justify-between gap-3"
+            style={{ borderColor: 'rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)' }}
+          >
+            <p className="text-sm m-0" style={{ color: '#ef4444' }}>{fetchError}</p>
+            <button
+              type="button"
+              onClick={() => { setLoading(true); setFetchError(null); fetch('/api/agents').then(async (r) => { if (!r.ok) throw new Error(); return r.json(); }).then((d) => setAgents(d.agents ?? [])).catch(() => setFetchError('No se pudieron cargar los agentes.')).finally(() => setLoading(false)); }}
+              className="text-xs font-bold px-3 py-1.5 rounded-lg border-0 cursor-pointer"
+              style={{ background: R, color: '#fff' }}
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
+
+        <div className="mb-4 flex flex-wrap gap-3 text-xs">
+          <Link href="/dashboard/mcp" className="font-semibold landing-link-accent no-underline">
+            Catálogo MCP →
+          </Link>
+          <Link href="/dashboard/finance" className="font-semibold landing-link-accent no-underline">
+            Uso estimado →
+          </Link>
         </div>
 
         {/* Lista: ancla `agents-list` siempre en el DOM (también en carga) para que el onboarding reanude al llegar desde /dashboard */}

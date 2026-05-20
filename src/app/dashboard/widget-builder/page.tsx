@@ -3,7 +3,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { Copy, Check, Save, ExternalLink, Plus, Trash2, Sparkles, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { AvatarEditor } from '@/components/ui/AvatarEditor';
+import { WizardSteps } from '@/components/ui/wizard-steps';
 import {
   defaultHueFromHex,
   fabOrbitBlendModes,
@@ -511,6 +513,13 @@ function generateFullSnippet(token: string = 'YOUR_TOKEN') {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+const WIDGET_WIZARD_STEPS = [
+  { id: 'identity', label: 'Identidad' },
+  { id: 'appearance', label: 'Apariencia' },
+  { id: 'behavior', label: 'Comportamiento' },
+  { id: 'publish', label: 'Publicar' },
+] as const;
+
 export default function WidgetBuilderPage() {
   const [cfg, setCfg] = useState<WidgetConfig>(DEFAULT);
   const [agents, setAgents] = useState<ClientAgentRow[]>([]);
@@ -524,6 +533,15 @@ export default function WidgetBuilderPage() {
   const [suggestingShortcuts, setSuggestingShortcuts] = useState(false);
   const [shortcutSuggestErr, setShortcutSuggestErr] = useState('');
   const [snippetTab, setSnippetTab] = useState<'minimal' | 'full'>('minimal');
+  const [wizardStep, setWizardStep] = useState(0);
+
+  function goNextStep() {
+    if (wizardStep === 0) {
+      if (!cfg.name.trim()) { toast.error('Indica un nombre para el widget'); return; }
+      if (!cfg.agentId) { toast.error('Selecciona un agente'); return; }
+    }
+    setWizardStep((s) => Math.min(WIDGET_WIZARD_STEPS.length - 1, s + 1));
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -707,7 +725,10 @@ export default function WidgetBuilderPage() {
         });
         if (res.ok) {
           setSaved(true);
+          toast.success('Widget actualizado');
           setTimeout(() => setSaved(false), 3000);
+        } else {
+          toast.error('No se pudo guardar el widget');
         }
       } else {
         const res = await fetch('/api/widgets', {
@@ -734,11 +755,14 @@ export default function WidgetBuilderPage() {
             setSnippetToken(data.widget.afhubToken);
           }
           setSaved(true);
+          toast.success('Widget creado correctamente');
           setTimeout(() => setSaved(false), 3000);
+        } else {
+          toast.error('No se pudo crear el widget');
         }
       }
     } catch {
-      /* ignore */
+      toast.error('Error de red al guardar');
     }
     setSaving(false);
   }
@@ -785,6 +809,14 @@ export default function WidgetBuilderPage() {
               </p>
             )}
 
+        <WizardSteps
+          steps={[...WIDGET_WIZARD_STEPS]}
+          current={wizardStep}
+          onStepClick={setWizardStep}
+        />
+
+        {wizardStep === 0 && (
+        <>
         {/* Widget name */}
         <div style={fieldStyle} data-tour="widget-builder-name">
           <label style={labelStyle}>Nombre del widget</label>
@@ -880,7 +912,11 @@ export default function WidgetBuilderPage() {
             </p>
           )}
         </div>
+        </>
+        )}
 
+        {wizardStep === 1 && (
+        <>
         {/* Branding */}
         <div style={{ display: 'flex', gap: '12px', marginBottom: '14px' }} data-tour="widget-builder-branding">
           <div style={{ flex: 1 }}>
@@ -927,18 +963,6 @@ export default function WidgetBuilderPage() {
           <input style={inputStyle} value={cfg.fabHint} onChange={(e) => update({ fabHint: e.target.value })} placeholder="¿Necesitas ayuda?" />
         </div>
         </div>
-        <div style={fieldStyle} data-tour="widget-builder-support">
-          <label style={labelStyle}>WhatsApp — atención humana</label>
-          <input
-            style={inputStyle}
-            value={cfg.humanSupportPhone ?? ''}
-            onChange={(e) => update({ humanSupportPhone: e.target.value.slice(0, 48) })}
-            placeholder="+52 55 1234 5678 (con código de país)"
-          />
-          <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 6, marginBottom: 0, lineHeight: 1.45 }}>
-            Si el visitante escribe palabras como «persona», «humano» o «atención humana», aparece en el chat un acceso a WhatsApp (con número válido). Opcional.
-          </p>
-        </div>
         <div data-tour="widget-builder-look">
         <div style={fieldStyle}>
           <label style={labelStyle}>URL de avatar / orbe</label>
@@ -977,8 +1001,23 @@ export default function WidgetBuilderPage() {
             ))}
           </div>
         </div>
+        </>
+        )}
 
-        {/* Auto open + token snippet (comportamiento del embed) */}
+        {wizardStep === 2 && (
+        <>
+        <div style={fieldStyle} data-tour="widget-builder-support">
+          <label style={labelStyle}>WhatsApp — atención humana</label>
+          <input
+            style={inputStyle}
+            value={cfg.humanSupportPhone ?? ''}
+            onChange={(e) => update({ humanSupportPhone: e.target.value.slice(0, 48) })}
+            placeholder="+52 55 1234 5678 (con código de país)"
+          />
+          <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 6, marginBottom: 0, lineHeight: 1.45 }}>
+            Si el visitante escribe palabras como «persona», «humano» o «atención humana», aparece en el chat un acceso a WhatsApp (con número válido). Opcional.
+          </p>
+        </div>
         <div data-tour="widget-builder-embed-options">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1076,7 +1115,37 @@ export default function WidgetBuilderPage() {
             </div>
           )}
         </div>
+        </>
+        )}
 
+        {wizardStep < 3 && (
+          <div className="flex gap-2 mt-2 mb-4">
+            {wizardStep > 0 && (
+              <button
+                type="button"
+                onClick={() => setWizardStep((s) => Math.max(0, s - 1))}
+                className="flex-1 py-2.5 rounded-xl font-bold text-[13px] border"
+                style={{ borderColor: 'var(--border)', background: 'var(--background)', color: 'var(--foreground)' }}
+              >
+                Anterior
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={goNextStep}
+              className="flex-1 py-2.5 rounded-xl font-bold text-[13px] text-white border-0"
+              style={{ background: `linear-gradient(135deg, ${BRAND_R}, ${BRAND_O})` }}
+            >
+              Siguiente
+            </button>
+          </div>
+        )}
+
+        {wizardStep === 3 && (
+        <>
+        <p className="text-sm m-0 mb-4" style={{ color: 'var(--muted-foreground)' }}>
+          Guarda el widget y copia el snippet para pegarlo antes de <code>&lt;/body&gt;</code> en tu sitio.
+        </p>
         {/* Action buttons */}
         <div className="flex gap-2">
           <button
@@ -1105,6 +1174,8 @@ export default function WidgetBuilderPage() {
             {saving ? 'Guardando...' : saved ? 'Guardado!' : editWidgetId ? 'Guardar cambios' : 'Guardar widget'}
           </button>
         </div>
+        </>
+        )}
           </div>
         </div>
 

@@ -12,10 +12,7 @@ import {
   BarChart2, Users, UserCheck, Bot,
 } from 'lucide-react';
 
-const R = '#e41414';
-const O = '#f87600';
-const B = '#00acf8';
-const C = '#00f8e5';
+import { BRAND, METRIC, STATE, R, O, B } from '@/lib/brand-colors';
 
 interface UsageData {
   used: number;
@@ -61,9 +58,9 @@ function formatHour(h: number) {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  operational: '#22c55e',
-  degraded: '#f59e0b',
-  down: '#ef4444',
+  operational: STATE.success,
+  degraded: STATE.warning,
+  down: STATE.error,
 };
 
 /* ── Barra esqueleto reutilizable ─────────────────────────────────────────── */
@@ -202,7 +199,7 @@ export default function DashboardPage() {
             sub={usage ? (usage.limit === -1 ? 'ilimitadas' : `/ ${usage.limit.toLocaleString('es')} este mes`) : '—'}
             bar={usage && usage.limit !== -1 ? {
               pct: Math.min(usage.percentUsed, 100),
-              color: usage.percentUsed >= 80 ? `linear-gradient(90deg,${O},#ef4444)` : `linear-gradient(90deg,${R},${O})`,
+              color: usage.percentUsed >= 80 ? `linear-gradient(90deg,${STATE.warning},${STATE.error})` : `linear-gradient(90deg,${R},${O})`,
             } : undefined}
           />
           <MetricCard
@@ -213,15 +210,15 @@ export default function DashboardPage() {
             sub={loading ? '—' : isPremium ? 'activo' : isTrialActive ? `${trialDaysRemaining} días de prueba` : 'sin suscripción'}
           />
           <MetricCard
-            accent={`linear-gradient(90deg,${B},${C})`}
+            accent={`linear-gradient(90deg,${B},${B}88)`}
             icon={<Bot size={13} style={{ color: B }} />}
             label="Agentes"
             value={agentCount === null ? '—' : String(agentCount)}
             sub={agentCount === null ? '—' : agentCount === 0 ? 'crea tu primer agente' : agentCount === 1 ? 'agente activo' : 'agentes creados'}
           />
           <MetricCard
-            accent={`linear-gradient(90deg,${C},${R})`}
-            icon={<BarChart2 size={13} style={{ color: C }} />}
+            accent={`linear-gradient(90deg,${B},${B}88)`}
+            icon={<BarChart2 size={13} style={{ color: METRIC.neutral }} />}
             label="Widgets"
             value={widgetCount === null ? '—' : String(widgetCount)}
             sub={widgetCount === null ? '—' : widgetCount === 0 ? 'crea tu primer widget' : widgetCount === 1 ? 'widget desplegado' : 'widgets desplegados'}
@@ -257,9 +254,9 @@ export default function DashboardPage() {
                   {usage ? (
                     <span className="text-xs font-extrabold px-2.5 py-1 rounded-full"
                       style={{
-                        background: usage.percentUsed >= 80 ? 'rgba(239,68,68,0.12)' : `${R}10`,
-                        color: usage.percentUsed >= 80 ? '#ef4444' : R,
-                        border: `1px solid ${usage.percentUsed >= 80 ? 'rgba(239,68,68,0.3)' : R + '30'}`,
+                        background: usage.percentUsed >= 80 ? STATE.errorBg : `${R}10`,
+                        color: usage.percentUsed >= 80 ? STATE.error : R,
+                        border: `1px solid ${usage.percentUsed >= 80 ? STATE.errorBorder : R + '30'}`,
                       }}>
                       {usage.percentUsed}% usado
                     </span>
@@ -283,7 +280,7 @@ export default function DashboardPage() {
                       <div style={{
                         height: '100%',
                         width: `${Math.min(usage.percentUsed, 100)}%`,
-                        background: usage.percentUsed >= 80 ? `linear-gradient(90deg,${O},#ef4444)` : `linear-gradient(90deg,${R},${O},${B})`,
+                        background: usage.percentUsed >= 80 ? `linear-gradient(90deg,${STATE.warning},${STATE.error})` : `linear-gradient(90deg,${R},${O},${B})`,
                         borderRadius: 999,
                         transition: 'width 0.6s cubic-bezier(0.22,1,0.36,1)',
                       }} />
@@ -328,7 +325,7 @@ export default function DashboardPage() {
                       <div style={{
                         height: '100%',
                         width: `${Math.min(((usage.platformFreeUsed ?? 0) / usage.platformFreeLimit) * 100, 100)}%`,
-                        background: `linear-gradient(90deg,${B},${C})`,
+                        background: `linear-gradient(90deg,${B},${B}99)`,
                         borderRadius: 999,
                       }} />
                     </div>
@@ -377,13 +374,13 @@ export default function DashboardPage() {
                 style={{
                   height: 3,
                   background: !sysStatus
-                    ? `linear-gradient(90deg,${C}40,${C},${B},${C}40)`
-                    : `linear-gradient(90deg,${C},${B})`,
+                    ? `linear-gradient(90deg,${B}40,${B},${B}88,${B}40)`
+                    : `linear-gradient(90deg,${B},${B}99)`,
                 }}
               />
               <div className="p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <Activity size={14} style={{ color: C }} />
+                  <Activity size={14} style={{ color: METRIC.neutral }} />
                   <h3 className="text-[13px] font-bold m-0">Estado del sistema</h3>
                   <button
                     onClick={refreshStatus}
@@ -398,12 +395,12 @@ export default function DashboardPage() {
                 {sysStatus ? (
                   <div className="metric-value-appear">
                     {sysStatus.status === 'operational' ? (
-                      <p className="text-sm font-semibold m-0" style={{ color: '#16a34a' }}>
+                      <p className="text-sm font-semibold m-0" style={{ color: STATE.success }}>
                         ✅ Todo funciona correctamente
                       </p>
                     ) : sysStatus.status === 'degraded' ? (
                       <>
-                        <p className="text-sm font-semibold m-0" style={{ color: '#b45309' }}>
+                        <p className="text-sm font-semibold m-0" style={{ color: STATE.warning }}>
                           ⚠️ Estamos trabajando en ello
                         </p>
                         <p className="text-[11px] mt-1 m-0" style={{ color: 'var(--muted-foreground)' }}>
@@ -412,7 +409,7 @@ export default function DashboardPage() {
                       </>
                     ) : (
                       <>
-                        <p className="text-sm font-semibold m-0" style={{ color: '#dc2626' }}>
+                        <p className="text-sm font-semibold m-0" style={{ color: STATE.error }}>
                           🔴 Servicio temporalmente no disponible
                         </p>
                         <p className="text-[11px] mt-1 m-0" style={{ color: 'var(--muted-foreground)' }}>
@@ -484,7 +481,7 @@ export default function DashboardPage() {
         {/* ── WIDGET ANALYTICS ─────────────────────────────────────────────── */}
         {widgetCount !== null && (
           <div className="rounded-2xl border card-texture overflow-hidden mb-8" style={{ borderColor: 'var(--border)' }}>
-            <div style={{ height: 3, background: `linear-gradient(90deg,${O},${B},${C})` }} />
+            <div style={{ height: 3, background: `linear-gradient(90deg,${O},${B})` }} />
             <div className="p-5 md:p-6">
 
               {/* Header */}
@@ -545,7 +542,7 @@ export default function DashboardPage() {
                     <AnalyticTile color={O} icon={<UserCheck size={12} style={{ color: O }} />}
                       label="Leads (handoff)" value={`${widgetAnalytics.summary.escalationRate}%`}
                       sub="pidieron hablar con humano" />
-                    <AnalyticTile color={C} icon={<TrendingUp size={12} style={{ color: C }} />}
+                    <AnalyticTile color={METRIC.neutral} icon={<TrendingUp size={12} style={{ color: METRIC.neutral }} />}
                       label="Abandono" value={`${widgetAnalytics.summary.dropOffRate}%`}
                       sub="abrieron sin escribir" />
                   </div>
@@ -577,7 +574,7 @@ export default function DashboardPage() {
                               <span className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>{m.sessions}</span>
                               <div className="w-full rounded-t-md" style={{
                                 height: `${pct}%`, minHeight: 4,
-                                background: `linear-gradient(180deg,${B},${C})`, opacity: 0.85,
+                                background: `linear-gradient(180deg,${B},${B}88)`, opacity: 0.85,
                               }} />
                               <span className="text-[9px]" style={{ color: 'var(--muted-foreground)' }}>{m.month.slice(5)}</span>
                             </div>

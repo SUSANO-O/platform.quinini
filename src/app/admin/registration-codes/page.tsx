@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Plus, RefreshCw, Trash2, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
+import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface UseEntry {
   userId: string;
@@ -48,6 +50,8 @@ export default function RegistrationCodesPage() {
   const [formExpiry, setFormExpiry] = useState('');
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; code: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -70,11 +74,17 @@ export default function RegistrationCodesPage() {
     }
   }
 
-  async function deleteCode(id: string, code: string) {
-    if (!confirm(`¿Eliminar el código "${code}"? Esta acción no se puede deshacer.`)) return;
+  async function deleteCode(id: string) {
+    setDeleting(true);
     const res = await fetch(`/api/admin/registration-codes/${id}`, { method: 'DELETE' });
-    if (res.ok) setCodes((prev) => prev.filter((c) => c._id !== id));
-    else alert('Error al eliminar.');
+    setDeleting(false);
+    setDeleteTarget(null);
+    if (res.ok) {
+      setCodes((prev) => prev.filter((c) => c._id !== id));
+      toast.success('Código eliminado');
+    } else {
+      toast.error('Error al eliminar el código');
+    }
   }
 
   async function createCode() {
@@ -95,6 +105,7 @@ export default function RegistrationCodesPage() {
       setCodes((prev) => [data.code as CodeRow, ...prev]);
       setShowForm(false);
       setFormCode(''); setFormPlan('basic'); setFormMaxUses(1); setFormNote(''); setFormExpiry('');
+      toast.success('Código creado');
     }
     setCreating(false);
   }
@@ -112,6 +123,16 @@ export default function RegistrationCodesPage() {
 
   return (
     <div style={{ padding: '32px', maxWidth: 900 }}>
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Eliminar código"
+        description={deleteTarget ? `¿Eliminar el código "${deleteTarget.code}"? Esta acción no se puede deshacer.` : ''}
+        confirmLabel="Eliminar"
+        variant="danger"
+        loading={deleting}
+        onConfirm={() => deleteTarget && void deleteCode(deleteTarget.id)}
+        onCancel={() => setDeleteTarget(null)}
+      />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
         <h1 style={{ fontSize: '22px', fontWeight: 800 }}>Códigos de acceso</h1>
         <div style={{ display: 'flex', gap: '8px' }}>
@@ -330,7 +351,7 @@ export default function RegistrationCodesPage() {
                     </button>
                   )}
                   <button
-                    onClick={() => deleteCode(c._id, c.code)}
+                    onClick={() => setDeleteTarget({ id: c._id, code: c.code })}
                     title="Eliminar"
                     style={{
                       border: 'none', background: 'transparent', cursor: 'pointer',

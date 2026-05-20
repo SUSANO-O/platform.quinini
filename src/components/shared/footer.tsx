@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { SITE_COMPANY_LINKS, SITE_LEGAL_LINKS, SITE_PRODUCT_LINKS } from '@/lib/site-nav';
 
 export function Footer() {
   return (
@@ -13,34 +14,42 @@ export function Footer() {
             </div>
             <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
               Agentes de IA como servicio.<br />
-              API REEST full, integración en minutos.
+              API REST full, integración en minutos.
             </p>
+            <a
+              href="mailto:privacidad@matias.app"
+              className="inline-block mt-4 text-sm font-medium hover:underline"
+              style={{ color: 'var(--foreground)' }}
+            >
+              privacidad@matias.app
+            </a>
           </div>
 
           <div>
             <h4 className="font-semibold text-sm mb-3">Producto</h4>
             <ul className="space-y-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              <li><Link href="/playground" className="hover:underline">Playground</Link></li>
-              <li><Link href="/pricing" className="hover:underline">Precios</Link></li>
+              {SITE_PRODUCT_LINKS.map((l) => (
+                <li key={l.href}><Link href={l.href} className="hover:underline">{l.label}</Link></li>
+              ))}
             </ul>
           </div>
 
           <div>
             <h4 className="font-semibold text-sm mb-3">Empresa</h4>
             <ul className="space-y-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              <li><Link href="/" className="hover:underline">Inicio</Link></li>
-              <li><Link href="/widget" className="hover:underline">Widget API</Link></li>
-              <li><Link href="/#pricing" className="hover:underline">Planes</Link></li>
+              <li><Link href="/es" className="hover:underline">Inicio</Link></li>
+              {SITE_COMPANY_LINKS.map((l) => (
+                <li key={l.href}><Link href={l.href} className="hover:underline">{l.label}</Link></li>
+              ))}
             </ul>
           </div>
 
           <div>
             <h4 className="font-semibold text-sm mb-3">Legal</h4>
             <ul className="space-y-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              <li><Link href="/terminos-y-condiciones" className="hover:underline">Términos</Link></li>
-              <li><Link href="/politica-de-privacidad" className="hover:underline">Privacidad</Link></li>
-              <li><Link href="/politica-de-cookies" className="hover:underline">Cookies</Link></li>
-              <li><Link href="/politica-de-reembolso" className="hover:underline">Reembolsos</Link></li>
+              {SITE_LEGAL_LINKS.map((l) => (
+                <li key={l.href}><Link href={l.href} className="hover:underline">{l.label}</Link></li>
+              ))}
             </ul>
           </div>
         </div>

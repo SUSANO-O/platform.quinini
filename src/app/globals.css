@@ -11,19 +11,41 @@
   --card: #ffffff;
   --card-foreground: #0f0f14;
 
-  /* Brand — basada en #e41414 y sus esquemas */
-  --primary:       #e41414;   /* rojo principal         */
-  --primary-light: #f1513a;   /* 25% más ligero         */
-  --primary-dark:  #bb1b14;   /* 25% más oscuro         */
+  /* Brand — 70% neutros · 20% rojo dominante · 10% naranja/azul + premium */
+  --brand-primary:       #e41414;
+  --brand-primary-light: #f1513a;
+  --brand-primary-dark:  #bb1b14;
+  --brand-warm:          #f87600;
+  --brand-cool:          #00acf8;
 
-  --accent:        #00acf8;   /* complementario         */
-  --accent-warm:   #f87600;   /* análogo cálido         */
-  --accent-cyan:   #00f8e5;   /* split-complement cyan  */
+  /* Alias semánticos (compatibilidad) */
+  --primary:       var(--brand-primary);
+  --primary-light: var(--brand-primary-light);
+  --primary-dark:  var(--brand-primary-dark);
+  --accent:        var(--brand-cool);
+  --accent-warm:   var(--brand-warm);
 
-  /* Stops del degradado principal */
-  --gradient-start: #e41414;
-  --gradient-mid:   #f87600;
-  --gradient-end:   #00acf8;
+  /* Premium — solo planes Growth / badges destacados */
+  --premium:       #00f8e5;
+  --accent-cyan:   var(--premium);
+
+  /* Estados UI — nunca usar --brand-* para éxito/error */
+  --state-success:        #22c55e;
+  --state-success-bg:     rgba(34,197,94,0.1);
+  --state-success-border: rgba(34,197,94,0.2);
+  --state-error:          #ef4444;
+  --state-error-bg:       rgba(239,68,68,0.08);
+  --state-error-border:   rgba(239,68,68,0.2);
+  --state-warning:        #f59e0b;
+  --state-warning-bg:     rgba(245,158,11,0.1);
+  --state-warning-border: rgba(245,158,11,0.25);
+  --state-info:           #64748b;
+  --state-muted:          #94a3b8;
+
+  /* Degradado de marca (hero, CTAs principales) */
+  --gradient-start: var(--brand-primary);
+  --gradient-mid:   var(--brand-warm);
+  --gradient-end:   var(--brand-cool);
 }
 
 /* ── Fonts ────────────────────────────────────────────────────────────────── */
@@ -31,7 +53,21 @@
   font-family: 'Clash Display', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-* { box-sizing: border-box; }
+html {
+  scroll-padding-top: 88px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
 
 body {
   background: var(--background);
@@ -39,11 +75,11 @@ body {
   font-family: 'Satoshi', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
 
-  /* Halos ambientales sutiles en tema claro */
+  /* Halos ambientales — tenues (70% neutro) */
   background-image:
-    radial-gradient(circle at 14% 10%,  hsl(0   84% 49% / 0.07), transparent 32%),
-    radial-gradient(circle at 84% 12%,  hsl(201 93% 49% / 0.06), transparent 30%),
-    radial-gradient(circle at 50% 98%,  hsl(30  95% 49% / 0.04), transparent 28%);
+    radial-gradient(circle at 14% 10%,  hsl(0   84% 49% / 0.05), transparent 32%),
+    radial-gradient(circle at 84% 12%,  hsl(201 93% 49% / 0.04), transparent 30%),
+    radial-gradient(circle at 50% 98%,  hsl(30  95% 49% / 0.03), transparent 28%);
   background-attachment: fixed;
   min-height: 100vh;
 }
@@ -137,7 +173,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 .card-hover:hover {
   transform: translateY(-3px);
-  box-shadow: 0 12px 32px rgba(228,20,20,0.09), 0 4px 16px rgba(0,0,0,0.05);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
 }
 
 /* Badge pill primario */

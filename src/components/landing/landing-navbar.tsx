@@ -53,6 +53,15 @@ export function LandingNavbar() {
             {t('pricing')}
           </Link>
           <Link
+            href="/docs"
+            className="text-sm font-medium transition-colors"
+            style={{ color: 'var(--muted-foreground)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
+          >
+            {t('docs')}
+          </Link>
+          <Link
             href="/preguntas-frecuentes"
             className="text-sm font-medium transition-colors"
             style={{ color: 'var(--muted-foreground)' }}
@@ -147,6 +156,16 @@ export function LandingNavbar() {
             onClick={() => setOpen(false)}
           >
             {t('pricing')}
+          </Link>
+          <Link
+            href="/docs"
+            className="flex items-center text-sm font-medium px-3 py-2.5 rounded-xl transition-colors"
+            style={{ color: 'var(--foreground)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            onClick={() => setOpen(false)}
+          >
+            {t('docs')}
           </Link>
           <Link
             href="/preguntas-frecuentes"

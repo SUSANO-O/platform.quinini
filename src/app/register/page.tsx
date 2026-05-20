@@ -24,8 +24,8 @@ export default function RegisterPage() {
       setError('El código de autorización es requerido.');
       return;
     }
-    if (password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres.');
+    if (password.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres.');
       return;
     }
     setLoading(true);
@@ -42,7 +42,7 @@ export default function RegisterPage() {
     <div className="landing-auth-wrap">
       <div className="hero-glow" style={{ background: 'var(--gradient-start)', top: '-200px', right: '10%' }} />
       <div className="hero-glow" style={{ background: 'var(--accent-warm)', top: '-80px', left: '5%' }} />
-      <div className="hero-glow" style={{ background: 'var(--accent-cyan)', top: '35%', left: '50%' }} />
+      <div className="hero-glow" style={{ background: 'var(--brand-cool)', top: '35%', left: '50%' }} />
 
       <div className="relative w-full max-w-[440px]">
         <div className="text-center mb-8">
@@ -51,7 +51,7 @@ export default function RegisterPage() {
             <span className="text-2xl font-bold gradient-text">MatIAs</span>
           </Link>
           <p className="mt-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-            Empieza tu prueba gratuita de 7 días
+            Prueba gratuita de 7 días — requiere código de invitación
           </p>
         </div>
 
@@ -66,7 +66,10 @@ export default function RegisterPage() {
           <div>
             <p className="font-bold text-[13px] m-0">Acceso por invitación</p>
             <p className="text-xs m-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-              Necesitas un código de autorización para crear tu cuenta
+              Necesitas un código de autorización para crear tu cuenta.{' '}
+              <Link href="/preguntas-frecuentes" className="landing-link-accent">
+                ¿Cómo lo obtengo?
+              </Link>
             </p>
           </div>
         </div>
@@ -74,10 +77,11 @@ export default function RegisterPage() {
         <div className="landing-card p-8">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
-              <label className="block text-[13px] font-semibold mb-1.5">
+              <label htmlFor="register-code" className="block text-[13px] font-semibold mb-1.5">
                 Código de autorización
               </label>
               <input
+                id="register-code"
                 type="text"
                 value={registrationCode}
                 onChange={(e) => setRegistrationCode(e.target.value.toUpperCase())}
@@ -90,35 +94,41 @@ export default function RegisterPage() {
               />
             </div>
             <div>
-              <label className="block text-[13px] font-semibold mb-1.5">Nombre</label>
+              <label htmlFor="register-name" className="block text-[13px] font-semibold mb-1.5">Nombre</label>
               <input
+                id="register-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Tu nombre"
                 className="landing-input"
+                autoComplete="name"
               />
             </div>
             <div>
-              <label className="block text-[13px] font-semibold mb-1.5">Email</label>
+              <label htmlFor="register-email" className="block text-[13px] font-semibold mb-1.5">Email</label>
               <input
+                id="register-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="tu@email.com"
                 className="landing-input"
+                autoComplete="email"
               />
             </div>
             <div>
-              <label className="block text-[13px] font-semibold mb-1.5">Contraseña</label>
+              <label htmlFor="register-password" className="block text-[13px] font-semibold mb-1.5">Contraseña</label>
               <input
+                id="register-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                placeholder="Mínimo 6 caracteres"
+                placeholder="Mínimo 8 caracteres"
                 className="landing-input"
+                autoComplete="new-password"
               />
             </div>
 
