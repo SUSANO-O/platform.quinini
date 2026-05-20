@@ -107,54 +107,35 @@ function groupAuditEntries(entries: AuditEntry[]): Array<{ dayKey: string; label
 function SectionCard({
   icon,
   title,
-  accent,
   children,
 }: {
   icon: React.ReactNode;
   title: string;
-  accent: string;
+  accent?: string;
   children: React.ReactNode;
 }) {
   return (
     <section
       className="card-texture"
       style={{
-        padding: '20px 22px',
-        borderRadius: 16,
-        marginBottom: 20,
-        border: `1px solid ${accent}28`,
-        position: 'relative',
-        overflow: 'hidden',
+        borderRadius: 14,
+        marginBottom: 14,
+        border: '1px solid rgba(255,255,255,0.08)',
       }}
     >
-      {/* left accent bar */}
-      <div
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: 16,
-          bottom: 16,
-          width: 3,
-          borderRadius: '0 3px 3px 0',
-          background: accent,
-          opacity: 0.7,
-        }}
-      />
-      <h2
-        style={{
-          margin: '0 0 14px',
-          fontSize: 15,
-          fontWeight: 700,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          paddingLeft: 12,
-        }}
-      >
-        <span style={{ color: accent, display: 'flex' }}>{icon}</span>
-        {title}
-      </h2>
-      <div style={{ paddingLeft: 12 }}>{children}</div>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '14px 20px',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+      }}>
+        <span style={{ opacity: 0.4, display: 'flex' }}>{icon}</span>
+        <h2 style={{ margin: 0, fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em', opacity: 0.85 }}>
+          {title}
+        </h2>
+      </div>
+      <div style={{ padding: '18px 20px' }}>{children}</div>
     </section>
   );
 }
@@ -318,7 +299,7 @@ export default function CompliancePage() {
       </div>
 
       {/* ── Export ───────────────────────────────────────────────── */}
-      <SectionCard icon={<Download size={16} />} title="Exportar mis datos" accent="#00acf8">
+      <SectionCard icon={<Download size={16} />} title="Exportar mis datos">
         <p style={{ margin: '0 0 14px', fontSize: 13, opacity: 0.85, lineHeight: 1.6 }}>
           Descarga un JSON con perfil, suscripción, widgets, agentes (metadatos), uso mensual y últimas entradas de auditoría.
         </p>
@@ -342,7 +323,7 @@ export default function CompliancePage() {
       </SectionCard>
 
       {/* ── Delete account ───────────────────────────────────────── */}
-      <SectionCard icon={<Trash2 size={16} />} title="Borrar cuenta" accent="#e41414">
+      <SectionCard icon={<Trash2 size={16} />} title="Borrar cuenta">
         <p style={{ margin: '0 0 14px', fontSize: 13, opacity: 0.85, lineHeight: 1.6 }}>
           Elimina widgets, agentes de esta cuenta, uso almacenado y tu usuario. Los sistemas externos pueden
           requerir coordinación adicional con soporte.
@@ -377,49 +358,46 @@ export default function CompliancePage() {
       </SectionCard>
 
       {/* ── Webhook ──────────────────────────────────────────────── */}
-      <SectionCard icon={<Webhook size={16} />} title="Webhook SaaS (saliente)" accent="#a855f7">
+      <SectionCard icon={<Webhook size={16} />} title="Webhook SaaS (saliente)">
 
-        {/* Event chips */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 14 }}>
-          {[
-            { label: 'conversation.closed',  color: '#00acf8' },
-            { label: 'conversation.handoff', color: '#00f8e5' },
-            { label: 'quota.reached',        color: '#f87600' },
-          ].map(({ label, color }) => (
-            <span key={label} style={{
-              padding: '3px 10px', borderRadius: 6,
-              background: `${color}12`, color,
-              border: `1px solid ${color}28`,
+        {/* Event chips — neutral code style */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+          {['conversation.closed', 'conversation.handoff', 'quota.reached'].map((label) => (
+            <code key={label} style={{
+              padding: '3px 9px', borderRadius: 6,
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
               fontFamily: 'ui-monospace, SFMono-Regular, monospace',
-              fontSize: 11, fontWeight: 500,
+              fontSize: 11, color: 'rgba(255,255,255,0.55)',
             }}>
               {label}
-            </span>
+            </code>
           ))}
         </div>
 
         {/* Payload fields */}
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
-          marginBottom: 18, padding: '9px 13px', borderRadius: 10,
+          display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap',
+          marginBottom: 18, padding: '8px 12px', borderRadius: 8,
           background: 'rgba(255,255,255,0.025)',
           border: '1px solid rgba(255,255,255,0.06)',
         }}>
-          <span style={{ fontSize: 11, opacity: 0.45, marginRight: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <span style={{ fontSize: 10, opacity: 0.4, marginRight: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Payload
           </span>
           {['event', 'timestamp', 'userId', 'data'].map((f) => (
             <code key={f} style={{
-              padding: '2px 7px', borderRadius: 5, fontSize: 11,
-              background: 'rgba(168,85,247,0.12)',
-              color: '#c4b5fd',
+              padding: '1px 6px', borderRadius: 4, fontSize: 11,
+              background: 'rgba(255,255,255,0.06)',
+              color: 'rgba(255,255,255,0.5)',
               fontFamily: 'ui-monospace, SFMono-Regular, monospace',
+              border: '1px solid rgba(255,255,255,0.08)',
             }}>
               {f}
             </code>
           ))}
-          <span style={{ fontSize: 11, opacity: 0.35, marginLeft: 2 }}>
-            · Firma: <code style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11 }}>X-Matias-Signature: sha256=…</code>
+          <span style={{ fontSize: 10, opacity: 0.3, marginLeft: 2 }}>
+            · <code style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10 }}>X-Matias-Signature: sha256=…</code>
           </span>
         </div>
 
@@ -427,7 +405,7 @@ export default function CompliancePage() {
 
           {/* URL input + save button inline */}
           <div>
-            <p style={{ margin: '0 0 7px', fontSize: 11, opacity: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <p style={{ margin: '0 0 7px', fontSize: 11, opacity: 0.45, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               URL de destino
             </p>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -444,9 +422,9 @@ export default function CompliancePage() {
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   padding: '10px 14px', borderRadius: 10, flexShrink: 0,
-                  border: '1px solid rgba(168,85,247,0.35)',
-                  background: 'rgba(168,85,247,0.14)',
-                  color: '#d8b4fe',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  background: 'rgba(255,255,255,0.07)',
+                  color: 'rgba(255,255,255,0.8)',
                   cursor: busyWh ? 'wait' : 'pointer',
                   fontSize: 13, fontWeight: 600,
                 }}
@@ -461,19 +439,19 @@ export default function CompliancePage() {
           {whSecretPreview ? (
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-              padding: '12px 14px', borderRadius: 10,
-              background: 'rgba(168,85,247,0.06)',
-              border: '1px solid rgba(168,85,247,0.22)',
+              padding: '11px 14px', borderRadius: 10,
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.09)',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                <Lock size={14} style={{ color: '#a855f7', opacity: 0.8, flexShrink: 0 }} />
+                <Lock size={13} style={{ opacity: 0.35, flexShrink: 0 }} />
                 <div style={{ minWidth: 0 }}>
-                  <p style={{ margin: '0 0 2px', fontSize: 10, opacity: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <p style={{ margin: '0 0 2px', fontSize: 10, opacity: 0.4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Secreto HMAC-SHA256
                   </p>
                   <code style={{
                     fontSize: 14, fontFamily: 'ui-monospace, SFMono-Regular, monospace',
-                    color: '#d8b4fe', letterSpacing: '0.04em',
+                    color: 'rgba(255,255,255,0.7)', letterSpacing: '0.04em',
                   }}>
                     {whSecretPreview}
                   </code>
@@ -512,7 +490,7 @@ export default function CompliancePage() {
       </SectionCard>
 
       {/* ── Audit log ────────────────────────────────────────────── */}
-      <SectionCard icon={<ClipboardList size={16} />} title="Registro de auditoría" accent="#00f8e5">
+      <SectionCard icon={<ClipboardList size={16} />} title="Registro de auditoría">
         {loadingAudit ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {[...Array(5)].map((_, i) => (
