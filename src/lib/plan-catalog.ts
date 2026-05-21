@@ -43,13 +43,14 @@ export const PRICING_GRID_PLAN_IDS: PaidPlanId[] = [
   'business',
 ];
 
+/** Precios revisados may 2026 — LLM + RAG + infra externa mínima (Atlas M10, Pinecone pago, storage). */
 export const PLAN_PRICES_USD: Record<PaidPlanId, number> = {
   solo: 7,
   basic: 17,
-  plus: 36,
-  starter: 54,
-  growth: 139,
-  business: 449,
+  plus: 39,
+  starter: 65,
+  growth: 179,
+  business: 749,
 };
 
 const PLAN_LABELS: Record<PlanId, string> = {
@@ -197,7 +198,7 @@ export const PLAN_RAG_LIMITS: Record<string, { mb: number; sources: number } | n
 const PACK_SPECS = [
   { id: 'pack_s', label: 'Pack S', conversations: 1_000,  price: 15  },
   { id: 'pack_m', label: 'Pack M', conversations: 5_000,  price: 60  },
-  { id: 'pack_l', label: 'Pack L', conversations: 15_000, price: 145 },
+  { id: 'pack_l', label: 'Pack L', conversations: 15_000, price: 170 },
 ] as const;
 
 export type PackId = (typeof PACK_SPECS)[number]['id'];
@@ -221,6 +222,21 @@ export const AGENT_WEBHOOK_MIN_PLAN: PlanId = 'solo';
 /** Plan mínimo para webhook SaaS saliente (eventos firmados a tu backend). */
 export const OUTBOUND_SAAS_WEBHOOK_MIN_PLAN: PlanId = 'starter';
 
+/** Plan mínimo para acceso API REST (widgets, agentes, export). */
+export const API_ACCESS_MIN_PLAN: PlanId = 'starter';
+
+/** Plan mínimo para analytics de conversaciones (dashboard widget). */
+export const CONVERSATION_ANALYTICS_MIN_PLAN: PlanId = 'plus';
+
+/** Plan mínimo para analytics avanzado (export, histórico extendido). */
+export const CONVERSATION_ANALYTICS_ADVANCED_MIN_PLAN: PlanId = 'growth';
+
+/** Plan mínimo para creación de tickets al escalar (handoff + integraciones). */
+export const ESCALATION_TICKET_MIN_PLAN: PlanId = 'growth';
+
+/** Plan mínimo para integraciones custom (MCP completo, a medida). */
+export const CUSTOM_INTEGRATION_MIN_PLAN: PlanId = 'business';
+
 const PAID_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing', 'past_due']);
 
 /** Plan efectivo para límites de producto (trialing/active/past_due conservan plan). */
@@ -243,6 +259,26 @@ export function planHasAgentWebhookFeature(planId: PlanId): boolean {
 
 export function planHasOutboundWebhookFeature(planId: PlanId): boolean {
   return planRank(planId) >= planRank(OUTBOUND_SAAS_WEBHOOK_MIN_PLAN);
+}
+
+export function planHasApiAccessFeature(planId: PlanId): boolean {
+  return planRank(planId) >= planRank(API_ACCESS_MIN_PLAN);
+}
+
+/** Etiqueta para tabla comparativa: — | Básico | Avanzado | Completo */
+export function formatConversationAnalyticsFeature(planId: PlanId): string {
+  if (planRank(planId) >= planRank('business')) return 'Completo';
+  if (planRank(planId) >= planRank(CONVERSATION_ANALYTICS_ADVANCED_MIN_PLAN)) return 'Avanzado';
+  if (planRank(planId) >= planRank(CONVERSATION_ANALYTICS_MIN_PLAN)) return 'Básico';
+  return '—';
+}
+
+export function planHasEscalationTicketFeature(planId: PlanId): boolean {
+  return planRank(planId) >= planRank(ESCALATION_TICKET_MIN_PLAN);
+}
+
+export function planHasCustomIntegrationFeature(planId: PlanId): boolean {
+  return planRank(planId) >= planRank(CUSTOM_INTEGRATION_MIN_PLAN);
 }
 
 export function outboundWebhookUpgradeLabel(): string {
@@ -284,30 +320,30 @@ export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
   plus: [
     '3.000 conversaciones al mes (~100/día)',
     '10 agentes · 5 sub-agentes · Webhook incluido',
-    'RAG: 256 MB · 20 fuentes por agente',
-    'Historial: 60 días · widgets ilimitados',
+    'RAG: 256 MB · 20 fuentes · búsqueda vectorial Pinecone',
+    'Analytics de conversaciones (básico) · historial 60 días',
     'Capacitación grupal · soporte email (48 h)',
   ],
   starter: [
     '6.000 conversaciones al mes (~200/día)',
     '25 agentes · 10 sub-agentes · Webhook del agente',
-    'Webhook saliente a tu backend (HMAC) · HubSpot, Notion',
-    'RAG: 1 GB · 60 fuentes · historial 3 meses',
+    'Acceso API REST · webhook saliente (HMAC) · HubSpot, Notion',
+    'RAG: 1 GB · 60 fuentes · Pinecone · analytics básico',
     'Capacitación incluida · soporte email (48 h)',
   ],
   growth: [
     '16.000 conversaciones al mes (~530/día)',
-    '50 agentes · Webhook agente + saliente (HMAC)',
-    'RAG: 10 GB · 300 fuentes · analítica avanzada',
-    'Historial: 1 año · widgets ilimitados',
-    'Modelos Pro disponibles · soporte chat (24 h)',
+    '50 agentes · API REST · webhook agente + saliente',
+    'RAG: 10 GB · 300 fuentes · Pinecone incluido',
+    'Creación de tickets al escalar · analytics avanzado',
+    'Historial: 1 año · modelos Pro · soporte chat (24 h)',
   ],
   business: [
     '45.000 conversaciones al mes (~1.500/día)',
-    'Agentes ilimitados · MCP e integraciones completas',
-    'Webhook agente + saliente · RAG: 100 GB',
-    'Historial ilimitado · widgets ilimitados',
-    'Todos los modelos · soporte dedicado · SLA 99,9 %',
+    'Agentes ilimitados · integraciones custom · MCP completo',
+    'API REST · webhooks · RAG: 100 GB · Pinecone dedicado',
+    'Tickets al escalar · analytics completo (multi-agente)',
+    'Historial ilimitado · todos los modelos · SLA 99,9 %',
   ],
 };
 
@@ -327,9 +363,9 @@ export const PLAN_PRICING_FEATURES: Record<PlanId, string[]> = {
   business: PLAN_FEATURE_BULLETS.business,
   enterprise: [
     'Conversaciones sin límite',
-    'Acuerdos de volumen personalizados',
-    'White-label disponible',
-    'Soporte dedicado 24/7',
+    'API REST · integraciones custom · analytics completo',
+    'Tickets al escalar · acuerdos de volumen personalizados',
+    'White-label disponible · soporte dedicado 24/7',
     'SLA empresarial personalizado',
   ],
 };

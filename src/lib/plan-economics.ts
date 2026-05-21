@@ -15,10 +15,15 @@ import {
   PLAN_HISTORY_RETENTION_DAYS,
   planHasAgentWebhookFeature,
   planHasOutboundWebhookFeature,
+  planHasApiAccessFeature,
+  planHasEscalationTicketFeature,
+  planHasCustomIntegrationFeature,
+  formatConversationAnalyticsFeature,
   type PaidPlanId,
   type PlanId,
 } from '@/lib/plan-catalog';
-import { financeRateConfig } from '@/lib/finance-rates';
+import { financeRateConfig, estimatedUsdPerMessageWithRag } from '@/lib/finance-rates';
+import { estimatePlanInfraUsdMonth } from '@/lib/finance-infra';
 
 export type ModelTier = 'flash' | 'default' | 'premium';
 
@@ -53,7 +58,7 @@ export function costPerMessageUsd(tier: ModelTier, ragEnabled: boolean): number 
     tier === 'flash' ? cfg.flashRate
     : tier === 'premium' ? cfg.premiumRate
     : cfg.defaultRate;
-  return ragEnabled ? base * cfg.ragMultiplier : base;
+  return estimatedUsdPerMessageWithRag(base, ragEnabled);
 }
 
 export function geminiCostPerMessage(modelId: string, tier: ModelTier): number {
@@ -71,6 +76,8 @@ export type PlanEconomicsRow = {
   assumedTier: ModelTier;
   ragEnabled: boolean;
   costPerConv: number;
+  infraUsdMonth: number;
+  maxMessageCogsUsd: number;
   maxCogsUsd: number;
   maxGrossMarginUsd: number;
   maxGrossMarginPct: number;
@@ -84,13 +91,20 @@ export function buildPlanEconomicsRows(): PlanEconomicsRow[] {
     const tier = PLAN_ASSUMED_MODEL_TIER[planId];
     const ragEnabled = PLAN_RAG_LIMITS[planId] !== null;
     const costPerConv = costPerMessageUsd(tier, ragEnabled);
-    const maxCogsUsd = Math.round(conversations * costPerConv * 100) / 100;
+    const maxMessageCogsUsd = Math.round(conversations * costPerConv * 100) / 100;
+    const infra = estimatePlanInfraUsdMonth(planId, { conversations });
+    const maxCogsUsd = Math.round((maxMessageCogsUsd + infra.totalUsd) * 100) / 100;
     const maxGrossMarginUsd = Math.round((priceUsd - maxCogsUsd) * 100) / 100;
     const maxGrossMarginPct = priceUsd > 0
       ? Math.round((maxGrossMarginUsd / priceUsd) * 1000) / 10
       : 0;
-    const breakEvenUsagePct = priceUsd > 0
-      ? Math.min(100, Math.round((priceUsd / (conversations * costPerConv)) * 1000) / 10)
+    const breakEvenUsagePct = priceUsd > 0 && costPerConv > 0
+      ? Math.min(
+          100,
+          Math.round(
+            ((priceUsd - infra.totalUsd) / (conversations * costPerConv)) * 1000,
+          ) / 10,
+        )
       : 0;
 
     return {
@@ -101,6 +115,8 @@ export function buildPlanEconomicsRows(): PlanEconomicsRow[] {
       assumedTier: tier,
       ragEnabled,
       costPerConv,
+      infraUsdMonth: infra.totalUsd,
+      maxMessageCogsUsd,
       maxCogsUsd,
       maxGrossMarginUsd,
       maxGrossMarginPct,
@@ -121,6 +137,10 @@ export type PlanComparisonRow = {
   support: string;
   agentWebhook: string;
   outboundWebhook: string;
+  apiAccess: string;
+  customIntegration: string;
+  escalationTickets: string;
+  conversationAnalytics: string;
   highlighted?: boolean;
 };
 
@@ -168,24 +188,134 @@ export function buildPlanComparisonRows(): PlanComparisonRow[] {
       support: SUPPORT_BY_PLAN[id],
       agentWebhook: planHasAgentWebhookFeature(id) ? 'Incluido' : '—',
       outboundWebhook: planHasOutboundWebhookFeature(id) ? 'Incluido' : '—',
+      apiAccess: planHasApiAccessFeature(id) ? 'Incluido' : '—',
+      customIntegration: planHasCustomIntegrationFeature(id) ? 'Incluido' : '—',
+      escalationTickets: planHasEscalationTicketFeature(id) ? 'Incluido' : '—',
+      conversationAnalytics: formatConversationAnalyticsFeature(id),
       highlighted: id === 'growth',
     };
   });
 }
 
-/** Benchmark competidores (USD/mes, conversaciones incluidas) — referencia web 2026. */
-export const MARKET_BENCHMARKS = [
-  ...PAID_PLAN_IDS.map((id) => ({
-    name: `MatIAs ${PLAN_DISPLAY[id].label}`,
-    price: PLAN_PRICES_USD[id],
-    conversations: PLAN_CONVERSATION_LIMITS[id],
-    perConv: Math.round((PLAN_PRICES_USD[id] / PLAN_CONVERSATION_LIMITS[id]) * 10000) / 10000,
-  })),
-  { name: 'Chatbase Hobby', price: 32, conversations: 500, perConv: 0.064 },
-  { name: 'Chatbase Standard', price: 120, conversations: 4_000, perConv: 0.03 },
-  { name: 'Tidio Starter (Lyro)', price: 24, conversations: 100, perConv: 0.24 },
-  { name: 'Tidio Growth', price: 49, conversations: 250, perConv: 0.196 },
-] as const;
+/** Unidad de facturación del competidor (referencia web mayo 2026). */
+export type MarketBenchmarkUnit =
+  | 'conversation'
+  | 'message'
+  | 'credit'
+  | 'resolution'
+  | 'session';
+
+export type MarketBenchmarkSegment =
+  | 'matias'
+  | 'rag-widget'
+  | 'agent-builder'
+  | 'live-chat'
+  | 'helpdesk';
+
+export type MarketBenchmark = {
+  name: string;
+  price: number;
+  /** Cuota mensual incluida (1 si el precio es por unidad suelta). */
+  conversations: number;
+  perConv: number;
+  unit: MarketBenchmarkUnit;
+  segment: MarketBenchmarkSegment;
+  note?: string;
+};
+
+function bench(
+  name: string,
+  price: number,
+  quota: number,
+  unit: MarketBenchmarkUnit,
+  segment: MarketBenchmarkSegment,
+  note?: string,
+): MarketBenchmark {
+  return {
+    name,
+    price,
+    conversations: quota,
+    perConv: Math.round((price / quota) * 10000) / 10000,
+    unit,
+    segment,
+    note,
+  };
+}
+
+const MATIAS_BENCHMARKS: MarketBenchmark[] = PAID_PLAN_IDS.map((id) =>
+  bench(
+    `MatIAs ${PLAN_DISPLAY[id].label}`,
+    PLAN_PRICES_USD[id],
+    PLAN_CONVERSATION_LIMITS[id],
+    'conversation',
+    'matias',
+  ),
+);
+
+/** Competidores widget RAG / chatbot sobre conocimiento. */
+const RAG_WIDGET_BENCHMARKS: MarketBenchmark[] = [
+  bench('Chatbase Hobby', 32, 500, 'credit', 'rag-widget', 'Créditos/mes; modelos premium consumen más'),
+  bench('Chatbase Standard', 120, 4_000, 'credit', 'rag-widget'),
+  bench('Chatbase Pro', 400, 15_000, 'credit', 'rag-widget'),
+  bench('SiteGPT Starter', 39, 4_000, 'message', 'rag-widget', 'Mensaje = pregunta + respuesta'),
+  bench('SiteGPT Growth', 79, 10_000, 'message', 'rag-widget'),
+  bench('SiteGPT Scale', 259, 40_000, 'message', 'rag-widget'),
+  bench('DocsBot Personal', 49, 5_000, 'message', 'rag-widget'),
+  bench('DocsBot Standard', 149, 15_000, 'message', 'rag-widget'),
+  bench('DocsBot Business', 499, 100_000, 'message', 'rag-widget'),
+  bench('CustomGPT Standard', 99, 1_000, 'message', 'rag-widget', 'Queries/mes'),
+  bench('CustomGPT Premium', 499, 5_000, 'message', 'rag-widget'),
+];
+
+/** Constructores de agentes / flujos. */
+const AGENT_BUILDER_BENCHMARKS: MarketBenchmark[] = [
+  bench('Botpress Plus', 189, 250, 'conversation', 'agent-builder', 'Incluye AI spend en conv'),
+  bench('Botpress Team', 939, 1_500, 'conversation', 'agent-builder'),
+  bench('Landbot Starter (AI)', 45, 100, 'conversation', 'agent-builder', 'Solo AI chats, no chats clásicos'),
+  bench('Landbot Pro (AI)', 110, 300, 'conversation', 'agent-builder'),
+];
+
+/** Live chat + IA (SMB). */
+const LIVE_CHAT_BENCHMARKS: MarketBenchmark[] = [
+  bench('Lyro Core', 39, 50, 'conversation', 'live-chat', 'Standalone Lyro AI'),
+  bench('Lyro ~500 conv', 79, 500, 'conversation', 'live-chat'),
+  bench('Lyro ~1000 conv', 149, 1_000, 'conversation', 'live-chat'),
+  bench('Crisp Essentials (Hugo)', 95, 450, 'conversation', 'live-chat', '~$25 créditos Hugo incl. en plan $95'),
+];
+
+/** Helpdesk — precio por resolución/sesión (no comparable 1:1 con conv widget). */
+const HELPDESK_BENCHMARKS: MarketBenchmark[] = [
+  bench('Intercom Fin', 0.99, 1, 'resolution', 'helpdesk', 'Por outcome resuelto + asientos'),
+  bench('Zendesk AI Agent', 1.5, 1, 'resolution', 'helpdesk', 'Compromiso anual ~$1.50/res'),
+  bench('Gorgias AI Agent', 0.9, 1, 'resolution', 'helpdesk', '+ ticket helpdesk'),
+  bench('Freshworks Freddy', 0.49, 1, 'session', 'helpdesk', '$49/100 sesiones 24h'),
+  bench('My AskAI Scale', 499, 2_000, 'conversation', 'helpdesk', 'Tickets/mes incluidos'),
+];
+
+/**
+ * Benchmark completo — fuente única para exposición, auditoría y admin.
+ * Precios públicos referencia mayo 2026.
+ */
+export const MARKET_BENCHMARKS: MarketBenchmark[] = [
+  ...MATIAS_BENCHMARKS,
+  ...RAG_WIDGET_BENCHMARKS,
+  ...AGENT_BUILDER_BENCHMARKS,
+  ...LIVE_CHAT_BENCHMARKS,
+  ...HELPDESK_BENCHMARKS,
+];
+
+/** Solo unidades comparables con conv/mensaje/crédito (excluye $/resolución suelta). */
+export function marketBenchmarksConversationLike(): MarketBenchmark[] {
+  return MARKET_BENCHMARKS.filter((b) => b.unit !== 'resolution')
+    .slice()
+    .sort((a, b) => a.perConv - b.perConv);
+}
+
+export function marketBenchmarksBySegment(
+  segment: MarketBenchmarkSegment,
+): MarketBenchmark[] {
+  return MARKET_BENCHMARKS.filter((b) => b.segment === segment);
+}
 
 export function packEconomicsVsPlans() {
   return CONVERSATION_PACKS.map((pack) => {

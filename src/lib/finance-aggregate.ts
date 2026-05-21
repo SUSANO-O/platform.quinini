@@ -5,7 +5,11 @@
 import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db/connection';
 import { RequestLog, Widget, ClientAgent, Subscription, User } from '@/lib/db/models';
-import { estimatedUsdPerMessage, financeRateConfig } from '@/lib/finance-rates';
+import {
+  estimatedUsdPerMessage,
+  estimatedUsdPerMessageWithRag,
+  financeRateConfig,
+} from '@/lib/finance-rates';
 
 export { estimatedUsdPerMessage, financeRateConfig } from '@/lib/finance-rates';
 
@@ -40,8 +44,7 @@ function modelRate(modelClass: ModelClass, ragEnabled: boolean): number {
       : modelClass === 'premium'
         ? cfg.premiumRate
         : cfg.defaultRate;
-  const withRag = ragEnabled ? base * cfg.ragMultiplier : base;
-  return Math.round(withRag * 1_000_000) / 1_000_000;
+  return estimatedUsdPerMessageWithRag(base, ragEnabled);
 }
 
 export type FinanceRow = {
@@ -63,6 +66,7 @@ export async function buildFinanceSummary(userId: string): Promise<{
     flashRate: number;
     premiumRate: number;
     ragMultiplier: number;
+    ragVectorUsdPerMessage: number;
   };
   months: string[];
   rows: FinanceRow[];
@@ -170,6 +174,7 @@ export async function buildAdminFinanceSummary(): Promise<{
     flashRate: number;
     premiumRate: number;
     ragMultiplier: number;
+    ragVectorUsdPerMessage: number;
   };
   totals: {
     tenants: number;

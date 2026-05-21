@@ -34,10 +34,10 @@ const PLANS = {
   subscriptions: [
     { key: 'solo',     name: 'MatIAs Solo',     usd: 7,   interval: 'month', aliases: ['solo'] },
     { key: 'basic',    name: 'MatIAs Basic',    usd: 17,  interval: 'month', aliases: ['basic'] },
-    { key: 'plus',     name: 'MatIAs Plus',     usd: 36,  interval: 'month', aliases: ['plus'] },
-    { key: 'starter',  name: 'MatIAs Starter',  usd: 54,  interval: 'month', aliases: ['starter'] },
-    { key: 'growth',   name: 'MatIAs Growth',   usd: 139, interval: 'month', aliases: ['growth'] },
-    { key: 'business', name: 'MatIAs Business', usd: 449, interval: 'month', aliases: ['business'] },
+    { key: 'plus',     name: 'MatIAs Plus',     usd: 39,  interval: 'month', aliases: ['plus'] },
+    { key: 'starter',  name: 'MatIAs Starter',  usd: 65,  interval: 'month', aliases: ['starter'] },
+    { key: 'growth',   name: 'MatIAs Growth',   usd: 179, interval: 'month', aliases: ['growth'] },
+    { key: 'business', name: 'MatIAs Business', usd: 749, interval: 'month', aliases: ['business'] },
   ],
   packs: [
     { key: 'pack_s', name: 'Pack Conversaciones S (1.000)',  usd: 15,  interval: null, aliases: ['pack conversaciones s', 'pack s', 'pack 1000', 'pack 1.000'] },

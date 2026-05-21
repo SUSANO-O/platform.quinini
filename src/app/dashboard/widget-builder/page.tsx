@@ -14,10 +14,15 @@ import {
   iridescentOrbBackgroundCss,
 } from '@/lib/widget-iridescent';
 import {
+  createDefaultPipelineConfig,
   isContentCapableAgent,
   isCreativeCapableAgent,
+  normalizePipelineConfig,
+  validatePipelineConfig,
   validatePipelineWidgetSetup,
+  type PipelineConfig,
 } from '@/lib/widget-pipeline-ui';
+import { PipelineEditor } from '@/components/dashboard/pipeline-editor';
 
 // ── Orb gradient (port of orb-gradient.ts) ───────────────────────────────────
 
@@ -216,6 +221,7 @@ interface WidgetConfig {
   multiAgentMode: 'triage' | 'parallel' | 'pipeline';
   agentIds: string[];
   orchestratorAgentIds: string[];
+  pipelineConfig: PipelineConfig | null;
 }
 
 interface OrchestratorSubAgent {
@@ -245,6 +251,7 @@ const DEFAULT: WidgetConfig = {
   multiAgentMode: 'triage',
   agentIds: [],
   orchestratorAgentIds: [],
+  pipelineConfig: null,
 };
 
 // ── Mock preview ─────────────────────────────────────────────────────────────
@@ -602,6 +609,56 @@ export default function WidgetBuilderPage() {
     );
   }, [cfg.multiAgentEnabled, cfg.multiAgentMode, selectedOrchestratorIds, agents]);
 
+  const pipelineConfigValidation = useMemo(() => {
+    if (!cfg.multiAgentEnabled || cfg.multiAgentMode !== 'pipeline') return null;
+    return validatePipelineConfig(cfg.pipelineConfig, selectedOrchestratorIds, (id) =>
+      resolveAgentProfileByWidgetId(agents, id),
+    );
+  }, [cfg.multiAgentEnabled, cfg.multiAgentMode, cfg.pipelineConfig, selectedOrchestratorIds, agents]);
+
+  const orchestratorOptions = useMemo(
+    () =>
+      selectedOrchestratorIds
+        .map((id) => {
+          const row = agents.find(
+            (a) => effectiveWidgetAgentId(a) === id || a._id === id,
+          );
+          if (!row) return null;
+          return {
+            id,
+            name: row.name,
+            profile: agentProfileFromRow(row),
+          };
+        })
+        .filter((x): x is NonNullable<typeof x> => x != null),
+    [selectedOrchestratorIds, agents],
+  );
+
+  useEffect(() => {
+    if (!cfg.multiAgentEnabled || cfg.multiAgentMode !== 'pipeline') return;
+    if (selectedOrchestratorIds.length < 2) return;
+    setCfg((prev) => {
+      if (prev.multiAgentMode !== 'pipeline') return prev;
+      const resolve = (id: string) => resolveAgentProfileByWidgetId(agents, id);
+      const normalized = normalizePipelineConfig(prev.pipelineConfig, selectedOrchestratorIds);
+      const next =
+        normalized ??
+        createDefaultPipelineConfig(selectedOrchestratorIds, resolve);
+      if (
+        prev.pipelineConfig &&
+        JSON.stringify(prev.pipelineConfig) === JSON.stringify(next)
+      ) {
+        return prev;
+      }
+      return { ...prev, pipelineConfig: next };
+    });
+  }, [
+    cfg.multiAgentEnabled,
+    cfg.multiAgentMode,
+    selectedOrchestratorIds.join(','),
+    agents,
+  ]);
+
   useEffect(() => {
     const orchIds = (cfg.multiAgentEnabled
       ? [cfg.agentId, ...cfg.orchestratorAgentIds]
@@ -697,7 +754,11 @@ export default function WidgetBuilderPage() {
     if (wizardStep === 0) {
       if (!cfg.name.trim()) { toast.error('Indica un nombre para el widget'); return; }
       if (!cfg.agentId) { toast.error('Selecciona un agente'); return; }
-      if (pipelineSetup && !pipelineSetup.ok) {
+      if (pipelineConfigValidation && !pipelineConfigValidation.ok) {
+        toast.error(pipelineConfigValidation.errors[0] ?? 'Revisa la configuración del pipeline');
+        return;
+      }
+      if (pipelineSetup && !pipelineSetup.ok && !cfg.pipelineConfig) {
         toast.error(pipelineSetup.warnings[0] ?? 'Revisa la configuración del pipeline');
         return;
       }
@@ -788,6 +849,15 @@ export default function WidgetBuilderPage() {
               orchestratorAgentIds: Array.isArray(widget.orchestratorAgentIds)
                 ? (widget.orchestratorAgentIds as string[]).filter((id) => typeof id === 'string')
                 : [],
+              pipelineConfig: normalizePipelineConfig(
+                widget.pipelineConfig,
+                [
+                  resolveStoredWidgetAgentId(rawAgent, list) || rawAgent,
+                  ...(Array.isArray(widget.orchestratorAgentIds)
+                    ? (widget.orchestratorAgentIds as string[])
+                    : []),
+                ].filter((id) => /^[a-f0-9]{24}$/i.test(String(id))),
+              ),
             });
             if (Array.isArray(widget.shortcuts)) {
               setShortcuts((widget.shortcuts as WidgetShortcut[]).map((s) => ({
@@ -891,11 +961,11 @@ export default function WidgetBuilderPage() {
 
   async function saveWidget() {
     if (cfg.multiAgentEnabled && cfg.multiAgentMode === 'pipeline') {
-      const check = validatePipelineWidgetSetup(selectedOrchestratorIds, (id) =>
+      const check = validatePipelineConfig(cfg.pipelineConfig, selectedOrchestratorIds, (id) =>
         resolveAgentProfileByWidgetId(agents, id),
       );
       if (!check.ok) {
-        toast.error(check.warnings[0] ?? 'Configura un agente creativo y uno de contenido para el pipeline');
+        toast.error(check.errors[0] ?? 'Configura el pipeline con dos pasos y agentes distintos');
         return;
       }
     }
@@ -1030,7 +1100,12 @@ export default function WidgetBuilderPage() {
                     multiAgentEnabled: e.target.checked,
                     ...(e.target.checked
                       ? {}
-                      : { agentIds: [], orchestratorAgentIds: [], multiAgentMode: 'triage' }),
+                      : {
+                          agentIds: [],
+                          orchestratorAgentIds: [],
+                          multiAgentMode: 'triage',
+                          pipelineConfig: null,
+                        }),
                   })
                 }
                 style={{ width: 16, height: 16, cursor: 'pointer' }}
@@ -1247,7 +1322,22 @@ export default function WidgetBuilderPage() {
                   <button
                     key={mode}
                     type="button"
-                    onClick={() => update({ multiAgentMode: mode })}
+                    onClick={() => {
+                      if (mode === 'pipeline') {
+                        const resolve = (id: string) => resolveAgentProfileByWidgetId(agents, id);
+                        const orchIds = selectedOrchestratorIds;
+                        update({
+                          multiAgentMode: mode,
+                          pipelineConfig:
+                            cfg.pipelineConfig ??
+                            (orchIds.length >= 2
+                              ? createDefaultPipelineConfig(orchIds, resolve)
+                              : null),
+                        });
+                        return;
+                      }
+                      update({ multiAgentMode: mode, pipelineConfig: null });
+                    }}
                     title={hint}
                     style={{
                       flex: '1 1 140px',
@@ -1267,46 +1357,37 @@ export default function WidgetBuilderPage() {
                 );
               })}
             </div>
-            {cfg.multiAgentMode === 'pipeline' && pipelineSetup ? (
+            {cfg.multiAgentMode === 'pipeline' &&
+            cfg.pipelineConfig &&
+            orchestratorOptions.length >= 2 ? (
+              <div style={{ marginBottom: 12 }}>
+                <PipelineEditor
+                  config={cfg.pipelineConfig}
+                  orchestratorOptions={orchestratorOptions}
+                  onChange={(pipelineConfig) => update({ pipelineConfig })}
+                  resolveAgentProfile={(id) => resolveAgentProfileByWidgetId(agents, id)}
+                />
+              </div>
+            ) : cfg.multiAgentMode === 'pipeline' && pipelineSetup ? (
               <div
                 style={{
                   marginBottom: 12,
                   padding: '10px 12px',
                   borderRadius: 8,
-                  border: pipelineSetup.ok
-                    ? '1px solid rgba(34,197,94,0.35)'
-                    : '1px solid rgba(245,158,11,0.45)',
-                  background: pipelineSetup.ok
-                    ? 'rgba(34,197,94,0.08)'
-                    : 'rgba(245,158,11,0.1)',
+                  border: '1px solid rgba(245,158,11,0.45)',
+                  background: 'rgba(245,158,11,0.1)',
                 }}
               >
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: pipelineSetup.ok ? 'rgb(21,128,61)' : 'rgb(180,83,9)',
-                  }}
-                >
-                  {pipelineSetup.ok ? 'Pipeline configurado correctamente' : 'Revisa el pipeline'}
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: 'rgb(180,83,9)' }}>
+                  Selecciona al menos 2 agentes orquestadores para configurar el pipeline.
                 </p>
-                {pipelineSetup.ok ? (
-                  <p style={{ margin: '6px 0 0', fontSize: 11, lineHeight: 1.45, color: 'var(--muted-foreground)' }}>
-                    Paso 1 contenido:{' '}
-                    <strong>{pipelineSetup.contentAgentNames.join(', ')}</strong>
-                    {' · '}
-                    Paso 2 creativo:{' '}
-                    <strong>{pipelineSetup.creativeAgentNames.join(', ')}</strong>
-                    . Se activa solo en mensajes que mezclen catálogo/datos + banner o imagen.
-                  </p>
-                ) : (
-                  <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 11, lineHeight: 1.45, color: 'var(--foreground)' }}>
+                {pipelineSetup.warnings.length > 0 ? (
+                  <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 11, lineHeight: 1.45 }}>
                     {pipelineSetup.warnings.map((w) => (
                       <li key={w}>{w}</li>
                     ))}
                   </ul>
-                )}
+                ) : null}
               </div>
             ) : null}
             {loadingSubs ? (

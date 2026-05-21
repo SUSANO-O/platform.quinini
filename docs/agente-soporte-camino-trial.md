@@ -10,26 +10,32 @@ Documento para **soporte al cliente** sobre qué puede hacer un usuario en el pa
 
 ### 1.1 Cuántos agentes, widgets y recursos según el plan
 
-| Plan | Precio | Agentes | Sub-agentes | Herramientas | RAG storage | Fuentes RAG | Conv/mes | Historial | Webhooks |
+| Plan | Precio | Agentes | Sub-agentes | Herramientas | RAG storage | Fuentes RAG | Conv/mes | Historial | API | Analytics | Tickets escala | Integr. custom | Webhooks |
 |------|--------|---------|-------------|--------------|-------------|-------------|----------|-----------|----------|
-| **Free** | $0 | 1 | 0 | 2 | — | — | 50 | 7 días | — |
-| **Solo** | $7/mes | 1 | 0 | 3 | — | — | 300 | 30 días | Webhook agente |
-| **Basic** | $17/mes | 3 | 2 | 5 | — | — | 1.500 | 30 días | Webhook agente |
-| **Plus** | $36/mes | 5 | 5 | 8 | 256 MB | 20 | 3.000 | 60 días | Webhook agente |
-| **Starter** | $54/mes | 10 | 10 | 15 | 1 GB | 60 | 6.000 | 3 meses | Agente + saliente |
-| **Growth** | $139/mes | 25 | 25 | 50 | 10 GB | 300 | 16.000 | 1 año | Agente + saliente |
-| **Business** | $449/mes | 50 | 50 | Ilimitadas | 100 GB | 2.000 | 45.000 | Ilimitado | Agente + saliente |
-| **Enterprise** | Contacto | 999 | 999 | Ilimitadas | Ilimitado | Ilimitado | Ilimitado | Ilimitado | Completo |
+| **Free** | $0 | 1 | 0 | 2 | — | — | 50 | 7 días | — | — | — | — | — |
+| **Solo** | $7/mes | 1 | 0 | 3 | — | — | 300 | 30 días | — | — | — | — | Webhook agente |
+| **Basic** | $17/mes | 3 | 2 | 5 | — | — | 1.500 | 30 días | — | — | — | — | Webhook agente |
+| **Plus** | $39/mes | 10 | 5 | 8 | 256 MB | 20 | 3.000 | 60 días | — | Básico | — | — | Webhook agente |
+| **Starter** | $65/mes | 25 | 10 | 15 | 1 GB | 60 | 6.000 | 3 meses | ✓ | Básico | — | — | Agente + saliente |
+| **Growth** | $179/mes | 50 | 25 | 50 | 10 GB | 300 | 16.000 | 1 año | ✓ | Avanzado | ✓ | — | Agente + saliente |
+| **Business** | $749/mes | Ilimit. | 50 | Ilimitadas | 100 GB | 2.000 | 45.000 | Ilimitado | ✓ | Completo | ✓ | ✓ | Agente + saliente |
+| **Enterprise** | Contacto | 999 | 999 | Ilimitadas | Ilimitado | Ilimitado | Ilimitado | Ilimitado | ✓ | Completo | ✓ | ✓ | Completo |
 
 **Webhooks (dos tipos):**
 - **Webhook del agente** (herramienta en el agente): desde **Solo+** — el chat llama tu URL.
 - **Webhook saliente** (Cumplimiento → eventos HMAC a tu backend): desde **Starter+**.
 
+**Plataforma (API, analytics, escalación, integraciones):**
+- **Acceso API REST**: desde **Starter+** (widgets, agentes, export).
+- **Analytics de conversaciones**: **Plus+** básico · **Growth+** avanzado · **Business+** completo (multi-agente).
+- **Creación de tickets al escalar**: desde **Growth+** (handoff + integraciones).
+- **Integraciones custom**: desde **Business+** (MCP completo, a medida).
+
 **Notas importantes:**
 - El límite de **conversaciones** es la métrica principal de consumo y upgrade.
 - Los **widgets** son ilimitados en planes de pago (nombre único por widget).
-- El **RAG** está disponible desde **Plus** ($36/mes).
-- Los **packs de conversaciones** ($15 / $60 / $145) requieren plan de pago activo.
+- El **RAG** está disponible desde **Plus** ($39/mes), con búsqueda vectorial Pinecone + Mongo.
+- Los **packs de conversaciones** ($15 / $60 / $170) requieren plan de pago activo.
 - Los correos temporales (Guerrilla Mail, Temp-Mail, Mailinator, etc.) están **bloqueados en operaciones de pago**.
 
 Si el cliente “no puede crear más agentes o widgets”, suele ser **tope del plan**, no un fallo: debe **mejorar plan** o eliminar recursos no usados.
