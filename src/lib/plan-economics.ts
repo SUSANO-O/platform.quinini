@@ -10,6 +10,7 @@ import {
   PLAN_RAG_LIMITS,
   CONVERSATION_PACKS,
   PLAN_AGENT_LIMITS,
+  formatAgentLimit,
   PLAN_DISPLAY,
   PLAN_HISTORY_RETENTION_DAYS,
   planHasAgentWebhookFeature,
@@ -114,7 +115,7 @@ export type PlanComparisonRow = {
   label: string;
   priceLabel: string;
   conversations: string;
-  agents: number;
+  agents: string;
   rag: string;
   history: string;
   support: string;
@@ -161,7 +162,7 @@ export function buildPlanComparisonRows(): PlanComparisonRow[] {
       label: PLAN_DISPLAY[id]?.label ?? id,
       priceLabel: PLAN_DISPLAY[id]?.priceLabel ?? '—',
       conversations: formatConvLimit(PLAN_CONVERSATION_LIMITS[id]),
-      agents: PLAN_AGENT_LIMITS[id],
+      agents: formatAgentLimit(PLAN_AGENT_LIMITS[id]),
       rag: rag ? `${rag.mb} MB · ${rag.sources} fuentes` : '—',
       history: formatHistoryDays(PLAN_HISTORY_RETENTION_DAYS[id]),
       support: SUPPORT_BY_PLAN[id],

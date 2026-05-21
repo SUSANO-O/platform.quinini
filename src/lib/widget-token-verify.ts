@@ -7,6 +7,10 @@ import { redis } from '@/lib/redis';
 
 const WT_CACHE_TTL = 300; // 5 minutos
 
+function normalizeMultiAgentMode(v: unknown): 'triage' | 'parallel' {
+  return v === 'parallel' ? 'parallel' : 'triage';
+}
+
 function normalizeAgentField(v: unknown): string {
   if (v == null) return '';
   if (typeof v === 'object' && v instanceof mongoose.Types.ObjectId) return v.toString();
@@ -17,6 +21,9 @@ export type WidgetInfo = {
   agentId: unknown;
   userId: string;
   allowedOrigins: string[];
+  multiAgentEnabled?: boolean;
+  multiAgentMode?: 'triage' | 'parallel';
+  agentIds?: string[];
 };
 
 /**
@@ -40,8 +47,24 @@ export async function findWidgetForWtToken(
 
   if (widgetId && mongoose.Types.ObjectId.isValid(widgetId)) {
     const w = await Widget.findById(widgetId)
-      .select({ agentId: 1, userId: 1, afhubToken: 1, allowedOrigins: 1 })
-      .lean() as { agentId: unknown; userId: unknown; afhubToken?: unknown; allowedOrigins?: string[] } | null;
+      .select({
+        agentId: 1,
+        userId: 1,
+        afhubToken: 1,
+        allowedOrigins: 1,
+        multiAgentEnabled: 1,
+        multiAgentMode: 1,
+        agentIds: 1,
+      })
+      .lean() as {
+        agentId: unknown;
+        userId: unknown;
+        afhubToken?: unknown;
+        allowedOrigins?: string[];
+        multiAgentEnabled?: boolean;
+        multiAgentMode?: string;
+        agentIds?: string[];
+      } | null;
     if (w) {
       const stored = w.afhubToken != null ? String(w.afhubToken).trim() : '';
       if (stored && stored !== t) return null;
@@ -49,19 +72,39 @@ export async function findWidgetForWtToken(
         agentId: w.agentId,
         userId: String(w.userId),
         allowedOrigins: Array.isArray(w.allowedOrigins) ? w.allowedOrigins : [],
+        multiAgentEnabled: w.multiAgentEnabled === true,
+        multiAgentMode: normalizeMultiAgentMode(w.multiAgentMode),
+        agentIds: Array.isArray(w.agentIds) ? w.agentIds.map(String) : [],
       };
     }
   }
 
   if (!result) {
     const w = await Widget.findOne({ afhubToken: t })
-      .select({ agentId: 1, userId: 1, allowedOrigins: 1 })
-      .lean() as { agentId: unknown; userId: unknown; allowedOrigins?: string[] } | null;
+      .select({
+        agentId: 1,
+        userId: 1,
+        allowedOrigins: 1,
+        multiAgentEnabled: 1,
+        multiAgentMode: 1,
+        agentIds: 1,
+      })
+      .lean() as {
+        agentId: unknown;
+        userId: unknown;
+        allowedOrigins?: string[];
+        multiAgentEnabled?: boolean;
+        multiAgentMode?: string;
+        agentIds?: string[];
+      } | null;
     if (w) {
       result = {
         agentId: w.agentId,
         userId: String(w.userId),
         allowedOrigins: Array.isArray(w.allowedOrigins) ? w.allowedOrigins : [],
+        multiAgentEnabled: w.multiAgentEnabled === true,
+        multiAgentMode: normalizeMultiAgentMode(w.multiAgentMode),
+        agentIds: Array.isArray(w.agentIds) ? w.agentIds.map(String) : [],
       };
     }
   }
@@ -71,6 +114,18 @@ export async function findWidgetForWtToken(
   }
 
   return result;
+}
+
+/** Invalida caché wt_* tras guardar un widget (multi-agente, agentId, etc.). */
+export async function invalidateWidgetTokenCache(token: string, widgetId?: string): Promise<void> {
+  const t = token.trim();
+  if (!t.startsWith('wt_')) return;
+  try {
+    await redis.del(`wt:${widgetId ?? t}`);
+    if (widgetId) await redis.del(`wt:${t}`);
+  } catch {
+    /* no fatal */
+  }
 }
 
 /**

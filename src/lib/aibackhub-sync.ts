@@ -3,6 +3,9 @@
  * Mirrors AgentFlowhub's BACKEND_URL normalization (localhost → 127.0.0.1 on Windows).
  */
 
+import { connectDB } from '@/lib/db/connection';
+import { ClientAgent } from '@/lib/db/models';
+
 export function getAibackhubBaseUrl(): string {
   const raw = (process.env.BACKEND_URL || process.env.AUTH_BACKEND_URL || '').replace(/\/$/, '');
   if (!raw) return '';
@@ -603,6 +606,51 @@ export async function fetchCatalogAgentFromHub(agentHubId: string): Promise<HubC
   } catch {
     return null;
   }
+}
+
+/**
+ * Garantiza que un ClientAgent tenga `agentHubId` en Mongo y en el catálogo AIBackHub.
+ * Usado antes del handoff multiagente cuando un sub-agente nunca se sincronizó.
+ */
+export async function ensureClientAgentHubSynced(
+  mongoId: string,
+  userId?: string,
+): Promise<string | null> {
+  const id = mongoId.trim();
+  if (!/^[a-f0-9]{24}$/i.test(id) || !canAttemptHubSync()) return null;
+
+  await connectDB();
+  const filter: Record<string, unknown> = { _id: id };
+  if (userId) filter.userId = userId;
+
+  const agent = await ClientAgent.findOne(filter).lean() as LandingAgentDocLike | null;
+  if (!agent || (agent as { isPlatform?: boolean }).isPlatform) return null;
+
+  const existing = typeof agent.agentHubId === 'string' ? agent.agentHubId.trim() : '';
+  if (existing) {
+    const inHub = await fetchCatalogAgentFromHub(existing);
+    if (inHub?.id) return inHub.id;
+  }
+
+  const catalog = await fetchHubAgentsList();
+  const byLanding = catalog.find(
+    (a) => typeof a.landingClientAgentId === 'string' && a.landingClientAgentId === id,
+  );
+  if (byLanding?.id) {
+    await ClientAgent.updateOne({ _id: id }, { agentHubId: byLanding.id, syncStatus: 'synced' });
+    return byLanding.id;
+  }
+
+  const { success, hubId } = await postCreateLandingAgentOnHubCatalog(
+    agent as CreateHubAgentFromLandingInput,
+  );
+  if (success && hubId?.trim()) {
+    await ClientAgent.updateOne({ _id: id }, { agentHubId: hubId.trim(), syncStatus: 'synced' });
+    return hubId.trim();
+  }
+
+  await ClientAgent.updateOne({ _id: id }, { syncStatus: 'failed' }).catch(() => {});
+  return null;
 }
 
 /** AgentFlowhub (Next) — widget chat proxy; default dev port 9002. */

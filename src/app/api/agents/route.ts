@@ -7,15 +7,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { Subscription, ClientAgent, User } from '@/lib/db/models';
 import { verifySessionToken, isUserEmailVerified, isImpersonationSession } from '@/lib/auth';
-import { getAgentLimits } from '@/lib/agent-plans';
+import { getAgentLimits, isAgentLimitReached, formatAgentLimit } from '@/lib/agent-plans';
 import mongoose from 'mongoose';
 import {
   canAttemptHubSync,
+  ensureClientAgentHubSynced,
   fetchCatalogAgentFromHub,
-  getAibackhubBaseUrl,
   hubCatalogStatusToLandingStatus,
-  hubCreateHeaders,
-  parseCreatedAgentId,
 } from '@/lib/aibackhub-sync';
 import { repairSubAgentLinks } from '@/lib/repair-subagent-links';
 import { ensureHubPlatformAgentsInLanding } from '@/lib/hub-platform-import';
@@ -230,9 +228,9 @@ export async function POST(req: NextRequest) {
       type: 'agent',
       $or: [{ isPlatform: false }, { isPlatform: { $exists: false } }],
     });
-    if (existingCount >= limits.agents) {
+    if (isAgentLimitReached(existingCount, limits.agents)) {
       return NextResponse.json({
-        error: `Tu plan ${plan} permite máximo ${limits.agents} agente${limits.agents !== 1 ? 's' : ''}. Suscríbete a un plan superior para crear más.`,
+        error: `Tu plan ${plan} permite máximo ${formatAgentLimit(limits.agents)} agente${limits.agents === 1 ? '' : 's'}. Suscríbete a un plan superior para crear más.`,
       }, { status: 403 });
     }
   } else if (type === 'sub-agent') {
@@ -404,7 +402,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── Attempt sync to AgentFlowHub backend (fire-and-forget) ──────────────
+  // ── Attempt sync to AIBackHub (fire-and-forget; incluye sub-agentes) ───
   syncToHub(agent).catch(() => {});
 
   return NextResponse.json({ agent }, { status: 201 });
@@ -428,67 +426,13 @@ async function syncToHub(agent: {
   enabledMcpToolIds?: string[];
   skills?: string[];
   strictPurposeOnly?: boolean;
+  userId?: unknown;
 }) {
   if (!canAttemptHubSync()) return;
 
   const agentId = agent._id.toString();
-  const baseUrl = getAibackhubBaseUrl();
-  try {
-    await connectDB();
-    const wt = typeof agent.widgetPublicToken === 'string' ? agent.widgetPublicToken.trim() : '';
-    const payload: Record<string, unknown> = {
-      name: agent.name,
-      description: (agent.description ?? '').trim(),
-      prompt: agent.systemPrompt,
-      model: agent.model,
-      hasWidget: Boolean(wt),
-      source: 'landing',
-      landingClientAgentId: agentId,
-      ragEnabled: Boolean(agent.ragEnabled),
-      ragSources: Array.isArray(agent.ragSources) ? agent.ragSources : [],
-      catalogAgentType: agent.type === 'sub-agent' ? 'sub-agent' : 'agent',
-    };
-    if (wt) payload.widgetPublicToken = wt;
-    if (agent.type === 'sub-agent' && agent.parentAgentId && /^[a-f0-9]{24}$/i.test(agent.parentAgentId)) {
-      payload.landingParentClientAgentId = agent.parentAgentId;
-    }
-    if (agent.isPlatform === true) {
-      payload.isPlatform = true;
-    }
-    if (typeof agent.persistConversationHistory === 'boolean') {
-      payload.persistConversationHistory = agent.persistConversationHistory;
-    }
-    if (typeof agent.inferenceTemperature === 'number') {
-      payload.inferenceTemperature = agent.inferenceTemperature;
-    }
-    if (typeof agent.inferenceMaxTokens === 'number') {
-      payload.inferenceMaxTokens = agent.inferenceMaxTokens;
-    }
-    if (Array.isArray(agent.enabledMcpToolIds)) {
-      payload.enabledToolIds = agent.enabledMcpToolIds;
-    }
-    if (Array.isArray(agent.skills)) {
-      payload.skills = agent.skills;
-    }
-    payload.strictPurposeOnly = agent.strictPurposeOnly !== false;
-
-    const res = await fetch(`${baseUrl}/api/agents`, {
-      method: 'POST',
-      headers: hubCreateHeaders(),
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(8000),
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      const hubId = parseCreatedAgentId(data);
-      const update: { syncStatus: 'synced'; agentHubId?: string } = { syncStatus: 'synced' };
-      if (hubId) update.agentHubId = hubId;
-      await ClientAgent.updateOne({ _id: agentId }, update);
-    } else {
-      await ClientAgent.updateOne({ _id: agentId }, { syncStatus: 'failed' });
-    }
-  } catch {
-    await ClientAgent.updateOne({ _id: agentId }, { syncStatus: 'failed' }).catch(() => {});
-  }
+  const userId = agent.userId != null ? String(agent.userId) : undefined;
+  await ensureClientAgentHubSynced(agentId, userId).catch(() => {
+    ClientAgent.updateOne({ _id: agentId }, { syncStatus: 'failed' }).catch(() => {});
+  });
 }

@@ -155,6 +155,8 @@ import {
   PLAN_SUBAGENT_LIMITS,
   PLAN_TOOLS_LIMITS,
   PLAN_RAG_LIMITS,
+  formatAgentLimit,
+  isAgentLimitReached,
 } from '@/lib/plan-catalog';
 
 // ── Per-plan agent limits (sincronizado con plan-catalog.ts) ─────────────────
@@ -209,6 +211,8 @@ export const AGENT_PLAN_LIMITS: Record<string, AgentPlanLimits> = {
 export function getAgentLimits(plan: string): AgentPlanLimits {
   return AGENT_PLAN_LIMITS[plan] ?? AGENT_PLAN_LIMITS.free;
 }
+
+export { formatAgentLimit, isAgentLimitReached } from '@/lib/plan-catalog';
 
 /** Orden para comparar planes (modelos del catálogo con `minPlan`). */
 const PLAN_RANK: Record<string, number> = {

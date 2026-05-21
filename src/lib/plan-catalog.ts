@@ -110,17 +110,27 @@ export const PLAN_CONVERSATION_LIMITS: Record<string, number> = {
   enterprise: -1,
 };
 
-/** Agentes principales por plan (límite realista para PME). */
+/** Agentes principales por plan (límite realista para PME). `-1` = ilimitado. */
 export const PLAN_AGENT_LIMITS: Record<string, number> = {
   free:       1,
   solo:       1,
-  basic:      3,
-  plus:       5,
-  starter:    10,
-  growth:     25,
-  business:   50,
+  basic:      5,
+  plus:       10,
+  starter:    25,
+  growth:     50,
+  business:   -1,
   enterprise: 999,
 };
+
+/** `-1` = sin límite práctico en producto. */
+export function formatAgentLimit(n: number): string {
+  if (n < 0) return 'Ilimitados';
+  return String(n);
+}
+
+export function isAgentLimitReached(used: number, limit: number): boolean {
+  return limit >= 0 && used >= limit;
+}
 
 export const PLAN_SUBAGENT_LIMITS: Record<string, number> = {
   free:       0,
@@ -266,35 +276,35 @@ export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
   ],
   basic: [
     '1.500 conversaciones al mes (~50/día)',
-    '3 agentes · 2 sub-agentes · Webhook incluido',
+    '5 agentes · 2 sub-agentes · Webhook incluido',
     'Gmail y Slack · widgets ilimitados',
     'Historial: 30 días',
     'Capacitación grupal incluida · soporte email (72 h)',
   ],
   plus: [
     '3.000 conversaciones al mes (~100/día)',
-    '5 agentes · 5 sub-agentes · Webhook incluido',
+    '10 agentes · 5 sub-agentes · Webhook incluido',
     'RAG: 256 MB · 20 fuentes por agente',
     'Historial: 60 días · widgets ilimitados',
     'Capacitación grupal · soporte email (48 h)',
   ],
   starter: [
     '6.000 conversaciones al mes (~200/día)',
-    '10 agentes · 10 sub-agentes · Webhook del agente',
+    '25 agentes · 10 sub-agentes · Webhook del agente',
     'Webhook saliente a tu backend (HMAC) · HubSpot, Notion',
     'RAG: 1 GB · 60 fuentes · historial 3 meses',
     'Capacitación incluida · soporte email (48 h)',
   ],
   growth: [
     '16.000 conversaciones al mes (~530/día)',
-    '25 agentes · Webhook agente + saliente (HMAC)',
+    '50 agentes · Webhook agente + saliente (HMAC)',
     'RAG: 10 GB · 300 fuentes · analítica avanzada',
     'Historial: 1 año · widgets ilimitados',
     'Modelos Pro disponibles · soporte chat (24 h)',
   ],
   business: [
     '45.000 conversaciones al mes (~1.500/día)',
-    '50 agentes · MCP e integraciones completas',
+    'Agentes ilimitados · MCP e integraciones completas',
     'Webhook agente + saliente · RAG: 100 GB',
     'Historial ilimitado · widgets ilimitados',
     'Todos los modelos · soporte dedicado · SLA 99,9 %',

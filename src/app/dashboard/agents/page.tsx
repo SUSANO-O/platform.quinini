@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useClientModels } from '@/hooks/use-client-models';
-import { getAgentLimits, TOOL_MAP } from '@/lib/agent-plans';
+import { getAgentLimits, isAgentLimitReached } from '@/lib/agent-plans';
 import { SKILL_MAP } from '@/lib/agent-skills';
 import {
   Bot,
@@ -245,7 +245,8 @@ export default function AgentsPage() {
     [mainAgents],
   );
   const usedAgents = mineAgents.length;
-  const atLimit = usedAgents >= limits.agents;
+  const unlimitedAgents = limits.agents < 0;
+  const atLimit = isAgentLimitReached(usedAgents, limits.agents);
 
   async function toggleStatus(agent: ClientAgent) {
     if (agent.isPlatform) return;
@@ -265,7 +266,8 @@ export default function AgentsPage() {
     setToggling(null);
   }
 
-  const pct = Math.min(100, (usedAgents / limits.agents) * 100);
+  const pct = unlimitedAgents ? 0 : Math.min(100, (usedAgents / limits.agents) * 100);
+  const agentLimitLabel = unlimitedAgents ? 'Ilimitados' : String(limits.agents);
 
   return (
     <div className="relative overflow-hidden" style={{ minHeight: '100%' }}>
@@ -298,7 +300,7 @@ export default function AgentsPage() {
           {atLimit ? (
             <Link
               href="/dashboard/settings#settings-billing"
-              title={`Límite alcanzado (${usedAgents}/${limits.agents})`}
+              title={`Límite alcanzado (${usedAgents}/${agentLimitLabel})`}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold no-underline transition-all shrink-0"
               style={{
                 background: 'rgba(228,20,20,0.1)',
@@ -334,7 +336,7 @@ export default function AgentsPage() {
               <div className="flex justify-between text-xs font-semibold mb-2">
                 <span>Agentes usados</span>
                 <span style={{ color: atLimit ? '#ef4444' : 'var(--muted-foreground)' }}>
-                  {usedAgents} / {limits.agents}
+                  {usedAgents} / {agentLimitLabel}
                 </span>
               </div>
               <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
@@ -430,7 +432,7 @@ export default function AgentsPage() {
               <section>
                 <h2 className="text-base font-bold m-0 mb-1 tracking-tight">Tus agentes</h2>
                 <p className="text-xs m-0 mb-4" style={{ color: 'var(--muted-foreground)' }}>
-                  Estos cuentan para el límite de tu plan ({usedAgents} / {limits.agents}).
+                  Estos cuentan para el límite de tu plan ({usedAgents} / {agentLimitLabel}).
                 </p>
                 <div className="flex flex-col gap-4">
                   {mineAgents.map((agent) => (

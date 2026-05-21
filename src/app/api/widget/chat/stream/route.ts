@@ -5,6 +5,7 @@
  * para que el widget muestre los tokens apareciendo en tiempo real (efecto ChatGPT).
  *
  * Protocolo SSE:
+ *   data: {"type":"status","phase":"parallel","message":"Consultando especialistas…"}\n\n
  *   data: {"type":"token","text":"Hola"}\n\n
  *   data: {"type":"token","text":" ¿cómo"}\n\n
  *   data: {"type":"done","reply":"<texto completo>","agentId":"..."}\n\n
@@ -15,7 +16,7 @@ import { NextRequest } from 'next/server';
 import { randomUUID } from 'crypto';
 import { getAgentflowhubBaseUrl } from '@/lib/aibackhub-sync';
 import { connectDB } from '@/lib/db/connection';
-import { ClientAgent } from '@/lib/db/models';
+import { ClientAgent, Subscription } from '@/lib/db/models';
 import { findWidgetForWtToken, sentAgentIdMatchesWidget } from '@/lib/widget-token-verify';
 import { checkConversationQuota } from '@/lib/quota';
 import { trackWidgetChatUsage } from '@/lib/platform-agent-utils';
@@ -26,6 +27,15 @@ import { isOriginAllowed } from '@/lib/widget-origin-check';
 import { extractAndGuardMessage } from '@/lib/message-guard';
 import { signRequest, SIGNATURE_HEADER } from '@/lib/hub-signature';
 import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
+import {
+  applyMultiAgentRouting,
+  buildHandoffPrefix,
+  buildMultiAgentStatusMessage,
+  executeParallelMultiAgentFlow,
+  normalizeAgentId,
+  type MultiAgentRoutingMeta,
+  type WidgetMultiAgentConfig,
+} from '@/lib/widget-multi-agent';
 
 export const maxDuration = 60; // Vercel: allow up to 60s for LLM + streaming
 
@@ -110,6 +120,11 @@ export async function POST(req: NextRequest) {
   const widgetToken = ((req.headers.get('x-widget-token') || '').trim() || tokenFromBody).trim();
 
   let faqTrackOwnerId: string | null = null;
+  let multiAgentCtx: {
+    userId: string;
+    config: WidgetMultiAgentConfig;
+    plan: string;
+  } | null = null;
 
   // Validate wt_ token and quota
   if (widgetToken.startsWith('wt_') && parsedAgentId) {
@@ -140,6 +155,29 @@ export async function POST(req: NextRequest) {
             { status: 200, headers: { 'Content-Type': 'text/event-stream', ...corsHeaders(origin) } },
           );
         }
+
+        try {
+          const subForRoute = await Subscription.findOne({ userId: w.userId })
+            .select({ plan: 1, status: 1 })
+            .lean() as { plan?: string; status?: string } | null;
+          const active =
+            subForRoute?.status === 'active' || subForRoute?.status === 'trialing';
+          const planForRoute = active ? (subForRoute?.plan ?? 'free') : 'free';
+          if (w.multiAgentEnabled === true) {
+            multiAgentCtx = {
+              userId: w.userId,
+              plan: planForRoute,
+              config: {
+                multiAgentEnabled: true,
+                multiAgentMode: w.multiAgentMode === 'parallel' ? 'parallel' : 'triage',
+                orchestratorAgentId: normalizeAgentId(w.agentId),
+                agentIds: w.agentIds ?? [],
+              },
+            };
+          }
+        } catch (routeErr) {
+          console.warn('[widget/chat/stream] multi-agent context skipped:', routeErr);
+        }
       }
     } catch {
       /* fail-open */
@@ -147,57 +185,9 @@ export async function POST(req: NextRequest) {
   }
 
   const base = getAgentflowhubBaseUrl();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'X-Trace-Id': traceId,
-    'X-Request-Id': traceId,
-  };
-  if (widgetToken) headers['X-Widget-Token'] = widgetToken;
+  const hubSecret = process.env.HUB_TO_LANDING_SECRET?.trim() ?? '';
 
-  // A/B variant selection — override systemPrompt if a running test exists
-  let activeVariantId: string | null = null;
-  let hubBody = rawBody;
-  if (parsedAgentId) {
-    try {
-      const sessionBucket = parsedSessionId || traceId;
-      const variant = await getActiveVariant(parsedAgentId, sessionBucket);
-      if (variant) {
-        activeVariantId = variant.id;
-        const parsed = JSON.parse(rawBody) as Record<string, unknown>;
-        parsed.systemPromptOverride = variant.systemPrompt;
-        parsed._abVariantId = variant.id;
-        hubBody = JSON.stringify(parsed);
-      }
-    } catch {
-      /* non-critical */
-    }
-  }
-
-  // ── Strict purpose enforcement ───────────────────────────────────────────
-  if (parsedAgentId) {
-    try {
-      await connectDB();
-      const agentDoc = await ClientAgent.findById(parsedAgentId, { strictPurposeOnly: 1, systemPrompt: 1 })
-        .lean() as { strictPurposeOnly?: boolean; systemPrompt?: string } | null;
-      if (agentDoc?.strictPurposeOnly === true) {
-        const parsed = JSON.parse(hubBody) as Record<string, unknown>;
-        const base = typeof parsed.systemPromptOverride === 'string'
-          ? parsed.systemPromptOverride
-          : (agentDoc.systemPrompt ?? '');
-        parsed.systemPromptOverride = base + STRICT_PURPOSE_SUFFIX;
-        hubBody = JSON.stringify(parsed);
-      }
-    } catch { /* non-critical — no interrumpir el chat */ }
-  }
-
-  // Sign hubBody (the actual body sent to AgentFlowhub, possibly modified by A/B)
-  const secret = process.env.HUB_TO_LANDING_SECRET?.trim();
-  if (secret && widgetToken.startsWith('wt_')) {
-    headers['X-Landing-Wt-Valid'] = '1';
-    headers[SIGNATURE_HEADER] = signRequest(hubBody, secret);
-  }
-
-  // SSE stream
+  // SSE stream — routing multiagente dentro del stream para emitir status en tiempo real
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
@@ -205,7 +195,134 @@ export async function POST(req: NextRequest) {
         controller.enqueue(encoder.encode(sseEvent(data)));
       };
 
+      let hubBody = rawBody;
+      let parsedAgentIdLocal = parsedAgentId;
+      let multiAgentMeta: MultiAgentRoutingMeta | null = null;
+      let orchestratorName = 'Asistente';
+      let activeVariantId: string | null = null;
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-Trace-Id': traceId,
+        'X-Request-Id': traceId,
+      };
+      if (widgetToken) headers['X-Widget-Token'] = widgetToken;
+
       try {
+        if (multiAgentCtx?.config.multiAgentEnabled) {
+          enqueue({
+            type: 'status',
+            phase: 'triage',
+            message: buildMultiAgentStatusMessage('triage'),
+          });
+
+          if (multiAgentCtx.config.multiAgentMode === 'parallel' && hubSecret) {
+            const parallel = await executeParallelMultiAgentFlow({
+              rawBody: hubBody,
+              config: multiAgentCtx.config,
+              userId: multiAgentCtx.userId,
+              plan: multiAgentCtx.plan,
+              widgetToken,
+              traceId,
+              hubSecret,
+              onPhase: (phase, message) => {
+                enqueue({ type: 'status', phase, message });
+              },
+            });
+            if (parallel) {
+              parsedAgentIdLocal = parallel.routedHubAgentId;
+              multiAgentMeta = parallel.meta;
+              const orch = await ClientAgent.findById(parallel.meta.orchestratorId)
+                .select({ name: 1 })
+                .lean() as { name?: string } | null;
+              orchestratorName = typeof orch?.name === 'string' ? orch.name : 'Asistente';
+              logWidgetFlow('🔀', 'stream:multiAgentParallel', 'síntesis multiagente', {
+                traceId,
+                routedAgentId: parallel.meta.routedAgentId,
+                synthesized: parallel.meta.synthesized,
+              });
+              enqueue({ type: 'token', text: parallel.reply });
+              enqueue({
+                type: 'done',
+                reply: parallel.reply,
+                agentId: parallel.routedHubAgentId,
+                multiAgent: parallel.meta,
+              });
+              if (widgetToken.startsWith('wt_') && parsedAgentIdLocal) {
+                void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true).catch(() => {});
+              }
+              return;
+            }
+          }
+
+          const routing = await applyMultiAgentRouting({
+            rawBody: hubBody,
+            config: multiAgentCtx.config,
+            userId: multiAgentCtx.userId,
+            plan: multiAgentCtx.plan,
+          });
+          if (routing) {
+            hubBody = routing.body;
+            parsedAgentIdLocal = routing.routedHubAgentId;
+            multiAgentMeta = routing.meta;
+            const orch = await ClientAgent.findById(routing.meta.orchestratorId)
+              .select({ name: 1 })
+              .lean() as { name?: string } | null;
+            orchestratorName = typeof orch?.name === 'string' ? orch.name : 'Asistente';
+            if (routing.meta.handoff) {
+              enqueue({
+                type: 'status',
+                phase: 'handoff',
+                message: buildMultiAgentStatusMessage('handoff', routing.meta.routedAgentName),
+                specialist: routing.meta.routedAgentName,
+              });
+            }
+            logWidgetFlow('🔀', 'stream:multiAgent', 'triaje multiagente', {
+              traceId,
+              routedAgentId: routing.meta.routedAgentId,
+              method: routing.meta.triageMethod,
+              handoff: routing.meta.handoff,
+            });
+          }
+        }
+
+        if (parsedAgentIdLocal) {
+          try {
+            const sessionBucket = parsedSessionId || traceId;
+            const variant = await getActiveVariant(parsedAgentIdLocal, sessionBucket);
+            if (variant) {
+              activeVariantId = variant.id;
+              const parsed = JSON.parse(hubBody) as Record<string, unknown>;
+              parsed.systemPromptOverride = variant.systemPrompt;
+              parsed._abVariantId = variant.id;
+              hubBody = JSON.stringify(parsed);
+            }
+          } catch {
+            /* non-critical */
+          }
+        }
+
+        if (parsedAgentIdLocal) {
+          try {
+            await connectDB();
+            const agentDoc = await ClientAgent.findById(parsedAgentIdLocal, { strictPurposeOnly: 1, systemPrompt: 1 })
+              .lean() as { strictPurposeOnly?: boolean; systemPrompt?: string } | null;
+            if (agentDoc?.strictPurposeOnly === true) {
+              const parsed = JSON.parse(hubBody) as Record<string, unknown>;
+              const basePrompt = typeof parsed.systemPromptOverride === 'string'
+                ? parsed.systemPromptOverride
+                : (agentDoc.systemPrompt ?? '');
+              parsed.systemPromptOverride = basePrompt + STRICT_PURPOSE_SUFFIX;
+              hubBody = JSON.stringify(parsed);
+            }
+          } catch { /* non-critical */ }
+        }
+
+        if (hubSecret && widgetToken.startsWith('wt_')) {
+          headers['X-Landing-Wt-Valid'] = '1';
+          headers[SIGNATURE_HEADER] = signRequest(hubBody, hubSecret);
+        }
+
         let streamMsg = '';
         try {
           const hb = JSON.parse(hubBody) as { message?: string };
@@ -217,7 +334,7 @@ export async function POST(req: NextRequest) {
         logWidgetFlow('🌊', 'stream:fetch', 'SSE → AgentFlowhub', {
           traceId,
           hubUrl,
-          agentId: parsedAgentId || undefined,
+          agentId: parsedAgentIdLocal || undefined,
           ...widgetMessageProbe(streamMsg),
         });
         // Call the regular (non-streaming) hub endpoint
@@ -249,7 +366,11 @@ export async function POST(req: NextRequest) {
           return;
         }
 
-        const fullReply = json.reply || json.response || json.text || '';
+        let fullReply = json.reply || json.response || json.text || '';
+        if (multiAgentMeta?.handoff && fullReply) {
+          const prefix = buildHandoffPrefix(orchestratorName, multiAgentMeta.routedAgentName);
+          if (!fullReply.startsWith(prefix)) fullReply = prefix + fullReply;
+        }
 
         logWidgetFlow('✅', 'stream:done', 'respuesta hub para SSE', {
           traceId,
@@ -270,20 +391,21 @@ export async function POST(req: NextRequest) {
         enqueue({
           type: 'done',
           reply: fullReply,
-          agentId: json.agentId || parsedAgentId,
+          agentId: json.agentId || parsedAgentIdLocal,
           toolsUsed: json.toolsUsed || [],
+          ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
           ...(mcpTag ? { mcpTag } : {}),
           ...(images ? { images } : {}),
           ...(usedModel ? { usedModel } : {}),
         });
 
         // Telemetry (non-blocking)
-        if (widgetToken.startsWith('wt_') && parsedAgentId) {
-          void trackWidgetChatUsage(widgetToken, parsedAgentId, true, json.usage).catch(() => {});
+        if (widgetToken.startsWith('wt_') && parsedAgentIdLocal) {
+          void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true, json.usage).catch(() => {});
           if (faqTrackOwnerId) {
             void trackWidgetUserMessageForFaqCandidates({
               ownerUserId: faqTrackOwnerId,
-              agentIdOrHubId: parsedAgentId,
+              agentIdOrHubId: parsedAgentIdLocal,
               rawBody,
             }).catch(() => {});
 
@@ -292,16 +414,16 @@ export async function POST(req: NextRequest) {
               void (async () => {
                 try {
                   const { WidgetMessage } = await import('@/lib/db/models');
-                  const base = {
+                  const baseMsg = {
                     widgetId: parsedWidgetId,
                     userId: faqTrackOwnerId,
-                    agentId: parsedAgentId,
+                    agentId: parsedAgentIdLocal,
                     sessionId: parsedSessionId || traceId,
                     traceId,
                   };
                   await WidgetMessage.insertMany([
-                    { ...base, role: 'user',      content: streamMsg.slice(0, 4000) },
-                    { ...base, role: 'assistant', content: fullReply.slice(0, 8000) },
+                    { ...baseMsg, role: 'user',      content: streamMsg.slice(0, 4000) },
+                    { ...baseMsg, role: 'assistant', content: fullReply.slice(0, 8000) },
                   ]);
                 } catch { /* non-critical */ }
               })();
@@ -310,9 +432,9 @@ export async function POST(req: NextRequest) {
         }
 
         // A/B metrics: record session for the variant (single message = 1 session unit)
-        if (activeVariantId && parsedAgentId) {
+        if (activeVariantId && parsedAgentIdLocal) {
           void fetch(
-            `${process.env.NEXT_PUBLIC_APP_URL || ''}/api/agents/${parsedAgentId}/ab-tests/metrics`,
+            `${process.env.NEXT_PUBLIC_APP_URL || ''}/api/agents/${parsedAgentIdLocal}/ab-tests/metrics`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },

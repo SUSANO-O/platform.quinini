@@ -10,7 +10,8 @@ import {
   iridescentOrbBlendModes,
 } from '@/lib/widget-iridescent';
 import Link from 'next/link';
-import { Trash2, Plus, Code2, Boxes, Pencil, Play, Sparkles, Copy, Check, Download } from 'lucide-react';
+import { Trash2, Plus, Code2, Boxes, Pencil, Play, Sparkles, Copy, Check, Download, GitBranch } from 'lucide-react';
+import { useSubscription } from '@/hooks/use-subscription';
 
 const BRAND_R = '#e41414';
 const BRAND_O = '#f87600';
@@ -28,6 +29,18 @@ interface Widget {
   afhubToken?: string | null;
   humanSupportPhone?: string;
   avatar?: string | null;
+  multiAgentEnabled?: boolean;
+  multiAgentMode?: 'triage' | 'parallel';
+}
+
+interface MultiAgentAnalytics {
+  totals?: {
+    sessionsWithRouting?: number;
+    totalRouted?: number;
+    totalHandoffs?: number;
+    totalParallel?: number;
+  };
+  enabledWidgets?: number;
 }
 
 function widgetIridescentOrbInnerStyle(baseHex: string, widgetId: string): CSSProperties {
@@ -99,7 +112,9 @@ function buildFullSnippet(w: Widget, origin: string) {
 }
 
 export default function WidgetsPage() {
+  const { subscription } = useSubscription();
   const [widgets, setWidgets] = useState<Widget[]>([]);
+  const [multiAgentStats, setMultiAgentStats] = useState<MultiAgentAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [snippetTab, setSnippetTab] = useState<'minimal' | 'full'>('minimal');
@@ -164,6 +179,24 @@ export default function WidgetsPage() {
     loadWidgets();
   }, []);
 
+  const plan = subscription?.plan ?? 'free';
+  const planActive = subscription?.status === 'active' || subscription?.status === 'trialing';
+  const multiAgentEligible = planActive && (plan === 'business' || plan === 'enterprise');
+
+  useEffect(() => {
+    if (!multiAgentEligible) return;
+    void (async () => {
+      try {
+        const res = await fetch('/api/widgets/multi-agent-analytics');
+        if (!res.ok) return;
+        const data = (await res.json()) as MultiAgentAnalytics;
+        setMultiAgentStats(data);
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, [multiAgentEligible]);
+
   return (
     <div className="relative overflow-hidden min-h-full">
       <ConfirmDialog
@@ -225,6 +258,33 @@ export default function WidgetsPage() {
             Puedes crear tantos widgets como necesites — cada widget debe tener un nombre único.
           </span>
         </div>
+
+        {multiAgentEligible && multiAgentStats && (
+          <div
+            className="card-texture rounded-2xl border p-4 mb-8"
+            style={{ borderColor: `${BRAND_O}35`, background: `${BRAND_O}08` }}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <GitBranch size={16} style={{ color: BRAND_O }} />
+              <span className="text-sm font-bold m-0">Multiagente — este mes</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+              {[
+                ['Widgets activos', multiAgentStats.enabledWidgets ?? 0],
+                ['Derivaciones', multiAgentStats.totals?.totalHandoffs ?? 0],
+                ['Paralelo + síntesis', multiAgentStats.totals?.totalParallel ?? 0],
+                ['Sesiones con routing', multiAgentStats.totals?.sessionsWithRouting ?? 0],
+              ].map(([label, value]) => (
+                <div key={String(label)} className="rounded-xl px-3 py-2" style={{ background: 'var(--background)' }}>
+                  <p className="text-lg font-bold m-0">{value}</p>
+                  <p className="text-[10px] uppercase tracking-wide m-0 mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                    {label}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center gap-3 py-12 text-sm" style={{ color: 'var(--muted-foreground)' }}>
@@ -298,7 +358,17 @@ export default function WidgetsPage() {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm m-0 mb-0.5">{w.name}</p>
+                    <p className="font-bold text-sm m-0 mb-0.5 flex items-center gap-2 flex-wrap">
+                      {w.name}
+                      {w.multiAgentEnabled && (
+                        <span
+                          className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md"
+                          style={{ background: `${BRAND_B}18`, color: BRAND_B, border: `1px solid ${BRAND_B}40` }}
+                        >
+                          Multi · {w.multiAgentMode === 'parallel' ? 'paralelo' : 'triaje'}
+                        </span>
+                      )}
+                    </p>
                     <p className="text-xs m-0 mb-0.5 truncate font-semibold" style={{ color: 'var(--foreground)' }}>
                       Agente: {w.agentName?.trim() || '—'}
                     </p>
