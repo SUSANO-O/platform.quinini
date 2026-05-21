@@ -7,6 +7,7 @@
 import { ClientAgent } from '@/lib/db/models';
 import {
   ensureClientAgentHubSynced,
+  getAibackhubBaseUrl,
   getAgentflowhubBaseUrl,
   hubCreateHeaders,
 } from '@/lib/aibackhub-sync';
