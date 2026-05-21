@@ -39,6 +39,8 @@ export function PricingComparisonTable() {
           {[
             { key: 'conversations', label: 'Conversaciones / mes' },
             { key: 'agents', label: 'Agentes' },
+            { key: 'agentWebhook', label: 'Webhook del agente' },
+            { key: 'outboundWebhook', label: 'Webhook saliente (HMAC)' },
             { key: 'rag', label: 'RAG (por agente)' },
             { key: 'history', label: 'Historial' },
             { key: 'support', label: 'Soporte' },

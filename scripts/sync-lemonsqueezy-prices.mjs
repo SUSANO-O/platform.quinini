@@ -22,17 +22,17 @@ const envPath = path.join(root, '.env');
 /** Espejo de plan-catalog.ts — actualizar junto con ese archivo. */
 const CATALOG = {
   subscriptions: {
-    solo:    { usd: 5,   env: 'LEMONSQUEEZY_VARIANT_SOLO',    name: 'Solo' },
-    basic:   { usd: 14,  env: 'LEMONSQUEEZY_VARIANT_BASIC',   name: 'Basic' },
-    plus:    { usd: 24,  env: 'LEMONSQUEEZY_VARIANT_PLUS',    name: 'Plus' },
-    starter: { usd: 39,  env: 'LEMONSQUEEZY_VARIANT_STARTER', name: 'Starter' },
-    growth:  { usd: 99,  env: 'LEMONSQUEEZY_VARIANT_GROWTH',  name: 'Growth' },
-    business:{ usd: 349, env: 'LEMONSQUEEZY_VARIANT_BUSINESS', name: 'Business' },
+    solo:    { usd: 7,   env: 'LEMONSQUEEZY_VARIANT_SOLO',    name: 'Solo' },
+    basic:   { usd: 17,  env: 'LEMONSQUEEZY_VARIANT_BASIC',   name: 'Basic' },
+    plus:    { usd: 36,  env: 'LEMONSQUEEZY_VARIANT_PLUS',    name: 'Plus' },
+    starter: { usd: 54,  env: 'LEMONSQUEEZY_VARIANT_STARTER', name: 'Starter' },
+    growth:  { usd: 139, env: 'LEMONSQUEEZY_VARIANT_GROWTH',  name: 'Growth' },
+    business:{ usd: 449, env: 'LEMONSQUEEZY_VARIANT_BUSINESS', name: 'Business' },
   },
   packs: {
-    pack_s: { usd: 12,  env: 'LEMONSQUEEZY_VARIANT_PACK_S', name: 'Pack S (1k conv)' },
-    pack_m: { usd: 50,  env: 'LEMONSQUEEZY_VARIANT_PACK_M', name: 'Pack M (5k conv)' },
-    pack_l: { usd: 120, env: 'LEMONSQUEEZY_VARIANT_PACK_L', name: 'Pack L (15k conv)' },
+    pack_s: { usd: 15,  env: 'LEMONSQUEEZY_VARIANT_PACK_S', name: 'Pack S (1k conv)' },
+    pack_m: { usd: 60,  env: 'LEMONSQUEEZY_VARIANT_PACK_M', name: 'Pack M (5k conv)' },
+    pack_l: { usd: 145, env: 'LEMONSQUEEZY_VARIANT_PACK_L', name: 'Pack L (15k conv)' },
   },
 };
 
@@ -218,7 +218,7 @@ async function main() {
   console.log(`\n${bad.length === 0 ? 'Todo alineado.' : `${bad.length} item(s) requieren acción.`}`);
 
   if (bad.some((r) => r.status === 'missing_env')) {
-    console.log('\nPara Plus (nuevo): crea variante $24/mes en LS → LEMONSQUEEZY_VARIANT_PLUS=<id>');
+    console.log('\nAjusta variantes en LS según plan-catalog.ts y vuelve a ejecutar con --apply');
   }
 
   process.exit(bad.length > 0 && !apply ? 1 : 0);

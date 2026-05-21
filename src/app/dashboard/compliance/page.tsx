@@ -1,8 +1,10 @@
 'use client';
 
 import { useAuth } from '@/hooks/use-auth';
+import { useSubscription } from '@/hooks/use-subscription';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import Link from 'next/link';
 import {
   Shield,
   Download,
@@ -17,6 +19,7 @@ import {
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { SecretRevealModal } from '@/components/ui/secret-reveal-modal';
 import { BRAND, STATE, METRIC } from '@/lib/brand-colors';
+import { outboundWebhookUpgradeLabel } from '@/lib/plan-catalog';
 
 /* ── types ───────────────────────────────────────────────────────── */
 
@@ -150,6 +153,7 @@ function ActionBadge({ action }: { action: string }) {
 
 export default function CompliancePage() {
   const { user } = useAuth();
+  const { startCheckout } = useSubscription();
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(true);
   const [busyExport, setBusyExport] = useState(false);
@@ -158,7 +162,10 @@ export default function CompliancePage() {
   const [busyDel, setBusyDel] = useState(false);
   const [whUrl, setWhUrl] = useState('');
   const [whSecretPreview, setWhSecretPreview] = useState<string | null>(null);
+  const [whAllowed, setWhAllowed] = useState(false);
+  const [whHasExisting, setWhHasExisting] = useState(false);
   const [busyWh, setBusyWh] = useState(false);
+  const [busyUpgrade, setBusyUpgrade] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [revealedSecret, setRevealedSecret] = useState<string | null>(null);
 
@@ -177,11 +184,24 @@ export default function CompliancePage() {
     fetch('/api/user/saas-webhook')
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d?.url != null) setWhUrl(d.url || '');
-        setWhSecretPreview(typeof d?.secretPreview === 'string' ? d.secretPreview : null);
+        if (!d) return;
+        setWhAllowed(Boolean(d.allowed));
+        setWhHasExisting(Boolean(d.hasExistingConfig));
+        if (d.allowed && d.url != null) setWhUrl(d.url || '');
+        setWhSecretPreview(typeof d.secretPreview === 'string' ? d.secretPreview : null);
       })
       .catch(() => {});
   }, [user?.uid, fetchAudit]);
+
+  async function upgradeForWebhook() {
+    setBusyUpgrade(true);
+    try {
+      const err = await startCheckout('starter');
+      if (err && 'error' in err && err.error) toast.error(err.error);
+    } finally {
+      setBusyUpgrade(false);
+    }
+  }
 
   async function downloadExport() {
     setBusyExport(true);
@@ -211,7 +231,14 @@ export default function CompliancePage() {
         body: JSON.stringify({ url: whUrl.trim() || null }),
       });
       const d = await r.json();
-      if (!r.ok) { toast.error(d.error || 'No se pudo guardar.'); return; }
+      if (!r.ok) {
+        if (d.code === 'OUTBOUND_WEBHOOK_REQUIRES_STARTER') {
+          toast.error(d.error || `Requiere plan ${outboundWebhookUpgradeLabel()}.`);
+        } else {
+          toast.error(d.error || 'No se pudo guardar.');
+        }
+        return;
+      }
       toast.success('Webhook guardado.');
       setWhSecretPreview(typeof d.secretPreview === 'string' ? d.secretPreview : null);
       if (typeof d.secretPlain === 'string') setRevealedSecret(d.secretPlain);
@@ -389,7 +416,53 @@ export default function CompliancePage() {
         {/* ── Webhook — orange ─────────────────────────────────── */}
         <SectionCard icon={<Webhook size={14} />} title="Webhook SaaS (saliente)" accent="#f87600">
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 }}>
+          {!whAllowed ? (
+            <div style={{
+              marginBottom: 18, padding: '14px 16px', borderRadius: 10,
+              background: 'rgba(248,118,0,0.08)', border: '1px solid rgba(248,118,0,0.28)',
+            }}>
+              <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--foreground)', lineHeight: 1.55 }}>
+                Recibe eventos firmados (<code style={{ fontSize: 12 }}>X-Matias-Signature</code>) en tu backend.
+                Disponible desde el plan <strong>{outboundWebhookUpgradeLabel()}</strong>.
+              </p>
+              <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--muted-foreground)', lineHeight: 1.5 }}>
+                El webhook del agente (tu agente llama una URL durante el chat) sigue disponible desde Solo.
+              </p>
+              <button
+                type="button"
+                disabled={busyUpgrade}
+                onClick={() => void upgradeForWebhook()}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8,
+                  padding: '9px 16px', borderRadius: 10,
+                  border: '1px solid rgba(248,118,0,0.4)',
+                  background: 'rgba(248,118,0,0.12)',
+                  color: '#c45a00', cursor: busyUpgrade ? 'wait' : 'pointer',
+                  fontSize: 13, fontWeight: 600,
+                }}
+              >
+                {busyUpgrade ? <Loader2 className="animate-spin" size={14} /> : null}
+                Mejorar a {outboundWebhookUpgradeLabel()}
+              </button>
+              <Link
+                href="/pricing"
+                style={{ marginLeft: 12, fontSize: 12, color: '#c45a00', textDecoration: 'underline' }}
+              >
+                Ver planes
+              </Link>
+            </div>
+          ) : null}
+
+          {whHasExisting && !whAllowed ? (
+            <p style={{
+              margin: '0 0 14px', fontSize: 12, color: 'var(--muted-foreground)',
+              padding: '10px 12px', borderRadius: 8, background: 'var(--muted)', border: '1px solid var(--border)',
+            }}>
+              Tienes una URL guardada pero tu plan actual no incluye envío de eventos. Mejora a {outboundWebhookUpgradeLabel()} para reactivarla.
+            </p>
+          ) : null}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18, opacity: whAllowed ? 1 : 0.55 }}>
             {/* Events panel */}
             <div style={{
               padding: '11px 14px', borderRadius: 10,
@@ -437,7 +510,7 @@ export default function CompliancePage() {
             </div>
           </div>
 
-          <form onSubmit={saveWebhook} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <form onSubmit={saveWebhook} style={{ display: 'flex', flexDirection: 'column', gap: 12, opacity: whAllowed ? 1 : 0.55 }}>
             <div>
               <p style={{ margin: '0 0 6px', fontSize: 11, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 URL de destino
@@ -448,11 +521,12 @@ export default function CompliancePage() {
                   value={whUrl}
                   onChange={(e) => setWhUrl(e.target.value)}
                   placeholder="https://api.tu-saas.com/webhooks/matias"
-                  style={{ ...inp, flex: 1, minWidth: 0 }}
+                  disabled={!whAllowed || busyWh}
+                  style={{ ...inp, flex: 1, minWidth: 0, opacity: whAllowed ? 1 : 0.7 }}
                 />
                 <button
                   type="submit"
-                  disabled={busyWh}
+                  disabled={!whAllowed || busyWh}
                   onMouseEnter={(e) => { if (!busyWh) e.currentTarget.style.background = 'rgba(248,118,0,0.18)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(248,118,0,0.1)'; }}
                   style={{
@@ -472,7 +546,7 @@ export default function CompliancePage() {
               </div>
             </div>
 
-            {whSecretPreview ? (
+            {whAllowed && whSecretPreview ? (
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
                 padding: '11px 14px', borderRadius: 10,
@@ -494,7 +568,7 @@ export default function CompliancePage() {
                 </div>
                 <button
                   type="button"
-                  disabled={busyWh}
+                  disabled={!whAllowed || busyWh}
                   onClick={() => void rotateSecret()}
                   onMouseEnter={(e) => { if (!busyWh) e.currentTarget.style.background = 'rgba(248,118,0,0.12)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
@@ -510,7 +584,7 @@ export default function CompliancePage() {
                   <RefreshCw size={12} /> Rotar
                 </button>
               </div>
-            ) : (
+            ) : whAllowed ? (
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '11px 14px', borderRadius: 10,
@@ -520,7 +594,7 @@ export default function CompliancePage() {
                 <Lock size={13} />
                 Al guardar una URL válida se generará un secreto de firma automáticamente.
               </div>
-            )}
+            ) : null}
           </form>
         </SectionCard>
 

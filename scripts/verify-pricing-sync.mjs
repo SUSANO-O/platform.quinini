@@ -28,7 +28,7 @@ function parsePlanCatalog(text) {
     }
   }
   const packs = [];
-  const packBlock = text.match(/export const CONVERSATION_PACKS = \[([\s\S]*?)\] as const;/);
+  const packBlock = text.match(/const PACK_SPECS = \[([\s\S]*?)\] as const;/);
   if (packBlock) {
     for (const m of packBlock[1].matchAll(/id:\s*'(pack_[^']+)'[\s\S]*?conversations:\s*([\d_]+)[\s\S]*?price:\s*([\d_]+)/g)) {
       packs.push({ id: m[1], conv: Number(m[2].replace(/_/g, '')), price: Number(m[3].replace(/_/g, '')) });
@@ -59,6 +59,14 @@ function parseLsCatalog(text) {
   return subs;
 }
 
+function parseStripeScript(text) {
+  const cents = {};
+  for (const m of text.matchAll(/\{\s*key:\s*'STRIPE_PRICE_(\w+)',\s*cents:\s*(\d+)/g)) {
+    cents[m[1].toLowerCase()] = Number(m[2]);
+  }
+  return cents;
+}
+
 function parseI18nRequests(text) {
   const out = {};
   for (const m of text.matchAll(/"(\w+)":\s*\{\s*"requests":\s*"([\d.,]+)/g)) {
@@ -71,6 +79,7 @@ const catalog = parsePlanCatalog(read('src/lib/plan-catalog.ts'));
 const audit = parsePricingAudit(read('scripts/pricing-audit.mjs'));
 const lsSetup = parseLsCatalog(read('scripts/setup-lemonsqueezy-plans.mjs'));
 const lsSync = parseLsCatalog(read('scripts/sync-lemonsqueezy-prices.mjs'));
+const stripeCents = parseStripeScript(read('scripts/sync-stripe-prices.mjs'));
 const esJson = parseI18nRequests(read('messages/es.json'));
 const enJson = parseI18nRequests(read('messages/en.json'));
 
@@ -106,6 +115,13 @@ for (const [id, usd] of Object.entries(lsSync)) {
     : catalog.prices[id];
   if (expected !== undefined && expected !== usd) {
     errors.push(`sync-lemonsqueezy-prices.mjs ${id}: $${usd} ≠ catalog $${expected}`);
+  }
+}
+
+for (const [id, cents] of Object.entries(stripeCents)) {
+  const expected = catalog.prices[id];
+  if (expected !== undefined && expected * 100 !== cents) {
+    errors.push(`sync-stripe-prices.mjs ${id}: ${cents}¢ ≠ catalog $${expected} (${expected * 100}¢)`);
   }
 }
 

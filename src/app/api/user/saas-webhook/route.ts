@@ -1,13 +1,35 @@
 /**
  * GET/PATCH /api/user/saas-webhook — configuración webhook saliente (firma HMAC).
+ * Requiere plan Starter+ (active/trialing/past_due).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken, generateSecureToken } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
-import { User } from '@/lib/db/models';
+import { User, Subscription } from '@/lib/db/models';
 import { recordAudit } from '@/lib/audit-log';
 import { getClientIp } from '@/lib/rate-limit';
+import {
+  canUseOutboundSaasWebhook,
+  outboundWebhookUpgradeLabel,
+  OUTBOUND_SAAS_WEBHOOK_MIN_PLAN,
+} from '@/lib/plan-catalog';
+
+async function loadSubscription(userId: string) {
+  await connectDB();
+  return Subscription.findOne({ userId }).select({ plan: 1, status: 1 }).lean() as Promise<
+    { plan?: string; status?: string } | null
+  >;
+}
+
+function upgradePayload() {
+  return {
+    code: 'OUTBOUND_WEBHOOK_REQUIRES_STARTER',
+    minPlan: OUTBOUND_SAAS_WEBHOOK_MIN_PLAN,
+    minPlanLabel: outboundWebhookUpgradeLabel(),
+    error: `El webhook saliente está disponible desde el plan ${outboundWebhookUpgradeLabel()}.`,
+  };
+}
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get('afhub_session')?.value;
@@ -16,7 +38,11 @@ export async function GET(req: NextRequest) {
   const userId = verifySessionToken(token);
   if (!userId) return NextResponse.json({ error: 'Sesión inválida.' }, { status: 401 });
 
-  await connectDB();
+  const sub = await loadSubscription(userId);
+  const plan = sub?.plan ?? 'free';
+  const status = sub?.status ?? 'free';
+  const allowed = canUseOutboundSaasWebhook(plan, status);
+
   const u = await User.findById(userId).select({ saasWebhookUrl: 1, saasWebhookSecret: 1 }).lean() as
     | { saasWebhookUrl?: string | null; saasWebhookSecret?: string | null }
     | null;
@@ -25,9 +51,13 @@ export async function GET(req: NextRequest) {
   const hasSecret = Boolean(u?.saasWebhookSecret && String(u.saasWebhookSecret).length > 0);
 
   return NextResponse.json({
+    allowed,
+    minPlan: OUTBOUND_SAAS_WEBHOOK_MIN_PLAN,
+    minPlanLabel: outboundWebhookUpgradeLabel(),
     configured: Boolean(url),
-    url: url || null,
-    secretPreview: hasSecret ? '••••••••' + String(u!.saasWebhookSecret).slice(-4) : null,
+    url: allowed ? (url || null) : null,
+    secretPreview: allowed && hasSecret ? '••••••••' + String(u!.saasWebhookSecret).slice(-4) : null,
+    hasExistingConfig: Boolean(url),
   });
 }
 
@@ -37,6 +67,13 @@ export async function PATCH(req: NextRequest) {
 
   const userId = verifySessionToken(token);
   if (!userId) return NextResponse.json({ error: 'Sesión inválida.' }, { status: 401 });
+
+  const sub = await loadSubscription(userId);
+  const plan = sub?.plan ?? 'free';
+  const status = sub?.status ?? 'free';
+  if (!canUseOutboundSaasWebhook(plan, status)) {
+    return NextResponse.json(upgradePayload(), { status: 403 });
+  }
 
   let body: { url?: string | null; regenerateSecret?: boolean };
   try {
@@ -50,7 +87,6 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'La URL debe usar HTTPS.' }, { status: 400 });
   }
 
-  await connectDB();
   const existing = await User.findById(userId).select({ saasWebhookUrl: 1, saasWebhookSecret: 1 }).lean() as {
     saasWebhookUrl?: string | null;
     saasWebhookSecret?: string | null;
@@ -95,6 +131,7 @@ export async function PATCH(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
+    allowed: true,
     url: u2?.saasWebhookUrl || null,
     secretPreview: hasSecret ? '••••••••' + String(u2!.saasWebhookSecret).slice(-4) : null,
     /** Solo devuelto una vez al rotar secreto */

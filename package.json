@@ -24,7 +24,8 @@
     "setup:lemonsqueezy:audit": "node scripts/setup-lemonsqueezy-plans.mjs --audit",
     "setup:lemonsqueezy:sync": "node scripts/setup-lemonsqueezy-plans.mjs --sync-env",
     "pricing:audit": "node scripts/pricing-audit.mjs",
-    "verify:pricing": "node scripts/verify-pricing-sync.mjs"
+    "verify:pricing": "node scripts/verify-pricing-sync.mjs",
+    "test:webhook-gating": "node --env-file=.env scripts/webhook-gating-smoke.mjs"
   },
   "dependencies": {
     "@lemonsqueezy/lemonsqueezy.js": "^4.0.0",

@@ -5,12 +5,12 @@
 
 /** Espejo de plan-catalog.ts + finance defaults */
 const PLANS = [
-  { id: 'solo',    price: 5,   conv: 300,    tier: 'flash',   rag: false },
-  { id: 'basic',   price: 14,  conv: 1500,   tier: 'flash',   rag: false },
-  { id: 'plus',    price: 24,  conv: 3000,   tier: 'default', rag: true  },
-  { id: 'starter', price: 39,  conv: 6000,   tier: 'default', rag: true  },
-  { id: 'growth',  price: 99,  conv: 16_000, tier: 'default', rag: true  },
-  { id: 'business',price: 349, conv: 45_000, tier: 'premium', rag: true  },
+  { id: 'solo',    price: 7,   conv: 300,    tier: 'flash',   rag: false },
+  { id: 'basic',   price: 17,  conv: 1500,   tier: 'flash',   rag: false },
+  { id: 'plus',    price: 36,  conv: 3000,   tier: 'default', rag: true  },
+  { id: 'starter', price: 54,  conv: 6000,   tier: 'default', rag: true  },
+  { id: 'growth',  price: 139, conv: 16_000, tier: 'default', rag: true  },
+  { id: 'business',price: 449, conv: 45_000, tier: 'premium', rag: true  },
 ];
 
 const RATES = {
@@ -37,9 +37,9 @@ function geminiCost(tier, model) {
 }
 
 const PACKS = [
-  { id: 'pack_s', price: 12,  conv: 1000 },
-  { id: 'pack_m', price: 50,  conv: 5000 },
-  { id: 'pack_l', price: 120, conv: 15000 },
+  { id: 'pack_s', price: 15,  conv: 1000 },
+  { id: 'pack_m', price: 60,  conv: 5000 },
+  { id: 'pack_l', price: 145, conv: 15000 },
 ];
 
 const MARKET = [
@@ -87,7 +87,7 @@ console.log('  En la práctica el margen es mayor: uso medio ~30-50%, no todos e
 console.log('— Packs vs planes —');
 for (const pk of PACKS) {
   const ppc = pk.price / pk.conv;
-  const starterPpc = 39 / 6000;
+  const starterPpc = 54 / 6000;
   console.log(
     `  ${pk.id}: $${pk.price}/${pk.conv} = $${ppc.toFixed(4)}/conv` +
     (ppc > starterPpc ? ' ✓ más caro que Starter' : ' ⚠ más barato que Starter'),

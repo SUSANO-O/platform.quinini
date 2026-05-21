@@ -6,7 +6,8 @@
 
 import crypto from 'crypto';
 import { connectDB } from '@/lib/db/connection';
-import { User } from '@/lib/db/models';
+import { User, Subscription } from '@/lib/db/models';
+import { canUseOutboundSaasWebhook } from '@/lib/plan-catalog';
 
 export type SaasWebhookEventType =
   | 'conversation.started'
@@ -66,6 +67,13 @@ async function deliver(url: string, secret: string, body: string): Promise<void>
   console.error('[saas-webhook] delivery failed', url, lastErr);
 }
 
+async function userMayReceiveOutboundWebhook(userId: string): Promise<boolean> {
+  const sub = await Subscription.findOne({ userId }).select({ plan: 1, status: 1 }).lean() as
+    | { plan?: string; status?: string }
+    | null;
+  return canUseOutboundSaasWebhook(sub?.plan ?? 'free', sub?.status ?? 'free');
+}
+
 /**
  * Envío best-effort en segundo plano (no bloquea la petición HTTP del usuario).
  */
@@ -77,6 +85,8 @@ export function dispatchSaasWebhook<T>(
   void (async () => {
     try {
       await connectDB();
+      if (!(await userMayReceiveOutboundWebhook(userId))) return;
+
       const u = await User.findById(userId).select({ saasWebhookUrl: 1, saasWebhookSecret: 1 }).lean() as
         | { saasWebhookUrl?: string | null; saasWebhookSecret?: string | null }
         | null;

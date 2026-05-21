@@ -25,6 +25,7 @@ import {
   X,
 } from 'lucide-react';
 import { PwaInstallButton } from '@/components/shared/pwa-install-button';
+import { PLAN_DISPLAY, type PaidPlanId } from '@/lib/plan-catalog';
 
 const SIDEBAR_EXPANDED_PX = 220;
 const SIDEBAR_COLLAPSED_PX = 72;
@@ -48,11 +49,8 @@ const SIDEBAR_TOUR_KEY_BY_HREF: Record<string, string> = {
   '/dashboard/settings': 'sidebar-ajustes',
 };
 
-const SUBSCRIPTION_PLANS = [
-  { id: 'starter', label: 'Starter' },
-  { id: 'growth', label: 'Growth' },
-  { id: 'business', label: 'Business' },
-] as const;
+/** Planes destacados en modales de trial expirado (subset de pago). */
+const TRIAL_CHECKOUT_PLAN_IDS: PaidPlanId[] = ['starter', 'growth', 'business'];
 
 function SubscriptionExpiryGate() {
   const { loading, hasAccess, isTrialActive, subscription, startCheckout } = useSubscription();
@@ -155,11 +153,13 @@ function SubscriptionExpiryGate() {
             </p>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {SUBSCRIPTION_PLANS.map((plan) => (
+              {TRIAL_CHECKOUT_PLAN_IDS.map((planId) => {
+                const plan = PLAN_DISPLAY[planId];
+                return (
                 <button
-                  key={plan.id}
+                  key={planId}
                   type="button"
-                  onClick={() => startCheckout(plan.id)}
+                  onClick={() => startCheckout(planId)}
                   style={{
                     border: 0,
                     borderRadius: '10px',
@@ -169,14 +169,14 @@ function SubscriptionExpiryGate() {
                     color: '#fff',
                     cursor: 'pointer',
                     background:
-                      plan.id === 'growth'
+                      planId === 'growth'
                         ? 'linear-gradient(135deg, #e41414, #f87600)'
                         : 'linear-gradient(135deg, #00acf8, #0284c7)',
                   }}
                 >
-                  Suscribirme {plan.label}
+                  {plan.label} · {plan.priceLabel}
                 </button>
-              ))}
+              );})}
             </div>
           </div>
         </div>
@@ -200,11 +200,13 @@ function SidebarExpiryBadge() {
         Período de prueba finalizado
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        {SUBSCRIPTION_PLANS.map((plan) => (
+        {TRIAL_CHECKOUT_PLAN_IDS.map((planId) => {
+          const plan = PLAN_DISPLAY[planId];
+          return (
           <button
-            key={plan.id}
+            key={planId}
             type="button"
-            onClick={() => startCheckout(plan.id)}
+            onClick={() => startCheckout(planId)}
             style={{
               border: 0,
               borderRadius: '8px',
@@ -213,14 +215,14 @@ function SidebarExpiryBadge() {
               fontWeight: 700,
               color: '#fff',
               cursor: 'pointer',
-              background: plan.id === 'growth'
+              background: planId === 'growth'
                 ? 'linear-gradient(135deg, #e41414, #f87600)'
                 : 'linear-gradient(135deg, #00acf8, #0284c7)',
             }}
           >
-            {plan.label}
+            {plan.label} · {plan.priceLabel}
           </button>
-        ))}
+        );})}
       </div>
     </div>
   );

@@ -23,7 +23,7 @@ export const TOOLS: ToolDef[] = [
     name: 'Webhook',
     icon: '🔗',
     description: 'Llama a cualquier endpoint HTTP externo.',
-    minPlan: 'free',
+    minPlan: 'solo',
     configFields: [
       { key: 'url', label: 'URL del Webhook', placeholder: 'https://mi-api.com/hook', required: true },
       { key: 'secret', label: 'Secret (opcional)', placeholder: 'Bearer token o HMAC secret', required: false },
@@ -42,7 +42,7 @@ export const TOOLS: ToolDef[] = [
     name: 'Gmail',
     icon: '📧',
     description: 'Envía y lee correos desde una cuenta de Gmail.',
-    minPlan: 'starter',
+    minPlan: 'solo',
     configFields: [
       { key: 'accountEmail', label: 'Cuenta Gmail', placeholder: 'tu@gmail.com', required: true },
     ],
@@ -52,7 +52,7 @@ export const TOOLS: ToolDef[] = [
     name: 'Slack',
     icon: '💬',
     description: 'Envía mensajes a canales y usuarios de Slack.',
-    minPlan: 'starter',
+    minPlan: 'basic',
     configFields: [
       { key: 'webhookUrl', label: 'Incoming Webhook URL', placeholder: 'https://hooks.slack.com/...', required: true },
       { key: 'defaultChannel', label: 'Canal por defecto', placeholder: '#general', required: false },

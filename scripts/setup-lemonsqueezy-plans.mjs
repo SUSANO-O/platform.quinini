@@ -32,17 +32,17 @@ const SYNC_ENV_ONLY = process.argv.includes('--sync-env');
 
 const PLANS = {
   subscriptions: [
-    { key: 'solo',     name: 'MatIAs Solo',     usd: 5,   interval: 'month', aliases: ['solo'] },
-    { key: 'basic',    name: 'MatIAs Basic',    usd: 14,  interval: 'month', aliases: ['basic'] },
-    { key: 'plus',     name: 'MatIAs Plus',     usd: 24,  interval: 'month', aliases: ['plus'] },
-    { key: 'starter',  name: 'MatIAs Starter',  usd: 39,  interval: 'month', aliases: ['starter'] },
-    { key: 'growth',   name: 'MatIAs Growth',   usd: 99,  interval: 'month', aliases: ['growth'] },
-    { key: 'business', name: 'MatIAs Business', usd: 349, interval: 'month', aliases: ['business'] },
+    { key: 'solo',     name: 'MatIAs Solo',     usd: 7,   interval: 'month', aliases: ['solo'] },
+    { key: 'basic',    name: 'MatIAs Basic',    usd: 17,  interval: 'month', aliases: ['basic'] },
+    { key: 'plus',     name: 'MatIAs Plus',     usd: 36,  interval: 'month', aliases: ['plus'] },
+    { key: 'starter',  name: 'MatIAs Starter',  usd: 54,  interval: 'month', aliases: ['starter'] },
+    { key: 'growth',   name: 'MatIAs Growth',   usd: 139, interval: 'month', aliases: ['growth'] },
+    { key: 'business', name: 'MatIAs Business', usd: 449, interval: 'month', aliases: ['business'] },
   ],
   packs: [
-    { key: 'pack_s', name: 'Pack Conversaciones S (1.000)',  usd: 12,  interval: null, aliases: ['pack conversaciones s', 'pack s', 'pack 1000', 'pack 1.000'] },
-    { key: 'pack_m', name: 'Pack Conversaciones M (5.000)',  usd: 50,  interval: null, aliases: ['pack conversaciones m', 'pack m', 'pack 5000', 'pack 5.000'] },
-    { key: 'pack_l', name: 'Pack Conversaciones L (15.000)', usd: 120, interval: null, aliases: ['pack conversaciones l', 'pack l', 'pack 15000', 'pack 15.000'] },
+    { key: 'pack_s', name: 'Pack Conversaciones S (1.000)',  usd: 15,  interval: null, aliases: ['pack conversaciones s', 'pack s', 'pack 1000', 'pack 1.000'] },
+    { key: 'pack_m', name: 'Pack Conversaciones M (5.000)',  usd: 60,  interval: null, aliases: ['pack conversaciones m', 'pack m', 'pack 5000', 'pack 5.000'] },
+    { key: 'pack_l', name: 'Pack Conversaciones L (15.000)', usd: 145, interval: null, aliases: ['pack conversaciones l', 'pack l', 'pack 15000', 'pack 15.000'] },
   ],
 };
 
