@@ -26,8 +26,11 @@ import type {
 // ── helpers ─────────────────────────────────────────────────────────────────
 
 const VARIANT_ENV_BY_PLAN: Record<string, string> = {
+  solo:    'LEMONSQUEEZY_VARIANT_SOLO',
+  basic:   'LEMONSQUEEZY_VARIANT_BASIC',
+  plus:    'LEMONSQUEEZY_VARIANT_PLUS',
   starter: 'LEMONSQUEEZY_VARIANT_STARTER',
-  growth: 'LEMONSQUEEZY_VARIANT_GROWTH',
+  growth:  'LEMONSQUEEZY_VARIANT_GROWTH',
   business: 'LEMONSQUEEZY_VARIANT_BUSINESS',
 };
 

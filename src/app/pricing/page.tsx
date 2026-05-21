@@ -1,12 +1,14 @@
 import { Navbar } from '@/components/shared/navbar';
 import { Footer } from '@/components/shared/footer';
-import { PLANS } from '@/lib/gateway';
-import { PLAN_RAG_LIMITS } from '@/lib/plan-catalog';
+import { PLANS, buildPricingGridPlans } from '@/lib/gateway';
+import { PLAN_DISPLAY, PLAN_RAG_LIMITS } from '@/lib/plan-catalog';
 import { Check, ArrowRight, Zap } from 'lucide-react';
+import { PricingComparisonTable } from '@/components/landing/pricing-comparison-table';
 import Link from 'next/link';
 
 const FREE_PLAN       = PLANS.find((p) => p.id === 'free');
-const PAID_PLANS      = PLANS.filter((p) => !['free', 'enterprise'].includes(p.id));
+const PAID_PLANS      = buildPricingGridPlans();
+const SOLO_PLAN       = PLANS.find((p) => p.id === 'solo');
 const ENTERPRISE_PLAN = PLANS.find((p) => p.id === 'enterprise');
 
 function fmt(n: number) {
@@ -27,49 +29,78 @@ export default function PricingPage() {
 
         <div className="relative max-w-6xl mx-auto">
 
-          {/* ── Header ─────────────────────────────────────────────────────── */}
           <div className="text-center mb-16">
             <div className="badge-primary mb-6 mx-auto w-fit">Planes</div>
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
               Precios <span className="gradient-text">simples y claros</span>
             </h1>
             <p className="mt-4 text-lg max-w-2xl mx-auto" style={{ color: 'var(--muted-foreground)' }}>
-              Empieza gratis y escala según tu volumen. Sin letras pequeñas.
+              Empieza gratis y escala según tu volumen. Una métrica principal: conversaciones al mes.
             </p>
           </div>
 
-          {/* ── Free plan banner ────────────────────────────────────────────── */}
-          {FREE_PLAN && (
-            <div
-              className="mb-8 rounded-2xl px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4"
-              style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
-            >
-              <div className="flex items-center gap-4">
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background: 'rgba(228,20,20,0.08)' }}
-                >
-                  <Zap size={18} style={{ color: 'var(--primary)' }} />
-                </div>
-                <div>
-                  <p className="font-semibold text-sm">Plan Gratis — $0</p>
-                  <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                    {FREE_PLAN.features.join(' · ')}
-                  </p>
-                </div>
-              </div>
-              <Link
-                href="/register"
-                className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
-                style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
+          {/* Free + Solo entry */}
+          <div className="mb-8 grid sm:grid-cols-2 gap-4">
+            {FREE_PLAN && (
+              <div
+                className="rounded-2xl px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4"
+                style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
               >
-                Empezar gratis <ArrowRight size={14} />
-              </Link>
-            </div>
-          )}
+                <div className="flex items-center gap-4">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: 'rgba(228,20,20,0.08)' }}
+                  >
+                    <Zap size={18} style={{ color: 'var(--primary)' }} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm">Plan Gratis — $0</p>
+                    <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                      {FREE_PLAN.features.slice(0, 2).join(' · ')}
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href="/register"
+                  className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                  style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
+                >
+                  Empezar gratis <ArrowRight size={14} />
+                </Link>
+              </div>
+            )}
+            {SOLO_PLAN && (
+              <div
+                className="rounded-2xl px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4"
+                style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+              >
+                <div className="flex items-center gap-4">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: 'rgba(0,172,248,0.08)' }}
+                  >
+                    <Zap size={18} style={{ color: '#00acf8' }} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm">Solo — {PLAN_DISPLAY.solo.priceLabel}</p>
+                    <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                      {SOLO_PLAN.features[0]} · autoguiado
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href="/register"
+                  className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                  style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
+                >
+                  Probar 7 días <ArrowRight size={14} />
+                </Link>
+              </div>
+            )}
+          </div>
 
-          {/* ── Paid plans grid (3 cols) ─────────────────────────────────── */}
-          <div className="grid md:grid-cols-3 gap-6 items-end">
+          {/* Paid plans grid */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 items-end">
             {PAID_PLANS.map((plan) => (
               <div
                 key={plan.id}
@@ -81,11 +112,9 @@ export default function PricingPage() {
                     : '1px solid var(--border)',
                   boxShadow: plan.highlighted ? '0 12px 48px rgba(228,20,20,0.15)' : undefined,
                   padding: plan.highlighted ? '2.5rem 2rem' : '2rem',
-                  marginBottom: plan.highlighted ? undefined : undefined,
                   transform: plan.highlighted ? 'translateY(-8px)' : undefined,
                 }}
               >
-                {/* Accent bar at top */}
                 {plan.highlighted && (
                   <div
                     className="absolute top-0 inset-x-0 h-1 rounded-t-2xl"
@@ -162,7 +191,6 @@ export default function PricingPage() {
             ))}
           </div>
 
-          {/* ── Enterprise section ───────────────────────────────────────── */}
           {ENTERPRISE_PLAN && (
             <div
               className="mt-8 rounded-2xl p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6"
@@ -208,14 +236,21 @@ export default function PricingPage() {
             </div>
           )}
 
-          {/* ── Rate limits comparison ───────────────────────────────────── */}
           <div className="mt-24">
-            <h2 className="text-2xl font-bold text-center mb-3">Límites por plan</h2>
+            <h2 className="text-2xl font-bold text-center mb-3">Comparativa de planes</h2>
             <p className="text-center text-sm mb-10" style={{ color: 'var(--muted-foreground)' }}>
-              Solicitudes por minuto y volumen mensual incluido
+              Misma información en todos los canales — conversaciones, agentes, RAG y soporte
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-              {PLANS.map((plan) => (
+            <PricingComparisonTable />
+          </div>
+
+          <div className="mt-24">
+            <h2 className="text-2xl font-bold text-center mb-3">Límites técnicos</h2>
+            <p className="text-center text-sm mb-10" style={{ color: 'var(--muted-foreground)' }}>
+              Conversaciones mensuales incluidas y rate limit por minuto
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {PLANS.filter((p) => p.id !== 'enterprise' || p.monthlyRequests > 0).map((plan) => (
                 <div
                   key={plan.id}
                   className="rounded-2xl p-5 text-center card-texture"
@@ -230,14 +265,16 @@ export default function PricingPage() {
                     className="text-2xl font-extrabold tabular-nums"
                     style={{ color: plan.highlighted ? 'var(--primary)' : 'var(--foreground)' }}
                   >
-                    {plan.rateLimit}
-                    <span className="text-sm font-normal">/min</span>
+                    {plan.monthlyRequests < 0 ? '∞' : fmt(plan.monthlyRequests)}
+                    {plan.monthlyRequests >= 0 && (
+                      <span className="text-sm font-normal"> conv/mes</span>
+                    )}
                   </p>
                   <p className="text-xs font-semibold mt-1.5" style={{ color: 'var(--muted-foreground)' }}>
                     {plan.name}
                   </p>
                   <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>
-                    {fmt(plan.monthlyRequests)} req/mes
+                    {plan.rateLimit}/min
                   </p>
                 </div>
               ))}

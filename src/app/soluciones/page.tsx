@@ -338,11 +338,11 @@ export default function SolucionesPage() {
               Crear cuenta y probar <ArrowRight size={16} />
             </Link>
             <Link
-              href="/docs"
+              href="/pricing"
               className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-semibold text-sm transition-all"
               style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
             >
-              Documentación técnica
+              Ver precios
             </Link>
           </div>
         </div>

@@ -119,57 +119,66 @@
       "period": "/mes",
       "popular": "Más popular",
       "cta": "Empezar gratis — 7 días",
-      "ragNotIncluded": "Sin contexto y memoria — disponible desde Starter",
+      "ragNotIncluded": "Sin contexto y memoria — disponible desde Plus",
       "ragTechnical": "Contexto y memoria: {mb} MB · {sources} fuentes por agente",
       "solo": {
         "requests": "300 conv/mes",
         "features": [
           "300 conversaciones al mes (~10/día)",
           "1 agente · 3 herramientas · Web Search, Webhook, Gmail",
-          "Widgets ilimitados (nombre único por widget)",
-          "Videos de capacitación en YouTube",
-          "Capacitación y acompañamiento incluido",
-          "Soporte por email (42 h)"
+          "Widgets ilimitados",
+          "Autoguiado: documentación y videos en YouTube",
+          "Soporte por email (72 h, sin onboarding dedicado)"
         ]
       },
       "basic": {
         "requests": "1.500 conv/mes",
         "features": [
           "1.500 conversaciones al mes (~50/día)",
-          "5 agentes · 5 herramientas · Gmail + Slack incluido",
-          "Widgets ilimitados (nombre único por widget)",
-          "Capacitación y acompañamiento incluido",
+          "3 agentes · 2 sub-agentes · Gmail y Slack",
+          "Widgets ilimitados · historial 30 días",
+          "Capacitación grupal incluida",
           "Soporte por email (72 h)"
+        ]
+      },
+      "plus": {
+        "requests": "3.000 conv/mes",
+        "features": [
+          "3.000 conversaciones al mes (~100/día)",
+          "5 agentes · 5 sub-agentes · 8 herramientas",
+          "RAG: 256 MB · 20 fuentes por agente",
+          "Widgets ilimitados · historial 60 días",
+          "Capacitación grupal · soporte email (48 h)"
         ]
       },
       "starter": {
         "requests": "6.000 conv/mes",
         "features": [
           "6.000 conversaciones al mes (~200/día)",
-          "30 agentes · 30 herramientas · Contexto y memoria 1 GB",
-          "Widgets ilimitados (nombre único por widget)",
-          "Capacitación y acompañamiento incluido",
-          "Soporte por email (48 h)"
+          "10 agentes · 10 sub-agentes · 15 herramientas",
+          "RAG: 1 GB · 60 fuentes por agente",
+          "Widgets ilimitados · historial 3 meses",
+          "Capacitación incluida · soporte email (48 h)"
         ]
       },
       "growth": {
-        "requests": "30.000 conv/mes",
+        "requests": "16.000 conv/mes",
         "features": [
-          "30.000 conversaciones al mes (~1.000/día)",
-          "100 agentes · 100 herramientas · Contexto y memoria 10 GB",
-          "Widgets ilimitados (nombre único por widget)",
-          "Capacitación y acompañamiento incluido",
+          "16.000 conversaciones al mes (~530/día)",
+          "25 agentes · integraciones avanzadas",
+          "RAG: 10 GB · 300 fuentes por agente",
+          "Modelos Pro · historial 1 año",
           "Soporte prioritario por chat (24 h)"
         ]
       },
       "business": {
-        "requests": "150.000 conv/mes",
+        "requests": "45.000 conv/mes",
         "features": [
-          "150.000 conversaciones al mes (~5.000/día)",
-          "500 agentes · Contexto y memoria 100 GB · herramientas ilimitadas",
-          "Widgets ilimitados (nombre único por widget)",
-          "Capacitación y acompañamiento incluido",
-          "Soporte dedicado · SLA 99,9 % · Onboarding incluido"
+          "45.000 conversaciones al mes (~1.500/día)",
+          "50 agentes · MCP e integraciones completas",
+          "RAG: 100 GB · 2.000 fuentes por agente",
+          "Todos los modelos · historial ilimitado",
+          "Soporte dedicado · SLA 99,9 %"
         ]
       },
       "enterprise": {

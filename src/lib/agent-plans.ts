@@ -5,7 +5,7 @@ export interface ToolDef {
   name: string;
   icon: string;
   description: string;
-  minPlan: 'free' | 'starter' | 'growth' | 'business';
+  minPlan: 'free' | 'solo' | 'basic' | 'plus' | 'starter' | 'growth' | 'business';
   configFields: { key: string; label: string; placeholder: string; required: boolean }[];
 }
 
@@ -150,12 +150,19 @@ export const CLIENT_MODELS = [
 /** Solicitudes por usuario y mes que no descuentan del contador de widget (`RequestLog`) si el agente es de plataforma. */
 export const PLATFORM_AGENT_FREE_REQUESTS_PER_USER_MONTH = 500;
 
-// ── Per-plan agent limits ─────────────────────────────────────────────────────
+import {
+  PLAN_AGENT_LIMITS,
+  PLAN_SUBAGENT_LIMITS,
+  PLAN_TOOLS_LIMITS,
+  PLAN_RAG_LIMITS,
+} from '@/lib/plan-catalog';
+
+// ── Per-plan agent limits (sincronizado con plan-catalog.ts) ─────────────────
 
 export interface AgentPlanLimits {
-  agents: number;         // max main agents
-  subAgentsPerAgent: number; // max sub-agents per orchestrator
-  toolsPerAgent: number;  // max tools per agent
+  agents: number;
+  subAgentsPerAgent: number;
+  toolsPerAgent: number;
   ragEnabled: boolean;
   ragSourcesPerAgent: number;
   ragStorageMbPerAgent: number;
@@ -164,70 +171,39 @@ export interface AgentPlanLimits {
 
 const ALL_TOOL_IDS = TOOLS.map((t) => t.id);
 
+const TOOLS_BY_PLAN: Record<string, string[]> = {
+  free: ['web-search'],
+  solo: ['web-search', 'webhook', 'gmail'],
+  basic: ['web-search', 'webhook', 'gmail', 'slack'],
+  plus: ['web-search', 'webhook', 'gmail', 'slack'],
+  starter: ['web-search', 'webhook', 'gmail', 'slack', 'file-upload', 'google-calendar', 'hubspot', 'notion'],
+  growth: ALL_TOOL_IDS.filter((id) => id !== 'zapier'),
+  business: ALL_TOOL_IDS,
+  enterprise: ALL_TOOL_IDS,
+};
+
+function buildAgentLimits(planId: string): AgentPlanLimits {
+  const rag = PLAN_RAG_LIMITS[planId];
+  return {
+    agents: PLAN_AGENT_LIMITS[planId] ?? 1,
+    subAgentsPerAgent: PLAN_SUBAGENT_LIMITS[planId] ?? 0,
+    toolsPerAgent: PLAN_TOOLS_LIMITS[planId] ?? 2,
+    ragEnabled: rag !== null && rag !== undefined,
+    ragSourcesPerAgent: rag?.sources ?? 0,
+    ragStorageMbPerAgent: rag?.mb ?? 0,
+    availableToolIds: TOOLS_BY_PLAN[planId] ?? TOOLS_BY_PLAN.free,
+  };
+}
+
 export const AGENT_PLAN_LIMITS: Record<string, AgentPlanLimits> = {
-  free: {
-    agents: 1,
-    subAgentsPerAgent: 0,
-    toolsPerAgent: 2,
-    ragEnabled: false,
-    ragSourcesPerAgent: 0,
-    ragStorageMbPerAgent: 0,
-    availableToolIds: ['web-search'],
-  },
-  solo: {
-    agents: 1,
-    subAgentsPerAgent: 0,
-    toolsPerAgent: 3,
-    ragEnabled: false,
-    ragSourcesPerAgent: 0,
-    ragStorageMbPerAgent: 0,
-    availableToolIds: ['web-search', 'webhook', 'gmail'],
-  },
-  basic: {
-    agents: 5,
-    subAgentsPerAgent: 5,
-    toolsPerAgent: 5,
-    ragEnabled: false,
-    ragSourcesPerAgent: 0,
-    ragStorageMbPerAgent: 0,
-    availableToolIds: ['web-search', 'webhook', 'gmail', 'slack', 'whatsapp'],
-  },
-  starter: {
-    agents: 30,
-    subAgentsPerAgent: 15,
-    toolsPerAgent: 30,
-    ragEnabled: true,
-    ragSourcesPerAgent: 60,
-    ragStorageMbPerAgent: 1024,
-    availableToolIds: ['web-search', 'webhook', 'gmail', 'slack', 'file-upload', 'google-calendar', 'hubspot', 'whatsapp', 'notion'],
-  },
-  growth: {
-    agents: 100,
-    subAgentsPerAgent: 50,
-    toolsPerAgent: 100,
-    ragEnabled: true,
-    ragSourcesPerAgent: 300,
-    ragStorageMbPerAgent: 10240,
-    availableToolIds: ALL_TOOL_IDS,
-  },
-  business: {
-    agents: 500,
-    subAgentsPerAgent: 150,
-    toolsPerAgent: 500,
-    ragEnabled: true,
-    ragSourcesPerAgent: 2000,
-    ragStorageMbPerAgent: 102400,
-    availableToolIds: ALL_TOOL_IDS,
-  },
-  enterprise: {
-    agents: 999,
-    subAgentsPerAgent: 999,
-    toolsPerAgent: 999,
-    ragEnabled: true,
-    ragSourcesPerAgent: 9999,
-    ragStorageMbPerAgent: 999999,
-    availableToolIds: ALL_TOOL_IDS,
-  },
+  free: buildAgentLimits('free'),
+  solo: buildAgentLimits('solo'),
+  basic: buildAgentLimits('basic'),
+  plus: buildAgentLimits('plus'),
+  starter: buildAgentLimits('starter'),
+  growth: buildAgentLimits('growth'),
+  business: buildAgentLimits('business'),
+  enterprise: buildAgentLimits('enterprise'),
 };
 
 export function getAgentLimits(plan: string): AgentPlanLimits {
@@ -239,10 +215,11 @@ const PLAN_RANK: Record<string, number> = {
   free: 0,
   solo: 1,
   basic: 2,
-  starter: 3,
-  growth: 4,
-  business: 5,
-  enterprise: 6,
+  plus: 3,
+  starter: 4,
+  growth: 5,
+  business: 6,
+  enterprise: 7,
 };
 
 /** True si el plan del usuario cumple el mínimo exigido por el modelo. */

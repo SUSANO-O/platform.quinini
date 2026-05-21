@@ -1,20 +1,23 @@
 /**
- * LemonSqueezy — cliente servidor + catálogo de planes.
- * Reemplaza src/lib/paddle.ts
+ * LemonSqueezy — cliente servidor + catálogo de planes (IDs de variante).
+ * Los precios y límites vienen de plan-catalog.ts (fuente única de verdad).
  *
  * Variables de entorno requeridas:
- *   LEMONSQUEEZY_API_KEY               — clave API (lssk_...)
- *   LEMONSQUEEZY_STORE_ID              — ID numérico de la tienda
- *   LEMONSQUEEZY_WEBHOOK_SECRET        — secreto del endpoint de webhooks
- *   LEMONSQUEEZY_VARIANT_STARTER       — ID de variante Starter
- *   LEMONSQUEEZY_VARIANT_GROWTH        — ID de variante Growth
- *   LEMONSQUEEZY_VARIANT_BUSINESS      — ID de variante Business (numérico; debe existir en esa tienda; para cambios in-place LS suele exigir variantes del mismo producto de suscripción)
- *   LEMONSQUEEZY_VARIANT_PACK_S        — ID de variante pack_s (one-time)
- *   LEMONSQUEEZY_VARIANT_PACK_M        — ID de variante pack_m
- *   LEMONSQUEEZY_VARIANT_PACK_L        — ID de variante pack_l
+ *   LEMONSQUEEZY_API_KEY
+ *   LEMONSQUEEZY_STORE_ID
+ *   LEMONSQUEEZY_WEBHOOK_SECRET
+ *   LEMONSQUEEZY_VARIANT_SOLO | BASIC | PLUS | STARTER | GROWTH | BUSINESS
+ *   LEMONSQUEEZY_VARIANT_PACK_S | PACK_M | PACK_L
  */
 
 import { lemonSqueezySetup } from '@lemonsqueezy/lemonsqueezy.js';
+import {
+  PAID_PLAN_IDS,
+  PLAN_CONVERSATION_LIMITS,
+  PLAN_DISPLAY,
+  PLAN_FEATURE_BULLETS,
+  type PaidPlanId,
+} from '@/lib/plan-catalog';
 
 let _ready = false;
 
@@ -26,83 +29,42 @@ export function ensureLSSetup() {
 
 export const LS_STORE_ID = parseInt(process.env.LEMONSQUEEZY_STORE_ID || '0', 10);
 
-export const PLANS = {
-  solo: {
-    name: 'Solo',
-    price: 3,
-    priceId: process.env.LEMONSQUEEZY_VARIANT_SOLO || '',
-    widgets: 1,
-    requests: '300 conv/mo',
-    features: [
-      '1 widget',
-      '300 conversations/month',
-      '1 agent · Web Search, Webhook, Gmail',
-      'Training videos on YouTube',
-      'Training & onboarding included',
-      'Email support (42h)',
-    ],
-  },
-  basic: {
-    name: 'Basic',
-    price: 14,
-    priceId: process.env.LEMONSQUEEZY_VARIANT_BASIC || '',
-    widgets: 10,
-    requests: '1.5k conv/mo',
-    features: [
-      '10 widgets',
-      '1,500 conversations/month',
-      '5 agents · Web Search, Webhook, Gmail',
-      '30-day history',
-      'Training & onboarding included',
-      'Email support',
-    ],
-  },
-  starter: {
-    name: 'Starter',
-    price: 39,
-    priceId: process.env.LEMONSQUEEZY_VARIANT_STARTER || '',
-    widgets: 60,
-    requests: '6k conv/mo',
-    features: [
-      '60 widgets',
-      '6,000 conversations/month',
-      '30 agents · RAG 1 GB · Gmail + Slack',
-      '90-day history',
-      'Training & onboarding included',
-      'Email support (48h)',
-    ],
-  },
-  growth: {
-    name: 'Growth',
-    price: 99,
-    priceId: process.env.LEMONSQUEEZY_VARIANT_GROWTH || '',
-    widgets: 200,
-    requests: '30k conv/mo',
-    features: [
-      '200 widgets',
-      '30,000 conversations/month',
-      '100 agents · RAG 10 GB · all integrations',
-      '1-year history · advanced analytics',
-      'Training & onboarding included',
-      'Priority support (24h)',
-    ],
-  },
-  business: {
-    name: 'Business',
-    price: 349,
-    priceId: process.env.LEMONSQUEEZY_VARIANT_BUSINESS || '',
-    widgets: 1000,
-    requests: '150k conv/mo',
-    features: [
-      '1,000 widgets',
-      '150,000 conversations/month',
-      '300 agents · RAG 100 GB · all tools',
-      'Unlimited history · MCP integrations',
-      'Training & onboarding included',
-      'Dedicated support · SLA 99.9%',
-    ],
-  },
-} as const;
+const VARIANT_ENV: Record<PaidPlanId, string> = {
+  solo:    process.env.LEMONSQUEEZY_VARIANT_SOLO    || '',
+  basic:   process.env.LEMONSQUEEZY_VARIANT_BASIC   || '',
+  plus:    process.env.LEMONSQUEEZY_VARIANT_PLUS    || '',
+  starter: process.env.LEMONSQUEEZY_VARIANT_STARTER || '',
+  growth:  process.env.LEMONSQUEEZY_VARIANT_GROWTH  || '',
+  business: process.env.LEMONSQUEEZY_VARIANT_BUSINESS || '',
+};
+
+function convLabel(planId: PaidPlanId): string {
+  const n = PLAN_CONVERSATION_LIMITS[planId];
+  if (n >= 1_000) return `${(n / 1_000).toFixed(n % 1_000 === 0 ? 0 : 1)}k conv/mo`;
+  return `${n} conv/mo`;
+}
+
+export const PLANS = Object.fromEntries(
+  PAID_PLAN_IDS.map((id) => [
+    id,
+    {
+      name: PLAN_DISPLAY[id].label,
+      price: PLAN_DISPLAY[id].priceUsd,
+      priceId: VARIANT_ENV[id],
+      requests: convLabel(id),
+      features: PLAN_FEATURE_BULLETS[id],
+    },
+  ]),
+) as Record<
+  PaidPlanId,
+  {
+    name: string;
+    price: number;
+    priceId: string;
+    requests: string;
+    features: string[];
+  }
+>;
 
 /** Mapea un variant ID de LS al nombre de plan interno */
 export function planFromLSVariantId(variantId: string | number | undefined): string | null {

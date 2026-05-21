@@ -12,7 +12,6 @@ import {
   UserPlus, Palette, Rocket, Brain,
   Users, BookOpen, PlayCircle, BadgeCheck, Star,
 } from 'lucide-react';
-import { PLAN_RAG_LIMITS } from '@/lib/plan-catalog';
 import { FaqDetails } from '@/components/ui/faq-details';
 
 import { PREMIUM, R, O, B, Rd } from '@/lib/brand-colors';
@@ -43,38 +42,7 @@ export default async function LandingPage() {
     { step: '05', title: t('how.step5Title'), desc: t('how.step5Desc'), Icon: Rocket,   accent: Rd, grad: `linear-gradient(135deg,${Rd},${R})` },
   ];
 
-  const PLANS = [
-    {
-      name: 'Solo',     price: '$3',   period: t('pricing.period'),
-      requests: t('pricing.solo.requests'),
-      features: t.raw('pricing.solo.features') as string[],
-      color: Rd, id: 'solo',
-    },
-    {
-      name: 'Basic',    price: '$14',  period: t('pricing.period'),
-      requests: t('pricing.basic.requests'),
-      features: t.raw('pricing.basic.features') as string[],
-      color: O, id: 'basic',
-    },
-    {
-      name: 'Starter',  price: '$39',  period: t('pricing.period'),
-      requests: t('pricing.starter.requests'),
-      features: t.raw('pricing.starter.features') as string[],
-      color: B, id: 'starter',
-    },
-    {
-      name: 'Growth',   price: '$99',  period: t('pricing.period'),
-      requests: t('pricing.growth.requests'),
-      features: t.raw('pricing.growth.features') as string[],
-      color: PREMIUM.accent, id: 'growth', popular: true,
-    },
-    {
-      name: 'Business', price: '$349', period: t('pricing.period'),
-      requests: t('pricing.business.requests'),
-      features: t.raw('pricing.business.features') as string[],
-      color: O, id: 'business',
-    },
-  ];
+  const FAQ_ITEMS = t.raw('faq.items') as { q: string; a: string }[];
 
   const TESTIMONIALS = t.raw('testimonials.items') as { quote: string; author: string; role: string; company: string }[];
 
@@ -92,8 +60,6 @@ export default async function LandingPage() {
     { step: '03', Icon: Rocket,      color: B, title: t('training.step3Title'), desc: t('training.step3Desc'), grad: `linear-gradient(135deg,${B},${Rd})` },
     { step: '04', Icon: PlayCircle,  color: Rd, title: t('training.step4Title'), desc: t('training.step4Desc'), grad: `linear-gradient(135deg,${Rd},${R})` },
   ];
-
-  const FAQ_ITEMS = t.raw('faq.items') as { q: string; a: string }[];
 
   const STATS = [
     { value: '7 días', label: t('stats.trial'),  gradient: `linear-gradient(135deg,${R},${O})` },
@@ -148,11 +114,11 @@ export default async function LandingPage() {
               {t('hero.ctaAccount')}
             </Link>
             <Link
-              href="/docs"
+              href="/pricing"
               className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl font-semibold text-sm transition-all hover:bg-slate-50"
               style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
             >
-              <Terminal size={16} /> {t('hero.ctaDocs')}
+              {t('hero.ctaDocs')}
             </Link>
           </div>
 
@@ -653,162 +619,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── PRICING ──────────────────────────────────────────────────────────── */}
-      <section id="pricing" className="py-24 px-6 relative overflow-hidden" style={{ background: 'var(--muted)' }}>
-        <div className="ai-mesh" />
-        <div className="max-w-5xl mx-auto relative">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold">{t('pricing.title')}</h2>
-            <p className="mt-4" style={{ color: 'var(--muted-foreground)' }}>
-              {t('pricing.subtitle')}
-            </p>
-          </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {PLANS.map((plan) => (
-              <div
-                key={plan.name}
-                className="card-pro rounded-2xl p-7 flex flex-col gap-4 relative"
-                style={{
-                  border: `1px solid ${plan.color}${plan.popular ? '55' : '28'}`,
-                  boxShadow: plan.popular
-                    ? `0 0 0 3px ${plan.color}12, 0 12px 40px rgba(0,0,0,0.1)`
-                    : '0 4px 24px rgba(0,0,0,0.04)',
-                }}
-              >
-                {/* Corner glow decoration */}
-                <div style={{
-                  position: 'absolute', top: '-20px', right: '-10px',
-                  width: '120px', height: '90px',
-                  background: `radial-gradient(circle, ${plan.color}12, transparent 70%)`,
-                  pointerEvents: 'none',
-                }} />
-
-                {/* Large decorative initial */}
-                <div style={{
-                  fontSize: '72px', lineHeight: 1, fontFamily: 'Georgia, serif',
-                  color: plan.color, opacity: 0.1,
-                  position: 'absolute', top: '10px', left: '18px',
-                  userSelect: 'none', pointerEvents: 'none', fontWeight: 700,
-                }}>
-                  {plan.name[0]}
-                </div>
-
-                {/* Popular badge */}
-                {plan.popular && (
-                  <div style={{
-                    position: 'absolute', top: '-13px', left: '50%', transform: 'translateX(-50%)',
-                    background: `linear-gradient(135deg, ${R}, ${O})`,
-                    color: '#fff', fontSize: '11px', fontWeight: 700,
-                    padding: '4px 16px', borderRadius: '20px', whiteSpace: 'nowrap', letterSpacing: '0.04em',
-                  }}>
-                    {t('pricing.popular')}
-                  </div>
-                )}
-
-                {/* Header */}
-                <div className="relative">
-                  <h3 className="text-xl font-extrabold mb-1">{plan.name}</h3>
-                  <div className="flex items-end gap-1 mb-1">
-                    <span className="text-4xl font-extrabold" style={{ color: plan.color }}>{plan.price}</span>
-                    <span className="text-sm pb-1" style={{ color: 'var(--muted-foreground)' }}>{plan.period}</span>
-                  </div>
-                  <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>{plan.requests}</p>
-                </div>
-
-                {/* Features */}
-                <ul className="space-y-2.5 flex-1 relative">
-                  {plan.features.map((feat) => (
-                    <li key={feat} className="flex items-start gap-2 text-sm">
-                      <Check size={14} className="mt-0.5 shrink-0" style={{ color: plan.color }} />
-                      {feat}
-                    </li>
-                  ))}
-                  {plan.id === 'starter' && (
-                    <li className="text-xs pt-1" style={{ color: 'var(--muted-foreground)' }}>
-                      {t('pricing.ragNotIncluded')}
-                    </li>
-                  )}
-                  {PLAN_RAG_LIMITS[plan.id] && (
-                    <li className="text-xs pt-1" style={{ color: 'var(--muted-foreground)' }}>
-                      {t('pricing.ragTechnical', {
-                        mb: PLAN_RAG_LIMITS[plan.id]!.mb.toLocaleString(),
-                        sources: PLAN_RAG_LIMITS[plan.id]!.sources,
-                      })}
-                    </li>
-                  )}
-                </ul>
-
-                {/* CTA with separator (like testimonial author section) */}
-                <div className="mt-auto pt-4 relative" style={{ borderTop: `1px solid ${plan.color}20` }}>
-                  <Link
-                    href="/register"
-                    className="block text-center py-3 rounded-xl font-bold text-sm transition-all hover:opacity-90 hover:shadow-lg text-white"
-                    style={{ background: plan.popular ? `linear-gradient(135deg, ${R}, ${O})` : plan.color }}
-                  >
-                    {t('pricing.cta')}
-                  </Link>
-                </div>
-              </div>
-            ))}
-
-            {/* Enterprise — 6ta card dentro del grid */}
-            <div
-              className="card-pro rounded-2xl p-7 flex flex-col gap-4 relative"
-              style={{
-                border: '1px solid #8B5CF628',
-                boxShadow: '0 4px 24px rgba(0,0,0,0.04)',
-              }}
-            >
-              <div style={{
-                position: 'absolute', top: '-20px', right: '-10px',
-                width: '120px', height: '90px',
-                background: 'radial-gradient(circle, #8B5CF612, transparent 70%)',
-                pointerEvents: 'none',
-              }} />
-              <div style={{
-                fontSize: '72px', lineHeight: 1, fontFamily: 'Georgia, serif',
-                color: '#8B5CF6', opacity: 0.1,
-                position: 'absolute', top: '10px', left: '18px',
-                userSelect: 'none', pointerEvents: 'none', fontWeight: 700,
-              }}>E</div>
-
-              <div className="relative">
-                <h3 className="text-xl font-extrabold mb-1">Enterprise</h3>
-                <div className="flex items-end gap-1 mb-1">
-                  <span className="text-4xl font-extrabold" style={{ color: '#8B5CF6' }}>
-                    {t('pricing.enterprise.price')}
-                  </span>
-                </div>
-                <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                  {t('pricing.enterprise.requests')}
-                </p>
-              </div>
-
-              <ul className="space-y-2.5 flex-1 relative">
-                {(t.raw('pricing.enterprise.features') as string[]).map((feat: string) => (
-                  <li key={feat} className="flex items-start gap-2 text-sm">
-                    <Check size={14} className="mt-0.5 shrink-0" style={{ color: '#8B5CF6' }} />
-                    {feat}
-                  </li>
-                ))}
-              </ul>
-
-              <div className="mt-auto pt-4 relative" style={{ borderTop: '1px solid #8B5CF620' }}>
-                <a
-                  href="https://wa.me/573196748729"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block text-center py-3 rounded-xl font-bold text-sm transition-all hover:opacity-90 hover:shadow-lg text-white"
-                  style={{ background: '#8B5CF6' }}
-                >
-                  Contactar asesor
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* ── PRICING (eliminado de la landing — ver /pricing) ─────────────────── */}
 
       {/* ── FAQ ──────────────────────────────────────────────────────────────── */}
       <section className="py-24 px-6">

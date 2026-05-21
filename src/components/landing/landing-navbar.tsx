@@ -44,22 +44,13 @@ export function LandingNavbar() {
             {t('training')}
           </Link>
           <Link
-            href="#pricing"
+            href="/pricing"
             className="text-sm font-medium transition-colors"
             style={{ color: 'var(--muted-foreground)' }}
             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
           >
             {t('pricing')}
-          </Link>
-          <Link
-            href="/docs"
-            className="text-sm font-medium transition-colors"
-            style={{ color: 'var(--muted-foreground)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
-          >
-            {t('docs')}
           </Link>
           <Link
             href="/preguntas-frecuentes"
@@ -148,7 +139,7 @@ export function LandingNavbar() {
             {t('training')}
           </Link>
           <Link
-            href="#pricing"
+            href="/pricing"
             className="flex items-center text-sm font-medium px-3 py-2.5 rounded-xl transition-colors"
             style={{ color: 'var(--foreground)' }}
             onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted)')}
@@ -156,16 +147,6 @@ export function LandingNavbar() {
             onClick={() => setOpen(false)}
           >
             {t('pricing')}
-          </Link>
-          <Link
-            href="/docs"
-            className="flex items-center text-sm font-medium px-3 py-2.5 rounded-xl transition-colors"
-            style={{ color: 'var(--foreground)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-            onClick={() => setOpen(false)}
-          >
-            {t('docs')}
           </Link>
           <Link
             href="/preguntas-frecuentes"

@@ -17,7 +17,14 @@
     "test:widget": "node scripts/widget-chat-test.mjs",
     "test:widget:webhook": "node scripts/widget-webhook-force-test.mjs",
     "verify:mcp-phases": "node scripts/verify-mcp-phases.mjs",
-    "gen:rag-examples": "node scripts/write-rag-example-assets.mjs"
+    "gen:rag-examples": "node scripts/write-rag-example-assets.mjs",
+    "sync:lemonsqueezy": "node scripts/sync-lemonsqueezy-prices.mjs",
+    "sync:lemonsqueezy:apply": "node scripts/sync-lemonsqueezy-prices.mjs --apply",
+    "setup:lemonsqueezy": "node scripts/setup-lemonsqueezy-plans.mjs",
+    "setup:lemonsqueezy:audit": "node scripts/setup-lemonsqueezy-plans.mjs --audit",
+    "setup:lemonsqueezy:sync": "node scripts/setup-lemonsqueezy-plans.mjs --sync-env",
+    "pricing:audit": "node scripts/pricing-audit.mjs",
+    "verify:pricing": "node scripts/verify-pricing-sync.mjs"
   },
   "dependencies": {
     "@lemonsqueezy/lemonsqueezy.js": "^4.0.0",

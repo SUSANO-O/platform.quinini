@@ -9,7 +9,7 @@ import { verifySessionToken, isUserEmailVerified, isImpersonationSession } from 
 import { isDisposableEmail } from '@/lib/disposable-email';
 import { connectDB } from '@/lib/db/connection';
 import { User, Subscription } from '@/lib/db/models';
-import { CONVERSATION_PACKS, type PackId } from '@/lib/plan-catalog';
+import { CONVERSATION_PACKS, canPurchaseConversationPacks, type PackId } from '@/lib/plan-catalog';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { getPaymentService } from '@/lib/payment';
 
@@ -64,6 +64,21 @@ export async function POST(req: NextRequest) {
   await connectDB();
   const user = await User.findById(userId).lean() as { email?: string; emailVerified?: boolean | null } | null;
   if (!user) return NextResponse.json({ error: 'Usuario no encontrado.' }, { status: 404 });
+
+  const sub = await Subscription.findOne({ userId }).select({ plan: 1, status: 1 }).lean() as
+    | { plan?: string; status?: string } | null;
+  const effectivePlan = sub?.plan ?? 'free';
+  const effectiveStatus = sub?.status ?? 'free';
+
+  if (!canPurchaseConversationPacks(effectivePlan, effectiveStatus)) {
+    return NextResponse.json(
+      {
+        error: 'Los packs de conversaciones están disponibles solo con un plan de pago activo. Mejora tu plan para comprar conversaciones extra.',
+        code: 'PACK_REQUIRES_PAID_PLAN',
+      },
+      { status: 403 },
+    );
+  }
 
   if (!isImpersonationSession(req.cookies) && !isUserEmailVerified(user)) {
     return NextResponse.json(

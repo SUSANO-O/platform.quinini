@@ -24,12 +24,13 @@ interface CodeRow {
   uses: UseEntry[];
 }
 
-const PLANS = ['free', 'solo', 'basic', 'starter', 'growth', 'business'];
+const PLANS = ['free', 'solo', 'basic', 'plus', 'starter', 'growth', 'business', 'enterprise'];
 
 const PLAN_COLORS: Record<string, { color: string; bg: string }> = {
   free:     { color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
   solo:     { color: '#0d9488', bg: 'rgba(13,148,136,0.1)' },
   basic:    { color: '#6366f1', bg: 'rgba(99,102,241,0.1)' },
+  plus:     { color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
   starter:  { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
   growth:   { color: '#a855f7', bg: 'rgba(168,85,247,0.1)' },
   business: { color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },

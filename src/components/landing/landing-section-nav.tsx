@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 const SECTIONS = [
   { id: 'agents', label: 'Agentes' },
   { id: 'training', label: 'Capacitación' },
-  { id: 'pricing', label: 'Precios' },
 ] as const;
 
 type LandingSectionNavProps = {

@@ -3309,7 +3309,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                     <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: '0 0 12px', lineHeight: 1.45 }}>
                       Las subidas quedan vinculadas a tu sesión y a este agente. Para OCR útil en imágenes, usa fotos nítidas con texto grande y buena luz.
                       {' '}
-                      <Link href="/docs" className="landing-link-accent no-underline font-semibold">Guía breve en Docs →</Link>
+                      <Link href="/preguntas-frecuentes" className="landing-link-accent no-underline font-semibold">Preguntas frecuentes →</Link>
                     </p>
                     {plan === 'starter' && (
                       <p style={{ fontSize: '11px', color: '#d97706', margin: '0 0 12px', padding: '8px 10px', borderRadius: '8px', background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.25)' }}>

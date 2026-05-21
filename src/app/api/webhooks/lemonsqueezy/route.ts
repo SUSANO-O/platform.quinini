@@ -10,6 +10,7 @@ import { connectDB } from '@/lib/db/connection';
 import { Subscription as SubscriptionModel, User, ConversationPack } from '@/lib/db/models';
 import { sendPaidInvoiceEmail, sendSubscriptionEmail, type PaidInvoiceEmailKind } from '@/lib/email';
 import { mapLSStatusToDb, planFromLSVariantId } from '@/lib/lemonsqueezy';
+import { planEmailLabel } from '@/lib/plan-catalog';
 
 // ── Tipos internos ────────────────────────────────────────────────────────────
 
@@ -215,13 +216,7 @@ export async function POST(req: NextRequest) {
         const cur = (attr.currency || 'USD').toUpperCase();
         const amountFormatted = new Intl.NumberFormat('es', { style: 'currency', currency: cur })
           .format(attr.total / 100);
-
-        const planLabel = (({
-          starter: 'Starter ($39/mes)',
-          growth: 'Growth ($99/mes)',
-          business: 'Business ($349/mes)',
-          enterprise: 'Enterprise',
-        } as Record<string, string>)[sub.plan] ?? sub.plan);
+        const planLabel = planEmailLabel(sub.plan ?? 'free');
 
         sendPaidInvoiceEmail(u.email, {
           kind: 'renewal' as PaidInvoiceEmailKind,

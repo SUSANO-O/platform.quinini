@@ -10,19 +10,22 @@ Documento para **soporte al cliente** sobre qué puede hacer un usuario en el pa
 
 ### 1.1 Cuántos agentes, widgets y recursos según el plan
 
-| Plan | Precio | Widgets | Agentes | Sub-agentes | Herramientas | RAG storage | Fuentes RAG | Conv/mes | Historial |
-|------|--------|---------|---------|-------------|--------------|-------------|-------------|----------|-----------|
-| **Free** | $0 | 1 | 1 | 0 | 2 | — | — | 50 | 7 días |
-| **Starter** | $39/mes | 300 | 30 | 15 | 5 | 1 GB | 60 | 6.000 | 3 meses |
-| **Growth** | $99/mes | 1.000 | 100 | 50 | 10 | 10 GB | 300 | 30.000 | 1 año |
-| **Business** | $349/mes | 3.000 | 300 | 150 | Ilimitadas | 100 GB | 2.000 | 150.000 | Ilimitado |
-| **Enterprise** | Contacto | 9.999 | 999 | 999 | Ilimitadas | Ilimitado | Ilimitado | Ilimitado | Ilimitado |
+| Plan | Precio | Agentes | Sub-agentes | Herramientas | RAG storage | Fuentes RAG | Conv/mes | Historial |
+|------|--------|---------|-------------|--------------|-------------|-------------|----------|-----------|
+| **Free** | $0 | 1 | 0 | 2 | — | — | 50 | 7 días |
+| **Solo** | $5/mes | 1 | 0 | 3 | — | — | 300 | 30 días |
+| **Basic** | $14/mes | 3 | 2 | 5 | — | — | 1.500 | 30 días |
+| **Plus** | $24/mes | 5 | 5 | 8 | 256 MB | 20 | 3.000 | 60 días |
+| **Starter** | $39/mes | 10 | 10 | 15 | 1 GB | 60 | 6.000 | 3 meses |
+| **Growth** | $99/mes | 25 | 25 | 50 | 10 GB | 300 | 16.000 | 1 año |
+| **Business** | $349/mes | 50 | 50 | Ilimitadas | 100 GB | 2.000 | 45.000 | Ilimitado |
+| **Enterprise** | Contacto | 999 | 999 | Ilimitadas | Ilimitado | Ilimitado | Ilimitado | Ilimitado |
 
 **Notas importantes:**
-- El límite de **conversaciones** es el principal driver de upgrade: se acumula sumando todos los widgets del usuario en el mes.
-- El **RAG** (base de conocimiento) permite al agente responder con información propia del cliente (documentos, URLs, texto).
-- El **historial** se limpia automáticamente según el plan — las sesiones más antiguas se borran en el cron diario.
-- Los **widgets** tienen un costo marginal cero: el límite es comercial, no técnico.
+- El límite de **conversaciones** es la métrica principal de consumo y upgrade.
+- Los **widgets** son ilimitados en planes de pago (nombre único por widget).
+- El **RAG** está disponible desde **Plus** ($24/mes).
+- Los **packs de conversaciones** ($12 / $50 / $120) requieren plan de pago activo.
 - Los correos temporales (Guerrilla Mail, Temp-Mail, Mailinator, etc.) están **bloqueados en operaciones de pago**.
 
 Si el cliente “no puede crear más agentes o widgets”, suele ser **tope del plan**, no un fallo: debe **mejorar plan** o eliminar recursos no usados.
@@ -71,10 +74,10 @@ El sistema de RAG permite al usuario pegar una URL (su web de precios, documenta
 **Si todos los bloques muestran `📄 Chunk` en producción:** falta la variable `GEMINI_API_KEY` en Vercel (ver doc técnico `docs/rag-scraping-system.md`).
 
 **Herramientas por plan:**
-- **Free:** búsqueda web, webhook
-- **Starter:** búsqueda web, webhook, Gmail, Slack
-- **Growth:** todo lo anterior + subida de archivos, Google Calendar, HubSpot, WhatsApp, Notion, MongoDB, PostgreSQL
-- **Business / Enterprise:** todas las anteriores + Zapier y cualquier integración futura
+- **Free / Solo:** búsqueda web, webhook (+ Gmail en Solo)
+- **Basic / Plus:** búsqueda web, webhook, Gmail, Slack
+- **Starter:** todo lo anterior + subida de archivos, Google Calendar, HubSpot, Notion
+- **Growth / Business:** todas las anteriores + WhatsApp, MongoDB, PostgreSQL, Zapier (Business)
 
 ### 1.4 Widgets: cuántos y relación con el agente
 
@@ -111,10 +114,10 @@ R: Hay que **crearlo** en **Nuevo agente** y guardar; la guía no sustituye ese 
 R: Si ya completaste todos los pasos, **es normal** que desaparezca. Puedes usar **Reiniciar guía** si quieres repetir.
 
 **P: ¿Cuántos agentes / widgets puedo tener?**  
-R: Depende de tu **plan** (tabla de la §1.1). Solo incluye 1 agente y 1 widget; Starter incluye 30 agentes y 60 widgets; Growth 100 agentes y 200 widgets; Business 500 agentes y 1.000 widgets. Si no te deja crear más, has llegado al límite o necesitas subir de plan.
+R: Depende de tu **plan** (tabla de la §1.1). Free incluye 1 agente; Solo 1; Basic 3; Plus 5; Starter 10; Growth 25; Business 50. Si no te deja crear más, has llegado al límite o necesitas subir de plan.
 
 **P: ¿Puedo ponerle documentación a mi agente?**  
-R: Sí, en la ficha del agente, pestaña **RAG**, desde el plan **Starter** (1 GB, 60 fuentes). En **Free** no está disponible. Puedes subir archivos, pegar texto o **pegar una URL** para que el sistema extraiga el contenido automáticamente.
+R: Sí, en la ficha del agente, pestaña **RAG**, desde el plan **Plus** (256 MB, 20 fuentes). En **Free**, **Solo** y **Basic** no está disponible. Puedes subir archivos, pegar texto o **pegar una URL** para que el sistema extraiga el contenido automáticamente.
 
 **P: ¿Por qué no puedo pagar con mi correo actual?**  
 R: Los correos de servicios temporales (Mailinator, Temp-Mail, Guerrilla Mail, etc.) están **bloqueados en pagos**. Debes usar un correo permanente (Gmail, Outlook, corporativo, etc.).

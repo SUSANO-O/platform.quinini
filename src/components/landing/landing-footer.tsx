@@ -30,9 +30,8 @@ export async function LandingFooter() {
             <h4 className="font-semibold text-sm mb-3">{t('product')}</h4>
             <ul className="space-y-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
               <li><Link href="/playground" className="hover:underline">Playground</Link></li>
-              <li><Link href="#pricing" className="hover:underline">{t('plans')}</Link></li>
+              <li><Link href="/pricing" className="hover:underline">{t('plans')}</Link></li>
               <li><Link href="#agents" className="hover:underline">Agentes</Link></li>
-              <li><Link href="/docs" className="hover:underline">Widget API</Link></li>
             </ul>
           </div>
 
