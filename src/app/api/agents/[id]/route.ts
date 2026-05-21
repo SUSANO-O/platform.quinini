@@ -21,6 +21,7 @@ import {
   isProviderAllowed,
   resolveProviderForModelId,
 } from '@/lib/model-provider-policy';
+import { validateModelForPlan } from '@/lib/model-plan-policy';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -264,6 +265,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if ('description' in body) agent.description = body.description ?? '';
   if ('systemPrompt' in body && body.systemPrompt?.trim()) agent.systemPrompt = body.systemPrompt.trim();
   if ('model' in body && body.model) {
+    const sub = await Subscription.findOne({ userId }).lean() as { plan?: string; status?: string } | null;
+    const hasActivePlan = sub?.status === 'active' || sub?.status === 'trialing';
+    const plan = hasActivePlan ? (sub?.plan ?? 'free') : 'free';
+
+    const modelCheck = await validateModelForPlan(plan, String(body.model));
+    if (!modelCheck.ok) {
+      return NextResponse.json({ error: modelCheck.error, code: 'MODEL_PLAN_BLOCKED' }, { status: 403 });
+    }
+
     const allowedProviders = await getUserAllowedProviders(userId);
     if (allowedProviders.length) {
       const provider = await resolveProviderForModelId(String(body.model));

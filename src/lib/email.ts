@@ -5,6 +5,7 @@
  */
 
 import { Resend } from 'resend';
+import { planEmailLabel } from '@/lib/plan-catalog';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
@@ -347,13 +348,6 @@ export async function sendEmailChangeCodeEmail(
   logSendFailure('email change code', await send(newEmail, `Tu código MatIAs: ${code}`, html));
 }
 
-const PLAN_NAMES: Record<string, string> = {
-  starter: 'Starter ($39/mes)',
-  growth: 'Growth ($99/mes)',
-  business: 'Business ($349/mes)',
-  enterprise: 'Enterprise',
-};
-
 export async function sendSubscriptionEmail(
   userIdOrEmail: string,
   event: 'activated' | 'canceled' | 'payment_failed' | 'trial_ending',
@@ -372,7 +366,7 @@ export async function sendSubscriptionEmail(
     } catch { return; }
   }
 
-  const planName = PLAN_NAMES[plan] || plan;
+  const planName = planEmailLabel(plan);
   const dashUrl = `${APP_URL}/dashboard`;
 
   let subject: string;
@@ -427,7 +421,7 @@ export async function sendSubscriptionReminderEmail(params: {
 }): Promise<void> {
   const { to, displayName, kind, daysLeft, plan, dueDate } = params;
   const safeName = (displayName || '').trim() || to.split('@')[0] || 'usuario';
-  const planName = PLAN_NAMES[plan] || plan;
+  const planName = planEmailLabel(plan);
   const due = dueDate.toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' });
   const dashUrl = `${APP_URL}/dashboard/settings`;
 
@@ -463,7 +457,7 @@ export async function sendQuotaWarningEmail(
 ): Promise<void> {
   const safeName = displayName.trim() || to.split('@')[0];
   const percent = Math.round((used / limit) * 100);
-  const planLabel = PLAN_NAMES[plan] || plan;
+  const planLabel = planEmailLabel(plan);
   const subject = `Has usado el ${percent} % de tus conversaciones este mes — MatIAs`;
   const html = baseTemplate(subject, `
     ${h1('Estás cerca del límite')}

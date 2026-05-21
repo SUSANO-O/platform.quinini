@@ -11,7 +11,6 @@ const EXACT = new Set<string>([
   '/forgot-password',
   '/reset-password',
   '/verify-email',
-  '/docs',
   '/widget',
   '/demos',
   '/soluciones',

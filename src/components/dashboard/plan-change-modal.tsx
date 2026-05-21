@@ -9,7 +9,7 @@ import {
 } from '@/lib/plan-catalog';
 import { AlertTriangle, CheckCircle2, X } from 'lucide-react';
 
-export type PaidPlanId = 'solo' | 'basic' | 'starter' | 'growth' | 'business';
+export type PaidPlanId = 'solo' | 'basic' | 'plus' | 'starter' | 'growth' | 'business';
 
 type PlanChangeModalProps = {
   open: boolean;

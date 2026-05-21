@@ -1,6 +1,6 @@
 /**
  * Lee .env, consulta Stripe (precios recurrentes activos) y escribe STRIPE_PRICE_* coherentes
- * con PLANS (19 / 49 / 129 USD → unit_amount 1900, 4900, 12900).
+ * con plan-catalog.ts (5 / 14 / 24 / 39 / 99 / 349 USD).
  * Uso: node scripts/sync-stripe-prices.mjs
  */
 import fs from 'fs';
@@ -40,9 +40,12 @@ function setEnvKey(text, key, value) {
 }
 
 const PLANS = [
-  { key: 'STRIPE_PRICE_STARTER', cents: 1900, hints: ['starter', 'MatIAsstarter'] },
-  { key: 'STRIPE_PRICE_GROWTH', cents: 4900, hints: ['growth'] },
-  { key: 'STRIPE_PRICE_BUSINESS', cents: 12900, hints: ['business'] },
+  { key: 'STRIPE_PRICE_SOLO',     cents: 500,   hints: ['solo', 'matias solo'] },
+  { key: 'STRIPE_PRICE_BASIC',    cents: 1400,  hints: ['basic', 'matias basic'] },
+  { key: 'STRIPE_PRICE_PLUS',     cents: 2400,  hints: ['plus', 'matias plus'] },
+  { key: 'STRIPE_PRICE_STARTER',  cents: 3900,  hints: ['starter', 'matias starter'] },
+  { key: 'STRIPE_PRICE_GROWTH',   cents: 9900,  hints: ['growth', 'matias growth'] },
+  { key: 'STRIPE_PRICE_BUSINESS', cents: 34900, hints: ['business', 'matias business'] },
 ];
 
 async function main() {

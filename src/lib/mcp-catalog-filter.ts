@@ -28,6 +28,7 @@ export function planLabelForMin(min: PlanId): string {
     free:       'Free',
     solo:       'Solo',
     basic:      'Basic',
+    plus:       'Plus',
     starter:    'Starter',
     growth:     'Growth',
     business:   'Business',

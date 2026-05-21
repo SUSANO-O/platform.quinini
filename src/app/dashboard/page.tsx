@@ -144,6 +144,7 @@ export default function DashboardPage() {
             used={usage.used}
             limit={usage.limit}
             plan={usage.plan}
+            subscriptionStatus={subscription?.status}
             activePacks={usage.activePacks}
           />
         )}

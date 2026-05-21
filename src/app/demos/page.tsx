@@ -7,7 +7,6 @@ import {
   Code2,
   FlaskConical,
   LayoutDashboard,
-  BookOpen,
   Globe2,
   MessageSquareCode,
   Sparkles,
@@ -53,16 +52,9 @@ const DEMOS: DemoItem[] = [
     icon: <LayoutDashboard className="h-6 w-6" />,
   },
   {
-    title: 'Documentación',
-    description:
-      'OpenAPI, autenticación y endpoints del gateway. Ideal para integrar desde tu backend o scripts.',
-    href: '/docs',
-    icon: <BookOpen className="h-6 w-6" />,
-  },
-  {
     title: 'Pricing',
     description:
-      'Planes Free, Pro y Enterprise con límites de requests y funciones por nivel.',
+      'Planes Free, Solo, Plus, Starter, Growth y Business — conversaciones, RAG y límites por nivel.',
     href: '/pricing',
     icon: <Cpu className="h-6 w-6" />,
   },

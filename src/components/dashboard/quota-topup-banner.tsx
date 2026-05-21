@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CONVERSATION_PACKS } from '@/lib/plan-catalog';
+import { CONVERSATION_PACKS, canPurchaseConversationPacks } from '@/lib/plan-catalog';
 import { Zap, X } from 'lucide-react';
 import { BRAND, STATE, BRAND_GRADIENT } from '@/lib/brand-colors';
 interface Props {
@@ -9,13 +9,16 @@ interface Props {
   used: number;
   limit: number;
   plan: string;
+  subscriptionStatus?: string;
   activePacks: { packId: string; remaining: number; total: number; expiresAt: string }[];
 }
 
-export function QuotaTopupBanner({ percentUsed, used, limit, plan, activePacks }: Props) {
+export function QuotaTopupBanner({ percentUsed, used, limit, plan, subscriptionStatus = 'free', activePacks }: Props) {
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState('');
+
+  const packsAllowed = canPurchaseConversationPacks(plan, subscriptionStatus);
 
   if (percentUsed < 80 && activePacks.length === 0) return null;
 
@@ -59,14 +62,17 @@ export function QuotaTopupBanner({ percentUsed, used, limit, plan, activePacks }
           </span>
         </div>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => packsAllowed ? setShowModal(true) : undefined}
+          disabled={!packsAllowed}
           style={{
             padding: '6px 14px', borderRadius: '8px', border: 'none',
-            background: BRAND_GRADIENT, color: '#fff',
-            fontSize: '12px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+            background: packsAllowed ? BRAND_GRADIENT : 'var(--border)',
+            color: '#fff',
+            fontSize: '12px', fontWeight: 700, cursor: packsAllowed ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap',
+            opacity: packsAllowed ? 1 : 0.7,
           }}
         >
-          Comprar más conversaciones
+          {packsAllowed ? 'Comprar más conversaciones' : 'Mejorar plan para packs'}
         </button>
       </div>
 
@@ -104,7 +110,7 @@ export function QuotaTopupBanner({ percentUsed, used, limit, plan, activePacks }
               <div>
                 <h2 style={{ fontSize: '18px', fontWeight: 800, margin: 0 }}>Comprar conversaciones extra</h2>
                 <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginTop: '4px' }}>
-                  Válidas 90 días · No caducan al renovar el plan · Plan actual: <strong>{plan}</strong>
+                  Válidas 90 días · Solo planes de pago · Plan actual: <strong>{plan}</strong>
                 </p>
               </div>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted-foreground)', padding: '4px' }}>
@@ -153,7 +159,7 @@ export function QuotaTopupBanner({ percentUsed, used, limit, plan, activePacks }
             </div>
 
             <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', textAlign: 'center', marginTop: '16px' }}>
-              Pago seguro con Stripe · Sin suscripción adicional
+              Los packs cuestan más por conversación que subir de plan — ideal para picos puntuales.
             </p>
           </div>
         </div>

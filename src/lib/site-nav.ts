@@ -2,7 +2,6 @@
 
 export const SITE_PRODUCT_LINKS = [
   { href: '/playground', label: 'Playground' },
-  { href: '/docs', label: 'Documentación' },
   { href: '/pricing', label: 'Precios' },
 ] as const;
 
@@ -22,6 +21,5 @@ export const SITE_LEGAL_LINKS = [
 
 export const SITE_NAV_LINKS = [
   { href: '/pricing', label: 'Precios' },
-  { href: '/docs', label: 'Documentación' },
   { href: '/preguntas-frecuentes', label: 'Preguntas frecuentes' },
 ] as const;

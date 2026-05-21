@@ -24,6 +24,7 @@ import {
   isProviderAllowed,
   resolveProviderForModelId,
 } from '@/lib/model-provider-policy';
+import { validateModelForPlan } from '@/lib/model-plan-policy';
 
 async function getAuth(req: NextRequest) {
   const token = req.cookies.get('afhub_session')?.value;
@@ -200,6 +201,14 @@ export async function POST(req: NextRequest) {
   if (!name?.trim()) return NextResponse.json({ error: 'El nombre es requerido.' }, { status: 400 });
   if (!systemPrompt?.trim()) return NextResponse.json({ error: 'El system prompt es requerido.' }, { status: 400 });
   if (!model) return NextResponse.json({ error: 'El modelo es requerido.' }, { status: 400 });
+
+  if (!isPlatform) {
+    const modelCheck = await validateModelForPlan(plan, String(model));
+    if (!modelCheck.ok) {
+      return NextResponse.json({ error: modelCheck.error, code: 'MODEL_PLAN_BLOCKED' }, { status: 403 });
+    }
+  }
+
   const allowedProviders = await getUserAllowedProviders(userId);
   if (allowedProviders.length) {
     const provider = await resolveProviderForModelId(String(model));
