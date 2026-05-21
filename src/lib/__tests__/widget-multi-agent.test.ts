@@ -6,8 +6,6 @@ import {
   buildWidgetMultiAgentConfig,
   findOrchestratorForMember,
   isCompoundCreativeRequest,
-  isContentCapableAgent,
-  isCreativeCapableAgent,
   isMultiAgentPlanEligible,
   pickPipelineAgents,
   resolveHubAgentId,
@@ -15,9 +13,13 @@ import {
   resolveWidgetRoutingCapabilities,
   triageByKeywords,
   validateMultiAgentMode,
-  validatePipelineWidgetSetup,
   type TeamMember,
 } from '../widget-multi-agent';
+import {
+  isContentCapableAgent,
+  isCreativeCapableAgent,
+  validatePipelineWidgetSetup,
+} from '../widget-pipeline-ui';
 
 describe('widget-multi-agent', () => {
   it('Business y Enterprise pueden usar multi-agente', () => {
