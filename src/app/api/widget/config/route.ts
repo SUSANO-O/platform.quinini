@@ -7,17 +7,28 @@
  * need to embed the token, not a hardcoded config snapshot.
  *
  * No user auth required: the wt_* token is the public identity of the widget.
+ * CORS enabled for cross-origin embed (localhost PHP, sitios de clientes, etc.).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { Widget, ClientAgent } from '@/lib/db/models';
 import { validateMultiAgentMode } from '@/lib/widget-multi-agent';
+import { getCorsHeaders, handlePreflight, withCors } from '@/lib/cors';
+
+export async function OPTIONS(req: NextRequest) {
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
+  return new NextResponse(null, { status: 204, headers: getCorsHeaders(req) });
+}
 
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token');
   if (!token || !token.startsWith('wt_')) {
-    return NextResponse.json({ error: 'Token inválido.' }, { status: 400 });
+    return withCors(
+      req,
+      NextResponse.json({ error: 'Token inválido.' }, { status: 400 }),
+    );
   }
 
   await connectDB();
@@ -27,7 +38,10 @@ export async function GET(req: NextRequest) {
     .lean() as Record<string, unknown> | null;
 
   if (!widget) {
-    return NextResponse.json({ error: 'Widget no encontrado.' }, { status: 404 });
+    return withCors(
+      req,
+      NextResponse.json({ error: 'Widget no encontrado.' }, { status: 404 }),
+    );
   }
 
   // Fetch voice name from the linked agent (stored there, not on Widget)
@@ -41,34 +55,37 @@ export async function GET(req: NextRequest) {
     } catch { /* non-critical — fallback to auto voice */ }
   }
 
-  return NextResponse.json(
-    {
-      agentId:           widget.agentId,
-      color:             widget.color,
-      title:             widget.title,
-      subtitle:          widget.subtitle,
-      welcome:           widget.welcome,
-      fabHint:           widget.fabHint,
-      avatar:            widget.avatar,
-      position:          widget.position,
-      theme:             widget.theme,
-      borderRadius:      widget.borderRadius,
-      autoOpen:          widget.autoOpen,
-      voiceEnabled:      widget.voiceEnabled !== false,
-      humanSupportPhone: widget.humanSupportPhone,
-      voiceName,
-      shortcuts:         Array.isArray(widget.shortcuts)
-        ? (widget.shortcuts as Array<{ id: string; label: string; message: string; emoji?: string; enabled: boolean }>)
-            .filter((s) => s.enabled !== false)
-        : [],
-      multiAgentEnabled: widget.multiAgentEnabled === true,
-      multiAgentMode: validateMultiAgentMode(widget.multiAgentMode),
-    },
-    {
-      headers: {
-        // Allow short CDN/browser caching; changes in the panel propagate within 30 s
-        'Cache-Control': 'public, max-age=30, stale-while-revalidate=60',
+  return withCors(
+    req,
+    NextResponse.json(
+      {
+        agentId:           widget.agentId,
+        color:             widget.color,
+        title:             widget.title,
+        subtitle:          widget.subtitle,
+        welcome:           widget.welcome,
+        fabHint:           widget.fabHint,
+        avatar:            widget.avatar,
+        position:          widget.position,
+        theme:             widget.theme,
+        borderRadius:      widget.borderRadius,
+        autoOpen:          widget.autoOpen,
+        voiceEnabled:      widget.voiceEnabled !== false,
+        humanSupportPhone: widget.humanSupportPhone,
+        voiceName,
+        shortcuts:         Array.isArray(widget.shortcuts)
+          ? (widget.shortcuts as Array<{ id: string; label: string; message: string; emoji?: string; enabled: boolean }>)
+              .filter((s) => s.enabled !== false)
+          : [],
+        multiAgentEnabled: widget.multiAgentEnabled === true,
+        multiAgentMode: validateMultiAgentMode(widget.multiAgentMode),
       },
-    },
+      {
+        headers: {
+          // Allow short CDN/browser caching; changes in the panel propagate within 30 s
+          'Cache-Control': 'public, max-age=30, stale-while-revalidate=60',
+        },
+      },
+    ),
   );
 }

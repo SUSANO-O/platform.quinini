@@ -181,9 +181,31 @@
 
     fetchWidgetConfig(tempHost, token, function (remoteCfg) {
       if (!remoteCfg) {
-        if (debug) console.warn('[AgentFlowhub Widget] No se pudo obtener configuración remota. Token:', token);
+        var scriptHost = getScriptOrigin();
+        if (scriptHost && scriptHost !== tempHost.replace(/\/$/, '')) {
+          fetchWidgetConfig(scriptHost, token, function (retryCfg) {
+            if (retryCfg) finishInit(retryCfg);
+            else warnConfigFailed(tempHost, token, debug);
+          });
+          return;
+        }
+        warnConfigFailed(tempHost, token, debug);
         return;
       }
+      finishInit(remoteCfg);
+    });
+
+    function warnConfigFailed(host, tok, dbg) {
+      if (!dbg) return;
+      console.warn(
+        '[AgentFlowhub Widget] No se pudo obtener configuración remota. ' +
+        'host=' + host + ' token=' + tok + '. ' +
+        'Comprueba: (1) host apunta a la landing (ej. http://localhost:3201), no a AIBackHub (:9003); ' +
+        '(2) CORS en el servidor; (3) token wt_ válido.'
+      );
+    }
+
+    function finishInit(remoteCfg) {
       // remote config is authoritative; localInput keys (callbacks, debug, host, etc.) override last
       var mergedInput = assign({}, remoteCfg, localInput);
       var cfg = normalizeConfig(mergedInput);
@@ -196,7 +218,7 @@
       INSTANCES[instanceId] = instance;
       resolvedApi = instance.api;
       flush();
-    });
+    }
 
     return proxyApi;
   }
@@ -228,6 +250,10 @@
   function normalizeConfig(input) {
     var merged = assign({}, DEFAULTS, input || {});
     merged.host = merged.host || getScriptOrigin() || window.location.origin;
+    merged.host = String(merged.host).replace(/\/$/, '');
+    if (/:(9003)(\/|$)/.test(merged.host)) {
+      log(merged, 'warn', 'host apunta a AIBackHub (:9003). Usa la URL de la landing (ej. http://localhost:3201 o tu dominio MatIAs).');
+    }
     var pos = String(merged.position || 'right').toLowerCase();
     if (['left', 'right', 'center', 'top', 'custom'].indexOf(pos) === -1) {
       pos = 'right';

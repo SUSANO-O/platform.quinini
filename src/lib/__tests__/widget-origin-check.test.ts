@@ -32,6 +32,12 @@ describe('isOriginAllowed', () => {
     expect(isOriginAllowed('https://evil.com', ['https://allowed.com'])).toBe(false);
   });
 
+  it('allows localhost for local embed testing even with restricted list', async () => {
+    const { isOriginAllowed } = await getModule();
+    expect(isOriginAllowed('http://localhost:9090', ['https://allowed.com'])).toBe(true);
+    expect(isOriginAllowed('http://127.0.0.1:9090', ['https://allowed.com'])).toBe(true);
+  });
+
   it('comparison is case-insensitive', async () => {
     const { isOriginAllowed } = await getModule();
     expect(isOriginAllowed('https://ALLOWED.COM', ['https://allowed.com'])).toBe(true);
