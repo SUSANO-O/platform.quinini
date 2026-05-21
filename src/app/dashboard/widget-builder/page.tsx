@@ -949,6 +949,58 @@ export default function WidgetBuilderPage() {
           <input style={inputStyle} value={cfg.name} onChange={(e) => update({ name: e.target.value })} placeholder="Mi widget" />
         </div>
 
+        {multiAgentEligible && (
+          <div
+            style={{
+              marginBottom: 20,
+              padding: 14,
+              borderRadius: 12,
+              border: '1px solid rgba(99,102,241,0.25)',
+              background: 'rgba(99,102,241,0.06)',
+            }}
+            data-tour="widget-builder-multi-agent"
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <input
+                type="checkbox"
+                id="multiAgentEnabled"
+                checked={cfg.multiAgentEnabled}
+                onChange={(e) =>
+                  update({
+                    multiAgentEnabled: e.target.checked,
+                    ...(e.target.checked
+                      ? {}
+                      : { agentIds: [], orchestratorAgentIds: [], multiAgentMode: 'triage' }),
+                  })
+                }
+                style={{ width: 16, height: 16, cursor: 'pointer' }}
+              />
+              <label htmlFor="multiAgentEnabled" style={{ fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                Widget multiagente avanzado
+              </label>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  padding: '2px 6px',
+                  borderRadius: 6,
+                  background: 'rgba(99,102,241,0.15)',
+                  color: '#6366f1',
+                }}
+              >
+                Business · Enterprise
+              </span>
+            </div>
+            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.45 }}>
+              {cfg.multiAgentEnabled
+                ? 'Selecciona varios agentes en la grilla de abajo. Cada uno aporta su equipo al triaje.'
+                : 'Sin activar esto, un solo agente en la grilla; sus sub-agentes se enrutan solos si existen.'}
+            </p>
+          </div>
+        )}
+
         {/* Agent selector (widget.agentId = ObjectId landing; el hub resuelve por landingClientAgentId) */}
         <div style={fieldStyle} data-tour="widget-builder-agent">
           <label style={labelStyle}>
@@ -1062,6 +1114,105 @@ export default function WidgetBuilderPage() {
             </p>
           ) : null}
         </div>
+
+        {multiAgentEligible && cfg.multiAgentEnabled && (
+          <div
+            style={{
+              marginBottom: 20,
+              padding: 14,
+              borderRadius: 12,
+              border: '1px solid rgba(99,102,241,0.25)',
+              background: 'rgba(99,102,241,0.06)',
+            }}
+          >
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+              {([
+                ['triage', 'Triaje (rápido)', 'Deriva a un especialista y responde con una llamada.'],
+                ['parallel', 'Paralelo + síntesis', 'Consulta orquestador y especialista en paralelo; una respuesta unificada.'],
+              ] as const).map(([mode, label, hint]) => {
+                const selected = cfg.multiAgentMode === mode;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => update({ multiAgentMode: mode })}
+                    title={hint}
+                    style={{
+                      flex: '1 1 140px',
+                      textAlign: 'left',
+                      padding: '8px 10px',
+                      borderRadius: 8,
+                      border: selected ? '1px solid rgba(99,102,241,0.45)' : '1px solid var(--border)',
+                      background: selected ? 'rgba(99,102,241,0.12)' : 'var(--background)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span style={{ display: 'block', fontSize: 12, fontWeight: 700 }}>{label}</span>
+                    <span style={{ display: 'block', fontSize: 10, color: 'var(--muted-foreground)', marginTop: 3, lineHeight: 1.35 }}>
+                      {hint}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {loadingSubs ? (
+              <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0 }}>Cargando equipo…</p>
+            ) : orchestratorSubs.length === 0 ? (
+              <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.45 }}>
+                Ningún orquestador seleccionado tiene sub-agentes.{' '}
+                <Link href={`/dashboard/agents/${cfg.agentId}`} className="font-semibold landing-link-accent">
+                  Configura sub-agentes
+                </Link>{' '}
+                para activar el triaje.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <p style={{ fontSize: 11, fontWeight: 600, margin: '0 0 4px', color: 'var(--foreground)' }}>
+                  Especialistas del equipo (opcional — vacío = todos los sub-agentes de cada orquestador)
+                </p>
+                {orchestratorSubs.map((sub) => {
+                  const checked = cfg.agentIds.includes(sub._id);
+                  return (
+                    <label
+                      key={sub._id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 8,
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        padding: '6px 8px',
+                        borderRadius: 8,
+                        border: checked ? '1px solid rgba(99,102,241,0.35)' : '1px solid var(--border)',
+                        background: checked ? 'rgba(99,102,241,0.08)' : 'var(--background)',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleTeamAgent(sub._id)}
+                        style={{ marginTop: 2, cursor: 'pointer' }}
+                      />
+                      <span>
+                        <strong>{sub.name}</strong>
+                        {sub.parentName ? (
+                          <span style={{ fontSize: 10, color: 'var(--muted-foreground)', marginLeft: 6 }}>
+                            · {sub.parentName}
+                          </span>
+                        ) : null}
+                        {sub.description ? (
+                          <span style={{ display: 'block', color: 'var(--muted-foreground)', marginTop: 2 }}>
+                            {sub.description.slice(0, 120)}
+                          </span>
+                        ) : null}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
         </>
         )}
 
@@ -1156,146 +1307,6 @@ export default function WidgetBuilderPage() {
 
         {wizardStep === 2 && (
         <>
-        {multiAgentEligible && (
-          <div
-            style={{
-              marginBottom: 20,
-              padding: 14,
-              borderRadius: 12,
-              border: '1px solid rgba(99,102,241,0.25)',
-              background: 'rgba(99,102,241,0.06)',
-            }}
-            data-tour="widget-builder-multi-agent"
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <input
-                type="checkbox"
-                id="multiAgentEnabled"
-                checked={cfg.multiAgentEnabled}
-                onChange={(e) =>
-                  update({
-                    multiAgentEnabled: e.target.checked,
-                    ...(e.target.checked
-                      ? {}
-                      : { agentIds: [], orchestratorAgentIds: [], multiAgentMode: 'triage' }),
-                  })
-                }
-                style={{ width: 16, height: 16, cursor: 'pointer' }}
-              />
-              <label htmlFor="multiAgentEnabled" style={{ fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                Widget multiagente avanzado
-              </label>
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  padding: '2px 6px',
-                  borderRadius: 6,
-                  background: 'rgba(99,102,241,0.15)',
-                  color: '#6366f1',
-                }}
-              >
-                Business · Enterprise
-              </span>
-            </div>
-            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '0 0 10px', lineHeight: 1.45 }}>
-              Activa varios orquestadores en la grilla de agentes, el modo paralelo con síntesis y el filtro de
-              especialistas. Los sub-agentes del agente principal ya se enrutan solos sin este toggle.
-            </p>
-            {cfg.multiAgentEnabled && (
-              <>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-                  {([
-                    ['triage', 'Triaje (rápido)', 'Deriva a un especialista y responde con una llamada.'],
-                    ['parallel', 'Paralelo + síntesis', 'Consulta orquestador y especialista en paralelo; una respuesta unificada.'],
-                  ] as const).map(([mode, label, hint]) => {
-                    const selected = cfg.multiAgentMode === mode;
-                    return (
-                      <button
-                        key={mode}
-                        type="button"
-                        onClick={() => update({ multiAgentMode: mode })}
-                        title={hint}
-                        style={{
-                          flex: '1 1 140px',
-                          textAlign: 'left',
-                          padding: '8px 10px',
-                          borderRadius: 8,
-                          border: selected ? '1px solid rgba(99,102,241,0.45)' : '1px solid var(--border)',
-                          background: selected ? 'rgba(99,102,241,0.12)' : 'var(--background)',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <span style={{ display: 'block', fontSize: 12, fontWeight: 700 }}>{label}</span>
-                        <span style={{ display: 'block', fontSize: 10, color: 'var(--muted-foreground)', marginTop: 3, lineHeight: 1.35 }}>
-                          {hint}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {loadingSubs ? (
-                  <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0 }}>Cargando equipo…</p>
-                ) : orchestratorSubs.length === 0 ? (
-                  <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.45 }}>
-                    Ningún orquestador seleccionado tiene sub-agentes.{' '}
-                    <Link href={`/dashboard/agents/${cfg.agentId}`} className="font-semibold landing-link-accent">
-                      Configura sub-agentes
-                    </Link>{' '}
-                    para activar el triaje.
-                  </p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <p style={{ fontSize: 11, fontWeight: 600, margin: '0 0 4px', color: 'var(--foreground)' }}>
-                      Especialistas del equipo (opcional — vacío = todos los sub-agentes de cada orquestador)
-                    </p>
-                    {orchestratorSubs.map((sub) => {
-                      const checked = cfg.agentIds.includes(sub._id);
-                      return (
-                        <label
-                          key={sub._id}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            gap: 8,
-                            fontSize: 12,
-                            cursor: 'pointer',
-                            padding: '6px 8px',
-                            borderRadius: 8,
-                            border: checked ? '1px solid rgba(99,102,241,0.35)' : '1px solid var(--border)',
-                            background: checked ? 'rgba(99,102,241,0.08)' : 'var(--background)',
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleTeamAgent(sub._id)}
-                            style={{ marginTop: 2, cursor: 'pointer' }}
-                          />
-                          <span>
-                            <strong>{sub.name}</strong>
-                            {sub.parentName ? (
-                              <span style={{ fontSize: 10, color: 'var(--muted-foreground)', marginLeft: 6 }}>
-                                · {sub.parentName}
-                              </span>
-                            ) : null}
-                            {sub.description ? (
-                              <span style={{ display: 'block', color: 'var(--muted-foreground)', marginTop: 2 }}>
-                                {sub.description.slice(0, 120)}
-                              </span>
-                            ) : null}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
         <div style={fieldStyle} data-tour="widget-builder-support">
           <label style={labelStyle}>WhatsApp — atención humana</label>
           <input
@@ -1404,23 +1415,6 @@ export default function WidgetBuilderPage() {
               ))}
             </div>
           )}
-          {!cfg.multiAgentEnabled && orchestratorSubs.length > 0 ? (
-            <p
-              style={{
-                fontSize: 11,
-                color: 'var(--muted-foreground)',
-                margin: '8px 0 0',
-                lineHeight: 1.45,
-                padding: '8px 10px',
-                borderRadius: 8,
-                border: '1px solid rgba(34,197,94,0.25)',
-                background: 'rgba(34,197,94,0.06)',
-              }}
-            >
-              Este agente tiene {orchestratorSubs.length} sub-agente{orchestratorSubs.length !== 1 ? 's' : ''}.
-              El chat los usará automáticamente (triaje) sin activar el modo multiagente avanzado.
-            </p>
-          ) : null}
         </div>
         </>
         )}
