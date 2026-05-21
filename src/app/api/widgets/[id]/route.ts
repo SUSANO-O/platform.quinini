@@ -83,7 +83,7 @@ export async function PATCH(
   const $set: Partial<Record<PatchableKey, unknown>> & {
     shortcuts?: WidgetShortcut[];
     multiAgentEnabled?: boolean;
-    multiAgentMode?: 'triage' | 'parallel';
+    multiAgentMode?: 'triage' | 'parallel' | 'pipeline';
     agentIds?: string[];
     orchestratorAgentIds?: string[];
   } = {};

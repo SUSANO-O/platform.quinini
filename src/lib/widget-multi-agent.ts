@@ -7,7 +7,7 @@
 import { ClientAgent } from '@/lib/db/models';
 import {
   ensureClientAgentHubSynced,
-  getAibackhubBaseUrl,
+  getAgentflowhubBaseUrl,
   hubCreateHeaders,
 } from '@/lib/aibackhub-sync';
 import { signRequest, SIGNATURE_HEADER } from '@/lib/hub-signature';
@@ -15,7 +15,7 @@ import { signRequest, SIGNATURE_HEADER } from '@/lib/hub-signature';
 export const MULTI_AGENT_PLANS = new Set(['business', 'enterprise']);
 export const MULTI_AGENT_MAX_TEAM = 5;
 
-export type MultiAgentMode = 'triage' | 'parallel';
+export type MultiAgentMode = 'triage' | 'parallel' | 'pipeline';
 
 export type WidgetMultiAgentConfig = {
   multiAgentEnabled: boolean;
@@ -41,6 +41,7 @@ export type TeamMember = {
 export type WidgetRoutingCapabilities = {
   triage: boolean;
   parallel: boolean;
+  pipeline: boolean;
   autoSubAgents: boolean;
   multiOrchestrator: boolean;
 };
@@ -78,7 +79,7 @@ export function resolveWidgetRoutingCapabilities(
   plan: string,
 ): WidgetRoutingCapabilities {
   if (team.length <= 1) {
-    return { triage: false, parallel: false, autoSubAgents: false, multiOrchestrator: false };
+    return { triage: false, parallel: false, pipeline: false, autoSubAgents: false, multiOrchestrator: false };
   }
   const orchestrators = team.filter((m) => m.role === 'orchestrator');
   const hasSpecialists = team.some((m) => m.role === 'specialist');
@@ -87,7 +88,8 @@ export function resolveWidgetRoutingCapabilities(
   const autoSubAgents = hasSpecialists && !multiOrchestrator;
   const triage = autoSubAgents || premium;
   const parallel = premium && config.multiAgentMode === 'parallel' && hasSpecialists;
-  return { triage, parallel, autoSubAgents, multiOrchestrator };
+  const pipeline = premium && config.multiAgentMode === 'pipeline' && multiOrchestrator;
+  return { triage, parallel, pipeline, autoSubAgents, multiOrchestrator };
 }
 
 export function findOrchestratorForMember(team: TeamMember[], target: TeamMember): TeamMember {
@@ -388,11 +390,24 @@ export type MultiAgentRoutingMeta = {
   triageMethod: TriageResult['method'];
   handoffSkippedReason?: 'specialist_not_synced';
   synthesized?: boolean;
+  pipeline?: boolean;
+  pipelineSteps?: Array<{
+    step: 'content' | 'creative';
+    agentId: string;
+    name: string;
+  }>;
   contributors?: Array<{
     agentId: string;
     name: string;
     role: 'orchestrator' | 'specialist';
   }>;
+};
+
+export type PipelineFlowResult = {
+  reply: string;
+  meta: MultiAgentRoutingMeta;
+  routedHubAgentId: string;
+  images?: Array<{ dataUrl: string; mimeType?: string }>;
 };
 
 export type ParallelFlowResult = {
@@ -402,12 +417,18 @@ export type ParallelFlowResult = {
 };
 
 export function buildMultiAgentStatusMessage(
-  phase: 'triage' | 'parallel' | 'handoff' | 'synthesize',
+  phase: 'triage' | 'parallel' | 'handoff' | 'synthesize' | 'content' | 'creative',
   specialistName?: string,
 ): string {
   switch (phase) {
     case 'triage':
       return 'Analizando tu consulta…';
+    case 'content':
+      return 'Recopilando información del producto…';
+    case 'creative':
+      return specialistName
+        ? `Generando creativo con ${specialistName}…`
+        : 'Generando creativo…';
     case 'parallel':
       return 'Consultando especialistas en paralelo…';
     case 'handoff':
@@ -456,7 +477,12 @@ export async function applyMultiAgentRouting(params: {
     routedHubAgentId: route.hubId,
     meta: {
       enabled: true,
-      mode: caps.parallel ? params.config.multiAgentMode ?? 'triage' : 'triage',
+      mode:
+        params.config.multiAgentMode === 'parallel' && caps.parallel
+          ? 'parallel'
+          : params.config.multiAgentMode === 'pipeline' && caps.pipeline
+            ? 'pipeline'
+            : 'triage',
       orchestratorId: orchForMeta.id,
       routedAgentId: route.target.id,
       routedAgentName: route.target.name,
@@ -596,38 +622,300 @@ function buildHubChatBody(rawBody: string, hubAgentId: string): string {
 }
 
 async function postHubWidgetChat(params: {
-  hubBase: string;
   rawBody: string;
   hubAgentId: string;
   widgetToken: string;
   traceId: string;
   secret: string;
-}): Promise<{ ok: boolean; reply: string }> {
+}): Promise<{
+  ok: boolean;
+  reply: string;
+  images?: Array<{ dataUrl: string; mimeType?: string }>;
+}> {
+  const hubBase = getAgentflowhubBaseUrl();
+  if (!hubBase || !params.secret.trim()) return { ok: false, reply: '' };
+
   const body = buildHubChatBody(params.rawBody, params.hubAgentId);
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...hubCreateHeaders(),
     'X-Trace-Id': params.traceId,
     'X-Request-Id': params.traceId,
     'X-Widget-Token': params.widgetToken,
     'X-Landing-Wt-Valid': '1',
     [SIGNATURE_HEADER]: signRequest(body, params.secret),
   };
-  const url = `${params.hubBase.replace(/\/$/, '')}/api/widget/chat`;
-  try {
-    const res = await fetch(url, {
+
+  const fetchOnce = async (base: string) => {
+    const url = `${base.replace(/\/$/, '')}/api/widget/chat`;
+    return fetch(url, {
       method: 'POST',
       headers,
       body,
       signal: AbortSignal.timeout(90_000),
     });
+  };
+
+  try {
+    let res: Response;
+    try {
+      res = await fetchOnce(hubBase);
+    } catch (first) {
+      try {
+        const u = new URL(hubBase);
+        if (u.hostname === '127.0.0.1') u.hostname = 'localhost';
+        else if (u.hostname === 'localhost') u.hostname = '127.0.0.1';
+        else throw first;
+        res = await fetchOnce(u.origin);
+      } catch {
+        return { ok: false, reply: '' };
+      }
+    }
     const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (!res.ok || json.code === 'AGENT_COOLDOWN' || json.error) {
       return { ok: false, reply: '' };
     }
-    return { ok: true, reply: extractHubReply(json) };
+    const images = Array.isArray(json.images)
+      ? (json.images as Array<{ dataUrl?: string; mimeType?: string }>)
+          .filter((img) => typeof img?.dataUrl === 'string')
+          .map((img) => ({ dataUrl: String(img.dataUrl), mimeType: img.mimeType }))
+      : undefined;
+    return { ok: true, reply: extractHubReply(json), images };
   } catch {
     return { ok: false, reply: '' };
   }
+}
+
+const PIPELINE_CONTENT_KEYS = [
+  'producto',
+  'catálogo',
+  'catalogo',
+  'precio',
+  'venta',
+  'información',
+  'informacion',
+  'datos',
+  'auto',
+  'vehículo',
+  'vehiculo',
+  'familia',
+  'modelo',
+  'plan',
+  'ficha',
+  'especific',
+];
+
+const PIPELINE_CREATIVE_KEYS = [
+  'banner',
+  'imagen',
+  'image',
+  'genera',
+  'diseño',
+  'diseno',
+  'creativ',
+  'logo',
+  'thumbnail',
+  'gráfico',
+  'grafico',
+  'portada',
+  'flyer',
+  'post',
+  'px',
+  'editar',
+  'foto',
+];
+
+function scorePipelineBucket(message: string, member: TeamMember, bucket: 'content' | 'creative'): number {
+  const text = `${member.name} ${member.description}`.toLowerCase();
+  const msg = message.toLowerCase();
+  const keys = bucket === 'content' ? PIPELINE_CONTENT_KEYS : PIPELINE_CREATIVE_KEYS;
+  let score = 0;
+  for (const key of keys) {
+    if (msg.includes(key) && text.includes(key)) score += 6;
+    else if (msg.includes(key)) score += 2;
+    else if (text.includes(key)) score += 1;
+  }
+  if (bucket === 'creative' && /\d+\s*[x×]\s*\d+/.test(msg)) score += 8;
+  if (bucket === 'content' && /venta|vendedor|producto|auto|catálogo|catalogo/i.test(text)) score += 4;
+  if (bucket === 'creative' && /imagen|banner|creativ|diseño|diseno|visual|graphic/i.test(text)) score += 4;
+  return score;
+}
+
+/** Mensaje que mezcla datos de producto + entregable visual (banner, imagen, etc.). */
+export function isCompoundCreativeRequest(message: string): boolean {
+  const msg = message.toLowerCase().trim();
+  if (!msg) return false;
+  const hasCreative =
+    PIPELINE_CREATIVE_KEYS.some((k) => msg.includes(k)) || /\d+\s*[x×]\s*\d+/.test(msg);
+  const hasContent = PIPELINE_CONTENT_KEYS.some((k) => msg.includes(k));
+  return hasCreative && hasContent;
+}
+
+/** Elige orquestador de contenido y de creativo (distintos) para pipeline en cadena. */
+export function pickPipelineAgents(
+  message: string,
+  team: TeamMember[],
+): { content: TeamMember; creative: TeamMember } | null {
+  if (!isCompoundCreativeRequest(message)) return null;
+  const orchestrators = team.filter((m) => m.role === 'orchestrator');
+  if (orchestrators.length < 2) return null;
+
+  const ranked = orchestrators.map((o) => ({
+    member: o,
+    content: scorePipelineBucket(message, o, 'content'),
+    creative: scorePipelineBucket(message, o, 'creative'),
+  }));
+
+  const contentPick = [...ranked].sort((a, b) => b.content - a.content)[0];
+  if (!contentPick) return null;
+
+  const others = ranked.filter((r) => r.member.id !== contentPick.member.id);
+  if (!others.length) return null;
+
+  const creativePick = [...others].sort((a, b) => b.creative - a.creative)[0];
+  if (!creativePick) return null;
+
+  const msgHasStrongCreative =
+    /\d+\s*[x×]\s*\d+/.test(message.toLowerCase()) ||
+    PIPELINE_CREATIVE_KEYS.some((k) => message.toLowerCase().includes(k));
+
+  // Con 2 orquestadores: el mensaje mixto basta — contenido al mejor match, creativo al otro.
+  if (orchestrators.length === 2 && msgHasStrongCreative) {
+    return { content: contentPick.member, creative: creativePick.member };
+  }
+
+  if (contentPick.content < 2 || creativePick.creative < 2) return null;
+
+  return { content: contentPick.member, creative: creativePick.member };
+}
+
+export function buildPipelineContentPrompt(userMessage: string): string {
+  return [
+    'Tarea interna (pipeline creativo del widget).',
+    'Extrae SOLO un brief factual en viñetas para un diseñador gráfico.',
+    'Usa tu catálogo, RAG y conocimiento de producto. Sin saludos ni preguntas al visitante.',
+    'Incluye claims, datos y textos sugeridos si aplican.',
+    '',
+    `Solicitud original: ${userMessage.slice(0, 2000)}`,
+  ].join('\n');
+}
+
+export function buildPipelineCreativePrompt(params: {
+  userMessage: string;
+  contentBrief: string;
+  contentAgentName: string;
+}): string {
+  return [
+    `Brief de contenido (de ${params.contentAgentName}):`,
+    params.contentBrief.slice(0, 4000) || '(sin brief)',
+    '',
+    `Solicitud del visitante: ${params.userMessage.slice(0, 2000)}`,
+    '',
+    'Genera el entregable creativo solicitado (dimensiones, formato, estilo).',
+    'Usa tus herramientas de imagen si están disponibles.',
+  ].join('\n');
+}
+
+function buildHubChatBodyWithMessage(rawBody: string, hubAgentId: string, message: string): string {
+  const parsed = JSON.parse(rawBody) as Record<string, unknown>;
+  parsed.agentId = hubAgentId;
+  parsed.message = message;
+  return JSON.stringify(parsed);
+}
+
+/**
+ * Pipeline en cadena: agente de contenido (RAG/producto) → agente creativo (imagen/banner).
+ * Requiere multi-orquestador (2+ agentes top-level) y modo pipeline (Business+).
+ */
+export async function executePipelineMultiAgentFlow(params: {
+  rawBody: string;
+  config: WidgetMultiAgentConfig;
+  userId: string;
+  plan: string;
+  widgetToken: string;
+  traceId: string;
+  hubSecret: string;
+  onPhase?: (phase: 'content' | 'creative', message: string) => void;
+}): Promise<PipelineFlowResult | null> {
+  const team = await loadWidgetTeam(params.config, params.userId);
+  const caps = resolveWidgetRoutingCapabilities(params.config, team, params.plan);
+  if (!caps.pipeline || team.length <= 1) return null;
+  if (!getAgentflowhubBaseUrl() || !params.hubSecret.trim()) return null;
+
+  let message = '';
+  try {
+    const parsed = JSON.parse(params.rawBody) as { message?: string };
+    message = typeof parsed.message === 'string' ? parsed.message : '';
+  } catch {
+    return null;
+  }
+
+  const pair = pickPipelineAgents(message, team);
+  if (!pair) return null;
+
+  const contentHubId = resolveHubAgentId(pair.content);
+  const creativeHubId = resolveHubAgentId(pair.creative);
+  if (!contentHubId || !creativeHubId) return null;
+
+  params.onPhase?.('content', buildMultiAgentStatusMessage('content'));
+  const contentBody = buildHubChatBodyWithMessage(
+    params.rawBody,
+    contentHubId,
+    buildPipelineContentPrompt(message),
+  );
+  const contentRes = await postHubWidgetChat({
+    rawBody: contentBody,
+    hubAgentId: contentHubId,
+    widgetToken: params.widgetToken,
+    traceId: `${params.traceId}-pipe-content`,
+    secret: params.hubSecret,
+  });
+  if (!contentRes.ok || !contentRes.reply.trim()) return null;
+
+  params.onPhase?.('creative', buildMultiAgentStatusMessage('creative', pair.creative.name));
+  const creativeBody = buildHubChatBodyWithMessage(
+    params.rawBody,
+    creativeHubId,
+    buildPipelineCreativePrompt({
+      userMessage: message,
+      contentBrief: contentRes.reply,
+      contentAgentName: pair.content.name,
+    }),
+  );
+  const creativeRes = await postHubWidgetChat({
+    rawBody: creativeBody,
+    hubAgentId: creativeHubId,
+    widgetToken: params.widgetToken,
+    traceId: `${params.traceId}-pipe-creative`,
+    secret: params.hubSecret,
+  });
+  if (!creativeRes.ok || !creativeRes.reply.trim()) return null;
+
+  const prefix = buildHandoffPrefix(pair.content.name, pair.creative.name);
+  const reply = creativeRes.reply.startsWith(prefix) ? creativeRes.reply : prefix + creativeRes.reply;
+
+  return {
+    reply,
+    routedHubAgentId: creativeHubId,
+    images: creativeRes.images,
+    meta: {
+      enabled: true,
+      mode: 'pipeline',
+      orchestratorId: pair.content.id,
+      routedAgentId: pair.creative.id,
+      routedAgentName: pair.creative.name,
+      handoff: true,
+      triageMethod: 'keyword',
+      pipeline: true,
+      pipelineSteps: [
+        { step: 'content', agentId: pair.content.id, name: pair.content.name },
+        { step: 'creative', agentId: pair.creative.id, name: pair.creative.name },
+      ],
+      contributors: [
+        { agentId: pair.content.id, name: pair.content.name, role: 'orchestrator' },
+        { agentId: pair.creative.id, name: pair.creative.name, role: 'orchestrator' },
+      ],
+    },
+  };
 }
 
 export function buildParallelSynthesisPrompt(params: {
@@ -704,9 +992,7 @@ export async function executeParallelMultiAgentFlow(params: {
   const team = await loadWidgetTeam(params.config, params.userId);
   const caps = resolveWidgetRoutingCapabilities(params.config, team, params.plan);
   if (!caps.parallel || team.length <= 1) return null;
-
-  const hubBase = getAibackhubBaseUrl();
-  if (!hubBase || !params.hubSecret.trim()) return null;
+  if (!getAgentflowhubBaseUrl() || !params.hubSecret.trim()) return null;
 
   let message = '';
   try {
@@ -731,7 +1017,6 @@ export async function executeParallelMultiAgentFlow(params: {
   params.onPhase?.('parallel', buildMultiAgentStatusMessage('parallel'));
   const [orchRes, specRes] = await Promise.all([
     postHubWidgetChat({
-      hubBase,
       rawBody: params.rawBody,
       hubAgentId: orchHubId,
       widgetToken: params.widgetToken,
@@ -739,7 +1024,6 @@ export async function executeParallelMultiAgentFlow(params: {
       secret: params.hubSecret,
     }),
     postHubWidgetChat({
-      hubBase,
       rawBody: params.rawBody,
       hubAgentId: specHubId,
       widgetToken: params.widgetToken,
@@ -788,5 +1072,7 @@ export async function executeParallelMultiAgentFlow(params: {
 }
 
 export function validateMultiAgentMode(mode: unknown): MultiAgentMode {
-  return mode === 'parallel' ? 'parallel' : 'triage';
+  if (mode === 'parallel') return 'parallel';
+  if (mode === 'pipeline') return 'pipeline';
+  return 'triage';
 }

@@ -1500,11 +1500,13 @@
       sendBtn.disabled = true;
       isLoading = true;
       var initialTyping =
-        cfg.multiAgentEnabled && cfg.multiAgentMode === 'parallel'
-          ? 'Consultando especialistas…'
-          : cfg.multiAgentEnabled
-            ? 'Analizando tu consulta…'
-            : '';
+        cfg.multiAgentEnabled && cfg.multiAgentMode === 'pipeline'
+          ? 'Recopilando información…'
+          : cfg.multiAgentEnabled && cfg.multiAgentMode === 'parallel'
+            ? 'Consultando especialistas…'
+            : cfg.multiAgentEnabled
+              ? 'Analizando tu consulta…'
+              : '';
       showTyping(initialTyping || undefined);
 
       var baseHost = cfg.host.replace(/\/$/, '');

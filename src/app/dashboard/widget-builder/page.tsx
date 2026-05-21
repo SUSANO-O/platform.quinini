@@ -186,7 +186,7 @@ interface WidgetConfig {
   autoOpen: boolean;
   voiceEnabled: boolean;
   multiAgentEnabled: boolean;
-  multiAgentMode: 'triage' | 'parallel';
+  multiAgentMode: 'triage' | 'parallel' | 'pipeline';
   agentIds: string[];
   orchestratorAgentIds: string[];
 }
@@ -730,7 +730,12 @@ export default function WidgetBuilderPage() {
               autoOpen: Boolean(widget.autoOpen),
               voiceEnabled: widget.voiceEnabled !== false,
               multiAgentEnabled: widget.multiAgentEnabled === true,
-              multiAgentMode: widget.multiAgentMode === 'parallel' ? 'parallel' : 'triage',
+              multiAgentMode:
+                widget.multiAgentMode === 'parallel'
+                  ? 'parallel'
+                  : widget.multiAgentMode === 'pipeline'
+                    ? 'pipeline'
+                    : 'triage',
               agentIds: Array.isArray(widget.agentIds)
                 ? (widget.agentIds as string[]).filter((id) => typeof id === 'string')
                 : [],
@@ -1128,6 +1133,7 @@ export default function WidgetBuilderPage() {
             <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
               {([
                 ['triage', 'Triaje (rápido)', 'Deriva a un especialista y responde con una llamada.'],
+                ['pipeline', 'Pipeline contenido→creativo', 'Primero datos del catálogo (vendedor), luego banner/imagen (creativo). Requiere 2+ agentes en la grilla.'],
                 ['parallel', 'Paralelo + síntesis', 'Consulta orquestador y especialista en paralelo; una respuesta unificada.'],
               ] as const).map(([mode, label, hint]) => {
                 const selected = cfg.multiAgentMode === mode;

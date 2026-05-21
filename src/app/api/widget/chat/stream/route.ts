@@ -33,6 +33,7 @@ import {
   buildMultiAgentStatusMessage,
   buildWidgetMultiAgentConfig,
   executeParallelMultiAgentFlow,
+  executePipelineMultiAgentFlow,
   type MultiAgentRoutingMeta,
   type WidgetMultiAgentConfig,
 } from '@/lib/widget-multi-agent';
@@ -209,6 +210,45 @@ export async function POST(req: NextRequest) {
               phase: 'triage',
               message: buildMultiAgentStatusMessage('triage'),
             });
+          }
+
+          if (multiAgentCtx.config.multiAgentEnabled && multiAgentCtx.config.multiAgentMode === 'pipeline' && hubSecret) {
+            const pipeline = await executePipelineMultiAgentFlow({
+              rawBody: hubBody,
+              config: multiAgentCtx.config,
+              userId: multiAgentCtx.userId,
+              plan: multiAgentCtx.plan,
+              widgetToken,
+              traceId,
+              hubSecret,
+              onPhase: (phase, message) => {
+                enqueue({ type: 'status', phase, message });
+              },
+            });
+            if (pipeline) {
+              parsedAgentIdLocal = pipeline.routedHubAgentId;
+              multiAgentMeta = pipeline.meta;
+              const orch = await ClientAgent.findById(pipeline.meta.orchestratorId)
+                .select({ name: 1 })
+                .lean() as { name?: string } | null;
+              orchestratorName = typeof orch?.name === 'string' ? orch.name : 'Asistente';
+              logWidgetFlow('🔀', 'stream:multiAgentPipeline', 'pipeline contenido→creativo', {
+                traceId,
+                creativeAgent: pipeline.meta.routedAgentName,
+              });
+              enqueue({ type: 'token', text: pipeline.reply });
+              enqueue({
+                type: 'done',
+                reply: pipeline.reply,
+                agentId: pipeline.routedHubAgentId,
+                multiAgent: pipeline.meta,
+                ...(pipeline.images?.length ? { images: pipeline.images } : {}),
+              });
+              if (widgetToken.startsWith('wt_') && parsedAgentIdLocal) {
+                void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true).catch(() => {});
+              }
+              return;
+            }
           }
 
           if (multiAgentCtx.config.multiAgentEnabled && multiAgentCtx.config.multiAgentMode === 'parallel' && hubSecret) {

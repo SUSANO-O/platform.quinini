@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /** Configura Mi Widget con 2 orquestadores para prueba E2E multi-orquestador. */
 import { createConnection, Types } from 'mongoose';
+import { bustWidgetTokenCache } from './lib/bust-widget-cache.mjs';
 
 const uri = process.env.MONGODB_URI || '';
 if (!uri) {
@@ -12,7 +13,7 @@ async function main() {
   const conn = await createConnection(uri).asPromise();
   const widget = await conn.collection('widgets').findOne(
     { name: 'Mi Widget', multiAgentEnabled: true, afhubToken: /^wt_/ },
-    { projection: { _id: 1, userId: 1, agentId: 1, name: 1 } },
+    { projection: { _id: 1, userId: 1, agentId: 1, name: 1, afhubToken: 1 } },
   );
   if (!widget) {
     console.log('No se encontró Mi Widget con multiAgentEnabled=true');
@@ -40,15 +41,21 @@ async function main() {
     {
       $set: {
         multiAgentEnabled: true,
-        multiAgentMode: 'triage',
+        multiAgentMode: 'pipeline',
         orchestratorAgentIds: [secondId],
         agentIds: [],
       },
     },
   );
-  console.log('OK — Mi Widget multi-orquestador:');
+  console.log('OK — Mi Widget multi-orquestador (modo pipeline):');
   console.log('  primary:', primary);
   console.log('  + orchestrator:', second.name, secondId);
+
+  if (widget.afhubToken) {
+    const busted = await bustWidgetTokenCache(String(widget.afhubToken), String(widget._id));
+    console.log(busted ? '  cache wt invalidado' : '  (cache wt no invalidado — revisa REDIS_URL/REDIS_TOKEN)');
+  }
+
   await conn.close();
 }
 

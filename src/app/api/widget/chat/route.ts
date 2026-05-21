@@ -27,6 +27,7 @@ import {
   buildWidgetMultiAgentConfig,
   enrichChatResponseJson,
   executeParallelMultiAgentFlow,
+  executePipelineMultiAgentFlow,
   type MultiAgentRoutingMeta,
 } from '@/lib/widget-multi-agent';
 
@@ -405,6 +406,46 @@ export async function POST(req: NextRequest) {
           const multiConfig = buildWidgetMultiAgentConfig(w);
 
           const secretForParallel = process.env.HUB_TO_LANDING_SECRET?.trim() ?? '';
+          if (multiConfig.multiAgentEnabled && multiConfig.multiAgentMode === 'pipeline' && secretForParallel) {
+            const pipeline = await executePipelineMultiAgentFlow({
+              rawBody: bodyToForward,
+              config: multiConfig,
+              userId: w.userId,
+              plan: planForRoute,
+              widgetToken,
+              traceId,
+              hubSecret: secretForParallel,
+            });
+            if (pipeline) {
+              parsedAgentId = pipeline.routedHubAgentId;
+              multiAgentMeta = pipeline.meta;
+              const orch = await ClientAgent.findById(pipeline.meta.orchestratorId)
+                .select({ name: 1 })
+                .lean() as { name?: string } | null;
+              orchestratorName = typeof orch?.name === 'string' ? orch.name : 'Asistente';
+              logWidgetFlow('🔀', 'chat:multiAgentPipeline', 'pipeline contenido→creativo', {
+                traceId,
+                contentAgent: pipeline.meta.pipelineSteps?.[0]?.name,
+                creativeAgent: pipeline.meta.routedAgentName,
+              });
+              trackWidgetChatUsage(widgetToken, parsedAgentId, true).catch(() => {});
+              void trackWidgetUserMessageForFaqCandidates({
+                ownerUserId: w.userId,
+                agentIdOrHubId: parsedAgentId,
+                rawBody,
+              }).catch(() => {});
+              return NextResponse.json(
+                {
+                  reply: pipeline.reply,
+                  agentId: parsedAgentId,
+                  multiAgent: pipeline.meta,
+                  ...(pipeline.images?.length ? { images: pipeline.images } : {}),
+                },
+                { status: 200, headers: cors(origin) },
+              );
+            }
+          }
+
           if (multiConfig.multiAgentEnabled && multiConfig.multiAgentMode === 'parallel' && secretForParallel) {
             const parallel = await executeParallelMultiAgentFlow({
               rawBody: bodyToForward,
