@@ -7,16 +7,28 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map((o) => o.trim()).filter(Boolean);
 
+/** Orígenes localhost — pruebas del widget embebido en apps locales (PHP, etc.). */
+function isLocalhostOrigin(origin: string): boolean {
+  if (!origin) return false;
+  try {
+    const h = new URL(origin).hostname;
+    return h === 'localhost' || h === '127.0.0.1' || h === '[::1]';
+  } catch {
+    return false;
+  }
+}
+
 /** Get CORS headers for a given request origin */
 export function getCorsHeaders(req: NextRequest): Record<string, string> {
   const origin = req.headers.get('origin') || '';
 
-  // In dev, allow any origin. In prod, check allowlist or same-site.
+  // Dev: cualquier origen. Prod: allowlist, * o localhost (embed en :9090, etc.).
   const allowOrigin =
     process.env.NODE_ENV !== 'production' ||
     ALLOWED_ORIGINS.length === 0 ||
     ALLOWED_ORIGINS.includes('*') ||
-    ALLOWED_ORIGINS.includes(origin)
+    ALLOWED_ORIGINS.includes(origin) ||
+    isLocalhostOrigin(origin)
       ? origin || '*'
       : '';
 

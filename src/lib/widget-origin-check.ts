@@ -37,10 +37,22 @@ export function isOriginAllowed(
   // El propio dashboard siempre puede llamar al chat (vista previa, test interno)
   if (APP_ORIGIN && normalized === APP_ORIGIN) return true;
 
+  // Apps locales (PHP en :9090, etc.) — pruebas de embed del widget
+  if (isLocalhostOrigin(requestOrigin)) return true;
+
   // Lista vacía → modo permisivo (widget sin restricción de dominio)
   if (!allowedOrigins.length) return true;
 
   return allowedOrigins.some(o => normalizeOrigin(o) === normalized);
+}
+
+function isLocalhostOrigin(origin: string): boolean {
+  try {
+    const h = new URL(origin).hostname;
+    return h === 'localhost' || h === '127.0.0.1' || h === '[::1]';
+  } catch {
+    return false;
+  }
 }
 
 /**
