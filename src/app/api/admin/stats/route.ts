@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { User, Subscription, Widget, RequestLog } from '@/lib/db/models';
-import { PLAN_CONVERSATION_LIMITS } from '@/lib/plan-catalog';
+import { PLAN_CONVERSATION_LIMITS, PLAN_PRICES_USD } from '@/lib/plan-catalog';
 import { verifySessionToken } from '@/lib/auth';
 
 async function requireAdmin(req: NextRequest) {
@@ -53,10 +53,12 @@ export async function GET(req: NextRequest) {
   const active   = subs.filter((s) => s.status === 'active').length;
   const canceled = subs.filter((s) => s.status === 'canceled').length;
 
-  const MRR: Record<string, number> = { starter: 39, growth: 99, business: 349 };
   const mrr = subs
     .filter((s) => s.status === 'active')
-    .reduce((acc, s) => acc + (MRR[s.plan] || 0), 0);
+    .reduce((acc, s) => {
+      const price = PLAN_PRICES_USD[s.plan as keyof typeof PLAN_PRICES_USD];
+      return acc + (typeof price === 'number' ? price : 0);
+    }, 0);
 
   // Per-user request summary this month + quota analysis
   const month = new Date().toISOString().slice(0, 7);

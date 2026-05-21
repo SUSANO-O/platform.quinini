@@ -44,27 +44,59 @@ export const PRICING_GRID_PLAN_IDS: PaidPlanId[] = [
 ];
 
 export const PLAN_PRICES_USD: Record<PaidPlanId, number> = {
-  solo: 5,
-  basic: 14,
-  plus: 24,
-  starter: 39,
-  growth: 99,
-  business: 349,
+  solo: 7,
+  basic: 17,
+  plus: 36,
+  starter: 54,
+  growth: 139,
+  business: 449,
 };
+
+const PLAN_LABELS: Record<PlanId, string> = {
+  free: 'Free',
+  solo: 'Solo',
+  basic: 'Basic',
+  plus: 'Plus',
+  starter: 'Starter',
+  growth: 'Growth',
+  business: 'Business',
+  enterprise: 'Enterprise',
+};
+
+/** Etiqueta de precio mensual para UI ($7/mes, Contacto, etc.). */
+export function formatPlanPriceLabel(usd: number): string {
+  if (usd < 0) return 'Contacto';
+  if (usd === 0) return '$0';
+  return `$${usd}/mes`;
+}
+
+/** Etiqueta one-time para packs ($15, etc.). */
+export function formatPackPriceLabel(usd: number): string {
+  return `$${usd}`;
+}
 
 export const PLAN_DISPLAY: Record<
   string,
   { label: string; priceLabel: string; priceUsd: number }
-> = {
-  free:       { label: 'Free',       priceLabel: '$0',       priceUsd: 0   },
-  solo:       { label: 'Solo',       priceLabel: '$5/mes',   priceUsd: 5   },
-  basic:      { label: 'Basic',      priceLabel: '$14/mes',  priceUsd: 14  },
-  plus:       { label: 'Plus',       priceLabel: '$24/mes',  priceUsd: 24  },
-  starter:    { label: 'Starter',    priceLabel: '$39/mes',  priceUsd: 39  },
-  growth:     { label: 'Growth',     priceLabel: '$99/mes',  priceUsd: 99  },
-  business:   { label: 'Business',   priceLabel: '$349/mes', priceUsd: 349 },
-  enterprise: { label: 'Enterprise', priceLabel: 'Contacto', priceUsd: -1  },
-};
+> = Object.fromEntries(
+  PLAN_ORDER.map((id) => {
+    const label = PLAN_LABELS[id];
+    const priceUsd =
+      id in PLAN_PRICES_USD
+        ? PLAN_PRICES_USD[id as PaidPlanId]
+        : id === 'free'
+          ? 0
+          : -1;
+    return [
+      id,
+      {
+        label,
+        priceUsd,
+        priceLabel: formatPlanPriceLabel(priceUsd),
+      },
+    ];
+  }),
+);
 
 /** Conversaciones incluidas por mes (-1 = ilimitado). Métrica principal de consumo. */
 export const PLAN_CONVERSATION_LIMITS: Record<string, number> = {
@@ -152,13 +184,18 @@ export const PLAN_RAG_LIMITS: Record<string, { mb: number; sources: number } | n
  * Packs one-time — precio por conversación siempre por encima del plan equivalente
  * para incentivar upgrades (no canibalizar Starter/Growth).
  */
-export const CONVERSATION_PACKS = [
-  { id: 'pack_s', label: 'Pack S', conversations: 1_000,  price: 12,  priceLabel: '$12'  },
-  { id: 'pack_m', label: 'Pack M', conversations: 5_000,  price: 50,  priceLabel: '$50'  },
-  { id: 'pack_l', label: 'Pack L', conversations: 15_000, price: 120, priceLabel: '$120' },
+const PACK_SPECS = [
+  { id: 'pack_s', label: 'Pack S', conversations: 1_000,  price: 15  },
+  { id: 'pack_m', label: 'Pack M', conversations: 5_000,  price: 60  },
+  { id: 'pack_l', label: 'Pack L', conversations: 15_000, price: 145 },
 ] as const;
 
-export type PackId = (typeof CONVERSATION_PACKS)[number]['id'];
+export type PackId = (typeof PACK_SPECS)[number]['id'];
+
+export const CONVERSATION_PACKS = PACK_SPECS.map((p) => ({
+  ...p,
+  priceLabel: formatPackPriceLabel(p.price),
+}));
 
 /** Solo suscriptores de pago pueden comprar packs (free no). */
 export const PACK_ELIGIBLE_PLANS = new Set<string>(PAID_PLAN_IDS);
@@ -166,6 +203,40 @@ export const PACK_ELIGIBLE_PLANS = new Set<string>(PAID_PLAN_IDS);
 export function canPurchaseConversationPacks(plan: string, status: string): boolean {
   const effective = ['active', 'trialing'].includes(status) ? plan : 'free';
   return PACK_ELIGIBLE_PLANS.has(effective);
+}
+
+/** Plan mínimo para herramienta Webhook en el agente (llamadas salientes del chat). */
+export const AGENT_WEBHOOK_MIN_PLAN: PlanId = 'solo';
+
+/** Plan mínimo para webhook SaaS saliente (eventos firmados a tu backend). */
+export const OUTBOUND_SAAS_WEBHOOK_MIN_PLAN: PlanId = 'starter';
+
+const PAID_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing', 'past_due']);
+
+/** Plan efectivo para límites de producto (trialing/active/past_due conservan plan). */
+export function effectiveProductPlan(plan: string, status: string): string {
+  return PAID_SUBSCRIPTION_STATUSES.has(status) ? plan : 'free';
+}
+
+export function canUseAgentWebhookTool(plan: string): boolean {
+  return planRank(plan) >= planRank(AGENT_WEBHOOK_MIN_PLAN);
+}
+
+export function canUseOutboundSaasWebhook(plan: string, status: string): boolean {
+  const effective = effectiveProductPlan(plan, status);
+  return planRank(effective) >= planRank(OUTBOUND_SAAS_WEBHOOK_MIN_PLAN);
+}
+
+export function planHasAgentWebhookFeature(planId: PlanId): boolean {
+  return planRank(planId) >= planRank(AGENT_WEBHOOK_MIN_PLAN);
+}
+
+export function planHasOutboundWebhookFeature(planId: PlanId): boolean {
+  return planRank(planId) >= planRank(OUTBOUND_SAAS_WEBHOOK_MIN_PLAN);
+}
+
+export function outboundWebhookUpgradeLabel(): string {
+  return PLAN_DISPLAY[OUTBOUND_SAAS_WEBHOOK_MIN_PLAN]?.label ?? 'Starter';
 }
 
 export function planRank(plan: string): number {
@@ -188,43 +259,43 @@ export function planChangeDirection(
 export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
   solo: [
     '300 conversaciones al mes (~10/día)',
-    '1 agente · 3 herramientas (Web Search, Webhook, Gmail)',
+    '1 agente · Webhook del agente · Web Search, Gmail',
     'Widgets ilimitados',
     'Autoguiado: documentación y videos en YouTube',
     'Soporte por email (72 h, sin onboarding dedicado)',
   ],
   basic: [
     '1.500 conversaciones al mes (~50/día)',
-    '3 agentes · 2 sub-agentes · 5 herramientas',
+    '3 agentes · 2 sub-agentes · Webhook incluido',
     'Gmail y Slack · widgets ilimitados',
     'Historial: 30 días',
     'Capacitación grupal incluida · soporte email (72 h)',
   ],
   plus: [
     '3.000 conversaciones al mes (~100/día)',
-    '5 agentes · 5 sub-agentes · 8 herramientas',
+    '5 agentes · 5 sub-agentes · Webhook incluido',
     'RAG: 256 MB · 20 fuentes por agente',
     'Historial: 60 días · widgets ilimitados',
     'Capacitación grupal · soporte email (48 h)',
   ],
   starter: [
     '6.000 conversaciones al mes (~200/día)',
-    '10 agentes · 10 sub-agentes · 15 herramientas',
-    'RAG: 1 GB · 60 fuentes por agente',
-    'Historial: 3 meses · widgets ilimitados',
+    '10 agentes · 10 sub-agentes · Webhook del agente',
+    'Webhook saliente a tu backend (HMAC) · HubSpot, Notion',
+    'RAG: 1 GB · 60 fuentes · historial 3 meses',
     'Capacitación incluida · soporte email (48 h)',
   ],
   growth: [
     '16.000 conversaciones al mes (~530/día)',
-    '25 agentes · 25 sub-agentes · integraciones avanzadas',
+    '25 agentes · Webhook agente + saliente (HMAC)',
     'RAG: 10 GB · 300 fuentes · analítica avanzada',
     'Historial: 1 año · widgets ilimitados',
     'Modelos Pro disponibles · soporte chat (24 h)',
   ],
   business: [
     '45.000 conversaciones al mes (~1.500/día)',
-    '50 agentes · 50 sub-agentes · MCP e integraciones completas',
-    'RAG: 100 GB · 2.000 fuentes por agente',
+    '50 agentes · MCP e integraciones completas',
+    'Webhook agente + saliente · RAG: 100 GB',
     'Historial ilimitado · widgets ilimitados',
     'Todos los modelos · soporte dedicado · SLA 99,9 %',
   ],

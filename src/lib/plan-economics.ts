@@ -12,6 +12,8 @@ import {
   PLAN_AGENT_LIMITS,
   PLAN_DISPLAY,
   PLAN_HISTORY_RETENTION_DAYS,
+  planHasAgentWebhookFeature,
+  planHasOutboundWebhookFeature,
   type PaidPlanId,
   type PlanId,
 } from '@/lib/plan-catalog';
@@ -116,6 +118,8 @@ export type PlanComparisonRow = {
   rag: string;
   history: string;
   support: string;
+  agentWebhook: string;
+  outboundWebhook: string;
   highlighted?: boolean;
 };
 
@@ -161,6 +165,8 @@ export function buildPlanComparisonRows(): PlanComparisonRow[] {
       rag: rag ? `${rag.mb} MB · ${rag.sources} fuentes` : '—',
       history: formatHistoryDays(PLAN_HISTORY_RETENTION_DAYS[id]),
       support: SUPPORT_BY_PLAN[id],
+      agentWebhook: planHasAgentWebhookFeature(id) ? 'Incluido' : '—',
+      outboundWebhook: planHasOutboundWebhookFeature(id) ? 'Incluido' : '—',
       highlighted: id === 'growth',
     };
   });

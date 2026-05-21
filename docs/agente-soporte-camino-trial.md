@@ -10,22 +10,26 @@ Documento para **soporte al cliente** sobre qué puede hacer un usuario en el pa
 
 ### 1.1 Cuántos agentes, widgets y recursos según el plan
 
-| Plan | Precio | Agentes | Sub-agentes | Herramientas | RAG storage | Fuentes RAG | Conv/mes | Historial |
-|------|--------|---------|-------------|--------------|-------------|-------------|----------|-----------|
-| **Free** | $0 | 1 | 0 | 2 | — | — | 50 | 7 días |
-| **Solo** | $5/mes | 1 | 0 | 3 | — | — | 300 | 30 días |
-| **Basic** | $14/mes | 3 | 2 | 5 | — | — | 1.500 | 30 días |
-| **Plus** | $24/mes | 5 | 5 | 8 | 256 MB | 20 | 3.000 | 60 días |
-| **Starter** | $39/mes | 10 | 10 | 15 | 1 GB | 60 | 6.000 | 3 meses |
-| **Growth** | $99/mes | 25 | 25 | 50 | 10 GB | 300 | 16.000 | 1 año |
-| **Business** | $349/mes | 50 | 50 | Ilimitadas | 100 GB | 2.000 | 45.000 | Ilimitado |
-| **Enterprise** | Contacto | 999 | 999 | Ilimitadas | Ilimitado | Ilimitado | Ilimitado | Ilimitado |
+| Plan | Precio | Agentes | Sub-agentes | Herramientas | RAG storage | Fuentes RAG | Conv/mes | Historial | Webhooks |
+|------|--------|---------|-------------|--------------|-------------|-------------|----------|-----------|----------|
+| **Free** | $0 | 1 | 0 | 2 | — | — | 50 | 7 días | — |
+| **Solo** | $7/mes | 1 | 0 | 3 | — | — | 300 | 30 días | Webhook agente |
+| **Basic** | $17/mes | 3 | 2 | 5 | — | — | 1.500 | 30 días | Webhook agente |
+| **Plus** | $36/mes | 5 | 5 | 8 | 256 MB | 20 | 3.000 | 60 días | Webhook agente |
+| **Starter** | $54/mes | 10 | 10 | 15 | 1 GB | 60 | 6.000 | 3 meses | Agente + saliente |
+| **Growth** | $139/mes | 25 | 25 | 50 | 10 GB | 300 | 16.000 | 1 año | Agente + saliente |
+| **Business** | $449/mes | 50 | 50 | Ilimitadas | 100 GB | 2.000 | 45.000 | Ilimitado | Agente + saliente |
+| **Enterprise** | Contacto | 999 | 999 | Ilimitadas | Ilimitado | Ilimitado | Ilimitado | Ilimitado | Completo |
+
+**Webhooks (dos tipos):**
+- **Webhook del agente** (herramienta en el agente): desde **Solo+** — el chat llama tu URL.
+- **Webhook saliente** (Cumplimiento → eventos HMAC a tu backend): desde **Starter+**.
 
 **Notas importantes:**
 - El límite de **conversaciones** es la métrica principal de consumo y upgrade.
 - Los **widgets** son ilimitados en planes de pago (nombre único por widget).
-- El **RAG** está disponible desde **Plus** ($24/mes).
-- Los **packs de conversaciones** ($12 / $50 / $120) requieren plan de pago activo.
+- El **RAG** está disponible desde **Plus** ($36/mes).
+- Los **packs de conversaciones** ($15 / $60 / $145) requieren plan de pago activo.
 - Los correos temporales (Guerrilla Mail, Temp-Mail, Mailinator, etc.) están **bloqueados en operaciones de pago**.
 
 Si el cliente “no puede crear más agentes o widgets”, suele ser **tope del plan**, no un fallo: debe **mejorar plan** o eliminar recursos no usados.

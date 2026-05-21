@@ -125,7 +125,7 @@
         "requests": "300 conv/mo",
         "features": [
           "300 conversations per month (~10/day)",
-          "1 agent · 3 tools · Web Search, Webhook, Gmail",
+          "1 agent · Agent webhook · Web Search, Gmail",
           "Unlimited widgets",
           "Self-guided: docs and YouTube training videos",
           "Email support (72h, no dedicated onboarding)"
@@ -135,8 +135,8 @@
         "requests": "1,500 conv/mo",
         "features": [
           "1,500 conversations per month (~50/day)",
-          "3 agents · 2 sub-agents · Gmail and Slack",
-          "Unlimited widgets · 30-day history",
+          "3 agents · 2 sub-agents · Webhook included",
+          "Gmail & Slack · unlimited widgets · 30-day history",
           "Group training included",
           "Email support (72h)"
         ]
@@ -145,7 +145,7 @@
         "requests": "3,000 conv/mo",
         "features": [
           "3,000 conversations per month (~100/day)",
-          "5 agents · 5 sub-agents · 8 tools",
+          "5 agents · 5 sub-agents · Webhook included",
           "RAG: 256 MB · 20 sources per agent",
           "Unlimited widgets · 60-day history",
           "Group training · email support (48h)"
@@ -155,8 +155,8 @@
         "requests": "6,000 conv/mo",
         "features": [
           "6,000 conversations per month (~200/day)",
-          "10 agents · 10 sub-agents · 15 tools",
-          "RAG: 1 GB · 60 sources per agent",
+          "10 agents · Agent + outbound webhook (HMAC)",
+          "RAG: 1 GB · 60 sources · HubSpot, Notion",
           "Unlimited widgets · 3-month history",
           "Training included · email support (48h)"
         ]
@@ -165,7 +165,7 @@
         "requests": "16,000 conv/mo",
         "features": [
           "16,000 conversations per month (~530/day)",
-          "25 agents · advanced integrations",
+          "25 agents · Agent + outbound webhooks",
           "RAG: 10 GB · 300 sources per agent",
           "Pro models · 1-year history",
           "Priority chat support (24h)"
@@ -175,7 +175,7 @@
         "requests": "45,000 conv/mo",
         "features": [
           "45,000 conversations per month (~1,500/day)",
-          "50 agents · full MCP and integrations",
+          "50 agents · MCP · agent + outbound webhooks",
           "RAG: 100 GB · 2,000 sources per agent",
           "All models · unlimited history",
           "Dedicated support · 99.9% SLA"

@@ -1,7 +1,7 @@
 import { Navbar } from '@/components/shared/navbar';
 import { Footer } from '@/components/shared/footer';
 import { PLANS, buildPricingGridPlans } from '@/lib/gateway';
-import { PLAN_DISPLAY, PLAN_RAG_LIMITS } from '@/lib/plan-catalog';
+import { PLAN_DISPLAY, PLAN_RAG_LIMITS, CONVERSATION_PACKS } from '@/lib/plan-catalog';
 import { Check, ArrowRight, Zap } from 'lucide-react';
 import { PricingComparisonTable } from '@/components/landing/pricing-comparison-table';
 import Link from 'next/link';
@@ -242,6 +242,31 @@ export default function PricingPage() {
               Misma información en todos los canales — conversaciones, agentes, RAG y soporte
             </p>
             <PricingComparisonTable />
+          </div>
+
+          <div className="mt-24">
+            <h2 className="text-2xl font-bold text-center mb-3">Packs de conversaciones</h2>
+            <p className="text-center text-sm mb-10 max-w-xl mx-auto" style={{ color: 'var(--muted-foreground)' }}>
+              Compra conversaciones extra sin cambiar de plan. Requiere suscripción de pago activa. Válidos 90 días.
+            </p>
+            <div className="grid sm:grid-cols-3 gap-4 max-w-3xl mx-auto">
+              {CONVERSATION_PACKS.map((pack) => (
+                <div
+                  key={pack.id}
+                  className="rounded-2xl p-6 text-center card-texture"
+                  style={{ border: '1px solid var(--border)' }}
+                >
+                  <p className="text-sm font-bold">{pack.label}</p>
+                  <p className="text-3xl font-extrabold mt-2">{pack.priceLabel}</p>
+                  <p className="text-xs mt-2" style={{ color: 'var(--muted-foreground)' }}>
+                    {pack.conversations.toLocaleString('es')} conversaciones
+                  </p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                    ${(pack.price / pack.conversations * 1000).toFixed(1)} / 1K conv
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="mt-24">
