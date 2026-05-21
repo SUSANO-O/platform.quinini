@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useClientModels } from '@/hooks/use-client-models';
-import { getAgentLimits, isAgentLimitReached } from '@/lib/agent-plans';
+import { getAgentLimits, isAgentLimitReached, TOOL_MAP } from '@/lib/agent-plans';
 import { SKILL_MAP } from '@/lib/agent-skills';
 import {
   Bot,
