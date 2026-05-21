@@ -27,6 +27,7 @@
   var INSTANCE_COUNT = 0;
 
   var ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+  var ICON_NEW_CHAT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="9" y1="11" x2="15" y2="11"/></svg>';
   var ICON_SEND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
   var ICON_BOT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>';
   var ICON_MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
@@ -159,6 +160,7 @@
         if (c[0] === 'open')  resolvedApi.open();
         else if (c[0] === 'close') resolvedApi.close();
         else if (c[0] === 'send')  resolvedApi.send(c[1]);
+        else if (c[0] === 'newConversation') resolvedApi.newConversation();
       }
       pending = [];
     }
@@ -168,6 +170,7 @@
       open:     function ()  { if (resolvedApi) resolvedApi.open();    else enqueue(['open']); },
       close:    function ()  { if (resolvedApi) resolvedApi.close();   else enqueue(['close']); },
       send:     function (m) { if (resolvedApi) resolvedApi.send(m);   else enqueue(['send', m]); },
+      newConversation: function () { if (resolvedApi) resolvedApi.newConversation(); else enqueue(['newConversation']); },
       destroy:  function ()  { if (resolvedApi) resolvedApi.destroy(); },
       getState: function ()  { return resolvedApi ? resolvedApi.getState() : { isOpen: false, isLoading: false }; }
     };
@@ -476,6 +479,40 @@
     return html;
   }
 
+  /** Clave sessionStorage por widget — misma conversación mientras la pestaña siga abierta. */
+  function chatSessionStorageKey(cfg) {
+    var h = String(cfg.host || '')
+      .replace(/^https?:\/\//i, '')
+      .replace(/[^a-z0-9]+/gi, '_')
+      .slice(0, 48);
+    var tok = String(cfg.token || 'notok').slice(0, 32);
+    return 'afhub:chat-session:' + h + ':' + String(cfg.agentId || 'na') + ':' + String(cfg.widgetId || tok);
+  }
+
+  function getOrCreateChatSessionId(cfg) {
+    var key = chatSessionStorageKey(cfg);
+    try {
+      var existing = sessionStorage.getItem(key);
+      if (existing && /^sess_[a-zA-Z0-9_-]{8,120}$/.test(existing)) return existing;
+      var sid = 'sess_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
+      sessionStorage.setItem(key, sid);
+      return sid;
+    } catch (_e) {
+      return 'sess_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
+    }
+  }
+
+  function rotateChatSessionId(cfg) {
+    var key = chatSessionStorageKey(cfg);
+    var sid = 'sess_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
+    try {
+      sessionStorage.setItem(key, sid);
+    } catch (_e) {
+      /* noop */
+    }
+    return sid;
+  }
+
   function createWidgetInstance(id, cfg) {
     var rootId = 'afhub-widget-root-' + id;
     var typingId = 'afhub-typing-' + id;
@@ -486,6 +523,7 @@
     var suppressFabClick = false;
     var fabDrag = null;
     var history = [];
+    var chatSessionId = getOrCreateChatSessionId(cfg);
     var resolvedAgentId = null;
     var lastGeneratedImageDataUrl = '';
 
@@ -643,6 +681,13 @@
     expandBtn.setAttribute('aria-label', 'Ampliar barra');
     expandBtn.title = 'Ampliar barra';
 
+    var newChatBtn = document.createElement('button');
+    newChatBtn.className = 'afhub-header-icon-btn afhub-new-chat-btn';
+    newChatBtn.setAttribute('type', 'button');
+    newChatBtn.innerHTML = ICON_NEW_CHAT;
+    newChatBtn.setAttribute('aria-label', 'Nueva conversación');
+    newChatBtn.title = 'Nueva conversación';
+
     var closeBtn = document.createElement('button');
     closeBtn.className = 'afhub-close-btn';
     closeBtn.innerHTML = ICON_X;
@@ -661,6 +706,7 @@
     }
     headerActions.appendChild(layoutBtn);
     headerActions.appendChild(expandBtn);
+    headerActions.appendChild(newChatBtn);
     headerActions.appendChild(closeBtn);
     header.appendChild(headerActions);
     chat.appendChild(header);
@@ -1374,6 +1420,7 @@
         event: eventName,
         agentId: cfg.agentId,
         instanceId: id,
+        sessionId: chatSessionId,
         timestamp: new Date().toISOString(),
         details: details || {}
       };
@@ -1423,6 +1470,22 @@
       fab.setAttribute('aria-label', 'Abrir chat');
       notify('onClose');
       emitEvent('widget_closed');
+    }
+
+    function startNewConversation() {
+      if (isLoading) return;
+      emitEvent('widget_closed');
+      chatSessionId = rotateChatSessionId(cfg);
+      history = [];
+      lastGeneratedImageDataUrl = '';
+      hideTyping();
+      messages.innerHTML = '';
+      input.value = '';
+      input.style.height = 'auto';
+      sendBtn.disabled = true;
+      addMessage('bot', cfg.welcome);
+      emitEvent('widget_opened');
+      if (isOpen) input.focus();
     }
 
     function toggle() {
@@ -1498,6 +1561,7 @@
       input.value = '';
       input.style.height = 'auto';
       sendBtn.disabled = true;
+      newChatBtn.disabled = true;
       isLoading = true;
       var initialTyping =
         cfg.multiAgentEnabled && cfg.multiAgentMode === 'pipeline'
@@ -1512,7 +1576,12 @@
       var baseHost = cfg.host.replace(/\/$/, '');
       var endpoint = baseHost + '/api/widget/chat';
       var streamEndpoint = baseHost + '/api/widget/chat/stream';
-      var payload = { agentId: cfg.agentId, message: text, history: history.slice(0, -1) };
+      var payload = {
+        agentId: cfg.agentId,
+        message: text,
+        history: history.slice(0, -1),
+        sessionId: chatSessionId,
+      };
       if (cfg.widgetId && String(cfg.widgetId).trim()) {
         payload.widgetId = String(cfg.widgetId).trim();
       }
@@ -1656,6 +1725,7 @@
           }
           isLoading = false;
           sendBtn.disabled = !input.value.trim();
+          newChatBtn.disabled = false;
           return;
         } catch (streamErr) {
           log(cfg, 'warn', 'Stream failed, falling back to standard', streamErr);
@@ -1737,6 +1807,7 @@
       } finally {
         isLoading = false;
         sendBtn.disabled = !input.value.trim();
+        newChatBtn.disabled = false;
       }
     }
 
@@ -2092,6 +2163,7 @@
       syncChatPanelLayout();
     });
     closeBtn.addEventListener('click', close);
+    newChatBtn.addEventListener('click', startNewConversation);
     sendBtn.addEventListener('click', function () { send(); });
     input.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) {
@@ -2114,13 +2186,15 @@
       close: close,
       toggle: toggle,
       send: send,
+      newConversation: startNewConversation,
       destroy: destroy,
       getState: function () {
         return {
           isOpen: isOpen,
           isLoading: isLoading,
           agentId: cfg.agentId,
-          resolvedAgentId: resolvedAgentId
+          resolvedAgentId: resolvedAgentId,
+          sessionId: chatSessionId
         };
       }
     };
@@ -2483,6 +2557,7 @@
       '#' + rootId + ' .afhub-header-actions { display:flex; align-items:center; gap:4px; flex-shrink:0; margin-left:auto; }' +
       '#' + rootId + ' .afhub-header-icon-btn { flex-shrink:0; background:rgba(255,255,255,.14); border:none; color:#fff; cursor:pointer; padding:6px; border-radius:8px; opacity:.92; display:inline-flex; align-items:center; justify-content:center; line-height:0; }' +
       '#' + rootId + ' .afhub-header-icon-btn:hover { opacity:1; background:rgba(255,255,255,.26); }' +
+      '#' + rootId + ' .afhub-header-icon-btn:disabled { opacity:.45; cursor:default; pointer-events:none; }' +
       '#' + rootId + ' .afhub-header-icon-btn svg { width:18px; height:18px; }' +
       '#' + rootId + ' .afhub-speaker-btn--active { background:rgba(255,255,255,.35) !important; opacity:1 !important; box-shadow:0 0 0 2px rgba(255,255,255,.55); }' +
       '#' + rootId + ' .afhub-close-btn { flex-shrink:0; margin-left:0; background:rgba(255,255,255,.14); border:none; color:#fff; cursor:pointer; padding:6px; border-radius:8px; opacity:.92; display:inline-flex; align-items:center; justify-content:center; line-height:0; }' +
