@@ -40,8 +40,7 @@ export async function GET(req: NextRequest) {
     ...w,
     agentName: nameByAgentId.get(String(w.agentId)) ?? null,
     multiAgentEnabled: (w as { multiAgentEnabled?: boolean }).multiAgentEnabled === true,
-    multiAgentMode:
-      (w as { multiAgentMode?: string }).multiAgentMode === 'parallel' ? 'parallel' : 'triage',
+    multiAgentMode: validateMultiAgentMode((w as { multiAgentMode?: string }).multiAgentMode),
   }));
   return NextResponse.json({ widgets: widgetsOut });
 }

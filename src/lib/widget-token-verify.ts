@@ -7,8 +7,10 @@ import { redis } from '@/lib/redis';
 
 const WT_CACHE_TTL = 300; // 5 minutos
 
-function normalizeMultiAgentMode(v: unknown): 'triage' | 'parallel' {
-  return v === 'parallel' ? 'parallel' : 'triage';
+function normalizeMultiAgentMode(v: unknown): 'triage' | 'parallel' | 'pipeline' {
+  if (v === 'parallel') return 'parallel';
+  if (v === 'pipeline') return 'pipeline';
+  return 'triage';
 }
 
 function normalizeAgentField(v: unknown): string {
@@ -22,8 +24,9 @@ export type WidgetInfo = {
   userId: string;
   allowedOrigins: string[];
   multiAgentEnabled?: boolean;
-  multiAgentMode?: 'triage' | 'parallel';
+  multiAgentMode?: 'triage' | 'parallel' | 'pipeline';
   agentIds?: string[];
+  orchestratorAgentIds?: string[];
 };
 
 /**
@@ -55,6 +58,7 @@ export async function findWidgetForWtToken(
         multiAgentEnabled: 1,
         multiAgentMode: 1,
         agentIds: 1,
+        orchestratorAgentIds: 1,
       })
       .lean() as {
         agentId: unknown;
@@ -64,6 +68,7 @@ export async function findWidgetForWtToken(
         multiAgentEnabled?: boolean;
         multiAgentMode?: string;
         agentIds?: string[];
+        orchestratorAgentIds?: string[];
       } | null;
     if (w) {
       const stored = w.afhubToken != null ? String(w.afhubToken).trim() : '';
@@ -75,6 +80,9 @@ export async function findWidgetForWtToken(
         multiAgentEnabled: w.multiAgentEnabled === true,
         multiAgentMode: normalizeMultiAgentMode(w.multiAgentMode),
         agentIds: Array.isArray(w.agentIds) ? w.agentIds.map(String) : [],
+        orchestratorAgentIds: Array.isArray(w.orchestratorAgentIds)
+          ? w.orchestratorAgentIds.map(String)
+          : [],
       };
     }
   }
@@ -88,6 +96,7 @@ export async function findWidgetForWtToken(
         multiAgentEnabled: 1,
         multiAgentMode: 1,
         agentIds: 1,
+        orchestratorAgentIds: 1,
       })
       .lean() as {
         agentId: unknown;
@@ -96,6 +105,7 @@ export async function findWidgetForWtToken(
         multiAgentEnabled?: boolean;
         multiAgentMode?: string;
         agentIds?: string[];
+        orchestratorAgentIds?: string[];
       } | null;
     if (w) {
       result = {
@@ -105,6 +115,9 @@ export async function findWidgetForWtToken(
         multiAgentEnabled: w.multiAgentEnabled === true,
         multiAgentMode: normalizeMultiAgentMode(w.multiAgentMode),
         agentIds: Array.isArray(w.agentIds) ? w.agentIds.map(String) : [],
+        orchestratorAgentIds: Array.isArray(w.orchestratorAgentIds)
+          ? w.orchestratorAgentIds.map(String)
+          : [],
       };
     }
   }

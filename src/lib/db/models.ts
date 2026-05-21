@@ -126,7 +126,7 @@ const WidgetSchema = new Schema({
   orchestratorAgentIds: { type: [String], default: [] },
   /** Triaje multiagente avanzado: multi-orquestador, paralelo (Business+). Sub-agentes del orquestador se enrutan siempre si existen. */
   multiAgentEnabled: { type: Boolean, default: false },
-  multiAgentMode: { type: String, enum: ['triage', 'parallel'], default: 'triage' },
+  multiAgentMode: { type: String, enum: ['triage', 'parallel', 'pipeline'], default: 'triage' },
 }, { timestamps: true });
 
 WidgetSchema.index({ userId: 1, createdAt: -1 });

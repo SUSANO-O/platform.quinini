@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   buildMultiAgentStatusMessage,
   buildParallelSynthesisPrompt,
+  buildPipelineCreativePrompt,
   buildWidgetMultiAgentConfig,
   findOrchestratorForMember,
+  isCompoundCreativeRequest,
   isMultiAgentPlanEligible,
+  pickPipelineAgents,
   resolveHubAgentId,
   resolveRoutableHubAgentId,
   resolveWidgetRoutingCapabilities,
@@ -58,8 +61,9 @@ describe('widget-multi-agent', () => {
     expect(result.method).toBe('default');
   });
 
-  it('validateMultiAgentMode solo acepta parallel explícito', () => {
+  it('validateMultiAgentMode acepta pipeline', () => {
     expect(validateMultiAgentMode('parallel')).toBe('parallel');
+    expect(validateMultiAgentMode('pipeline')).toBe('pipeline');
     expect(validateMultiAgentMode('triage')).toBe('triage');
     expect(validateMultiAgentMode('other')).toBe('triage');
   });
@@ -185,5 +189,88 @@ describe('widget-multi-agent', () => {
     ];
     const specialist = team[2];
     expect(findOrchestratorForMember(team, specialist).id).toBe('o2');
+  });
+
+  it('isCompoundCreativeRequest detecta banner + producto', () => {
+    expect(
+      isCompoundCreativeRequest('Hazme un banner 1200x628 con la información de los autos familiares'),
+    ).toBe(true);
+    expect(isCompoundCreativeRequest('¿Cuánto cuesta el plan anual?')).toBe(false);
+    expect(isCompoundCreativeRequest('Genera un logo')).toBe(false);
+  });
+
+  it('pickPipelineAgents con 2 orquestadores usa el otro como creativo aunque no tenga keywords visuales', () => {
+    const team: TeamMember[] = [
+      {
+        id: 'v1',
+        hubId: 'ventas',
+        name: 'Vendedor Autos',
+        description: 'ventas catálogo autos familiares precios',
+        role: 'orchestrator',
+      },
+      {
+        id: 'i1',
+        hubId: 'imagen',
+        name: 'Proton AI',
+        description: 'asistente general de la plataforma',
+        role: 'orchestrator',
+      },
+    ];
+    const pair = pickPipelineAgents(
+      'Hazme un banner 1200x628 con la informacion de los autos familiares',
+      team,
+    );
+    expect(pair?.content.id).toBe('v1');
+    expect(pair?.creative.id).toBe('i1');
+  });
+
+  it('pickPipelineAgents elige vendedor e imagen en mensaje mixto', () => {
+    const team: TeamMember[] = [
+      {
+        id: 'v1',
+        hubId: 'ventas',
+        name: 'Vendedor Autos',
+        description: 'ventas catálogo autos familiares precios',
+        role: 'orchestrator',
+      },
+      {
+        id: 'i1',
+        hubId: 'imagen',
+        name: 'Creativos Banner',
+        description: 'generación de imágenes banners diseño gráfico',
+        role: 'orchestrator',
+      },
+    ];
+    const pair = pickPipelineAgents(
+      'Hazme un banner 1200x628 con la información de los autos familiares',
+      team,
+    );
+    expect(pair?.content.id).toBe('v1');
+    expect(pair?.creative.id).toBe('i1');
+  });
+
+  it('resolveWidgetRoutingCapabilities habilita pipeline con toggle premium', () => {
+    const team: TeamMember[] = [
+      { id: 'o1', hubId: 'hub-o', name: 'Orq A', description: '', role: 'orchestrator' },
+      { id: 'o2', hubId: 'hub-b', name: 'Orq B', description: '', role: 'orchestrator' },
+    ];
+    const config = buildWidgetMultiAgentConfig({
+      agentId: 'o1',
+      multiAgentEnabled: true,
+      multiAgentMode: 'pipeline',
+      orchestratorAgentIds: ['o2'],
+    });
+    const caps = resolveWidgetRoutingCapabilities(config, team, 'business');
+    expect(caps.pipeline).toBe(true);
+  });
+
+  it('buildPipelineCreativePrompt incluye brief de contenido', () => {
+    const prompt = buildPipelineCreativePrompt({
+      userMessage: 'Banner 1200x628 autos familiares',
+      contentBrief: '- Modelo X: 7 plazas\n- Desde $399/mes',
+      contentAgentName: 'Vendedor',
+    });
+    expect(prompt).toContain('Modelo X');
+    expect(prompt).toContain('Banner 1200x628');
   });
 });

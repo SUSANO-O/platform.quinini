@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { Widget, ClientAgent } from '@/lib/db/models';
+import { validateMultiAgentMode } from '@/lib/widget-multi-agent';
 
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token');
@@ -61,7 +62,7 @@ export async function GET(req: NextRequest) {
             .filter((s) => s.enabled !== false)
         : [],
       multiAgentEnabled: widget.multiAgentEnabled === true,
-      multiAgentMode:    widget.multiAgentMode === 'parallel' ? 'parallel' : 'triage',
+      multiAgentMode: validateMultiAgentMode(widget.multiAgentMode),
     },
     {
       headers: {

@@ -30,7 +30,7 @@ interface Widget {
   humanSupportPhone?: string;
   avatar?: string | null;
   multiAgentEnabled?: boolean;
-  multiAgentMode?: 'triage' | 'parallel';
+  multiAgentMode?: 'triage' | 'parallel' | 'pipeline';
 }
 
 interface MultiAgentAnalytics {
@@ -365,7 +365,12 @@ export default function WidgetsPage() {
                           className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md"
                           style={{ background: `${BRAND_B}18`, color: BRAND_B, border: `1px solid ${BRAND_B}40` }}
                         >
-                          Multi · {w.multiAgentMode === 'parallel' ? 'paralelo' : 'triaje'}
+                          Multi ·{' '}
+                          {w.multiAgentMode === 'parallel'
+                            ? 'paralelo'
+                            : w.multiAgentMode === 'pipeline'
+                              ? 'pipeline'
+                              : 'triaje'}
                         </span>
                       )}
                     </p>
