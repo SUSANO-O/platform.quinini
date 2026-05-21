@@ -6,6 +6,8 @@ import {
   buildWidgetMultiAgentConfig,
   findOrchestratorForMember,
   isCompoundCreativeRequest,
+  isContentCapableAgent,
+  isCreativeCapableAgent,
   isMultiAgentPlanEligible,
   pickPipelineAgents,
   resolveHubAgentId,
@@ -13,6 +15,7 @@ import {
   resolveWidgetRoutingCapabilities,
   triageByKeywords,
   validateMultiAgentMode,
+  validatePipelineWidgetSetup,
   type TeamMember,
 } from '../widget-multi-agent';
 
@@ -272,5 +275,35 @@ describe('widget-multi-agent', () => {
     });
     expect(prompt).toContain('Modelo X');
     expect(prompt).toContain('Banner 1200x628');
+  });
+
+  it('isCreativeCapableAgent detecta modelo de imagen y perfil creativo', () => {
+    expect(isCreativeCapableAgent({ name: 'Profesor inglés', description: 'clases de gramática' })).toBe(false);
+    expect(
+      isCreativeCapableAgent({ name: 'Diseño', description: 'banners e imágenes para marketing' }),
+    ).toBe(true);
+    expect(isCreativeCapableAgent({ name: 'Gen', model: 'vx/imagen-3.0-generate-001' })).toBe(true);
+  });
+
+  it('validatePipelineWidgetSetup advierte cuando falta agente creativo', () => {
+    const agents = {
+      ingles: { name: 'Profesor inglés', description: 'clases y vocabulario' },
+      finanzas: { name: 'Finanzas', description: 'inversiones y presupuesto' },
+    };
+    const v = validatePipelineWidgetSetup(['ingles', 'finanzas'], (id) => agents[id as keyof typeof agents]);
+    expect(v.ok).toBe(false);
+    expect(v.creativeAgentNames).toHaveLength(0);
+    expect(v.warnings.some((w) => w.includes('creativo'))).toBe(true);
+  });
+
+  it('validatePipelineWidgetSetup ok con vendedor + diseño', () => {
+    const agents = {
+      ventas: { name: 'AutoExpert', description: 'ventas catálogo autos' },
+      arte: { name: 'Studio', description: 'banners e imágenes' },
+    };
+    const v = validatePipelineWidgetSetup(['ventas', 'arte'], (id) => agents[id as keyof typeof agents]);
+    expect(v.ok).toBe(true);
+    expect(v.contentAgentNames).toContain('AutoExpert');
+    expect(v.creativeAgentNames).toContain('Studio');
   });
 });

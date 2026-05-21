@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Copy, Check, Save, ExternalLink, Plus, Trash2, Sparkles, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -13,6 +13,11 @@ import {
   hashWidgetSeed,
   iridescentOrbBackgroundCss,
 } from '@/lib/widget-iridescent';
+import {
+  isContentCapableAgent,
+  isCreativeCapableAgent,
+  validatePipelineWidgetSetup,
+} from '@/lib/widget-multi-agent';
 
 // ── Orb gradient (port of orb-gradient.ts) ───────────────────────────────────
 
@@ -105,6 +110,8 @@ interface ClientAgentRow {
   status: 'active' | 'disabled';
   agentHubId?: string | null;
   syncStatus?: string;
+  model?: string;
+  enabledMcpToolIds?: string[];
   /** Agente de plataforma: si aún no hay slug en hub, el widget puede usar el ObjectId (24 hex) y el hub resuelve por landingClientAgentId. */
   isPlatform?: boolean;
 }
@@ -151,6 +158,26 @@ function firstSelectableWidgetAgentId(list: ClientAgentRow[]): string | null {
     if (id) return id;
   }
   return null;
+}
+
+function agentProfileFromRow(a: ClientAgentRow) {
+  return {
+    name: a.name,
+    description: a.description,
+    model: a.model,
+    enabledMcpToolIds: a.enabledMcpToolIds,
+  };
+}
+
+function resolveAgentProfileByWidgetId(
+  list: ClientAgentRow[],
+  widgetAgentId: string,
+) {
+  for (const a of list) {
+    const eff = effectiveWidgetAgentId(a);
+    if (eff === widgetAgentId || a._id === widgetAgentId) return agentProfileFromRow(a);
+  }
+  return undefined;
 }
 
 const POSITIONS = [
@@ -560,6 +587,21 @@ export default function WidgetBuilderPage() {
     subscription?.status === 'active' || subscription?.status === 'trialing';
   const multiAgentEligible = planActive && (plan === 'business' || plan === 'enterprise');
 
+  const selectedOrchestratorIds = useMemo(
+    () =>
+      (cfg.multiAgentEnabled ? [cfg.agentId, ...cfg.orchestratorAgentIds] : [cfg.agentId]).filter(
+        (id) => /^[a-f0-9]{24}$/i.test(id),
+      ),
+    [cfg.agentId, cfg.orchestratorAgentIds, cfg.multiAgentEnabled],
+  );
+
+  const pipelineSetup = useMemo(() => {
+    if (!cfg.multiAgentEnabled || cfg.multiAgentMode !== 'pipeline') return null;
+    return validatePipelineWidgetSetup(selectedOrchestratorIds, (id) =>
+      resolveAgentProfileByWidgetId(agents, id),
+    );
+  }, [cfg.multiAgentEnabled, cfg.multiAgentMode, selectedOrchestratorIds, agents]);
+
   useEffect(() => {
     const orchIds = (cfg.multiAgentEnabled
       ? [cfg.agentId, ...cfg.orchestratorAgentIds]
@@ -655,6 +697,10 @@ export default function WidgetBuilderPage() {
     if (wizardStep === 0) {
       if (!cfg.name.trim()) { toast.error('Indica un nombre para el widget'); return; }
       if (!cfg.agentId) { toast.error('Selecciona un agente'); return; }
+      if (pipelineSetup && !pipelineSetup.ok) {
+        toast.error(pipelineSetup.warnings[0] ?? 'Revisa la configuración del pipeline');
+        return;
+      }
     }
     setWizardStep((s) => Math.min(WIDGET_WIZARD_STEPS.length - 1, s + 1));
   }
@@ -844,6 +890,15 @@ export default function WidgetBuilderPage() {
   }
 
   async function saveWidget() {
+    if (cfg.multiAgentEnabled && cfg.multiAgentMode === 'pipeline') {
+      const check = validatePipelineWidgetSetup(selectedOrchestratorIds, (id) =>
+        resolveAgentProfileByWidgetId(agents, id),
+      );
+      if (!check.ok) {
+        toast.error(check.warnings[0] ?? 'Configura un agente creativo y uno de contenido para el pipeline');
+        return;
+      }
+    }
     setSaving(true);
     try {
       if (editWidgetId) {
@@ -1034,6 +1089,17 @@ export default function WidgetBuilderPage() {
                 const icon = AGENT_ICONS[i % AGENT_ICONS.length];
                 const short =
                   a.name.length > 14 ? `${a.name.slice(0, 12)}…` : a.name;
+                const profile = agentProfileFromRow(a);
+                const pipelineCreative =
+                  cfg.multiAgentEnabled &&
+                  cfg.multiAgentMode === 'pipeline' &&
+                  selected &&
+                  isCreativeCapableAgent(profile);
+                const pipelineContent =
+                  cfg.multiAgentEnabled &&
+                  cfg.multiAgentMode === 'pipeline' &&
+                  selected &&
+                  isContentCapableAgent(profile);
                 return (
                   <button
                     key={a._id}
@@ -1083,6 +1149,46 @@ export default function WidgetBuilderPage() {
                     >
                       {short}
                     </div>
+                    {pipelineCreative || pipelineContent ? (
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: 3,
+                          justifyContent: 'center',
+                          flexWrap: 'wrap',
+                          marginTop: 4,
+                        }}
+                      >
+                        {pipelineContent ? (
+                          <span
+                            style={{
+                              fontSize: 7,
+                              fontWeight: 700,
+                              padding: '1px 4px',
+                              borderRadius: 4,
+                              background: 'rgba(59,130,246,0.15)',
+                              color: 'rgb(37,99,235)',
+                            }}
+                          >
+                            Contenido
+                          </span>
+                        ) : null}
+                        {pipelineCreative ? (
+                          <span
+                            style={{
+                              fontSize: 7,
+                              fontWeight: 700,
+                              padding: '1px 4px',
+                              borderRadius: 4,
+                              background: 'rgba(168,85,247,0.15)',
+                              color: 'rgb(126,34,206)',
+                            }}
+                          >
+                            Creativo
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </button>
                 );
               })}
@@ -1161,6 +1267,48 @@ export default function WidgetBuilderPage() {
                 );
               })}
             </div>
+            {cfg.multiAgentMode === 'pipeline' && pipelineSetup ? (
+              <div
+                style={{
+                  marginBottom: 12,
+                  padding: '10px 12px',
+                  borderRadius: 8,
+                  border: pipelineSetup.ok
+                    ? '1px solid rgba(34,197,94,0.35)'
+                    : '1px solid rgba(245,158,11,0.45)',
+                  background: pipelineSetup.ok
+                    ? 'rgba(34,197,94,0.08)'
+                    : 'rgba(245,158,11,0.1)',
+                }}
+              >
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: pipelineSetup.ok ? 'rgb(21,128,61)' : 'rgb(180,83,9)',
+                  }}
+                >
+                  {pipelineSetup.ok ? 'Pipeline configurado correctamente' : 'Revisa el pipeline'}
+                </p>
+                {pipelineSetup.ok ? (
+                  <p style={{ margin: '6px 0 0', fontSize: 11, lineHeight: 1.45, color: 'var(--muted-foreground)' }}>
+                    Paso 1 contenido:{' '}
+                    <strong>{pipelineSetup.contentAgentNames.join(', ')}</strong>
+                    {' · '}
+                    Paso 2 creativo:{' '}
+                    <strong>{pipelineSetup.creativeAgentNames.join(', ')}</strong>
+                    . Se activa solo en mensajes que mezclen catálogo/datos + banner o imagen.
+                  </p>
+                ) : (
+                  <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 11, lineHeight: 1.45, color: 'var(--foreground)' }}>
+                    {pipelineSetup.warnings.map((w) => (
+                      <li key={w}>{w}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : null}
             {loadingSubs ? (
               <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0 }}>Cargando equipo…</p>
             ) : orchestratorSubs.length === 0 ? (

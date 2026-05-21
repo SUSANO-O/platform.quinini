@@ -21,6 +21,29 @@ import { randomUUID } from 'crypto';
 
 const MAX_EVENT_BODY_BYTES = 8 * 1024; // 8 KB — events are tiny
 
+const CLIENT_SESSION_ID_RE = /^sess_[a-zA-Z0-9_-]{8,120}$/;
+
+function normalizeClientSessionId(v: unknown): string {
+  const s = typeof v === 'string' ? v.trim() : '';
+  if (!s || !CLIENT_SESSION_ID_RE.test(s)) return '';
+  return s;
+}
+
+async function findWidgetSession(
+  userId: string,
+  agentId: string,
+  sessionId: string,
+) {
+  if (sessionId) {
+    return ConversationSession.findOne({ sessionId, userId }).lean();
+  }
+  return ConversationSession.findOne(
+    { agentId, userId, endedAt: null },
+    null,
+    { sort: { startedAt: -1 } },
+  ).lean();
+}
+
 const ALLOWED_EVENTS = new Set([
   'widget_loaded',
   'widget_opened',
@@ -110,18 +133,20 @@ export async function POST(req: NextRequest) {
 
     if (uid && widgetId) {
       const instanceId = typeof body.instanceId === 'string' ? body.instanceId.trim() : '';
+      const clientSessionId = normalizeClientSessionId(body.sessionId);
       const now = new Date();
       const month = now.toISOString().slice(0, 7);
       const sessionKey = instanceId || `${widgetId}-${Date.now()}`;
 
       if (event === 'widget_opened') {
-        // Start new session
-        const sid = `sess_${sessionKey}_${randomUUID().slice(0, 8)}`;
+        const sid = clientSessionId || `sess_${sessionKey}_${randomUUID().slice(0, 8)}`;
         await ConversationSession.findOneAndUpdate(
           { sessionId: sid },
           {
             $setOnInsert: {
-              widgetId, userId: uid, agentId,
+              widgetId,
+              userId: uid,
+              agentId,
               sessionId: sid,
               startedAt: now,
               hourOfDay: now.getHours(),
@@ -132,35 +157,36 @@ export async function POST(req: NextRequest) {
               escalated: false,
               sentiment: 'neutral',
             },
+            $set: { widgetId, agentId },
           },
           { upsert: true },
         );
       }
 
       if (event === 'message_received') {
-        // Increment message count & detect sentiment from details
         const details = body.details as Record<string, unknown> | null;
         const msgLen = typeof details?.length === 'number' ? details.length : 0;
-        const sentimentPositive = msgLen > 20; // simple heuristic — replace with real NLP later
+        const sentimentPositive = msgLen > 20;
+        const sessionFilter = clientSessionId
+          ? { sessionId: clientSessionId, userId: uid }
+          : { agentId, userId: uid, endedAt: null };
         await ConversationSession.findOneAndUpdate(
-          { agentId, userId: uid, endedAt: null },
+          sessionFilter,
           {
             $inc: { messageCount: 1 },
             $set: { sentiment: sentimentPositive ? 'positive' : 'neutral' },
           },
-          { sort: { startedAt: -1 } },
+          clientSessionId ? {} : { sort: { startedAt: -1 } },
         );
       }
 
       if (event === 'widget_closed') {
-        // End session, calculate duration
-        const session = await ConversationSession.findOne(
-          { agentId, userId: uid, endedAt: null },
-          null,
-          { sort: { startedAt: -1 } },
-        );
+        const session = await findWidgetSession(uid, agentId, clientSessionId);
         if (session) {
-          const durationSec = Math.round((now.getTime() - session.startedAt.getTime()) / 1000);
+          const startedAt = session.startedAt instanceof Date
+            ? session.startedAt
+            : new Date(String(session.startedAt));
+          const durationSec = Math.round((now.getTime() - startedAt.getTime()) / 1000);
           const dropped = (session.messageCount ?? 0) < 1;
           await ConversationSession.updateOne(
             { _id: session._id },
@@ -169,19 +195,24 @@ export async function POST(req: NextRequest) {
         }
         dispatchSaasWebhook(uid, 'conversation.closed', {
           agentId,
+          sessionId: clientSessionId || undefined,
           instanceId: instanceId || undefined,
           timestamp: typeof body.timestamp === 'string' ? body.timestamp : undefined,
         });
       }
 
       if (event === 'conversation_handoff') {
+        const sessionFilter = clientSessionId
+          ? { sessionId: clientSessionId, userId: uid }
+          : { agentId, userId: uid, endedAt: null };
         await ConversationSession.findOneAndUpdate(
-          { agentId, userId: uid, endedAt: null },
+          sessionFilter,
           { $set: { escalated: true } },
-          { sort: { startedAt: -1 } },
+          clientSessionId ? {} : { sort: { startedAt: -1 } },
         );
         dispatchSaasWebhook(uid, 'conversation.handoff', {
           agentId,
+          sessionId: clientSessionId || undefined,
           details: typeof body.details === 'object' && body.details !== null ? body.details : {},
         });
       }
@@ -193,14 +224,18 @@ export async function POST(req: NextRequest) {
         const inc: Record<string, number> = { multiAgentRouted: 1 };
         if (handoff) inc.multiAgentHandoffs = 1;
         if (mode === 'parallel') inc.multiAgentParallel = 1;
+        const sessionFilter = clientSessionId
+          ? { sessionId: clientSessionId, userId: uid }
+          : { agentId, userId: uid, endedAt: null };
         await ConversationSession.findOneAndUpdate(
-          { agentId, userId: uid, endedAt: null },
+          sessionFilter,
           { $inc: inc },
-          { sort: { startedAt: -1 } },
+          clientSessionId ? {} : { sort: { startedAt: -1 } },
         );
         dispatchSaasWebhook(uid, 'conversation.multi_agent_routed', {
           agentId,
           widgetId,
+          sessionId: clientSessionId || undefined,
           mode,
           handoff,
           specialist: typeof details?.specialist === 'string' ? details.specialist : null,
@@ -212,10 +247,13 @@ export async function POST(req: NextRequest) {
       if (event === 'message_feedback') {
         const details = body.details as Record<string, unknown> | null;
         const positive = details?.rating === 'positive' || details?.helpful === true;
+        const sessionFilter = clientSessionId
+          ? { sessionId: clientSessionId, userId: uid }
+          : { agentId, userId: uid, endedAt: null };
         await ConversationSession.findOneAndUpdate(
-          { agentId, userId: uid, endedAt: null },
+          sessionFilter,
           { $set: { resolved: positive, sentiment: positive ? 'positive' : 'negative' } },
-          { sort: { startedAt: -1 } },
+          clientSessionId ? {} : { sort: { startedAt: -1 } },
         );
       }
     }
@@ -247,6 +285,7 @@ export async function POST(req: NextRequest) {
         event,
         timestamp: typeof body.timestamp === 'string' ? body.timestamp : undefined,
         instanceId: typeof body.instanceId === 'string' ? body.instanceId : undefined,
+        sessionId: normalizeClientSessionId(body.sessionId) || undefined,
         model,
       }),
       signal: AbortSignal.timeout(8_000),
