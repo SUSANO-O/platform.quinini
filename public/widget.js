@@ -117,11 +117,12 @@
    * Fetches widget config from the landing's /api/widget/config endpoint.
    * Calls callback(config) on success or callback(null) on timeout/error.
    */
-  function fetchWidgetConfig(host, token, callback) {
+  function fetchWidgetConfig(host, token, callback, timeoutMs) {
     var done = false;
+    var ms = typeof timeoutMs === 'number' && timeoutMs > 0 ? timeoutMs : 20000;
     var timer = setTimeout(function () {
       if (!done) { done = true; callback(null); }
-    }, 5000);
+    }, ms);
     try {
       var req = new XMLHttpRequest();
       req.open('GET', host + '/api/widget/config?token=' + encodeURIComponent(token), true);
@@ -179,6 +180,8 @@
     var token    = String(localInput.token || '').trim();
     var debug    = Boolean(localInput.debug);
 
+    var fetchTimeoutMs = typeof localInput.configFetchTimeoutMs === 'number' ? localInput.configFetchTimeoutMs : 20000;
+
     fetchWidgetConfig(tempHost, token, function (remoteCfg) {
       if (!remoteCfg) {
         var scriptHost = getScriptOrigin();
@@ -186,14 +189,14 @@
           fetchWidgetConfig(scriptHost, token, function (retryCfg) {
             if (retryCfg) finishInit(retryCfg);
             else warnConfigFailed(tempHost, token, debug);
-          });
+          }, fetchTimeoutMs);
           return;
         }
         warnConfigFailed(tempHost, token, debug);
         return;
       }
       finishInit(remoteCfg);
-    });
+    }, fetchTimeoutMs);
 
     function warnConfigFailed(host, tok, dbg) {
       if (!dbg) return;
@@ -201,7 +204,7 @@
         '[AgentFlowhub Widget] No se pudo obtener configuración remota. ' +
         'host=' + host + ' token=' + tok + '. ' +
         'Comprueba: (1) host apunta a la landing (ej. http://localhost:3201), no a AIBackHub (:9003); ' +
-        '(2) CORS en el servidor; (3) token wt_ válido.'
+        '(2) CORS en el servidor; (3) token wt_ válido; (4) timeout — en dev la 1ª petición puede tardar ~20s (recarga la página).'
       );
     }
 
