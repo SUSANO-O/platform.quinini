@@ -82,11 +82,15 @@ export default function DashboardPage() {
   const [agentCount,       setAgentCount]       = useState<number | null>(null);
   const [widgetCount,      setWidgetCount]      = useState<number | null>(null);
   const [sysStatus,        setSysStatus]        = useState<SystemStatus | null>(null);
+  const [loadingSysStatus, setLoadingSysStatus] = useState(false);
   const [refreshingStatus, setRefreshingStatus] = useState(false);
   const [widgets,          setWidgets]          = useState<WidgetInfo[]>([]);
   const [selectedWidget,   setSelectedWidget]   = useState<string | null>(null);
   const [widgetAnalytics,  setWidgetAnalytics]  = useState<WidgetAnalytics | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+
+  const coreMetricsReady =
+    usage !== null && agentCount !== null && widgetCount !== null;
 
   useEffect(() => {
     if (user?.role === 'admin') router.replace('/admin');
@@ -103,8 +107,20 @@ export default function DashboardPage() {
       setWidgets(list);
       if (list.length > 0) setSelectedWidget(list[0]._id);
     }).catch(() => {});
-    fetch('/api/status').then(r => r.ok ? r.json() : null).then(d => d && setSysStatus(d)).catch(() => {});
   }, [user]);
+
+  /** Estado del sistema: última petición — solo tras métricas principales (conv, agentes, widgets). */
+  useEffect(() => {
+    if (!user || !coreMetricsReady) return;
+    let cancelled = false;
+    setLoadingSysStatus(true);
+    fetch('/api/status')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!cancelled && d) setSysStatus(d); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoadingSysStatus(false); });
+    return () => { cancelled = true; };
+  }, [user, coreMetricsReady]);
 
   useEffect(() => {
     if (!selectedWidget) return;
@@ -368,15 +384,15 @@ export default function DashboardPage() {
           {/* ── RIGHT ───────────────────────────────────────────────────────── */}
           <div className="flex flex-col gap-4">
 
-            {/* System status — semáforo simple */}
+            {/* System status — carga al final, tras métricas principales */}
             <div className="rounded-2xl border card-texture overflow-hidden" style={{ borderColor: 'var(--border)' }}>
               <div
-                className={!sysStatus ? 'metric-accent-loading' : undefined}
+                className={!sysStatus && (loadingSysStatus || coreMetricsReady) ? 'metric-accent-loading' : undefined}
                 style={{
                   height: 3,
-                  background: !sysStatus
-                    ? `linear-gradient(90deg,${B}40,${B},${B}88,${B}40)`
-                    : `linear-gradient(90deg,${B},${B}99)`,
+                  background: sysStatus
+                    ? `linear-gradient(90deg,${B},${B}99)`
+                    : `linear-gradient(90deg,${B}40,${B},${B}88,${B}40)`,
                 }}
               />
               <div className="p-5">
@@ -385,10 +401,10 @@ export default function DashboardPage() {
                   <h3 className="text-[13px] font-bold m-0">Estado del sistema</h3>
                   <button
                     onClick={refreshStatus}
-                    disabled={refreshingStatus}
+                    disabled={refreshingStatus || !coreMetricsReady}
                     title="Actualizar estado"
                     className="ml-auto"
-                    style={{ background: 'none', border: 'none', cursor: refreshingStatus ? 'not-allowed' : 'pointer', padding: 2, color: 'var(--muted-foreground)', opacity: refreshingStatus ? 0.5 : 1 }}
+                    style={{ background: 'none', border: 'none', cursor: refreshingStatus || !coreMetricsReady ? 'not-allowed' : 'pointer', padding: 2, color: 'var(--muted-foreground)', opacity: refreshingStatus || !coreMetricsReady ? 0.5 : 1 }}
                   >
                     <RefreshCw size={12} style={{ animation: refreshingStatus ? 'spin 0.7s linear infinite' : undefined }} />
                   </button>
