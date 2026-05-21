@@ -17,7 +17,7 @@ import {
   isContentCapableAgent,
   isCreativeCapableAgent,
   validatePipelineWidgetSetup,
-} from '@/lib/widget-multi-agent';
+} from '@/lib/widget-pipeline-ui';
 
 // ── Orb gradient (port of orb-gradient.ts) ───────────────────────────────────
 
