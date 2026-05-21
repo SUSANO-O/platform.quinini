@@ -188,6 +188,7 @@ interface WidgetConfig {
   multiAgentEnabled: boolean;
   multiAgentMode: 'triage' | 'parallel';
   agentIds: string[];
+  orchestratorAgentIds: string[];
 }
 
 interface OrchestratorSubAgent {
@@ -195,6 +196,7 @@ interface OrchestratorSubAgent {
   name: string;
   description?: string;
   status?: string;
+  parentName?: string;
 }
 
 const DEFAULT: WidgetConfig = {
@@ -215,6 +217,7 @@ const DEFAULT: WidgetConfig = {
   multiAgentEnabled: false,
   multiAgentMode: 'triage',
   agentIds: [],
+  orchestratorAgentIds: [],
 };
 
 // ── Mock preview ─────────────────────────────────────────────────────────────
@@ -558,7 +561,11 @@ export default function WidgetBuilderPage() {
   const multiAgentEligible = planActive && (plan === 'business' || plan === 'enterprise');
 
   useEffect(() => {
-    if (!cfg.agentId || !/^[a-f0-9]{24}$/i.test(cfg.agentId)) {
+    const orchIds = (cfg.multiAgentEnabled
+      ? [cfg.agentId, ...cfg.orchestratorAgentIds]
+      : [cfg.agentId]
+    ).filter((id) => /^[a-f0-9]{24}$/i.test(id));
+    if (!orchIds.length) {
       setOrchestratorSubs([]);
       return;
     }
@@ -566,13 +573,24 @@ export default function WidgetBuilderPage() {
     setLoadingSubs(true);
     void (async () => {
       try {
-        const res = await fetch(`/api/agents/${cfg.agentId}`);
-        if (!res.ok) return;
-        const data = (await res.json()) as { subAgents?: OrchestratorSubAgent[] };
+        const merged = new Map<string, OrchestratorSubAgent>();
+        for (const oid of orchIds) {
+          const res = await fetch(`/api/agents/${oid}`);
+          if (!res.ok) continue;
+          const data = (await res.json()) as {
+            subAgents?: OrchestratorSubAgent[];
+            agent?: { name?: string };
+          };
+          const parentName = data.agent?.name ?? '';
+          for (const sub of data.subAgents ?? []) {
+            if (!sub || typeof sub._id !== 'string' || sub.status === 'disabled') continue;
+            if (!merged.has(sub._id)) {
+              merged.set(sub._id, { ...sub, parentName });
+            }
+          }
+        }
         if (cancelled) return;
-        const subs = (data.subAgents ?? []).filter(
-          (a) => a && typeof a._id === 'string' && a.status !== 'disabled',
-        );
+        const subs = [...merged.values()];
         setOrchestratorSubs(subs);
         setCfg((prev) => {
           const valid = new Set(subs.map((s) => s._id));
@@ -588,7 +606,36 @@ export default function WidgetBuilderPage() {
     return () => {
       cancelled = true;
     };
-  }, [cfg.agentId]);
+  }, [cfg.agentId, cfg.orchestratorAgentIds, cfg.multiAgentEnabled]);
+
+  function isOrchestratorSelected(id: string) {
+    return cfg.agentId === id || cfg.orchestratorAgentIds.includes(id);
+  }
+
+  function toggleOrchestratorAgent(id: string) {
+    if (!cfg.multiAgentEnabled) {
+      update({ agentId: id, orchestratorAgentIds: [] });
+      return;
+    }
+    if (cfg.agentId === id) {
+      if (cfg.orchestratorAgentIds.length === 0) return;
+      update({
+        agentId: cfg.orchestratorAgentIds[0],
+        orchestratorAgentIds: cfg.orchestratorAgentIds.slice(1),
+      });
+      return;
+    }
+    if (cfg.orchestratorAgentIds.includes(id)) {
+      update({ orchestratorAgentIds: cfg.orchestratorAgentIds.filter((x) => x !== id) });
+      return;
+    }
+    const total = 1 + cfg.orchestratorAgentIds.length;
+    if (total >= 5) {
+      toast.error('Máximo 5 agentes orquestadores en el widget');
+      return;
+    }
+    update({ orchestratorAgentIds: [...cfg.orchestratorAgentIds, id] });
+  }
 
   function toggleTeamAgent(id: string) {
     setCfg((prev) => {
@@ -686,6 +733,9 @@ export default function WidgetBuilderPage() {
               multiAgentMode: widget.multiAgentMode === 'parallel' ? 'parallel' : 'triage',
               agentIds: Array.isArray(widget.agentIds)
                 ? (widget.agentIds as string[]).filter((id) => typeof id === 'string')
+                : [],
+              orchestratorAgentIds: Array.isArray(widget.orchestratorAgentIds)
+                ? (widget.orchestratorAgentIds as string[]).filter((id) => typeof id === 'string')
                 : [],
             });
             if (Array.isArray(widget.shortcuts)) {
@@ -901,7 +951,14 @@ export default function WidgetBuilderPage() {
 
         {/* Agent selector (widget.agentId = ObjectId landing; el hub resuelve por landingClientAgentId) */}
         <div style={fieldStyle} data-tour="widget-builder-agent">
-          <label style={labelStyle}>Agente</label>
+          <label style={labelStyle}>
+            {cfg.multiAgentEnabled ? 'Agentes orquestadores' : 'Agente'}
+          </label>
+          {cfg.multiAgentEnabled ? (
+            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '0 0 8px', lineHeight: 1.45 }}>
+              Selecciona uno o más agentes. Cada uno aporta su equipo de sub-agentes al triaje.
+            </p>
+          ) : null}
           {loadingInitial ? (
             <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', margin: 0 }}>Cargando…</p>
           ) : agents.length === 0 ? (
@@ -916,7 +973,7 @@ export default function WidgetBuilderPage() {
               {agents.map((a, i) => {
                 const agentIdForWidget = effectiveWidgetAgentId(a);
                 const selectable = agentIdForWidget.length > 0;
-                const selected = selectable && cfg.agentId === agentIdForWidget;
+                const selected = selectable && isOrchestratorSelected(agentIdForWidget);
                 const icon = AGENT_ICONS[i % AGENT_ICONS.length];
                 const short =
                   a.name.length > 14 ? `${a.name.slice(0, 12)}…` : a.name;
@@ -925,7 +982,7 @@ export default function WidgetBuilderPage() {
                     key={a._id}
                     type="button"
                     disabled={!selectable}
-                    onClick={() => selectable && update({ agentId: agentIdForWidget })}
+                    onClick={() => selectable && toggleOrchestratorAgent(agentIdForWidget)}
                     title={
                       selectable
                         ? `${a.description || a.name}${a.isPlatform ? ' · Agente de plataforma' : ''}`
@@ -987,6 +1044,23 @@ export default function WidgetBuilderPage() {
               El snippet usará el <strong>ID de este agente en la landing</strong> (misma clave que en la URL al editarlo). El chat y el MCP del hub siguen resolviendo al catálogo vía <code style={{ fontSize: '10px' }}>landingClientAgentId</code>.
             </p>
           )}
+          {!cfg.multiAgentEnabled && orchestratorSubs.length > 0 ? (
+            <p
+              style={{
+                fontSize: 11,
+                color: 'var(--muted-foreground)',
+                margin: '8px 0 0',
+                lineHeight: 1.45,
+                padding: '8px 10px',
+                borderRadius: 8,
+                border: '1px solid rgba(34,197,94,0.25)',
+                background: 'rgba(34,197,94,0.06)',
+              }}
+            >
+              Este agente tiene {orchestratorSubs.length} sub-agente{orchestratorSubs.length !== 1 ? 's' : ''}.
+              El chat los usará automáticamente (triaje) sin activar el modo multiagente avanzado.
+            </p>
+          ) : null}
         </div>
         </>
         )}
@@ -1101,13 +1175,15 @@ export default function WidgetBuilderPage() {
                 onChange={(e) =>
                   update({
                     multiAgentEnabled: e.target.checked,
-                    ...(e.target.checked ? {} : { agentIds: [], multiAgentMode: 'triage' }),
+                    ...(e.target.checked
+                      ? {}
+                      : { agentIds: [], orchestratorAgentIds: [], multiAgentMode: 'triage' }),
                   })
                 }
                 style={{ width: 16, height: 16, cursor: 'pointer' }}
               />
               <label htmlFor="multiAgentEnabled" style={{ fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                Widget multiagente (triaje)
+                Widget multiagente avanzado
               </label>
               <span
                 style={{
@@ -1125,8 +1201,8 @@ export default function WidgetBuilderPage() {
               </span>
             </div>
             <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '0 0 10px', lineHeight: 1.45 }}>
-              El agente seleccionado actúa como orquestador. Según el mensaje del visitante, el chat deriva
-              automáticamente a un sub-agente del equipo (triaje por palabras clave; LLM si el hub está disponible).
+              Activa varios orquestadores en la grilla de agentes, el modo paralelo con síntesis y el filtro de
+              especialistas. Los sub-agentes del agente principal ya se enrutan solos sin este toggle.
             </p>
             {cfg.multiAgentEnabled && (
               <>
@@ -1164,7 +1240,7 @@ export default function WidgetBuilderPage() {
                   <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0 }}>Cargando equipo…</p>
                 ) : orchestratorSubs.length === 0 ? (
                   <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.45 }}>
-                    Este agente no tiene sub-agentes.{' '}
+                    Ningún orquestador seleccionado tiene sub-agentes.{' '}
                     <Link href={`/dashboard/agents/${cfg.agentId}`} className="font-semibold landing-link-accent">
                       Configura sub-agentes
                     </Link>{' '}
@@ -1173,7 +1249,7 @@ export default function WidgetBuilderPage() {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <p style={{ fontSize: 11, fontWeight: 600, margin: '0 0 4px', color: 'var(--foreground)' }}>
-                      Especialistas del equipo (opcional — si no marcas ninguno, se usan todos los sub-agentes)
+                      Especialistas del equipo (opcional — vacío = todos los sub-agentes de cada orquestador)
                     </p>
                     {orchestratorSubs.map((sub) => {
                       const checked = cfg.agentIds.includes(sub._id);
@@ -1200,6 +1276,11 @@ export default function WidgetBuilderPage() {
                           />
                           <span>
                             <strong>{sub.name}</strong>
+                            {sub.parentName ? (
+                              <span style={{ fontSize: 10, color: 'var(--muted-foreground)', marginLeft: 6 }}>
+                                · {sub.parentName}
+                              </span>
+                            ) : null}
                             {sub.description ? (
                               <span style={{ display: 'block', color: 'var(--muted-foreground)', marginTop: 2 }}>
                                 {sub.description.slice(0, 120)}
@@ -1323,6 +1404,23 @@ export default function WidgetBuilderPage() {
               ))}
             </div>
           )}
+          {!cfg.multiAgentEnabled && orchestratorSubs.length > 0 ? (
+            <p
+              style={{
+                fontSize: 11,
+                color: 'var(--muted-foreground)',
+                margin: '8px 0 0',
+                lineHeight: 1.45,
+                padding: '8px 10px',
+                borderRadius: 8,
+                border: '1px solid rgba(34,197,94,0.25)',
+                background: 'rgba(34,197,94,0.06)',
+              }}
+            >
+              Este agente tiene {orchestratorSubs.length} sub-agente{orchestratorSubs.length !== 1 ? 's' : ''}.
+              El chat los usará automáticamente (triaje) sin activar el modo multiagente avanzado.
+            </p>
+          ) : null}
         </div>
         </>
         )}

@@ -85,6 +85,7 @@ export async function PATCH(
     multiAgentEnabled?: boolean;
     multiAgentMode?: 'triage' | 'parallel';
     agentIds?: string[];
+    orchestratorAgentIds?: string[];
   } = {};
 
   for (const key of PATCHABLE) {
@@ -125,7 +126,7 @@ export async function PATCH(
       }));
   }
 
-  if (Object.keys($set).length === 0 && !('multiAgentEnabled' in raw) && !('agentIds' in raw) && !('multiAgentMode' in raw)) {
+  if (Object.keys($set).length === 0 && !('multiAgentEnabled' in raw) && !('agentIds' in raw) && !('multiAgentMode' in raw) && !('orchestratorAgentIds' in raw)) {
     return NextResponse.json({ error: 'Nada que actualizar.' }, { status: 400 });
   }
 
@@ -136,6 +137,7 @@ export async function PATCH(
     multiAgentEnabled?: boolean;
     multiAgentMode?: string;
     agentIds?: string[];
+    orchestratorAgentIds?: string[];
   } | null;
   if (!existing) {
     return NextResponse.json({ error: 'No encontrado.' }, { status: 404 });
@@ -144,7 +146,7 @@ export async function PATCH(
   const orchestratorAgentId =
     typeof $set.agentId === 'string' ? $set.agentId : String(existing.agentId ?? '');
 
-  if ('multiAgentEnabled' in raw || 'agentIds' in raw || 'multiAgentMode' in raw) {
+  if ('multiAgentEnabled' in raw || 'agentIds' in raw || 'multiAgentMode' in raw || 'orchestratorAgentIds' in raw) {
     const sub = await Subscription.findOne({ userId })
       .select({ plan: 1, status: 1 })
       .lean() as { plan?: string; status?: string } | null;
@@ -153,6 +155,8 @@ export async function PATCH(
     const multiEnabled =
       'multiAgentEnabled' in raw ? raw.multiAgentEnabled === true : existing.multiAgentEnabled === true;
     const agentIdsInput = 'agentIds' in raw ? raw.agentIds : existing.agentIds;
+    const orchIdsInput =
+      'orchestratorAgentIds' in raw ? raw.orchestratorAgentIds : existing.orchestratorAgentIds;
     const modeInput =
       'multiAgentMode' in raw ? validateMultiAgentMode(raw.multiAgentMode) : validateMultiAgentMode(existing.multiAgentMode);
     const validation = await validateMultiAgentWidgetSave({
@@ -161,6 +165,7 @@ export async function PATCH(
       orchestratorAgentId,
       multiAgentEnabled: multiEnabled,
       agentIds: agentIdsInput,
+      orchestratorAgentIds: orchIdsInput,
     });
     if (!validation.ok) {
       return NextResponse.json(
@@ -171,6 +176,7 @@ export async function PATCH(
     $set.multiAgentEnabled = multiEnabled;
     $set.multiAgentMode = multiEnabled ? modeInput : 'triage';
     $set.agentIds = validation.agentIds;
+    $set.orchestratorAgentIds = validation.orchestratorAgentIds;
   }
 
   if (Object.keys($set).length === 0) {

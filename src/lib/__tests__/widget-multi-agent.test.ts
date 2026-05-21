@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   buildMultiAgentStatusMessage,
   buildParallelSynthesisPrompt,
+  buildWidgetMultiAgentConfig,
+  findOrchestratorForMember,
   isMultiAgentPlanEligible,
   resolveHubAgentId,
   resolveRoutableHubAgentId,
+  resolveWidgetRoutingCapabilities,
   triageByKeywords,
   validateMultiAgentMode,
   type TeamMember,
@@ -137,5 +140,50 @@ describe('widget-multi-agent', () => {
     const route = resolveRoutableHubAgentId(orchestrator, specialist);
     expect(route?.handoff).toBe(true);
     expect(route?.hubId).toBe('hub-s');
+  });
+
+  it('resolveWidgetRoutingCapabilities activa triaje automático con subs sin toggle', () => {
+    const team: TeamMember[] = [
+      { id: 'o1', hubId: 'hub-o', name: 'Orq', description: '', role: 'orchestrator' },
+      { id: 's1', hubId: 'hub-s', name: 'Sub', description: '', role: 'specialist', parentOrchestratorId: 'o1' },
+    ];
+    const config = buildWidgetMultiAgentConfig({
+      agentId: 'o1',
+      multiAgentEnabled: false,
+      agentIds: [],
+      orchestratorAgentIds: [],
+    });
+    const caps = resolveWidgetRoutingCapabilities(config, team, 'starter');
+    expect(caps.autoSubAgents).toBe(true);
+    expect(caps.triage).toBe(true);
+    expect(caps.parallel).toBe(false);
+  });
+
+  it('resolveWidgetRoutingCapabilities habilita multi-orquestador solo con toggle premium', () => {
+    const team: TeamMember[] = [
+      { id: 'o1', hubId: 'hub-o', name: 'Orq A', description: '', role: 'orchestrator' },
+      { id: 'o2', hubId: 'hub-b', name: 'Orq B', description: '', role: 'orchestrator' },
+      { id: 's1', hubId: 'hub-s', name: 'Sub', description: '', role: 'specialist', parentOrchestratorId: 'o1' },
+    ];
+    const config = buildWidgetMultiAgentConfig({
+      agentId: 'o1',
+      multiAgentEnabled: true,
+      multiAgentMode: 'parallel',
+      orchestratorAgentIds: ['o2'],
+    });
+    const caps = resolveWidgetRoutingCapabilities(config, team, 'business');
+    expect(caps.multiOrchestrator).toBe(true);
+    expect(caps.triage).toBe(true);
+    expect(caps.parallel).toBe(true);
+  });
+
+  it('findOrchestratorForMember devuelve el padre del especialista', () => {
+    const team: TeamMember[] = [
+      { id: 'o1', hubId: 'hub-o', name: 'Orq A', description: '', role: 'orchestrator' },
+      { id: 'o2', hubId: 'hub-b', name: 'Orq B', description: '', role: 'orchestrator' },
+      { id: 's1', hubId: 'hub-s', name: 'Sub', description: '', role: 'specialist', parentOrchestratorId: 'o2' },
+    ];
+    const specialist = team[2];
+    expect(findOrchestratorForMember(team, specialist).id).toBe('o2');
   });
 });

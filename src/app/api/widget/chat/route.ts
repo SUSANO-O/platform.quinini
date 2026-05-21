@@ -24,9 +24,9 @@ import { logSecurityEvent } from '@/lib/security-log';
 import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
 import {
   applyMultiAgentRouting,
+  buildWidgetMultiAgentConfig,
   enrichChatResponseJson,
   executeParallelMultiAgentFlow,
-  normalizeAgentId,
   type MultiAgentRoutingMeta,
 } from '@/lib/widget-multi-agent';
 
@@ -402,12 +402,7 @@ export async function POST(req: NextRequest) {
           const active =
             subForRoute?.status === 'active' || subForRoute?.status === 'trialing';
           const planForRoute = active ? (subForRoute?.plan ?? 'free') : 'free';
-          const multiConfig = {
-            multiAgentEnabled: w.multiAgentEnabled === true,
-            multiAgentMode: w.multiAgentMode === 'parallel' ? 'parallel' as const : 'triage' as const,
-            orchestratorAgentId: normalizeAgentId(w.agentId),
-            agentIds: w.agentIds ?? [],
-          };
+          const multiConfig = buildWidgetMultiAgentConfig(w);
 
           const secretForParallel = process.env.HUB_TO_LANDING_SECRET?.trim() ?? '';
           if (multiConfig.multiAgentEnabled && multiConfig.multiAgentMode === 'parallel' && secretForParallel) {
