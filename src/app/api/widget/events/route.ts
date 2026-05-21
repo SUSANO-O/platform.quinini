@@ -31,6 +31,7 @@ const ALLOWED_EVENTS = new Set([
   'widget_error',
   /** Derivado del SDK cuando se muestra oferta WhatsApp / humano */
   'conversation_handoff',
+  'multi_agent_routed',
 ]);
 
 function corsHeaders(): Record<string, string> {
@@ -182,6 +183,29 @@ export async function POST(req: NextRequest) {
         dispatchSaasWebhook(uid, 'conversation.handoff', {
           agentId,
           details: typeof body.details === 'object' && body.details !== null ? body.details : {},
+        });
+      }
+
+      if (event === 'multi_agent_routed') {
+        const details = body.details as Record<string, unknown> | null;
+        const handoff = details?.handoff === true;
+        const mode = typeof details?.mode === 'string' ? details.mode : 'triage';
+        const inc: Record<string, number> = { multiAgentRouted: 1 };
+        if (handoff) inc.multiAgentHandoffs = 1;
+        if (mode === 'parallel') inc.multiAgentParallel = 1;
+        await ConversationSession.findOneAndUpdate(
+          { agentId, userId: uid, endedAt: null },
+          { $inc: inc },
+          { sort: { startedAt: -1 } },
+        );
+        dispatchSaasWebhook(uid, 'conversation.multi_agent_routed', {
+          agentId,
+          widgetId,
+          mode,
+          handoff,
+          specialist: typeof details?.specialist === 'string' ? details.specialist : null,
+          synthesized: details?.synthesized === true,
+          triageMethod: typeof details?.triageMethod === 'string' ? details.triageMethod : null,
         });
       }
 

@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { User, ClientAgent } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
-import { postCreateLandingAgentOnHubCatalog } from '@/lib/aibackhub-sync';
+import { ensureClientAgentHubSynced } from '@/lib/aibackhub-sync';
 
 export async function POST(req: NextRequest) {
   const token = req.cookies.get('afhub_session')?.value;
@@ -25,12 +25,27 @@ export async function POST(req: NextRequest) {
   const isAdmin = user?.role === 'admin';
   const syncAll = isAdmin && req.nextUrl.searchParams.get('all') === 'true';
 
-  // Find agents to sync
-  const filter = syncAll
-    ? { syncStatus: { $in: ['pending', 'failed'] } }
-    : { userId, syncStatus: { $in: ['pending', 'failed'] } };
+  const filter: Record<string, unknown> = syncAll
+    ? {
+        isPlatform: { $ne: true },
+        $or: [
+          { syncStatus: { $in: ['pending', 'failed'] } },
+          { agentHubId: { $in: [null, ''] } },
+        ],
+      }
+    : {
+        userId,
+        isPlatform: { $ne: true },
+        $or: [
+          { syncStatus: { $in: ['pending', 'failed'] } },
+          { agentHubId: { $in: [null, ''] } },
+        ],
+      };
 
-  const agents = await ClientAgent.find(filter).limit(50).lean();
+  const agents = await ClientAgent.find(filter)
+    .sort({ type: 1 })
+    .limit(50)
+    .lean();
 
   let synced = 0;
   let failed = 0;
@@ -39,16 +54,12 @@ export async function POST(req: NextRequest) {
     if ((agent as { isPlatform?: boolean }).isPlatform) {
       continue;
     }
-    const { success, hubId } = await postCreateLandingAgentOnHubCatalog(
-      agent as Parameters<typeof postCreateLandingAgentOnHubCatalog>[0],
-    );
-    if (success) {
-      const update: { syncStatus: 'synced'; agentHubId?: string } = { syncStatus: 'synced' };
-      if (hubId) update.agentHubId = hubId;
-      await ClientAgent.updateOne({ _id: agent._id }, update);
+    const mongoId = String(agent._id);
+    const ownerId = syncAll ? String(agent.userId) : userId;
+    const hubId = await ensureClientAgentHubSynced(mongoId, ownerId);
+    if (hubId) {
       synced++;
     } else {
-      await ClientAgent.updateOne({ _id: agent._id }, { syncStatus: 'failed' });
       failed++;
     }
   }

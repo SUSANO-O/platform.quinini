@@ -17,6 +17,7 @@ export type SaasWebhookEventType =
   | 'conversation.message_sent'
   | 'conversation.message_received'
   | 'conversation.feedback'
+  | 'conversation.multi_agent_routed'
   | 'quota.reached'
   | 'quota.warning'
   | 'agent.created'

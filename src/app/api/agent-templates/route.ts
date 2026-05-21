@@ -8,7 +8,7 @@ import { AGENT_TEMPLATES, getTemplate } from '@/lib/agent-templates';
 import { verifySessionToken } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent, Subscription } from '@/lib/db/models';
-import { getAgentLimits } from '@/lib/agent-plans';
+import { getAgentLimits, isAgentLimitReached } from '@/lib/agent-plans';
 
 export async function GET() {
   return NextResponse.json({
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   const limits = getAgentLimits(effectivePlan);
 
   const currentAgentCount = await ClientAgent.countDocuments({ userId, type: 'agent', status: 'active' });
-  if (currentAgentCount >= limits.agents) {
+  if (isAgentLimitReached(currentAgentCount, limits.agents)) {
     return NextResponse.json({
       error: `Tu plan ${effectivePlan} permite máximo ${limits.agents} agente(s). Actualiza para crear más.`,
       code: 'AGENT_LIMIT_EXCEEDED',

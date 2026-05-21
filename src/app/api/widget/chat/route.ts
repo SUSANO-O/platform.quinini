@@ -22,6 +22,13 @@ import { extractAndGuardMessage } from '@/lib/message-guard';
 import { signRequest, SIGNATURE_HEADER } from '@/lib/hub-signature';
 import { logSecurityEvent } from '@/lib/security-log';
 import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
+import {
+  applyMultiAgentRouting,
+  enrichChatResponseJson,
+  executeParallelMultiAgentFlow,
+  normalizeAgentId,
+  type MultiAgentRoutingMeta,
+} from '@/lib/widget-multi-agent';
 
 /** Max body size accepted from widget SDK (512 KB — allows image-to-image thumbnail). */
 const MAX_WIDGET_BODY_BYTES = 512 * 1024;
@@ -149,6 +156,8 @@ export async function POST(req: NextRequest) {
   const base = getAgentflowhubBaseUrl();
   const rawBody = await req.text();
   let bodyToForward = rawBody;
+  let multiAgentMeta: MultiAgentRoutingMeta | null = null;
+  let orchestratorName = 'Asistente';
 
   // Enforce size after read (content-length puede ser falso o ausente)
   if (rawBody.length > MAX_WIDGET_BODY_BYTES) {
@@ -386,6 +395,86 @@ export async function POST(req: NextRequest) {
           /* fail-open: si no podemos verificar, dejamos pasar */
         }
 
+        try {
+          const subForRoute = await Subscription.findOne({ userId: w.userId })
+            .select({ plan: 1, status: 1 })
+            .lean() as { plan?: string; status?: string } | null;
+          const active =
+            subForRoute?.status === 'active' || subForRoute?.status === 'trialing';
+          const planForRoute = active ? (subForRoute?.plan ?? 'free') : 'free';
+          const multiConfig = {
+            multiAgentEnabled: w.multiAgentEnabled === true,
+            multiAgentMode: w.multiAgentMode === 'parallel' ? 'parallel' as const : 'triage' as const,
+            orchestratorAgentId: normalizeAgentId(w.agentId),
+            agentIds: w.agentIds ?? [],
+          };
+
+          const secretForParallel = process.env.HUB_TO_LANDING_SECRET?.trim() ?? '';
+          if (multiConfig.multiAgentEnabled && multiConfig.multiAgentMode === 'parallel' && secretForParallel) {
+            const parallel = await executeParallelMultiAgentFlow({
+              rawBody: bodyToForward,
+              config: multiConfig,
+              userId: w.userId,
+              plan: planForRoute,
+              widgetToken,
+              traceId,
+              hubSecret: secretForParallel,
+            });
+            if (parallel) {
+              parsedAgentId = parallel.routedHubAgentId;
+              multiAgentMeta = parallel.meta;
+              const orch = await ClientAgent.findById(parallel.meta.orchestratorId)
+                .select({ name: 1 })
+                .lean() as { name?: string } | null;
+              orchestratorName = typeof orch?.name === 'string' ? orch.name : 'Asistente';
+              logWidgetFlow('🔀', 'chat:multiAgentParallel', 'síntesis multiagente', {
+                traceId,
+                routedAgentId: parallel.meta.routedAgentId,
+                synthesized: parallel.meta.synthesized,
+                contributors: parallel.meta.contributors?.length ?? 0,
+              });
+              trackWidgetChatUsage(widgetToken, parsedAgentId, true).catch(() => {});
+              void trackWidgetUserMessageForFaqCandidates({
+                ownerUserId: w.userId,
+                agentIdOrHubId: parsedAgentId,
+                rawBody,
+              }).catch(() => {});
+              return NextResponse.json(
+                {
+                  reply: parallel.reply,
+                  agentId: parsedAgentId,
+                  multiAgent: parallel.meta,
+                },
+                { status: 200, headers: cors(origin) },
+              );
+            }
+          }
+
+          const routing = await applyMultiAgentRouting({
+            rawBody: bodyToForward,
+            config: multiConfig,
+            userId: w.userId,
+            plan: planForRoute,
+          });
+          if (routing) {
+            bodyToForward = routing.body;
+            parsedAgentId = routing.routedHubAgentId;
+            multiAgentMeta = routing.meta;
+            const orch = await ClientAgent.findById(routing.meta.orchestratorId)
+              .select({ name: 1 })
+              .lean() as { name?: string } | null;
+            orchestratorName = typeof orch?.name === 'string' ? orch.name : 'Asistente';
+            logWidgetFlow('🔀', 'chat:multiAgent', 'triaje multiagente', {
+              traceId,
+              routedAgentId: routing.meta.routedAgentId,
+              method: routing.meta.triageMethod,
+              handoff: routing.meta.handoff,
+            });
+          }
+        } catch (routeErr) {
+          console.warn('[widget/chat] multi-agent routing skipped:', routeErr);
+        }
+
         const secret = process.env.HUB_TO_LANDING_SECRET?.trim();
         if (!secret) {
           return NextResponse.json(
@@ -437,6 +526,7 @@ export async function POST(req: NextRequest) {
                 reply: direct.reply,
                 toolsUsed: direct.toolsUsed,
                 agentId: parsedAgentId,
+                ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
               },
               { status: 200, headers: cors(origin) },
             );
@@ -492,6 +582,10 @@ export async function POST(req: NextRequest) {
     });
 
     const data = await res.text();
+    const outText =
+      multiAgentMeta && res.ok
+        ? enrichChatResponseJson(data, multiAgentMeta, orchestratorName)
+        : data;
     const out = new Headers();
     res.headers.forEach((v, k) => {
       if (!['content-encoding', 'transfer-encoding', 'connection'].includes(k.toLowerCase())) {
@@ -521,7 +615,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return new NextResponse(data, { status: res.status, headers: out });
+    return new NextResponse(outText, { status: res.status, headers: out });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const code =

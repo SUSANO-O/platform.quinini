@@ -7,8 +7,9 @@
 import { randomBytes } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
-import { Widget, ClientAgent, User } from '@/lib/db/models';
+import { Widget, ClientAgent, User, Subscription } from '@/lib/db/models';
 import { verifySessionToken, isUserEmailVerified, isImpersonationSession } from '@/lib/auth';
+import { validateMultiAgentWidgetSave, validateMultiAgentMode } from '@/lib/widget-multi-agent';
 
 function getUserId(req: NextRequest): string | null {
   const token = req.cookies.get('afhub_session')?.value;
@@ -38,6 +39,9 @@ export async function GET(req: NextRequest) {
   const widgetsOut = widgets.map((w) => ({
     ...w,
     agentName: nameByAgentId.get(String(w.agentId)) ?? null,
+    multiAgentEnabled: (w as { multiAgentEnabled?: boolean }).multiAgentEnabled === true,
+    multiAgentMode:
+      (w as { multiAgentMode?: string }).multiAgentMode === 'parallel' ? 'parallel' : 'triage',
   }));
   return NextResponse.json({ widgets: widgetsOut });
 }
@@ -77,7 +81,42 @@ export async function POST(req: NextRequest) {
       : `wt_${randomBytes(24).toString('hex')}`;
 
   const { afhubToken: _ignoredToken, userId: _ignoredUid, name: _ignoredName, ...rest } = body;
-  const widget = await Widget.create({ ...rest, name: nameStr, userId, afhubToken });
+
+  const orchestratorAgentId =
+    typeof rest.agentId === 'string' ? rest.agentId.trim() : '';
+  if (!orchestratorAgentId) {
+    return NextResponse.json({ error: 'agentId es requerido.' }, { status: 400 });
+  }
+
+  const sub = await Subscription.findOne({ userId })
+    .select({ plan: 1, status: 1 })
+    .lean() as { plan?: string; status?: string } | null;
+  const active = sub?.status === 'active' || sub?.status === 'trialing';
+  const plan = active ? (sub?.plan ?? 'free') : 'free';
+  const multiMode = validateMultiAgentMode(rest.multiAgentMode);
+  const multiValidation = await validateMultiAgentWidgetSave({
+    userId,
+    plan,
+    orchestratorAgentId,
+    multiAgentEnabled: rest.multiAgentEnabled === true,
+    agentIds: rest.agentIds,
+  });
+  if (!multiValidation.ok) {
+    return NextResponse.json(
+      { error: multiValidation.error, code: multiValidation.code },
+      { status: 403 },
+    );
+  }
+
+  const widget = await Widget.create({
+    ...rest,
+    name: nameStr,
+    userId,
+    afhubToken,
+    multiAgentEnabled: rest.multiAgentEnabled === true,
+    multiAgentMode: rest.multiAgentEnabled === true ? multiMode : 'triage',
+    agentIds: multiValidation.agentIds,
+  });
   return NextResponse.json({ widget }, { status: 201 });
 }
 

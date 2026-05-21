@@ -990,6 +990,41 @@
       window.addEventListener('resize', scheduleFabResizeForFab);
     }
 
+    function stripHandoffPrefix(raw) {
+      return String(raw || '').replace(/^\[[^\]\n]+ → [^\]\n]+\]\s*/, '');
+    }
+
+    function multiAgentBadgeHtml(meta) {
+      if (!meta || meta.enabled !== true) return '';
+      if (meta.mode === 'parallel' && meta.synthesized) {
+        return '<div class="afhub-multi-agent-tag" role="status">Respuesta del equipo</div>';
+      }
+      if (meta.handoff && meta.routedAgentName) {
+        return '<div class="afhub-multi-agent-tag" role="status">Atendido por ' + escapeHtml(meta.routedAgentName) + '</div>';
+      }
+      return '';
+    }
+
+    function appendMultiAgentBadge(el, meta) {
+      var html = multiAgentBadgeHtml(meta);
+      if (!html || !el) return;
+      var wrap = document.createElement('div');
+      wrap.innerHTML = html;
+      var tag = wrap.firstChild;
+      if (tag) el.insertBefore(tag, el.firstChild);
+    }
+
+    function emitMultiAgentEvent(meta) {
+      if (!meta || meta.enabled !== true) return;
+      emitEvent('multi_agent_routed', {
+        mode: meta.mode || 'triage',
+        handoff: meta.handoff === true,
+        synthesized: meta.synthesized === true,
+        specialist: meta.routedAgentName || null,
+        triageMethod: meta.triageMethod || null,
+      });
+    }
+
     /** Notas añadidas por el servidor (captura HubSpot automática); no deben verse en widget productivo. */
     function stripHubSpotProducerNotes(raw) {
       var t = String(raw || '');
@@ -999,7 +1034,8 @@
     }
 
     function botReplyForDisplay(raw) {
-      return cfg.showMcpUi ? String(raw || '') : stripHubSpotProducerNotes(String(raw || ''));
+      var t = stripHandoffPrefix(String(raw || ''));
+      return cfg.showMcpUi ? t : stripHubSpotProducerNotes(t);
     }
 
     function shortMcpToolLabel(toolId) {
@@ -1288,12 +1324,34 @@
       return el;
     }
 
-    function showTyping() {
+    function showTyping(statusLabel) {
       var el = document.createElement('div');
       el.className = 'afhub-msg bot typing';
       el.id = typingId;
-      el.innerHTML = '<div class="afhub-dot"></div><div class="afhub-dot"></div><div class="afhub-dot"></div>';
+      var labelHtml = statusLabel
+        ? '<span class="afhub-typing-label">' + escapeHtml(statusLabel) + '</span>'
+        : '';
+      el.innerHTML =
+        labelHtml +
+        '<div class="afhub-typing-dots"><div class="afhub-dot"></div><div class="afhub-dot"></div><div class="afhub-dot"></div></div>';
       messages.appendChild(el);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function updateTypingStatus(statusLabel) {
+      var el = document.getElementById(typingId);
+      if (!el) return;
+      var labelEl = el.querySelector('.afhub-typing-label');
+      if (statusLabel) {
+        if (!labelEl) {
+          labelEl = document.createElement('span');
+          labelEl.className = 'afhub-typing-label';
+          el.insertBefore(labelEl, el.firstChild);
+        }
+        labelEl.textContent = statusLabel;
+      } else if (labelEl) {
+        labelEl.remove();
+      }
       messages.scrollTop = messages.scrollHeight;
     }
 
@@ -1441,7 +1499,13 @@
       input.style.height = 'auto';
       sendBtn.disabled = true;
       isLoading = true;
-      showTyping();
+      var initialTyping =
+        cfg.multiAgentEnabled && cfg.multiAgentMode === 'parallel'
+          ? 'Consultando especialistas…'
+          : cfg.multiAgentEnabled
+            ? 'Analizando tu consulta…'
+            : '';
+      showTyping(initialTyping || undefined);
 
       var baseHost = cfg.host.replace(/\/$/, '');
       var endpoint = baseHost + '/api/widget/chat';
@@ -1485,7 +1549,6 @@
           var streamReply = '';
           var streamBubble = null;
           var streamDone = false;
-          hideTyping();
 
           while (!streamDone) {
             var chunk = await streamReader.read();
@@ -1499,7 +1562,13 @@
               var rawJson = line.slice(5).trim();
               var evt;
               try { evt = JSON.parse(rawJson); } catch { continue; }
+              if (evt.type === 'status' && typeof evt.message === 'string') {
+                if (!document.getElementById(typingId)) showTyping(evt.message);
+                else updateTypingStatus(evt.message);
+                continue;
+              }
               if (evt.type === 'token') {
+                hideTyping();
                 streamReply += evt.text;
                 var streamShown = botReplyForDisplay(streamReply);
                 if (!streamBubble) {
@@ -1512,6 +1581,7 @@
                 }
               } else if (evt.type === 'done') {
                 streamDone = true;
+                hideTyping();
                 var finalRaw = evt.reply || streamReply;
                 var finalReply = botReplyForDisplay(finalRaw);
                 var stTools = evt.toolsUsed;
@@ -1530,6 +1600,7 @@
                   var te2 = streamBubble.querySelector('.afhub-msg-text');
                   if (te2) te2.textContent = finalReply;
                   streamBubble.classList.remove('afhub-msg--streaming');
+                  appendMultiAgentBadge(streamBubble, evt.multiAgent);
                   if (cfg.showMcpUi) {
                     appendMcpMetadataToBubble(streamBubble, { toolsUsed: stTools, mcpTag: stMcpTag });
                   }
@@ -1564,6 +1635,7 @@
                 resolvedAgentId = evt.agentId || resolvedAgentId;
                 history.push({ role: 'model', content: finalReply });
                 notify('onMessageReceived', finalReply);
+                emitMultiAgentEvent(evt.multiAgent);
                 var stTagInf = stMcpTag;
                 if (!stTagInf && stTools && stTools.length) stTagInf = inferMcpTagFromToolIds(stTools);
                 emitEvent('message_received', {
@@ -1642,9 +1714,11 @@
           }
         }
         var botBubble = addMessage('bot', reply, botOpts);
+        appendMultiAgentBadge(botBubble, data.multiAgent);
         if (usedModel) appendFallbackTagToBubble(botBubble, usedModel, cfg.debug);
         history.push({ role: 'model', content: reply });
         notify('onMessageReceived', reply);
+        emitMultiAgentEvent(data.multiAgent);
         emitEvent('message_received', {
           length: String(reply || '').length,
           model: data.model || null,
@@ -2447,7 +2521,10 @@
         cfg.color +
         '; }' +
       '#' + rootId + ' .afhub-img-download:hover { text-decoration:underline; }' +
-      '#' + rootId + ' .afhub-msg.typing { display:flex; gap:4px; padding:12px 18px; }' +
+      '#' + rootId + ' .afhub-msg.typing { display:flex; flex-direction:column; gap:6px; padding:12px 18px; }' +
+      '#' + rootId + ' .afhub-typing-dots { display:flex; gap:4px; align-items:center; }' +
+      '#' + rootId + ' .afhub-typing-label { font-size:11px; line-height:1.35; color:#6b7280; font-weight:600; }' +
+      '#' + rootId + ' .afhub-multi-agent-tag { display:inline-flex; align-items:center; margin-bottom:8px; font-size:10px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; padding:3px 8px; border-radius:999px; color:' + cfg.color + '; background:' + cfg.color + '14; border:1px solid ' + cfg.color + '33; }' +
       '#' + rootId + ' .afhub-feedback-row { align-self:flex-start; display:inline-flex; gap:6px; margin:-6px 0 2px 2px; }' +
       '#' + rootId + ' .afhub-feedback-btn { width:24px; height:24px; border-radius:999px; border:1px solid rgba(0,0,0,.12); background:transparent; color:#6b7280; font-size:12px; line-height:1; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all .12s ease; padding:0; }' +
       '#' + rootId + ' .afhub-feedback-btn:hover { border-color:rgba(0,0,0,.24); color:#111827; }' +

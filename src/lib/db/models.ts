@@ -120,8 +120,11 @@ const WidgetSchema = new Schema({
     }],
     default: [],
   },
-  /** IDs de agentes adicionales para routing multi-agente (feature en desarrollo, no expuesto en UI). */
+  /** IDs de agentes adicionales para routing multi-agente (plan Business+). */
   agentIds: { type: [String], default: [] },
+  /** Fase 1: triaje + handoff vía orquestador (solo Business). */
+  multiAgentEnabled: { type: Boolean, default: false },
+  multiAgentMode: { type: String, enum: ['triage', 'parallel'], default: 'triage' },
 }, { timestamps: true });
 
 WidgetSchema.index({ userId: 1, createdAt: -1 });
@@ -300,6 +303,10 @@ const ConversationSessionSchema = new Schema({
   /** Día de la semana (0=dom, 6=sab) */
   dayOfWeek:    { type: Number, default: null },
   month:        { type: String, default: '' }, // "YYYY-MM"
+  /** Contadores Fase 4 — routing multiagente por sesión */
+  multiAgentRouted:   { type: Number, default: 0 },
+  multiAgentHandoffs: { type: Number, default: 0 },
+  multiAgentParallel: { type: Number, default: 0 },
 }, { timestamps: true });
 
 ConversationSessionSchema.index({ widgetId: 1, month: -1 });

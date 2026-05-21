@@ -7,7 +7,7 @@ import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
-import { getAibackhubBaseUrl, hubCreateHeaders } from '@/lib/aibackhub-sync';
+import { getAibackhubBaseUrl, hubCreateHeaders, ensureClientAgentHubSynced } from '@/lib/aibackhub-sync';
 
 export async function getSessionUserId(req: NextRequest): Promise<string | null> {
   const token = req.cookies.get('afhub_session')?.value;
@@ -34,29 +34,15 @@ export async function getWritableLandingAgent(landingAgentId: string, userId: st
  */
 export async function resolveHubAgentIdForMcp(landingAgentId: string): Promise<string | null> {
   await connectDB();
-  const agent = await ClientAgent.findById(landingAgentId).select('agentHubId').lean();
+  const agent = await ClientAgent.findById(landingAgentId).select('agentHubId userId').lean() as
+    | { agentHubId?: string | null; userId?: string }
+    | null;
   if (!agent) return null;
   if (typeof agent.agentHubId === 'string' && agent.agentHubId.trim()) {
     return agent.agentHubId.trim();
   }
-  const base = getAibackhubBaseUrl();
-  if (!base) return null;
-  try {
-    const res = await fetch(`${base}/api/agents`, {
-      headers: hubCreateHeaders(),
-      cache: 'no-store',
-      signal: AbortSignal.timeout(12_000),
-    });
-    if (!res.ok) return null;
-    const body = await res.json();
-    const agents: { id: string; landingClientAgentId?: string }[] = body?.data ?? body ?? [];
-    for (const a of agents) {
-      if (a.landingClientAgentId === landingAgentId) return a.id;
-    }
-  } catch {
-    return null;
-  }
-  return landingAgentId;
+  const userId = agent.userId ? String(agent.userId) : undefined;
+  return ensureClientAgentHubSynced(landingAgentId, userId);
 }
 
 /**

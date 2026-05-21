@@ -62,6 +62,7 @@ const reply = typeof j.reply === 'string' ? j.reply : JSON.stringify(j, null, 2)
 console.log(reply.slice(0, 1200));
 if (reply.length > 1200) console.log('\n… [truncado]');
 console.log('\n--- señales ---');
+console.log('multiAgent:', j.multiAgent ?? null);
 console.log('[FIN-ANALYSIS] al inicio:', /^[\s]*\[FIN-ANALYSIS\]/i.test(reply));
 console.log('Incluye "Validando perfil"', /validando perfil/i.test(reply));
 console.log('toolsUsed:', j.toolsUsed);
