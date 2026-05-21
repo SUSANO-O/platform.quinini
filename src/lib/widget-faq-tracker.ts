@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 import { ClientAgent } from '@/lib/db/models';
 import {
+  extractFaqQuestionText,
+  isUsefulFaqCandidateMessage,
   normalizeFaqKey,
   userMessageMatchesRegisteredFaq,
   type AgentFaqRow,
@@ -9,7 +11,7 @@ import {
 import { canAttemptHubSync, syncHubCatalogFromLandingAgentDoc } from '@/lib/aibackhub-sync';
 
 const MAX_CANDIDATES = 40;
-const MIN_MESSAGE_LEN = 14;
+const MIN_QUESTION_LEN = 12;
 
 function extractLastUserMessage(rawBody: string): string | null {
   try {
@@ -35,6 +37,15 @@ function extractLastUserMessage(rawBody: string): string | null {
   return null;
 }
 
+function pickBetterSample(current: string | undefined, next: string): string {
+  const cur = String(current ?? '').trim();
+  const n = next.trim();
+  if (!cur) return n;
+  if (n.includes('?') && !cur.includes('?')) return n;
+  if (n.length > cur.length + 8) return n;
+  return cur;
+}
+
 function bumpCandidates(
   prev: FaqCandidateRow[] | undefined,
   key: string,
@@ -49,7 +60,7 @@ function bumpCandidates(
       ...cur,
       count: (cur.count ?? 0) + 1,
       lastSeen: now,
-      questionSample: sample.length > (cur.questionSample?.length ?? 0) ? sample : cur.questionSample,
+      questionSample: pickBetterSample(cur.questionSample, sample),
     };
   } else {
     list.push({
@@ -67,7 +78,7 @@ function bumpCandidates(
 
 /**
  * Tras un turno de chat del widget (token wt_), registra candidatas a FAQ si el mensaje
- * no coincide con ninguna FAQ ya definida.
+ * parece una pregunta útil y no coincide con ninguna FAQ ya definida.
  */
 export async function trackWidgetUserMessageForFaqCandidates(params: {
   ownerUserId: string;
@@ -75,7 +86,11 @@ export async function trackWidgetUserMessageForFaqCandidates(params: {
   rawBody: string;
 }): Promise<void> {
   const last = extractLastUserMessage(params.rawBody);
-  if (!last || last.length < MIN_MESSAGE_LEN) return;
+  if (!last) return;
+
+  const questionText = extractFaqQuestionText(last);
+  if (!isUsefulFaqCandidateMessage(questionText)) return;
+  if (questionText.length < MIN_QUESTION_LEN) return;
 
   const idParam = params.agentIdOrHubId.trim();
   if (!idParam) return;
@@ -99,15 +114,17 @@ export async function trackWidgetUserMessageForFaqCandidates(params: {
   if (!agent) return;
 
   const faqs = (agent as { agentFaqs?: AgentFaqRow[] }).agentFaqs ?? [];
-  if (userMessageMatchesRegisteredFaq(last, faqs)) return;
+  if (userMessageMatchesRegisteredFaq(questionText, faqs)) return;
 
-  const key = normalizeFaqKey(last);
+  const key = normalizeFaqKey(questionText);
   if (key.length < 10) return;
 
   const prev = ((agent as { faqCandidates?: FaqCandidateRow[] }).faqCandidates ?? []) as FaqCandidateRow[];
-  const next = bumpCandidates(prev, key, last.slice(0, 400));
+  const next = bumpCandidates(prev, key, questionText);
 
-  const filter = hex.test(idParam) ? { _id: idParam, userId: params.ownerUserId } : { agentHubId: idParam, userId: params.ownerUserId };
+  const filter = hex.test(idParam)
+    ? { _id: idParam, userId: params.ownerUserId }
+    : { agentHubId: idParam, userId: params.ownerUserId };
   await ClientAgent.updateOne(filter, { $set: { faqCandidates: next } });
 
   if (canAttemptHubSync()) {

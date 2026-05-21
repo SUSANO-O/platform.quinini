@@ -4,9 +4,16 @@ import {
   canUseOutboundSaasWebhook,
   planHasAgentWebhookFeature,
   planHasOutboundWebhookFeature,
+  planHasApiAccessFeature,
+  planHasEscalationTicketFeature,
+  planHasCustomIntegrationFeature,
+  formatConversationAnalyticsFeature,
   effectiveProductPlan,
   AGENT_WEBHOOK_MIN_PLAN,
   OUTBOUND_SAAS_WEBHOOK_MIN_PLAN,
+  API_ACCESS_MIN_PLAN,
+  ESCALATION_TICKET_MIN_PLAN,
+  CUSTOM_INTEGRATION_MIN_PLAN,
   PLAN_FEATURE_BULLETS,
 } from '../plan-catalog';
 import { buildPlanComparisonRows } from '../plan-economics';
@@ -16,6 +23,9 @@ describe('webhook entitlements (plan-catalog)', () => {
   it('defines expected minimum plans', () => {
     expect(AGENT_WEBHOOK_MIN_PLAN).toBe('solo');
     expect(OUTBOUND_SAAS_WEBHOOK_MIN_PLAN).toBe('starter');
+    expect(API_ACCESS_MIN_PLAN).toBe('starter');
+    expect(ESCALATION_TICKET_MIN_PLAN).toBe('growth');
+    expect(CUSTOM_INTEGRATION_MIN_PLAN).toBe('business');
   });
 
   it('agent webhook: Solo+ only', () => {
@@ -47,6 +57,16 @@ describe('webhook entitlements (plan-catalog)', () => {
     expect(planHasAgentWebhookFeature('solo')).toBe(true);
     expect(planHasOutboundWebhookFeature('plus')).toBe(false);
     expect(planHasOutboundWebhookFeature('starter')).toBe(true);
+    expect(planHasApiAccessFeature('plus')).toBe(false);
+    expect(planHasApiAccessFeature('starter')).toBe(true);
+    expect(planHasEscalationTicketFeature('starter')).toBe(false);
+    expect(planHasEscalationTicketFeature('growth')).toBe(true);
+    expect(planHasCustomIntegrationFeature('growth')).toBe(false);
+    expect(planHasCustomIntegrationFeature('business')).toBe(true);
+    expect(formatConversationAnalyticsFeature('plus')).toBe('Básico');
+    expect(formatConversationAnalyticsFeature('growth')).toBe('Avanzado');
+    expect(formatConversationAnalyticsFeature('business')).toBe('Completo');
+    expect(formatConversationAnalyticsFeature('basic')).toBe('—');
   });
 
   it('plan bullets mention webhooks on paid tiers', () => {
@@ -74,20 +94,34 @@ describe('agent tool limits (agent-plans)', () => {
 });
 
 describe('pricing comparison rows', () => {
-  it('includes webhook columns for all plans', () => {
+  it('includes webhook and platform feature columns for all plans', () => {
     const rows = buildPlanComparisonRows();
     expect(rows.length).toBeGreaterThan(0);
     for (const row of rows) {
       expect(row).toHaveProperty('agentWebhook');
       expect(row).toHaveProperty('outboundWebhook');
+      expect(row).toHaveProperty('apiAccess');
+      expect(row).toHaveProperty('customIntegration');
+      expect(row).toHaveProperty('escalationTickets');
+      expect(row).toHaveProperty('conversationAnalytics');
     }
     const free = rows.find((r) => r.id === 'free');
     const solo = rows.find((r) => r.id === 'solo');
+    const plus = rows.find((r) => r.id === 'plus');
     const starter = rows.find((r) => r.id === 'starter');
+    const growth = rows.find((r) => r.id === 'growth');
+    const business = rows.find((r) => r.id === 'business');
     expect(free?.agentWebhook).toBe('—');
     expect(free?.outboundWebhook).toBe('—');
+    expect(free?.apiAccess).toBe('—');
     expect(solo?.agentWebhook).toBe('Incluido');
     expect(solo?.outboundWebhook).toBe('—');
-    expect(starter?.outboundWebhook).toBe('Incluido');
+    expect(plus?.conversationAnalytics).toBe('Básico');
+    expect(starter?.apiAccess).toBe('Incluido');
+    expect(starter?.escalationTickets).toBe('—');
+    expect(growth?.escalationTickets).toBe('Incluido');
+    expect(growth?.conversationAnalytics).toBe('Avanzado');
+    expect(business?.customIntegration).toBe('Incluido');
+    expect(business?.conversationAnalytics).toBe('Completo');
   });
 });

@@ -489,6 +489,78 @@
     return 'afhub:chat-session:' + h + ':' + String(cfg.agentId || 'na') + ':' + String(cfg.widgetId || tok);
   }
 
+  var CHAT_HISTORY_STORAGE_VER = 1;
+  var CHAT_HISTORY_MAX_MESSAGES = 60;
+  var CHAT_LAST_IMAGE_MAX_CHARS = 120000;
+
+  function chatHistoryStorageKey(cfg) {
+    return chatSessionStorageKey(cfg) + ':hist';
+  }
+
+  function sanitizeHistoryEntries(raw) {
+    if (!Array.isArray(raw)) return [];
+    var out = [];
+    for (var i = 0; i < raw.length && out.length < CHAT_HISTORY_MAX_MESSAGES; i++) {
+      var row = raw[i];
+      if (!row || typeof row !== 'object') continue;
+      var role = String(row.role || '').toLowerCase();
+      var content = typeof row.content === 'string' ? row.content.trim() : '';
+      if (!content) continue;
+      if (role !== 'user' && role !== 'model') continue;
+      out.push({ role: role, content: content.slice(0, 8000) });
+    }
+    return out;
+  }
+
+  function loadPersistedChatState(cfg, sessionId) {
+    try {
+      var raw = sessionStorage.getItem(chatHistoryStorageKey(cfg));
+      if (!raw) return null;
+      var data = JSON.parse(raw);
+      if (!data || data.v !== CHAT_HISTORY_STORAGE_VER) return null;
+      if (data.sessionId !== sessionId) return null;
+      var lastImg =
+        typeof data.lastGeneratedImageDataUrl === 'string' &&
+        data.lastGeneratedImageDataUrl.length <= CHAT_LAST_IMAGE_MAX_CHARS
+          ? data.lastGeneratedImageDataUrl
+          : '';
+      return {
+        history: sanitizeHistoryEntries(data.history),
+        lastGeneratedImageDataUrl: lastImg,
+      };
+    } catch (_e) {
+      return null;
+    }
+  }
+
+  function persistChatState(cfg, sessionId, historyArr, lastImage) {
+    try {
+      var payload = {
+        v: CHAT_HISTORY_STORAGE_VER,
+        sessionId: sessionId,
+        at: Date.now(),
+        history: sanitizeHistoryEntries(historyArr),
+        lastGeneratedImageDataUrl:
+          typeof lastImage === 'string' &&
+          lastImage.length > 0 &&
+          lastImage.length <= CHAT_LAST_IMAGE_MAX_CHARS
+            ? lastImage
+            : '',
+      };
+      sessionStorage.setItem(chatHistoryStorageKey(cfg), JSON.stringify(payload));
+    } catch (_e) {
+      /* quota / modo privado */
+    }
+  }
+
+  function clearPersistedChatState(cfg) {
+    try {
+      sessionStorage.removeItem(chatHistoryStorageKey(cfg));
+    } catch (_e) {
+      /* noop */
+    }
+  }
+
   function getOrCreateChatSessionId(cfg) {
     var key = chatSessionStorageKey(cfg);
     try {
@@ -513,6 +585,84 @@
     return sid;
   }
 
+  function imageExtFromMime(mime, url) {
+    var m = (mime && String(mime).toLowerCase()) || '';
+    if (m.indexOf('jpeg') >= 0 || m.indexOf('jpg') >= 0) return 'jpg';
+    if (m.indexOf('webp') >= 0) return 'webp';
+    if (m.indexOf('gif') >= 0) return 'gif';
+    if (m.indexOf('png') >= 0) return 'png';
+    if (typeof url === 'string' && /^data:image\/([^;]+);/i.test(url)) {
+      var mm = /^data:image\/([^;]+);/i.exec(url);
+      if (mm && mm[1]) return mm[1] === 'jpeg' ? 'jpg' : mm[1];
+    }
+    return 'png';
+  }
+
+  function imageDownloadFileName(index, mime, url) {
+    return 'agentflow-imagen-' + (index + 1) + '.' + imageExtFromMime(mime, url);
+  }
+
+  function triggerImageDownload(url, fileName) {
+    if (/^data:image\//i.test(url)) {
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      return;
+    }
+    fetch(url, { mode: 'cors', credentials: 'omit' })
+      .then(function (r) {
+        return r.blob();
+      })
+      .then(function (blob) {
+        var obj = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = obj;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(obj);
+      })
+      .catch(function () {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      });
+  }
+
+  /** Botón circular minimalista (mismo estilo que copiar texto). */
+  function createImageDownloadButton(url, fileName) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'afhub-msg-copy-btn afhub-img-download-btn';
+    btn.setAttribute('aria-label', 'Descargar imagen');
+    btn.setAttribute('title', 'Descargar imagen');
+    btn.textContent = '↓';
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      triggerImageDownload(url, fileName);
+    });
+    return btn;
+  }
+
+  function appendGeneratedImage(wrap, url, item, index) {
+    var frame = document.createElement('div');
+    frame.className = 'afhub-img-frame';
+    var im = document.createElement('img');
+    im.className = 'afhub-widget-img';
+    im.alt = 'Imagen generada';
+    im.loading = 'lazy';
+    im.referrerPolicy = 'no-referrer';
+    im.src = url;
+    frame.appendChild(im);
+    var fname = imageDownloadFileName(index, item && item.mimeType, url);
+    var dlBtn = createImageDownloadButton(url, fname);
+    frame.appendChild(dlBtn);
+    wrap.appendChild(frame);
+  }
+
   function createWidgetInstance(id, cfg) {
     var rootId = 'afhub-widget-root-' + id;
     var typingId = 'afhub-typing-' + id;
@@ -524,8 +674,32 @@
     var fabDrag = null;
     var history = [];
     var chatSessionId = getOrCreateChatSessionId(cfg);
+    var persistedChat = loadPersistedChatState(cfg, chatSessionId);
+    if (persistedChat) {
+      history = persistedChat.history;
+    }
+    var historyDomReady = false;
     var resolvedAgentId = null;
-    var lastGeneratedImageDataUrl = '';
+    var lastGeneratedImageDataUrl = persistedChat ? persistedChat.lastGeneratedImageDataUrl || '' : '';
+
+    function saveChatToSession() {
+      persistChatState(cfg, chatSessionId, history, lastGeneratedImageDataUrl);
+    }
+
+    function renderHistoryToDom() {
+      if (historyDomReady) return;
+      historyDomReady = true;
+      messages.innerHTML = '';
+      if (!history.length) {
+        addMessage('bot', cfg.welcome);
+        return;
+      }
+      for (var hi = 0; hi < history.length; hi++) {
+        var entry = history[hi];
+        if (entry.role === 'user') addMessage('user', entry.content);
+        else if (entry.role === 'model') addMessage('bot', entry.content);
+      }
+    }
 
     var root = document.createElement('div');
     root.id = rootId;
@@ -1224,66 +1398,7 @@
             if (typeof u === 'string' && (/^data:image\//i.test(u) || /^https?:\/\//i.test(u))) {
               var wrap = document.createElement('div');
               wrap.className = 'afhub-img-wrap';
-              var frame = document.createElement('div');
-              frame.className = 'afhub-img-frame';
-              var im = document.createElement('img');
-              im.className = 'afhub-widget-img';
-              im.alt = 'Imagen generada';
-              im.loading = 'lazy';
-              im.referrerPolicy = 'no-referrer';
-              im.src = u;
-              frame.appendChild(im);
-              wrap.appendChild(frame);
-
-              function extFromMime(mime) {
-                var m = (mime && String(mime).toLowerCase()) || '';
-                if (m.indexOf('jpeg') >= 0 || m.indexOf('jpg') >= 0) return 'jpg';
-                if (m.indexOf('webp') >= 0) return 'webp';
-                if (m.indexOf('gif') >= 0) return 'gif';
-                if (m.indexOf('png') >= 0) return 'png';
-                return 'png';
-              }
-              var ext = extFromMime(item.mimeType);
-              if (!item.mimeType && /^data:image\/([^;]+);/i.test(u)) {
-                var mm = /^data:image\/([^;]+);/i.exec(u);
-                if (mm && mm[1]) ext = mm[1] === 'jpeg' ? 'jpg' : mm[1];
-              }
-              var fname = 'agentflow-imagen-' + (j + 1) + '.' + ext;
-
-              var dl = document.createElement('a');
-              dl.className = 'afhub-img-download';
-              dl.textContent = 'Descargar imagen';
-              dl.setAttribute('aria-label', 'Descargar imagen');
-              if (/^data:image\//i.test(u)) {
-                dl.href = u;
-                dl.setAttribute('download', fname);
-              } else {
-                dl.href = u;
-                dl.setAttribute('download', fname);
-                (function (url, fileName) {
-                  dl.addEventListener('click', function (ev) {
-                    ev.preventDefault();
-                    fetch(url, { mode: 'cors', credentials: 'omit' })
-                      .then(function (r) {
-                        return r.blob();
-                      })
-                      .then(function (blob) {
-                        var obj = URL.createObjectURL(blob);
-                        var a = document.createElement('a');
-                        a.href = obj;
-                        a.download = fileName;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(obj);
-                      })
-                      .catch(function () {
-                        window.open(url, '_blank', 'noopener,noreferrer');
-                      });
-                  });
-                })(u, fname);
-              }
-              wrap.appendChild(dl);
+              appendGeneratedImage(wrap, u, item, j);
               el.appendChild(wrap);
             }
           }
@@ -1325,7 +1440,8 @@
         }
       });
       messages.appendChild(el);
-      if (type === 'bot' && String(text || '').trim()) {
+      var hasBotImages = type === 'bot' && imgOpts && imgOpts.images && imgOpts.images.length;
+      if (type === 'bot' && (String(text || '').trim() || hasBotImages)) {
         var feedbackId = 'fb_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
         var fbRow = document.createElement('div');
         fbRow.className = 'afhub-feedback-row';
@@ -1363,7 +1479,9 @@
 
         fbRow.appendChild(makeFeedbackBtn('up', 'Me gusto esta respuesta', '👍'));
         fbRow.appendChild(makeFeedbackBtn('down', 'No me gusto esta respuesta', '👎'));
-        fbRow.appendChild(copyBtn);
+        if (String(text || '').trim()) {
+          fbRow.appendChild(copyBtn);
+        }
         messages.appendChild(fbRow);
       }
       messages.scrollTop = messages.scrollHeight;
@@ -1451,7 +1569,7 @@
       fab.innerHTML = ICON_X;
       fab.setAttribute('aria-label', 'Cerrar chat');
       syncChatPanelLayout();
-      if (history.length === 0) addMessage('bot', cfg.welcome);
+      renderHistoryToDom();
       input.focus();
       notify('onOpen');
       emitEvent('widget_opened');
@@ -1475,15 +1593,19 @@
     function startNewConversation() {
       if (isLoading) return;
       emitEvent('widget_closed');
+      clearPersistedChatState(cfg);
       chatSessionId = rotateChatSessionId(cfg);
       history = [];
       lastGeneratedImageDataUrl = '';
+      historyDomReady = false;
       hideTyping();
       messages.innerHTML = '';
       input.value = '';
       input.style.height = 'auto';
       sendBtn.disabled = true;
       addMessage('bot', cfg.welcome);
+      historyDomReady = true;
+      saveChatToSession();
       emitEvent('widget_opened');
       if (isOpen) input.focus();
     }
@@ -1556,6 +1678,7 @@
       addMessage('user', text);
       appendHumanSupportOfferInChat(text);
       history.push({ role: 'user', content: text });
+      saveChatToSession();
       notify('onMessageSent', text);
       emitEvent('message_sent', { length: text.length });
       input.value = '';
@@ -1688,16 +1811,7 @@
                       if (typeof sUrl === 'string' && (/^data:image\//i.test(sUrl) || /^https?:\/\//i.test(sUrl))) {
                         var sWrap = document.createElement('div');
                         sWrap.className = 'afhub-img-wrap';
-                        var sFrame = document.createElement('div');
-                        sFrame.className = 'afhub-img-frame';
-                        var sIm = document.createElement('img');
-                        sIm.className = 'afhub-widget-img';
-                        sIm.alt = 'Imagen generada';
-                        sIm.loading = 'lazy';
-                        sIm.referrerPolicy = 'no-referrer';
-                        sIm.src = sUrl;
-                        sFrame.appendChild(sIm);
-                        sWrap.appendChild(sFrame);
+                        appendGeneratedImage(sWrap, sUrl, sItem, si);
                         streamBubble.appendChild(sWrap);
                       }
                     }
@@ -1705,6 +1819,7 @@
                 }
                 resolvedAgentId = evt.agentId || resolvedAgentId;
                 history.push({ role: 'model', content: finalReply });
+                saveChatToSession();
                 notify('onMessageReceived', finalReply);
                 emitMultiAgentEvent(evt.multiAgent);
                 var stTagInf = stMcpTag;
@@ -1789,6 +1904,7 @@
         appendMultiAgentBadge(botBubble, data.multiAgent);
         if (usedModel) appendFallbackTagToBubble(botBubble, usedModel, cfg.debug);
         history.push({ role: 'model', content: reply });
+        saveChatToSession();
         notify('onMessageReceived', reply);
         emitMultiAgentEvent(data.multiAgent);
         emitEvent('message_received', {
@@ -2467,6 +2583,8 @@
           '#' + rootId + ' .afhub-persona-tag { border-color:rgba(255,255,255,.12); background:rgba(255,255,255,.06); }' +
           '#' + rootId + ' .afhub-msg-copy-btn { border-color:rgba(255,255,255,.2); color:#a9b0bd; }' +
           '#' + rootId + ' .afhub-msg-copy-btn:hover { border-color:rgba(255,255,255,.4); color:#eef2ff; }' +
+          '#' + rootId + ' .afhub-img-download-btn { background:rgba(15,23,42,.72); border-color:rgba(255,255,255,.25); color:#f8fafc; }' +
+          '#' + rootId + ' .afhub-img-download-btn:hover { background:rgba(15,23,42,.88); border-color:rgba(255,255,255,.45); }' +
           '#' + rootId + ' .afhub-feedback-btn { color:#a9b0bd; }' +
           '#' + rootId + ' .afhub-feedback-btn.active { background:rgba(255,255,255,.08); }' +
           '#' + rootId + ' .afhub-msg-rich .afhub-pre { background:#1a1a24; color:#e8e8ef; border-color:rgba(255,255,255,.08); }' +
@@ -2577,6 +2695,9 @@
       '#' + rootId + ' .afhub-msg-rich em { font-style:italic; opacity:.95; }' +
       '#' + rootId + ' .afhub-msg-copy-btn { width:20px; height:20px; border-radius:999px; border:1px solid rgba(0,0,0,.14); background:transparent; color:inherit; font-size:11px; line-height:1; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; opacity:.7; padding:0; }' +
       '#' + rootId + ' .afhub-msg-copy-btn:hover { opacity:1; border-color:rgba(0,0,0,.24); }' +
+      '#' + rootId + ' .afhub-img-frame { position:relative; border-radius:12px; overflow:hidden; border:1px solid rgba(0,0,0,.08); }' +
+      '#' + rootId + ' .afhub-img-download-btn { position:absolute; top:8px; right:8px; z-index:2; opacity:.92; background:rgba(255,255,255,.92); border-color:rgba(0,0,0,.12); color:#374151; box-shadow:0 1px 4px rgba(0,0,0,.12); }' +
+      '#' + rootId + ' .afhub-img-download-btn:hover { opacity:1; background:#fff; }' +
       '#' + rootId + ' .afhub-cooldown-pill { display:block; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:rgba(0,0,0,.42); margin:0 0 10px; padding:4px 10px; border-radius:999px; background:rgba(0,0,0,.05); border:1px solid rgba(0,0,0,.08); width:fit-content; }' +
       '#' + rootId + ' .afhub-quota-tag { display:block; font-size:12px; font-weight:500; line-height:1.45; margin:0 0 10px; padding:8px 11px; border-radius:10px; border:1px solid rgba(0,0,0,.1); width:100%; max-width:100%; box-sizing:border-box; }' +
       '#' + rootId + ' .afhub-quota-tag--warn { color:#92400e; background:rgba(251,191,36,.14); border-color:rgba(217,119,6,.28); }' +
@@ -2590,14 +2711,7 @@
       '#' + rootId + ' .afhub-fallback-tag--debug { font-size:10px; font-weight:700; color:#92400e; background:rgba(251,191,36,.12); border-color:rgba(217,119,6,.3); }' +
       '#' + rootId + ' .afhub-tool-tag { font-size:10px; line-height:1.25; letter-spacing:.02em; padding:2px 6px; border-radius:6px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:rgba(0,0,0,.06); color:#5a5a6e; border:1px solid rgba(0,0,0,.08); }' +
       '#' + rootId + ' .afhub-img-wrap { margin-top:10px; max-width:100%; display:flex; flex-direction:column; gap:8px; }' +
-      '#' + rootId + ' .afhub-img-frame { border-radius:12px; overflow:hidden; border:1px solid rgba(0,0,0,.08); }' +
       '#' + rootId + ' .afhub-widget-img { display:block; width:100%; max-width:100%; height:auto; vertical-align:middle; }' +
-      '#' +
-        rootId +
-        ' .afhub-img-download { font-size:12px; font-weight:600; text-decoration:none; align-self:flex-start; padding:2px 0; color:' +
-        cfg.color +
-        '; }' +
-      '#' + rootId + ' .afhub-img-download:hover { text-decoration:underline; }' +
       '#' + rootId + ' .afhub-msg.typing { display:flex; flex-direction:column; gap:6px; padding:12px 18px; }' +
       '#' + rootId + ' .afhub-typing-dots { display:flex; gap:4px; align-items:center; }' +
       '#' + rootId + ' .afhub-typing-label { font-size:11px; line-height:1.35; color:#6b7280; font-weight:600; }' +

@@ -11,6 +11,7 @@ import { verifySessionToken } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent } from '@/lib/db/models';
 import type { AgentFaqRow, FaqCandidateRow } from '@/lib/agent-faq-utils';
+import { getPromotableFaqCandidates } from '@/lib/agent-faq-utils';
 import { canAttemptHubSync, syncHubCatalogFromLandingAgentDoc } from '@/lib/aibackhub-sync';
 
 function auth(req: NextRequest) {
@@ -32,9 +33,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   if (!agent) return NextResponse.json({ error: 'Agente no encontrado.' }, { status: 404 });
 
-  const candidates = (agent.faqCandidates ?? [])
-    .filter(c => !c.dismissed)
-    .sort((a, b) => (b.count ?? 0) - (a.count ?? 0));
+  const candidates = getPromotableFaqCandidates(agent.faqCandidates ?? []);
 
   return NextResponse.json({ candidates, total: candidates.length });
 }

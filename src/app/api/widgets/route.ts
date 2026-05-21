@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { Widget, ClientAgent, User, Subscription } from '@/lib/db/models';
 import { verifySessionToken, isUserEmailVerified, isImpersonationSession } from '@/lib/auth';
-import { validateMultiAgentWidgetSave, validateMultiAgentMode } from '@/lib/widget-multi-agent';
+import { validateMultiAgentWidgetSave, validateMultiAgentMode, validatePipelineWidgetConfigSave } from '@/lib/widget-multi-agent';
 
 function getUserId(req: NextRequest): string | null {
   const token = req.cookies.get('afhub_session')?.value;
@@ -108,15 +108,34 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const multiEnabled = rest.multiAgentEnabled === true;
+  const resolvedMode = multiEnabled ? multiMode : 'triage';
+  const pipelineValidation = await validatePipelineWidgetConfigSave({
+    userId,
+    plan,
+    multiAgentEnabled: multiEnabled,
+    multiAgentMode: resolvedMode,
+    orchestratorAgentId,
+    orchestratorAgentIds: multiValidation.orchestratorAgentIds,
+    pipelineConfig: rest.pipelineConfig,
+  });
+  if (!pipelineValidation.ok) {
+    return NextResponse.json(
+      { error: pipelineValidation.error, code: pipelineValidation.code },
+      { status: 403 },
+    );
+  }
+
   const widget = await Widget.create({
     ...rest,
     name: nameStr,
     userId,
     afhubToken,
-    multiAgentEnabled: rest.multiAgentEnabled === true,
-    multiAgentMode: rest.multiAgentEnabled === true ? multiMode : 'triage',
+    multiAgentEnabled: multiEnabled,
+    multiAgentMode: resolvedMode,
     agentIds: multiValidation.agentIds,
     orchestratorAgentIds: multiValidation.orchestratorAgentIds,
+    pipelineConfig: pipelineValidation.pipelineConfig,
   });
   return NextResponse.json({ widget }, { status: 201 });
 }

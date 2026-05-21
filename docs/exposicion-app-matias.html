@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MatIAs / AIHUB — Exposición del producto</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #181b24;
+      --border: #2a3040;
+      --text: #e8eaef;
+      --muted: #9aa3b5;
+      --accent: #e41414;
+      --accent2: #00acf8;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --info: #3b82f6;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      font-size: 15px;
+    }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 32px 20px 64px; }
+    h1 { font-size: 1.75rem; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.02em; }
+    h2 { font-size: 1.25rem; margin: 32px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    h3 { font-size: 1rem; margin: 0 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+    .subtitle { color: var(--muted); margin-bottom: 24px; }
+    .callout {
+      border-left: 3px solid var(--info);
+      background: var(--surface);
+      padding: 14px 16px;
+      margin: 20px 0;
+      border-radius: 0 8px 8px 0;
+    }
+    .callout.warn { border-left-color: var(--warn); }
+    .callout strong { display: block; margin-bottom: 6px; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin: 24px 0;
+    }
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .stat .val { font-size: 1.75rem; font-weight: 700; color: var(--accent2); }
+    .stat .lbl { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      margin: 12px 0;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: var(--surface); color: var(--muted); font-weight: 600; }
+    tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+    .highlight td { background: rgba(34, 197, 94, 0.08); }
+    .warn-row td { background: rgba(245, 158, 11, 0.08); }
+    details {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin: 10px 0;
+      overflow: hidden;
+    }
+    summary {
+      cursor: pointer;
+      padding: 14px 16px;
+      font-weight: 600;
+      list-style: none;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::before { content: "▸ "; color: var(--accent2); }
+    details[open] summary::before { content: "▾ "; }
+    .details-body { padding: 0 16px 16px; }
+    .pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+    .pill {
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .pill.ok { border-color: var(--ok); color: var(--ok); }
+    .pill.info { border-color: var(--info); color: var(--info); }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+    ul.compact { margin: 8px 0; padding-left: 20px; }
+    ul.compact li { margin: 4px 0; }
+    .chart { margin: 16px 0; }
+    .bar-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; font-size: 0.82rem; }
+    .bar-label { width: 72px; flex-shrink: 0; color: var(--muted); }
+    .bar-track { flex: 1; height: 22px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; background: var(--accent2); border-radius: 4px; min-width: 2px; }
+    .bar-val { width: 64px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+    .flow {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 16px;
+      border-radius: 10px;
+      font-family: ui-monospace, monospace;
+      font-size: 0.85rem;
+      color: var(--accent2);
+      margin: 12px 0;
+    }
+    .yes { color: var(--ok); font-weight: 600; }
+    .no { color: var(--muted); }
+    .partial { color: var(--warn); }
+    .col-us { background: rgba(34, 197, 94, 0.06) !important; font-weight: 600; }
+    .footer { margin-top: 48px; font-size: 0.8rem; color: var(--muted); }
+    @media print {
+      body { background: #fff; color: #111; }
+      .stat, details, th { background: #f5f5f5; }
+      details { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>MatIAs / AIHUB — Exposición del producto</h1>
+    <p class="subtitle">
+      Plataforma SaaS de widgets conversacionales con IA, multi-agente, RAG y herramientas MCP.
+      Documento basado en código del monorepo · mayo 2026
+    </p>
+
+    <div class="callout">
+      <strong>Propuesta de valor</strong>
+      Permite a empresas embeber un asistente IA en su web sin desarrollo backend: widget personalizable,
+      agentes con conocimiento (RAG), derivación inteligente entre especialistas, facturación por
+      conversaciones y cumplimiento RGPD integrado.
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="val">4</div><div class="lbl">Apps del ecosistema</div></div>
+      <div class="stat"><div class="val">3</div><div class="lbl">Modos multi-agente</div></div>
+      <div class="stat"><div class="val">8</div><div class="lbl">Planes SaaS widget</div></div>
+      <div class="stat"><div class="val">15+</div><div class="lbl">Herramientas MCP</div></div>
+    </div>
+
+    <h2>Arquitectura del ecosistema</h2>
+    <div class="flow">Visitante → widget.js → agent-flow-landing → AgentFlowhub → AIBackHub</div>
+    <table>
+      <thead>
+        <tr><th>Capa</th><th>Repositorio</th><th>Rol</th><th>Puerto dev</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Producto SaaS</td>
+          <td>agent-flow-landing</td>
+          <td>Landing, dashboard, widget.js, billing LemonSqueezy, MongoDB usuarios</td>
+          <td>:3201</td>
+        </tr>
+        <tr>
+          <td>Hub de chat</td>
+          <td>AgentFlowhub</td>
+          <td>Proxy widget chat, prepare (memoria + RAG), showcase admin</td>
+          <td>:9010</td>
+        </tr>
+        <tr>
+          <td>Motor IA</td>
+          <td>AIBackHub</td>
+          <td>Modelos, embeddings, RAG, Pinecone + Mongo vectorial, MCP tools (interno)</td>
+          <td>:9003</td>
+        </tr>
+        <tr>
+          <td>API developers</td>
+          <td>agent-flow-api</td>
+          <td>REST /api/v1, API keys, audit, CRUD agentes/widgets</td>
+          <td>Nuxt</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <details open>
+      <summary>Fortalezas competitivas (8)</summary>
+      <div class="details-body">
+        <table>
+          <thead><tr><th>Área</th><th>Ventaja</th><th>Evidencia</th></tr></thead>
+          <tbody>
+            <tr><td>Time-to-market</td><td>Embed con script + token wt_</td><td>widget.js, Widget Builder</td></tr>
+            <tr><td>Conocimiento</td><td>RAG por agente (URL, texto, archivos)</td><td>PLAN_RAG_LIMITS</td></tr>
+            <tr><td>Orquestación</td><td>Sub-agentes + multi-orquestador Business+</td><td>widget-multi-agent.ts</td></tr>
+            <tr class="highlight"><td>Pipeline creativo</td><td>Cadena contenido → banner automática</td><td>Modo pipeline</td></tr>
+            <tr><td>Herramientas</td><td>MCP: webhook, Gmail, Slack, HubSpot…</td><td>agent-plans.ts</td></tr>
+            <tr><td>Memoria</td><td>Historial + memoria semántica por sessionId</td><td>conversation-memory.ts</td></tr>
+            <tr><td>Cumplimiento</td><td>RGPD export, audit log, security log</td><td>/compliance</td></tr>
+            <tr><td>Monetización</td><td>Planes + packs one-time</td><td>plan-catalog.ts</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <h2>Comparación con la competencia</h2>
+    <p class="subtitle" style="margin-bottom:8px">
+      Benchmark de precio y matriz funcional · fuente interna <code>plan-economics.ts</code> · referencia mercado 2026
+    </p>
+
+    <div class="callout">
+      <strong>Resumen ejecutivo</strong>
+      MatIAs compite en el segmento <em>widget IA embebible</em> (Chatbase, SiteGPT, DocsBot, Tidio Lyro, Botpress).
+      Gana en <strong>multi-agente</strong>, <strong>herramientas MCP</strong>, <strong>pipeline creativo</strong> y
+      <strong>$/conversación</strong> frente a Chatbase, Botpress, Lyro e helpdesks por resolución.
+      En volumen puro de mensajes, <strong>SiteGPT Scale</strong> y <strong>DocsBot Business</strong> pueden ser más baratos — MatIAs compensa con más agentes, RAG generoso y orquestación.
+      No compite head-to-head con suites CRM (Intercom, Zendesk) ni chat humano en vivo (Tidio clásico).
+    </div>
+
+    <details open>
+      <summary>Modelo económico interno — infra externa mínima (may 2026)</summary>
+      <div class="details-body">
+        <p style="margin:0 0 12px;color:var(--muted);font-size:0.88rem">
+          Los precios incluyen coste real de infra, sin asumir tiers gratis. Fuente: <code>finance-infra.ts</code> + <code>finance-rates.ts</code>.
+        </p>
+        <table>
+          <thead><tr><th>Coste</th><th>Mínimo de pago modelado</th><th>Notas</th></tr></thead>
+          <tbody>
+            <tr><td>MongoDB Atlas</td><td>$57/mes (M10)</td><td>No M0 en proyecciones</td></tr>
+            <tr><td>Storage Mongo</td><td>$0,25/GB/mes</td><td>Texto RAG + historial + logs</td></tr>
+            <tr><td>Pinecone</td><td>$20/mes mín. + $0,33/GB</td><td>Búsqueda vectorial densa (768 dims)</td></tr>
+            <tr><td>Duplicado Mongo + Pinecone</td><td>+12% overhead</td><td>Índice dual + re-indexado</td></tr>
+            <tr><td>LLM + embed RAG/msg</td><td>×2 prompt RAG + $0,00008/query</td><td>Gemini + Pinecone tier pago</td></tr>
+            <tr><td>Cluster repartido</td><td>$77 ÷ 25 clientes ≈ $3,08/cliente</td><td>Conservador (pocos clientes)</td></tr>
+          </tbody>
+        </table>
+        <p style="margin:12px 0 0;font-size:0.88rem">
+          Precios revisados: Plus <strong>$39</strong> · Starter <strong>$65</strong> · Growth <strong>$179</strong> · Business <strong>$749</strong>.
+          Auditoría: <code>node scripts/pricing-audit.mjs</code>
+        </p>
+      </div>
+    </details>
+
+    <details open>
+      <summary>Precio por conversación — MatIAs vs mercado (USD/mes)</summary>
+      <div class="details-body">
+        <p style="margin:0 0 12px;color:var(--muted);font-size:0.88rem">
+          Métrica: precio mensual ÷ cuota incluida. Unidades distintas (conv, mensaje, crédito) — ver columna Unidad.
+          Fuente: <code>MARKET_BENCHMARKS</code> en plan-economics.ts · precios públicos mayo 2026.
+        </p>
+        <h3 style="margin:16px 0 8px">MatIAs (conversaciones/mes)</h3>
+        <table>
+          <thead>
+            <tr><th>Plan</th><th>Precio/mes</th><th>Conv./mes</th><th>$/conv.</th><th>Notas</th></tr>
+          </thead>
+          <tbody>
+            <tr class="highlight"><td><strong>MatIAs Solo</strong></td><td>$7</td><td>300</td><td>$0,023</td><td>Entrada más barata widget-IA</td></tr>
+            <tr class="highlight"><td><strong>MatIAs Basic</strong></td><td>$17</td><td>1.500</td><td>$0,011</td><td>Sin RAG</td></tr>
+            <tr class="highlight"><td><strong>MatIAs Plus</strong></td><td>$39</td><td>3.000</td><td>$0,013</td><td>RAG + Pinecone · 10 agentes</td></tr>
+            <tr class="highlight"><td><strong>MatIAs Starter</strong></td><td>$65</td><td>6.000</td><td>$0,011</td><td>Mejor relación PME</td></tr>
+            <tr class="highlight"><td><strong>MatIAs Growth</strong></td><td>$179</td><td>16.000</td><td>$0,011</td><td>Plan recomendado</td></tr>
+            <tr class="highlight"><td><strong>MatIAs Business</strong></td><td>$749</td><td>45.000</td><td>$0,017</td><td>Multi-orquestador + pipeline</td></tr>
+          </tbody>
+        </table>
+
+        <h3 style="margin:20px 0 8px">Widget RAG — competencia directa</h3>
+        <table>
+          <thead>
+            <tr><th>Producto</th><th>Precio</th><th>Cuota</th><th>$/unidad</th><th>Unidad</th><th>vs MatIAs comparable</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Chatbase Hobby</td><td>$32</td><td>500</td><td>$0,064</td><td>crédito</td><td class="yes">Plus ~5× más barato</td></tr>
+            <tr><td>Chatbase Standard</td><td>$120</td><td>4.000</td><td>$0,030</td><td>crédito</td><td class="yes">Growth ~2,7× más barato</td></tr>
+            <tr><td>Chatbase Pro</td><td>$400</td><td>15.000</td><td>$0,027</td><td>crédito</td><td class="yes">Business ~1,6× más barato</td></tr>
+            <tr class="warn-row"><td>SiteGPT Starter</td><td>$39</td><td>4.000</td><td>$0,010</td><td>mensaje</td><td class="partial">Similar precio, ~25% más msgs</td></tr>
+            <tr class="warn-row"><td>SiteGPT Growth</td><td>$79</td><td>10.000</td><td>$0,008</td><td>mensaje</td><td class="partial">Starter: SiteGPT más barato/msg</td></tr>
+            <tr class="warn-row"><td>SiteGPT Scale</td><td>$259</td><td>40.000</td><td>$0,006</td><td>mensaje</td><td class="partial">Business: SiteGPT ~2,5× más barato/msg</td></tr>
+            <tr class="warn-row"><td>DocsBot Personal</td><td>$49</td><td>5.000</td><td>$0,010</td><td>mensaje</td><td class="partial">Starter: DocsBot ~10% más barato</td></tr>
+            <tr class="warn-row"><td>DocsBot Standard</td><td>$149</td><td>15.000</td><td>$0,010</td><td>mensaje</td><td class="partial">Growth: DocsBot ~12% más barato</td></tr>
+            <tr class="warn-row"><td>DocsBot Business</td><td>$499</td><td>100.000</td><td>$0,005</td><td>mensaje</td><td class="partial">Business: DocsBot ~3× más barato/msg</td></tr>
+            <tr><td>CustomGPT Standard</td><td>$99</td><td>1.000</td><td>$0,099</td><td>query</td><td class="yes">MatIAs ~8× más barato</td></tr>
+            <tr><td>CustomGPT Premium</td><td>$499</td><td>5.000</td><td>$0,100</td><td>query</td><td class="yes">MatIAs ~6× más barato</td></tr>
+          </tbody>
+        </table>
+
+        <h3 style="margin:20px 0 8px">Constructores de agentes + live chat IA</h3>
+        <table>
+          <thead>
+            <tr><th>Producto</th><th>Precio</th><th>Cuota</th><th>$/unidad</th><th>Notas</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Botpress Plus</td><td>$189</td><td>250 conv</td><td>$0,76</td><td>MatIAs Starter ~70× más barato/conv</td></tr>
+            <tr><td>Botpress Team</td><td>$939</td><td>1.500 conv</td><td>$0,63</td><td>MatIAs Growth ~56× más barato/conv</td></tr>
+            <tr><td>Landbot Starter (AI)</td><td>$45</td><td>100 AI chats</td><td>$0,45</td><td>Solo chats IA, no clásicos</td></tr>
+            <tr><td>Lyro Core</td><td>$39</td><td>50 conv IA</td><td>$0,78</td><td>MatIAs Plus ~60× más barato/conv</td></tr>
+            <tr><td>Lyro ~1000 conv</td><td>$149</td><td>1.000 conv</td><td>$0,15</td><td>MatIAs Growth ~13× más barato/conv</td></tr>
+            <tr><td>Crisp Essentials (Hugo)</td><td>$95</td><td>~450 conv IA</td><td>~$0,27</td><td>Incluye bandeja live chat</td></tr>
+          </tbody>
+        </table>
+
+        <h3 style="margin:20px 0 8px">Helpdesk — precio por resolución (métrica distinta)</h3>
+        <table>
+          <thead>
+            <tr><th>Producto</th><th>$/resolución o sesión</th><th>Plan base extra</th><th>vs MatIAs Business ($0,017/conv)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Intercom Fin</td><td>$0,99/resolución</td><td>+$29–139/asiento</td><td class="yes">MatIAs ~60× más barato/unidad*</td></tr>
+            <tr><td>Zendesk AI Agent</td><td>$1,50/resolución</td><td>+$55–169/agente</td><td class="yes">MatIAs ~90× más barato/unidad*</td></tr>
+            <tr><td>Gorgias AI</td><td>$0,90/resolución</td><td>+ ticket helpdesk</td><td class="yes">MatIAs ~55× más barato/unidad*</td></tr>
+            <tr><td>Freshworks Freddy</td><td>$0,49/sesión</td><td>Plan Growth+</td><td class="yes">MatIAs ~30× más barato/unidad*</td></tr>
+            <tr><td>My AskAI Scale</td><td>$0,25/ticket</td><td>$499/2.000 incl.</td><td class="yes">MatIAs Business ~6× más barato/conv</td></tr>
+          </tbody>
+        </table>
+        <p style="margin:8px 0 0;font-size:0.82rem;color:var(--muted)">
+          *MatIAs factura por conversación, no solo resoluciones. Si solo el 60% se resuelve sin humano, el $/resolución efectivo de MatIAs sube (~$0,028 en Business) pero sigue por debajo de Fin/Zendesk.
+        </p>
+
+        <div class="chart" style="margin-top:16px">
+          <p style="margin:0 0 8px;font-size:0.82rem;color:var(--muted)">$/conversación o mensaje — selección (menor barra = mejor)</p>
+          <div class="bar-row"><span class="bar-label">DocsBot Biz.</span><div class="bar-track"><div class="bar-fill" style="width:3%;background:var(--warn)"></div></div><span class="bar-val">$0,005</span></div>
+          <div class="bar-row"><span class="bar-label">SiteGPT Scale</span><div class="bar-track"><div class="bar-fill" style="width:4%;background:var(--warn)"></div></div><span class="bar-val">$0,006</span></div>
+          <div class="bar-row"><span class="bar-label">MatIAs Growth</span><div class="bar-track"><div class="bar-fill" style="width:7%"></div></div><span class="bar-val">$0,011</span></div>
+          <div class="bar-row"><span class="bar-label">MatIAs Plus</span><div class="bar-track"><div class="bar-fill" style="width:8%"></div></div><span class="bar-val">$0,013</span></div>
+          <div class="bar-row"><span class="bar-label">Chatbase Std.</span><div class="bar-track"><div class="bar-fill" style="width:18%"></div></div><span class="bar-val">$0,030</span></div>
+          <div class="bar-row"><span class="bar-label">Chatbase Hobby</span><div class="bar-track"><div class="bar-fill" style="width:38%"></div></div><span class="bar-val">$0,064</span></div>
+          <div class="bar-row"><span class="bar-label">Lyro Core</span><div class="bar-track"><div class="bar-fill" style="width:47%"></div></div><span class="bar-val">$0,78</span></div>
+          <div class="bar-row"><span class="bar-label">Botpress Plus</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bar-val">$0,76</span></div>
+        </div>
+      </div>
+    </details>
+
+    <details>
+      <summary>Veredicto por segmento</summary>
+      <div class="details-body">
+        <table>
+          <thead><tr><th>Segmento</th><th>¿MatIAs más barato?</th><th>Excepciones</th></tr></thead>
+          <tbody>
+            <tr class="highlight"><td>vs Chatbase / CustomGPT</td><td class="yes">Sí, claro</td><td>—</td></tr>
+            <tr class="highlight"><td>vs Botpress / Lyro / Landbot</td><td class="yes">Sí, muy superior en $/conv</td><td>—</td></tr>
+            <tr class="highlight"><td>vs helpdesks (Fin, Zendesk)</td><td class="yes">Sí en $/unidad</td><td>No sustituye bandeja/SLA enterprise</td></tr>
+            <tr class="warn-row"><td>vs SiteGPT / DocsBot (volumen)</td><td class="partial">Mixto</td><td>DocsBot Business y SiteGPT Scale más baratos en $/mensaje puro</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details open>
+      <summary>Matriz funcional — MatIAs vs competidores</summary>
+      <div class="details-body">
+        <table>
+          <thead>
+            <tr>
+              <th>Capacidad</th>
+              <th class="col-us">MatIAs</th>
+              <th>Chatbase</th>
+              <th>Tidio (Lyro)</th>
+              <th>Intercom Fin</th>
+              <th>Botpress</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Widget embed (script + token)</td>
+              <td class="col-us"><span class="yes">✓</span></td>
+              <td><span class="yes">✓</span></td>
+              <td><span class="yes">✓</span></td>
+              <td><span class="yes">✓</span></td>
+              <td><span class="yes">✓</span></td>
+            </tr>
+            <tr>
+              <td>RAG (URLs, archivos, texto)</td>
+              <td class="col-us"><span class="yes">✓</span> Plus+ · Pinecone</td>
+              <td><span class="yes">✓</span></td>
+              <td><span class="partial">Parcial</span></td>
+              <td><span class="yes">✓</span></td>
+              <td><span class="yes">✓</span></td>
+            </tr>
+            <tr class="highlight">
+              <td>Búsqueda vectorial dedicada</td>
+              <td class="col-us"><span class="yes">✓</span> Pinecone + Mongo</td>
+              <td><span class="partial">Propietario</span></td>
+              <td><span class="no">—</span></td>
+              <td><span class="partial">Propietario</span></td>
+              <td><span class="yes">✓</span></td>
+            </tr>
+            <tr>
+              <td>Sub-agentes + triaje automático</td>
+              <td class="col-us"><span class="yes">✓</span> todos</td>
+              <td><span class="no">—</span></td>
+              <td><span class="no">—</span></td>
+              <td><span class="partial">Parcial</span></td>
+              <td><span class="partial">Flujos</span></td>
+            </tr>
+            <tr class="highlight">
+              <td>Multi-orquestador (paralelo / pipeline)</td>
+              <td class="col-us"><span class="yes">✓</span> Business+</td>
+              <td><span class="no">—</span></td>
+              <td><span class="no">—</span></td>
+              <td><span class="no">—</span></td>
+              <td><span class="no">—</span></td>
+            </tr>
+            <tr class="highlight">
+              <td>Pipeline creativo (contenido → banner)</td>
+              <td class="col-us"><span class="yes">✓</span> único</td>
+              <td><span class="no">—</span></td>
+              <td><span class="no">—</span></td>
+              <td><span class="no">—</span></td>
+              <td><span class="no">—</span></td>
+            </tr>
+            <tr>
+              <td>Herramientas MCP (Gmail, Slack, HubSpot…)</td>
+              <td class="col-us"><span class="yes">✓</span> 15+</td>
+              <td><span class="partial">Limitado</span></td>
+              <td><span class="partial">Integraciones</span></td>
+              <td><span class="yes">✓</span> CRM nativo</td>
+              <td><span class="yes">✓</span> custom</td>
+            </tr>
+            <tr>
+              <td>Multi-modelo (Gemini, Claude, HF…)</td>
+              <td class="col-us"><span class="yes">✓</span></td>
+              <td><span class="partial">OpenAI</span></td>
+              <td><span class="partial">Propietario</span></td>
+              <td><span class="partial">Propietario</span></td>
+              <td><span class="yes">✓</span> multi-LLM</td>
+            </tr>
+            <tr>
+              <td>Modo voz (STT/TTS en widget)</td>
+              <td class="col-us"><span class="yes">✓</span></td>
+              <td><span class="no">—</span></td>
+              <td><span class="no">—</span></td>
+              <td><span class="no">—</span></td>
+              <td><span class="partial">Add-on</span></td>
+            </tr>
+            <tr>
+              <td>API REST (widgets, agentes, export)</td>
+              <td class="col-us"><span class="yes">✓</span> Starter+</td>
+              <td><span class="partial">Standard+</span></td>
+              <td><span class="partial">Plus+</span></td>
+              <td><span class="yes">✓</span></td>
+              <td><span class="yes">✓</span></td>
+            </tr>
+            <tr>
+              <td>Analytics de conversaciones</td>
+              <td class="col-us"><span class="yes">✓</span> Plus+ (básico → completo)</td>
+              <td><span class="partial">Básico</span></td>
+              <td><span class="partial">Parcial</span></td>
+              <td><span class="yes">✓</span></td>
+              <td><span class="partial">Add-on</span></td>
+            </tr>
+            <tr>
+              <td>Creación de tickets al escalar</td>
+              <td class="col-us"><span class="yes">✓</span> Growth+</td>
+              <td><span class="no">—</span></td>
+              <td><span class="partial">Integraciones</span></td>
+              <td><span class="yes">✓</span> nativo</td>
+              <td><span class="partial">Flujos</span></td>
+            </tr>
+            <tr>
+              <td>Integraciones custom</td>
+              <td class="col-us"><span class="yes">✓</span> Business+</td>
+              <td><span class="partial">Limitado</span></td>
+              <td><span class="partial">MCP Plus</span></td>
+              <td><span class="yes">✓</span> CRM</td>
+              <td><span class="yes">✓</span> custom</td>
+            </tr>
+            <tr>
+              <td>Webhooks (agente + saliente HMAC)</td>
+              <td class="col-us"><span class="yes">✓</span></td>
+              <td><span class="yes">✓</span></td>
+              <td><span class="partial">Parcial</span></td>
+              <td><span class="yes">✓</span></td>
+              <td><span class="yes">✓</span></td>
+            </tr>
+            <tr>
+              <td>RGPD / export / audit log</td>
+              <td class="col-us"><span class="yes">✓</span> integrado</td>
+              <td><span class="partial">Básico</span></td>
+              <td><span class="partial">Básico</span></td>
+              <td><span class="yes">✓</span> enterprise</td>
+              <td><span class="partial">Self-host</span></td>
+            </tr>
+            <tr>
+              <td>Chat en vivo humano + bandeja</td>
+              <td class="col-us"><span class="partial">Handoff WA</span></td>
+              <td><span class="no">—</span></td>
+              <td><span class="yes">✓</span> fuerte</td>
+              <td><span class="yes">✓</span> fuerte</td>
+              <td><span class="partial">Add-on</span></td>
+            </tr>
+            <tr>
+              <td>Curva de setup no-code</td>
+              <td class="col-us"><span class="yes">✓</span> 4 pasos</td>
+              <td><span class="yes">✓</span> rápido</td>
+              <td><span class="yes">✓</span> rápido</td>
+              <td><span class="partial">Complejo</span></td>
+              <td><span class="partial">Técnico</span></td>
+            </tr>
+            <tr>
+              <td>Precio entrada (IA)</td>
+              <td class="col-us"><strong>$7/mes</strong></td>
+              <td>$32/mes</td>
+              <td>$39/mes (Lyro)</td>
+              <td>$74+/agente</td>
+              <td>$189/mes (Plus)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details>
+      <summary>Cuándo ganamos vs cuándo no</summary>
+      <div class="details-body grid2">
+        <div>
+          <h3>MatIAs gana cuando…</h3>
+          <ul class="compact">
+            <li>El cliente quiere <strong>varios agentes especializados</strong> en un solo widget</li>
+            <li>Necesita <strong>RAG + herramientas</strong> (CRM, webhooks) sin desarrollo</li>
+            <li>Busca <strong>mejor $/conversación</strong> en planes Growth/Business</li>
+            <li>Quiere <strong>pipeline creativo</strong> (copy + diseño en un mensaje)</li>
+            <li>Opera en UE y valora <strong>RGPD</strong> desde el día 1</li>
+            <li>Prefiere <strong>multi-modelo</strong> (no vendor lock-in a OpenAI)</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Competidor gana cuando…</h3>
+          <ul class="compact">
+            <li><strong>Tidio / Intercom</strong> — bandeja unificada + agentes humanos en tiempo real</li>
+            <li><strong>Intercom / Zendesk</strong> — CRM maduro, tickets, SLAs enterprise</li>
+            <li><strong>SiteGPT / DocsBot</strong> — solo RAG sobre docs, máximo volumen de mensajes/$</li>
+            <li><strong>Chatbase</strong> — bot simple sobre PDFs, setup mínimo, marca conocida</li>
+            <li><strong>Botpress</strong> — equipos técnicos que quieren flujos visuales complejos o WhatsApp nativo</li>
+            <li><strong>Voiceflow</strong> — diseño conversacional avanzado para equipos de UX</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout" style="margin-top:12px">
+        <strong>Mensaje de venta</strong>
+        «No somos un chat de soporte clásico: somos un motor de agentes IA embebible con orquestación,
+        conocimiento y acciones — a precio de PME y escala de enterprise.»
+      </div>
+    </details>
+
+    <details open>
+      <summary>Multi-agente — diferenciador clave (3 modos)</summary>
+      <div class="details-body">
+        <table>
+          <thead><tr><th>Modo</th><th>Cuándo</th><th>Requisitos</th><th>Ejemplo</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Triaje</strong></td>
+              <td>Sub-agentes o multi-orquestador</td>
+              <td>Todos los planes (subs auto)</td>
+              <td>"¿Cuánto cuesta?" → vendedor</td>
+            </tr>
+            <tr>
+              <td><strong>Paralelo</strong></td>
+              <td>Orquestador + especialista a la vez</td>
+              <td>Business / Enterprise</td>
+              <td>Pregunta comercial + técnica</td>
+            </tr>
+            <tr class="highlight">
+              <td><strong>Pipeline</strong></td>
+              <td>Mensaje mixto producto + visual</td>
+              <td>2+ orquestadores, agente creativo</td>
+              <td>"Banner 1200×628 con autos familiares"</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout" style="margin-top:12px">
+          <strong>Configuración</strong>
+          Widget Builder → Identidad → multiagente avanzado → grilla de orquestadores → modo pipeline.
+          La UI valida agente de contenido + creativo antes de guardar.
+        </div>
+      </div>
+    </details>
+
+    <details>
+      <summary>Widget embebible y SDK</summary>
+      <div class="details-body grid2">
+        <div>
+          <h3>SDK (widget.js)</h3>
+          <ul class="compact">
+            <li>Chat streaming SSE + fallback JSON</li>
+            <li>Modo voz (STT/TTS navegador)</li>
+            <li>Handoff WhatsApp por keywords</li>
+            <li>sessionId + historial en sessionStorage (sobrevive recarga de pestaña)</li>
+            <li>Botón Nueva conversación</li>
+            <li>Telemetría y analytics</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Widget Builder (4 pasos)</h3>
+          <ul class="compact">
+            <li>Identidad — agentes, multi-agente, pipeline</li>
+            <li>Apariencia — color, avatar, tema, FAB</li>
+            <li>Comportamiento — shortcuts, voz, teléfono</li>
+            <li>Publicar — snippet + token wt_</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <h2>Planes SaaS (widget)</h2>
+    <p class="subtitle" style="margin-bottom:8px">Fuente: plan-catalog.ts · Conversaciones/mes</p>
+    <div class="chart">
+      <div class="bar-row"><span class="bar-label">Free</span><div class="bar-track"><div class="bar-fill" style="width:0.1%"></div></div><span class="bar-val">50</span></div>
+      <div class="bar-row"><span class="bar-label">Solo</span><div class="bar-track"><div class="bar-fill" style="width:0.7%"></div></div><span class="bar-val">300</span></div>
+      <div class="bar-row"><span class="bar-label">Basic</span><div class="bar-track"><div class="bar-fill" style="width:3.3%"></div></div><span class="bar-val">1.5K</span></div>
+      <div class="bar-row"><span class="bar-label">Plus</span><div class="bar-track"><div class="bar-fill" style="width:6.7%"></div></div><span class="bar-val">3K</span></div>
+      <div class="bar-row"><span class="bar-label">Starter</span><div class="bar-track"><div class="bar-fill" style="width:13%"></div></div><span class="bar-val">6K</span></div>
+      <div class="bar-row"><span class="bar-label">Growth</span><div class="bar-track"><div class="bar-fill" style="width:36%"></div></div><span class="bar-val">16K</span></div>
+      <div class="bar-row"><span class="bar-label">Business</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bar-val">45K</span></div>
+    </div>
+    <table>
+      <thead><tr><th>Plan</th><th>Precio/mes</th><th>Conv./mes</th><th>Agentes</th><th>RAG</th><th>API</th><th>Analytics</th><th>Tickets escala</th><th>Integr. custom</th></tr></thead>
+      <tbody>
+        <tr><td>Free</td><td>$0</td><td>50</td><td>1</td><td>No</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Solo</td><td>$7</td><td>300</td><td>1</td><td>No</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>Basic</td><td>$17</td><td>1.500</td><td>5</td><td>No</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr class="highlight"><td>Plus</td><td>$39</td><td>3.000</td><td>10</td><td>256 MB</td><td>—</td><td>Básico</td><td>—</td><td>—</td></tr>
+        <tr class="highlight"><td>Starter</td><td>$65</td><td>6.000</td><td>25</td><td>1 GB</td><td>✓</td><td>Básico</td><td>—</td><td>—</td></tr>
+        <tr class="highlight"><td>Growth</td><td>$179</td><td>16.000</td><td>50</td><td>10 GB</td><td>✓</td><td>Avanzado</td><td>✓</td><td>—</td></tr>
+        <tr><td>Business</td><td>$749</td><td>45.000</td><td>Ilimit.</td><td>100 GB</td><td>✓</td><td>Completo</td><td>✓</td><td>✓</td></tr>
+        <tr><td>Enterprise</td><td>Contacto</td><td>Ilimit.</td><td>999</td><td>999 GB</td><td>✓</td><td>Completo</td><td>✓</td><td>✓</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Mejoras recientes</h2>
+    <table>
+      <thead><tr><th>Mejora</th><th>Impacto</th><th>Archivo</th></tr></thead>
+      <tbody>
+        <tr class="highlight"><td>Pinecone vector store</td><td>Búsqueda RAG densa 768d · fallback Mongo/Atlas</td><td>AIBackHub pinecone-store.ts</td></tr>
+        <tr class="highlight"><td>Modelo económico infra</td><td>Costes M10 + Pinecone + storage en precios y márgenes</td><td>finance-infra.ts · pricing-audit.mjs</td></tr>
+        <tr class="highlight"><td>Benchmark ampliado</td><td>20+ competidores en MARKET_BENCHMARKS</td><td>plan-economics.ts</td></tr>
+        <tr class="highlight"><td>Precios revisados</td><td>Plus $39 · Starter $65 · Growth $179 · Business $749</td><td>plan-catalog.ts</td></tr>
+        <tr class="highlight"><td>Modo pipeline</td><td>Banners catálogo + diseño en un mensaje</td><td>widget-multi-agent.ts</td></tr>
+        <tr class="highlight"><td>Historial tras recarga</td><td>history[] + UI restaurados en sessionStorage</td><td>widget.js</td></tr>
+        <tr class="highlight"><td>sessionId estable</td><td>Memoria y transcripciones alineadas</td><td>widget.js</td></tr>
+        <tr class="highlight"><td>Nueva conversación</td><td>Reinicia chat sin recargar</td><td>widget.js</td></tr>
+        <tr><td>Validación pipeline UI</td><td>Avisos creativo/contenido</td><td>widget-pipeline-ui.ts</td></tr>
+        <tr><td>Consolidación memoria</td><td>Endpoint memory/consolidate</td><td>memory-consolidation.ts</td></tr>
+      </tbody>
+    </table>
+
+    <details>
+      <summary>Puntos a favor — ventas e inversores</summary>
+      <div class="details-body">
+        <div class="pills">
+          <span class="pill ok">No-code embed</span>
+          <span class="pill ok">Upsell conversaciones</span>
+          <span class="pill info">Multi-agente premium</span>
+          <span class="pill info">RAG en planes altos</span>
+          <span class="pill">Packs one-time</span>
+          <span class="pill">API REST</span>
+          <span class="pill">RGPD</span>
+        </div>
+        <p>Ingresos recurrentes (suscripción) + expansión (packs, upgrades) + segmento Business con pipeline creativo.</p>
+        <p class="subtitle">Pagos: LemonSqueezy en landing · Stripe documentado para API gateway (repo aparte).</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Limitaciones honestas y oportunidades</summary>
+      <div class="details-body">
+        <table>
+          <thead><tr><th>Tema</th><th>Estado</th><th>Nota</th></tr></thead>
+          <tbody>
+            <tr><td>Recarga de pestaña</td><td>Historial visual restaurado</td><td>sessionStorage guarda history[] ligado al sessionId (misma pestaña)</td></tr>
+            <tr>
+              <td>Pipeline</td>
+              <td>Editor en Widget Builder (Business+)</td>
+              <td>
+                Pasos, agentes por paso, plantillas y disparador (mixto / siempre / palabras clave).
+                Máximo 2 pasos fijos (contenido + creativo); sin editor de N pasos arbitrarios aún.
+              </td>
+            </tr>
+            <tr>
+              <td>Agente creativo</td>
+              <td>Depende del modelo/herramientas del agente</td>
+              <td>La UI detecta perfil creativo por nombre y MCP; la imagen real requiere modelo o tool de generación</td>
+            </tr>
+            <tr class="warn-row"><td>Vector store</td><td>Pinecone + Mongo (768d)</td><td>Atlas M10 opcional; coste modelado en precios</td></tr>
+            <tr class="warn-row"><td>Billing</td><td>LemonSqueezy + Stripe API</td><td>Dos flujos comerciales</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn">
+          <strong>Oportunidades</strong>
+          Editor visual de pipeline (orden, N pasos, plantillas); agente creativo con tool de imagen por defecto;
+          motor vectorial dedicado; checkout unificado; i18n del widget.
+        </div>
+      </div>
+    </details>
+
+    <h2>Stack tecnológico</h2>
+    <div class="grid2">
+      <div>
+        <h3>Frontend</h3>
+        <ul class="compact"><li>Next.js 15, React, PWA</li><li>Widget vanilla JS</li></ul>
+      </div>
+      <div>
+        <h3>Backend</h3>
+        <ul class="compact"><li>MongoDB</li><li>Redis Upstash</li><li>Express + Nuxt API</li></ul>
+      </div>
+      <div>
+        <h3>IA</h3>
+        <ul class="compact"><li>Gemini, Claude, HF, Vertex</li><li>RAG + Pinecone + memoria vectorial</li><li>MCP tools</li></ul>
+      </div>
+    </div>
+
+    <p class="footer">
+      MatIAs / AIHUB · exposición generada desde código · agent-flow-landing, AgentFlowhub, AIBackHub, agent-flow-api
+    </p>
+  </div>
+</body>
+</html>

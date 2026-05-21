@@ -8,7 +8,7 @@ import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db/connection';
 import { Widget, Subscription } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
-import { validateMultiAgentWidgetSave, validateMultiAgentMode } from '@/lib/widget-multi-agent';
+import { validateMultiAgentWidgetSave, validateMultiAgentMode, validatePipelineWidgetConfigSave } from '@/lib/widget-multi-agent';
 import { invalidateWidgetTokenCache } from '@/lib/widget-token-verify';
 
 function getUserId(req: NextRequest): string | null {
@@ -86,6 +86,7 @@ export async function PATCH(
     multiAgentMode?: 'triage' | 'parallel' | 'pipeline';
     agentIds?: string[];
     orchestratorAgentIds?: string[];
+    pipelineConfig?: unknown;
   } = {};
 
   for (const key of PATCHABLE) {
@@ -126,7 +127,7 @@ export async function PATCH(
       }));
   }
 
-  if (Object.keys($set).length === 0 && !('multiAgentEnabled' in raw) && !('agentIds' in raw) && !('multiAgentMode' in raw) && !('orchestratorAgentIds' in raw)) {
+  if (Object.keys($set).length === 0 && !('multiAgentEnabled' in raw) && !('agentIds' in raw) && !('multiAgentMode' in raw) && !('orchestratorAgentIds' in raw) && !('pipelineConfig' in raw)) {
     return NextResponse.json({ error: 'Nada que actualizar.' }, { status: 400 });
   }
 
@@ -138,6 +139,7 @@ export async function PATCH(
     multiAgentMode?: string;
     agentIds?: string[];
     orchestratorAgentIds?: string[];
+    pipelineConfig?: unknown;
   } | null;
   if (!existing) {
     return NextResponse.json({ error: 'No encontrado.' }, { status: 404 });
@@ -146,7 +148,7 @@ export async function PATCH(
   const orchestratorAgentId =
     typeof $set.agentId === 'string' ? $set.agentId : String(existing.agentId ?? '');
 
-  if ('multiAgentEnabled' in raw || 'agentIds' in raw || 'multiAgentMode' in raw || 'orchestratorAgentIds' in raw) {
+  if ('multiAgentEnabled' in raw || 'agentIds' in raw || 'multiAgentMode' in raw || 'orchestratorAgentIds' in raw || 'pipelineConfig' in raw) {
     const sub = await Subscription.findOne({ userId })
       .select({ plan: 1, status: 1 })
       .lean() as { plan?: string; status?: string } | null;
@@ -173,10 +175,30 @@ export async function PATCH(
         { status: 403 },
       );
     }
+    const resolvedMode = multiEnabled ? modeInput : 'triage';
+    const resolvedOrchIds = validation.orchestratorAgentIds;
+    const pipelineInput =
+      'pipelineConfig' in raw ? raw.pipelineConfig : existing.pipelineConfig;
+    const pipelineValidation = await validatePipelineWidgetConfigSave({
+      userId,
+      plan,
+      multiAgentEnabled: multiEnabled,
+      multiAgentMode: resolvedMode,
+      orchestratorAgentId,
+      orchestratorAgentIds: resolvedOrchIds,
+      pipelineConfig: pipelineInput,
+    });
+    if (!pipelineValidation.ok) {
+      return NextResponse.json(
+        { error: pipelineValidation.error, code: pipelineValidation.code },
+        { status: 403 },
+      );
+    }
     $set.multiAgentEnabled = multiEnabled;
-    $set.multiAgentMode = multiEnabled ? modeInput : 'triage';
+    $set.multiAgentMode = resolvedMode;
     $set.agentIds = validation.agentIds;
-    $set.orchestratorAgentIds = validation.orchestratorAgentIds;
+    $set.orchestratorAgentIds = resolvedOrchIds;
+    $set.pipelineConfig = pipelineValidation.pipelineConfig;
   }
 
   if (Object.keys($set).length === 0) {

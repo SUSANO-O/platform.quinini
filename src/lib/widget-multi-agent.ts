@@ -12,7 +12,16 @@ import {
   hubCreateHeaders,
 } from '@/lib/aibackhub-sync';
 import { signRequest, SIGNATURE_HEADER } from '@/lib/hub-signature';
-import { PIPELINE_CONTENT_KEYS, PIPELINE_CREATIVE_KEYS } from '@/lib/widget-pipeline-ui';
+import {
+  isCompoundCreativeRequest,
+  normalizePipelineConfig,
+  PIPELINE_CONTENT_KEYS,
+  PIPELINE_CREATIVE_KEYS,
+  shouldRunPipeline,
+  type PipelineConfig,
+} from '@/lib/widget-pipeline-ui';
+
+export { isCompoundCreativeRequest, shouldRunPipeline } from '@/lib/widget-pipeline-ui';
 
 export const MULTI_AGENT_PLANS = new Set(['business', 'enterprise']);
 export const MULTI_AGENT_MAX_TEAM = 5;
@@ -28,6 +37,8 @@ export type WidgetMultiAgentConfig = {
   agentIds: string[];
   /** Varios agentes top-level cuando multiAgentEnabled (widget.orchestratorAgentIds). */
   orchestratorAgentIds: string[];
+  /** Pasos y disparador explícitos (modo pipeline, Business+). */
+  pipelineConfig: PipelineConfig | null;
 };
 
 export type TeamMember = {
@@ -54,6 +65,7 @@ export function buildWidgetMultiAgentConfig(widget: {
   multiAgentMode?: unknown;
   agentIds?: unknown;
   orchestratorAgentIds?: unknown;
+  pipelineConfig?: unknown;
 }): WidgetMultiAgentConfig {
   const orchestratorAgentIds = Array.isArray(widget.orchestratorAgentIds)
     ? widget.orchestratorAgentIds
@@ -65,12 +77,21 @@ export function buildWidgetMultiAgentConfig(widget: {
         .filter((x): x is string => typeof x === 'string' && /^[a-f0-9]{24}$/i.test(x.trim()))
         .map((x) => x.trim())
     : [];
+  const orchestratorAgentId = normalizeAgentId(widget.agentId);
+  const multiAgentEnabled = widget.multiAgentEnabled === true;
+  const multiAgentMode = validateMultiAgentMode(widget.multiAgentMode);
+  const allOrchIds = [orchestratorAgentId, ...orchestratorAgentIds].filter(Boolean);
+  const pipelineConfig =
+    multiAgentEnabled && multiAgentMode === 'pipeline'
+      ? normalizePipelineConfig(widget.pipelineConfig, allOrchIds)
+      : null;
   return {
-    multiAgentEnabled: widget.multiAgentEnabled === true,
-    multiAgentMode: validateMultiAgentMode(widget.multiAgentMode),
-    orchestratorAgentId: normalizeAgentId(widget.agentId),
+    multiAgentEnabled,
+    multiAgentMode,
+    orchestratorAgentId,
     agentIds,
     orchestratorAgentIds,
+    pipelineConfig,
   };
 }
 
@@ -389,7 +410,7 @@ export type MultiAgentRoutingMeta = {
   routedAgentId: string;
   routedAgentName: string;
   handoff: boolean;
-  triageMethod: TriageResult['method'];
+  triageMethod: TriageResult['method'] | 'configured';
   handoffSkippedReason?: 'specialist_not_synced';
   synthesized?: boolean;
   pipeline?: boolean;
@@ -610,6 +631,58 @@ export async function validateMultiAgentWidgetSave(params: {
   return { ok: true, agentIds, orchestratorAgentIds };
 }
 
+export async function validatePipelineWidgetConfigSave(params: {
+  userId: string;
+  plan: string;
+  multiAgentEnabled: boolean;
+  multiAgentMode: MultiAgentMode;
+  orchestratorAgentId: string;
+  orchestratorAgentIds: string[];
+  pipelineConfig: unknown;
+}): Promise<
+  | { ok: true; pipelineConfig: PipelineConfig | null }
+  | { ok: false; error: string; code: string }
+> {
+  if (!params.multiAgentEnabled || params.multiAgentMode !== 'pipeline') {
+    return { ok: true, pipelineConfig: null };
+  }
+
+  if (!isMultiAgentPlanEligible(params.plan)) {
+    return {
+      ok: false,
+      error: 'El pipeline está disponible solo en los planes Business y Enterprise.',
+      code: 'PIPELINE_PLAN_REQUIRED',
+    };
+  }
+
+  const allOrchIds = [params.orchestratorAgentId, ...params.orchestratorAgentIds].filter(Boolean);
+  const normalized = normalizePipelineConfig(params.pipelineConfig, allOrchIds);
+  if (!normalized) {
+    return {
+      ok: false,
+      error: 'Configura el pipeline: dos pasos con agentes distintos de la grilla.',
+      code: 'PIPELINE_CONFIG_INVALID',
+    };
+  }
+
+  const stepAgentIds = [...new Set(normalized.steps.map((s) => s.agentId))];
+  const count = await ClientAgent.countDocuments({
+    _id: { $in: stepAgentIds },
+    userId: params.userId,
+    status: 'active',
+    type: 'agent',
+  });
+  if (count !== stepAgentIds.length) {
+    return {
+      ok: false,
+      error: 'Uno o más agentes del pipeline no son válidos o no te pertenecen.',
+      code: 'PIPELINE_AGENT_INVALID',
+    };
+  }
+
+  return { ok: true, pipelineConfig: normalized };
+}
+
 function extractHubReply(json: Record<string, unknown>): string {
   if (typeof json.reply === 'string' && json.reply.trim()) return json.reply.trim();
   if (typeof json.response === 'string' && json.response.trim()) return json.response.trim();
@@ -703,14 +776,29 @@ function scorePipelineBucket(message: string, member: TeamMember, bucket: 'conte
   return score;
 }
 
-/** Mensaje que mezcla datos de producto + entregable visual (banner, imagen, etc.). */
-export function isCompoundCreativeRequest(message: string): boolean {
-  const msg = message.toLowerCase().trim();
-  if (!msg) return false;
-  const hasCreative =
-    PIPELINE_CREATIVE_KEYS.some((k) => msg.includes(k)) || /\d+\s*[x×]\s*\d+/.test(msg);
-  const hasContent = PIPELINE_CONTENT_KEYS.some((k) => msg.includes(k));
-  return hasCreative && hasContent;
+function resolvePipelinePair(
+  message: string,
+  team: TeamMember[],
+  config: WidgetMultiAgentConfig,
+): { content: TeamMember; creative: TeamMember; triageMethod: 'keyword' | 'configured' } | null {
+  const orchestrators = team.filter((m) => m.role === 'orchestrator');
+  if (orchestrators.length < 2) return null;
+
+  if (config.pipelineConfig) {
+    if (!shouldRunPipeline(message, config.pipelineConfig.trigger)) return null;
+    const byId = new Map(orchestrators.map((o) => [o.id, o]));
+    const contentStep = config.pipelineConfig.steps.find((s) => s.role === 'content');
+    const creativeStep = config.pipelineConfig.steps.find((s) => s.role === 'creative');
+    if (!contentStep || !creativeStep) return null;
+    const content = byId.get(contentStep.agentId);
+    const creative = byId.get(creativeStep.agentId);
+    if (!content || !creative || content.id === creative.id) return null;
+    return { content, creative, triageMethod: 'configured' };
+  }
+
+  const pair = pickPipelineAgents(message, team);
+  if (!pair) return null;
+  return { content: pair.content, creative: pair.creative, triageMethod: 'keyword' };
 }
 
 /** Elige orquestador de contenido y de creativo (distintos) para pipeline en cadena. */
@@ -812,7 +900,7 @@ export async function executePipelineMultiAgentFlow(params: {
     return null;
   }
 
-  const pair = pickPipelineAgents(message, team);
+  const pair = resolvePipelinePair(message, team, params.config);
   if (!pair) return null;
 
   const contentHubId = resolveHubAgentId(pair.content);
@@ -867,7 +955,7 @@ export async function executePipelineMultiAgentFlow(params: {
       routedAgentId: pair.creative.id,
       routedAgentName: pair.creative.name,
       handoff: true,
-      triageMethod: 'keyword',
+      triageMethod: pair.triageMethod,
       pipeline: true,
       pipelineSteps: [
         { step: 'content', agentId: pair.content.id, name: pair.content.name },

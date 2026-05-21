@@ -27,6 +27,7 @@ export type WidgetInfo = {
   multiAgentMode?: 'triage' | 'parallel' | 'pipeline';
   agentIds?: string[];
   orchestratorAgentIds?: string[];
+  pipelineConfig?: unknown;
 };
 
 /**
@@ -59,6 +60,7 @@ export async function findWidgetForWtToken(
         multiAgentMode: 1,
         agentIds: 1,
         orchestratorAgentIds: 1,
+        pipelineConfig: 1,
       })
       .lean() as {
         agentId: unknown;
@@ -69,6 +71,7 @@ export async function findWidgetForWtToken(
         multiAgentMode?: string;
         agentIds?: string[];
         orchestratorAgentIds?: string[];
+        pipelineConfig?: unknown;
       } | null;
     if (w) {
       const stored = w.afhubToken != null ? String(w.afhubToken).trim() : '';
@@ -83,6 +86,7 @@ export async function findWidgetForWtToken(
         orchestratorAgentIds: Array.isArray(w.orchestratorAgentIds)
           ? w.orchestratorAgentIds.map(String)
           : [],
+        pipelineConfig: w.pipelineConfig ?? null,
       };
     }
   }
@@ -97,6 +101,7 @@ export async function findWidgetForWtToken(
         multiAgentMode: 1,
         agentIds: 1,
         orchestratorAgentIds: 1,
+        pipelineConfig: 1,
       })
       .lean() as {
         agentId: unknown;
@@ -106,6 +111,7 @@ export async function findWidgetForWtToken(
         multiAgentMode?: string;
         agentIds?: string[];
         orchestratorAgentIds?: string[];
+        pipelineConfig?: unknown;
       } | null;
     if (w) {
       result = {
@@ -118,6 +124,7 @@ export async function findWidgetForWtToken(
         orchestratorAgentIds: Array.isArray(w.orchestratorAgentIds)
           ? w.orchestratorAgentIds.map(String)
           : [],
+        pipelineConfig: w.pipelineConfig ?? null,
       };
     }
   }

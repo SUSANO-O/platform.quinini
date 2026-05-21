@@ -20,6 +20,8 @@ import {
 import {
   stripManagedFaqPrompt,
   buildFaqPromptBlock,
+  getPromotableFaqCandidates,
+  MIN_FAQ_CANDIDATE_REPETITIONS,
   type AgentFaqRow,
   type FaqCandidateRow,
 } from '@/lib/agent-faq-utils';
@@ -422,6 +424,10 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [behaviorRules, setBehaviorRules] = useState<BehaviorRule[]>([]);
   const [agentFaqs, setAgentFaqs] = useState<AgentFaqRow[]>([]);
   const [faqCandidates, setFaqCandidates] = useState<FaqCandidateRow[]>([]);
+  const promotableFaqCandidates = useMemo(
+    () => getPromotableFaqCandidates(faqCandidates),
+    [faqCandidates],
+  );
   const [customSkillInput, setCustomSkillInput] = useState('');
 
   // MCP tools state
@@ -2423,8 +2429,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             <p style={sectionTitle}>Preguntas frecuentes</p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
               Define pares pregunta–respuesta para que el modelo las use cuando la consulta sea equivalente. Al guardar,
-              se integran al system prompt y se sincronizan con AIBackHub. El widget registra preguntas repetidas que
-              aún no tienen FAQ: aparecen abajo como candidatas (≥3 veces) para que las conviertas en FAQ formal.
+              se integran al system prompt y se sincronizan con AIBackHub. El widget analiza conversaciones reales:
+              solo preguntas útiles que se repiten <strong>más de 3 veces</strong> aparecen abajo como recomendaciones.
             </p>
             {!readOnly && (
               <button
@@ -2541,22 +2547,20 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           )}
 
           <SectionCard>
-            <p style={sectionTitle}>Candidatas (desde el widget)</p>
+            <p style={sectionTitle}>Recomendaciones (desde conversaciones del widget)</p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '10px', lineHeight: 1.45 }}>
-              Preguntas que los visitantes repiten y que no coinciden con ninguna FAQ por texto normalizado. Tras{' '}
-              <strong>3</strong> repeticiones se sugieren al modelo como contexto; conviértelas en FAQ para fijar la
-              respuesta.
+              Analizamos mensajes del visitante: filtramos saludos, ruido y frases que no son preguntas. Solo mostramos
+              aquí las que se repiten <strong>más de {MIN_FAQ_CANDIDATE_REPETITIONS - 1} veces</strong> (≥{MIN_FAQ_CANDIDATE_REPETITIONS}{' '}
+              en total) y aún no tienen FAQ formal. El modelo también las usa como contexto a partir de ese umbral.
             </p>
-            {faqCandidates.filter((c) => !c.dismissed).length === 0 ? (
-              <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', margin: 0 }}>
-                Aún no hay candidatas. Usa el widget con este agente: se irán acumulando aquí.
+            {promotableFaqCandidates.length === 0 ? (
+              <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', margin: 0, lineHeight: 1.45 }}>
+                Aún no hay recomendaciones. Cuando varios visitantes hagan la misma pregunta útil en el widget, aparecerá
+                aquí para convertirla en FAQ.
               </p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {faqCandidates
-                  .filter((c) => !c.dismissed)
-                  .sort((a, b) => (b.count ?? 0) - (a.count ?? 0))
-                  .map((c) => (
+                {promotableFaqCandidates.map((c) => (
                     <div
                       key={c.id}
                       style={{

@@ -1,6 +1,6 @@
 /**
  * Lee .env, consulta Stripe (precios recurrentes activos) y escribe STRIPE_PRICE_* coherentes
- * con plan-catalog.ts (7 / 17 / 36 / 54 / 139 / 449 USD).
+ * con plan-catalog.ts (7 / 17 / 39 / 65 / 179 / 749 USD).
  * Uso: node scripts/sync-stripe-prices.mjs
  */
 import fs from 'fs';
@@ -42,10 +42,10 @@ function setEnvKey(text, key, value) {
 const PLANS = [
   { key: 'STRIPE_PRICE_SOLO',     cents: 700,   hints: ['solo', 'matias solo'] },
   { key: 'STRIPE_PRICE_BASIC',    cents: 1700,  hints: ['basic', 'matias basic'] },
-  { key: 'STRIPE_PRICE_PLUS',     cents: 3600,  hints: ['plus', 'matias plus'] },
-  { key: 'STRIPE_PRICE_STARTER',  cents: 5400,  hints: ['starter', 'matias starter'] },
-  { key: 'STRIPE_PRICE_GROWTH',   cents: 13900, hints: ['growth', 'matias growth'] },
-  { key: 'STRIPE_PRICE_BUSINESS', cents: 44900, hints: ['business', 'matias business'] },
+  { key: 'STRIPE_PRICE_PLUS',     cents: 3900,  hints: ['plus', 'matias plus'] },
+  { key: 'STRIPE_PRICE_STARTER',  cents: 6500,  hints: ['starter', 'matias starter'] },
+  { key: 'STRIPE_PRICE_GROWTH',   cents: 17900, hints: ['growth', 'matias growth'] },
+  { key: 'STRIPE_PRICE_BUSINESS', cents: 74900, hints: ['business', 'matias business'] },
 ];
 
 async function main() {

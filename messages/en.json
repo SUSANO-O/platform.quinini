@@ -146,8 +146,8 @@
         "features": [
           "3,000 conversations per month (~100/day)",
           "10 agents · 5 sub-agents · Webhook included",
-          "RAG: 256 MB · 20 sources per agent",
-          "Unlimited widgets · 60-day history",
+          "RAG: 256 MB · 20 sources · Pinecone included",
+          "Conversation analytics (basic) · 60-day history",
           "Group training · email support (48h)"
         ]
       },
@@ -156,8 +156,8 @@
         "features": [
           "6,000 conversations per month (~200/day)",
           "25 agents · Agent + outbound webhook (HMAC)",
-          "RAG: 1 GB · 60 sources · HubSpot, Notion",
-          "Unlimited widgets · 3-month history",
+          "REST API access · RAG: 1 GB · Pinecone + HubSpot, Notion",
+          "Basic analytics · unlimited widgets · 3-month history",
           "Training included · email support (48h)"
         ]
       },
@@ -165,20 +165,20 @@
         "requests": "16,000 conv/mo",
         "features": [
           "16,000 conversations per month (~530/day)",
-          "50 agents · Agent + outbound webhooks",
-          "RAG: 10 GB · 300 sources per agent",
-          "Pro models · 1-year history",
-          "Priority chat support (24h)"
+          "50 agents · REST API · agent + outbound webhooks",
+          "RAG: 10 GB · 300 sources · Pinecone included",
+          "Escalation ticket creation · advanced analytics",
+          "Pro models · 1-year history · priority chat support (24h)"
         ]
       },
       "business": {
         "requests": "45,000 conv/mo",
         "features": [
           "45,000 conversations per month (~1,500/day)",
-          "Unlimited agents · MCP · agent + outbound webhooks",
-          "RAG: 100 GB · 2,000 sources per agent",
-          "All models · unlimited history",
-          "Dedicated support · 99.9% SLA"
+          "Unlimited agents · custom integrations · full MCP",
+          "REST API · webhooks · RAG: 100 GB · dedicated Pinecone",
+          "Escalation tickets · full analytics (multi-agent)",
+          "All models · unlimited history · 99.9% SLA"
         ]
       },
       "enterprise": {
@@ -186,9 +186,9 @@
         "requests": "Unlimited conversations",
         "features": [
           "Unlimited conversations",
-          "Custom volume agreements",
-          "White-label available",
-          "Dedicated 24/7 support",
+          "REST API · custom integrations · full analytics",
+          "Escalation tickets · custom volume agreements",
+          "White-label available · dedicated 24/7 support",
           "Custom enterprise SLA"
         ]
       }
