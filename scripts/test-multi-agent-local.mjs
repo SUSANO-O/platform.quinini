@@ -7,6 +7,9 @@ import { createConnection, Types } from 'mongoose';
 
 const BASE = (process.env.BASE_URL || 'http://localhost:3201').replace(/\/$/, '');
 const uri = process.env.MONGODB_URI || '';
+const CHAT_DELAY_MS = Number(process.env.E2E_CHAT_DELAY_MS || 2500);
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const CASES = [
   {
@@ -120,6 +123,69 @@ async function testStream(widget, agentId, message) {
   };
 }
 
+async function findAutoHandoffWidget(conn) {
+  const widgets = await conn
+    .collection('widgets')
+    .find({
+      afhubToken: /^wt_/,
+      multiAgentEnabled: { $ne: true },
+    })
+    .project({ name: 1, agentId: 1, afhubToken: 1, userId: 1, multiAgentEnabled: 1 })
+    .limit(30)
+    .toArray();
+
+  for (const w of widgets) {
+    const agentIdStr = String(w.agentId ?? '').trim();
+    if (!/^[a-f0-9]{24}$/i.test(agentIdStr)) continue;
+    const orch = await conn.collection('clientagents').findOne(
+      { _id: new Types.ObjectId(agentIdStr), status: 'active' },
+      { projection: { name: 1, subAgentIds: 1, agentHubId: 1 } },
+    );
+    if (!orch || !Array.isArray(orch.subAgentIds) || orch.subAgentIds.length === 0) continue;
+    const subIds = orch.subAgentIds
+      .map((id) => String(id).trim())
+      .filter((id) => /^[a-f0-9]{24}$/i.test(id))
+      .map((id) => new Types.ObjectId(id));
+    if (!subIds.length) continue;
+    const subs = await conn
+      .collection('clientagents')
+      .find({ _id: { $in: subIds } })
+      .project({ name: 1, agentHubId: 1 })
+      .toArray();
+    if (subs.some((s) => s.agentHubId)) {
+      return { widget: w, orchestrator: orch, subs };
+    }
+  }
+  return null;
+}
+
+async function findMultiOrchestratorWidget(conn) {
+  return conn.collection('widgets').findOne(
+    {
+      multiAgentEnabled: true,
+      afhubToken: /^wt_/,
+      orchestratorAgentIds: { $exists: true, $not: { $size: 0 } },
+    },
+    { projection: { name: 1, agentId: 1, afhubToken: 1, userId: 1, multiAgentMode: 1, orchestratorAgentIds: 1 } },
+  );
+}
+
+function printChatResults(label, results) {
+  console.log(`\n--- ${label} ---`);
+  for (const r of results) {
+    const handoffOk =
+      r.case.includes('reembolso') || r.case.includes('facturación') || r.case.includes('billing')
+        ? r.handoff === true
+        : r.handoff !== true || r.triageMethod === 'default';
+    const pass = r.ok && handoffOk;
+    console.log(pass ? '✓' : '✗', r.case);
+    console.log('  HTTP', r.http, '| handoff:', r.handoff, '| method:', r.triageMethod, '| specialist:', r.routedName);
+    console.log('  preview:', r.replyPreview);
+    if (r.multiAgent) console.log('  meta:', JSON.stringify(r.multiAgent));
+    if (r.error) console.log('  error:', r.error);
+  }
+}
+
 async function main() {
   console.log('=== Multi-agent E2E localhost ===');
   console.log('BASE:', BASE);
@@ -145,6 +211,57 @@ async function main() {
 
   const conn = await createConnection(uri).asPromise();
 
+  // ── A) Handoff automático (multiAgentEnabled OFF, agente con subs) ──
+  const autoCtx = await findAutoHandoffWidget(conn);
+  if (autoCtx) {
+    const { widget: autoW, orchestrator, subs } = autoCtx;
+    console.log('\n=== A) Handoff automático (sin toggle) ===');
+    console.log('Widget:', autoW.name, '| multiAgentEnabled:', autoW.multiAgentEnabled === true);
+    console.log('Orquestador:', orchestrator.name, '| subs:', subs.map((s) => s.name).join(', '));
+    const agentId = String(autoW.agentId);
+    const autoResults = [];
+    for (const tc of CASES) {
+      autoResults.push(await testChat(autoW, agentId, tc, 'auto-subs'));
+      await sleep(CHAT_DELAY_MS);
+    }
+    printChatResults('POST /api/widget/chat — auto handoff', autoResults);
+    const autoEnabled = autoResults.some((r) => r.multiAgent?.enabled === true);
+    const autoHandoff = autoResults.find((r) => r.case.includes('reembolso'));
+    console.log(
+      autoEnabled && autoHandoff?.handoff ? '✓' : '✗',
+      'Routing multiAgent meta presente + handoff en reembolso',
+    );
+  } else {
+    console.log('\n=== A) Handoff automático ===');
+    console.log('⚠ No hay widget wt_* con orquestador + subs sincronizados y multiAgentEnabled=false.');
+  }
+
+  // ── B) Multi-orquestador (multiAgentEnabled ON + orchestratorAgentIds) ──
+  const multiOrchW = await findMultiOrchestratorWidget(conn);
+  if (multiOrchW) {
+    console.log('\n=== B) Multi-orquestador ===');
+    console.log('Widget:', multiOrchW.name);
+    console.log('Orquestadores:', multiOrchW.agentId, '+', (multiOrchW.orchestratorAgentIds || []).join(', '));
+    const agentId = String(multiOrchW.agentId);
+    const moResults = [];
+    for (const tc of CASES) {
+      moResults.push(await testChat(multiOrchW, agentId, tc, 'multi-orch'));
+      await sleep(CHAT_DELAY_MS);
+    }
+    printChatResults('POST /api/widget/chat — multi-orquestador', moResults);
+    const orchIds = [String(multiOrchW.agentId), ...(multiOrchW.orchestratorAgentIds || []).map(String)];
+    const orchDocs = await conn
+      .collection('clientagents')
+      .find({ _id: { $in: orchIds.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id)) } })
+      .project({ name: 1 })
+      .toArray();
+    console.log('  Equipos cargados:', orchDocs.map((o) => o.name).join(' · '));
+  } else {
+    console.log('\n=== B) Multi-orquestador ===');
+    console.log('⚠ No hay widget con multiAgentEnabled=true y orchestratorAgentIds no vacío.');
+    console.log('  Activa el toggle avanzado y selecciona 2+ agentes en Widget Builder.');
+  }
+
   const multiWidgets = await conn
     .collection('widgets')
     .find({ multiAgentEnabled: true })
@@ -163,6 +280,7 @@ async function main() {
     multiWidgets[0];
 
   if (widget) {
+    console.log('\n=== C) Widget multiAgentEnabled (legacy script) ===');
     const owner = await conn
       .collection('subscriptions')
       .findOne({ userId: String(widget.userId) }, { projection: { plan: 1, status: 1 } });
@@ -175,6 +293,7 @@ async function main() {
 
     for (const tc of CASES) {
       results.push(await testChat(widget, agentId, tc, widget.multiAgentMode || 'triage'));
+      await sleep(CHAT_DELAY_MS);
     }
 
     console.log('\n--- POST /api/widget/chat ---');

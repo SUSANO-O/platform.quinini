@@ -120,9 +120,11 @@ const WidgetSchema = new Schema({
     }],
     default: [],
   },
-  /** IDs de agentes adicionales para routing multi-agente (plan Business+). */
+  /** IDs de especialistas (filtro opcional del equipo por orquestador). */
   agentIds: { type: [String], default: [] },
-  /** Fase 1: triaje + handoff vía orquestador (solo Business). */
+  /** Varios agentes top-level en el widget (Business+; requiere multiAgentEnabled). */
+  orchestratorAgentIds: { type: [String], default: [] },
+  /** Triaje multiagente avanzado: multi-orquestador, paralelo (Business+). Sub-agentes del orquestador se enrutan siempre si existen. */
   multiAgentEnabled: { type: Boolean, default: false },
   multiAgentMode: { type: String, enum: ['triage', 'parallel'], default: 'triage' },
 }, { timestamps: true });

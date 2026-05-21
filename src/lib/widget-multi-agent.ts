@@ -1,6 +1,7 @@
 /**
- * Widget multi-agente — Fase 1: triaje + handoff | Fase 2: paralelo + síntesis (solo Business).
- * Orquestador = widget.agentId; equipo = subAgentIds del padre + widget.agentIds.
+ * Widget multi-agente:
+ * - Sub-agentes del orquestador → triaje automático (todos los planes).
+ * - multiAgentEnabled (Business+) → varios orquestadores + modo paralelo + filtro de especialistas.
  */
 
 import { ClientAgent } from '@/lib/db/models';
@@ -19,8 +20,12 @@ export type MultiAgentMode = 'triage' | 'parallel';
 export type WidgetMultiAgentConfig = {
   multiAgentEnabled: boolean;
   multiAgentMode: MultiAgentMode;
+  /** Agente principal del embed (widget.agentId). */
   orchestratorAgentId: string;
+  /** Filtro opcional de especialistas (widget.agentIds). Vacío = todos los subs de cada orquestador. */
   agentIds: string[];
+  /** Varios agentes top-level cuando multiAgentEnabled (widget.orchestratorAgentIds). */
+  orchestratorAgentIds: string[];
 };
 
 export type TeamMember = {
@@ -29,7 +34,71 @@ export type TeamMember = {
   name: string;
   description: string;
   role: 'orchestrator' | 'specialist';
+  /** Especialista: _id del orquestador padre en Mongo. */
+  parentOrchestratorId?: string;
 };
+
+export type WidgetRoutingCapabilities = {
+  triage: boolean;
+  parallel: boolean;
+  autoSubAgents: boolean;
+  multiOrchestrator: boolean;
+};
+
+export function buildWidgetMultiAgentConfig(widget: {
+  agentId?: unknown;
+  multiAgentEnabled?: boolean;
+  multiAgentMode?: unknown;
+  agentIds?: unknown;
+  orchestratorAgentIds?: unknown;
+}): WidgetMultiAgentConfig {
+  const orchestratorAgentIds = Array.isArray(widget.orchestratorAgentIds)
+    ? widget.orchestratorAgentIds
+        .filter((x): x is string => typeof x === 'string' && /^[a-f0-9]{24}$/i.test(x.trim()))
+        .map((x) => x.trim())
+    : [];
+  const agentIds = Array.isArray(widget.agentIds)
+    ? widget.agentIds
+        .filter((x): x is string => typeof x === 'string' && /^[a-f0-9]{24}$/i.test(x.trim()))
+        .map((x) => x.trim())
+    : [];
+  return {
+    multiAgentEnabled: widget.multiAgentEnabled === true,
+    multiAgentMode: validateMultiAgentMode(widget.multiAgentMode),
+    orchestratorAgentId: normalizeAgentId(widget.agentId),
+    agentIds,
+    orchestratorAgentIds,
+  };
+}
+
+/** Cuándo aplicar triaje / paralelo según equipo y plan. */
+export function resolveWidgetRoutingCapabilities(
+  config: WidgetMultiAgentConfig,
+  team: TeamMember[],
+  plan: string,
+): WidgetRoutingCapabilities {
+  if (team.length <= 1) {
+    return { triage: false, parallel: false, autoSubAgents: false, multiOrchestrator: false };
+  }
+  const orchestrators = team.filter((m) => m.role === 'orchestrator');
+  const hasSpecialists = team.some((m) => m.role === 'specialist');
+  const multiOrchestrator = orchestrators.length > 1;
+  const premium = config.multiAgentEnabled && isMultiAgentPlanEligible(plan);
+  const autoSubAgents = hasSpecialists && !multiOrchestrator;
+  const triage = autoSubAgents || premium;
+  const parallel = premium && config.multiAgentMode === 'parallel' && hasSpecialists;
+  return { triage, parallel, autoSubAgents, multiOrchestrator };
+}
+
+export function findOrchestratorForMember(team: TeamMember[], target: TeamMember): TeamMember {
+  if (target.role === 'orchestrator') return target;
+  const parentId = target.parentOrchestratorId;
+  if (parentId) {
+    const parent = team.find((m) => m.id === parentId && m.role === 'orchestrator');
+    if (parent) return parent;
+  }
+  return team.find((m) => m.role === 'orchestrator') ?? team[0];
+}
 
 export type TriageResult = {
   target: TeamMember;
@@ -103,55 +172,84 @@ export async function loadWidgetTeam(
   config: WidgetMultiAgentConfig,
   userId: string,
 ): Promise<TeamMember[]> {
-  const orchestratorId = normalizeAgentId(config.orchestratorAgentId);
-  if (!orchestratorId) return [];
+  const primaryId = normalizeAgentId(config.orchestratorAgentId);
+  if (!primaryId) return [];
 
-  const orchestrator = await ClientAgent.findOne({
-    _id: orchestratorId,
-    userId,
+  let orchIds: string[] = [primaryId];
+  if (config.multiAgentEnabled && config.orchestratorAgentIds.length > 0) {
+    orchIds = [...new Set([primaryId, ...config.orchestratorAgentIds.map(normalizeAgentId).filter(Boolean)])].slice(
+      0,
+      MULTI_AGENT_MAX_TEAM,
+    );
+  }
+
+  const specialistFilter = new Set(
+    (config.agentIds ?? []).map(normalizeAgentId).filter((id) => id && id !== primaryId),
+  );
+  const useFilter = specialistFilter.size > 0;
+
+  const orchestrators = await ClientAgent.find({
+    _id: { $in: orchIds },
     status: 'active',
+    type: 'agent',
+    $or: [{ userId }, { isPlatform: true }],
   })
     .select({ name: 1, description: 1, systemPrompt: 1, agentHubId: 1, subAgentIds: 1 })
     .lean();
 
-  if (!orchestrator) return [];
+  const orchById = new Map(orchestrators.map((o) => [String(o._id), o]));
+  const orderedOrchs = orchIds.map((id) => orchById.get(id)).filter(Boolean) as typeof orchestrators;
+  if (!orderedOrchs.length) return [];
 
-  const teamIdSet = new Set<string>();
-  const extra = (config.agentIds ?? []).map(normalizeAgentId).filter(Boolean);
-  const subIds = (orchestrator.subAgentIds ?? []).map(String).filter(Boolean);
-  for (const id of [...subIds, ...extra]) {
-    if (id !== orchestratorId) teamIdSet.add(id);
+  const specialistIdSet = new Set<string>();
+  for (const orch of orderedOrchs) {
+    const oid = String(orch._id);
+    for (const raw of orch.subAgentIds ?? []) {
+      const sid = String(raw).trim();
+      if (!sid || sid === oid) continue;
+      if (useFilter && !specialistFilter.has(sid)) continue;
+      specialistIdSet.add(sid);
+    }
   }
 
-  const specialistIds = [...teamIdSet].slice(0, MULTI_AGENT_MAX_TEAM);
-  const specialists = specialistIds.length
+  const specialists = specialistIdSet.size
     ? await ClientAgent.find({
-        _id: { $in: specialistIds },
-        userId,
+        _id: { $in: [...specialistIdSet] },
         status: 'active',
+        $or: [{ userId }, { isPlatform: true }],
       })
-        .select({ name: 1, description: 1, systemPrompt: 1, agentHubId: 1 })
+        .select({ name: 1, description: 1, systemPrompt: 1, agentHubId: 1, parentAgentId: 1 })
         .lean()
     : [];
 
-  const members: TeamMember[] = [
-    {
-      id: orchestratorId,
-      hubId: orchestrator.agentHubId ? String(orchestrator.agentHubId) : null,
-      name: orchestrator.name ?? 'Orquestador',
-      description: (orchestrator.description ?? '').trim(),
-      role: 'orchestrator',
-    },
-  ];
+  const specById = new Map(specialists.map((s) => [String(s._id), s]));
 
-  for (const s of specialists) {
+  const members: TeamMember[] = [];
+  for (const orch of orderedOrchs) {
+    const oid = String(orch._id);
     members.push({
-      id: String(s._id),
-      hubId: s.agentHubId ? String(s.agentHubId) : null,
-      name: s.name ?? 'Especialista',
-      description: (s.description ?? '').trim(),
-      role: 'specialist',
+      id: oid,
+      hubId: orch.agentHubId ? String(orch.agentHubId) : null,
+      name: orch.name ?? 'Orquestador',
+      description: (orch.description ?? '').trim(),
+      role: 'orchestrator',
+      parentOrchestratorId: oid,
     });
+    for (const raw of orch.subAgentIds ?? []) {
+      const sid = String(raw).trim();
+      if (!sid || sid === oid) continue;
+      if (useFilter && !specialistFilter.has(sid)) continue;
+      const s = specById.get(sid);
+      if (!s) continue;
+      members.push({
+        id: sid,
+        hubId: s.agentHubId ? String(s.agentHubId) : null,
+        name: s.name ?? 'Especialista',
+        description: (s.description ?? '').trim(),
+        role: 'specialist',
+        parentOrchestratorId: oid,
+      });
+    }
   }
 
   return hydrateTeamHubIds(members, userId);
@@ -333,12 +431,9 @@ export async function applyMultiAgentRouting(params: {
   userId: string;
   plan: string;
 }): Promise<{ body: string; routedHubAgentId: string; meta: MultiAgentRoutingMeta } | null> {
-  if (!params.config.multiAgentEnabled || !isMultiAgentPlanEligible(params.plan)) {
-    return null;
-  }
-
   const team = await loadWidgetTeam(params.config, params.userId);
-  if (team.length <= 1) return null;
+  const caps = resolveWidgetRoutingCapabilities(params.config, team, params.plan);
+  if (!caps.triage || team.length <= 1) return null;
 
   let parsed: { message?: string; agentId?: string; history?: unknown[] };
   try {
@@ -349,10 +444,11 @@ export async function applyMultiAgentRouting(params: {
 
   const message = typeof parsed.message === 'string' ? parsed.message : '';
   const triage = await triageWidgetMessage(message, team);
-  const orchestrator = team[0];
-  const route = resolveRoutableHubAgentId(orchestrator, triage.target);
+  const primaryOrch = team.find((m) => m.id === params.config.orchestratorAgentId) ?? team[0];
+  const route = resolveRoutableHubAgentId(primaryOrch, triage.target);
   if (!route) return null;
 
+  const orchForMeta = findOrchestratorForMember(team, route.target);
   parsed.agentId = route.hubId;
 
   return {
@@ -360,8 +456,8 @@ export async function applyMultiAgentRouting(params: {
     routedHubAgentId: route.hubId,
     meta: {
       enabled: true,
-      mode: params.config.multiAgentMode ?? 'triage',
-      orchestratorId: orchestrator.id,
+      mode: caps.parallel ? params.config.multiAgentMode ?? 'triage' : 'triage',
+      orchestratorId: orchForMeta.id,
       routedAgentId: route.target.id,
       routedAgentName: route.target.name,
       handoff: route.handoff,
@@ -399,17 +495,28 @@ export async function validateMultiAgentWidgetSave(params: {
   orchestratorAgentId: string;
   multiAgentEnabled?: boolean;
   agentIds?: unknown;
-}): Promise<{ ok: true; agentIds: string[] } | { ok: false; error: string; code: string }> {
+  orchestratorAgentIds?: unknown;
+}): Promise<
+  | { ok: true; agentIds: string[]; orchestratorAgentIds: string[] }
+  | { ok: false; error: string; code: string }
+> {
   const enabled = params.multiAgentEnabled === true;
+  const rawOrchIds = Array.isArray(params.orchestratorAgentIds) ? params.orchestratorAgentIds : [];
+  const orchestratorAgentIds = rawOrchIds
+    .filter((x): x is string => typeof x === 'string' && /^[a-f0-9]{24}$/i.test(x.trim()))
+    .map((x) => x.trim())
+    .filter((id) => id !== params.orchestratorAgentId)
+    .slice(0, MULTI_AGENT_MAX_TEAM - 1);
+
   const rawIds = Array.isArray(params.agentIds) ? params.agentIds : [];
   const agentIds = rawIds
     .filter((x): x is string => typeof x === 'string' && /^[a-f0-9]{24}$/i.test(x.trim()))
     .map((x) => x.trim())
-    .filter((id) => id !== params.orchestratorAgentId)
+    .filter((id) => id !== params.orchestratorAgentId && !orchestratorAgentIds.includes(id))
     .slice(0, MULTI_AGENT_MAX_TEAM);
 
   if (!enabled) {
-    return { ok: true, agentIds: [] };
+    return { ok: true, agentIds: [], orchestratorAgentIds: [] };
   }
 
   if (!isMultiAgentPlanEligible(params.plan)) {
@@ -420,18 +527,38 @@ export async function validateMultiAgentWidgetSave(params: {
     };
   }
 
-  if (agentIds.length === 0) {
-    const parent = await ClientAgent.findOne({
-      _id: params.orchestratorAgentId,
+  const allOrchIds = [params.orchestratorAgentId, ...orchestratorAgentIds];
+
+  if (orchestratorAgentIds.length) {
+    const orchCount = await ClientAgent.countDocuments({
+      _id: { $in: orchestratorAgentIds },
       userId: params.userId,
+      status: 'active',
+      type: 'agent',
+    });
+    if (orchCount !== orchestratorAgentIds.length) {
+      return {
+        ok: false,
+        error: 'Uno o más agentes orquestadores no son válidos o no te pertenecen.',
+        code: 'MULTI_AGENT_INVALID_ORCHESTRATORS',
+      };
+    }
+  }
+
+  if (agentIds.length === 0) {
+    const parents = await ClientAgent.find({
+      _id: { $in: allOrchIds },
+      userId: params.userId,
+      status: 'active',
     })
       .select({ subAgentIds: 1 })
       .lean();
-    const subs = (parent?.subAgentIds ?? []).filter(Boolean);
-    if (subs.length === 0) {
+    const totalSubs = parents.reduce((n, p) => n + (p.subAgentIds ?? []).filter(Boolean).length, 0);
+    if (totalSubs === 0) {
       return {
         ok: false,
-        error: 'Activa al menos un especialista (sub-agente o agente del equipo) para el widget multiagente.',
+        error:
+          'Selecciona agentes con sub-agentes o marca especialistas del equipo para activar el widget multiagente.',
         code: 'MULTI_AGENT_TEAM_EMPTY',
       };
     }
@@ -452,7 +579,7 @@ export async function validateMultiAgentWidgetSave(params: {
     }
   }
 
-  return { ok: true, agentIds };
+  return { ok: true, agentIds, orchestratorAgentIds };
 }
 
 function extractHubReply(json: Record<string, unknown>): string {
@@ -574,19 +701,12 @@ export async function executeParallelMultiAgentFlow(params: {
   hubSecret: string;
   onPhase?: (phase: 'triage' | 'parallel' | 'synthesize', message: string) => void;
 }): Promise<ParallelFlowResult | null> {
-  if (
-    !params.config.multiAgentEnabled ||
-    params.config.multiAgentMode !== 'parallel' ||
-    !isMultiAgentPlanEligible(params.plan)
-  ) {
-    return null;
-  }
+  const team = await loadWidgetTeam(params.config, params.userId);
+  const caps = resolveWidgetRoutingCapabilities(params.config, team, params.plan);
+  if (!caps.parallel || team.length <= 1) return null;
 
   const hubBase = getAibackhubBaseUrl();
   if (!hubBase || !params.hubSecret.trim()) return null;
-
-  const team = await loadWidgetTeam(params.config, params.userId);
-  if (team.length <= 1) return null;
 
   let message = '';
   try {
@@ -598,10 +718,11 @@ export async function executeParallelMultiAgentFlow(params: {
 
   const triage = await triageWidgetMessage(message, team);
   params.onPhase?.('triage', buildMultiAgentStatusMessage('triage'));
-  const orchestrator = team[0];
-  const route = resolveRoutableHubAgentId(orchestrator, triage.target);
+  const primaryOrch = team.find((m) => m.id === params.config.orchestratorAgentId) ?? team[0];
+  const route = resolveRoutableHubAgentId(primaryOrch, triage.target);
   if (!route?.handoff) return null;
 
+  const orchestrator = findOrchestratorForMember(team, route.target);
   const orchHubId = resolveHubAgentId(orchestrator);
   const specHubId = resolveHubAgentId(route.target);
   if (!orchHubId || !specHubId) return null;

@@ -100,6 +100,7 @@ export async function POST(req: NextRequest) {
     orchestratorAgentId,
     multiAgentEnabled: rest.multiAgentEnabled === true,
     agentIds: rest.agentIds,
+    orchestratorAgentIds: rest.orchestratorAgentIds,
   });
   if (!multiValidation.ok) {
     return NextResponse.json(
@@ -116,6 +117,7 @@ export async function POST(req: NextRequest) {
     multiAgentEnabled: rest.multiAgentEnabled === true,
     multiAgentMode: rest.multiAgentEnabled === true ? multiMode : 'triage',
     agentIds: multiValidation.agentIds,
+    orchestratorAgentIds: multiValidation.orchestratorAgentIds,
   });
   return NextResponse.json({ widget }, { status: 201 });
 }

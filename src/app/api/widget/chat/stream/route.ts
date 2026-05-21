@@ -31,8 +31,8 @@ import {
   applyMultiAgentRouting,
   buildHandoffPrefix,
   buildMultiAgentStatusMessage,
+  buildWidgetMultiAgentConfig,
   executeParallelMultiAgentFlow,
-  normalizeAgentId,
   type MultiAgentRoutingMeta,
   type WidgetMultiAgentConfig,
 } from '@/lib/widget-multi-agent';
@@ -163,18 +163,11 @@ export async function POST(req: NextRequest) {
           const active =
             subForRoute?.status === 'active' || subForRoute?.status === 'trialing';
           const planForRoute = active ? (subForRoute?.plan ?? 'free') : 'free';
-          if (w.multiAgentEnabled === true) {
-            multiAgentCtx = {
-              userId: w.userId,
-              plan: planForRoute,
-              config: {
-                multiAgentEnabled: true,
-                multiAgentMode: w.multiAgentMode === 'parallel' ? 'parallel' : 'triage',
-                orchestratorAgentId: normalizeAgentId(w.agentId),
-                agentIds: w.agentIds ?? [],
-              },
-            };
-          }
+          multiAgentCtx = {
+            userId: w.userId,
+            plan: planForRoute,
+            config: buildWidgetMultiAgentConfig(w),
+          };
         } catch (routeErr) {
           console.warn('[widget/chat/stream] multi-agent context skipped:', routeErr);
         }
@@ -209,14 +202,16 @@ export async function POST(req: NextRequest) {
       if (widgetToken) headers['X-Widget-Token'] = widgetToken;
 
       try {
-        if (multiAgentCtx?.config.multiAgentEnabled) {
-          enqueue({
-            type: 'status',
-            phase: 'triage',
-            message: buildMultiAgentStatusMessage('triage'),
-          });
+        if (multiAgentCtx) {
+          if (multiAgentCtx.config.multiAgentEnabled) {
+            enqueue({
+              type: 'status',
+              phase: 'triage',
+              message: buildMultiAgentStatusMessage('triage'),
+            });
+          }
 
-          if (multiAgentCtx.config.multiAgentMode === 'parallel' && hubSecret) {
+          if (multiAgentCtx.config.multiAgentEnabled && multiAgentCtx.config.multiAgentMode === 'parallel' && hubSecret) {
             const parallel = await executeParallelMultiAgentFlow({
               rawBody: hubBody,
               config: multiAgentCtx.config,
