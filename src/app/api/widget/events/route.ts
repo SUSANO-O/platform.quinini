@@ -108,17 +108,21 @@ export async function POST(req: NextRequest) {
 
     // Validar token si viene en el payload (eventos autenticados)
     // Si no viene token, se acepta pero sin acceso a datos sensibles (retrocompatibilidad)
-    type WidgetRow = { userId?: string; _id?: unknown; allowedOrigins?: string[] };
+    type WidgetRow = { userId?: string; _id?: unknown; allowedOrigins?: string[]; active?: boolean; agentId?: unknown };
     let row: WidgetRow | null = null;
     if (widgetToken.startsWith('wt_')) {
       row = await Widget.findOne({ afhubToken: widgetToken })
-        .select({ userId: 1, _id: 1, allowedOrigins: 1 })
+        .select({ userId: 1, _id: 1, allowedOrigins: 1, active: 1, agentId: 1 })
         .lean() as WidgetRow | null;
+      if (row && (row as { active?: boolean }).active === false) {
+        return NextResponse.json(
+          { ok: true, dropped: true, reason: 'widget_disabled' },
+          { headers: corsHeaders() },
+        );
+      }
       // Verificar que el agentId del evento corresponde al widget del token
       if (row) {
-        const widgetData = await Widget.findById(row._id).select({ agentId: 1 }).lean() as
-          | { agentId?: unknown } | null;
-        const widgetAgentId = widgetData?.agentId ? String(widgetData.agentId).trim() : '';
+        const widgetAgentId = row.agentId ? String(row.agentId).trim() : '';
         if (widgetAgentId && widgetAgentId !== agentId) {
           return NextResponse.json({ ok: true, dropped: true, reason: 'token_mismatch' }, { headers: corsHeaders() });
         }

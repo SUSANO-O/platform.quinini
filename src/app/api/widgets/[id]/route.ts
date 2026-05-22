@@ -32,6 +32,7 @@ const PATCHABLE = [
   'autoOpen',
   'voiceEnabled',
   'humanSupportPhone',
+  'active',
 ] as const;
 
 type PatchableKey = (typeof PATCHABLE)[number];
@@ -92,7 +93,7 @@ export async function PATCH(
   for (const key of PATCHABLE) {
     if (!(key in raw)) continue;
     const v = raw[key];
-    if (key === 'autoOpen' || key === 'voiceEnabled') {
+    if (key === 'autoOpen' || key === 'voiceEnabled' || key === 'active') {
       $set[key] = Boolean(v);
       continue;
     }

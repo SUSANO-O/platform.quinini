@@ -118,6 +118,8 @@
     showMcpUi: false,
     /** Arrastrar el orbe (FAB) para fijar posición; se recuerda en sessionStorage por agente/widget. */
     fabDraggable: true,
+    /** Si false, el chat se muestra pero no acepta mensajes (widget desactivado en el panel). */
+    active: true,
     onOpen: null,
     onClose: null,
     onMessageSent: null,
@@ -326,6 +328,7 @@
     merged.retries = Number(merged.retries);
     if (!Number.isFinite(merged.retries) || merged.retries < 0) merged.retries = 2;
     merged.retries = Math.min(5, Math.floor(merged.retries));
+    merged.active = input && input.active === false ? false : true;
     merged.trackEvents = input && Object.prototype.hasOwnProperty.call(input, 'trackEvents')
       ? Boolean(input.trackEvents)
       : true;
@@ -798,6 +801,8 @@
     var typingId = 'afhub-typing-' + id;
     var isOpen = false;
     var isLoading = false;
+    var widgetDisabled = cfg.active === false;
+    var DISABLED_MSG = 'Este chat está desactivado temporalmente. Vuelve más tarde.';
     var chatLayout = 'floating';
     var sidebarSize = 'compact';
     var suppressFabClick = false;
@@ -820,6 +825,10 @@
       if (historyDomReady) return;
       historyDomReady = true;
       messages.innerHTML = '';
+      if (widgetDisabled) {
+        addMessage('bot', DISABLED_MSG);
+        return;
+      }
       if (!history.length) {
         addMessage('bot', cfg.welcome);
         return;
@@ -1055,6 +1064,7 @@
         pill.appendChild(textSpan);
         pill.appendChild(arrowSpan);
         pill.addEventListener('click', function() {
+          if (widgetDisabled) return;
           input.value = sc.message || sc.label || '';
           input.dispatchEvent(new Event('input'));
           send();
@@ -1114,6 +1124,13 @@
     sendBtn.setAttribute('aria-label', 'Enviar');
     inputArea.appendChild(sendBtn);
     chat.appendChild(inputArea);
+    if (widgetDisabled) {
+      input.disabled = true;
+      input.placeholder = 'Chat desactivado';
+      sendBtn.disabled = true;
+      if (micBtn) micBtn.disabled = true;
+      inputArea.classList.add('afhub-input-area--disabled');
+    }
     if (voiceBar) {
       chat.insertBefore(voiceBar, inputArea);
     }
@@ -1731,7 +1748,7 @@
       fab.setAttribute('aria-label', 'Cerrar chat');
       syncChatPanelLayout();
       renderHistoryToDom();
-      input.focus();
+      if (!widgetDisabled) input.focus();
       notify('onOpen');
       emitEvent('widget_opened');
     }
@@ -1828,6 +1845,7 @@
     }
 
     async function send(textArg) {
+      if (widgetDisabled) return;
       var text = typeof textArg === 'string' ? textArg.trim() : input.value.trim();
       if (!text || isLoading) return;
       if (!cfg.agentId) {
@@ -2510,7 +2528,7 @@
       if (!res.ok) {
         var SERVICE_ERROR = 'No podemos procesar tu solicitud en este momento. Comunícate con soporte.';
         var serverMsg = typeof data.error === 'string' && data.error.trim() ? data.error.trim() : '';
-        if (data.code === 'QUOTA_EXCEEDED' || data.code === 'SUBAGENT_LIMIT_EXCEEDED' || data.code === 'WIDGET_PROVIDER_SUBSCRIPTION_REQUIRED') {
+        if (data.code === 'QUOTA_EXCEEDED' || data.code === 'SUBAGENT_LIMIT_EXCEEDED' || data.code === 'WIDGET_PROVIDER_SUBSCRIPTION_REQUIRED' || data.code === 'WIDGET_DISABLED') {
           throw new Error(SERVICE_ERROR);
         }
         if (res.status === 429) {

@@ -10,7 +10,7 @@ import { getAgentflowhubBaseUrl } from '@/lib/aibackhub-sync';
 import { tryServeWidgetChatViaHubMcp } from '@/lib/widget-chat-direct-mcp';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent, Subscription } from '@/lib/db/models';
-import { findWidgetForWtToken, sentAgentIdMatchesWidget } from '@/lib/widget-token-verify';
+import { findWidgetForWtToken, isWidgetActive, sentAgentIdMatchesWidget } from '@/lib/widget-token-verify';
 import { trackWidgetChatUsage } from '@/lib/platform-agent-utils';
 import { checkConversationQuota } from '@/lib/quota';
 import { dispatchSaasWebhook } from '@/lib/saas-webhook-outbound';
@@ -262,6 +262,16 @@ export async function POST(req: NextRequest) {
       await connectDB();
       const w = await findWidgetForWtToken(widgetToken, parsedWidgetId || undefined);
       if (w) {
+        if (!isWidgetActive(w)) {
+          return NextResponse.json(
+            {
+              error: 'Este widget está desactivado. Contacta al administrador del sitio.',
+              code: 'WIDGET_DISABLED',
+            },
+            { status: 403, headers: cors(origin) },
+          );
+        }
+
         // ── Domain allowlist check ────────────────────────────────────────
         if (!isOriginAllowed(req.headers.get('origin'), w.allowedOrigins)) {
           logSecurityEvent({
