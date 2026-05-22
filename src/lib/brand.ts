@@ -6,4 +6,5 @@ export const BRAND_ASSISTANT_NAME = 'BotIvA Assistant';
 export const BRAND_ASSISTANT_NAME_ES = 'Asistente BotIvA';
 
 /** Logo horizontal BotIvA (public/). */
-export const BRAND_LOGO_SRC = '/assets/exampleRAG/Gemini_Generated_Image_6sm42y6sm42y6sm4.png';
+export const BRAND_LOGO_SRC =
+  '/assets/exampleRAG/Captura%20de%20pantalla%202026-05-21%20203251.png';

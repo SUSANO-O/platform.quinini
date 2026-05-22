@@ -41,8 +41,8 @@ sw.addEventListener('push', (event) => {
   pushEvent.waitUntil(
     sw.registration.showNotification(payload.title, {
       body: payload.body,
-      icon: '/assets/exampleRAG/Gemini_Generated_Image_6sm42y6sm42y6sm4.png',
-      badge: '/assets/exampleRAG/Gemini_Generated_Image_6sm42y6sm42y6sm4.png',
+      icon: '/assets/exampleRAG/Captura%20de%20pantalla%202026-05-21%20203251.png',
+      badge: '/assets/exampleRAG/Captura%20de%20pantalla%202026-05-21%20203251.png',
     }),
   );
 });
