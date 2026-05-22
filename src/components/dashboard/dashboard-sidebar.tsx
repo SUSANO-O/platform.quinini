@@ -16,9 +16,10 @@ import {
   Sparkles,
   Inbox,
 } from 'lucide-react';
-import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
+import { BRAND_LOGO_SRC, BRAND_NAME, BRAND_TEXT_COLOR } from '@/lib/brand';
 import { PwaInstallButton } from '@/components/shared/pwa-install-button';
 import { UserAvatar } from '@/components/shared/user-avatar';
+import { useInboxOpenCount } from '@/hooks/use-inbox-open-count';
 
 export const SIDEBAR_EXPANDED_PX = 252;
 export const SIDEBAR_COLLAPSED_PX = 72;
@@ -93,6 +94,39 @@ export function isActive(pathname: string, href: string) {
   return href === '/dashboard' ? pathname === href : pathname.startsWith(href);
 }
 
+function InboxBadge({ count, collapsed }: { count: number; collapsed: boolean }) {
+  if (count <= 0) return null;
+  const label = count > 99 ? '99+' : String(count);
+  return (
+    <span
+      aria-label={`${count} solicitudes pendientes`}
+      style={{
+        ...(collapsed
+          ? {
+              position: 'absolute',
+              top: 4,
+              right: '50%',
+              transform: 'translate(calc(50% + 8px), 0)',
+            }
+          : { marginLeft: 'auto' }),
+        minWidth: 20,
+        height: 20,
+        padding: '0 6px',
+        borderRadius: 999,
+        background: BRAND_TEXT_COLOR,
+        color: '#fff',
+        fontSize: 11,
+        fontWeight: 700,
+        lineHeight: '20px',
+        textAlign: 'center',
+        flexShrink: 0,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
 function SidebarNavLink({
   href,
   label,
@@ -100,6 +134,7 @@ function SidebarNavLink({
   active,
   collapsed,
   onNavigate,
+  badge,
 }: {
   href: string;
   label: string;
@@ -107,15 +142,17 @@ function SidebarNavLink({
   active: boolean;
   collapsed: boolean;
   onNavigate?: () => void;
+  badge?: number;
 }) {
   return (
     <Link
       href={href}
       onClick={onNavigate}
       data-tour={SIDEBAR_TOUR_KEY_BY_HREF[href]}
-      title={label}
+      title={badge && badge > 0 ? `${label} (${badge} pendientes)` : label}
       className={`dashboard-sidebar-link${active ? ' dashboard-sidebar-link--active' : ''}`}
       style={{
+        position: 'relative',
         display: 'flex',
         alignItems: 'center',
         justifyContent: collapsed ? 'center' : 'flex-start',
@@ -133,6 +170,7 @@ function SidebarNavLink({
     >
       <Icon size={20} strokeWidth={1.75} style={{ flexShrink: 0 }} aria-hidden />
       {!collapsed ? <span className="truncate">{label}</span> : null}
+      <InboxBadge count={badge ?? 0} collapsed={collapsed} />
     </Link>
   );
 }
@@ -141,10 +179,12 @@ function SidebarNav({
   pathname,
   collapsed,
   onNavigate,
+  inboxOpenCount,
 }: {
   pathname: string;
   collapsed: boolean;
   onNavigate?: () => void;
+  inboxOpenCount: number;
 }) {
   return (
     <nav
@@ -186,6 +226,7 @@ function SidebarNav({
                 active={isActive(pathname, item.href)}
                 collapsed={collapsed}
                 onNavigate={onNavigate}
+                badge={item.href === '/dashboard/inbox' ? inboxOpenCount : undefined}
               />
             ))}
           </div>
@@ -218,6 +259,7 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const isDesktop = variant === 'desktop';
   const rail = isDesktop && collapsed;
+  const { openCount: inboxOpenCount } = useInboxOpenCount(true);
 
   return (
     <aside
@@ -351,7 +393,7 @@ export function DashboardSidebar({
 
       {footer}
 
-      <SidebarNav pathname={pathname} collapsed={rail} onNavigate={onNavigate} />
+      <SidebarNav pathname={pathname} collapsed={rail} onNavigate={onNavigate} inboxOpenCount={inboxOpenCount} />
 
       {/* Pie */}
       <SoftDivider margin="12px 0 0" />
