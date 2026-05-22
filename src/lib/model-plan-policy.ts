@@ -18,6 +18,7 @@ export const PLAN_MAX_MODEL_TIER: Record<string, ModelTier> = {
   free:       'flash',
   solo:       'flash',
   basic:      'flash',
+  team:       'default',
   plus:       'default',
   starter:    'default',
   growth:     'premium',

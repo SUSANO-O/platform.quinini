@@ -32,6 +32,7 @@ export const PLAN_ASSUMED_MODEL_TIER: Record<PlanId, ModelTier> = {
   free:       'flash',
   solo:       'flash',
   basic:      'flash',
+  team:       'default',
   plus:       'default',
   starter:    'default',
   growth:     'default',
@@ -164,6 +165,7 @@ const SUPPORT_BY_PLAN: Record<PlanId, string> = {
   free:       'Comunidad',
   solo:       'Email 72 h',
   basic:      'Email 72 h',
+  team:       'Email 48 h',
   plus:       'Email 48 h',
   starter:    'Email 48 h',
   growth:     'Chat 24 h',
@@ -173,7 +175,7 @@ const SUPPORT_BY_PLAN: Record<PlanId, string> = {
 
 export function buildPlanComparisonRows(): PlanComparisonRow[] {
   const ids: PlanId[] = [
-    'free', 'solo', 'basic', 'plus', 'starter', 'growth', 'business',
+    'free', 'solo', 'basic', 'team', 'plus', 'starter', 'growth', 'business',
   ];
   return ids.map((id) => {
     const rag = PLAN_RAG_LIMITS[id];

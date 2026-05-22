@@ -6,7 +6,7 @@
  *   LEMONSQUEEZY_API_KEY
  *   LEMONSQUEEZY_STORE_ID
  *   LEMONSQUEEZY_WEBHOOK_SECRET
- *   LEMONSQUEEZY_VARIANT_SOLO | BASIC | PLUS | STARTER | GROWTH | BUSINESS
+ *   LEMONSQUEEZY_VARIANT_SOLO | BASIC | TEAM | PLUS | STARTER | GROWTH | BUSINESS
  *   LEMONSQUEEZY_VARIANT_PACK_S | PACK_M | PACK_L
  */
 
@@ -32,6 +32,7 @@ export const LS_STORE_ID = parseInt(process.env.LEMONSQUEEZY_STORE_ID || '0', 10
 const VARIANT_ENV: Record<PaidPlanId, string> = {
   solo:    process.env.LEMONSQUEEZY_VARIANT_SOLO    || '',
   basic:   process.env.LEMONSQUEEZY_VARIANT_BASIC   || '',
+  team:    process.env.LEMONSQUEEZY_VARIANT_TEAM    || '',
   plus:    process.env.LEMONSQUEEZY_VARIANT_PLUS    || '',
   starter: process.env.LEMONSQUEEZY_VARIANT_STARTER || '',
   growth:  process.env.LEMONSQUEEZY_VARIANT_GROWTH  || '',

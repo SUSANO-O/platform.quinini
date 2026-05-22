@@ -32,6 +32,7 @@ describe('webhook entitlements (plan-catalog)', () => {
     expect(canUseAgentWebhookTool('free')).toBe(false);
     expect(canUseAgentWebhookTool('solo')).toBe(true);
     expect(canUseAgentWebhookTool('basic')).toBe(true);
+    expect(canUseAgentWebhookTool('team')).toBe(true);
     expect(canUseAgentWebhookTool('plus')).toBe(true);
     expect(canUseAgentWebhookTool('starter')).toBe(true);
   });
@@ -72,6 +73,7 @@ describe('webhook entitlements (plan-catalog)', () => {
   it('plan bullets mention webhooks on paid tiers', () => {
     expect(PLAN_FEATURE_BULLETS.solo.some((b) => /webhook/i.test(b))).toBe(true);
     expect(PLAN_FEATURE_BULLETS.basic.some((b) => /webhook/i.test(b))).toBe(true);
+    expect(PLAN_FEATURE_BULLETS.team.some((b) => /RAG/i.test(b))).toBe(true);
     expect(PLAN_FEATURE_BULLETS.starter.some((b) => /saliente|HMAC/i.test(b))).toBe(true);
   });
 });

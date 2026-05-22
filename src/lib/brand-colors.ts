@@ -42,6 +42,7 @@ export const STATE = {
 export const PLAN_ACCENTS: Record<string, string> = {
   solo: BRAND.primary,
   basic: BRAND.warm,
+  team: '#0d9488',
   plus: '#6366f1',
   starter: BRAND.primary,
   growth: PREMIUM.accent,

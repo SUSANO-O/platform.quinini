@@ -6,6 +6,7 @@
 const PLANS = [
   { id: 'solo',    price: 7,   conv: 300,    tier: 'flash',   rag: null, agents: 1,  history: 30 },
   { id: 'basic',   price: 17,  conv: 1500,   tier: 'flash',   rag: null, agents: 5,  history: 30 },
+  { id: 'team',    price: 29,  conv: 2000,   tier: 'default', rag: { mb: 128, cap: 3 }, agents: 3, history: 45 },
   { id: 'plus',    price: 39,  conv: 3000,   tier: 'default', rag: { mb: 256, cap: 5 }, agents: 10, history: 60 },
   { id: 'starter', price: 65,  conv: 6000,   tier: 'default', rag: { mb: 1024, cap: 8 }, agents: 25, history: 90 },
   { id: 'growth',  price: 179, conv: 16_000, tier: 'default', rag: { mb: 10240, cap: 12 }, agents: 50, history: 365 },

@@ -119,7 +119,7 @@
       "period": "/mo",
       "popular": "Most popular",
       "cta": "Start free — 7 days",
-      "ragNotIncluded": "No context & memory — available from Plus",
+      "ragNotIncluded": "No context & memory — available from Team",
       "ragTechnical": "Context & memory: {mb} MB · {sources} sources per agent",
       "solo": {
         "requests": "300 conv/mo",
@@ -139,6 +139,16 @@
           "Gmail & Slack · unlimited widgets · 30-day history",
           "Group training included",
           "Email support (72h)"
+        ]
+      },
+      "team": {
+        "requests": "2,000 conv/mo",
+        "features": [
+          "2,000 conversations per month (~65/day)",
+          "3 agents · 2 sub-agents · Webhook included",
+          "RAG: 128 MB · 15 sources · Pinecone included",
+          "Gmail & Slack · unlimited widgets · 45-day history",
+          "Group training · email support (48h)"
         ]
       },
       "plus": {
