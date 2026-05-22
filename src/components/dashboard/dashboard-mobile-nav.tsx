@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { LucideIcon } from 'lucide-react';
-import { Bot, Boxes, LogOut, Menu, X } from 'lucide-react';
+import { Bot, Boxes, LayoutDashboard, LogOut, Menu, X } from 'lucide-react';
 import {
   NAV_GROUPS,
   SIDEBAR_TOUR_KEY_BY_HREF,
@@ -15,16 +15,17 @@ import { PwaInstallButton } from '@/components/shared/pwa-install-button';
 
 /** Accesos directos en la barra inferior (estilo app móvil). */
 const BOTTOM_TABS: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/agents', label: 'Agentes', icon: Bot },
   { href: '/dashboard/widgets', label: 'Widgets', icon: Boxes },
 ];
 
-const MENU_ONLY_PREFIXES = ['/dashboard', '/dashboard/widget-builder', '/dashboard/compliance', '/dashboard/settings'];
+const BOTTOM_HREFS = new Set(BOTTOM_TABS.map((t) => t.href));
+
+const MENU_ONLY_PREFIXES = ['/dashboard/widget-builder', '/dashboard/compliance', '/dashboard/settings'];
 
 function isMenuSectionActive(pathname: string) {
-  return MENU_ONLY_PREFIXES.some((prefix) =>
-    prefix === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(prefix),
-  );
+  return MENU_ONLY_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
 type DashboardMobileNavProps = {
@@ -111,11 +112,14 @@ export function DashboardMobileNav({
           {menuFooter}
 
           <nav className="dashboard-mobile-nav__sheet-nav">
-            {NAV_GROUPS.map((group) => (
+            {NAV_GROUPS.map((group) => {
+              const items = group.items.filter((item) => !BOTTOM_HREFS.has(item.href));
+              if (items.length === 0) return null;
+              return (
               <div key={group.title} style={{ marginBottom: 16 }}>
                 <p className="dashboard-mobile-nav__group-title">{group.title}</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {group.items.map((item) => {
+                  {items.map((item) => {
                     const Icon = item.icon;
                     const active = isActive(pathname, item.href);
                     return (
@@ -133,7 +137,8 @@ export function DashboardMobileNav({
                   })}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </nav>
 
           <div style={{ paddingTop: 8 }}>

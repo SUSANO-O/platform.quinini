@@ -214,9 +214,8 @@ export function DashboardSidebar({
   return (
     <aside
       aria-label="Navegación del panel"
-      className={isDesktop ? 'hidden md:flex dashboard-sidebar' : undefined}
+      className={isDesktop ? 'dashboard-sidebar dashboard-sidebar--desktop' : 'dashboard-sidebar'}
       style={{
-        display: 'flex',
         width: isDesktop ? (collapsed ? SIDEBAR_COLLAPSED_PX : SIDEBAR_EXPANDED_PX) : SIDEBAR_EXPANDED_PX,
         flexShrink: 0,
         minHeight: 0,
