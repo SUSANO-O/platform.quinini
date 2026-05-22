@@ -34,6 +34,7 @@ const PLANS = {
   subscriptions: [
     { key: 'solo',     name: 'BotIvA Solo',     usd: 7,   interval: 'month', aliases: ['solo'] },
     { key: 'basic',    name: 'BotIvA Basic',    usd: 17,  interval: 'month', aliases: ['basic'] },
+    { key: 'team',     name: 'BotIvA Team',     usd: 29,  interval: 'month', aliases: ['team'] },
     { key: 'plus',     name: 'BotIvA Plus',     usd: 39,  interval: 'month', aliases: ['plus'] },
     { key: 'starter',  name: 'BotIvA Starter',  usd: 65,  interval: 'month', aliases: ['starter'] },
     { key: 'growth',   name: 'BotIvA Growth',   usd: 179, interval: 'month', aliases: ['growth'] },

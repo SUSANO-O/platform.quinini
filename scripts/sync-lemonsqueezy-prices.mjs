@@ -24,6 +24,7 @@ const CATALOG = {
   subscriptions: {
     solo:    { usd: 7,   env: 'LEMONSQUEEZY_VARIANT_SOLO',    name: 'Solo' },
     basic:   { usd: 17,  env: 'LEMONSQUEEZY_VARIANT_BASIC',   name: 'Basic' },
+    team:    { usd: 29,  env: 'LEMONSQUEEZY_VARIANT_TEAM',    name: 'Team' },
     plus:    { usd: 39,  env: 'LEMONSQUEEZY_VARIANT_PLUS',    name: 'Plus' },
     starter: { usd: 65,  env: 'LEMONSQUEEZY_VARIANT_STARTER', name: 'Starter' },
     growth:  { usd: 179, env: 'LEMONSQUEEZY_VARIANT_GROWTH',  name: 'Growth' },

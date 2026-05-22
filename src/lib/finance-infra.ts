@@ -45,6 +45,7 @@ export function infraRateConfig() {
 
 /** Tope de agentes para calcular storage RAG (evita ∞ en Business). */
 const INFRA_AGENT_CAP: Partial<Record<PlanId, number>> = {
+  team: 3,
   plus: 5,
   starter: 8,
   growth: 12,

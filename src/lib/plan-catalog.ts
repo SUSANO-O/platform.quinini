@@ -10,6 +10,7 @@ export const PLAN_ORDER = [
   'free',
   'solo',
   'basic',
+  'team',
   'plus',
   'starter',
   'growth',
@@ -19,12 +20,13 @@ export const PLAN_ORDER = [
 
 export type PlanId = (typeof PLAN_ORDER)[number];
 
-export type PaidPlanId = 'solo' | 'basic' | 'plus' | 'starter' | 'growth' | 'business';
+export type PaidPlanId = 'solo' | 'basic' | 'team' | 'plus' | 'starter' | 'growth' | 'business';
 
 /** Planes de pago ordenados para upgrades/downgrades. */
 export const PAID_PLAN_IDS: PaidPlanId[] = [
   'solo',
   'basic',
+  'team',
   'plus',
   'starter',
   'growth',
@@ -37,6 +39,7 @@ export const LANDING_PLAN_IDS: PaidPlanId[] = ['plus', 'starter', 'growth'];
 /** Grid principal en /pricing (incluye Basic y Business). */
 export const PRICING_GRID_PLAN_IDS: PaidPlanId[] = [
   'basic',
+  'team',
   'plus',
   'starter',
   'growth',
@@ -47,6 +50,7 @@ export const PRICING_GRID_PLAN_IDS: PaidPlanId[] = [
 export const PLAN_PRICES_USD: Record<PaidPlanId, number> = {
   solo: 7,
   basic: 17,
+  team: 29,
   plus: 39,
   starter: 65,
   growth: 179,
@@ -57,6 +61,7 @@ const PLAN_LABELS: Record<PlanId, string> = {
   free: 'Free',
   solo: 'Solo',
   basic: 'Basic',
+  team: 'Team',
   plus: 'Plus',
   starter: 'Starter',
   growth: 'Growth',
@@ -104,6 +109,7 @@ export const PLAN_CONVERSATION_LIMITS: Record<string, number> = {
   free:       50,
   solo:       300,
   basic:      1_500,
+  team:       2_000,
   plus:       3_000,
   starter:    6_000,
   growth:     16_000,
@@ -116,6 +122,7 @@ export const PLAN_AGENT_LIMITS: Record<string, number> = {
   free:       1,
   solo:       1,
   basic:      5,
+  team:       3,
   plus:       10,
   starter:    25,
   growth:     50,
@@ -137,6 +144,7 @@ export const PLAN_SUBAGENT_LIMITS: Record<string, number> = {
   free:       0,
   solo:       0,
   basic:      2,
+  team:       2,
   plus:       5,
   starter:    10,
   growth:     25,
@@ -148,6 +156,7 @@ export const PLAN_TOOLS_LIMITS: Record<string, number> = {
   free:       2,
   solo:       3,
   basic:      5,
+  team:       6,
   plus:       8,
   starter:    15,
   growth:     50,
@@ -160,6 +169,7 @@ export const PLAN_RATE_LIMITS_PER_MIN: Record<string, number> = {
   free:       10,
   solo:       20,
   basic:      30,
+  team:       35,
   plus:       40,
   starter:    60,
   growth:     120,
@@ -172,6 +182,7 @@ export const PLAN_HISTORY_RETENTION_DAYS: Record<string, number> = {
   free:       7,
   solo:       30,
   basic:      30,
+  team:       45,
   plus:       60,
   starter:    90,
   growth:     365,
@@ -184,6 +195,7 @@ export const PLAN_RAG_LIMITS: Record<string, { mb: number; sources: number } | n
   free:       null,
   solo:       null,
   basic:      null,
+  team:       { mb: 128,     sources: 15   },
   plus:       { mb: 256,     sources: 20   },
   starter:    { mb: 1_024,   sources: 60   },
   growth:     { mb: 10_240,  sources: 300  },
@@ -317,6 +329,13 @@ export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
     'Historial: 30 días',
     'Capacitación grupal incluida · soporte email (72 h)',
   ],
+  team: [
+    '2.000 conversaciones al mes (~65/día)',
+    '3 agentes · 2 sub-agentes · Webhook incluido',
+    'RAG: 128 MB · 15 fuentes por agente · Pinecone incluido',
+    'Gmail y Slack · widgets ilimitados · historial 45 días',
+    'Capacitación grupal · soporte email (48 h)',
+  ],
   plus: [
     '3.000 conversaciones al mes (~100/día)',
     '10 agentes · 5 sub-agentes · Webhook incluido',
@@ -357,6 +376,7 @@ export const PLAN_PRICING_FEATURES: Record<PlanId, string[]> = {
   ],
   solo: PLAN_FEATURE_BULLETS.solo,
   basic: PLAN_FEATURE_BULLETS.basic,
+  team: PLAN_FEATURE_BULLETS.team,
   plus: PLAN_FEATURE_BULLETS.plus,
   starter: PLAN_FEATURE_BULLETS.starter,
   growth: PLAN_FEATURE_BULLETS.growth,

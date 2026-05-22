@@ -39,7 +39,7 @@ function parsePlanCatalog(text) {
 
 function parsePricingAudit(text) {
   const plans = [];
-  for (const m of text.matchAll(/\{\s*id:\s*'(solo|basic|plus|starter|growth|business)',\s*price:\s*([\d_]+),\s*conv:\s*([\d_]+)/g)) {
+  for (const m of text.matchAll(/\{\s*id:\s*'(solo|basic|team|plus|starter|growth|business)',\s*price:\s*([\d_]+),\s*conv:\s*([\d_]+)/g)) {
     plans.push({ id: m[1], price: Number(m[2].replace(/_/g, '')), conv: Number(m[3].replace(/_/g, '')) });
   }
   const packs = [];
@@ -52,7 +52,7 @@ function parsePricingAudit(text) {
 function parseLsCatalog(text) {
   const subs = {};
   for (const m of text.matchAll(/(\w+):\s*\{\s*usd:\s*([\d_]+)/g)) {
-    if (['solo', 'basic', 'plus', 'starter', 'growth', 'business', 'pack_s', 'pack_m', 'pack_l'].includes(m[1])) {
+    if (['solo', 'basic', 'team', 'plus', 'starter', 'growth', 'business', 'pack_s', 'pack_m', 'pack_l'].includes(m[1])) {
       subs[m[1]] = Number(m[2].replace(/_/g, ''));
     }
   }
@@ -126,13 +126,13 @@ for (const [id, cents] of Object.entries(stripeCents)) {
 }
 
 for (const [id, conv] of Object.entries(esJson)) {
-  if (['solo', 'basic', 'plus', 'starter', 'growth', 'business'].includes(id)) {
+  if (['solo', 'basic', 'team', 'plus', 'starter', 'growth', 'business'].includes(id)) {
     if (catalog.convs[id] !== conv) errors.push(`messages/es.json ${id}: ${conv} conv ≠ catalog ${catalog.convs[id]}`);
   }
 }
 
 for (const [id, conv] of Object.entries(enJson)) {
-  if (['solo', 'basic', 'plus', 'starter', 'growth', 'business'].includes(id)) {
+  if (['solo', 'basic', 'team', 'plus', 'starter', 'growth', 'business'].includes(id)) {
     if (catalog.convs[id] !== conv) errors.push(`messages/en.json ${id}: ${conv} conv ≠ catalog ${catalog.convs[id]}`);
   }
 }
@@ -142,7 +142,7 @@ console.log('  VERIFICACIÓN DE SINCRONIZACIÓN — plan-catalog.ts');
 console.log('══════════════════════════════════════════════════════════════\n');
 
 console.log('Catálogo canónico (USD / conv/mes):');
-for (const id of ['solo', 'basic', 'plus', 'starter', 'growth', 'business']) {
+for (const id of ['solo', 'basic', 'team', 'plus', 'starter', 'growth', 'business']) {
   console.log(`  ${id.padEnd(10)} $${String(catalog.prices[id]).padStart(3)}  ·  ${catalog.convs[id].toLocaleString('es')} conv`);
 }
 console.log('  Packs:');

@@ -119,7 +119,7 @@
       "period": "/mes",
       "popular": "Más popular",
       "cta": "Empezar gratis — 7 días",
-      "ragNotIncluded": "Sin contexto y memoria — disponible desde Plus",
+      "ragNotIncluded": "Sin contexto y memoria — disponible desde Team",
       "ragTechnical": "Contexto y memoria: {mb} MB · {sources} fuentes por agente",
       "solo": {
         "requests": "300 conv/mes",
@@ -139,6 +139,16 @@
           "Gmail y Slack · widgets ilimitados · historial 30 días",
           "Capacitación grupal incluida",
           "Soporte por email (72 h)"
+        ]
+      },
+      "team": {
+        "requests": "2.000 conv/mes",
+        "features": [
+          "2.000 conversaciones al mes (~65/día)",
+          "3 agentes · 2 sub-agentes · Webhook incluido",
+          "RAG: 128 MB · 15 fuentes · Pinecone incluido",
+          "Gmail y Slack · widgets ilimitados · historial 45 días",
+          "Capacitación grupal · soporte email (48 h)"
         ]
       },
       "plus": {
