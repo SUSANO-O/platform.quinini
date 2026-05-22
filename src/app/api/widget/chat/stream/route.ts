@@ -103,12 +103,14 @@ export async function POST(req: NextRequest) {
 
   let parsedAgentId = '';
   let parsedWidgetId = '';
+  let resolvedWidgetId = '';
   let parsedSessionId = '';
   let tokenFromBody = '';
   try {
     const j = JSON.parse(rawBody) as { agentId?: string; widgetId?: string; token?: string; sessionId?: string };
     parsedAgentId = typeof j?.agentId === 'string' ? j.agentId.trim() : '';
     parsedWidgetId = typeof j?.widgetId === 'string' ? j.widgetId.trim() : '';
+    resolvedWidgetId = parsedWidgetId;
     parsedSessionId = typeof j?.sessionId === 'string' ? j.sessionId.trim() : '';
     tokenFromBody = typeof j?.token === 'string' ? j.token.trim() : '';
   } catch {
@@ -133,6 +135,7 @@ export async function POST(req: NextRequest) {
       await connectDB();
       const w = await findWidgetForWtToken(widgetToken, parsedWidgetId || undefined);
       if (w) {
+        if (!resolvedWidgetId && w.id) resolvedWidgetId = w.id;
         if (!isWidgetActive(w)) {
           return new Response(
             sseEvent({
@@ -459,12 +462,12 @@ export async function POST(req: NextRequest) {
             }).catch(() => {});
 
             // Persist transcript (fire-and-forget — never blocks stream)
-            if (streamMsg && fullReply && parsedWidgetId) {
+            if (streamMsg && fullReply && resolvedWidgetId) {
               void (async () => {
                 try {
                   const { WidgetMessage } = await import('@/lib/db/models');
                   const baseMsg = {
-                    widgetId: parsedWidgetId,
+                    widgetId: resolvedWidgetId,
                     userId: faqTrackOwnerId,
                     agentId: parsedAgentIdLocal,
                     sessionId: parsedSessionId || traceId,

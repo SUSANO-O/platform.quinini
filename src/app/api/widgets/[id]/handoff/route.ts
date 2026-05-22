@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
-import { Widget, User, ConversationSession } from '@/lib/db/models';
+import { Widget, User, ConversationSession, WidgetMessage } from '@/lib/db/models';
 import { dispatchSaasWebhook } from '@/lib/saas-webhook-outbound';
 import { sendPushToUser } from '@/lib/push-notifications';
 import { createEscalationTicket } from '@/lib/escalation-tickets';
@@ -95,6 +95,18 @@ export async function POST(
       },
       { upsert: true },
     ).catch(() => {});
+
+    const handoffMsg = body.userMessage?.trim();
+    if (handoffMsg) {
+      void WidgetMessage.create({
+        widgetId: id,
+        userId: uid,
+        agentId: body.agentId || '',
+        sessionId: body.sessionId,
+        role: 'user',
+        content: handoffMsg.slice(0, 4000),
+      }).catch(() => {});
+    }
   }
 
   const user = await User.findById(uid)

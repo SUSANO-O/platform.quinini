@@ -23,7 +23,11 @@ export async function GET(req: NextRequest) {
 
   await connectDB();
 
-  const filter: Record<string, unknown> = { userId, escalated: true };
+  const filter: Record<string, unknown> = {
+    userId,
+    escalated: true,
+    handoffAt: { $exists: true, $ne: null },
+  };
   if (status === 'open') filter.inboxStatus = { $ne: 'resolved' };
   else if (status === 'resolved') filter.inboxStatus = 'resolved';
 
@@ -75,7 +79,7 @@ export async function GET(req: NextRequest) {
       inboxStatus: s.inboxStatus || 'open',
       contact: contact || {},
       handoffMessage: s.handoffMessage || '',
-      messageCount: msg?.messageCount ?? s.messageCount ?? 0,
+      messageCount: msg?.messageCount ?? 0,
       lastMessage: msg?.lastContent ? String(msg.lastContent).slice(0, 200) : '',
       lastRole: msg?.lastRole || '',
     };
@@ -84,6 +88,7 @@ export async function GET(req: NextRequest) {
   const openCount = await ConversationSession.countDocuments({
     userId,
     escalated: true,
+    handoffAt: { $exists: true, $ne: null },
     inboxStatus: { $ne: 'resolved' },
   });
 

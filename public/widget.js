@@ -953,7 +953,7 @@
       inner.className = 'afhub-persona-offer-inner';
       var hint = document.createElement('span');
       hint.className = 'afhub-persona-offer-hint';
-      hint.textContent = 'Si prefieres atención humana, puedes escribirnos por WhatsApp.';
+      hint.textContent = 'Si prefieres atención inmediata, puedes escribirnos por WhatsApp.';
       var a = document.createElement('a');
       a.className = 'afhub-persona-tag';
       a.href = 'https://wa.me/' + digits;
@@ -967,14 +967,6 @@
       row.appendChild(inner);
       messages.appendChild(row);
       messages.scrollTop = messages.scrollHeight;
-      try {
-        emitEvent('conversation_handoff', {
-          reason: 'keyword_whatsapp_offer',
-          channel: 'whatsapp',
-        });
-      } catch (_evErr) {
-        /* noop */
-      }
     }
 
     var headerActions = document.createElement('div');

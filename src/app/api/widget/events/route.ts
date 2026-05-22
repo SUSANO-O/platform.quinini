@@ -206,19 +206,54 @@ export async function POST(req: NextRequest) {
       }
 
       if (event === 'conversation_handoff') {
-        const sessionFilter = clientSessionId
-          ? { sessionId: clientSessionId, userId: uid }
-          : { agentId, userId: uid, endedAt: null };
-        await ConversationSession.findOneAndUpdate(
-          sessionFilter,
-          { $set: { escalated: true } },
-          clientSessionId ? {} : { sort: { startedAt: -1 } },
-        );
-        dispatchSaasWebhook(uid, 'conversation.handoff', {
-          agentId,
-          sessionId: clientSessionId || undefined,
-          details: typeof body.details === 'object' && body.details !== null ? body.details : {},
-        });
+        const details = body.details as Record<string, unknown> | null;
+        const reason = typeof details?.reason === 'string' ? details.reason.trim() : '';
+        const channel = typeof details?.channel === 'string' ? details.channel.trim() : '';
+
+        // Oferta WhatsApp por palabra clave: no es una solicitud de inbox.
+        if (reason === 'keyword_whatsapp_offer') {
+          dispatchSaasWebhook(uid, 'conversation.handoff', {
+            agentId,
+            sessionId: clientSessionId || undefined,
+            details: details ?? {},
+          });
+        } else {
+          const contactRaw = details?.contactInfo as Record<string, unknown> | null;
+          const contactInfo = {
+            name: typeof contactRaw?.name === 'string' ? contactRaw.name.trim() : '',
+            email: typeof contactRaw?.email === 'string' ? contactRaw.email.trim() : '',
+            phone: typeof contactRaw?.phone === 'string' ? contactRaw.phone.trim() : '',
+          };
+          const hasContact = !!(contactInfo.name || contactInfo.email || contactInfo.phone);
+          const isInboxHandoff =
+            reason === 'form_submit' || channel === 'inbox' || hasContact;
+
+          if (isInboxHandoff) {
+            const sessionFilter = clientSessionId
+              ? { sessionId: clientSessionId, userId: uid }
+              : { agentId, userId: uid, endedAt: null };
+            const $set: Record<string, unknown> = {
+              escalated: true,
+              inboxStatus: 'open',
+              handoffAt: now,
+              widgetId,
+              agentId,
+            };
+            if (hasContact) $set.handoffContact = contactInfo;
+
+            await ConversationSession.findOneAndUpdate(
+              sessionFilter,
+              { $set },
+              clientSessionId ? {} : { sort: { startedAt: -1 } },
+            );
+          }
+
+          dispatchSaasWebhook(uid, 'conversation.handoff', {
+            agentId,
+            sessionId: clientSessionId || undefined,
+            details: details ?? {},
+          });
+        }
       }
 
       if (event === 'multi_agent_routed') {
