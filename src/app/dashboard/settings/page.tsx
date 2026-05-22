@@ -6,11 +6,13 @@ import { SubscriptionPlanPanel } from '@/components/dashboard/subscription-plan-
 import { UpdatePaymentModal } from '@/components/billing/update-payment-modal';
 import { InvoiceList } from '@/components/billing/invoice-list';
 // import { getStripePromise } from '@/lib/stripe-client'; // Stripe — comentado
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import Link from 'next/link';
 import { CreditCard, ExternalLink, Settings, Sparkles, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { AvatarEditor } from '@/components/ui/AvatarEditor';
+import { UserAvatar } from '@/components/shared/user-avatar';
 import {
   PLAN_DISPLAY,
   PLAN_ORDER,
@@ -64,6 +66,9 @@ export default function SettingsPage() {
   const [newEmail, setNewEmail] = useState('');
   const [emailCode, setEmailCode] = useState('');
   const [busyProfile, setBusyProfile] = useState(false);
+  const [busyAvatar, setBusyAvatar] = useState(false);
+  const [avatarEditorUrl, setAvatarEditorUrl] = useState<string | null>(null);
+  const [avatarEditorOpen, setAvatarEditorOpen] = useState(false);
   const [busyEmailReq, setBusyEmailReq] = useState(false);
   const [busyEmailConfirm, setBusyEmailConfirm] = useState(false);
   const [busyVerifyResend, setBusyVerifyResend] = useState(false);
@@ -114,6 +119,77 @@ export default function SettingsPage() {
     } finally {
       setBusyProfile(false);
     }
+  }
+
+  async function saveAvatar(url: string) {
+    if (!user) return;
+    setBusyAvatar(true);
+    try {
+      const r = await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatarUrl: url }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        toast.error(data.error || 'No se pudo guardar la foto.');
+        return;
+      }
+      toast.success('Foto de perfil actualizada.');
+      await refreshUser();
+    } finally {
+      setBusyAvatar(false);
+    }
+  }
+
+  async function removeAvatar() {
+    if (!user) return;
+    setBusyAvatar(true);
+    try {
+      const r = await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatarUrl: null }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        toast.error(data.error || 'No se pudo quitar la foto.');
+        return;
+      }
+      toast.success('Foto de perfil eliminada.');
+      await refreshUser();
+    } finally {
+      setBusyAvatar(false);
+    }
+  }
+
+  function openAvatarEditor(url: string) {
+    setAvatarEditorUrl(url);
+    setAvatarEditorOpen(true);
+  }
+
+  function closeAvatarEditor() {
+    setAvatarEditorOpen(false);
+    setAvatarEditorUrl(null);
+  }
+
+  function onAvatarFileSelected(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Selecciona un archivo de imagen.');
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error('La imagen es demasiado grande (máx. 15 MB).');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') openAvatarEditor(reader.result);
+    };
+    reader.readAsDataURL(file);
   }
 
   async function requestEmailChange() {
@@ -338,7 +414,7 @@ export default function SettingsPage() {
             className="rounded-xl border p-4 mb-5 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"
             style={{
               borderColor: 'rgba(217,119,6,0.4)',
-              background: 'linear-gradient(135deg, rgba(217,119,6,0.1), rgba(228,20,20,0.06))',
+              background: 'linear-gradient(135deg, rgba(217,119,6,0.1), rgba(var(--brand-primary-rgb),0.06))',
             }}
           >
             <div className="flex gap-3 min-w-0">
@@ -358,15 +434,98 @@ export default function SettingsPage() {
               onClick={resendVerificationFromSettings}
               className="inline-flex items-center justify-center shrink-0 px-4 py-2 rounded-xl text-xs font-bold border-0 cursor-pointer transition-opacity hover:opacity-90 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
               style={{
-                background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.warm})`,
+                background: BRAND.primary,
                 color: '#fff',
-                boxShadow: '0 4px 14px rgba(228,20,20,0.22)',
+                boxShadow: '0 4px 14px rgba(var(--brand-primary-rgb),0.22)',
               }}
             >
               {busyVerifyResend ? 'Enviando…' : 'Reenviar correo de verificación'}
             </button>
           </div>
         )}
+
+        <div style={{ marginBottom: '24px' }}>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '10px' }}>
+            Foto de perfil
+          </label>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <UserAvatar
+              displayName={user?.displayName}
+              email={user?.email ?? ''}
+              avatarUrl={user?.avatarUrl}
+              size={72}
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0 }}>
+              <label
+                htmlFor="profile-avatar-upload"
+                className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl font-bold text-[13px] border transition-opacity hover:opacity-95 cursor-pointer"
+                style={{
+                  background: `${BRAND.primary}12`,
+                  color: BRAND.primary,
+                  borderColor: `${BRAND.primary}35`,
+                  opacity: billingRestricted || busyAvatar ? 0.6 : 1,
+                  pointerEvents: billingRestricted || busyAvatar ? 'none' : undefined,
+                }}
+              >
+                {busyAvatar ? 'Guardando…' : 'Subir imagen'}
+              </label>
+              <input
+                id="profile-avatar-upload"
+                type="file"
+                accept="image/*"
+                hidden
+                disabled={billingRestricted || busyAvatar}
+                onChange={onAvatarFileSelected}
+              />
+              {user?.avatarUrl ? (
+                <button
+                  type="button"
+                  disabled={busyAvatar || billingRestricted}
+                  onClick={() => openAvatarEditor(user.avatarUrl!)}
+                  className="inline-flex items-center justify-start px-0 py-1 text-xs font-semibold border-0 bg-transparent cursor-pointer transition-opacity hover:opacity-80 disabled:opacity-60"
+                  style={{ color: '#6366f1' }}
+                >
+                  Editar · Centrar · Retocar
+                </button>
+              ) : null}
+              {user?.avatarUrl ? (
+                <button
+                  type="button"
+                  disabled={busyAvatar || billingRestricted}
+                  onClick={removeAvatar}
+                  className="inline-flex items-center justify-start px-0 py-1 text-xs font-semibold border-0 bg-transparent cursor-pointer transition-opacity hover:opacity-80 disabled:opacity-60"
+                  style={{ color: 'var(--muted-foreground)' }}
+                >
+                  Quitar foto
+                </button>
+              ) : null}
+              <p className="text-[11px] m-0 leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
+                Tras subir, podrás centrar y retocar antes de guardar. Se optimiza a menos de 600 KB.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {avatarEditorUrl ? (
+          <AvatarEditor
+            currentUrl={avatarEditorUrl}
+            open={avatarEditorOpen}
+            onOpenChange={(next) => {
+              setAvatarEditorOpen(next);
+              if (!next) setAvatarEditorUrl(null);
+            }}
+            hideTrigger
+            visibleTabs={['crop', 'filters']}
+            title="Ajustar foto de perfil"
+            cropHint="Arrastra para centrar y ajusta el zoom. En Retocar puedes mejorar brillo y contraste."
+            exportSize={512}
+            applyLabel="Guardar foto"
+            onResult={(url) => {
+              closeAvatarEditor();
+              void saveAvatar(url);
+            }}
+          />
+        ) : null}
 
         <div style={{ marginBottom: '20px' }}>
           <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '6px' }}>Nombre</label>
@@ -450,7 +609,7 @@ export default function SettingsPage() {
             className="rounded-xl p-3.5 mb-4 border"
             style={{
               borderColor: `${BRAND.cool}40`,
-              background: `linear-gradient(135deg, rgba(0,172,248,0.08), rgba(228,20,20,0.05))`,
+              background: `linear-gradient(135deg, rgba(var(--brand-cool-rgb),0.08), rgba(var(--brand-primary-rgb),0.05))`,
             }}
           >
             <p style={{ fontSize: '13px', margin: '0 0 12px', lineHeight: 1.5 }}>
@@ -483,8 +642,8 @@ export default function SettingsPage() {
                 onClick={confirmEmailChange}
                 className="px-4 py-2.5 rounded-xl font-bold text-[13px] text-white border-0 transition-opacity"
                 style={{
-                  background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.warm})`,
-                  boxShadow: emailCode.length === 6 ? '0 4px 14px rgba(228,20,20,0.25)' : undefined,
+                  background: BRAND.primary,
+                  boxShadow: emailCode.length === 6 ? '0 4px 14px rgba(var(--brand-primary-rgb),0.25)' : undefined,
                   cursor: busyEmailConfirm || emailCode.length !== 6 ? 'not-allowed' : 'pointer',
                   opacity: emailCode.length !== 6 ? 0.6 : 1,
                 }}
@@ -646,7 +805,7 @@ export default function SettingsPage() {
                         style={{
                           background: isCurrent
                             ? 'var(--muted)'
-                            : `linear-gradient(135deg,${accent},${accent}bb)`,
+                            : accent,
                           color: isCurrent ? 'var(--muted-foreground)' : '#fff',
                           cursor: isCurrent || planBusy || billingRestricted ? 'not-allowed' : 'pointer',
                           opacity: billingRestricted ? 0.55 : 1,

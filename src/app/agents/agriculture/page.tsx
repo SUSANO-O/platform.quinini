@@ -71,7 +71,7 @@ export default function AgricultureAgentPage() {
         </div>
       </section>
 
-      <section style={{ padding: '80px 24px', textAlign: 'center', background: `linear-gradient(135deg, ${G}, ${C})` }}>
+      <section style={{ padding: '80px 24px', textAlign: 'center', background: G }}>
         <h2 style={{ fontSize: 32, fontWeight: 800, color: '#fff', marginBottom: 16 }}>Lleva tu campo al siguiente nivel con IA</h2>
         <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 16, marginBottom: 32, maxWidth: 500, margin: '0 auto 32px' }}>Comienza con 7 días gratis. Sin tarjeta de crédito.</p>
         <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '16px 32px', borderRadius: 12, background: '#fff', color: G, fontWeight: 700, textDecoration: 'none', fontSize: 16 }}>

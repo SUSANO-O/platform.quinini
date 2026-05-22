@@ -52,7 +52,7 @@ export function SubscriptionPlanPanel({ checkoutDisabled = false }: { checkoutDi
         ? '1px solid var(--border)'
         : '1px solid rgba(239,68,68,0.22)';
     const bg = accent === 'up' ? 'var(--background)' : 'rgba(239,68,68,0.04)';
-    const chevron = accent === 'up' ? '#00acf8' : '#f87171';
+    const chevron = accent === 'up' ? 'var(--brand-cool)' : '#f87171';
 
     return (
       <button
@@ -96,7 +96,7 @@ export function SubscriptionPlanPanel({ checkoutDisabled = false }: { checkoutDi
         padding: '12px',
         borderRadius: '12px',
         border: '1px solid var(--border)',
-        background: 'linear-gradient(145deg, rgba(228,20,20,0.06), rgba(0,172,248,0.06))',
+        background: 'linear-gradient(145deg, rgba(var(--brand-primary-rgb),0.06), rgba(var(--brand-cool-rgb),0.06))',
       }}
     >
       {checkoutDisabled && (

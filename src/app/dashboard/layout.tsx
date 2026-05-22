@@ -4,53 +4,25 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
+import { useAuthSplashLoading } from '@/hooks/use-auth-splash-loading';
 import { SubscriptionProvider, useSubscription } from '@/hooks/use-subscription';
+import { AiLoadingScreen } from '@/components/ui/ai-loading-screen';
+import { DashboardSidebar, SIDEBAR_COLLAPSED_PX, SIDEBAR_EXPANDED_PX } from '@/components/dashboard/dashboard-sidebar';
 import { TourProvider, useTour } from '@/components/onboarding/app-tour';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 // import { initPaddleClient } from '@/lib/paddle-client'; // Paddle — comentado
 import { useEffect, useMemo, useState } from 'react';
 import {
-  LayoutDashboard,
-  Boxes,
-  Settings,
-  LogOut,
-  Cpu,
-  Bot,
-  Shield,
   ShieldAlert,
   Route,
   RotateCcw,
-  ChevronLeft,
-  ChevronRight,
   Menu,
   X,
 } from 'lucide-react';
-import { PwaInstallButton } from '@/components/shared/pwa-install-button';
+
 import { PLAN_DISPLAY, type PaidPlanId } from '@/lib/plan-catalog';
 
-const SIDEBAR_EXPANDED_PX = 220;
-const SIDEBAR_COLLAPSED_PX = 72;
 const SIDEBAR_COLLAPSED_KEY = 'dashboard-sidebar-collapsed';
-
-const NAV = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/agents', label: 'Mis Agentes', icon: Bot },
-  { href: '/dashboard/widgets', label: 'Mis Widgets', icon: Boxes },
-  { href: '/dashboard/widget-builder', label: 'Widget Builder', icon: Cpu },
-  { href: '/dashboard/compliance', label: 'Cumplimiento', icon: Shield },
-  { href: '/dashboard/settings', label: 'Ajustes', icon: Settings },
-];
-
-const SIDEBAR_TOUR_KEY_BY_HREF: Record<string, string> = {
-  '/dashboard': 'sidebar-inicio',
-  '/dashboard/agents': 'sidebar-agentes',
-  '/dashboard/widget-builder': 'sidebar-widget-builder',
-  '/dashboard/widgets': 'sidebar-widgets',
-  '/dashboard/compliance': 'sidebar-cumplimiento',
-  '/dashboard/settings': 'sidebar-ajustes',
-};
-
-/** Planes destacados en modales de trial expirado (subset de pago). */
 const TRIAL_CHECKOUT_PLAN_IDS: PaidPlanId[] = ['starter', 'growth', 'business'];
 
 function SubscriptionExpiryGate() {
@@ -171,8 +143,8 @@ function SubscriptionExpiryGate() {
                     cursor: 'pointer',
                     background:
                       planId === 'growth'
-                        ? 'linear-gradient(135deg, #e41414, #f87600)'
-                        : 'linear-gradient(135deg, #00acf8, #0284c7)',
+                        ? 'var(--brand-primary)'
+                        : 'var(--brand-primary)',
                   }}
                 >
                   {plan.label} · {plan.priceLabel}
@@ -193,9 +165,10 @@ function SidebarExpiryBadge() {
     <div style={{
       marginBottom: '12px',
       padding: '10px 12px',
-      borderRadius: '10px',
-      border: '1px solid var(--border)',
+      borderRadius: '12px',
+      border: 'none',
       background: 'var(--muted)',
+      boxShadow: '0 2px 12px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
     }}>
       <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: 'var(--foreground)', marginBottom: '8px' }}>
         Período de prueba finalizado
@@ -217,8 +190,8 @@ function SidebarExpiryBadge() {
               color: '#fff',
               cursor: 'pointer',
               background: planId === 'growth'
-                ? 'linear-gradient(135deg, #e41414, #f87600)'
-                : 'linear-gradient(135deg, #00acf8, #0284c7)',
+                ? 'var(--brand-primary)'
+                : 'var(--brand-primary)',
             }}
           >
             {plan.label} · {plan.priceLabel}
@@ -242,9 +215,9 @@ function JourneyProgress() {
         marginBottom: '14px',
         padding: '12px 12px 14px',
         borderRadius: '12px',
-        border: '1px solid var(--border)',
+        border: 'none',
         background: 'linear-gradient(145deg, rgba(255,255,255,0.92), rgba(241,244,248,0.65))',
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.75), 0 8px 22px rgba(15,23,42,0.06)',
+        boxShadow: '0 4px 16px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.75)',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
@@ -267,9 +240,9 @@ function JourneyProgress() {
             height: '100%',
             width: `${journeyPercent}%`,
             borderRadius: '999px',
-            background: 'linear-gradient(90deg, #e41414, #f87600, #00acf8)',
+            background: 'var(--brand-primary)',
             transition: 'width 0.45s ease',
-            boxShadow: '0 0 12px rgba(228,20,20,0.25)',
+            boxShadow: '0 0 12px rgba(var(--brand-primary-rgb),0.25)',
           }}
         />
       </div>
@@ -295,9 +268,9 @@ function TourActions() {
           gap: '8px',
           padding: '8px 12px',
           borderRadius: '10px',
-          border: '1px solid rgba(228,20,20,0.32)',
-          background: 'rgba(228,20,20,0.08)',
-          color: '#e41414',
+          border: '1px solid rgba(var(--brand-primary-rgb),0.32)',
+          background: 'rgba(var(--brand-primary-rgb),0.08)',
+          color: 'var(--primary)',
           fontSize: '12px',
           fontWeight: 700,
           cursor: 'pointer',
@@ -338,6 +311,7 @@ function TourActions() {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout, stopImpersonating } = useAuth();
+  const showSplash = useAuthSplashLoading(loading);
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -364,16 +338,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   useEffect(() => {
-    if (!loading && !user) router.push('/login');
-  }, [user, loading, router]);
+    if (!showSplash && !user) router.push('/login');
+  }, [user, showSplash, router]);
 
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--background)' }}>
-        <div style={{ width: '32px', height: '32px', border: '3px solid var(--border)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
+  if (showSplash) {
+    return <AiLoadingScreen />;
   }
 
   if (!user) return null;
@@ -451,7 +420,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }}>
           <Link href="/" className="flex items-center gap-2 no-underline">
             <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={100} height={30} className="h-8 w-auto object-contain rounded-xl shrink-0" />
-            <span className="text-base font-bold gradient-text">{BRAND_NAME}</span>
+            <span className="text-base font-bold text-black">{BRAND_NAME}</span>
           </Link>
           <button
             type="button"
@@ -461,8 +430,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               width: 36, height: 36, borderRadius: 10, cursor: 'pointer',
               border: '1px solid var(--border)',
-              background: mobileOpen ? 'rgba(228,20,20,0.08)' : 'transparent',
-              color: mobileOpen ? '#e41414' : 'var(--foreground)',
+              background: mobileOpen ? 'rgba(var(--brand-primary-rgb),0.08)' : 'transparent',
+              color: mobileOpen ? 'var(--primary)' : 'var(--foreground)',
             }}
           >
             {mobileOpen ? <X size={18} /> : <Menu size={18} />}
@@ -482,204 +451,49 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div
           className="md:hidden"
           style={{
-            position: 'fixed', top: 52, left: 0, bottom: 0, zIndex: 49,
-            width: 220, background: 'var(--card)', borderRight: '1px solid var(--border)',
-            display: 'flex', flexDirection: 'column', padding: '14px 10px',
+            position: 'fixed',
+            top: 52,
+            left: 0,
+            bottom: 0,
+            zIndex: 49,
+            width: SIDEBAR_EXPANDED_PX,
             transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
             transition: 'transform 0.25s ease',
-            overflowY: 'auto',
           }}
         >
-          <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <SidebarExpiryBadge />
-            <JourneyProgress />
-            <TourActions />
-            {NAV.map(({ href, label, icon: Icon }) => {
-              const active = href === '/dashboard' ? pathname === href : pathname.startsWith(href);
-              return (
-                <Link key={href} href={href} onClick={() => setMobileOpen(false)} style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px',
-                  borderRadius: 10, textDecoration: 'none', fontSize: 13,
-                  fontWeight: active ? 700 : 500,
-                  background: active ? 'rgba(228,20,20,0.1)' : 'transparent',
-                  color: active ? 'var(--primary)' : 'var(--foreground)',
-                  border: active ? '1px solid rgba(228,20,20,0.18)' : '1px solid transparent',
-                }}>
-                  <Icon size={17} style={{ flexShrink: 0 }} aria-hidden />
-                  <span>{label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-            <p style={{ fontSize: 11, fontWeight: 600, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {user.displayName || user.email}
-            </p>
-            <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {user.email}
-            </p>
-            <PwaInstallButton />
-            <button type="button" onClick={handleLogout} style={{
-              display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
-              borderRadius: 10, border: '1px solid var(--border)', background: 'transparent',
-              color: 'var(--muted-foreground)', fontSize: 13, cursor: 'pointer', width: '100%',
-            }}>
-              <LogOut size={16} aria-hidden /> Cerrar sesión
-            </button>
-          </div>
-        </div>
-
-        {/* Sidebar: altura fija al viewport; solo la zona nav hace scroll si hay mucho contenido */}
-        <aside
-          aria-label="Navegación del panel"
-          className="hidden md:flex"
-          style={{
-            width: sidebarCollapsed ? SIDEBAR_COLLAPSED_PX : SIDEBAR_EXPANDED_PX,
-            flexShrink: 0,
-            minHeight: 0,
-            height: '100%',
-            background: 'var(--card)',
-            borderRight: '1px solid var(--border)',
-            flexDirection: 'column',
-            padding: sidebarCollapsed ? '16px 8px' : '20px 12px',
-            overflow: 'hidden',
-            transition: 'width 0.2s ease, padding 0.2s ease',
-          }}
-        >
-          {/* Logo + colapsar */}
-          <div
-            className="shrink-0 mb-3"
-            style={{
-              display: 'flex',
-              flexDirection: sidebarCollapsed ? 'column' : 'row',
-              alignItems: 'center',
-              justifyContent: sidebarCollapsed ? 'center' : 'space-between',
-              gap: sidebarCollapsed ? 8 : 6,
-            }}
-          >
-            <Link
-              href="/"
-              className={`flex items-center no-underline ${sidebarCollapsed ? 'justify-center p-0' : 'gap-2.5 px-2'}`}
-              title="Ir al inicio"
-            >
-              <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={120} height={36} className="h-9 w-auto object-contain rounded-xl shrink-0" />
-              {!sidebarCollapsed ? <span className="text-lg font-bold gradient-text">{BRAND_NAME}</span> : null}
-            </Link>
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              aria-expanded={!sidebarCollapsed}
-              aria-controls="dashboard-sidebar-nav"
-              title={sidebarCollapsed ? 'Expandir menú' : 'Solo iconos'}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 34,
-                height: 34,
-                flexShrink: 0,
-                borderRadius: '10px',
-                border: '1px solid var(--border)',
-                background: 'color-mix(in oklab, var(--foreground) 4%, transparent)',
-                color: 'var(--muted-foreground)',
-                cursor: 'pointer',
-              }}
-            >
-              {sidebarCollapsed ? <ChevronRight size={18} aria-hidden /> : <ChevronLeft size={18} aria-hidden />}
-            </button>
-          </div>
-
-          {/* Nav — ocupa el espacio sobrante y hace scroll si crece */}
-          <nav
-            id="dashboard-sidebar-nav"
-            style={{
-              flex: 1,
-              minHeight: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '4px',
-              overflowY: 'auto',
-              overflowX: 'hidden',
-              WebkitOverflowScrolling: 'touch',
-            }}
-          >
-            {NAV.map(({ href, label, icon: Icon }) => {
-              const active = href === '/dashboard' ? pathname === href : pathname.startsWith(href);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  data-tour={SIDEBAR_TOUR_KEY_BY_HREF[href]}
-                  title={label}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-                    gap: sidebarCollapsed ? 0 : '10px',
-                    padding: sidebarCollapsed ? '10px 8px' : '9px 12px',
-                    borderRadius: '10px',
-                    textDecoration: 'none',
-                    fontSize: '13px',
-                    fontWeight: active ? 700 : 500,
-                    background: active ? 'rgba(228,20,20,0.1)' : 'transparent',
-                    color: active ? 'var(--primary)' : 'var(--foreground)',
-                    border: active ? '1px solid rgba(228,20,20,0.18)' : '1px solid transparent',
-                    transition: 'background 0.15s, border-color 0.15s',
-                  }}
-                >
-                  <Icon size={18} style={{ flexShrink: 0 }} aria-hidden />
-                  {!sidebarCollapsed ? <span className="truncate">{label}</span> : null}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* User + logout */}
-          <div
-            style={{
-              flexShrink: 0,
-              borderTop: '1px solid var(--border)',
-              paddingTop: sidebarCollapsed ? 12 : 16,
-            }}
-          >
-            {!sidebarCollapsed ? (
+          <DashboardSidebar
+            variant="mobile"
+            pathname={pathname}
+            user={user}
+            onLogout={() => void handleLogout()}
+            onNavigate={() => setMobileOpen(false)}
+            footer={
               <>
                 <SidebarExpiryBadge />
                 <JourneyProgress />
                 <TourActions />
-                <p style={{ fontSize: '12px', fontWeight: 600, marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {user.displayName || user.email}
-                </p>
-                <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {user.email}
-                </p>
               </>
-            ) : null}
-            <PwaInstallButton collapsed={sidebarCollapsed} />
-            <button
-              type="button"
-              onClick={handleLogout}
-              title="Cerrar sesión"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: sidebarCollapsed ? 0 : '8px',
-                padding: sidebarCollapsed ? '10px 8px' : '8px 12px',
-                borderRadius: '10px',
-                border: '1px solid var(--border)',
-                background: 'transparent',
-                color: 'var(--muted-foreground)',
-                fontSize: '13px',
-                cursor: 'pointer',
-                width: '100%',
-              }}
-            >
-              <LogOut size={18} aria-hidden />
-              {!sidebarCollapsed ? 'Cerrar sesión' : null}
-            </button>
-          </div>
-        </aside>
+            }
+          />
+        </div>
+
+        <DashboardSidebar
+          variant="desktop"
+          pathname={pathname}
+          user={user}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={toggleSidebar}
+          onLogout={() => void handleLogout()}
+          footer={
+            !sidebarCollapsed ? (
+              <>
+                <SidebarExpiryBadge />
+                <JourneyProgress />
+                <TourActions />
+              </>
+            ) : null
+          }
+        />
 
         {/* Main content — única columna que crece con el documento; scroll vertical aquí */}
         <main style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}

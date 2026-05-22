@@ -7,6 +7,7 @@ export interface AuthUser {
   uid: string;
   email: string;
   displayName: string | null;
+  avatarUrl?: string | null;
   role: 'user' | 'admin';
   /** Si false, el usuario debe abrir el enlace del correo de verificación antes de facturación / ciertos cambios. */
   emailVerified?: boolean;

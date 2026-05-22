@@ -21,8 +21,8 @@ export function LanguageSwitcher() {
         aria-pressed={locale === 'es'}
         className="px-2 py-1 rounded-lg transition-colors"
         style={{
-          color: locale === 'es' ? '#e41414' : 'var(--muted-foreground)',
-          background: locale === 'es' ? 'rgba(228,20,20,0.08)' : 'transparent',
+          color: locale === 'es' ? 'var(--primary)' : 'var(--muted-foreground)',
+          background: locale === 'es' ? 'rgba(var(--brand-primary-rgb),0.08)' : 'transparent',
         }}
       >
         ES
@@ -35,8 +35,8 @@ export function LanguageSwitcher() {
         aria-pressed={locale === 'en'}
         className="px-2 py-1 rounded-lg transition-colors"
         style={{
-          color: locale === 'en' ? '#e41414' : 'var(--muted-foreground)',
-          background: locale === 'en' ? 'rgba(228,20,20,0.08)' : 'transparent',
+          color: locale === 'en' ? 'var(--primary)' : 'var(--muted-foreground)',
+          background: locale === 'en' ? 'rgba(var(--brand-primary-rgb),0.08)' : 'transparent',
         }}
       >
         EN

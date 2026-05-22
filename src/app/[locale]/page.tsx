@@ -35,11 +35,11 @@ export default async function LandingPage() {
   ];
 
   const HOW = [
-    { step: '01', title: t('how.step1Title'), desc: t('how.step1Desc'), Icon: UserPlus, accent: R,  grad: `linear-gradient(135deg,${R},${O})` },
-    { step: '02', title: t('how.step2Title'), desc: t('how.step2Desc'), Icon: Brain,    accent: O,  grad: `linear-gradient(135deg,${O},${B})` },
-    { step: '03', title: t('how.step3Title'), desc: t('how.step3Desc'), Icon: Palette,  accent: B,  grad: `linear-gradient(135deg,${B},${Rd})` },
-    { step: '04', title: t('how.step4Title'), desc: t('how.step4Desc'), Icon: Terminal, accent: Rd, grad: `linear-gradient(135deg,${Rd},${R})` },
-    { step: '05', title: t('how.step5Title'), desc: t('how.step5Desc'), Icon: Rocket,   accent: Rd, grad: `linear-gradient(135deg,${Rd},${R})` },
+    { step: '01', title: t('how.step1Title'), desc: t('how.step1Desc'), Icon: UserPlus, accent: R,  grad: R },
+    { step: '02', title: t('how.step2Title'), desc: t('how.step2Desc'), Icon: Brain,    accent: O,  grad: O },
+    { step: '03', title: t('how.step3Title'), desc: t('how.step3Desc'), Icon: Palette,  accent: B,  grad: B },
+    { step: '04', title: t('how.step4Title'), desc: t('how.step4Desc'), Icon: Terminal, accent: Rd, grad: Rd },
+    { step: '05', title: t('how.step5Title'), desc: t('how.step5Desc'), Icon: Rocket,   accent: Rd, grad: Rd },
   ];
 
   const FAQ_ITEMS = t.raw('faq.items') as { q: string; a: string }[];
@@ -55,16 +55,16 @@ export default async function LandingPage() {
   ];
 
   const TRAINING_STEPS = [
-    { step: '01', Icon: Users,       color: R, title: t('training.step1Title'), desc: t('training.step1Desc'), grad: `linear-gradient(135deg,${R},${O})` },
-    { step: '02', Icon: BookOpen,    color: O, title: t('training.step2Title'), desc: t('training.step2Desc'), grad: `linear-gradient(135deg,${O},${B})` },
-    { step: '03', Icon: Rocket,      color: B, title: t('training.step3Title'), desc: t('training.step3Desc'), grad: `linear-gradient(135deg,${B},${Rd})` },
-    { step: '04', Icon: PlayCircle,  color: Rd, title: t('training.step4Title'), desc: t('training.step4Desc'), grad: `linear-gradient(135deg,${Rd},${R})` },
+    { step: '01', Icon: Users,       color: R, title: t('training.step1Title'), desc: t('training.step1Desc'), grad: R },
+    { step: '02', Icon: BookOpen,    color: O, title: t('training.step2Title'), desc: t('training.step2Desc'), grad: O },
+    { step: '03', Icon: Rocket,      color: B, title: t('training.step3Title'), desc: t('training.step3Desc'), grad: B },
+    { step: '04', Icon: PlayCircle,  color: Rd, title: t('training.step4Title'), desc: t('training.step4Desc'), grad: Rd },
   ];
 
   const STATS = [
-    { value: '7 días', label: t('stats.trial'),  gradient: `linear-gradient(135deg,${R},${O})` },
-    { value: '< 10',   label: t('stats.setup'),  gradient: `linear-gradient(135deg,${O},${B})` },
-    { value: '8+',     label: t('stats.models'), gradient: `linear-gradient(135deg,${B},${Rd})` },
+    { value: '7 días', label: t('stats.trial'),  color: R },
+    { value: '< 10',   label: t('stats.setup'),  color: O },
+    { value: '8+',     label: t('stats.models'), color: B },
   ];
 
   return (
@@ -102,7 +102,7 @@ export default async function LandingPage() {
             <Link
               href="/register"
               className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl text-white font-semibold text-sm transition-all hover:scale-[1.03]"
-              style={{ background: `linear-gradient(135deg, ${R}, ${O})`, boxShadow: `0 4px 20px rgba(228,20,20,0.28)` }}
+              style={{ background: R, boxShadow: `0 4px 20px rgba(var(--brand-primary-rgb),0.28)` }}
             >
               {t('hero.ctaPrimary')} <ArrowRight size={16} />
             </Link>
@@ -129,7 +129,7 @@ export default async function LandingPage() {
                 className="rounded-xl p-4 card-texture text-center"
                 style={{ border: '1px solid var(--border)' }}
               >
-                <p className="text-2xl font-extrabold m-0" style={{ background: s.gradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                <p className="text-2xl font-extrabold m-0" style={{ color: s.color }}>
                   {s.value}
                 </p>
                 <p className="text-xs mt-1 m-0" style={{ color: 'var(--muted-foreground)' }}>{s.label}</p>
@@ -161,8 +161,8 @@ export default async function LandingPage() {
           <div className="relative">
             <div style={{
               position: 'absolute', left: 27, top: 28, bottom: 28, width: 2,
-              background: `linear-gradient(to bottom, ${R}, ${O}, ${B})`,
-              opacity: 0.25, borderRadius: 2,
+              background: `${R}35`,
+              borderRadius: 2,
             }} />
 
             <div className="space-y-4">
@@ -387,7 +387,7 @@ export default async function LandingPage() {
       <section className="py-24 px-6">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <span className="inline-block text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4" style={{ background: `rgba(228,20,20,0.08)`, color: R }}>
+            <span className="inline-block text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4" style={{ background: `rgba(var(--brand-primary-rgb),0.08)`, color: R }}>
               {t('widget.badge')}
             </span>
             <h2 className="text-3xl md:text-4xl font-bold">{t('widget.title')}</h2>
@@ -396,7 +396,7 @@ export default async function LandingPage() {
             </p>
           </div>
 
-          <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border)', boxShadow: `0 16px 60px rgba(228,20,20,0.10)` }}>
+          <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border)', boxShadow: `0 16px 60px rgba(var(--brand-primary-rgb),0.10)` }}>
             <div className="flex items-center gap-2 px-4 py-3" style={{ background: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
               <div className="w-3 h-3 rounded-full" style={{ background: '#ef4444' }} />
               <div className="w-3 h-3 rounded-full" style={{ background: '#f59e0b' }} />
@@ -407,7 +407,7 @@ export default async function LandingPage() {
                   <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#22c55e' }} />
                   {t('widget.live')}
                 </span>
-                <Link href="/register" className="text-xs font-bold px-3 py-1 rounded-lg text-white" style={{ background: `linear-gradient(135deg,${R},${O})` }}>
+                <Link href="/register" className="text-xs font-bold px-3 py-1 rounded-lg text-white" style={{ background: R }}>
                   {t('widget.startFree')}
                 </Link>
               </div>
@@ -433,7 +433,7 @@ export default async function LandingPage() {
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest mb-5" style={{ color: 'var(--muted-foreground)' }}>{t('widget.chatSampleTitle')}</p>
                   <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-                    <div className="flex items-center gap-3 px-4 py-3" style={{ background: `linear-gradient(135deg,${R},${O})` }}>
+                    <div className="flex items-center gap-3 px-4 py-3" style={{ background: R }}>
                       <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-sm">M</div>
                       <div>
                         <p className="text-xs font-bold text-white">{t('widget.assistantName')}</p>
@@ -445,18 +445,18 @@ export default async function LandingPage() {
                     </div>
                     <div className="p-4 space-y-3" style={{ background: 'var(--background)', minHeight: 200 }}>
                       <div className="flex gap-2 items-end">
-                        <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-white text-xs font-bold" style={{ background: `linear-gradient(135deg,${R},${O})` }}>M</div>
+                        <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-white text-xs font-bold" style={{ background: R }}>M</div>
                         <div className="text-xs px-3 py-2 rounded-2xl rounded-bl-none max-w-[80%]" style={{ background: 'var(--muted)', color: 'var(--foreground)' }}>
                           {t('widget.msg1')}
                         </div>
                       </div>
                       <div className="flex justify-end">
-                        <div className="text-xs px-3 py-2 rounded-2xl rounded-br-none max-w-[75%] text-white" style={{ background: `linear-gradient(135deg,${R},${O})` }}>
+                        <div className="text-xs px-3 py-2 rounded-2xl rounded-br-none max-w-[75%] text-white" style={{ background: R }}>
                           {t('widget.msg2')}
                         </div>
                       </div>
                       <div className="flex gap-2 items-end">
-                        <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-white text-xs font-bold" style={{ background: `linear-gradient(135deg,${R},${O})` }}>M</div>
+                        <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-white text-xs font-bold" style={{ background: R }}>M</div>
                         <div className="text-xs px-3 py-2 rounded-2xl rounded-bl-none max-w-[80%]" style={{ background: 'var(--muted)', color: 'var(--foreground)' }}>
                           {t.rich('widget.msg3', { strong: (chunks) => <strong>{chunks}</strong> })}
                         </div>
@@ -464,7 +464,7 @@ export default async function LandingPage() {
                     </div>
                     <div className="flex items-center gap-2 px-3 py-2.5" style={{ borderTop: '1px solid var(--border)', background: 'var(--card)' }}>
                       <div className="flex-1 text-xs px-3 py-1.5 rounded-xl" style={{ background: 'var(--muted)', color: 'var(--muted-foreground)' }}>{t('widget.inputPlaceholder')}</div>
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: `linear-gradient(135deg,${R},${O})` }}>
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: R }}>
                         <ArrowRight size={13} className="text-white" />
                       </div>
                     </div>
@@ -521,7 +521,7 @@ export default async function LandingPage() {
                   <div className="flex items-center gap-3 mt-auto pt-4 relative" style={{ borderTop: `1px solid ${accentColor}20` }}>
                     <div
                       className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
-                      style={{ background: `linear-gradient(135deg, ${accentColor}, ${accentColor}99)` }}
+                      style={{ background: accentColor }}
                     >
                       {item.author.charAt(0)}
                     </div>
@@ -544,7 +544,7 @@ export default async function LandingPage() {
 
         <div className="max-w-5xl mx-auto relative">
           <div className="text-center mb-14">
-            <span className="inline-block text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4" style={{ background: `rgba(0,172,248,0.08)`, color: B }}>
+            <span className="inline-block text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4" style={{ background: `rgba(var(--brand-primary-rgb),0.08)`, color: 'var(--foreground)' }}>
               {t('training.badge')}
             </span>
             <h2 className="text-3xl md:text-4xl font-bold">{t('training.title')}</h2>
@@ -611,7 +611,7 @@ export default async function LandingPage() {
             <Link
               href="/register"
               className="inline-flex items-center gap-2 px-7 py-3 rounded-xl text-white font-semibold text-sm transition-all hover:scale-[1.03]"
-              style={{ background: `linear-gradient(135deg, ${R}, ${O})`, boxShadow: `0 4px 20px rgba(228,20,20,0.22)` }}
+              style={{ background: R, boxShadow: `0 4px 20px rgba(var(--brand-primary-rgb),0.22)` }}
             >
               {t('training.cta')} <ArrowRight size={16} />
             </Link>
@@ -650,7 +650,7 @@ export default async function LandingPage() {
             <Link
               href="/register"
               className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white font-semibold transition-all hover:scale-[1.03]"
-              style={{ background: `linear-gradient(135deg, ${R}, ${O})`, boxShadow: `0 4px 24px rgba(228,20,20,0.28)` }}
+              style={{ background: R, boxShadow: `0 4px 24px rgba(var(--brand-primary-rgb),0.28)` }}
             >
               {t('cta.primary')} <ArrowRight size={18} />
             </Link>

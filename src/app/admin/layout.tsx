@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
+import { useAuthSplashLoading } from '@/hooks/use-auth-splash-loading';
 import { useEffect, useState } from 'react';
+import { AiLoadingScreen } from '@/components/ui/ai-loading-screen';
 import { LayoutDashboard, Users, LogOut, Shield, UserPlus, BarChart3, Wallet, Box, Network, Bot, Cpu, Menu, X, KeyRound, Activity } from 'lucide-react';
 
 const NAV = [
@@ -22,24 +24,19 @@ const NAV = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
+  const showSplash = useAuthSplashLoading(loading);
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    if (loading) return;
+    if (showSplash) return;
     if (!user) { router.push('/login'); return; }
     if (user.role !== 'admin') { router.push('/dashboard'); return; }
-  }, [user, loading, router]);
+  }, [user, showSplash, router]);
 
-  // Show spinner while auth loads
-  if (loading || !user) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--background)' }}>
-        <div style={{ width: 28, height: 28, border: '3px solid var(--border)', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
+  if (showSplash || !user) {
+    return <AiLoadingScreen />;
   }
 
   // While role check resolves, avoid flash of admin UI for non-admins

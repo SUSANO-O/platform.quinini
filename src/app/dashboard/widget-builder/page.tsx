@@ -102,10 +102,11 @@ function mockFabOrbInnerStyle(hex: string): React.CSSProperties {
 
 const AGENT_ICONS = ['🤖', '🧠', '💬', '✨', '📎', '🔮', '🛡️', '🌱', '📊'];
 
-/** Alineado con index / dashboard (marca) */
-const BRAND_R = '#e41414';
-const BRAND_O = '#f87600';
-const BRAND_B = '#00acf8';
+import { BRAND } from '@/lib/brand-colors';
+
+const BRAND_R = BRAND.primary;
+const BRAND_O = BRAND.warm;
+const BRAND_B = BRAND.cool;
 
 interface ClientAgentRow {
   _id: string;
@@ -1621,7 +1622,7 @@ export default function WidgetBuilderPage() {
               type="button"
               onClick={goNextStep}
               className="flex-1 py-2.5 rounded-xl font-bold text-[13px] text-white border-0"
-              style={{ background: `linear-gradient(135deg, ${BRAND_R}, ${BRAND_O})` }}
+              style={{ background: BRAND_R }}
             >
               Siguiente
             </button>
@@ -1652,8 +1653,8 @@ export default function WidgetBuilderPage() {
             data-tour="widget-builder-save"
             className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-[13px] text-white border-0 transition-all hover:opacity-95 disabled:opacity-60"
             style={{
-              background: saved ? '#22c55e' : `linear-gradient(135deg, ${BRAND_R}, ${BRAND_O})`,
-              boxShadow: saved ? undefined : '0 4px 18px rgba(228,20,20,0.28)',
+              background: saved ? '#22c55e' : BRAND_R,
+              boxShadow: saved ? undefined : '0 4px 18px rgba(var(--brand-primary-rgb),0.28)',
               cursor: saving || loadingInitial ? 'not-allowed' : 'pointer',
             }}
           >

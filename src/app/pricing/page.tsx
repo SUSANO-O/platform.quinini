@@ -60,7 +60,7 @@ export default function PricingPage() {
                 <div className="flex items-center gap-4">
                   <div
                     className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ background: 'rgba(228,20,20,0.08)' }}
+                    style={{ background: 'rgba(var(--brand-primary-rgb),0.08)' }}
                   >
                     <Zap size={18} style={{ color: 'var(--primary)' }} />
                   </div>
@@ -88,9 +88,9 @@ export default function PricingPage() {
                 <div className="flex items-center gap-4">
                   <div
                     className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ background: 'rgba(0,172,248,0.08)' }}
+                    style={{ background: 'rgba(var(--brand-cool-rgb),0.08)' }}
                   >
-                    <Zap size={18} style={{ color: '#00acf8' }} />
+                    <Zap size={18} style={{ color: '#000' }} />
                   </div>
                   <div>
                     <p className="font-semibold text-sm">Solo — {PLAN_DISPLAY.solo.priceLabel}</p>
@@ -121,7 +121,7 @@ export default function PricingPage() {
                   border: plan.highlighted
                     ? '2px solid var(--primary)'
                     : '1px solid var(--border)',
-                  boxShadow: plan.highlighted ? '0 12px 48px rgba(228,20,20,0.15)' : undefined,
+                  boxShadow: plan.highlighted ? '0 12px 48px rgba(var(--brand-primary-rgb),0.15)' : undefined,
                   padding: plan.highlighted ? '2.5rem 2rem' : '2rem',
                   transform: plan.highlighted ? 'translateY(-8px)' : undefined,
                 }}
@@ -139,9 +139,9 @@ export default function PricingPage() {
                   <div
                     className="text-xs font-bold uppercase tracking-widest mb-5 px-3 py-1 rounded-full self-start"
                     style={{
-                      background: 'linear-gradient(135deg, rgba(228,20,20,0.12), rgba(248,118,0,0.12))',
+                      background: 'rgba(var(--brand-primary-rgb),0.1)',
                       color: 'var(--primary)',
-                      border: '1px solid rgba(228,20,20,0.2)',
+                      border: '1px solid rgba(var(--brand-primary-rgb),0.2)',
                     }}
                   >
                     ⭐ Más popular
@@ -189,9 +189,9 @@ export default function PricingPage() {
                   style={
                     plan.highlighted
                       ? {
-                          background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))',
+                          background: 'var(--brand-primary)',
                           color: '#fff',
-                          boxShadow: '0 4px 20px rgba(228,20,20,0.3)',
+                          boxShadow: '0 4px 20px rgba(var(--brand-primary-rgb),0.3)',
                         }
                       : { border: '1px solid var(--border)', color: 'var(--foreground)' }
                   }
@@ -208,9 +208,9 @@ export default function PricingPage() {
                   style={
                     plan.highlighted
                       ? {
-                          background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))',
+                          background: 'var(--brand-primary)',
                           color: '#fff',
-                          boxShadow: '0 4px 20px rgba(228,20,20,0.3)',
+                          boxShadow: '0 4px 20px rgba(var(--brand-primary-rgb),0.3)',
                         }
                       : { border: '1px solid var(--border)', color: 'var(--foreground)' }
                   }
@@ -226,8 +226,8 @@ export default function PricingPage() {
             <div
               className="mt-8 rounded-2xl p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6"
               style={{
-                background: 'linear-gradient(135deg, rgba(228,20,20,0.04), rgba(248,118,0,0.04))',
-                border: '1px solid rgba(228,20,20,0.18)',
+                background: 'rgba(var(--brand-primary-rgb),0.04)',
+                border: '1px solid rgba(var(--brand-primary-rgb),0.18)',
               }}
             >
               <div className="flex-1">
@@ -256,9 +256,9 @@ export default function PricingPage() {
                 rel="noopener noreferrer"
                 className="shrink-0 flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap no-underline"
                 style={{
-                  background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))',
+                  background: 'var(--brand-primary)',
                   color: '#fff',
-                  boxShadow: '0 4px 20px rgba(228,20,20,0.25)',
+                  boxShadow: '0 4px 20px rgba(var(--brand-primary-rgb),0.25)',
                 }}
               >
                 Contactar asesor
@@ -311,9 +311,9 @@ export default function PricingPage() {
                   key={plan.id}
                   className="rounded-2xl p-5 text-center card-texture"
                   style={{
-                    background: plan.highlighted ? 'rgba(228,20,20,0.04)' : undefined,
+                    background: plan.highlighted ? 'rgba(var(--brand-primary-rgb),0.04)' : undefined,
                     border: plan.highlighted
-                      ? '1px solid rgba(228,20,20,0.22)'
+                      ? '1px solid rgba(var(--brand-primary-rgb),0.22)'
                       : '1px solid var(--border)',
                   }}
                 >

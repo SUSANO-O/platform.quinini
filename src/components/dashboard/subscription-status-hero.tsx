@@ -7,9 +7,9 @@ import { Crown, ShieldCheck, Sparkles } from 'lucide-react';
 
 const STORAGE_KEY = 'af_dashboard_subscription_hero_intro_v1';
 
-const R = '#e41414';
-const O = '#f87600';
-const B = '#00acf8';
+const R = 'var(--primary)';
+const O = 'var(--brand-warm)';
+const B = 'var(--foreground)';
 
 type Props = {
   loading: boolean;
@@ -112,7 +112,7 @@ function PremiumVisual({
       <div
         className={`absolute inset-0 rounded-2xl ${playOnce ? 'sub-hero-glow-pulse' : ''}`}
         style={{
-          background: `linear-gradient(135deg, ${R}22, ${B}18)`,
+          background: `rgba(var(--brand-primary-rgb),0.06)`,
         }}
       />
 
@@ -221,7 +221,7 @@ export function SubscriptionStatusHero({
   if (loading) return null;
 
   const borderStyle = isPremium
-    ? 'rgba(228,20,20,0.22)'
+    ? 'rgba(var(--brand-primary-rgb),0.22)'
     : isTrialActive
       ? trialUrgent
         ? 'rgba(245,158,11,0.3)'
@@ -229,7 +229,7 @@ export function SubscriptionStatusHero({
       : 'var(--border)';
 
   const bgStyle = isPremium
-    ? `linear-gradient(135deg, rgba(228,20,20,0.07), rgba(248,118,0,0.06), rgba(0,172,248,0.04)), var(--card)`
+    ? `rgba(var(--brand-primary-rgb),0.05)`
     : isTrialActive
       ? trialUrgent
         ? 'rgba(245,158,11,0.05)'
@@ -247,7 +247,7 @@ export function SubscriptionStatusHero({
         borderColor: borderStyle,
         background: bgStyle,
         boxShadow: isPremium
-          ? '0 12px 40px rgba(228,20,20,0.07), 0 2px 8px rgba(0,0,0,0.04)'
+          ? '0 12px 40px rgba(var(--brand-primary-rgb),0.07), 0 2px 8px rgba(0,0,0,0.04)'
           : undefined,
       }}
     >
@@ -293,7 +293,7 @@ export function SubscriptionStatusHero({
               <span
                 className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
                 style={{
-                  background: `linear-gradient(135deg, ${R}18, ${B}12)`,
+                  background: `rgba(var(--brand-primary-rgb),0.08)`,
                   color: R,
                   border: `1px solid ${R}30`,
                 }}
@@ -373,8 +373,8 @@ export function SubscriptionStatusHero({
                 onClick={() => onCheckout(plan.id)}
                 className="cursor-pointer rounded-xl border-0 px-4 py-2 text-xs font-bold text-white shadow-md transition-transform hover:scale-[1.02]"
                 style={{
-                  background: plan.popular ? `linear-gradient(135deg, ${R}, ${O})` : plan.color,
-                  boxShadow: plan.popular ? '0 4px 16px rgba(228,20,20,0.25)' : undefined,
+                  background: plan.popular ? R : plan.color,
+                  boxShadow: plan.popular ? '0 4px 16px rgba(var(--brand-primary-rgb),0.25)' : undefined,
                 }}
               >
                 {plan.name} {plan.price}

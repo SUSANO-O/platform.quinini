@@ -168,8 +168,8 @@ export default function SolucionesPage() {
               href="/register"
               className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl text-white font-semibold text-sm transition-all hover:shadow-xl hover:scale-[1.02]"
               style={{
-                background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))',
-                boxShadow: '0 4px 20px rgba(228,20,20,0.28)',
+                background: 'var(--brand-primary)',
+                boxShadow: '0 4px 20px rgba(var(--brand-primary-rgb),0.28)',
               }}
             >
               Empezar ahora <ArrowRight size={16} />
@@ -193,7 +193,7 @@ export default function SolucionesPage() {
               <div key={p.title} className="text-center md:text-left">
                 <div
                   className="mx-auto md:mx-0 w-12 h-12 rounded-xl flex items-center justify-center mb-4"
-                  style={{ background: 'rgba(228,20,20,0.1)', border: '1px solid rgba(228,20,20,0.2)' }}
+                  style={{ background: 'rgba(var(--brand-primary-rgb),0.1)', border: '1px solid rgba(var(--brand-primary-rgb),0.2)' }}
                 >
                   <p.icon size={22} style={{ color: 'var(--primary)' }} />
                 </div>
@@ -233,7 +233,7 @@ export default function SolucionesPage() {
                 <div className="flex items-start gap-4 mb-5">
                   <div
                     className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ background: 'rgba(228,20,20,0.1)', border: '1px solid rgba(228,20,20,0.2)' }}
+                    style={{ background: 'rgba(var(--brand-primary-rgb),0.1)', border: '1px solid rgba(var(--brand-primary-rgb),0.2)' }}
                   >
                     <s.icon size={22} style={{ color: 'var(--primary)' }} />
                   </div>
@@ -300,7 +300,7 @@ export default function SolucionesPage() {
               >
                 <span
                   className="text-xs font-semibold px-2.5 py-1 rounded-md"
-                  style={{ background: 'rgba(0,172,248,0.12)', color: 'var(--accent)' }}
+                  style={{ background: 'rgba(var(--brand-cool-rgb),0.12)', color: 'var(--accent)' }}
                 >
                   {story.tag}
                 </span>
@@ -331,8 +331,8 @@ export default function SolucionesPage() {
               href="/register"
               className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl text-white font-semibold transition-all hover:shadow-xl hover:scale-[1.02]"
               style={{
-                background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))',
-                boxShadow: '0 4px 20px rgba(228,20,20,0.28)',
+                background: 'var(--brand-primary)',
+                boxShadow: '0 4px 20px rgba(var(--brand-primary-rgb),0.28)',
               }}
             >
               Crear cuenta y probar <ArrowRight size={16} />

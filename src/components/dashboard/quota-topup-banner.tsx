@@ -24,7 +24,7 @@ export function QuotaTopupBanner({ percentUsed, used, limit, plan, subscriptionS
 
   const isOver = percentUsed >= 100;
   const bannerColor = isOver ? STATE.error : BRAND.warm;
-  const bannerBg    = isOver ? STATE.errorBg : 'rgba(248,118,0,0.07)';
+  const bannerBg    = isOver ? STATE.errorBg : 'rgba(var(--brand-warm-rgb),0.07)';
 
   async function buyPack(packId: string) {
     setLoading(packId);
@@ -87,7 +87,7 @@ export function QuotaTopupBanner({ percentUsed, used, limit, plan, subscriptionS
           {activePacks.map((p) => (
             <span key={p.packId} style={{
               fontSize: '11px', padding: '2px 8px', borderRadius: '6px',
-              background: 'rgba(0,172,248,0.1)', color: '#00acf8', fontWeight: 700,
+              background: 'rgba(var(--brand-cool-rgb),0.1)', color: '#000', fontWeight: 700,
             }}>
               {p.remaining.toLocaleString('es')} conv · vence {new Date(p.expiresAt).toLocaleDateString('es')}
             </span>

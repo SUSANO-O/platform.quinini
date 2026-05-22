@@ -41,7 +41,7 @@ function LoginForm() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex flex-col items-center gap-3 no-underline">
             <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={180} height={54} className="h-14 w-auto object-contain rounded-xl shadow-md" priority />
-            <span className="text-2xl font-bold gradient-text">{BRAND_NAME}</span>
+            <span className="text-2xl font-bold text-black">{BRAND_NAME}</span>
           </Link>
           <p className="mt-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
             Inicia sesión en tu cuenta

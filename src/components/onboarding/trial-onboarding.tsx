@@ -173,7 +173,7 @@ export function TrialOnboarding() {
       options={{
         zIndex: 12000,
         overlayColor: 'rgba(15, 23, 42, 0.42)',
-        primaryColor: '#e41414',
+        primaryColor: 'var(--primary)',
         spotlightPadding: 6,
       }}
       onEvent={onCallback}

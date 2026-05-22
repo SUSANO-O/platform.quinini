@@ -4,8 +4,7 @@ import {
   useEffect, useState, use, useMemo, useCallback, useRef,
   type CSSProperties, type ReactNode,
 } from 'react';
-import { createPortal } from 'react-dom';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useClientModels, mergeSavedModelOptions } from '@/hooks/use-client-models';
 import { TOOLS, getAgentLimits, TOOL_MAP } from '@/lib/agent-plans';
@@ -15,27 +14,21 @@ import {
   Zap, Wrench, Settings, Lock, CircleOff, Upload, FileText,
   Image as ImageIcon, File, Link2, AlignLeft, CheckCircle2,
   AlertCircle, X, KeyRound, RefreshCw, Sparkles, HelpCircle,
-  Copy, Eye, Search, Volume2, Play, Square,
+  Copy, Eye, Search,
 } from 'lucide-react';
 import {
   stripManagedFaqPrompt,
   buildFaqPromptBlock,
-  getPromotableFaqCandidates,
-  MIN_FAQ_CANDIDATE_REPETITIONS,
   type AgentFaqRow,
   type FaqCandidateRow,
 } from '@/lib/agent-faq-utils';
 import Link from 'next/link';
-import { toast } from 'sonner';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { McpLandingConnectForm } from '@/components/mcp/mcp-landing-connect-form';
-import { AIInputButton } from '@/components/ui/AIInputButton';
 import { AgentMcpOpenFromQuery } from '@/components/mcp/agent-mcp-open-from-query';
 import { AgentHubspotOauthReturn } from '@/components/mcp/agent-hubspot-oauth-return';
+import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 
-const R = '#e41414';
-const O = '#f87600';
-const B = '#00acf8';
+import { R, O, B } from '@/lib/brand-colors';
 const RUNTIME_SKILL_TEMPLATES = [
   {
     id: 'sales_closer',
@@ -60,10 +53,10 @@ const RUNTIME_SKILL_TEMPLATES = [
   },
 ] as const;
 const BTN_PRIMARY: CSSProperties = {
-  background: `linear-gradient(135deg, ${R}, ${O})`,
+  background: R,
   color: '#fff',
   border: 'none',
-  boxShadow: '0 4px 18px rgba(228,20,20,0.28)',
+  boxShadow: '0 4px 18px rgba(var(--brand-primary-rgb),0.28)',
 };
 
 /** Plantillas servidas desde `public/assets/exampleRAG` (generar con `npm run gen:rag-examples`). */
@@ -93,14 +86,7 @@ const RAG_EXAMPLE_DOWNLOADS = [
 const RAG_MAX_EXTRACTED_CHARS = 120_000;
 const RAG_MAX_FILE_MB = 10;
 
-type Tab = 'general' | 'rules' | 'faqs' | 'tools' | 'rag' | 'subagents' | 'voice';
-
-const VALID_TABS: Tab[] = ['general', 'rules', 'faqs', 'tools', 'rag', 'subagents', 'voice'];
-
-function tabFromParam(raw: string | null): Tab {
-  if (raw && VALID_TABS.includes(raw as Tab)) return raw as Tab;
-  return 'general';
-}
+type Tab = 'general' | 'rules' | 'faqs' | 'tools' | 'rag' | 'subagents';
 
 interface McpServerGroup {
   integrationKey: string;
@@ -138,24 +124,6 @@ function mcpConnectionBadgeStyle(s: McpServerGroup): { label: string; bg: string
   return { label: 'Pendiente MCP', bg: 'rgba(217,119,6,0.12)', color: '#d97706' };
 }
 
-const MCP_INTEGRATION_ICONS: Record<string, string> = {
-  gmail: '📧',
-  hubspot: '🏢',
-  slack: '💬',
-  google_calendar: '📅',
-  googleCalendar: '📅',
-  weather: '🌤️',
-  webSearch: '🔍',
-  web_search: '🔍',
-  mongodb: '🍃',
-  postgres: '🐘',
-  mcp_standard: '🔌',
-};
-
-function mcpIntegrationIcon(integrationKey: string): string {
-  return MCP_INTEGRATION_ICONS[integrationKey] ?? '🔌';
-}
-
 function SectionCard({
   children,
   bar = 'rb' as 'rb' | 'bo',
@@ -169,7 +137,7 @@ function SectionCard({
   innerStyle?: CSSProperties;
   outerStyle?: CSSProperties;
 }) {
-  const barBg = bar === 'bo' ? `linear-gradient(90deg, ${B}, ${O})` : `linear-gradient(90deg, ${R}, ${B})`;
+  const barBg = bar === 'bo' ? B : R;
   return (
     <div
       className={`rounded-2xl overflow-hidden border mb-4 card-texture card-hover ${className ?? ''}`}
@@ -204,12 +172,6 @@ interface RagSource {
   warning?: string | null;
   uploadedAt?: string | null;
 }
-interface ScrapeBlock {
-  title: string;
-  content: string;
-  type: string;
-  order: number;
-}
 interface ClientAgent {
   _id: string; name: string; description: string; systemPrompt: string;
   model: string;
@@ -219,11 +181,9 @@ interface ClientAgent {
   tools: ToolConfig[]; ragEnabled: boolean; ragSources: RagSource[];
   subAgentIds: string[]; syncStatus: string; agentHubId: string | null;
   widgetPublicToken?: string | null;
-  widgetVoiceName?: string | null;
   persistConversationHistory?: boolean;
   strictPurposeOnly?: boolean;
   enabledMcpToolIds?: string[];
-  hubspotAutoCaptureContacts?: boolean;
   /** Catálogo global (solo lectura en la landing; edición en AgentFlowHub). */
   isPlatform?: boolean;
   /** Skills del agente (IDs del catálogo). Sync con hub. */
@@ -341,58 +301,17 @@ function createEmptyFaq(): AgentFaqRow {
 export default function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { subscription } = useSubscription();
   const plan = subscription?.plan ?? 'free';
   const limits = getAgentLimits(plan);
 
   const [agent, setAgent] = useState<ClientAgent | null>(null);
   const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
-  const tab = tabFromParam(searchParams.get('tab'));
-  const setTab = useCallback((next: Tab) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('tab', next);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [router, pathname, searchParams]);
+  const [tab, setTab] = useState<Tab>('general');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [mcpDeleteTarget, setMcpDeleteTarget] = useState<string | null>(null);
-  const [mcpDeleting, setMcpDeleting] = useState(false);
-
-  // ── AI Suggestions ────────────────────────────────────────────────────────
-  const [aiSuggesting, setAiSuggesting] = useState(false);
-  const [aiSuggestions, setAiSuggestions] = useState<{
-    systemPrompt: string;
-    faqs: Array<{ question: string; answer: string }>;
-    rules: Array<{ title: string; description: string }>;
-  } | null>(null);
-  const [suggestFaqsAdded, setSuggestFaqsAdded] = useState<Set<number>>(new Set());
-  const [suggestRulesAdded, setSuggestRulesAdded] = useState<Set<number>>(new Set());
-
-  async function handleSuggestAgent() {
-    if (!name.trim()) return;
-    setAiSuggesting(true);
-    setAiSuggestions(null);
-    setSuggestFaqsAdded(new Set());
-    setSuggestRulesAdded(new Set());
-    try {
-      const resp = await fetch('/api/ai/suggest-agent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agentName: name.trim(), agentPurpose: description.trim() || name.trim() }),
-      });
-      const json = await resp.json() as { success?: boolean; data?: typeof aiSuggestions; error?: string };
-      if (!resp.ok || !json.success) throw new Error(json.error ?? 'Error al generar sugerencias');
-      setAiSuggestions(json.data ?? null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al generar sugerencias');
-    } finally {
-      setAiSuggesting(false);
-    }
-  }
 
   // Editable fields
   const [name, setName] = useState('');
@@ -407,34 +326,23 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     ragSourcesRef.current = ragSources;
   }, [ragSources]);
   const [widgetPublicToken, setWidgetPublicToken] = useState('');
-  const [widgetVoiceName, setWidgetVoiceName] = useState<string>('');
   const [persistConversationHistory, setPersistConversationHistory] = useState(true);
   const [strictPurposeOnly, setStrictPurposeOnly] = useState(true);
   const [inferenceTemperature, setInferenceTemperature] = useState('');
   const [inferenceMaxTokens, setInferenceMaxTokens] = useState('');
   const [modelQuery, setModelQuery] = useState('');
   const [showAllModels, setShowAllModels] = useState(false);
-  const [modelCatFilter, setModelCatFilter] = useState<string>('all');
-  const [modelTierFilter, setModelTierFilter] = useState<string>('all');
-  const [fallbackModels, setFallbackModels] = useState<string[]>([]);
-  const [showFallbackPanel, setShowFallbackPanel] = useState(false);
-  const [fallbackQuery, setFallbackQuery] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
   const [skillsConfig, setSkillsConfig] = useState<NonNullable<ClientAgent['skillsConfig']>>([]);
   const [behaviorRules, setBehaviorRules] = useState<BehaviorRule[]>([]);
   const [agentFaqs, setAgentFaqs] = useState<AgentFaqRow[]>([]);
   const [faqCandidates, setFaqCandidates] = useState<FaqCandidateRow[]>([]);
-  const promotableFaqCandidates = useMemo(
-    () => getPromotableFaqCandidates(faqCandidates),
-    [faqCandidates],
-  );
   const [customSkillInput, setCustomSkillInput] = useState('');
 
   // MCP tools state
   const [mcpServers, setMcpServers] = useState<McpServerGroup[]>([]);
   const [mcpLoading, setMcpLoading] = useState(false);
   const [mcpToolIds, setMcpToolIds] = useState<string[]>([]);
-  const [hubspotAutoCaptureContacts, setHubspotAutoCaptureContacts] = useState(false);
   const [mcpAgentHubLink, setMcpAgentHubLink] = useState<AgentHubLinkInfo | null>(null);
   const enabledMcpSavedRef = useRef<string[] | undefined>(undefined);
   useEffect(() => {
@@ -452,17 +360,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [ragSourceQuery, setRagSourceQuery] = useState('');
   const [ragSourceSort, setRagSourceSort] = useState<'order' | 'name' | 'size' | 'chars'>('order');
   const [ragRetryHubBusy, setRagRetryHubBusy] = useState(false);
-  const [scrapeUrl, setScrapeUrl] = useState('');
-  const [scrapeStatus, setScrapeStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
-  const [scrapeStep, setScrapeStep] = useState('');
-  const [scrapeProgress, setScrapeProgress] = useState(0);
-  const [scrapeBlocks, setScrapeBlocks] = useState<ScrapeBlock[] | null>(null);
-  const [scrapeError, setScrapeError] = useState('');
-  const [scrapeTitle, setScrapeTitle] = useState('');
-  const [scrapeExtractedBy, setScrapeExtractedBy] = useState<'ai' | 'chunk' | null>(null);
-  const [scrapeSelected, setScrapeSelected] = useState<Set<number>>(new Set());
-  const [scrapePreviewBlock, setScrapePreviewBlock] = useState<number | null>(null);
-  const [scrapeEdits, setScrapeEdits] = useState<Map<number, string>>(new Map());
 
   // Sub-agent creation
   const [showNewSub, setShowNewSub] = useState(false);
@@ -480,6 +377,20 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     () => Boolean(model.trim()) && !clientModels.some((x) => x.id === model),
     [clientModels, model],
   );
+  const filteredModels = useMemo(() => {
+    const q = modelQuery.trim().toLowerCase();
+    if (!q) return displayModels;
+    return displayModels.filter((m) =>
+      `${m.name} ${m.id} ${m.provider} ${m.description ?? ''}`.toLowerCase().includes(q)
+    );
+  }, [displayModels, modelQuery]);
+  const orderedFilteredModels = useMemo(() => {
+    const selectedIndex = filteredModels.findIndex((m) => m.id === model);
+    if (selectedIndex <= 0) return filteredModels;
+    const selectedModel = filteredModels[selectedIndex];
+    return [selectedModel, ...filteredModels.slice(0, selectedIndex), ...filteredModels.slice(selectedIndex + 1)];
+  }, [filteredModels, model]);
+  const visibleModels = showAllModels ? orderedFilteredModels : orderedFilteredModels.slice(0, 12);
 
   const ragMaxSources = limits.ragSourcesPerAgent > 0 ? limits.ragSourcesPerAgent : 20;
 
@@ -542,19 +453,16 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         setRagEnabled(a.ragEnabled);
         setRagSources(a.ragSources ?? []);
         setWidgetPublicToken(typeof a.widgetPublicToken === 'string' ? a.widgetPublicToken : '');
-        setWidgetVoiceName(typeof a.widgetVoiceName === 'string' ? a.widgetVoiceName : '');
         setPersistConversationHistory(
           typeof a.persistConversationHistory === 'boolean' ? a.persistConversationHistory : true,
         );
         setStrictPurposeOnly(a.strictPurposeOnly !== false);
-        setHubspotAutoCaptureContacts(a.hubspotAutoCaptureContacts === true);
         setInferenceTemperature(
           typeof a.inferenceTemperature === 'number' ? String(a.inferenceTemperature) : '',
         );
         setInferenceMaxTokens(
           typeof a.inferenceMaxTokens === 'number' ? String(a.inferenceMaxTokens) : '',
         );
-        setFallbackModels(Array.isArray(a.fallbackModels) ? a.fallbackModels.slice(0, 3) : []);
         setSkills(Array.isArray(a.skills) ? a.skills : []);
         setSkillsConfig(Array.isArray(a.skillsConfig) ? a.skillsConfig : []);
         setBehaviorRules(
@@ -602,7 +510,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       .finally(() => setLoading(false));
   }, [id, router]);
 
-  const onOpenToolsTab = useCallback(() => setTab('tools'), [setTab]);
+  const onOpenToolsTab = useCallback(() => setTab('tools'), []);
 
   const loadMcp = useCallback(() => {
     if (!id) return;
@@ -688,29 +596,17 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   }
 
   async function deleteMcpConnection(connectionId: string) {
+    if (!confirm('¿Quitar esta conexión MCP de este agente? Las credenciales dejarán de aplicarse.')) return;
     setError('');
-    setSuccess('');
-    setMcpDeleting(true);
     const r = await fetch(
       `/api/mcp/connections/${encodeURIComponent(connectionId)}?landingAgentId=${encodeURIComponent(id)}`,
       { method: 'DELETE', credentials: 'include' },
     );
     const j = await r.json().catch(() => ({}));
-    setMcpDeleting(false);
-    setMcpDeleteTarget(null);
     if (!r.ok) {
-      const msg =
-        typeof j?.error === 'string'
-          ? j.error
-          : typeof j?.error?.message === 'string'
-            ? j.error.message
-            : 'No se pudo eliminar la conexión.';
-      setError(msg);
+      setError(j?.error ?? 'No se pudo eliminar la conexión.');
       return;
     }
-    setSuccess('Conexión eliminada.');
-    toast.success('Conexión MCP eliminada');
-    setTimeout(() => setSuccess(''), 2200);
     loadMcp();
   }
 
@@ -730,13 +626,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     [mcpServers],
   );
 
-  const hubspotWidgetAutoCaptureEligible = useMemo(
-    () =>
-      mcpToolIds.includes('mcp:hubspot:hubspot_search_contacts') &&
-      mcpToolIds.includes('mcp:hubspot:hubspot_create_contact'),
-    [mcpToolIds],
-  );
-
   async function save(patch: Record<string, unknown>) {
     setSaving(true); setError(''); setSuccess('');
     const res = await fetch(`/api/agents/${id}`, {
@@ -753,11 +642,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     if (data.agent && 'widgetPublicToken' in data.agent) {
       setWidgetPublicToken(typeof data.agent.widgetPublicToken === 'string' ? data.agent.widgetPublicToken : '');
     }
-    if (data.agent && 'widgetVoiceName' in data.agent) {
-      setWidgetVoiceName(typeof data.agent.widgetVoiceName === 'string' ? data.agent.widgetVoiceName : '');
-    }
     setSuccess('Guardado.');
-    toast.success('Agente guardado');
     setTimeout(() => setSuccess(''), 2500);
     return true;
   }
@@ -784,7 +669,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       description,
       systemPrompt: mergedPrompt,
       model,
-      fallbackModels,
       widgetPublicToken: widgetPublicToken.trim() ? widgetPublicToken.trim().slice(0, 512) : null,
       persistConversationHistory,
       strictPurposeOnly,
@@ -817,12 +701,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     await save(patch);
   }
 
-  async function saveVoice() {
-    await save({ widgetVoiceName: widgetVoiceName.trim() || null });
-  }
-
   async function saveTools() {
-    await save({ tools, enabledMcpToolIds: mcpToolIds, hubspotAutoCaptureContacts });
+    await save({ tools, enabledMcpToolIds: mcpToolIds });
   }
 
   async function saveRules() {
@@ -903,109 +783,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
   function addRagSource() {
     setRagSources((prev) => [...prev, { type: 'text', name: '', content: '' }]);
-  }
-
-  async function scrapeAndSegment() {
-    if (!scrapeUrl.trim() || scrapeStatus === 'running') return;
-    setScrapeStatus('running');
-    setScrapeBlocks(null);
-    setScrapeError('');
-    setScrapeTitle('');
-    setScrapeExtractedBy(null);
-    setScrapeProgress(0);
-    setScrapeStep('Iniciando…');
-
-    // Animación continua basada en tiempo — nunca se congela
-    // Cada fase avanza suavemente hacia su target; la última se arrastra
-    // hasta 98% para nunca prometer "casi listo" antes de tiempo.
-    const phases = [
-      { target: 12,  ms: 1_200,  label: 'Iniciando navegador…' },
-      { target: 52,  ms: 14_000, label: 'Cargando página con Chrome…' },
-      { target: 68,  ms: 3_000,  label: 'Extrayendo contenido…' },
-      { target: 92,  ms: 28_000, label: 'Analizando con IA…' },
-      { target: 98,  ms: 20_000, label: 'Finalizando…' },
-    ];
-
-    let phaseIdx   = 0;
-    let phaseFrom  = 0;
-    let phaseStart = Date.now();
-
-    const tick = setInterval(() => {
-      if (phaseIdx >= phases.length) return;
-      const phase   = phases[phaseIdx];
-      const elapsed = Date.now() - phaseStart;
-      const ratio   = Math.min(1, elapsed / phase.ms);
-      // ease-out: desacelera al acercarse al target de cada fase
-      const eased   = 1 - Math.pow(1 - ratio, 2);
-      const pct     = phaseFrom + (phase.target - phaseFrom) * eased;
-
-      setScrapeProgress(Math.round(pct * 10) / 10);
-      setScrapeStep(phase.label);
-
-      if (ratio >= 0.99) {
-        phaseFrom  = phase.target;
-        phaseStart = Date.now();
-        phaseIdx++;
-      }
-    }, 80); // tick cada 80ms → animación fluida sin sobrecargar
-
-    try {
-      const res  = await fetch(`/api/agents/${id}/rag/scrape`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ url: scrapeUrl }),
-      });
-      clearInterval(tick);
-      const data = await res.json();
-      if (!res.ok) {
-        setScrapeError(data.error ?? 'Error al procesar la URL.');
-        setScrapeStatus('error');
-        setScrapeProgress(0);
-        return;
-      }
-      const blocks = data.blocks ?? [];
-      setScrapeBlocks(blocks);
-      setScrapeSelected(new Set(blocks.map((_: unknown, i: number) => i)));
-      setScrapeTitle(data.title ?? '');
-      setScrapeExtractedBy(data.extractedBy ?? null);
-      setScrapeProgress(100);
-      setScrapeStep('¡Listo!');
-      setScrapeStatus('done');
-    } catch (err) {
-      clearInterval(tick);
-      setScrapeError(err instanceof Error ? err.message : 'Error de red.');
-      setScrapeStatus('error');
-      setScrapeProgress(0);
-    }
-  }
-
-  function addScrapedBlocksToRag() {
-    if (!scrapeBlocks?.length || scrapeSelected.size === 0) return;
-    const available = ragMaxSources - ragSources.length;
-    const toAdd = scrapeBlocks
-      .map((b, i) => ({ b, i }))
-      .filter(({ i }) => scrapeSelected.has(i))
-      .slice(0, available)
-      .map(({ b, i }) => {
-        const content = scrapeEdits.get(i) ?? b.content;
-        return { type: 'text' as const, name: b.title, content, charCount: content.length };
-      });
-    if (toAdd.length === 0) {
-      setUploadErr(`Límite de ${ragMaxSources} fuentes alcanzado.`);
-      return;
-    }
-    const next = [...ragSources, ...toAdd];
-    setRagSources(next);
-    save({ ragEnabled, ragSources: next });
-    setScrapeBlocks(null);
-    setScrapeSelected(new Set());
-    setScrapePreviewBlock(null);
-    setScrapeEdits(new Map());
-    setScrapeStatus('idle');
-    setScrapeUrl('');
-    setScrapeStep('');
-    setScrapeTitle('');
-    setScrapeExtractedBy(null);
   }
 
   function removeRagSource(i: number) {
@@ -1238,31 +1015,17 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       <div className="relative overflow-hidden" style={{ minHeight: '100%' }}>
         <div className="hero-glow pointer-events-none" style={{ background: R, top: '-200px', right: '-60px' }} />
         <div className="hero-glow pointer-events-none" style={{ background: B, top: '100px', left: '-120px' }} />
-        <div className="relative px-6 py-16 max-w-3xl mx-auto text-center text-sm" style={{ color: 'var(--muted-foreground)' }}>
-          <Loader2 className="animate-spin mx-auto mb-3" size={28} style={{ color: R }} />
-          Cargando agente…
+        <div className="relative max-w-3xl mx-auto">
+          <AiLoadingInline
+            label="Cargando agente…"
+            hint="Preparando configuración e integraciones"
+            style={{ padding: '64px 16px' }}
+          />
         </div>
       </div>
     );
   }
-  if (!agent) {
-    return (
-      <div className="relative px-6 py-20 max-w-lg mx-auto text-center">
-        <AlertCircle size={40} className="mx-auto mb-4" style={{ color: R }} />
-        <h1 className="text-xl font-bold m-0 mb-2">Agente no encontrado</h1>
-        <p className="text-sm m-0 mb-6" style={{ color: 'var(--muted-foreground)' }}>
-          El agente que buscas no existe o no tienes permiso para verlo.
-        </p>
-        <Link
-          href="/dashboard/agents"
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white no-underline"
-          style={{ background: `linear-gradient(135deg, ${R}, #f87600)` }}
-        >
-          <ChevronLeft size={16} /> Volver a mis agentes
-        </Link>
-      </div>
-    );
-  }
+  if (!agent) return null;
 
   const readOnly = Boolean(agent.isPlatform);
   const isDisabled = agent.status === 'disabled';
@@ -1297,7 +1060,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     { id: 'tools',   label: `Herramientas (${tools.length + mcpToolIds.length})`, icon: <Wrench size={13} /> },
     { id: 'rag',     label: `RAG (${ragN})`, icon: <Zap size={13} /> },
     { id: 'subagents', label: `Sub-agentes (${subAgents.length})`, icon: <Network size={13} /> },
-    { id: 'voice', label: 'Voz', icon: <Volume2 size={13} /> },
   ];
 
   return (
@@ -1305,17 +1067,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       <div className="hero-glow pointer-events-none" style={{ background: R, top: '-200px', right: '-60px' }} />
       <div className="hero-glow pointer-events-none" style={{ background: B, top: '120px', left: '-120px' }} />
 
-      <div className="relative px-4 py-4 max-w-3xl mx-auto">
-      <ConfirmDialog
-        open={mcpDeleteTarget !== null}
-        title="Quitar conexión MCP"
-        description="¿Quitar esta conexión MCP de este agente? Las credenciales dejarán de aplicarse."
-        confirmLabel="Quitar"
-        variant="danger"
-        loading={mcpDeleting}
-        onConfirm={() => mcpDeleteTarget && void deleteMcpConnection(mcpDeleteTarget)}
-        onCancel={() => setMcpDeleteTarget(null)}
-      />
+      <div className="relative px-6 py-10 max-w-3xl mx-auto">
       {agent && (
         <>
           <AgentMcpOpenFromQuery
@@ -1371,7 +1123,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             {ragSummary && (
               <span style={{
                 fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-                background: ragLoaded ? 'rgba(0,172,248,0.12)' : agent.ragEnabled ? 'rgba(217,119,6,0.12)' : 'rgba(107,114,128,0.12)',
+                background: ragLoaded ? 'rgba(var(--brand-primary-rgb),0.12)' : agent.ragEnabled ? 'rgba(217,119,6,0.12)' : 'rgba(107,114,128,0.12)',
                 color: ragLoaded ? B : agent.ragEnabled ? '#d97706' : 'var(--muted-foreground)',
               }} title="Estado del RAG de catálogo (texto, URL, archivos)">
                 {ragSummary}
@@ -1396,28 +1148,14 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         )}
       </div>
 
-      {/* Tabs — select en móvil, scroll en tablet, fila en desktop */}
-      <div className="md:hidden mb-4">
-        <label htmlFor="agent-tab-select" className="sr-only">Sección del agente</label>
-        <select
-          id="agent-tab-select"
-          value={tab}
-          onChange={(e) => setTab(e.target.value as Tab)}
-          className="w-full px-3 py-2.5 rounded-xl border text-sm font-semibold"
-          style={{ borderColor: 'var(--border)', background: 'var(--card)', color: 'var(--foreground)' }}
-        >
-          {TABS.map(({ id: tabId, label }) => (
-            <option key={tabId} value={tabId}>{label}</option>
-          ))}
-        </select>
-      </div>
-      <div className="hidden md:flex gap-1 mb-6 p-1 rounded-2xl border card-texture overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 p-1 rounded-2xl border card-texture" style={{ borderColor: 'var(--border)' }}>
         {TABS.map(({ id: tabId, label, icon }) => (
           <button
             key={tabId}
             onClick={() => setTab(tabId)}
             type="button"
-            className="shrink-0 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border-0 cursor-pointer text-xs transition-all whitespace-nowrap"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl border-0 cursor-pointer text-xs transition-all whitespace-nowrap min-w-0"
             style={{
               fontWeight: tab === tabId ? 700 : 500,
               background: tab === tabId ? 'var(--background)' : 'transparent',
@@ -1425,7 +1163,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               boxShadow: tab === tabId ? `0 0 0 1px ${R}22` : 'none',
             }}
           >
-            {icon} <span>{label}</span>
+            {icon} <span className="truncate">{label}</span>
           </button>
         ))}
       </div>
@@ -1450,17 +1188,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '5px' }}>Nombre</label>
-                <div style={{ position: 'relative' }}>
-                  <input className="landing-input" style={{ ...inp, paddingRight: readOnly ? undefined : '36px' }} value={name} onChange={(e) => setName(e.target.value)} disabled={readOnly} />
-                  {!readOnly && <AIInputButton fieldType="agent_name" fieldName="Nombre del agente" agentContext={{ purpose: description }} onResult={(t) => setName(t)} />}
-                </div>
+                <input className="landing-input" style={inp} value={name} onChange={(e) => setName(e.target.value)} disabled={readOnly} />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '5px' }}>Descripción</label>
-                <div style={{ position: 'relative' }}>
-                  <input className="landing-input" style={{ ...inp, paddingRight: readOnly ? undefined : '36px' }} value={description} onChange={(e) => setDescription(e.target.value)} disabled={readOnly} />
-                  {!readOnly && <AIInputButton fieldType="agent_description" fieldName="Descripción del agente" agentContext={{ name, purpose: description }} onResult={(t) => setDescription(t)} />}
-                </div>
+                <input className="landing-input" style={inp} value={description} onChange={(e) => setDescription(e.target.value)} disabled={readOnly} />
               </div>
             </div>
           </SectionCard>
@@ -1513,7 +1245,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   borderRadius: 11,
                   position: 'relative',
                   cursor: readOnly ? 'not-allowed' : 'pointer',
-                  background: strictPurposeOnly ? `linear-gradient(90deg, ${R}, ${O})` : 'var(--border)',
+                  background: strictPurposeOnly ? R : 'var(--border)',
                   transition: 'background 0.2s',
                   opacity: readOnly ? 0.75 : 1,
                 }}
@@ -1569,7 +1301,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   borderRadius: 11,
                   position: 'relative',
                   cursor: readOnly ? 'not-allowed' : 'pointer',
-                  background: persistConversationHistory ? `linear-gradient(90deg, ${R}, ${O})` : 'var(--border)',
+                  background: persistConversationHistory ? R : 'var(--border)',
                   transition: 'background 0.2s',
                   opacity: readOnly ? 0.75 : 1,
                 }}
@@ -1606,137 +1338,65 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 El modelo guardado (<code style={{ fontSize: '11px' }}>{model}</code>) no está en el catálogo actual o no cumple tu plan. Elige uno de la lista o ajústalo en AgentFlowHub.
               </p>
             )}
-            {/* Buscador */}
-            <div style={{ border: '1px solid var(--border)', background: 'var(--muted)', borderRadius: 12, padding: 12, marginBottom: 10 }}>
+            <div style={{ border: '1px solid var(--border)', background: 'var(--muted)', borderRadius: 12, padding: 12, marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+                <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)' }}>
+                  Busca por nombre, proveedor o capacidad
+                </p>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)' }}>
+                  {filteredModels.length} resultados
+                </span>
+              </div>
               <input
                 className="landing-input"
                 style={inp}
                 value={modelQuery}
-                onChange={(e) => { setModelQuery(e.target.value); setShowAllModels(false); }}
-                placeholder="Buscar por nombre, proveedor o capacidad..."
+                onChange={(e) => {
+                  setModelQuery(e.target.value);
+                  setShowAllModels(false);
+                }}
+                placeholder="Buscar modelo..."
                 disabled={readOnly}
               />
             </div>
-
-            {/* Tabs categoría */}
-            {(() => {
-              const CATS: { id: string; label: string }[] = [
-                { id: 'all', label: 'Todos' },
-                { id: 'multimodal', label: 'Multimodal' },
-                { id: 'chat', label: 'Chat' },
-                { id: 'vision', label: 'Visión' },
-                { id: 'audio', label: 'Audio' },
-                { id: 'tts', label: 'TTS' },
-                { id: 'image', label: 'Imagen' },
-              ];
-              const TIERS: { id: string; label: string; color: string }[] = [
-                { id: 'all', label: 'Todos', color: 'var(--foreground)' },
-                { id: 'stable', label: 'Stable', color: '#16a34a' },
-                { id: 'pro', label: 'Pro', color: '#7c3aed' },
-                { id: 'flash', label: 'Flash', color: '#0284c7' },
-                { id: 'lite', label: 'Lite', color: '#d97706' },
-                { id: 'preview', label: 'Preview', color: '#6366f1' },
-              ];
-              const TIER_COLOR: Record<string, string> = {
-                stable: '#16a34a', pro: '#7c3aed', flash: '#0284c7', lite: '#d97706', preview: '#6366f1',
-              };
-
-              const filtered = displayModels.filter((m) => {
-                const q = modelQuery.trim().toLowerCase();
-                if (q && !(m.name.toLowerCase().includes(q) || m.provider?.toLowerCase().includes(q) || m.id.toLowerCase().includes(q))) return false;
-                if (modelCatFilter !== 'all' && (m.category ?? 'chat') !== modelCatFilter) return false;
-                if (modelTierFilter !== 'all' && (m.tier ?? 'stable') !== modelTierFilter) return false;
-                return true;
-              });
-
-              const selectedFirst = (() => {
-                const idx = filtered.findIndex((m) => m.id === model);
-                if (idx <= 0) return filtered;
-                return [filtered[idx], ...filtered.slice(0, idx), ...filtered.slice(idx + 1)];
-              })();
-
-              const visible = showAllModels ? selectedFirst : selectedFirst.slice(0, 12);
-
-              const activeCatTabStyle = (id: string): React.CSSProperties => ({
-                padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                border: `1px solid ${modelCatFilter === id ? R : 'var(--border)'}`,
-                background: modelCatFilter === id ? `rgba(228,20,20,0.08)` : 'var(--background)',
-                color: modelCatFilter === id ? R : 'var(--muted-foreground)',
-              });
-              const activeTierTabStyle = (id: string, color: string): React.CSSProperties => ({
-                padding: '3px 9px', borderRadius: 20, fontSize: 10, fontWeight: 700, cursor: 'pointer',
-                border: `1px solid ${modelTierFilter === id ? color : 'var(--border)'}`,
-                background: modelTierFilter === id ? `${color}18` : 'var(--background)',
-                color: modelTierFilter === id ? color : 'var(--muted-foreground)',
-              });
-
-              return (
-                <>
-                  {/* Categoría */}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
-                    {CATS.filter((c) => c.id === 'all' || displayModels.some((m) => (m.category ?? 'chat') === c.id)).map((c) => (
-                      <button key={c.id} type="button" style={activeCatTabStyle(c.id)}
-                        onClick={() => { setModelCatFilter(c.id); setShowAllModels(false); }}>
-                        {c.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Tier */}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
-                    {TIERS.filter((t) => t.id === 'all' || displayModels.some((m) => (m.tier ?? 'stable') === t.id)).map((t) => (
-                      <button key={t.id} type="button" style={activeTierTabStyle(t.id, t.color)}
-                        onClick={() => { setModelTierFilter(t.id); setShowAllModels(false); }}>
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '0 0 8px' }}>
-                    {filtered.length} modelo{filtered.length !== 1 ? 's' : ''}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px' }}>
+              {visibleModels.map((m) => (
+                <button key={m.id} type="button" onClick={() => setModel(m.id)} style={{
+                  padding: '10px 12px', borderRadius: '10px', textAlign: 'left', cursor: 'pointer',
+                  border: `1px solid ${model === m.id ? R : 'var(--border)'}`,
+                  background: model === m.id ? 'rgba(var(--brand-primary-rgb),0.08)' : 'transparent',
+                }}>
+                  <p style={{ fontSize: '11px', fontWeight: 700, margin: '0 0 1px', color: model === m.id ? R : 'var(--foreground)' }}>{m.name}</p>
+                  <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: 0 }}>
+                    {m.provider}{m.badge ? ` · ${m.badge}` : ''}
+                    {m.maxTokens != null ? ` · ${m.maxTokens.toLocaleString()} ctx` : ''}
                   </p>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 7 }}>
-                    {visible.map((m) => {
-                      const isSelected = model === m.id;
-                      const tierColor = TIER_COLOR[m.tier ?? 'stable'] ?? 'var(--muted-foreground)';
-                      return (
-                        <button key={m.id} type="button" onClick={() => setModel(m.id)} style={{
-                          padding: '10px 12px', borderRadius: 10, textAlign: 'left', cursor: 'pointer',
-                          border: `1px solid ${isSelected ? R : 'var(--border)'}`,
-                          background: isSelected ? 'rgba(228,20,20,0.07)' : 'var(--background)',
-                          position: 'relative',
-                        }}>
-                          {/* Tier badge */}
-                          <span style={{
-                            position: 'absolute', top: 6, right: 7,
-                            fontSize: 9, fontWeight: 800, padding: '1px 5px', borderRadius: 8,
-                            background: `${tierColor}18`, color: tierColor, textTransform: 'uppercase', letterSpacing: '0.04em',
-                          }}>
-                            {m.tier ?? 'stable'}
-                          </span>
-                          <p style={{ fontSize: 11, fontWeight: 700, margin: '0 0 2px', paddingRight: 40, color: isSelected ? R : 'var(--foreground)' }}>{m.name}</p>
-                          <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0 }}>
-                            {m.provider}
-                            {m.maxTokens != null ? ` · ${(m.maxTokens / 1000).toFixed(0)}k ctx` : ''}
-                          </p>
-                          {m.description ? (
-                            <p style={{ fontSize: 9, color: 'var(--muted-foreground)', margin: '3px 0 0', lineHeight: 1.35 }}>{m.description}</p>
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {filtered.length > 12 && (
-                    <button type="button" onClick={() => setShowAllModels((v) => !v)}
-                      style={{ marginTop: 10, padding: '6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--foreground)', cursor: 'pointer' }}>
-                      {showAllModels ? 'Ver menos' : `Ver todos (${filtered.length})`}
-                    </button>
-                  )}
-                </>
-              );
-            })()}
+                  {m.description ? (
+                    <p style={{ fontSize: '9px', color: 'var(--muted-foreground)', margin: '4px 0 0', lineHeight: 1.35 }}>{m.description}</p>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+            {filteredModels.length > 12 && (
+              <div style={{ marginTop: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAllModels((v) => !v)}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    border: '1px solid var(--border)',
+                    background: 'var(--background)',
+                    color: 'var(--foreground)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {showAllModels ? 'Ver menos modelos' : `Ver todos (${filteredModels.length})`}
+                </button>
+              </div>
+            )}
             <div style={{ marginTop: '14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '6px', color: 'var(--muted-foreground)' }}>
@@ -1766,116 +1426,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               </div>
             </div>
             </div>
-
-            {/* Modelos de respaldo */}
-            <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: '12px', fontWeight: 700, color: 'var(--foreground)' }}>
-                    Modelos de respaldo
-                  </p>
-                  <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--muted-foreground)' }}>
-                    Se usan si el modelo principal falla o llega al límite. Mín. 1 · Máx. 3
-                  </p>
-                </div>
-                {!readOnly && fallbackModels.length < 3 && (
-                  <button
-                    type="button"
-                    onClick={() => { setShowFallbackPanel((v) => !v); setFallbackQuery(''); }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700,
-                      border: `1px solid ${showFallbackPanel ? R : 'var(--border)'}`,
-                      background: showFallbackPanel ? `rgba(228,20,20,0.08)` : 'var(--background)',
-                      color: showFallbackPanel ? R : 'var(--foreground)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Plus size={13} />
-                    Agregar
-                  </button>
-                )}
-              </div>
-
-              {/* Pills de modelos seleccionados */}
-              {fallbackModels.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: showFallbackPanel ? 12 : 0 }}>
-                  {fallbackModels.map((mid, idx) => {
-                    const info = displayModels.find((m) => m.id === mid);
-                    return (
-                      <div key={mid} style={{
-                        display: 'flex', alignItems: 'center', gap: 6,
-                        padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
-                        border: '1px solid var(--border)', background: 'var(--muted)',
-                        color: 'var(--foreground)',
-                      }}>
-                        <span style={{ fontSize: 10, color: 'var(--muted-foreground)', marginRight: 2 }}>#{idx + 1}</span>
-                        {info?.name ?? mid}
-                        {!readOnly && (
-                          <button
-                            type="button"
-                            onClick={() => setFallbackModels((p) => p.filter((x) => x !== mid))}
-                            style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444', padding: 0, display: 'flex', lineHeight: 1 }}
-                          >
-                            <X size={11} />
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Panel selector */}
-              {showFallbackPanel && !readOnly && (
-                <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 12, background: 'var(--muted)' }}>
-                  <input
-                    className="landing-input"
-                    style={{ ...inp, marginBottom: 10 }}
-                    placeholder="Buscar modelo de respaldo..."
-                    value={fallbackQuery}
-                    onChange={(e) => setFallbackQuery(e.target.value)}
-                  />
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 6, maxHeight: 260, overflowY: 'auto' }}>
-                    {displayModels
-                      .filter((m) => {
-                        if (m.id === model) return false;
-                        if (fallbackModels.includes(m.id)) return false;
-                        const q = fallbackQuery.trim().toLowerCase();
-                        if (!q) return true;
-                        return (
-                          m.name.toLowerCase().includes(q) ||
-                          m.provider?.toLowerCase().includes(q) ||
-                          m.id.toLowerCase().includes(q)
-                        );
-                      })
-                      .map((m) => (
-                        <button
-                          key={m.id}
-                          type="button"
-                          onClick={() => {
-                            if (fallbackModels.length >= 3) return;
-                            setFallbackModels((p) => [...p, m.id]);
-                            if (fallbackModels.length + 1 >= 3) setShowFallbackPanel(false);
-                          }}
-                          style={{
-                            padding: '8px 10px', borderRadius: 8, textAlign: 'left', cursor: 'pointer',
-                            border: '1px solid var(--border)', background: 'var(--background)',
-                          }}
-                        >
-                          <p style={{ fontSize: '11px', fontWeight: 700, margin: '0 0 1px', color: 'var(--foreground)' }}>{m.name}</p>
-                          <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: 0 }}>
-                            {m.provider}{m.maxTokens ? ` · ${m.maxTokens.toLocaleString()} ctx` : ''}
-                          </p>
-                        </button>
-                      ))}
-                  </div>
-                  {fallbackModels.length >= 3 && (
-                    <p style={{ fontSize: 11, color: '#d97706', margin: '8px 0 0' }}>Máximo 3 modelos de respaldo alcanzado.</p>
-                  )}
-                </div>
-              )}
-            </div>
           </SectionCard>
 
           <SectionCard>
@@ -1886,7 +1436,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             <div style={{ marginBottom: '10px' }}>
               <span style={{
                 fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-                background: 'rgba(0,172,248,0.12)', color: B,
+                background: 'rgba(var(--brand-primary-rgb),0.12)', color: B,
               }}>
                 {skills.length} seleccionada{skills.length !== 1 ? 's' : ''}
               </span>
@@ -1958,7 +1508,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 padding: '10px',
                 borderRadius: '12px',
                 border: '1px dashed var(--border)',
-                background: 'rgba(0,172,248,0.04)',
+                background: 'rgba(var(--brand-primary-rgb),0.04)',
               }}>
                 <input
                   className="landing-input"
@@ -1996,7 +1546,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                     border: `1px solid ${enabled ? `${R}30` : 'var(--border)'}`,
                     borderRadius: '12px',
                     padding: '12px',
-                    background: enabled ? 'rgba(228,20,20,0.05)' : 'transparent',
+                    background: enabled ? 'rgba(var(--brand-primary-rgb),0.05)' : 'transparent',
                     transition: 'all .15s',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
@@ -2012,7 +1562,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         onClick={() => !readOnly && upsertRuntimeSkillConfig(tpl.id, !enabled, tpl.defaultPriority)}
                         style={{
                           padding: '5px 10px', borderRadius: '999px', border: '1px solid var(--border)',
-                          background: enabled ? `linear-gradient(90deg, ${R}, ${O})` : 'transparent',
+                          background: enabled ? R : 'transparent',
                           color: enabled ? '#fff' : 'var(--muted-foreground)', cursor: readOnly ? 'default' : 'pointer',
                           fontSize: '11px', fontWeight: 700,
                         }}
@@ -2049,146 +1599,15 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
           <SectionCard bar="bo">
             <p style={sectionTitle}>System Prompt</p>
-            <div style={{ position: 'relative' }}>
-              <textarea
-                className="landing-input"
-                style={{ ...inp, minHeight: '160px', resize: 'vertical', fontFamily: 'inherit', paddingRight: readOnly ? undefined : '36px' }}
-                value={systemPrompt}
-                onChange={(e) => setSystemPrompt(e.target.value)}
-                disabled={readOnly}
-                readOnly={readOnly}
-              />
-              {!readOnly && <AIInputButton fieldType="system_prompt" fieldName="System Prompt" agentContext={{ name, purpose: description }} onResult={(t) => setSystemPrompt(t)} position="right-top" />}
-            </div>
+            <textarea
+              className="landing-input"
+              style={{ ...inp, minHeight: '160px', resize: 'vertical', fontFamily: 'inherit' }}
+              value={systemPrompt}
+              onChange={(e) => setSystemPrompt(e.target.value)}
+              disabled={readOnly}
+              readOnly={readOnly}
+            />
           </SectionCard>
-
-          {!readOnly && (
-            <SectionCard bar="bo">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Sparkles size={14} style={{ color: '#6366f1' }} />
-                  <p style={{ ...sectionTitle, marginBottom: 0, color: '#6366f1' }}>Sugerir con AI</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSuggestAgent}
-                  disabled={!name.trim() || aiSuggesting}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 6,
-                    padding: '7px 16px', borderRadius: 10, border: 'none',
-                    background: name.trim() && !aiSuggesting ? '#6366f1' : 'var(--border)',
-                    color: name.trim() && !aiSuggesting ? '#fff' : 'var(--muted-foreground)',
-                    fontSize: 12, fontWeight: 600,
-                    cursor: name.trim() && !aiSuggesting ? 'pointer' : 'not-allowed',
-                  }}
-                >
-                  {aiSuggesting
-                    ? <><Loader2 size={12} className="animate-spin" /> Generando...</>
-                    : <><Sparkles size={12} /> Generar sugerencias</>}
-                </button>
-              </div>
-
-              {aiSuggestions && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 16 }}>
-                  {/* System Prompt */}
-                  <div style={{ padding: '12px 14px', background: 'var(--background)', border: '1px solid var(--border)', borderRadius: 10 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700 }}>System Prompt sugerido</span>
-                      <button type="button" onClick={() => setSystemPrompt(aiSuggestions.systemPrompt)}
-                        style={{ fontSize: 11, fontWeight: 600, color: '#6366f1', background: 'rgba(99,102,241,0.1)', border: 'none', padding: '4px 10px', borderRadius: 7, cursor: 'pointer' }}>
-                        Aplicar
-                      </button>
-                    </div>
-                    <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5, whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'auto' }}>
-                      {aiSuggestions.systemPrompt}
-                    </p>
-                  </div>
-
-                  {/* FAQs */}
-                  {aiSuggestions.faqs.length > 0 && (
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                        <span style={{ fontSize: 12, fontWeight: 700 }}>FAQs sugeridas</span>
-                        <button type="button"
-                          onClick={() => {
-                            setAgentFaqs((prev) => [
-                              ...prev,
-                              ...aiSuggestions.faqs.map((f, i) => ({ id: crypto.randomUUID(), question: f.question, answer: f.answer, enabled: true, priority: (prev.length + i) * 10 })),
-                            ]);
-                            setSuggestFaqsAdded(new Set(aiSuggestions.faqs.map((_, i) => i)));
-                          }}
-                          style={{ fontSize: 11, fontWeight: 600, color: '#6366f1', background: 'rgba(99,102,241,0.1)', border: 'none', padding: '4px 10px', borderRadius: 7, cursor: 'pointer' }}>
-                          Agregar todas
-                        </button>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {aiSuggestions.faqs.map((faq, i) => (
-                          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', background: 'var(--background)', border: '1px solid var(--border)', borderRadius: 8 }}>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <p style={{ fontSize: 12, fontWeight: 600, margin: '0 0 3px' }}>{faq.question}</p>
-                              <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.4 }}>{faq.answer}</p>
-                            </div>
-                            <button type="button"
-                              onClick={() => {
-                                if (!suggestFaqsAdded.has(i)) {
-                                  setAgentFaqs((prev) => [...prev, { id: crypto.randomUUID(), question: faq.question, answer: faq.answer, enabled: true, priority: prev.length * 10 }]);
-                                  setSuggestFaqsAdded((prev) => new Set([...prev, i]));
-                                }
-                              }}
-                              disabled={suggestFaqsAdded.has(i)}
-                              style={{ fontSize: 11, fontWeight: 600, flexShrink: 0, color: suggestFaqsAdded.has(i) ? '#22c55e' : '#6366f1', background: suggestFaqsAdded.has(i) ? 'rgba(34,197,94,0.1)' : 'rgba(99,102,241,0.1)', border: 'none', padding: '4px 10px', borderRadius: 7, cursor: suggestFaqsAdded.has(i) ? 'default' : 'pointer' }}>
-                              {suggestFaqsAdded.has(i) ? '✓ Agregada' : '+ Agregar'}
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Reglas */}
-                  {aiSuggestions.rules.length > 0 && (
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                        <span style={{ fontSize: 12, fontWeight: 700 }}>Reglas sugeridas</span>
-                        <button type="button"
-                          onClick={() => {
-                            setBehaviorRules((prev) => [
-                              ...prev,
-                              ...aiSuggestions.rules.map((r) => ({ ...createEmptyRule(), title: r.title, interpretedRule: r.description })),
-                            ]);
-                            setSuggestRulesAdded(new Set(aiSuggestions.rules.map((_, i) => i)));
-                          }}
-                          style={{ fontSize: 11, fontWeight: 600, color: '#6366f1', background: 'rgba(99,102,241,0.1)', border: 'none', padding: '4px 10px', borderRadius: 7, cursor: 'pointer' }}>
-                          Agregar todas
-                        </button>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {aiSuggestions.rules.map((rule, i) => (
-                          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', background: 'var(--background)', border: '1px solid var(--border)', borderRadius: 8 }}>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <p style={{ fontSize: 12, fontWeight: 600, margin: '0 0 3px' }}>{rule.title}</p>
-                              <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.4 }}>{rule.description}</p>
-                            </div>
-                            <button type="button"
-                              onClick={() => {
-                                if (!suggestRulesAdded.has(i)) {
-                                  setBehaviorRules((prev) => [...prev, { ...createEmptyRule(), title: rule.title, interpretedRule: rule.description }]);
-                                  setSuggestRulesAdded((prev) => new Set([...prev, i]));
-                                }
-                              }}
-                              disabled={suggestRulesAdded.has(i)}
-                              style={{ fontSize: 11, fontWeight: 600, flexShrink: 0, color: suggestRulesAdded.has(i) ? '#22c55e' : '#6366f1', background: suggestRulesAdded.has(i) ? 'rgba(34,197,94,0.1)' : 'rgba(99,102,241,0.1)', border: 'none', padding: '4px 10px', borderRadius: 7, cursor: suggestRulesAdded.has(i) ? 'default' : 'pointer' }}>
-                              {suggestRulesAdded.has(i) ? '✓ Agregada' : '+ Agregar'}
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </SectionCard>
-          )}
 
           {!readOnly && (
           <button
@@ -2242,7 +1661,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 .slice()
                 .sort((a, b) => a.priority - b.priority)
                 .map((rule) => (
-                  <SectionCard key={rule.id} outerStyle={{ borderColor: 'rgba(228,20,20,0.2)' }}>
+                  <SectionCard key={rule.id} outerStyle={{ borderColor: 'rgba(var(--brand-primary-rgb),0.2)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
                       <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>{rule.title || 'Regla sin título'}</p>
                       {!readOnly && (
@@ -2333,21 +1752,18 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       </select>
                     </div>
                     <div style={{ marginTop: 10, display: 'grid', gap: 10 }}>
-                      <div style={{ position: 'relative' }}>
-                        <textarea
-                          className="landing-input"
-                          style={{ ...inp, minHeight: 70, resize: 'vertical', fontFamily: 'inherit', paddingRight: readOnly ? undefined : '36px' }}
-                          value={rule.interpretedRule}
-                          disabled={readOnly}
-                          onChange={(e) =>
-                            setBehaviorRules((prev) =>
-                              prev.map((x) => (x.id === rule.id ? { ...x, interpretedRule: e.target.value } : x)),
-                            )
-                          }
-                          placeholder="Regla interpretada (qué debe hacer exactamente el agente)"
-                        />
-                        {!readOnly && <AIInputButton fieldType="behavior_rule" fieldName="Regla de comportamiento" agentContext={{ name, purpose: description }} onResult={(t) => setBehaviorRules((prev) => prev.map((x) => (x.id === rule.id ? { ...x, interpretedRule: t } : x)))} position="right-top" />}
-                      </div>
+                      <textarea
+                        className="landing-input"
+                        style={{ ...inp, minHeight: 70, resize: 'vertical', fontFamily: 'inherit' }}
+                        value={rule.interpretedRule}
+                        disabled={readOnly}
+                        onChange={(e) =>
+                          setBehaviorRules((prev) =>
+                            prev.map((x) => (x.id === rule.id ? { ...x, interpretedRule: e.target.value } : x)),
+                          )
+                        }
+                        placeholder="Regla interpretada (qué debe hacer exactamente el agente)"
+                      />
                       <input
                         className="landing-input"
                         style={inp}
@@ -2429,8 +1845,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             <p style={sectionTitle}>Preguntas frecuentes</p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
               Define pares pregunta–respuesta para que el modelo las use cuando la consulta sea equivalente. Al guardar,
-              se integran al system prompt y se sincronizan con AIBackHub. El widget analiza conversaciones reales:
-              solo preguntas útiles que se repiten <strong>más de 3 veces</strong> aparecen abajo como recomendaciones.
+              se integran al system prompt y se sincronizan con AIBackHub. El widget registra preguntas repetidas que
+              aún no tienen FAQ: aparecen abajo como candidatas (≥3 veces) para que las conviertas en FAQ formal.
             </p>
             {!readOnly && (
               <button
@@ -2457,7 +1873,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 .slice()
                 .sort((a, b) => a.priority - b.priority)
                 .map((faq) => (
-                  <SectionCard key={faq.id} outerStyle={{ borderColor: 'rgba(0,172,248,0.22)' }}>
+                  <SectionCard key={faq.id} outerStyle={{ borderColor: 'rgba(var(--brand-primary-rgb),0.22)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
                       <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>FAQ</p>
                       {!readOnly && (
@@ -2478,21 +1894,18 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       )}
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 10 }}>
-                      <div style={{ position: 'relative' }}>
-                        <input
-                          className="landing-input"
-                          style={{ ...inp, paddingRight: readOnly ? undefined : '36px' }}
-                          value={faq.question}
-                          disabled={readOnly}
-                          placeholder="Pregunta que hace el usuario"
-                          onChange={(e) =>
-                            setAgentFaqs((prev) =>
-                              prev.map((x) => (x.id === faq.id ? { ...x, question: e.target.value } : x)),
-                            )
-                          }
-                        />
-                        {!readOnly && <AIInputButton fieldType="faq_question" fieldName="Pregunta FAQ" agentContext={{ name, purpose: description }} onResult={(t) => setAgentFaqs((prev) => prev.map((x) => (x.id === faq.id ? { ...x, question: t } : x)))} />}
-                      </div>
+                      <input
+                        className="landing-input"
+                        style={inp}
+                        value={faq.question}
+                        disabled={readOnly}
+                        placeholder="Pregunta que hace el usuario"
+                        onChange={(e) =>
+                          setAgentFaqs((prev) =>
+                            prev.map((x) => (x.id === faq.id ? { ...x, question: e.target.value } : x)),
+                          )
+                        }
+                      />
                       <input
                         className="landing-input"
                         style={inp}
@@ -2513,21 +1926,18 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         }
                       />
                     </div>
-                    <div style={{ position: 'relative', marginTop: 10 }}>
-                      <textarea
-                        className="landing-input"
-                        style={{ ...inp, minHeight: 88, resize: 'vertical', fontFamily: 'inherit', paddingRight: readOnly ? undefined : '36px' }}
-                        value={faq.answer}
-                        disabled={readOnly}
-                        placeholder="Respuesta canónica del agente"
-                        onChange={(e) =>
-                          setAgentFaqs((prev) =>
-                            prev.map((x) => (x.id === faq.id ? { ...x, answer: e.target.value } : x)),
-                          )
-                        }
-                      />
-                      {!readOnly && <AIInputButton fieldType="faq_answer" fieldName="Respuesta FAQ" agentContext={{ name, purpose: description }} onResult={(t) => setAgentFaqs((prev) => prev.map((x) => (x.id === faq.id ? { ...x, answer: t } : x)))} position="right-top" />}
-                    </div>
+                    <textarea
+                      className="landing-input"
+                      style={{ ...inp, minHeight: 88, resize: 'vertical', fontFamily: 'inherit', marginTop: 10 }}
+                      value={faq.answer}
+                      disabled={readOnly}
+                      placeholder="Respuesta canónica del agente"
+                      onChange={(e) =>
+                        setAgentFaqs((prev) =>
+                          prev.map((x) => (x.id === faq.id ? { ...x, answer: e.target.value } : x)),
+                        )
+                      }
+                    />
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginTop: 8 }}>
                       <input
                         type="checkbox"
@@ -2547,27 +1957,29 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           )}
 
           <SectionCard>
-            <p style={sectionTitle}>Recomendaciones (desde conversaciones del widget)</p>
+            <p style={sectionTitle}>Candidatas (desde el widget)</p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '10px', lineHeight: 1.45 }}>
-              Analizamos mensajes del visitante: filtramos saludos, ruido y frases que no son preguntas. Solo mostramos
-              aquí las que se repiten <strong>más de {MIN_FAQ_CANDIDATE_REPETITIONS - 1} veces</strong> (≥{MIN_FAQ_CANDIDATE_REPETITIONS}{' '}
-              en total) y aún no tienen FAQ formal. El modelo también las usa como contexto a partir de ese umbral.
+              Preguntas que los visitantes repiten y que no coinciden con ninguna FAQ por texto normalizado. Tras{' '}
+              <strong>3</strong> repeticiones se sugieren al modelo como contexto; conviértelas en FAQ para fijar la
+              respuesta.
             </p>
-            {promotableFaqCandidates.length === 0 ? (
-              <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', margin: 0, lineHeight: 1.45 }}>
-                Aún no hay recomendaciones. Cuando varios visitantes hagan la misma pregunta útil en el widget, aparecerá
-                aquí para convertirla en FAQ.
+            {faqCandidates.filter((c) => !c.dismissed).length === 0 ? (
+              <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', margin: 0 }}>
+                Aún no hay candidatas. Usa el widget con este agente: se irán acumulando aquí.
               </p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {promotableFaqCandidates.map((c) => (
+                {faqCandidates
+                  .filter((c) => !c.dismissed)
+                  .sort((a, b) => (b.count ?? 0) - (a.count ?? 0))
+                  .map((c) => (
                     <div
                       key={c.id}
                       style={{
                         padding: '10px 12px',
                         borderRadius: 10,
                         border: '1px solid var(--border)',
-                        background: 'rgba(0,172,248,0.05)',
+                        background: 'rgba(var(--brand-primary-rgb),0.05)',
                         fontSize: 13,
                       }}
                     >
@@ -2578,7 +1990,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                             <button
                               type="button"
                               className="text-xs font-bold px-2 py-1 rounded-lg border"
-                              style={{ borderColor: `${B}55`, color: B, cursor: 'pointer', background: 'rgba(0,172,248,0.08)' }}
+                              style={{ borderColor: `${B}55`, color: B, cursor: 'pointer', background: 'rgba(var(--brand-primary-rgb),0.08)' }}
                               onClick={() => {
                                 const q = c.questionSample.trim();
                                 if (!q) return;
@@ -2687,7 +2099,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       padding: '10px 12px',
                       borderRadius: '10px',
                       border: '1px solid var(--border)',
-                      background: 'rgba(0,172,248,0.06)',
+                      background: 'rgba(var(--brand-primary-rgb),0.06)',
                       marginBottom: '14px',
                       color: 'var(--foreground)',
                     }}
@@ -2719,7 +2131,13 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {syncedMcpServers.map((srv) => {
-                    const icon = mcpIntegrationIcon(srv.integrationKey);
+                    const MCP_ICONS: Record<string, string> = {
+                      gmail: '📧', hubspot: '🏢', slack: '💬',
+                      google_calendar: '📅', googleCalendar: '📅',
+                      weather: '🌤️', webSearch: '🔍', web_search: '🔍',
+                      mongodb: '🍃', postgres: '🐘',
+                    };
+                    const icon = MCP_ICONS[srv.integrationKey] ?? '🔌';
                     const allSelected = srv.tools.every((t) => mcpToolIds.includes(t.id));
                     const someSelected = srv.tools.some((t) => mcpToolIds.includes(t.id));
                     const badge = mcpConnectionBadgeStyle(srv);
@@ -2733,7 +2151,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         {/* Server header */}
                         <div style={{
                           display: 'flex', alignItems: 'center', gap: '10px',
-                          padding: '12px 14px', background: 'rgba(228,20,20,0.04)',
+                          padding: '12px 14px', background: 'rgba(var(--brand-primary-rgb),0.04)',
                           borderBottom: '1px solid var(--border)',
                         }}>
                           <span style={{ fontSize: '20px' }}>{icon}</span>
@@ -2775,7 +2193,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                               <button
                                 type="button"
                                 title="Quitar conexión de este agente"
-                                onClick={() => setMcpDeleteTarget(srv.connectionId)}
+                                onClick={() => deleteMcpConnection(srv.connectionId)}
                                 style={{
                                   display: 'flex', alignItems: 'center', gap: '4px',
                                   fontSize: '11px', fontWeight: 600, padding: '4px 10px',
@@ -2799,7 +2217,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                                 style={{
                                   fontSize: '11px', fontWeight: 600, padding: '4px 10px',
                                   borderRadius: '6px', border: '1px solid var(--border)',
-                                  background: allSelected ? 'rgba(228,20,20,0.08)' : 'transparent',
+                                  background: allSelected ? 'rgba(var(--brand-primary-rgb),0.08)' : 'transparent',
                                   color: allSelected ? R : 'var(--muted-foreground)',
                                   cursor: 'pointer', whiteSpace: 'nowrap',
                                 }}
@@ -2826,7 +2244,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                                   cursor: readOnly ? 'not-allowed' : 'pointer',
                                   border: 'none',
                                   borderBottom: ti < srv.tools.length - 1 ? '1px solid var(--border)' : 'none',
-                                  background: selected ? 'rgba(228,20,20,0.05)' : 'transparent',
+                                  background: selected ? 'rgba(var(--brand-primary-rgb),0.05)' : 'transparent',
                                   transition: 'background 0.15s',
                                 }}
                               >
@@ -2899,203 +2317,84 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           {/* Pending/Error MCP connections */}
           {pendingOrErrorMcpServers.length > 0 && (
             <SectionCard bar="bo">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
-                <p style={{ ...sectionTitle, margin: 0 }}>Integraciones pendientes o con error</p>
-                <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
-                  {pendingOrErrorMcpServers.length} conexión{pendingOrErrorMcpServers.length !== 1 ? 'es' : ''}
-                </span>
-              </div>
-              <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: '0 0 14px', lineHeight: 1.5 }}>
-                Misma cuenta que arriba: reintenta el sync con el servidor MCP o quita la conexión. También puedes gestionarlas en AgentFlowHub.
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <p style={{ ...sectionTitle, margin: '0 0 10px' }}>Integraciones pendientes / con error</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {pendingOrErrorMcpServers.map((srv) => {
                   const pb = mcpConnectionBadgeStyle(srv);
                   const pLast = formatMcpLastSync(srv.lastSyncAt);
-                  const icon = mcpIntegrationIcon(srv.integrationKey);
-                  const headerTint =
-                    srv.syncStatus === 'error'
-                      ? 'rgba(239,68,68,0.06)'
-                      : 'rgba(217,119,6,0.07)';
                   return (
-                    <div
-                      key={srv.connectionId}
-                      style={{
-                        borderRadius: '12px',
-                        border: '1px solid var(--border)',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexWrap: 'wrap',
-                          alignItems: 'flex-start',
-                          gap: '12px',
-                          padding: '12px 14px',
-                          background: headerTint,
-                          borderBottom: '1px solid var(--border)',
-                        }}
-                      >
-                        <span style={{ fontSize: '20px', lineHeight: 1, flexShrink: 0 }} aria-hidden>
-                          {icon}
-                        </span>
-                        <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-                          <p style={{ fontSize: '13px', fontWeight: 700, margin: 0, color: 'var(--foreground)' }}>
-                            {srv.serverName}
+                  <div
+                    key={srv.connectionId}
+                    style={{
+                      borderRadius: '10px',
+                      border: '1px solid var(--border)',
+                      overflow: 'hidden',
+                      opacity: 0.9,
+                    }}
+                  >
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px',
+                    }}>
+                      <span style={{ fontSize: '16px' }}>🔌</span>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: '12px', fontWeight: 600, margin: 0 }}>{srv.serverName}</p>
+                        {pLast ? (
+                          <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: '3px 0 0' }}>
+                            Último intento: {pLast}
                           </p>
-                          {pLast ? (
-                            <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '4px 0 0' }}>
-                              Último intento: {pLast}
-                            </p>
-                          ) : null}
-                          {srv.syncStatus === 'error' && srv.lastSyncError ? (
-                            <p
-                              style={{
-                                fontSize: '11px',
-                                color: '#ef4444',
-                                margin: '6px 0 0',
-                                lineHeight: 1.4,
-                                wordBreak: 'break-word',
-                              }}
-                            >
-                              {srv.lastSyncError.slice(0, 320)}
-                              {srv.lastSyncError.length > 320 ? '…' : ''}
-                            </p>
-                          ) : null}
-                        </div>
-                        <div
-                          style={{
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            alignItems: 'center',
-                            gap: '8px',
-                            marginLeft: 'auto',
-                            justifyContent: 'flex-end',
-                          }}
-                        >
-                          <span
+                        ) : null}
+                        {srv.syncStatus === 'error' && srv.lastSyncError ? (
+                          <p style={{ fontSize: '10px', color: '#ef4444', margin: '4px 0 0', lineHeight: 1.35 }}>
+                            {srv.lastSyncError.slice(0, 280)}
+                            {srv.lastSyncError.length > 280 ? '…' : ''}
+                          </p>
+                        ) : null}
+                      </div>
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                        background: pb.bg, color: pb.color,
+                      }}>
+                        {pb.label}
+                      </span>
+                      {!readOnly && (
+                        <>
+                          <button
+                            type="button"
+                            title="Reintentar sincronización"
+                            onClick={() => resyncMcpConnection(srv.connectionId)}
                             style={{
-                              fontSize: 10,
-                              fontWeight: 700,
-                              padding: '3px 10px',
-                              borderRadius: 20,
-                              background: pb.bg,
-                              color: pb.color,
-                              whiteSpace: 'nowrap',
+                              display: 'flex', alignItems: 'center', gap: '4px',
+                              fontSize: '11px', fontWeight: 600, padding: '4px 10px',
+                              borderRadius: '6px', border: '1px solid var(--border)',
+                              background: 'transparent', cursor: 'pointer', color: 'var(--muted-foreground)',
                             }}
                           >
-                            {pb.label}
-                          </span>
-                          {!readOnly && (
-                            <>
-                              <button
-                                type="button"
-                                title="Reintentar sincronización"
-                                onClick={() => resyncMcpConnection(srv.connectionId)}
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '5px',
-                                  fontSize: '11px',
-                                  fontWeight: 600,
-                                  padding: '6px 12px',
-                                  borderRadius: '8px',
-                                  border: '1px solid var(--border)',
-                                  background: 'var(--background)',
-                                  cursor: 'pointer',
-                                  color: 'var(--foreground)',
-                                }}
-                              >
-                                <RefreshCw size={13} /> Reintentar
-                              </button>
-                              <button
-                                type="button"
-                                title="Quitar conexión"
-                                onClick={() => setMcpDeleteTarget(srv.connectionId)}
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '5px',
-                                  fontSize: '11px',
-                                  fontWeight: 600,
-                                  padding: '6px 12px',
-                                  borderRadius: '8px',
-                                  border: '1px solid rgba(239,68,68,0.35)',
-                                  background: 'rgba(239,68,68,0.08)',
-                                  color: '#ef4444',
-                                  cursor: 'pointer',
-                                }}
-                              >
-                                <Trash2 size={13} /> Quitar
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
+                            <RefreshCw size={12} /> Reintentar
+                          </button>
+                          <button
+                            type="button"
+                            title="Eliminar conexión"
+                            onClick={() => deleteMcpConnection(srv.connectionId)}
+                            style={{
+                              padding: '4px 8px', borderRadius: '6px',
+                              border: '1px solid rgba(239,68,68,0.35)', background: 'rgba(239,68,68,0.06)',
+                              color: '#ef4444', cursor: 'pointer',
+                            }}
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </>
+                      )}
                     </div>
-                  );
+                  </div>
+                );
                 })}
               </div>
+              <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '10px 0 0', lineHeight: 1.5 }}>
+                Reintenta la sincronización aquí o revisa las credenciales. También puedes gestionar conexiones en AgentFlowHub.
+              </p>
             </SectionCard>
           )}
-
-          <SectionCard bar="bo">
-            <p style={{ ...sectionTitle, margin: '0 0 10px' }}>Captura automática en HubSpot</p>
-            <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
-              Si el visitante indica <strong>nombre</strong> y <strong>correo</strong> o un <strong>móvil colombiano</strong> (10 dígitos, ej. 300…),
-              el servidor puede buscar el contacto en HubSpot y crearlo si no existe. Requiere conexión OAuth HubSpot en estado ok y las herramientas
-              <code style={{ fontSize: '10px' }}> hubspot_search_contacts</code> y <code style={{ fontSize: '10px' }}> hubspot_create_contact</code> activas arriba.
-            </p>
-            {!hubspotWidgetAutoCaptureEligible ? (
-              <p style={{ fontSize: '11px', color: '#d97706', margin: 0, lineHeight: 1.45 }}>
-                Activa ambas herramientas HubSpot de la lista para poder usar esta opción.
-              </p>
-            ) : null}
-            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: readOnly || !hubspotWidgetAutoCaptureEligible ? 'default' : 'pointer' }}>
-              <div
-                onClick={() =>
-                  !readOnly &&
-                  hubspotWidgetAutoCaptureEligible &&
-                  setHubspotAutoCaptureContacts((prev) => !prev)
-                }
-                style={{
-                  width: 40,
-                  height: 22,
-                  borderRadius: 11,
-                  position: 'relative',
-                  cursor: readOnly || !hubspotWidgetAutoCaptureEligible ? 'not-allowed' : 'pointer',
-                  background:
-                    hubspotAutoCaptureContacts && hubspotWidgetAutoCaptureEligible
-                      ? `linear-gradient(90deg, ${R}, ${O})`
-                      : 'var(--border)',
-                  transition: 'background 0.2s',
-                  opacity: readOnly ? 0.75 : !hubspotWidgetAutoCaptureEligible ? 0.5 : 1,
-                }}
-              >
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 3,
-                    left: hubspotAutoCaptureContacts && hubspotWidgetAutoCaptureEligible ? 21 : 3,
-                    width: 16,
-                    height: 16,
-                    borderRadius: '50%',
-                    background: '#fff',
-                    transition: 'left 0.2s',
-                  }}
-                />
-              </div>
-              <span style={{ fontSize: '13px', fontWeight: 600 }}>
-                {hubspotAutoCaptureContacts && hubspotWidgetAutoCaptureEligible
-                  ? 'Captura automática activada'
-                  : 'Captura automática desactivada'}
-              </span>
-            </label>
-            <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '10px', marginBottom: 0 }}>
-              Pulsa <strong>Guardar herramientas</strong> para sincronizar con AIBackHub.
-            </p>
-          </SectionCard>
 
           {/* ── Built-in tools ── */}
           <SectionCard>
@@ -3116,7 +2415,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px',
                       borderRadius: '10px', textAlign: 'left', cursor: readOnly || !available || maxed ? 'not-allowed' : 'pointer',
                       border: `1px solid ${selected ? R : 'var(--border)'}`,
-                      background: selected ? 'rgba(228,20,20,0.07)' : 'transparent',
+                      background: selected ? 'rgba(var(--brand-primary-rgb),0.07)' : 'transparent',
                       opacity: readOnly || !available || maxed ? 0.45 : 1,
                     }}
                   >
@@ -3177,7 +2476,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-opacity"
                         style={{
                           border: `1px solid ${B}`,
-                          background: 'rgba(0,172,248,0.08)',
+                          background: 'rgba(var(--brand-primary-rgb),0.08)',
                           color: B,
                           cursor: webhookTestBusy ? 'not-allowed' : 'pointer',
                           opacity: webhookTestBusy ? 0.7 : 1,
@@ -3241,7 +2540,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: readOnly ? 'default' : 'pointer' }}>
                   <div onClick={() => !readOnly && setRagEnabled(!ragEnabled)} style={{
                     width: 40, height: 22, borderRadius: 11, position: 'relative', cursor: readOnly ? 'not-allowed' : 'pointer',
-                    background: ragEnabled ? `linear-gradient(90deg, ${R}, ${O})` : 'var(--border)', transition: 'background 0.2s',
+                    background: ragEnabled ? R : 'var(--border)', transition: 'background 0.2s',
                     opacity: readOnly ? 0.75 : 1,
                   }}>
                     <div style={{
@@ -3313,7 +2612,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                     <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: '0 0 12px', lineHeight: 1.45 }}>
                       Las subidas quedan vinculadas a tu sesión y a este agente. Para OCR útil en imágenes, usa fotos nítidas con texto grande y buena luz.
                       {' '}
-                      <Link href="/preguntas-frecuentes" className="landing-link-accent no-underline font-semibold">Preguntas frecuentes →</Link>
+                      <Link href="/docs" className="landing-link-accent no-underline font-semibold">Guía breve en Docs →</Link>
                     </p>
                     {plan === 'starter' && (
                       <p style={{ fontSize: '11px', color: '#d97706', margin: '0 0 12px', padding: '8px 10px', borderRadius: '8px', background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.25)' }}>
@@ -3339,7 +2638,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       style={{
                         border: `2px dashed ${dragOver ? R : 'var(--border)'}`,
                         borderRadius: '12px', padding: '32px 20px', textAlign: 'center',
-                        background: dragOver ? 'rgba(228,20,20,0.05)' : 'transparent',
+                        background: dragOver ? 'rgba(var(--brand-primary-rgb),0.05)' : 'transparent',
                         transition: 'all 0.15s', cursor: readOnly ? 'not-allowed' : 'pointer', marginBottom: '14px',
                         pointerEvents: readOnly ? 'none' : 'auto', opacity: readOnly ? 0.65 : 1,
                         outline: 'none',
@@ -3419,285 +2718,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       </div>
                     )}
                   </SectionCard>
-
-                  {/* ── Scraping de URL ─────────────────────────────────── */}
-                  {!readOnly && (
-                    <SectionCard bar="bo">
-                      <p style={sectionTitle}>Scraping de URL con IA (BETA)</p>
-                      <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', marginBottom: '8px' }}>
-                        Extrae el contenido de cualquier página web y segméntalo automáticamente con IA para agregarlo al RAG.
-                      </p>
-
-                      {/* Disclaimer de responsabilidad */}
-                      <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.5, padding: '7px 10px', borderRadius: '8px', background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
-                        Al escanear una página web el usuario acepta y asume toda la responsabilidad sobre el cumplimiento de los términos de uso del sitio escaneado.{' '}
-                        <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>
-                          Ver política de uso responsable
-                        </a>
-                      </p>
-
-                      {!limits.ragEnabled ? (
-                        <div style={{ padding: '16px', borderRadius: '10px', background: 'var(--muted)', border: '1px solid var(--border)', textAlign: 'center' }}>
-                          <p style={{ fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Plan Starter o superior requerido</p>
-                          <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px' }}>
-                            El scraping de URL con IA está disponible desde el plan Starter.
-                          </p>
-                          <a
-                            href="/dashboard/settings?tab=billing"
-                            style={{ display: 'inline-block', padding: '8px 18px', borderRadius: '10px', fontSize: '12px', fontWeight: 700, background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))', color: '#fff', textDecoration: 'none' }}
-                          >
-                            Actualizar plan
-                          </a>
-                        </div>
-                      ) : (<>
-                      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                        <input
-                          className="landing-input"
-                          type="url"
-                          placeholder="https://ejemplo.com/pagina"
-                          value={scrapeUrl}
-                          onChange={(e) => setScrapeUrl(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') scrapeAndSegment(); }}
-                          disabled={scrapeStatus === 'running'}
-                          style={{ ...inp, flex: 1, fontSize: '13px' }}
-                        />
-                        <button
-                          type="button"
-                          onClick={scrapeAndSegment}
-                          disabled={!scrapeUrl.trim() || scrapeStatus === 'running'}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs shrink-0"
-                          style={{
-                            ...BTN_PRIMARY,
-                            cursor: (!scrapeUrl.trim() || scrapeStatus === 'running') ? 'not-allowed' : 'pointer',
-                            opacity: (!scrapeUrl.trim() || scrapeStatus === 'running') ? 0.6 : 1,
-                          }}
-                        >
-                          {scrapeStatus === 'running' ? (
-                            <><Loader2 size={13} className="animate-spin" /> Procesando…</>
-                          ) : (
-                            <><Link2 size={13} /> Extraer</>
-                          )}
-                        </button>
-                      </div>
-
-                      {scrapeStatus === 'running' && (
-                        <div style={{ marginBottom: '12px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                            <span style={{ fontSize: '12px', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <Loader2 size={12} className="animate-spin" style={{ color: R }} />
-                              {scrapeStep}
-                            </span>
-                            <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>{scrapeProgress}%</span>
-                          </div>
-                          <div style={{ height: '6px', borderRadius: '3px', background: 'var(--border)', overflow: 'hidden' }}>
-                            <div style={{
-                              height: '100%',
-                              borderRadius: '3px',
-                              background: `linear-gradient(90deg, ${R}, ${O})`,
-                              width: `${scrapeProgress}%`,
-                              transition: 'width 0.5s ease',
-                            }} />
-                          </div>
-                        </div>
-                      )}
-
-                      {scrapeStatus === 'error' && scrapeError && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', fontSize: '12px', marginBottom: '8px' }}>
-                          <AlertCircle size={14} /> {scrapeError}
-                          <button onClick={() => { setScrapeStatus('idle'); setScrapeError(''); }} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
-                            <X size={12} />
-                          </button>
-                        </div>
-                      )}
-
-                      {scrapeStatus === 'done' && scrapeBlocks && scrapeBlocks.length > 0 && (
-                        <div>
-                          {/* Header: título + badge + botón agregar */}
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
-                            <p style={{ margin: 0, fontSize: '13px', fontWeight: 700 }}>
-                              <CheckCircle2 size={14} style={{ display: 'inline', marginRight: '5px', color: '#22c55e' }} />
-                              {scrapeBlocks.length} bloque{scrapeBlocks.length !== 1 ? 's' : ''} de <span style={{ color: B }}>{scrapeTitle}</span>
-                              {scrapeExtractedBy && (
-                                <span style={{ marginLeft: '8px', fontSize: '10px', fontWeight: 500, padding: '2px 7px', borderRadius: '20px', background: scrapeExtractedBy === 'ai' ? 'rgba(34,197,94,0.1)' : 'rgba(0,172,248,0.1)', color: scrapeExtractedBy === 'ai' ? '#22c55e' : B }}>
-                                  {scrapeExtractedBy === 'ai' ? '🤖 IA' : '📄 Chunk'}
-                                </span>
-                              )}
-                            </p>
-                            <button
-                              type="button"
-                              onClick={addScrapedBlocksToRag}
-                              disabled={scrapeSelected.size === 0 || ragSources.length >= ragMaxSources}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs shrink-0"
-                              style={{
-                                ...BTN_PRIMARY,
-                                cursor: (scrapeSelected.size === 0 || ragSources.length >= ragMaxSources) ? 'not-allowed' : 'pointer',
-                                opacity: (scrapeSelected.size === 0 || ragSources.length >= ragMaxSources) ? 0.5 : 1,
-                              }}
-                            >
-                              <Plus size={12} />
-                              Agregar {scrapeSelected.size} bloque{scrapeSelected.size !== 1 ? 's' : ''} al RAG
-                            </button>
-                          </div>
-
-                          {/* Controles de selección */}
-                          <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
-                            <button type="button" onClick={() => setScrapeSelected(new Set(scrapeBlocks.map((_, i) => i)))}
-                              style={{ fontSize: '11px', color: B, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
-                              Seleccionar todos
-                            </button>
-                            <button type="button" onClick={() => setScrapeSelected(new Set())}
-                              style={{ fontSize: '11px', color: 'var(--muted-foreground)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
-                              Ninguno
-                            </button>
-                          </div>
-
-                          {/* Lista de bloques */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '420px', overflowY: 'auto', paddingRight: '2px' }}>
-                            {scrapeBlocks.map((block, bi) => {
-                              const selected = scrapeSelected.has(bi);
-                              return (
-                                <div
-                                  key={bi}
-                                  style={{
-                                    borderRadius: '8px',
-                                    border: `1px solid ${selected ? R : 'var(--border)'}`,
-                                    background: selected ? 'rgba(228,20,20,0.04)' : 'var(--card)',
-                                    overflow: 'hidden',
-                                    transition: 'border-color 0.15s, background 0.15s',
-                                  }}
-                                >
-                                  <div style={{ padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    {/* Checkbox */}
-                                    <div
-                                      onClick={() => setScrapeSelected((prev) => {
-                                        const next = new Set(prev);
-                                        next.has(bi) ? next.delete(bi) : next.add(bi);
-                                        return next;
-                                      })}
-                                      style={{
-                                        width: 16, height: 16, borderRadius: 4,
-                                        border: `2px solid ${selected ? R : 'var(--border)'}`,
-                                        background: selected ? R : 'transparent',
-                                        flexShrink: 0, display: 'flex', alignItems: 'center',
-                                        justifyContent: 'center', transition: 'all 0.15s', cursor: 'pointer',
-                                      }}
-                                    >
-                                      {selected && <svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                                    </div>
-
-                                    {/* Título */}
-                                    <span style={{ fontSize: '12px', fontWeight: 600, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                      {block.title}
-                                    </span>
-
-                                    {/* Badges */}
-                                    <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', padding: '2px 6px', borderRadius: '4px', background: 'var(--muted)', flexShrink: 0 }}>{block.type}</span>
-                                    <span style={{ fontSize: '10px', color: 'var(--muted-foreground)', flexShrink: 0 }}>{block.content.length.toLocaleString('es')} ch</span>
-
-                                    {/* Botón ver contenido */}
-                                    <button
-                                      type="button"
-                                      onClick={() => setScrapePreviewBlock(bi)}
-                                      title="Ver contenido"
-                                      style={{ background: 'none', border: `1px solid var(--border)`, borderRadius: '5px', cursor: 'pointer', padding: '3px 6px', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '3px', flexShrink: 0, fontSize: '10px', transition: 'background 0.15s' }}
-                                    >
-                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                                      Ver
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-
-                          {/* Modal — renderizado via Portal fuera del DOM anidado */}
-                          {scrapePreviewBlock !== null && scrapeBlocks[scrapePreviewBlock] && typeof document !== 'undefined' && createPortal((() => {
-                            const bi = scrapePreviewBlock;
-                            const block = scrapeBlocks[bi];
-                            const selected = scrapeSelected.has(bi);
-                            const editedContent = scrapeEdits.get(bi) ?? block.content;
-                            const isEdited = scrapeEdits.has(bi) && scrapeEdits.get(bi) !== block.content;
-                            return (
-                              <div
-                                onClick={(e) => { if (e.target === e.currentTarget) setScrapePreviewBlock(null); }}
-                                style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}
-                              >
-                                <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', width: '100%', maxWidth: '700px', height: '650px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(0,0,0,0.35)', overflow: 'hidden' }}>
-
-                                  {/* Header */}
-                                  <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'var(--muted)', flexShrink: 0 }}>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px', flexWrap: 'wrap' }}>
-                                        <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Bloque {bi + 1} / {scrapeBlocks.length}</span>
-                                        <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'var(--border)', color: 'var(--muted-foreground)' }}>{block.type}</span>
-                                        <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{editedContent.length.toLocaleString('es')} ch</span>
-                                        {isEdited && <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(234,179,8,0.15)', color: '#ca8a04', fontWeight: 600 }}>editado</span>}
-                                      </div>
-                                      <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, lineHeight: 1.3 }}>{block.title}</p>
-                                    </div>
-                                    <button type="button" onClick={() => setScrapePreviewBlock(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted-foreground)', padding: '4px', flexShrink: 0, display: 'flex', borderRadius: '6px' }}>
-                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                                    </button>
-                                  </div>
-
-                                  {/* Textarea editable */}
-                                  <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                                    <div style={{ padding: '8px 18px 4px', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border)', background: 'var(--muted)', flexShrink: 0 }}>
-                                      <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Edita el contenido antes de agregar al RAG</span>
-                                      {isEdited && (
-                                        <button type="button" onClick={() => setScrapeEdits((prev) => { const m = new Map(prev); m.delete(bi); return m; })} style={{ fontSize: '10px', color: 'var(--muted-foreground)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
-                                          Restaurar original
-                                        </button>
-                                      )}
-                                    </div>
-                                    <textarea
-                                      value={editedContent}
-                                      onChange={(e) => setScrapeEdits((prev) => new Map(prev).set(bi, e.target.value))}
-                                      spellCheck={false}
-                                      style={{ flex: 1, width: '100%', border: 'none', outline: 'none', resize: 'none', padding: '16px 18px', fontSize: '12px', lineHeight: 1.7, fontFamily: 'inherit', color: 'var(--foreground)', background: 'var(--card)', boxSizing: 'border-box' }}
-                                    />
-                                  </div>
-
-                                  {/* Footer */}
-                                  <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', background: 'var(--muted)', flexShrink: 0 }}>
-                                    <div style={{ display: 'flex', gap: '6px' }}>
-                                      <button type="button" onClick={() => setScrapePreviewBlock(bi > 0 ? bi - 1 : scrapeBlocks.length - 1)} style={{ fontSize: '11px', padding: '6px 11px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--card)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                                        Anterior
-                                      </button>
-                                      <button type="button" onClick={() => setScrapePreviewBlock(bi < scrapeBlocks.length - 1 ? bi + 1 : 0)} style={{ fontSize: '11px', padding: '6px 11px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--card)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        Siguiente
-                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-                                      </button>
-                                    </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => setScrapeSelected((prev) => { const next = new Set(prev); next.has(bi) ? next.delete(bi) : next.add(bi); return next; })}
-                                      style={{ fontSize: '12px', padding: '7px 16px', borderRadius: '7px', border: `1px solid ${selected ? R : 'var(--border)'}`, background: selected ? R : 'var(--card)', color: selected ? 'white' : 'var(--foreground)', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.15s' }}
-                                    >
-                                      {selected
-                                        ? <><svg width="12" height="12" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg> Incluido</>
-                                        : '+ Incluir en RAG'
-                                      }
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })(), document.body)}
-
-                          <button
-                            type="button"
-                            onClick={() => { setScrapeStatus('idle'); setScrapeBlocks(null); setScrapeSelected(new Set()); setScrapePreviewBlock(null); setScrapeEdits(new Map()); setScrapeUrl(''); setScrapeStep(''); setScrapeTitle(''); }}
-                            style={{ marginTop: '10px', fontSize: '11px', color: 'var(--muted-foreground)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
-                          >
-                            Limpiar resultado
-                          </button>
-                        </div>
-                      )}
-                      </>)}
-                    </SectionCard>
-                  )}
 
                   {agent?.agentHubId && agent.syncStatus === 'failed' && (
                     <div
@@ -3823,7 +2843,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                               <div key={src.fileId ?? `file-${i}`} style={{
                                 display: 'flex', alignItems: 'flex-start', gap: '10px',
                                 padding: '12px 14px', border: '1px solid var(--border)', borderRadius: '10px',
-                                background: 'rgba(228,20,20,0.03)',
+                                background: 'rgba(var(--brand-primary-rgb),0.03)',
                               }}>
                                 <div style={{ flexShrink: 0, marginTop: 2 }}>
                                   {catIcon[src.fileCategory ?? ''] ?? <File size={16} style={{ color: 'var(--muted-foreground)' }} />}
@@ -4080,7 +3100,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                           type="button"
                           onClick={() => setRagPreview(null)}
                           className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs"
-                          style={{ border: `1px solid ${B}`, background: 'rgba(0,172,248,0.08)', color: B, cursor: 'pointer' }}
+                          style={{ border: `1px solid ${B}`, background: 'rgba(var(--brand-primary-rgb),0.08)', color: B, cursor: 'pointer' }}
                         >
                           Cerrar
                         </button>
@@ -4130,7 +3150,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               </div>
 
               {showNewSub && !readOnly && (
-                <SectionCard outerStyle={{ borderColor: 'rgba(228,20,20,0.35)' }}>
+                <SectionCard outerStyle={{ borderColor: 'rgba(var(--brand-primary-rgb),0.35)' }}>
                   <p style={sectionTitle}>Nuevo sub-agente</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <input
@@ -4253,274 +3273,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           )}
         </>
       )}
-
-      {/* ── VOICE TAB ────────────────────────────────────────────────────────── */}
-      {tab === 'voice' && (
-        <VoicePickerTab
-          selected={widgetVoiceName}
-          onSelect={setWidgetVoiceName}
-          onSave={saveVoice}
-          saving={saving}
-          readOnly={readOnly}
-          accentColor={R}
-          inp={inp}
-          sectionTitle={sectionTitle}
-        />
-      )}
-
       </div>
-    </div>
-  );
-}
-
-// ── VoicePickerTab ────────────────────────────────────────────────────────────
-
-interface VoicePickerTabProps {
-  selected: string;
-  onSelect: (name: string) => void;
-  onSave: () => void;
-  saving: boolean;
-  readOnly: boolean;
-  accentColor: string;
-  inp: CSSProperties;
-  sectionTitle: CSSProperties;
-}
-
-function VoicePickerTab({ selected, onSelect, onSave, saving, readOnly, accentColor, inp, sectionTitle }: VoicePickerTabProps) {
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [query, setQuery] = useState('');
-  const [playingName, setPlayingName] = useState<string | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function load() {
-      const v = window.speechSynthesis?.getVoices() ?? [];
-      if (v.length) setVoices(v);
-    }
-    load();
-    window.speechSynthesis?.addEventListener('voiceschanged', load);
-    return () => window.speechSynthesis?.removeEventListener('voiceschanged', load);
-  }, []);
-
-  // Auto-scroll to selected voice once the list loads
-  useEffect(() => {
-    if (!voices.length || !listRef.current) return;
-    const el = listRef.current.querySelector<HTMLElement>('[data-voice-selected="true"]');
-    if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  }, [voices]);
-
-  function stopPreview() {
-    window.speechSynthesis?.cancel();
-    if (timerRef.current) clearTimeout(timerRef.current);
-    setPlayingName(null);
-  }
-
-  function playPreview(voice: SpeechSynthesisVoice) {
-    stopPreview();
-    const utter = new SpeechSynthesisUtterance('Hola, soy tu asistente de voz. ¿En qué te puedo ayudar hoy?');
-    utter.voice = voice;
-    utter.lang = voice.lang;
-    utter.rate = 1;
-    utter.onend = () => setPlayingName(null);
-    window.speechSynthesis.resume();
-    window.speechSynthesis.speak(utter);
-    setPlayingName(voice.name);
-    timerRef.current = setTimeout(() => {
-      window.speechSynthesis?.cancel();
-      setPlayingName(null);
-    }, 6000);
-  }
-
-  useEffect(() => () => stopPreview(), []);
-
-  // Google voices are the only ones available in Chrome across Windows, macOS, Android and iOS.
-  // Fall back to all voices if the current browser has none (Safari, Firefox).
-  const googleVoices = voices.filter((v) => v.name.startsWith('Google '));
-  const baseVoices = googleVoices.length > 0 ? googleVoices : voices;
-  const isFiltered = googleVoices.length > 0;
-
-  const filtered = baseVoices.filter((v) => {
-    // Always include the currently saved voice even if it's not in the universal set
-    if (selected && v.name === selected) return true;
-    const q = query.toLowerCase();
-    return !q || v.name.toLowerCase().includes(q) || v.lang.toLowerCase().includes(q);
-  });
-
-  function scrollToSelected() {
-    if (!listRef.current) return;
-    const el = listRef.current.querySelector<HTMLElement>('[data-voice-selected="true"]');
-    el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  }
-
-  return (
-    <>
-      <SectionCard>
-        <p style={sectionTitle}><Volume2 size={13} style={{ display: 'inline', marginRight: 6 }} />Voz del widget</p>
-
-        {/* Current voice banner */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
-          padding: '10px 14px', borderRadius: 10,
-          background: `${accentColor}0d`, border: `1px solid ${accentColor}28`,
-        }}>
-          <Volume2 size={14} style={{ color: accentColor, flexShrink: 0 }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 2 }}>Voz configurada actualmente</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
-              {selected || '— Automático (recomendado) —'}
-            </span>
-          </div>
-          {selected && voices.length > 0 && (
-            <button
-              type="button"
-              onClick={scrollToSelected}
-              style={{ fontSize: 11, fontWeight: 700, color: accentColor, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: 6, flexShrink: 0 }}
-            >
-              Ver en lista ↓
-            </button>
-          )}
-        </div>
-
-        <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '14px', lineHeight: 1.45 }}>
-          {isFiltered
-            ? <>Solo se muestran <strong>voces Google</strong> — son las únicas disponibles en Chrome en Windows, macOS, Android e iOS. La voz elegida funcionará para la mayoría de tus usuarios.</>
-            : <>No se detectaron voces Google en este navegador (normal en Safari/Firefox). Se muestran todas las voces locales, que pueden variar por OS.</>
-          }
-          {!voices.length && <span style={{ color: '#d97706' }}> (Cargando voces — abre este panel en Chrome para ver las opciones universales.)</span>}
-        </p>
-
-        {/* Search */}
-        <div style={{ position: 'relative', marginBottom: '12px' }}>
-          <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', opacity: 0.4, pointerEvents: 'none' }} />
-          <input
-            className="landing-input"
-            style={{ ...inp, paddingLeft: 30 }}
-            placeholder="Buscar por nombre o idioma…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            disabled={readOnly}
-          />
-        </div>
-
-        {/* Voice list */}
-        <div ref={listRef} style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '420px', overflowY: 'auto' }}>
-          {/* Auto option */}
-          <VoiceRow
-            name="— Automático (recomendado) —"
-            lang=""
-            isSelected={!selected}
-            isPlaying={false}
-            onSelect={() => !readOnly && onSelect('')}
-            onPlay={null}
-            accentColor={accentColor}
-          />
-          {filtered.map((v) => (
-            <VoiceRow
-              key={v.name}
-              name={v.name}
-              lang={v.lang}
-              isSelected={selected === v.name}
-              isPlaying={playingName === v.name}
-              onSelect={() => !readOnly && onSelect(v.name)}
-              onPlay={() => playPreview(v)}
-              accentColor={accentColor}
-            />
-          ))}
-          {voices.length > 0 && filtered.length === 0 && (
-            <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', textAlign: 'center', padding: '16px 0' }}>
-              Sin resultados para &ldquo;{query}&rdquo;
-            </p>
-          )}
-        </div>
-      </SectionCard>
-
-      {!readOnly && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={saving}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: '7px',
-              padding: '10px 20px', borderRadius: '12px', fontWeight: 700, fontSize: '13px',
-              background: accentColor, color: '#fff', border: 'none', cursor: saving ? 'not-allowed' : 'pointer',
-              opacity: saving ? 0.7 : 1,
-            }}
-          >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            Guardar voz
-          </button>
-        </div>
-      )}
-    </>
-  );
-}
-
-interface VoiceRowProps {
-  name: string;
-  lang: string;
-  isSelected: boolean;
-  isPlaying: boolean;
-  onSelect: () => void;
-  onPlay: (() => void) | null;
-  accentColor: string;
-}
-
-function VoiceRow({ name, lang, isSelected, isPlaying, onSelect, onPlay, accentColor }: VoiceRowProps) {
-  return (
-    <div
-      onClick={onSelect}
-      data-voice-selected={isSelected ? 'true' : undefined}
-      style={{
-        display: 'flex', alignItems: 'center', gap: '10px',
-        padding: '10px 12px', borderRadius: '10px', cursor: 'pointer',
-        border: `1px solid ${isSelected ? accentColor + '55' : 'var(--border)'}`,
-        background: isSelected ? accentColor + '0d' : 'var(--background)',
-        transition: 'background 0.15s, border-color 0.15s',
-      }}
-    >
-      <div style={{
-        width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
-        border: `2px solid ${isSelected ? accentColor : 'var(--border)'}`,
-        background: isSelected ? accentColor : 'transparent',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        {isSelected && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
-      </div>
-
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <p style={{ margin: 0, fontSize: '13px', fontWeight: isSelected ? 700 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</p>
-          {isSelected && (
-            <span style={{
-              fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 20, flexShrink: 0,
-              background: `${accentColor}18`, color: accentColor, border: `1px solid ${accentColor}30`,
-            }}>
-              ✓ activa
-            </span>
-          )}
-        </div>
-        {lang && <p style={{ margin: 0, fontSize: '11px', color: 'var(--muted-foreground)' }}>{lang}</p>}
-      </div>
-
-      {onPlay && (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onPlay(); }}
-          title={isPlaying ? 'Detener' : 'Escuchar (6 s)'}
-          style={{
-            flexShrink: 0, padding: '5px 10px', borderRadius: '8px', border: '1px solid var(--border)',
-            background: isPlaying ? accentColor + '18' : 'var(--background)',
-            color: isPlaying ? accentColor : 'var(--muted-foreground)',
-            cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px',
-            fontSize: '11px', fontWeight: 600,
-          }}
-        >
-          {isPlaying ? <Square size={11} /> : <Play size={11} />}
-          {isPlaying ? 'Stop' : 'Play'}
-        </button>
-      )}
     </div>
   );
 }

@@ -7,6 +7,8 @@ const UserSchema = new Schema({
   passwordHash:      { type: String, required: true },
   hashVersion:       { type: String, enum: ['v1-sha256', 'v2-bcrypt'], default: 'v1-sha256' },
   displayName:       { type: String, default: null },
+  /** Foto de perfil (URL https o data:image/jpeg;base64,…). */
+  avatarUrl:         { type: String, default: null },
   role:              { type: String, enum: ['user', 'admin'], default: 'user' },
   // Email verification
   emailVerified:     { type: Boolean, default: false },

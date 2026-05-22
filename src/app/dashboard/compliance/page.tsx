@@ -316,7 +316,7 @@ export default function CompliancePage() {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginTop: 10, gap: 16 }}>
           <div>
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10, color: 'var(--foreground)' }}>
-              <Shield size={22} style={{ color: '#00acf8', opacity: 0.8 }} aria-hidden />
+              <Shield size={22} style={{ color: '#000', opacity: 0.8 }} aria-hidden />
               Cumplimiento y datos
             </h1>
             <p style={{ margin: '10px 0 0', color: 'var(--muted-foreground)', maxWidth: 560, fontSize: 13.5, lineHeight: 1.65 }}>
@@ -327,11 +327,11 @@ export default function CompliancePage() {
           {!loadingAudit && totalEvents > 0 && (
             <div style={{
               flexShrink: 0, padding: '12px 18px', borderRadius: 12,
-              background: 'rgba(0,172,248,0.08)',
-              border: '1px solid rgba(0,172,248,0.25)',
+              background: 'rgba(var(--brand-cool-rgb),0.08)',
+              border: '1px solid rgba(var(--brand-cool-rgb),0.25)',
               textAlign: 'right',
             }}>
-              <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1, color: '#00acf8' }}>{totalEvents}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1, color: '#000' }}>{totalEvents}</div>
               <div style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 4, whiteSpace: 'nowrap' }}>eventos recientes</div>
             </div>
           )}
@@ -344,7 +344,7 @@ export default function CompliancePage() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
 
           {/* Export — blue */}
-          <SectionCard icon={<Download size={14} />} title="Exportar mis datos" accent="#00acf8">
+          <SectionCard icon={<Download size={14} />} title="Exportar mis datos" accent="var(--brand-cool)">
             <p style={{ margin: '0 0 20px', fontSize: 13, color: 'var(--muted-foreground)', lineHeight: 1.65 }}>
               Descarga un JSON con perfil, suscripción, widgets, agentes, uso mensual y últimas entradas de auditoría.
             </p>
@@ -354,20 +354,20 @@ export default function CompliancePage() {
               onClick={() => void downloadExport()}
               onMouseEnter={(e) => {
                 if (!busyExport) {
-                  e.currentTarget.style.background = 'rgba(0,172,248,0.18)';
-                  e.currentTarget.style.borderColor = 'rgba(0,172,248,0.5)';
+                  e.currentTarget.style.background = 'rgba(var(--brand-cool-rgb),0.18)';
+                  e.currentTarget.style.borderColor = 'rgba(var(--brand-cool-rgb),0.5)';
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(0,172,248,0.1)';
-                e.currentTarget.style.borderColor = 'rgba(0,172,248,0.35)';
+                e.currentTarget.style.background = 'rgba(var(--brand-cool-rgb),0.1)';
+                e.currentTarget.style.borderColor = 'rgba(var(--brand-cool-rgb),0.35)';
               }}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8,
                 padding: '10px 18px', borderRadius: 10,
-                border: '1px solid rgba(0,172,248,0.35)',
-                background: 'rgba(0,172,248,0.1)',
-                color: '#00acf8',
+                border: '1px solid rgba(var(--brand-cool-rgb),0.35)',
+                background: 'rgba(var(--brand-cool-rgb),0.1)',
+                color: '#000',
                 cursor: busyExport ? 'wait' : 'pointer',
                 fontSize: 13, fontWeight: 600,
                 transition: 'background 0.15s, border-color 0.15s',
@@ -379,7 +379,7 @@ export default function CompliancePage() {
           </SectionCard>
 
           {/* Delete — red */}
-          <SectionCard icon={<Trash2 size={14} />} title="Borrar cuenta" accent="#e41414">
+          <SectionCard icon={<Trash2 size={14} />} title="Borrar cuenta" accent="var(--primary)">
             <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--muted-foreground)', lineHeight: 1.65 }}>
               Elimina widgets, agentes, uso almacenado y tu usuario de esta plataforma.
             </p>
@@ -399,9 +399,9 @@ export default function CompliancePage() {
                 style={{
                   alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 8,
                   marginTop: 4, padding: '9px 16px', borderRadius: 10,
-                  border: '1px solid rgba(228,20,20,0.45)',
-                  background: 'rgba(228,20,20,0.1)',
-                  color: '#e41414',
+                  border: '1px solid rgba(var(--brand-primary-rgb),0.45)',
+                  background: 'rgba(var(--brand-primary-rgb),0.1)',
+                  color: 'var(--primary)',
                   cursor: busyDel ? 'wait' : 'pointer',
                   fontSize: 13, fontWeight: 600,
                 }}
@@ -414,12 +414,12 @@ export default function CompliancePage() {
         </div>
 
         {/* ── Webhook — orange ─────────────────────────────────── */}
-        <SectionCard icon={<Webhook size={14} />} title="Webhook SaaS (saliente)" accent="#f87600">
+        <SectionCard icon={<Webhook size={14} />} title="Webhook SaaS (saliente)" accent="var(--brand-warm)">
 
           {!whAllowed ? (
             <div style={{
               marginBottom: 18, padding: '14px 16px', borderRadius: 10,
-              background: 'rgba(248,118,0,0.08)', border: '1px solid rgba(248,118,0,0.28)',
+              background: 'rgba(var(--brand-warm-rgb),0.08)', border: '1px solid rgba(var(--brand-warm-rgb),0.28)',
             }}>
               <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--foreground)', lineHeight: 1.55 }}>
                 Recibe eventos firmados (<code style={{ fontSize: 12 }}>X-BotIvA-Signature</code>) en tu backend.
@@ -435,8 +435,8 @@ export default function CompliancePage() {
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8,
                   padding: '9px 16px', borderRadius: 10,
-                  border: '1px solid rgba(248,118,0,0.4)',
-                  background: 'rgba(248,118,0,0.12)',
+                  border: '1px solid rgba(var(--brand-warm-rgb),0.4)',
+                  background: 'rgba(var(--brand-warm-rgb),0.12)',
                   color: '#c45a00', cursor: busyUpgrade ? 'wait' : 'pointer',
                   fontSize: 13, fontWeight: 600,
                 }}
@@ -466,7 +466,7 @@ export default function CompliancePage() {
             {/* Events panel */}
             <div style={{
               padding: '11px 14px', borderRadius: 10,
-              background: 'rgba(248,118,0,0.08)', border: '1px solid rgba(248,118,0,0.28)',
+              background: 'rgba(var(--brand-warm-rgb),0.08)', border: '1px solid rgba(var(--brand-warm-rgb),0.28)',
             }}>
               <p style={{ margin: '0 0 8px', fontSize: 10, color: '#c45a00', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
                 Eventos emitidos
@@ -475,7 +475,7 @@ export default function CompliancePage() {
                 {['conversation.closed', 'conversation.handoff', 'quota.reached'].map((ev) => (
                   <code key={ev} style={{
                     padding: '3px 8px', borderRadius: 5,
-                    background: 'rgba(248,118,0,0.12)', border: '1px solid rgba(248,118,0,0.35)',
+                    background: 'rgba(var(--brand-warm-rgb),0.12)', border: '1px solid rgba(var(--brand-warm-rgb),0.35)',
                     fontFamily: 'ui-monospace, SFMono-Regular, monospace',
                     fontSize: 11, color: '#b45300', fontWeight: 600,
                   }}>
@@ -527,13 +527,13 @@ export default function CompliancePage() {
                 <button
                   type="submit"
                   disabled={!whAllowed || busyWh}
-                  onMouseEnter={(e) => { if (!busyWh) e.currentTarget.style.background = 'rgba(248,118,0,0.18)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(248,118,0,0.1)'; }}
+                  onMouseEnter={(e) => { if (!busyWh) e.currentTarget.style.background = 'rgba(var(--brand-warm-rgb),0.18)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(var(--brand-warm-rgb),0.1)'; }}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6,
                     padding: '10px 16px', borderRadius: 10, flexShrink: 0,
-                    border: '1px solid rgba(248,118,0,0.4)',
-                    background: 'rgba(248,118,0,0.1)',
+                    border: '1px solid rgba(var(--brand-warm-rgb),0.4)',
+                    background: 'rgba(var(--brand-warm-rgb),0.1)',
                     color: '#c45a00',
                     cursor: busyWh ? 'wait' : 'pointer',
                     fontSize: 13, fontWeight: 600,
@@ -550,10 +550,10 @@ export default function CompliancePage() {
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
                 padding: '11px 14px', borderRadius: 10,
-                background: 'rgba(248,118,0,0.06)', border: '1px solid rgba(248,118,0,0.28)',
+                background: 'rgba(var(--brand-warm-rgb),0.06)', border: '1px solid rgba(var(--brand-warm-rgb),0.28)',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                  <Lock size={13} style={{ color: '#f87600', opacity: 0.85, flexShrink: 0 }} />
+                  <Lock size={13} style={{ color: 'var(--brand-warm)', opacity: 0.85, flexShrink: 0 }} />
                   <div style={{ minWidth: 0 }}>
                     <p style={{ margin: '0 0 2px', fontSize: 10, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       Secreto HMAC-SHA256
@@ -570,12 +570,12 @@ export default function CompliancePage() {
                   type="button"
                   disabled={!whAllowed || busyWh}
                   onClick={() => void rotateSecret()}
-                  onMouseEnter={(e) => { if (!busyWh) e.currentTarget.style.background = 'rgba(248,118,0,0.12)'; }}
+                  onMouseEnter={(e) => { if (!busyWh) e.currentTarget.style.background = 'rgba(var(--brand-warm-rgb),0.12)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 5,
                     padding: '7px 12px', borderRadius: 8, flexShrink: 0,
-                    border: '1px solid rgba(248,118,0,0.35)',
+                    border: '1px solid rgba(var(--brand-warm-rgb),0.35)',
                     background: 'transparent', color: '#c45a00',
                     cursor: busyWh ? 'wait' : 'pointer',
                     fontSize: 12, fontWeight: 600, transition: 'background 0.15s',
@@ -602,16 +602,16 @@ export default function CompliancePage() {
         <SectionCard
           icon={<ClipboardList size={14} />}
           title="Registro de auditoría"
-          accent="#f87600"
+          accent="var(--brand-warm)"
           headerAction={
             !loadingAudit ? (
               <button
                 type="button"
                 onClick={() => void fetchAudit()}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(248,118,0,0.1)';
-                  e.currentTarget.style.color = '#f87600';
-                  e.currentTarget.style.borderColor = 'rgba(248,118,0,0.35)';
+                  e.currentTarget.style.background = 'rgba(var(--brand-warm-rgb),0.1)';
+                  e.currentTarget.style.color = 'var(--brand-warm)';
+                  e.currentTarget.style.borderColor = 'rgba(var(--brand-warm-rgb),0.35)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = 'transparent';
@@ -655,11 +655,11 @@ export default function CompliancePage() {
                 <div key={dayKey} style={{ marginBottom: 8 }}>
                   {/* Day separator */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '12px 0 6px' }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#f87600', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--brand-warm)', whiteSpace: 'nowrap' }}>
                       {label}
                     </span>
-                    <div style={{ flex: 1, height: 1, background: 'rgba(248,118,0,0.2)' }} />
-                    <span style={{ fontSize: 10, color: '#f87600', opacity: 0.7, whiteSpace: 'nowrap' }}>
+                    <div style={{ flex: 1, height: 1, background: 'rgba(var(--brand-warm-rgb),0.2)' }} />
+                    <span style={{ fontSize: 10, color: 'var(--brand-warm)', opacity: 0.7, whiteSpace: 'nowrap' }}>
                       {groups.reduce((s, g) => s + g.count, 0)} eventos
                     </span>
                   </div>
@@ -693,8 +693,8 @@ export default function CompliancePage() {
                           <span style={{
                             fontSize: 10, fontWeight: 700,
                             padding: '2px 7px', borderRadius: 20,
-                            background: 'rgba(248,118,0,0.1)', border: '1px solid rgba(248,118,0,0.25)',
-                            color: '#f87600', flexShrink: 0, whiteSpace: 'nowrap',
+                            background: 'rgba(var(--brand-warm-rgb),0.1)', border: '1px solid rgba(var(--brand-warm-rgb),0.25)',
+                            color: 'var(--brand-warm)', flexShrink: 0, whiteSpace: 'nowrap',
                           }}>
                             ×{g.count}
                           </span>

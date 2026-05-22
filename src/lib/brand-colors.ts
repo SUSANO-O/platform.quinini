@@ -1,28 +1,26 @@
 /**
- * Paleta corporativa — regla 70-20-10
+ * Paleta corporativa BotIvA — regla 70-20-10
+ * Inspirada en el logo (esfera teal/cian con destellos ámbar).
  *
  * 70%  Neutros (CSS: --background, --muted, --border, --foreground)
- * 20%  Marca dominante (rojo)
- * 10%  Acentos secundarios (naranja, azul) + premium (cian)
- *
- * Usa BRAND / PREMIUM solo en CTAs, hero, badges de marca y pricing premium.
- * Usa STATE para éxito, error, advertencia e info funcional — nunca mezcles con marca.
+ * 20%  Marca dominante (teal)
+ * 10%  Acentos secundarios (cian, ámbar) + premium
  */
 
 export const BRAND = {
-  primary: '#e41414',
-  primaryDark: '#bb1b14',
-  primaryLight: '#f1513a',
-  warm: '#f87600',
-  cool: '#00acf8',
+  primary: '#00838f',
+  primaryDark: '#006064',
+  primaryLight: '#18dce5',
+  warm: '#ffb300',
+  cool: '#006064',
 } as const;
 
 /** Reservado para plan Growth / badges «Popular» / tier premium */
 export const PREMIUM = {
-  accent: '#00f8e5',
-  bg: 'rgba(0,248,229,0.08)',
-  border: 'rgba(0,248,229,0.25)',
-  gradient: 'linear-gradient(145deg,rgba(0,248,229,0.06),rgba(0,172,248,0.06))',
+  accent: '#00838f',
+  bg: 'rgba(var(--brand-primary-rgb),0.08)',
+  border: 'rgba(var(--brand-primary-rgb),0.25)',
+  gradient: 'linear-gradient(145deg,rgba(var(--brand-primary-rgb),0.06),rgba(var(--brand-primary-rgb),0.03))',
 } as const;
 
 /** Estados de UI — no usar colores de marca aquí */
@@ -44,25 +42,25 @@ export const STATE = {
 export const PLAN_ACCENTS: Record<string, string> = {
   solo: BRAND.primary,
   basic: BRAND.warm,
-  plus: '#8b5cf6',
-  starter: BRAND.cool,
+  plus: '#6366f1',
+  starter: BRAND.primary,
   growth: PREMIUM.accent,
-  business: '#9333ea',
+  business: '#7c3aed',
 };
 
 /** Trío de marca para métricas (máx. 3 acentos por bloque) */
 export const METRIC = {
   primary: BRAND.primary,
   secondary: BRAND.warm,
-  tertiary: BRAND.cool,
+  tertiary: BRAND.primaryDark,
   neutral: STATE.info,
 } as const;
 
 /** Alias cortos (compatibilidad con páginas existentes) */
 export const R = BRAND.primary;
 export const O = BRAND.warm;
-export const B = BRAND.cool;
+export const B = BRAND.primaryDark;
 export const Rd = BRAND.primaryDark;
 
-export const BRAND_GRADIENT = `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.warm})`;
-export const BRAND_GRADIENT_FULL = `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.warm}, ${BRAND.cool})`;
+export const BRAND_GRADIENT = BRAND.primary;
+export const BRAND_GRADIENT_FULL = BRAND.primary;

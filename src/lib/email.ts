@@ -7,6 +7,7 @@
 import { Resend } from 'resend';
 import { planEmailLabel } from '@/lib/plan-catalog';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
+import { BRAND } from '@/lib/brand-colors';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
@@ -50,7 +51,7 @@ function baseTemplate(title: string, bodyHtml: string): string {
       <table width="560" cellpadding="0" cellspacing="0" style="background:#1e293b;border-radius:16px;overflow:hidden;border:1px solid #334155;">
         <!-- Header -->
         <tr>
-          <td style="padding:28px 32px;background:linear-gradient(135deg,#0d9488,#6366f1);">
+          <td style="padding:28px 32px;background:${BRAND.primary};">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td valign="middle" style="width:52px;padding-right:14px;">
@@ -442,7 +443,7 @@ export async function sendSubscriptionReminderEmail(params: {
     ${p(`Hola <strong style="color:#f1f5f9;">${escapeHtml(safeName)}</strong>,`)}
     ${p(detail)}
     ${p('Te recomendamos revisar tu suscripcion para evitar interrupciones en el servicio de tus widgets y agentes.')}
-    ${btn(ctaText, dashUrl, '#e41414')}
+    ${btn(ctaText, dashUrl, BRAND.primary)}
   `);
 
   logSendFailure('subscription reminder', await send(to, subject, html));
@@ -463,9 +464,9 @@ export async function sendQuotaWarningEmail(
   const html = baseTemplate(subject, `
     ${h1('Estás cerca del límite')}
     ${p(`Hola <strong style="color:#f1f5f9;">${escapeHtml(safeName)}</strong>,`)}
-    ${p(`Has utilizado <strong style="color:#f87600;">${used.toLocaleString('es')} de ${limit.toLocaleString('es')} conversaciones</strong> de tu plan <strong style="color:#f1f5f9;">${planLabel}</strong> este mes.`)}
+    ${p(`Has utilizado <strong style="color:${BRAND.warm};">${used.toLocaleString('es')} de ${limit.toLocaleString('es')} conversaciones</strong> de tu plan <strong style="color:#f1f5f9;">${planLabel}</strong> este mes.`)}
     ${p('Cuando llegues al 100 %, el widget dejará de responder hasta que empiece el próximo ciclo de facturación o mejores tu plan.')}
-    ${btn('Mejorar plan ahora', `${APP_URL}/dashboard/settings`, '#e41414')}
+    ${btn('Mejorar plan ahora', `${APP_URL}/dashboard/settings`, BRAND.primary)}
     ${p('<br/><span style="font-size:13px;color:#64748b;">Si no quieres recibir estos avisos, puedes ignorarlos — solo son informativos.</span>')}
   `);
   logSendFailure('quota warning', await send(to, subject, html));
