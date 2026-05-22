@@ -1,75 +1,16 @@
 /**
  * POST /api/agents/[id]/rag-upload
  * Accepts multipart/form-data with a single "file" field.
- * Processes the file, extracts text, appends to ragSources.
- *
- * Limits: 10 MB per file, plan-based total sources limit.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent, Subscription } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
-import { processFile, getFileCategory } from '@/lib/rag-processor';
 import { getAgentLimits } from '@/lib/agent-plans';
-import { canAttemptHubSync, syncHubCatalogFromLandingAgentDoc } from '@/lib/aibackhub-sync';
-import crypto from 'crypto';
+import { ingestRagFileToAgent } from '@/lib/rag-file-ingest';
 
 type Params = { params: Promise<{ id: string }> };
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
-const DEFAULT_MAX_SOURCES_PER_AGENT = 20;
-
-/**
- * Validates that a buffer's magic bytes match the declared MIME type.
- * Returns false only when we can positively identify a mismatch for binary
- * formats (PDF, images, Office docs). Text formats have no magic bytes and
- * always return true.
- */
-function magicBytesMatch(buf: Buffer, declaredMime: string): boolean {
-  if (buf.length < 4) return true; // too small to validate
-  switch (declaredMime) {
-    case 'application/pdf':
-      // %PDF
-      return buf[0] === 0x25 && buf[1] === 0x50 && buf[2] === 0x44 && buf[3] === 0x46;
-    case 'image/png':
-      // \x89PNG
-      return buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47;
-    case 'image/jpeg':
-      // \xFF\xD8\xFF
-      return buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
-    case 'image/gif':
-      // GIF8
-      return buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38;
-    case 'image/webp':
-      // RIFF....WEBP
-      return buf.length >= 12 &&
-        buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
-        buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50;
-    case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
-    case 'application/msword':
-      // DOCX = PK (ZIP), DOC = D0CF (OLE Compound)
-      return (buf[0] === 0x50 && buf[1] === 0x4b) || (buf[0] === 0xd0 && buf[1] === 0xcf);
-    default:
-      return true; // text/plain, text/csv, text/markdown, application/json, text/html — no magic bytes
-  }
-}
-
-// Allowed MIME types
-const ALLOWED_MIMES = new Set([
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/msword',
-  'text/plain',
-  'text/markdown',
-  'text/csv',
-  'application/json',
-  'text/html',
-  'image/png',
-  'image/jpeg',
-  'image/webp',
-  'image/gif',
-]);
 
 export async function POST(req: NextRequest, { params }: Params) {
   const token = req.cookies.get('afhub_session')?.value;
@@ -95,17 +36,11 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
   }
 
-  // Check plan — RAG must be enabled for user's plan
   const sub = await Subscription.findOne({ userId }).lean() as { plan?: string; status?: string } | null;
   const hasActivePlan = sub?.status === 'active' || sub?.status === 'trialing';
   const plan = hasActivePlan ? (sub?.plan ?? 'free') : 'free';
   const limits = getAgentLimits(plan);
 
-  if (!limits.ragEnabled) {
-    return NextResponse.json({ error: 'RAG no está disponible en tu plan. Actualiza tu suscripción.' }, { status: 403 });
-  }
-
-  // Parse multipart form
   let formData: FormData;
   try {
     formData = await req.formData();
@@ -116,105 +51,28 @@ export async function POST(req: NextRequest, { params }: Params) {
   const file = formData.get('file') as File | null;
   if (!file) return NextResponse.json({ error: 'No se recibió ningún archivo.' }, { status: 400 });
 
-  // Validate size
-  if (file.size > MAX_FILE_SIZE) {
-    return NextResponse.json(
-      { error: `El archivo excede el límite de ${MAX_FILE_SIZE / 1024 / 1024} MB.` },
-      { status: 413 },
-    );
-  }
-
-  // Validate MIME
-  const mimeType = file.type || 'application/octet-stream';
-  const filename = file.name || 'archivo';
-
-  if (!ALLOWED_MIMES.has(mimeType) && getFileCategory(mimeType, filename) === 'unsupported') {
-    return NextResponse.json(
-      { error: `Tipo de archivo no soportado: ${mimeType}. Sube PDF, DOCX, TXT, CSV, JSON o imágenes.` },
-      { status: 415 },
-    );
-  }
-
-  // Check total sources limit (por plan)
-  const maxSourcesByPlan = limits.ragSourcesPerAgent > 0 ? limits.ragSourcesPerAgent : DEFAULT_MAX_SOURCES_PER_AGENT;
-  const currentSources = agent.ragSources?.length ?? 0;
-  if (currentSources >= maxSourcesByPlan) {
-    return NextResponse.json(
-      { error: `Máximo ${maxSourcesByPlan} fuentes por agente en tu plan. Elimina alguna antes de subir más.` },
-      { status: 403 },
-    );
-  }
-
-  // Check total storage limit (sumando archivos ya cargados en ragSources)
-  const usedBytes = (agent.ragSources ?? []).reduce((acc: number, s: unknown) => {
-    if (!s || typeof s !== 'object') return acc;
-    const size = (s as { fileSize?: unknown }).fileSize;
-    return acc + (typeof size === 'number' && Number.isFinite(size) ? Math.max(0, size) : 0);
-  }, 0);
-  const maxStorageBytes = Math.max(0, limits.ragStorageMbPerAgent) * 1024 * 1024;
-  if (maxStorageBytes > 0 && usedBytes + file.size > maxStorageBytes) {
-    const usedMb = (usedBytes / 1024 / 1024).toFixed(1);
-    return NextResponse.json(
-      {
-        error:
-          `Límite de almacenamiento RAG alcanzado para tu plan (${limits.ragStorageMbPerAgent} MB por agente). ` +
-          `Uso actual: ${usedMb} MB.`,
-      },
-      { status: 403 },
-    );
-  }
-
-  // Read file buffer
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
+  const result = await ingestRagFileToAgent(
+    agent,
+    {
+      buffer,
+      filename: file.name || 'archivo',
+      mimeType: file.type || 'application/octet-stream',
+      size: file.size,
+    },
+    limits,
+  );
 
-  // Validate magic bytes — prevents disguising a binary file as a different type
-  if (!magicBytesMatch(buffer, mimeType)) {
-    return NextResponse.json(
-      { error: 'El contenido del archivo no coincide con el tipo declarado. Verifica que el archivo no esté corrupto.' },
-      { status: 415 },
-    );
-  }
-
-  // Process and extract text
-  const result = await processFile(buffer, filename, mimeType);
-
-  if (result.category === 'unsupported') {
-    return NextResponse.json({ error: result.warning ?? 'Tipo de archivo no soportado.' }, { status: 415 });
-  }
-
-  // Build the new ragSource entry
-  const fileId = crypto.randomBytes(8).toString('hex');
-  const newSource = {
-    type: 'file' as const,
-    name: filename,
-    content: result.text,
-    fileId,
-    fileName: filename,
-    fileMime: mimeType,
-    fileSize: file.size,
-    fileCategory: result.category,
-    charCount: result.charCount,
-    warning: result.warning ?? null,
-    uploadedAt: new Date(),
-  };
-
-  // Append to ragSources y empujar catálogo al hub (mismo criterio que PATCH agente).
-  agent.ragSources = [...(agent.ragSources ?? []), newSource];
-  await agent.save();
-
-  const hubId = typeof agent.agentHubId === 'string' ? agent.agentHubId.trim() : '';
-  if (hubId && canAttemptHubSync()) {
-    const ok = await syncHubCatalogFromLandingAgentDoc(agent);
-    agent.syncStatus = ok ? 'synced' : 'failed';
-    await agent.save();
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
   }
 
   return NextResponse.json({
     ok: true,
-    source: newSource,
+    source: result.source,
     message: result.warning
       ? `Archivo procesado con aviso: ${result.warning}`
-      : `Archivo procesado: ${result.charCount.toLocaleString()} caracteres extraídos.`,
+      : `Archivo procesado correctamente.`,
   });
 }

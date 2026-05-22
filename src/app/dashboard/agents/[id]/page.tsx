@@ -841,6 +841,84 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     setUploadMsg('');
     const list = Array.from(files).filter((f) => f.size > 0);
     if (!list.length) return;
+
+    const isZip = list.length === 1 && (
+      list[0].name.toLowerCase().endsWith('.zip') ||
+      list[0].type === 'application/zip' ||
+      list[0].type === 'application/x-zip-compressed'
+    );
+
+    if (isZip || list.length >= 6) {
+      setRagUploadProgress({ current: 0, total: list.length, fileName: isZip ? list[0].name : `${list.length} archivos` });
+      const form = new FormData();
+      if (isZip) {
+        form.append('zip', list[0]);
+      } else {
+        list.forEach((f) => form.append('files', f));
+      }
+      try {
+        const res = await fetch(`/api/agents/${id}/rag/bulk`, { method: 'POST', body: form });
+        const data = await res.json();
+        if (!res.ok) {
+          setUploadErr(typeof data.error === 'string' ? data.error : 'Error en carga masiva.');
+          setRagUploadProgress(null);
+          return;
+        }
+        if (data.mode === 'async' && data.jobId) {
+          let attempts = 0;
+          const poll = async () => {
+            attempts += 1;
+            const st = await fetch(`/api/agents/${id}/rag/bulk?jobId=${encodeURIComponent(data.jobId)}`);
+            const stData = await st.json();
+            const job = stData.job;
+            if (job) {
+              setRagUploadProgress({
+                current: job.processedFiles ?? 0,
+                total: job.totalFiles ?? list.length,
+                fileName: `Procesando (${job.status})…`,
+              });
+              if (job.status === 'completed' || job.status === 'failed' || attempts > 120) {
+                setRagUploadProgress(null);
+                const agentRes = await fetch(`/api/agents/${id}`);
+                const agentData = await agentRes.json();
+                if (agentData.agent) {
+                  setRagSources(agentData.agent.ragSources ?? []);
+                  setAgent(agentData.agent);
+                }
+                if (job.fileErrors?.length) {
+                  setUploadErr(job.fileErrors.map((e: { file: string; error: string }) => `${e.file}: ${e.error}`).join(' | '));
+                }
+                setUploadMsg(
+                  job.status === 'failed' && !job.processedFiles
+                    ? 'La carga masiva falló.'
+                    : `Bulk RAG: ${job.processedFiles}/${job.totalFiles} archivo(s) indexados.`,
+                );
+                setTimeout(() => setUploadMsg(''), 6000);
+                return;
+              }
+            }
+            setTimeout(poll, 1500);
+          };
+          await poll();
+          return;
+        }
+        const agentRes = await fetch(`/api/agents/${id}`);
+        const agentData = await agentRes.json();
+        if (agentData.agent) {
+          setRagSources(agentData.agent.ragSources ?? []);
+          setAgent(agentData.agent);
+        }
+        if (Array.isArray(data.errors) && data.errors.length) {
+          setUploadErr(data.errors.map((e: { file: string; error: string }) => `${e.file}: ${e.error}`).join(' | '));
+        }
+        setUploadMsg(`Listo: ${data.processedFiles ?? list.length} archivo(s) procesados.`);
+        setTimeout(() => setUploadMsg(''), 5000);
+      } finally {
+        setRagUploadProgress(null);
+      }
+      return;
+    }
+
     const maxS = limits.ragSourcesPerAgent > 0 ? limits.ragSourcesPerAgent : 20;
     let lastPreview: RagSource | undefined;
     for (let k = 0; k < list.length; k++) {
@@ -2651,7 +2729,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         type="file"
                         multiple
                         style={{ display: 'none' }}
-                        accept=".pdf,.docx,.doc,.txt,.md,.csv,.json,.png,.jpg,.jpeg,.webp,.gif"
+                        accept=".pdf,.docx,.doc,.txt,.md,.csv,.json,.png,.jpg,.jpeg,.webp,.gif,.zip"
                         onChange={handleFileInput}
                       />
                       {ragUploadProgress ? (
@@ -2668,7 +2746,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                             Arrastra uno o varios archivos, o haz clic para seleccionar
                           </p>
                           <p style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
-                            PDF · DOCX · TXT · CSV · JSON · PNG · JPG · WEBP — máx. {RAG_MAX_FILE_MB} MB por archivo
+                            PDF · DOCX · TXT · CSV · JSON · PNG · JPG · WEBP · ZIP — máx. {RAG_MAX_FILE_MB} MB por archivo · 6+ archivos o ZIP usa cola async
                           </p>
                         </>
                       )}

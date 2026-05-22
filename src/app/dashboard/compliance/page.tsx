@@ -15,11 +15,13 @@ import {
   ClipboardList,
   Lock,
   Save,
+  Ticket,
+  MessageSquare,
 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { SecretRevealModal } from '@/components/ui/secret-reveal-modal';
 import { BRAND, STATE, METRIC } from '@/lib/brand-colors';
-import { outboundWebhookUpgradeLabel } from '@/lib/plan-catalog';
+import { outboundWebhookUpgradeLabel, escalationTicketUpgradeLabel } from '@/lib/plan-catalog';
 
 /* ── types ───────────────────────────────────────────────────────── */
 
@@ -168,6 +170,22 @@ export default function CompliancePage() {
   const [busyUpgrade, setBusyUpgrade] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [revealedSecret, setRevealedSecret] = useState<string | null>(null);
+  const [tkProvider, setTkProvider] = useState<'zendesk' | 'freshdesk'>('zendesk');
+  const [tkSubdomain, setTkSubdomain] = useState('');
+  const [tkEmail, setTkEmail] = useState('');
+  const [tkApiToken, setTkApiToken] = useState('');
+  const [tkAllowed, setTkAllowed] = useState(false);
+  const [tkConfigured, setTkConfigured] = useState(false);
+  const [tkHasToken, setTkHasToken] = useState(false);
+  const [tkHasExisting, setTkHasExisting] = useState(false);
+  const [busyTk, setBusyTk] = useState(false);
+  const [busyTkUpgrade, setBusyTkUpgrade] = useState(false);
+  const [slackUrl, setSlackUrl] = useState('');
+  const [slackAllowed, setSlackAllowed] = useState(false);
+  const [slackConfigured, setSlackConfigured] = useState(false);
+  const [slackHasExisting, setSlackHasExisting] = useState(false);
+  const [busySlack, setBusySlack] = useState(false);
+  const [busySlackTest, setBusySlackTest] = useState(false);
 
   const fetchAudit = useCallback(async () => {
     setLoadingAudit(true);
@@ -191,6 +209,36 @@ export default function CompliancePage() {
         setWhSecretPreview(typeof d.secretPreview === 'string' ? d.secretPreview : null);
       })
       .catch(() => {});
+    fetch('/api/user/escalation-ticket')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return;
+        setTkAllowed(Boolean(d.planEligible));
+        setTkConfigured(Boolean(d.configured));
+        setTkHasExisting(Boolean(d.hasExistingConfig));
+        const integ = d.integration as {
+          provider?: string;
+          subdomain?: string;
+          email?: string;
+          hasApiToken?: boolean;
+        } | null;
+        if (integ) {
+          setTkProvider(integ.provider === 'freshdesk' ? 'freshdesk' : 'zendesk');
+          setTkSubdomain(typeof integ.subdomain === 'string' ? integ.subdomain : '');
+          setTkEmail(typeof integ.email === 'string' ? integ.email : '');
+          setTkHasToken(Boolean(integ.hasApiToken));
+        }
+      })
+      .catch(() => {});
+    fetch('/api/user/escalation-slack')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return;
+        setSlackAllowed(Boolean(d.planEligible));
+        setSlackConfigured(Boolean(d.configured));
+        setSlackHasExisting(Boolean(d.hasExistingConfig));
+      })
+      .catch(() => {});
   }, [user?.uid, fetchAudit]);
 
   async function upgradeForWebhook() {
@@ -200,6 +248,128 @@ export default function CompliancePage() {
       if (err && 'error' in err && err.error) toast.error(err.error);
     } finally {
       setBusyUpgrade(false);
+    }
+  }
+
+  async function upgradeForTickets() {
+    setBusyTkUpgrade(true);
+    try {
+      const err = await startCheckout('growth');
+      if (err && 'error' in err && err.error) toast.error(err.error);
+    } finally {
+      setBusyTkUpgrade(false);
+    }
+  }
+
+  async function saveEscalationTicket(e: React.FormEvent) {
+    e.preventDefault();
+    setBusyTk(true);
+    try {
+      const r = await fetch('/api/user/escalation-ticket', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: tkProvider,
+          subdomain: tkSubdomain.trim(),
+          email: tkEmail.trim(),
+          ...(tkApiToken.trim() ? { apiToken: tkApiToken.trim() } : {}),
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        toast.error(d.error || 'No se pudo guardar la integración.');
+        return;
+      }
+      toast.success('Integración de tickets guardada.');
+      setTkConfigured(true);
+      setTkHasExisting(true);
+      setTkHasToken(true);
+      setTkApiToken('');
+    } finally {
+      setBusyTk(false);
+    }
+  }
+
+  async function clearEscalationTicket() {
+    setBusyTk(true);
+    try {
+      const r = await fetch('/api/user/escalation-ticket', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clear: true }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        toast.error(d.error || 'No se pudo eliminar.');
+        return;
+      }
+      toast.success('Integración eliminada.');
+      setTkConfigured(false);
+      setTkHasExisting(false);
+      setTkHasToken(false);
+      setTkSubdomain('');
+      setTkEmail('');
+      setTkApiToken('');
+    } finally {
+      setBusyTk(false);
+    }
+  }
+
+  async function saveEscalationSlack(e: React.FormEvent) {
+    e.preventDefault();
+    setBusySlack(true);
+    try {
+      const r = await fetch('/api/user/escalation-slack', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ webhookUrl: slackUrl.trim() || null }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        toast.error(d.error || 'No se pudo guardar.');
+        return;
+      }
+      toast.success(slackUrl.trim() ? 'Slack configurado.' : 'Slack desactivado.');
+      setSlackConfigured(Boolean(slackUrl.trim()));
+      setSlackHasExisting(Boolean(slackUrl.trim()));
+    } finally {
+      setBusySlack(false);
+    }
+  }
+
+  async function testEscalationSlack() {
+    setBusySlackTest(true);
+    try {
+      const r = await fetch('/api/user/escalation-slack', { method: 'POST' });
+      const d = await r.json();
+      if (!r.ok) {
+        toast.error(d.error || 'La prueba falló.');
+        return;
+      }
+      toast.success(d.message || 'Mensaje de prueba enviado.');
+    } finally {
+      setBusySlackTest(false);
+    }
+  }
+
+  async function clearEscalationSlack() {
+    setBusySlack(true);
+    try {
+      const r = await fetch('/api/user/escalation-slack', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clear: true }),
+      });
+      if (!r.ok) {
+        toast.error('No se pudo eliminar.');
+        return;
+      }
+      toast.success('Slack desvinculado.');
+      setSlackUrl('');
+      setSlackConfigured(false);
+      setSlackHasExisting(false);
+    } finally {
+      setBusySlack(false);
     }
   }
 
@@ -320,8 +490,8 @@ export default function CompliancePage() {
               Cumplimiento y datos
             </h1>
             <p style={{ margin: '10px 0 0', color: 'var(--muted-foreground)', maxWidth: 560, fontSize: 13.5, lineHeight: 1.65 }}>
-              Exporta tus datos, elimina tu cuenta, revisa el historial de auditoría y configura webhooks
-              con firma HMAC (<code style={{ fontSize: 12 }}>X-BotIvA-Signature</code>).
+              Exporta tus datos, elimina tu cuenta, revisa el historial de auditoría, configura webhooks
+              con firma HMAC (<code style={{ fontSize: 12 }}>X-BotIvA-Signature</code>) y tickets automáticos al escalar.
             </p>
           </div>
           {!loadingAudit && totalEvents > 0 && (
@@ -472,7 +642,7 @@ export default function CompliancePage() {
                 Eventos emitidos
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                {['conversation.closed', 'conversation.handoff', 'quota.reached'].map((ev) => (
+                {['conversation.closed', 'conversation.escalation', 'conversation.handoff', 'quota.reached'].map((ev) => (
                   <code key={ev} style={{
                     padding: '3px 8px', borderRadius: 5,
                     background: 'rgba(var(--brand-warm-rgb),0.12)', border: '1px solid rgba(var(--brand-warm-rgb),0.35)',
@@ -595,6 +765,285 @@ export default function CompliancePage() {
                 Al guardar una URL válida se generará un secreto de firma automáticamente.
               </div>
             ) : null}
+          </form>
+        </SectionCard>
+
+        {/* ── Escalation tickets — cool ─────────────────────────── */}
+        <SectionCard icon={<Ticket size={14} />} title="Tickets al escalar (Zendesk / Freshdesk)" accent="var(--brand-cool)">
+
+          {!tkAllowed ? (
+            <div style={{
+              marginBottom: 18, padding: '14px 16px', borderRadius: 10,
+              background: 'rgba(var(--brand-cool-rgb),0.08)', border: '1px solid rgba(var(--brand-cool-rgb),0.28)',
+            }}>
+              <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--foreground)', lineHeight: 1.55 }}>
+                Cuando un visitante pulse <strong>Hablar con una persona</strong> en el widget, BotIvA puede crear
+                un ticket en tu helpdesk con el transcript y los datos de contacto.
+                Disponible desde el plan <strong>{escalationTicketUpgradeLabel()}</strong>.
+              </p>
+              <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--muted-foreground)', lineHeight: 1.5 }}>
+                También puedes avisar en <strong>Slack</strong> (sección siguiente) o usar el webhook{' '}
+                <code style={{ fontSize: 11 }}>conversation.escalation</code> con n8n.
+              </p>
+              <button
+                type="button"
+                disabled={busyTkUpgrade}
+                onClick={() => void upgradeForTickets()}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8,
+                  padding: '9px 16px', borderRadius: 10,
+                  border: '1px solid rgba(var(--brand-cool-rgb),0.4)',
+                  background: 'rgba(var(--brand-cool-rgb),0.12)',
+                  color: 'var(--brand-cool)', cursor: busyTkUpgrade ? 'wait' : 'pointer',
+                  fontSize: 13, fontWeight: 600,
+                }}
+              >
+                {busyTkUpgrade ? <Loader2 className="animate-spin" size={14} /> : null}
+                Mejorar a {escalationTicketUpgradeLabel()}
+              </button>
+              <Link
+                href="/pricing"
+                style={{ marginLeft: 12, fontSize: 12, color: 'var(--brand-cool)', textDecoration: 'underline' }}
+              >
+                Ver planes
+              </Link>
+            </div>
+          ) : null}
+
+          {tkHasExisting && !tkAllowed ? (
+            <p style={{
+              margin: '0 0 14px', fontSize: 12, color: 'var(--muted-foreground)',
+              padding: '10px 12px', borderRadius: 8, background: 'var(--muted)', border: '1px solid var(--border)',
+            }}>
+              Tienes credenciales guardadas pero tu plan actual no incluye tickets automáticos.
+              Mejora a {escalationTicketUpgradeLabel()} para reactivarlas.
+            </p>
+          ) : null}
+
+          <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--muted-foreground)', lineHeight: 1.6, opacity: tkAllowed ? 1 : 0.55 }}>
+            Las escalaciones también aparecen en <Link href="/dashboard/inbox" style={{ color: 'var(--brand-cool)' }}>Inbox</Link>.
+            El ticket incluye contacto del visitante y transcript de la conversación.
+          </p>
+
+          <form onSubmit={saveEscalationTicket} style={{ display: 'flex', flexDirection: 'column', gap: 14, opacity: tkAllowed ? 1 : 0.55 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <p style={{ margin: '0 0 6px', fontSize: 11, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Proveedor
+                </p>
+                <select
+                  value={tkProvider}
+                  onChange={(e) => setTkProvider(e.target.value === 'freshdesk' ? 'freshdesk' : 'zendesk')}
+                  disabled={!tkAllowed || busyTk}
+                  style={{ ...inp, cursor: tkAllowed ? 'pointer' : 'not-allowed' }}
+                >
+                  <option value="zendesk">Zendesk</option>
+                  <option value="freshdesk">Freshdesk</option>
+                </select>
+              </div>
+              <div>
+                <p style={{ margin: '0 0 6px', fontSize: 11, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Subdominio
+                </p>
+                <input
+                  type="text"
+                  value={tkSubdomain}
+                  onChange={(e) => setTkSubdomain(e.target.value)}
+                  placeholder={tkProvider === 'freshdesk' ? 'mi-empresa' : 'mi-empresa'}
+                  disabled={!tkAllowed || busyTk}
+                  style={inp}
+                />
+                <p style={{ margin: '4px 0 0', fontSize: 10, color: 'var(--muted-foreground)' }}>
+                  {tkProvider === 'freshdesk'
+                    ? 'mi-empresa.freshdesk.com'
+                    : 'mi-empresa.zendesk.com'}
+                </p>
+              </div>
+            </div>
+
+            {tkProvider === 'zendesk' ? (
+              <div>
+                <p style={{ margin: '0 0 6px', fontSize: 11, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Email agente API (Zendesk)
+                </p>
+                <input
+                  type="email"
+                  value={tkEmail}
+                  onChange={(e) => setTkEmail(e.target.value)}
+                  placeholder="agente@tu-empresa.com"
+                  disabled={!tkAllowed || busyTk}
+                  style={inp}
+                />
+              </div>
+            ) : null}
+
+            <div>
+              <p style={{ margin: '0 0 6px', fontSize: 11, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                API token
+              </p>
+              <input
+                type="password"
+                value={tkApiToken}
+                onChange={(e) => setTkApiToken(e.target.value)}
+                placeholder={tkHasToken ? '•••••••• (dejar vacío para mantener)' : 'Pega tu API token'}
+                disabled={!tkAllowed || busyTk}
+                style={inp}
+                autoComplete="off"
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+              <button
+                type="submit"
+                disabled={!tkAllowed || busyTk}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '10px 16px', borderRadius: 10,
+                  border: '1px solid rgba(var(--brand-cool-rgb),0.4)',
+                  background: 'rgba(var(--brand-cool-rgb),0.1)',
+                  color: 'var(--brand-cool)',
+                  cursor: busyTk ? 'wait' : 'pointer',
+                  fontSize: 13, fontWeight: 600,
+                }}
+              >
+                {busyTk ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
+                Guardar integración
+              </button>
+              {tkConfigured ? (
+                <span style={{ fontSize: 12, color: '#22c55e', fontWeight: 600 }}>✓ Configurado</span>
+              ) : null}
+              {tkHasExisting && tkAllowed ? (
+                <button
+                  type="button"
+                  disabled={busyTk}
+                  onClick={() => void clearEscalationTicket()}
+                  style={{
+                    padding: '10px 14px', borderRadius: 10,
+                    border: '1px solid var(--border)', background: 'transparent',
+                    color: 'var(--muted-foreground)', fontSize: 12, fontWeight: 600,
+                    cursor: busyTk ? 'wait' : 'pointer',
+                  }}
+                >
+                  Eliminar integración
+                </button>
+              ) : null}
+            </div>
+          </form>
+        </SectionCard>
+
+        {/* ── Slack escalation — purple/indigo accent via warm-cool mix ───── */}
+        <SectionCard icon={<MessageSquare size={14} />} title="Avisar en Slack al escalar" accent="#611f69">
+
+          {!slackAllowed ? (
+            <div style={{
+              marginBottom: 18, padding: '14px 16px', borderRadius: 10,
+              background: 'rgba(97,31,105,0.08)', border: '1px solid rgba(97,31,105,0.22)',
+            }}>
+              <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--foreground)', lineHeight: 1.55 }}>
+                Publica un mensaje en tu canal de Slack cuando alguien pulse <strong>Hablar con una persona</strong>.
+                Disponible desde el plan <strong>{outboundWebhookUpgradeLabel()}</strong>.
+              </p>
+              <button
+                type="button"
+                disabled={busyUpgrade}
+                onClick={() => void upgradeForWebhook()}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8,
+                  padding: '9px 16px', borderRadius: 10,
+                  border: '1px solid rgba(97,31,105,0.35)',
+                  background: 'rgba(97,31,105,0.1)',
+                  color: '#611f69', cursor: busyUpgrade ? 'wait' : 'pointer',
+                  fontSize: 13, fontWeight: 600,
+                }}
+              >
+                {busyUpgrade ? <Loader2 className="animate-spin" size={14} /> : null}
+                Mejorar a {outboundWebhookUpgradeLabel()}
+              </button>
+            </div>
+          ) : null}
+
+          {slackHasExisting && !slackAllowed ? (
+            <p style={{
+              margin: '0 0 14px', fontSize: 12, color: 'var(--muted-foreground)',
+              padding: '10px 12px', borderRadius: 8, background: 'var(--muted)', border: '1px solid var(--border)',
+            }}>
+              Tienes un webhook de Slack guardado pero tu plan actual no incluye notificaciones al escalar.
+            </p>
+          ) : null}
+
+          <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--muted-foreground)', lineHeight: 1.6, opacity: slackAllowed ? 1 : 0.55 }}>
+            Crea un <strong>Incoming Webhook</strong> en tu workspace de Slack
+            (Apps → Incoming WebHooks → elegir canal) y pega la URL aquí.
+            El mensaje incluye contacto, mensaje del visitante y transcript.
+          </p>
+
+          <form onSubmit={saveEscalationSlack} style={{ display: 'flex', flexDirection: 'column', gap: 12, opacity: slackAllowed ? 1 : 0.55 }}>
+            <div>
+              <p style={{ margin: '0 0 6px', fontSize: 11, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Incoming Webhook URL
+              </p>
+              <input
+                type="url"
+                value={slackUrl}
+                onChange={(e) => setSlackUrl(e.target.value)}
+                placeholder="https://hooks.slack.com/services/T…/B…/…"
+                disabled={!slackAllowed || busySlack}
+                style={inp}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+              <button
+                type="submit"
+                disabled={!slackAllowed || busySlack}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '10px 16px', borderRadius: 10,
+                  border: '1px solid rgba(97,31,105,0.35)',
+                  background: 'rgba(97,31,105,0.1)',
+                  color: '#611f69',
+                  cursor: busySlack ? 'wait' : 'pointer',
+                  fontSize: 13, fontWeight: 600,
+                }}
+              >
+                {busySlack ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
+                Guardar
+              </button>
+              {(slackConfigured || slackUrl.trim()) && slackAllowed ? (
+                <button
+                  type="button"
+                  disabled={busySlackTest || busySlack}
+                  onClick={() => void testEscalationSlack()}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '10px 14px', borderRadius: 10,
+                    border: '1px solid var(--border)', background: 'var(--card)',
+                    fontSize: 13, fontWeight: 600, cursor: busySlackTest ? 'wait' : 'pointer',
+                  }}
+                >
+                  {busySlackTest ? <Loader2 className="animate-spin" size={14} /> : null}
+                  Enviar prueba
+                </button>
+              ) : null}
+              {slackConfigured ? (
+                <span style={{ fontSize: 12, color: '#22c55e', fontWeight: 600 }}>✓ Activo</span>
+              ) : null}
+              {slackHasExisting && slackAllowed ? (
+                <button
+                  type="button"
+                  disabled={busySlack}
+                  onClick={() => void clearEscalationSlack()}
+                  style={{
+                    padding: '10px 14px', borderRadius: 10,
+                    border: '1px solid var(--border)', background: 'transparent',
+                    color: 'var(--muted-foreground)', fontSize: 12, fontWeight: 600,
+                    cursor: busySlack ? 'wait' : 'pointer',
+                  }}
+                >
+                  Desvincular
+                </button>
+              ) : null}
+            </div>
           </form>
         </SectionCard>
 
