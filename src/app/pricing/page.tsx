@@ -6,6 +6,17 @@ import { Check, ArrowRight, Zap } from 'lucide-react';
 import { PricingComparisonTable } from '@/components/landing/pricing-comparison-table';
 import Link from 'next/link';
 
+/** Ventas manual — reactivar /register cuando las suscripciones sean automáticas. */
+const SALES_WHATSAPP = '573196748729';
+
+function planWhatsAppUrl(planName: string, priceLabel?: string) {
+  const pricePart = priceLabel ? ` (${priceLabel})` : '';
+  const text =
+    `Hola, me interesa el plan ${planName}${pricePart}. ` +
+    'Quiero adquirirlo o recibir más información.';
+  return `https://wa.me/${SALES_WHATSAPP}?text=${encodeURIComponent(text)}`;
+}
+
 const FREE_PLAN       = PLANS.find((p) => p.id === 'free');
 const PAID_PLANS      = buildPricingGridPlans();
 const SOLO_PLAN       = PLANS.find((p) => p.id === 'solo');
@@ -171,6 +182,7 @@ export default function PricingPage() {
                   </p>
                 )}
 
+                {/*
                 <Link
                   href="/register"
                   className="mt-8 flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm transition-all"
@@ -187,6 +199,25 @@ export default function PricingPage() {
                   Probar 7 días gratis
                   <ArrowRight size={14} />
                 </Link>
+                */}
+                <a
+                  href={planWhatsAppUrl(plan.name, plan.price)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-8 flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm transition-all no-underline"
+                  style={
+                    plan.highlighted
+                      ? {
+                          background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))',
+                          color: '#fff',
+                          boxShadow: '0 4px 20px rgba(228,20,20,0.3)',
+                        }
+                      : { border: '1px solid var(--border)', color: 'var(--foreground)' }
+                  }
+                >
+                  Consultar por WhatsApp
+                  <ArrowRight size={14} />
+                </a>
               </div>
             ))}
           </div>
@@ -220,10 +251,10 @@ export default function PricingPage() {
                 </ul>
               </div>
               <a
-                href="https://wa.me/573196748729"
+                href={planWhatsAppUrl('Enterprise', 'Contacto')}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="shrink-0 flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap"
+                className="shrink-0 flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap no-underline"
                 style={{
                   background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))',
                   color: '#fff',
