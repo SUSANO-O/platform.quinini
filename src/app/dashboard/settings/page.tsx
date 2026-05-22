@@ -1018,7 +1018,13 @@ export default function SettingsPage() {
               </button>
             <div id="settings-invoices" className="scroll-mt-24 mt-4">
               <p style={{ fontSize: '12px', fontWeight: 600, marginBottom: '8px', color: 'var(--foreground)' }}>Facturas recientes</p>
-              <InvoiceList />
+              <p style={{ fontSize: '11px', margin: '0 0 8px', color: 'var(--muted-foreground)' }}>
+                <Link href="/dashboard/facturas" style={{ color: 'var(--brand-cool)', fontWeight: 600 }}>
+                  Abrir Facturas y recibos →
+                </Link>
+                {' '}(datos fiscales y descarga PDF)
+              </p>
+              <InvoiceList showGenerate={false} />
             </div>
             </div>
 

@@ -15,6 +15,7 @@ import {
 import { checkRateLimitAsync, getClientIp } from '@/lib/rate-limit';
 import { connectDB } from '@/lib/db/connection';
 import { Widget, ConversationSession } from '@/lib/db/models';
+import { inboxSessionFilter, upsertHandoffInboxSession } from '@/lib/inbox-handoff';
 import { dispatchSaasWebhook } from '@/lib/saas-webhook-outbound';
 import { scheduleWidgetUsageDiskLog } from '@/lib/widget-usage-disk';
 import { randomUUID } from 'crypto';
@@ -228,23 +229,30 @@ export async function POST(req: NextRequest) {
           const isInboxHandoff =
             reason === 'form_submit' || channel === 'inbox' || hasContact;
 
-          if (isInboxHandoff) {
-            const sessionFilter = clientSessionId
-              ? { sessionId: clientSessionId, userId: uid }
-              : { agentId, userId: uid, endedAt: null };
-            const $set: Record<string, unknown> = {
-              escalated: true,
-              inboxStatus: 'open',
-              handoffAt: now,
+          if (isInboxHandoff && clientSessionId) {
+            await upsertHandoffInboxSession({
+              sessionId: clientSessionId,
+              userId: uid,
               widgetId,
               agentId,
-            };
-            if (hasContact) $set.handoffContact = contactInfo;
-
+              contactInfo,
+              handoffAt: now,
+            });
+          } else if (isInboxHandoff) {
+            const sessionFilter = { agentId, userId: uid, endedAt: null };
             await ConversationSession.findOneAndUpdate(
               sessionFilter,
-              { $set },
-              clientSessionId ? {} : { sort: { startedAt: -1 } },
+              {
+                $set: {
+                  escalated: true,
+                  inboxStatus: 'open',
+                  handoffAt: now,
+                  widgetId,
+                  agentId,
+                  ...(hasContact ? { handoffContact: contactInfo } : {}),
+                },
+              },
+              { sort: { startedAt: -1 } },
             );
           }
 

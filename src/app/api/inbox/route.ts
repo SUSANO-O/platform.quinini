@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { ConversationSession, Widget, WidgetMessage } from '@/lib/db/models';
+import { inboxSessionFilter } from '@/lib/inbox-handoff';
 import { verifySessionToken } from '@/lib/auth';
 
 function getUserId(req: NextRequest): string | null {
@@ -23,13 +24,7 @@ export async function GET(req: NextRequest) {
 
   await connectDB();
 
-  const filter: Record<string, unknown> = {
-    userId,
-    escalated: true,
-    handoffAt: { $exists: true, $ne: null },
-  };
-  if (status === 'open') filter.inboxStatus = { $ne: 'resolved' };
-  else if (status === 'resolved') filter.inboxStatus = 'resolved';
+  const filter = inboxSessionFilter(userId, status === 'resolved' ? 'resolved' : 'open');
 
   const sessions = await ConversationSession.find(filter)
     .sort({ handoffAt: -1, startedAt: -1 })
@@ -85,12 +80,9 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  const openCount = await ConversationSession.countDocuments({
-    userId,
-    escalated: true,
-    handoffAt: { $exists: true, $ne: null },
-    inboxStatus: { $ne: 'resolved' },
-  });
+  const openCount = await ConversationSession.countDocuments(
+    inboxSessionFilter(userId, 'open'),
+  );
 
   return NextResponse.json({ items, openCount });
 }

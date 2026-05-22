@@ -50,7 +50,16 @@ export interface InvoiceItem {
   created: number;
   hostedInvoiceUrl: string | null;
   invoicePdf: string | null;
+  /** subscription | order */
+  kind?: 'subscription' | 'order';
+  description?: string;
 }
+
+export type GetInvoicesParams = {
+  customerId: string;
+  subscriptionIds?: string[];
+  userEmail?: string;
+};
 
 export interface PaymentServiceInterface {
   /** Busca o crea un cliente en el proveedor. Retorna el ID del proveedor. */
@@ -78,5 +87,12 @@ export interface PaymentServiceInterface {
   getPaymentMethodUpdateUrl(subscriptionId: string): Promise<string>;
 
   /** Lista facturas/transacciones completadas para un cliente. */
-  getInvoices(customerId: string): Promise<InvoiceItem[]>;
+  getInvoices(params: GetInvoicesParams): Promise<InvoiceItem[]>;
+
+  /** Genera PDF de factura/recibo con datos fiscales opcionales. */
+  generateInvoiceDownloadUrl(
+    invoiceId: string,
+    kind: 'subscription' | 'order',
+    profile?: import('@/lib/billing-profile').BillingProfile,
+  ): Promise<string | null>;
 }

@@ -13,6 +13,7 @@ import { connectDB } from '@/lib/db/connection';
 import { Subscription as SubscriptionModel, User } from '@/lib/db/models';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { syncSubscriptionFromLS } from '@/lib/subscription';
+import { listLemonSqueezyInvoices } from '@/lib/billing-user-data';
 
 const PAID_STATUSES = new Set(['active', 'trialing', 'past_due']);
 
@@ -369,15 +370,8 @@ export async function getBillingInvoices(req: NextRequest): Promise<NextResponse
   const userId = verifySessionToken(token);
   if (!userId) return NextResponse.json({ error: 'Sesión inválida.' }, { status: 401 });
 
-  await connectDB();
-  const sub = await SubscriptionModel.findOne({ userId });
-  if (!sub?.lsCustomerId) {
-    return NextResponse.json({ invoices: [] });
-  }
-
   try {
-    const paymentService = getPaymentService();
-    const invoices = await paymentService.getInvoices(sub.lsCustomerId);
+    const invoices = await listLemonSqueezyInvoices(userId);
     return NextResponse.json({ invoices });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'unknown';

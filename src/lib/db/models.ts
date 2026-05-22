@@ -34,6 +34,19 @@ const UserSchema = new Schema({
   escalationTicketIntegration: { type: Schema.Types.Mixed, default: null },
   /** Incoming Webhook URL de Slack para avisos al escalar (plan Starter+). */
   escalationSlackWebhookUrl: { type: String, default: null },
+  /** Datos de facturación para recibos PDF (nombre fiscal, NIF, dirección). */
+  billingProfile: {
+    type: {
+      companyName: { type: String, default: '' },
+      taxId:       { type: String, default: '' },
+      address:     { type: String, default: '' },
+      city:        { type: String, default: '' },
+      state:       { type: String, default: '' },
+      zipCode:     { type: String, default: '' },
+      country:     { type: String, default: '' },
+    },
+    default: null,
+  },
   createdAt:         { type: Date,   default: Date.now },
 }, { timestamps: true });
 
@@ -461,6 +474,29 @@ const AbTestSchema = new Schema({
 AbTestSchema.index({ agentId: 1, userId: 1 });
 AbTestSchema.index({ userId: 1, status: 1 });
 
+// ── MANUAL INVOICES (recibos generados fuera de LemonSqueezy) ─────────────────
+
+const ManualInvoiceSchema = new Schema({
+  userId:        { type: String, required: true, index: true },
+  invoiceNumber: { type: String, required: true },
+  issuedAt:      { type: Date, required: true },
+  concept:       { type: String, required: true },
+  amountCents:   { type: Number, required: true },
+  currency:      { type: String, default: 'EUR' },
+  taxPercent:    { type: Number, default: 0 },
+  taxCents:      { type: Number, default: 0 },
+  totalCents:    { type: Number, required: true },
+  paymentMethod: { type: String, default: '' },
+  paymentRef:    { type: String, default: '' },
+  notes:         { type: String, default: '' },
+  buyer:         { type: Schema.Types.Mixed, default: null },
+  issuer:        { type: Schema.Types.Mixed, default: null },
+  status:        { type: String, enum: ['issued', 'void'], default: 'issued' },
+}, { timestamps: true });
+
+ManualInvoiceSchema.index({ userId: 1, invoiceNumber: 1 }, { unique: true });
+ManualInvoiceSchema.index({ userId: 1, issuedAt: -1 });
+
 // ── EXPORTS (safe for Next.js HMR) ───────────────────────────────────────────
 
 // Delete cached models in dev so schema changes take effect on hot reload
@@ -468,6 +504,7 @@ if (process.env.NODE_ENV !== 'production') {
   const modelNames = [
     'User', 'ClientAgent', 'Subscription', 'PlatformUsage', 'ConversationPack',
     'AuditLog', 'SecurityLog', 'ConversationSession', 'RagBulkJob', 'Organization', 'Referral', 'AbTest',
+    'ManualInvoice',
   ] as const;
   modelNames.forEach((name) => {
     if (mongoose.models[name]) delete (mongoose.models as Record<string, unknown>)[name];
@@ -489,3 +526,4 @@ export const Referral             = mongoose.models.Referral             || mong
 export const AbTest               = mongoose.models.AbTest               || mongoose.model('AbTest', AbTestSchema);
 export const WidgetMessage        = mongoose.models.WidgetMessage        || mongoose.model('WidgetMessage', WidgetMessageSchema);
 export const RegistrationCode     = mongoose.models.RegistrationCode     || mongoose.model('RegistrationCode', RegistrationCodeSchema);
+export const ManualInvoice        = mongoose.models.ManualInvoice        || mongoose.model('ManualInvoice', ManualInvoiceSchema);

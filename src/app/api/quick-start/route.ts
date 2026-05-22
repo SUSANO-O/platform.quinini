@@ -7,13 +7,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { verifySessionToken, isUserEmailVerified, isImpersonationSession } from '@/lib/auth';
 import { User } from '@/lib/db/models';
-import { buildEmbedSnippet, runQuickStart, type QuickStartFile } from '@/lib/quick-start-setup';
+import { buildEmbedSnippet, runQuickStart, QUICK_START_MAX_FILE_SIZE, type QuickStartFile } from '@/lib/quick-start-setup';
 
 export async function POST(req: NextRequest) {
   const token = req.cookies.get('afhub_session')?.value;
   if (!token) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
   const userId = verifySessionToken(token);
   if (!userId) return NextResponse.json({ error: 'Sesión inválida.' }, { status: 401 });
+
+  const contentLength = Number(req.headers.get('content-length') ?? 0);
+  if (contentLength > QUICK_START_MAX_FILE_SIZE) {
+    return NextResponse.json(
+      {
+        error: `El archivo supera el límite de ${QUICK_START_MAX_FILE_SIZE / 1024 / 1024} MB del servidor. Usa PDFs más pequeños.`,
+      },
+      { status: 413 },
+    );
+  }
 
   await connectDB();
   const user = await User.findById(userId).select({ emailVerified: 1 }).lean() as { emailVerified?: boolean } | null;

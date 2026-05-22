@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { ConversationSession } from '@/lib/db/models';
+import { inboxSessionFilter } from '@/lib/inbox-handoff';
 import { verifySessionToken } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
@@ -15,12 +16,9 @@ export async function GET(req: NextRequest) {
 
   await connectDB();
 
-  const openCount = await ConversationSession.countDocuments({
-    userId,
-    escalated: true,
-    handoffAt: { $exists: true, $ne: null },
-    inboxStatus: { $ne: 'resolved' },
-  });
+  const openCount = await ConversationSession.countDocuments(
+    inboxSessionFilter(userId, 'open'),
+  );
 
   return NextResponse.json({ openCount });
 }
