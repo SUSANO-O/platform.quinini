@@ -19,7 +19,7 @@ import {
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Soluciones por sector | MatIAs',
+  title: 'Soluciones por sector | BotIvA',
   description:
     'Casos de uso reales: salud, agua, agricultura, educación y más. Resultados operativos, no promesas vacías.',
 };

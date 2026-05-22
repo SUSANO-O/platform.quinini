@@ -130,7 +130,7 @@ async function main() {
   const created = await stripe.webhookEndpoints.create({
     url: fullUrl,
     enabled_events: EVENTS,
-    description: 'MatIAsLanding — suscripciones (api/webhooks/stripe)',
+    description: 'BotIvALanding — suscripciones (api/webhooks/stripe)',
   });
 
   const secret = created.secret;

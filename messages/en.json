@@ -21,7 +21,7 @@
     "privacy": "Privacy",
     "cookies": "Cookies",
     "refunds": "Refunds",
-    "email": "support@matias.ai",
+    "email": "support@BotIvA.ai",
     "rights": "All rights reserved."
   },
   "landing": {
@@ -80,7 +80,7 @@
       "badge": "Convert more, effortlessly",
       "title": "Your sales agent that never sleeps",
       "subtitle": "Deploy an intelligent chat on your site in less than 5 minutes. Answer questions, qualify leads and close sales — 24 hours a day.",
-      "windowTitle": "MatIAs — Widget Builder",
+      "windowTitle": "BotIvA — Widget Builder",
       "live": "Live",
       "startFree": "Start free →",
       "whyTitle": "Why sales teams choose it",
@@ -95,13 +95,13 @@
       "b5Title": "Conversion analytics",
       "b5Desc": "Measure opens, messages and leads generated from the dashboard.",
       "chatSampleTitle": "Sample real conversation",
-      "assistantName": "MatIAs Assistant",
+      "assistantName": "BotIvA Assistant",
       "available": "Available now",
       "msg1": "Hi! 👋 I'm your assistant. Are you looking for information about our plans?",
       "msg2": "Yes, what's included in the Growth plan?",
       "msg3": "Growth includes unlimited agents, RAG with files/URLs and advanced analytics. Start with <strong>7 days free</strong> — no card required. 🚀",
       "inputPlaceholder": "Type your message…",
-      "socialProof": "<red>+320 companies</red> already use MatIAs to convert more visitors into customers"
+      "socialProof": "<red>+320 companies</red> already use BotIvA to convert more visitors into customers"
     },
     "embed": {
       "badge": "2 lines of code",
@@ -195,10 +195,10 @@
     },
     "testimonials": {
       "title": "What our customers say",
-      "subtitle": "Real businesses using MatIAs to serve customers, qualify leads, and scale without hiring.",
+      "subtitle": "Real businesses using BotIvA to serve customers, qualify leads, and scale without hiring.",
       "items": [
         {
-          "quote": "We deployed MatIAs in our dealership and within two weeks it was answering 70% of inquiries without human intervention. The onboarding was very straightforward.",
+          "quote": "We deployed BotIvA in our dealership and within two weeks it was answering 70% of inquiries without human intervention. The onboarding was very straightforward.",
           "author": "Carlos M.",
           "role": "Sales Director",
           "company": "Auto Group"

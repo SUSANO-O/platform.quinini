@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Mail, CheckCircle, Loader2 } from 'lucide-react';
+import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -38,8 +39,8 @@ export default function ForgotPasswordPage() {
 
       <div className="relative w-full max-w-[400px] landing-card p-9">
         <Link href="/" className="inline-flex items-center gap-2.5 mb-7 no-underline">
-          <Image src="/t1.png" alt="MatIAs" width={36} height={36} className="rounded-xl object-cover" style={{ aspectRatio: '1/1' }} />
-          <span className="text-lg font-bold gradient-text">MatIAs</span>
+          <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={120} height={36} className="h-9 w-auto object-contain rounded-xl" />
+          <span className="text-lg font-bold gradient-text">{BRAND_NAME}</span>
         </Link>
 
         {sent ? (

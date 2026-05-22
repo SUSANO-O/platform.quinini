@@ -16,7 +16,7 @@
  *   BASE_URL=https://tu-dominio WIDGET_TOKEN=wt_... \
  *   node scripts/widget-webhook-force-test.mjs --chat
  *
- * Sin WIDGET_TOKEN: con MONGODB_URI + WIDGET_ID (default = MatIAs Auto Sales Hub) se lee afhubToken.
+ * Sin WIDGET_TOKEN: con MONGODB_URI + WIDGET_ID (default = BotIvA Auto Sales Hub) se lee afhubToken.
  */
 
 import { createConnection, Types } from 'mongoose';
@@ -70,10 +70,10 @@ async function postDirectWebhook(hook) {
   const payload = {
     event: 'webhook_test',
     timestamp: new Date().toISOString(),
-    source: 'matias_widget_webhook_force_test',
+    source: 'BotIvA_widget_webhook_force_test',
     message: 'Prueba forzada desde scripts/widget-webhook-force-test.mjs (datos ficticios).',
     lead: {
-      name: 'Usuario de prueba MatIAs',
+      name: 'Usuario de prueba BotIvA',
       email: 'prueba-webhook@ejemplo.invalid',
       phone: '+57-300-0000000',
       company: null,
@@ -88,7 +88,7 @@ async function postDirectWebhook(hook) {
 
   const headers = {
     'Content-Type': 'application/json',
-    'User-Agent': 'MatIAsLanding-WebhookForceTest/1.0',
+    'User-Agent': 'BotIvALanding-WebhookForceTest/1.0',
   };
   if (hook.secret) {
     headers.Authorization = /^Bearer\s+/i.test(hook.secret) ? hook.secret : `Bearer ${hook.secret}`;
@@ -174,7 +174,7 @@ async function readSSEChatStream(message, token) {
 }
 
 async function main() {
-  console.log('\n=== MatIAs — Webhook force test ===');
+  console.log('\n=== BotIvA — Webhook force test ===');
   console.log(`AGENT_ID: ${AGENT_ID}`);
 
   const { hook, agentName } = await loadAgentWebhook();
@@ -199,7 +199,7 @@ async function main() {
       if (wt) console.log(`Token obtenido desde widgets._id=${WIDGET_ID}`);
     }
     const email = `prueba+${Date.now()}@ejemplo.invalid`;
-    const msg = `Soy cliente de prueba MatIAs Auto Sales. Me llamo Lead Force Test, mi correo es ${email}, teléfono 3001234567. Quiero pre-aprobado; registrame.`;
+    const msg = `Soy cliente de prueba BotIvA Auto Sales. Me llamo Lead Force Test, mi correo es ${email}, teléfono 3001234567. Quiero pre-aprobado; registrame.`;
     const done = await readSSEChatStream(msg, wt);
     const tools = Array.isArray(done?.toolsUsed) ? done.toolsUsed : [];
     console.log('toolsUsed:', JSON.stringify(tools));

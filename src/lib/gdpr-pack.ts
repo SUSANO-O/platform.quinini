@@ -71,7 +71,7 @@ export async function buildPersonalDataExport(userId: string): Promise<Record<st
     },
     auditLogRecent: auditTail,
     notice:
-      'Este archivo contiene los datos de cuenta almacenados en MatIAs Landing. ' +
+      'Este archivo contiene los datos de cuenta almacenados en BotIvA Landing. ' +
       'Los datos en AgentFlowhub/AIBackHub (motor de IA) pueden requerir borrado adicional por soporte si aplica.',
   };
 }

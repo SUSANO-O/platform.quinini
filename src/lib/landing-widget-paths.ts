@@ -1,6 +1,6 @@
 /**
  * Rutas públicas (landing / marketing) donde se muestra el widget **math** (AgentFlowhub).
- * No incluir /dashboard — allí va **math-ais** (ver `isAppMatiasWidgetPath`). `/admin` queda sin widget.
+ * No incluir /dashboard — allí va **math-ais** (ver `isAppBotIvAWidgetPath`). `/admin` queda sin widget.
  */
 
 const EXACT = new Set<string>([
@@ -35,7 +35,7 @@ export function isLandingMarketingPath(pathname: string | null | undefined): boo
 }
 
 /** Panel de usuario: widget **math-ais** (no en /admin ni en widget-preview: colisiona con el widget del usuario). */
-export function isAppMatiasWidgetPath(pathname: string | null | undefined): boolean {
+export function isAppBotIvAWidgetPath(pathname: string | null | undefined): boolean {
   if (!pathname) return false;
   if (pathname.startsWith('/dashboard/widget-preview')) return false;
   return pathname.startsWith('/dashboard');

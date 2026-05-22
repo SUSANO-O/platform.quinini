@@ -17,7 +17,7 @@ export default function PrivacidadPage() {
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-foreground">1. Introducción</h2>
               <p className="leading-relaxed">
-                En MatIAs, nos comprometemos a proteger su privacidad. Esta política explica cómo recopilamos, utilizamos y protegemos su información cuando utiliza nuestra plataforma de agentes de inteligencia artificial.
+                En BotIvA, nos comprometemos a proteger su privacidad. Esta política explica cómo recopilamos, utilizamos y protegemos su información cuando utiliza nuestra plataforma de agentes de inteligencia artificial.
               </p>
             </section>
 

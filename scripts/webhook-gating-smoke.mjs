@@ -108,8 +108,8 @@ async function waitForWebhookPost(tokenId, { event, userId, timeoutMs = 20_000 }
       try {
         const body = JSON.parse(row.content);
         if (body.event === event && body.userId === userId) {
-          const sigHeader = row.headers?.['x-matias-signature']?.[0]
-            || row.headers?.['X-Matias-Signature']?.[0];
+          const sigHeader = row.headers?.['x-BotIvA-signature']?.[0]
+            || row.headers?.['X-BotIvA-Signature']?.[0];
           return { body, signature: sigHeader || null };
         }
       } catch {
@@ -132,7 +132,7 @@ async function ensureDb() {
 }
 
 async function createTestUser(suffix, { plan, status }) {
-  const email = `${TAG}-${suffix}@matias-smoke.test`;
+  const email = `${TAG}-${suffix}@BotIvA-smoke.test`;
   const passwordHash = sha256Password(PASSWORD);
   const user = await User.create({
     email,

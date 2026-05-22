@@ -1,6 +1,6 @@
 {
-  "name": "MatIAs — AI Agents",
-  "short_name": "MatIAs",
+  "name": "BotIvA — AI Agents",
+  "short_name": "BotIvA",
   "description": "Integra agentes de IA especializados en tu producto.",
   "start_url": "/",
   "scope": "/",
@@ -12,25 +12,25 @@
   "orientation": "any",
   "icons": [
     {
-      "src": "/t1.png",
+      "src": "/assets/exampleRAG/Gemini_Generated_Image_6sm42y6sm42y6sm4.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/t1.png",
+      "src": "/assets/exampleRAG/Gemini_Generated_Image_6sm42y6sm42y6sm4.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/t1.png",
+      "src": "/assets/exampleRAG/Gemini_Generated_Image_6sm42y6sm42y6sm4.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/t1.png",
+      "src": "/assets/exampleRAG/Gemini_Generated_Image_6sm42y6sm42y6sm4.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

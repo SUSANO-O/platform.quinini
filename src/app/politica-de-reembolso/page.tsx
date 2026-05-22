@@ -17,7 +17,7 @@ export default function ReembolsoPage() {
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-foreground">1. Suscripciones y Facturación</h2>
               <p className="leading-relaxed">
-                MatIAs opera bajo un modelo de suscripción de pago por adelantado. Al contratar un plan, usted acepta que se le facture el importe total correspondiente al periodo seleccionado (mensual o anual).
+                BotIvA opera bajo un modelo de suscripción de pago por adelantado. Al contratar un plan, usted acepta que se le facture el importe total correspondiente al periodo seleccionado (mensual o anual).
               </p>
             </section>
 
@@ -35,7 +35,7 @@ export default function ReembolsoPage() {
               </p>
               <ul className="list-disc pl-6 space-y-3">
                 <li><strong>Errores de Facturación:</strong> Si se ha producido un error técnico que resultó en un cargo duplicado o incorrecto.</li>
-                <li><strong>Fallo del Servicio:</strong> Si MatIAs no ha podido proporcionar el servicio debido a una interrupción prolongada y crítica de nuestra infraestructura durante más del 5% del tiempo en un mes determinado.</li>
+                <li><strong>Fallo del Servicio:</strong> Si BotIvA no ha podido proporcionar el servicio debido a una interrupción prolongada y crítica de nuestra infraestructura durante más del 5% del tiempo en un mes determinado.</li>
                 <li><strong>Legislación Local:</strong> Residentes de la Unión Europea u otras jurisdicciones con leyes de protección al consumidor específicas pueden tener derechos adicionales de desistimiento durante los primeros 14 días, siempre que no hayan comenzado a utilizar intensivamente los recursos del plan (como créditos de IA o tokens).</li>
               </ul>
             </section>
@@ -57,7 +57,7 @@ export default function ReembolsoPage() {
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-foreground">6. Cambios en la Política</h2>
               <p className="leading-relaxed">
-                MatIAs se reserva el derecho de modificar esta política de reembolso en cualquier momento para reflejar cambios en el servicio o requisitos legales.
+                BotIvA se reserva el derecho de modificar esta política de reembolso en cualquier momento para reflejar cambios en el servicio o requisitos legales.
               </p>
             </section>
           </div>

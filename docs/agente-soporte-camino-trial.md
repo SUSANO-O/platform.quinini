@@ -1,4 +1,4 @@
-# Base de conocimiento — MatIAs (dashboard): uso del producto y camino trial
+# Base de conocimiento — BotIvA (dashboard): uso del producto y camino trial
 
 Documento para **soporte al cliente** sobre qué puede hacer un usuario en el panel, límites por plan y la **guía del camino trial**.  
 

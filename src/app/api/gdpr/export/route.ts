@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     });
 
     const json = JSON.stringify(payload, null, 2);
-    const filename = `matias-datos-personales-${userId.slice(-8)}-${new Date().toISOString().slice(0, 10)}.json`;
+    const filename = `BotIvA-datos-personales-${userId.slice(-8)}-${new Date().toISOString().slice(0, 10)}.json`;
 
     return new NextResponse(json, {
       status: 200,

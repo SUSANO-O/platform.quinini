@@ -422,7 +422,7 @@ export default function AdminPage() {
                   <div>
                     <p style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>Supervisión operativa · sub-agentes</p>
                     <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '4px 0 0', maxWidth: '640px' }}>
-                      Inventario en MatIAs (landing). Trazas por fase (router/worker), tools y <code style={{ fontSize: '10px' }}>traceId</code> están en AgentFlowhub → Granja → pestaña Supervisión.
+                      Inventario en BotIvA (landing). Trazas por fase (router/worker), tools y <code style={{ fontSize: '10px' }}>traceId</code> están en AgentFlowhub → Granja → pestaña Supervisión.
                     </p>
                   </div>
                 </div>

@@ -21,7 +21,7 @@
     "privacy": "Privacidad",
     "cookies": "Cookies",
     "refunds": "Reembolsos",
-    "email": "soporte@matias.ai",
+    "email": "soporte@BotIvA.ai",
     "rights": "Todos los derechos reservados."
   },
   "landing": {
@@ -80,7 +80,7 @@
       "badge": "Convierte más, sin esfuerzo",
       "title": "Tu agente de ventas que nunca duerme",
       "subtitle": "Despliega un chat inteligente en tu sitio en menos de 5 minutos. Responde dudas, califica leads y cierra ventas — las 24 horas.",
-      "windowTitle": "MatIAs — Widget Builder",
+      "windowTitle": "BotIvA — Widget Builder",
       "live": "En vivo",
       "startFree": "Empezar gratis →",
       "whyTitle": "Por qué los equipos de ventas lo eligen",
@@ -95,13 +95,13 @@
       "b5Title": "Analítica de conversiones",
       "b5Desc": "Mide aperturas, mensajes y leads generados desde el dashboard.",
       "chatSampleTitle": "Conversación real de muestra",
-      "assistantName": "Asistente MatIAs",
+      "assistantName": "Asistente BotIvA",
       "available": "Disponible ahora",
       "msg1": "¡Hola! 👋 Soy tu asistente. ¿Estás buscando información sobre nuestros planes?",
       "msg2": "Sí, ¿qué incluye el plan Growth?",
       "msg3": "Growth incluye agentes ilimitados, RAG con archivos/URLs y analítica avanzada. Empieza con <strong>7 días gratis</strong> — sin tarjeta. 🚀",
       "inputPlaceholder": "Escribe tu mensaje…",
-      "socialProof": "<red>+320 empresas</red> ya usan MatIAs para convertir más visitantes en clientes"
+      "socialProof": "<red>+320 empresas</red> ya usan BotIvA para convertir más visitantes en clientes"
     },
     "embed": {
       "badge": "2 líneas de código",
@@ -195,10 +195,10 @@
     },
     "testimonials": {
       "title": "Lo que dicen nuestros clientes",
-      "subtitle": "Empresas reales usando MatIAs para atender clientes, calificar leads y escalar sin contratar.",
+      "subtitle": "Empresas reales usando BotIvA para atender clientes, calificar leads y escalar sin contratar.",
       "items": [
         {
-          "quote": "Implementamos MatIAs en nuestra concesionaria y en dos semanas ya respondía el 70% de las consultas sin intervención humana. El onboarding fue muy sencillo.",
+          "quote": "Implementamos BotIvA en nuestra concesionaria y en dos semanas ya respondía el 70% de las consultas sin intervención humana. El onboarding fue muy sencillo.",
           "author": "Carlos M.",
           "role": "Director de Ventas",
           "company": "Auto Group"

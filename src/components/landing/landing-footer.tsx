@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { getTranslations } from 'next-intl/server';
+import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 
 export async function LandingFooter() {
   const t = await getTranslations('footer');
@@ -11,8 +12,8 @@ export async function LandingFooter() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
           <div className="col-span-2 md:col-span-2">
             <div className="flex items-center gap-2.5 mb-4">
-              <Image src="/t1.png" alt="MatIAs" width={32} height={32} className="rounded-lg object-cover" style={{ aspectRatio: '1/1' }} />
-              <span className="font-bold">MatIAs</span>
+              <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={100} height={30} className="h-8 w-auto object-contain rounded-lg" />
+              <span className="font-bold">{BRAND_NAME}</span>
             </div>
             <p className="text-sm mb-5" style={{ color: 'var(--muted-foreground)' }}>
               {t('tagline')}
@@ -57,7 +58,7 @@ export async function LandingFooter() {
         </div>
 
         <div className="mt-12 pt-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs" style={{ borderTop: '1px solid var(--border)', color: 'var(--muted-foreground)' }}>
-          <span>&copy; {new Date().getFullYear()} MatIAs. {t('rights')}</span>
+          <span>&copy; {new Date().getFullYear()} BotIvA. {t('rights')}</span>
           <span>Powered by quinini</span>
         </div>
       </div>

@@ -40,12 +40,12 @@ function setEnvKey(text, key, value) {
 }
 
 const PLANS = [
-  { key: 'STRIPE_PRICE_SOLO',     cents: 700,   hints: ['solo', 'matias solo'] },
-  { key: 'STRIPE_PRICE_BASIC',    cents: 1700,  hints: ['basic', 'matias basic'] },
-  { key: 'STRIPE_PRICE_PLUS',     cents: 3900,  hints: ['plus', 'matias plus'] },
-  { key: 'STRIPE_PRICE_STARTER',  cents: 6500,  hints: ['starter', 'matias starter'] },
-  { key: 'STRIPE_PRICE_GROWTH',   cents: 17900, hints: ['growth', 'matias growth'] },
-  { key: 'STRIPE_PRICE_BUSINESS', cents: 74900, hints: ['business', 'matias business'] },
+  { key: 'STRIPE_PRICE_SOLO',     cents: 700,   hints: ['solo', 'BotIvA solo'] },
+  { key: 'STRIPE_PRICE_BASIC',    cents: 1700,  hints: ['basic', 'BotIvA basic'] },
+  { key: 'STRIPE_PRICE_PLUS',     cents: 3900,  hints: ['plus', 'BotIvA plus'] },
+  { key: 'STRIPE_PRICE_STARTER',  cents: 6500,  hints: ['starter', 'BotIvA starter'] },
+  { key: 'STRIPE_PRICE_GROWTH',   cents: 17900, hints: ['growth', 'BotIvA growth'] },
+  { key: 'STRIPE_PRICE_BUSINESS', cents: 74900, hints: ['business', 'BotIvA business'] },
 ];
 
 async function main() {

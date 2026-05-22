@@ -17,14 +17,14 @@ export default function TerminosPage() {
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-foreground">1. Aceptación de los Términos</h2>
               <p className="leading-relaxed">
-                Al acceder y utilizar los servicios de MatIAs (operado por MatAIs), usted acepta cumplir y estar sujeto a los siguientes términos y condiciones. Si no está de acuerdo con alguna parte de estos términos, no podrá utilizar nuestros servicios.
+                Al acceder y utilizar los servicios de BotIvA (operado por BotIvA), usted acepta cumplir y estar sujeto a los siguientes términos y condiciones. Si no está de acuerdo con alguna parte de estos términos, no podrá utilizar nuestros servicios.
               </p>
             </section>
 
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-foreground">2. Descripción del Servicio</h2>
               <p className="leading-relaxed">
-                MatIAs proporciona una plataforma de Agentes de Inteligencia Artificial como Servicio (SaaS), que incluye acceso a APIs, widgets de chat personalizables, procesamiento de documentos (RAG) y herramientas de análisis. El servicio se ofrece en modalidades gratuita y de pago (suscripción).
+                BotIvA proporciona una plataforma de Agentes de Inteligencia Artificial como Servicio (SaaS), que incluye acceso a APIs, widgets de chat personalizables, procesamiento de documentos (RAG) y herramientas de análisis. El servicio se ofrece en modalidades gratuita y de pago (suscripción).
               </p>
             </section>
 
@@ -35,7 +35,7 @@ export default function TerminosPage() {
               </p>
               <ul className="list-disc pl-6 space-y-3">
                 <li>Las respuestas generadas por los agentes de IA pueden contener errores o imprecisiones.</li>
-                <li>MatIAs no proporciona asesoramiento médico, legal, financiero o profesional vinculante. El uso de la información generada es bajo su propio riesgo.</li>
+                <li>BotIvA no proporciona asesoramiento médico, legal, financiero o profesional vinculante. El uso de la información generada es bajo su propio riesgo.</li>
                 <li>Está prohibido utilizar el servicio para generar contenido ilegal, difamatorio, dañino o que infrinja derechos de terceros.</li>
               </ul>
             </section>
@@ -57,14 +57,14 @@ export default function TerminosPage() {
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-foreground">6. Propiedad Intelectual</h2>
               <p className="leading-relaxed">
-                Todo el contenido, marcas y tecnología relacionados con MatIAs son propiedad de MatAIs o sus licenciantes. Usted conserva los derechos sobre los datos e información que cargue en la plataforma, pero nos otorga una licencia limitada para procesar dicha información con el fin de prestarle el servicio.
+                Todo el contenido, marcas y tecnología relacionados con BotIvA son propiedad de BotIvA o sus licenciantes. Usted conserva los derechos sobre los datos e información que cargue en la plataforma, pero nos otorga una licencia limitada para procesar dicha información con el fin de prestarle el servicio.
               </p>
             </section>
 
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-foreground">7. Limitación de Responsabilidad</h2>
               <p className="leading-relaxed">
-                En la medida máxima permitida por la ley, MatIAs no será responsable de ningún daño indirecto, incidental, especial o consecuente que resulte del uso o la imposibilidad de usar el servicio.
+                En la medida máxima permitida por la ley, BotIvA no será responsable de ningún daño indirecto, incidental, especial o consecuente que resulte del uso o la imposibilidad de usar el servicio.
               </p>
             </section>
 

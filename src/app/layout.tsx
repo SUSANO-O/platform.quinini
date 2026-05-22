@@ -4,22 +4,23 @@ import { AuthProvider } from '@/hooks/use-auth';
 import { AppToasterLoader } from '@/components/ui/app-toaster-loader';
 import { LandingWidgetScript } from '@/components/landing/landing-widget-script';
 import { CardProTracker } from '@/components/landing/card-pro-tracker';
+import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 
 export const metadata: Metadata = {
-  title: 'MatIAs— AI Agents for Your App',
+  title: `${BRAND_NAME} — AI Agents for Your App`,
   description: 'Integra agentes de IA especializados en tu producto. Chat Widget API, RAG, embeddings y más — una sola API.',
   manifest: '/manifest.json',
   icons: {
     icon: [
-      { url: '/t1.png', sizes: '192x192', type: 'image/png' },
-      { url: '/t1.png', sizes: '512x512', type: 'image/png' },
+      { url: BRAND_LOGO_SRC, sizes: '192x192', type: 'image/png' },
+      { url: BRAND_LOGO_SRC, sizes: '512x512', type: 'image/png' },
     ],
-    apple: [{ url: '/t1.png' }],
+    apple: [{ url: BRAND_LOGO_SRC }],
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'MatIAs',
+    title: BRAND_NAME,
   },
 };
 
@@ -34,8 +35,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/t1.png" sizes="192x192" type="image/png" />
-        <link rel="apple-touch-icon" href="/t1.png" />
+        <link rel="icon" href={BRAND_LOGO_SRC} sizes="192x192" type="image/png" />
+        <link rel="apple-touch-icon" href={BRAND_LOGO_SRC} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

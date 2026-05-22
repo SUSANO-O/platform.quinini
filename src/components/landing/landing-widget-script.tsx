@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
-import { isAppMatiasWidgetPath, isLandingMarketingPath } from '@/lib/landing-widget-paths';
+import { isAppBotIvAWidgetPath, isLandingMarketingPath } from '@/lib/landing-widget-paths';
 
 declare global {
   interface Window {
@@ -14,15 +14,15 @@ declare global {
 
 /** Mismo SDK para landing (math) y app (math-ais). */
 const WIDGET_SCRIPT_SRC =
-  'https://control-matias.vercel.app/sdk/v1/widget.js?v=2026-04-22T00%3A49%3A20.860Z';
+  'https://control-BotIvA.vercel.app/sdk/v1/widget.js?v=2026-04-22T00%3A49%3A20.860Z';
 
-const SCRIPT_DATA_ATTR = 'control-matias';
+const SCRIPT_DATA_ATTR = 'control-BotIvA';
 const AFHUB_BOOT_MAX_TRIES = 20;
 const AFHUB_BOOT_DELAY_MS = 120;
 
 const MATH_LANDING: Record<string, unknown> = {
   agentId: 'math',
-  host: 'https://control-matias.vercel.app',
+  host: 'https://control-BotIvA.vercel.app',
   color: '#f5540f',
   title: 'Math',
   subtitle: 'En linea',
@@ -46,7 +46,7 @@ const MATH_LANDING: Record<string, unknown> = {
 
 const MATH_AIS_APP: Record<string, unknown> = {
   agentId: 'math-ais',
-  host: 'https://control-matias.vercel.app',
+  host: 'https://control-BotIvA.vercel.app',
   color: '#fb0e0e',
   title: 'Math-ais',
   subtitle: 'En linea',
@@ -67,7 +67,7 @@ const MATH_AIS_APP: Record<string, unknown> = {
 };
 
 /**
- * Carga el SDK de control-matias una vez y muestra:
+ * Carga el SDK de control-BotIvA una vez y muestra:
  * - **math** solo en rutas marketing (`isLandingMarketingPath`)
  * - **math-ais** solo en `/dashboard` (no en `/admin`)
  */
@@ -85,7 +85,7 @@ export function LandingWidgetScript() {
     };
 
     const onLanding = isLandingMarketingPath(pathname);
-    const onApp = isAppMatiasWidgetPath(pathname);
+    const onApp = isAppBotIvAWidgetPath(pathname);
     if (!onLanding && !onApp) {
       clearPollTimeouts();
       try {
@@ -106,7 +106,7 @@ export function LandingWidgetScript() {
     const config = onLanding ? MATH_LANDING : MATH_AIS_APP;
     const logTag = onLanding ? '[math]' : '[math-ais]';
     const pathOk = () =>
-      onLanding ? isLandingMarketingPath(window.location.pathname) : isAppMatiasWidgetPath(window.location.pathname);
+      onLanding ? isLandingMarketingPath(window.location.pathname) : isAppBotIvAWidgetPath(window.location.pathname);
 
     let cancelled = false;
 
