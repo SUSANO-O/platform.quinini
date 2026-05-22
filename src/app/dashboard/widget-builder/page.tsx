@@ -514,54 +514,6 @@ function generateSnippet(
   ].join('\n');
 }
 
-function generateFullSnippet(token: string = 'YOUR_TOKEN') {
-  const host =
-    typeof window !== 'undefined' ? window.location.origin : 'https://tudominio.com';
-  return [
-    `<script src="${host}/widget.js"></script>`,
-    `<script>`,
-    `  window.AgentFlowhub.init({`,
-    `    // — Identificación (requerido) —`,
-    `    token: '${token}',`,
-    `    host:  '${host}',`,
-    ``,
-    `    // — Posición —`,
-    `    // position:     'bottom-right', // bottom-right | bottom-left | bottom`,
-    `    //                               // top | left | right | center | custom`,
-    `    // edgeInset:    20,             // distancia al borde (px)`,
-    `    // offsetBottom: 20,             // distancia al borde inferior (px)`,
-    `    // autoOpen:     false,          // abrir chat automáticamente`,
-    `    // fabDraggable: true,           // usuario puede reubicar el botón`,
-    ``,
-    `    // — Visual (si usas token, el servidor lo gestiona) —`,
-    `    // color:        '#6366f1',      // color principal HEX`,
-    `    // title:        'Asistente',    // nombre en la cabecera`,
-    `    // subtitle:     'En línea',`,
-    `    // welcome:      '¡Hola! ¿En qué puedo ayudarte?',`,
-    `    // fabHint:      '¿Necesitas ayuda?', // texto flotante`,
-    `    // avatar:       '',             // URL de imagen de avatar`,
-    `    // theme:        'light',        // 'light' | 'dark'`,
-    `    // borderRadius: 16,             // radio borde chat (0-32 px)`,
-    ``,
-    `    // — Voz —`,
-    `    // voiceEnabled: true,           // micrófono + lectura en voz alta`,
-    `    // voiceLang:    'es-MX',        // idioma BCP-47 (ej: 'en-US')`,
-    `    // voiceName:    '',             // nombre exacto de voz SpeechSynthesis`,
-    ``,
-    `    // — Soporte humano —`,
-    `    // humanSupportPhone: '521234567890', // WhatsApp con código de país`,
-    ``,
-    `    // — Callbacks —`,
-    `    // onOpen:            () => {},`,
-    `    // onClose:           () => {},`,
-    `    // onMessageSent:     (msg) => console.log('enviado', msg),`,
-    `    // onMessageReceived: (msg) => console.log('recibido', msg),`,
-    `    // onError:           (err) => console.error(err),`,
-    `  });`,
-    `</script>`,
-  ].join('\n');
-}
-
 // ── Main component ────────────────────────────────────────────────────────────
 
 const WIDGET_WIZARD_STEPS = [
@@ -586,7 +538,6 @@ export default function WidgetBuilderPage() {
   const [shortcuts, setShortcuts] = useState<WidgetShortcut[]>([]);
   const [suggestingShortcuts, setSuggestingShortcuts] = useState(false);
   const [shortcutSuggestErr, setShortcutSuggestErr] = useState('');
-  const [snippetTab, setSnippetTab] = useState<'minimal' | 'full'>('minimal');
   const [wizardStep, setWizardStep] = useState(0);
 
   const plan = subscription?.plan ?? 'free';
@@ -951,9 +902,7 @@ export default function WidgetBuilderPage() {
   }
 
   function copySnippet() {
-    const code = snippetTab === 'full'
-      ? generateFullSnippet(snippetToken)
-      : generateSnippet(cfg, snippetToken);
+    const code = generateSnippet(cfg, snippetToken);
     navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -1742,23 +1691,9 @@ export default function WidgetBuilderPage() {
                 <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#febc2e' }} />
                 <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#28c840' }} />
               </div>
-              {/* Tab switcher */}
-              <div className="flex items-center gap-1 rounded-lg p-0.5" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                {(['minimal', 'full'] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    type="button"
-                    onClick={() => setSnippetTab(tab)}
-                    className="px-3 py-1 rounded-md text-[11px] font-semibold transition-all border-0 cursor-pointer"
-                    style={{
-                      background: snippetTab === tab ? 'rgba(255,255,255,0.12)' : 'transparent',
-                      color: snippetTab === tab ? '#e2e8f0' : '#6b7280',
-                    }}
-                  >
-                    {tab === 'minimal' ? 'Mínimo' : 'Completo'}
-                  </button>
-                ))}
-              </div>
+              <span className="text-[11px] font-semibold" style={{ color: '#94a3b8' }}>
+                Código embed
+              </span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
@@ -1804,17 +1739,13 @@ export default function WidgetBuilderPage() {
 
           {/* Code block */}
           <pre className="p-4 text-[11px] overflow-auto m-0 flex-1" style={{ color: '#e2e8f0', lineHeight: 1.7, fontFamily: "'Fira Code', 'Cascadia Code', 'Consolas', monospace", tabSize: 2 }}>
-            {snippetTab === 'full'
-              ? generateFullSnippet(snippetToken)
-              : generateSnippet(cfg, snippetToken)}
+            {generateSnippet(cfg, snippetToken)}
           </pre>
 
           {/* Footer hint */}
           <div className="px-4 py-2.5 border-t flex items-center gap-2" style={{ borderColor: 'rgba(255,255,255,0.05)', background: '#161b22' }}>
             <span style={{ fontSize: 10, color: '#4b5563' }}>
-              {snippetTab === 'minimal'
-                ? '✓ Pega esto antes de </body>. Los cambios del panel se propagan automáticamente a todos los embeds.'
-                : '✓ Descomenta solo las opciones que quieras sobreescribir. Con token, el servidor gestiona el resto.'}
+              ✓ Pega esto antes de &lt;/body&gt;. Los cambios del panel se propagan automáticamente a todos los embeds.
             </span>
           </div>
         </div>

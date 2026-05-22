@@ -78,7 +78,7 @@
     title: 'Asistente',
     subtitle: 'En linea',
     welcome: 'Bienvenido. ¿Cómo puedo ayudarte?',
-    position: 'right',
+    position: 'bottom-right',
     edgeInset: 20,
     offsetBottom: 20,
     offsetTop: 20,
@@ -112,6 +112,26 @@
     onMessageReceived: null,
     onError: null
   };
+
+  /** Cuadrícula 9 posiciones (widget builder) → geometría del FAB embebido. */
+  var POSITION_GRID = {
+    'bottom-right': { v: 'bottom', h: 'right' },
+    'bottom-left':  { v: 'bottom', h: 'left' },
+    'bottom':       { v: 'bottom', h: 'center' },
+    'top-right':    { v: 'top', h: 'right' },
+    'top-left':     { v: 'top', h: 'left' },
+    'top':          { v: 'top', h: 'center' },
+    'left':         { v: 'middle', h: 'left' },
+    'right':        { v: 'middle', h: 'right' },
+    'center':       { v: 'middle', h: 'center' }
+  };
+
+  var VALID_POSITIONS = [
+    'top-left', 'top', 'top-right',
+    'left', 'center', 'right',
+    'bottom-left', 'bottom', 'bottom-right',
+    'custom'
+  ];
 
   /**
    * Fetches widget config from the landing's /api/widget/config endpoint.
@@ -257,9 +277,9 @@
     if (/:(9003)(\/|$)/.test(merged.host)) {
       log(merged, 'warn', 'host apunta a AIBackHub (:9003). Usa la URL de la landing (ej. http://localhost:3201 o tu dominio MatIAs).');
     }
-    var pos = String(merged.position || 'right').toLowerCase();
-    if (['left', 'right', 'center', 'top', 'custom'].indexOf(pos) === -1) {
-      pos = 'right';
+    var pos = String(merged.position || 'bottom-right').toLowerCase();
+    if (VALID_POSITIONS.indexOf(pos) === -1) {
+      pos = 'bottom-right';
     }
     merged.position = pos;
     merged.edgeInset = Number(merged.edgeInset);
@@ -316,15 +336,15 @@
   }
 
   function launcherAlign(cfg) {
-    var pos = cfg.position;
-    if (pos === 'left') return 'left';
-    if (pos === 'center' || pos === 'top') return 'center';
-    if (pos === 'custom') {
+    if (cfg.position === 'custom') {
       var ol = cfg.offsetLeft;
       var or = cfg.offsetRight;
       if (ol != null && isFinite(ol) && (or == null || !isFinite(or))) return 'left';
       if (or != null && isFinite(or) && (ol == null || !isFinite(ol))) return 'right';
+      return 'right';
     }
+    var grid = POSITION_GRID[cfg.position];
+    if (grid) return grid.h;
     return 'right';
   }
 
@@ -410,39 +430,47 @@
         chat.style.right = '0';
         chat.style.left = 'auto';
       }
-    } else if (pos === 'right') {
-      root.style.bottom = cfg.offsetBottom + 'px';
-      root.style.right = inset + 'px';
-      root.setAttribute('data-afhub-v', 'bottom');
-      chat.style.right = '0';
-      chat.style.left = 'auto';
-    } else if (pos === 'left') {
-      root.style.bottom = cfg.offsetBottom + 'px';
-      root.style.left = inset + 'px';
-      root.setAttribute('data-afhub-v', 'bottom');
-      chat.style.left = '0';
-      chat.style.right = 'auto';
-    } else if (pos === 'center') {
-      root.style.bottom = cfg.offsetBottom + 'px';
-      root.style.left = '50%';
-      root.style.transform = 'translateX(-50%)';
-      root.style.width = '380px';
-      root.setAttribute('data-afhub-v', 'bottom');
-      chat.style.left = '0';
-      chat.style.right = 'auto';
-      chat.style.width = '380px';
-    } else if (pos === 'top') {
-      root.style.top = cfg.offsetTop + 'px';
-      root.style.left = '50%';
-      root.style.transform = 'translateX(-50%)';
-      root.style.width = '380px';
-      root.setAttribute('data-afhub-v', 'top');
-      chat.style.left = '0';
-      chat.style.right = 'auto';
-      chat.style.width = '380px';
+    } else {
+      var grid = POSITION_GRID[pos] || POSITION_GRID['bottom-right'];
+      var tx = '';
+      var ty = '';
+
+      if (grid.v === 'top') {
+        root.style.top = cfg.offsetTop + 'px';
+        root.setAttribute('data-afhub-v', 'top');
+      } else if (grid.v === 'bottom') {
+        root.style.bottom = cfg.offsetBottom + 'px';
+        root.setAttribute('data-afhub-v', 'bottom');
+      } else {
+        root.style.top = '50%';
+        ty = 'translateY(-50%)';
+        root.setAttribute('data-afhub-v', 'bottom');
+      }
+
+      if (grid.h === 'left') {
+        root.style.left = inset + 'px';
+        chat.style.left = '0';
+        chat.style.right = 'auto';
+      } else if (grid.h === 'right') {
+        root.style.right = inset + 'px';
+        chat.style.right = '0';
+        chat.style.left = 'auto';
+      } else {
+        root.style.left = '50%';
+        tx = 'translateX(-50%)';
+        root.style.width = '380px';
+        chat.style.left = '0';
+        chat.style.right = 'auto';
+        chat.style.width = '380px';
+      }
+
+      root.style.transform = [tx, ty].filter(Boolean).join(' ') || '';
+      root.setAttribute('data-afhub-h', grid.h);
     }
 
-    root.setAttribute('data-afhub-h', launcherAlign(cfg));
+    if (pos === 'custom') {
+      root.setAttribute('data-afhub-h', launcherAlign(cfg));
+    }
 
     if (root.getAttribute('data-afhub-v') === 'top') {
       chat.style.top = '100%';

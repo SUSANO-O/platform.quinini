@@ -65,59 +65,12 @@ function buildMinimalSnippet(w: Widget, origin: string) {
   ].join('\n');
 }
 
-function buildFullSnippet(w: Widget, origin: string) {
-  return [
-    `<script src="${origin}/widget.js"></script>`,
-    `<script>`,
-    `  window.AgentFlowhub.init({`,
-    `    // — Identificación (requerido) —`,
-    `    token: '${w.afhubToken || 'wt_…'}',`,
-    `    host:  '${origin}',`,
-    ``,
-    `    // — Posición —`,
-    `    // position:     'bottom-right', // bottom-right | bottom-left | bottom`,
-    `    //                               // top | left | right | center | custom`,
-    `    // edgeInset:    20,             // distancia al borde (px)`,
-    `    // offsetBottom: 20,             // distancia al borde inferior (px)`,
-    `    // autoOpen:     false,          // abrir chat automáticamente`,
-    `    // fabDraggable: true,           // usuario puede reubicar el botón`,
-    ``,
-    `    // — Visual (si usas token, el servidor lo gestiona) —`,
-    `    // color:        '#6366f1',      // color principal HEX`,
-    `    // title:        'Asistente',    // nombre en la cabecera`,
-    `    // subtitle:     'En línea',`,
-    `    // welcome:      '¡Hola! ¿En qué puedo ayudarte?',`,
-    `    // fabHint:      '¿Necesitas ayuda?', // texto flotante`,
-    `    // avatar:       '',             // URL de imagen de avatar`,
-    `    // theme:        'light',        // 'light' | 'dark'`,
-    `    // borderRadius: 16,             // radio borde chat (0-32 px)`,
-    ``,
-    `    // — Voz —`,
-    `    // voiceEnabled: true,           // micrófono + lectura en voz alta`,
-    `    // voiceLang:    'es-MX',        // idioma BCP-47 (ej: 'en-US')`,
-    `    // voiceName:    '',             // nombre exacto de voz SpeechSynthesis`,
-    ``,
-    `    // — Soporte humano —`,
-    `    // humanSupportPhone: '521234567890', // WhatsApp con código de país`,
-    ``,
-    `    // — Callbacks —`,
-    `    // onOpen:            () => {},`,
-    `    // onClose:           () => {},`,
-    `    // onMessageSent:     (msg) => console.log('enviado', msg),`,
-    `    // onMessageReceived: (msg) => console.log('recibido', msg),`,
-    `    // onError:           (err) => console.error(err),`,
-    `  });`,
-    `</script>`,
-  ].join('\n');
-}
-
 export default function WidgetsPage() {
   const { subscription } = useSubscription();
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [multiAgentStats, setMultiAgentStats] = useState<MultiAgentAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [snippetTab, setSnippetTab] = useState<'minimal' | 'full'>('minimal');
   const [copied, setCopied] = useState(false);
   const [origin, setOrigin] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -157,7 +110,7 @@ export default function WidgetsPage() {
   }
 
   function copySnippet(w: Widget) {
-    const code = snippetTab === 'full' ? buildFullSnippet(w, origin) : buildMinimalSnippet(w, origin);
+    const code = buildMinimalSnippet(w, origin);
     void navigator.clipboard.writeText(code);
     setCopied(true);
     toast.success('Código copiado al portapapeles');
@@ -170,7 +123,6 @@ export default function WidgetsPage() {
       setExpanded(null);
     } else {
       setExpanded(id);
-      setSnippetTab('minimal');
       setCopied(false);
     }
   }
@@ -455,23 +407,9 @@ export default function WidgetsPage() {
                           <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#febc2e' }} />
                           <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#28c840' }} />
                         </div>
-                        {/* Tab switcher */}
-                        <div className="flex items-center gap-1 rounded-lg p-0.5" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                          {(['minimal', 'full'] as const).map((tab) => (
-                            <button
-                              key={tab}
-                              type="button"
-                              onClick={() => setSnippetTab(tab)}
-                              className="px-3 py-1 rounded-md text-[11px] font-semibold transition-all border-0 cursor-pointer"
-                              style={{
-                                background: snippetTab === tab ? 'rgba(255,255,255,0.12)' : 'transparent',
-                                color: snippetTab === tab ? '#e2e8f0' : '#6b7280',
-                              }}
-                            >
-                              {tab === 'minimal' ? 'Mínimo' : 'Completo'}
-                            </button>
-                          ))}
-                        </div>
+                        <span className="text-[11px] font-semibold" style={{ color: '#94a3b8' }}>
+                          Código embed
+                        </span>
                       </div>
                       <button
                         type="button"
@@ -516,9 +454,7 @@ export default function WidgetsPage() {
                         tabSize: 2,
                       }}
                     >
-                      {snippetTab === 'full'
-                        ? buildFullSnippet(w, origin)
-                        : buildMinimalSnippet(w, origin)}
+                      {buildMinimalSnippet(w, origin)}
                     </pre>
 
                     {/* Footer */}
@@ -527,9 +463,7 @@ export default function WidgetsPage() {
                       style={{ borderColor: 'rgba(255,255,255,0.05)', background: '#161b22' }}
                     >
                       <span style={{ fontSize: 10, color: '#4b5563' }}>
-                        {snippetTab === 'minimal'
-                          ? '✓ Pega esto antes de </body>. Los cambios del builder se propagan automáticamente.'
-                          : '✓ Descomenta solo las opciones que quieras sobreescribir. Con token, el servidor gestiona el resto.'}
+                        ✓ Pega esto antes de &lt;/body&gt;. Los cambios del builder se propagan automáticamente.
                       </span>
                     </div>
                   </div>
