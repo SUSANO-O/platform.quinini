@@ -23,12 +23,18 @@ export type WidgetInfo = {
   agentId: unknown;
   userId: string;
   allowedOrigins: string[];
+  active?: boolean;
   multiAgentEnabled?: boolean;
   multiAgentMode?: 'triage' | 'parallel' | 'pipeline';
   agentIds?: string[];
   orchestratorAgentIds?: string[];
   pipelineConfig?: unknown;
 };
+
+/** Widgets sin campo `active` en BD se tratan como activos (retrocompat). */
+export function isWidgetActive(info: Pick<WidgetInfo, 'active'> | null | undefined): boolean {
+  return !!info && info.active !== false;
+}
 
 /**
  * Carga el widget por token y opcionalmente por _id (más fiable que solo afhubToken).
@@ -56,6 +62,7 @@ export async function findWidgetForWtToken(
         userId: 1,
         afhubToken: 1,
         allowedOrigins: 1,
+        active: 1,
         multiAgentEnabled: 1,
         multiAgentMode: 1,
         agentIds: 1,
@@ -67,6 +74,7 @@ export async function findWidgetForWtToken(
         userId: unknown;
         afhubToken?: unknown;
         allowedOrigins?: string[];
+        active?: boolean;
         multiAgentEnabled?: boolean;
         multiAgentMode?: string;
         agentIds?: string[];
@@ -80,6 +88,7 @@ export async function findWidgetForWtToken(
         agentId: w.agentId,
         userId: String(w.userId),
         allowedOrigins: Array.isArray(w.allowedOrigins) ? w.allowedOrigins : [],
+        active: w.active !== false,
         multiAgentEnabled: w.multiAgentEnabled === true,
         multiAgentMode: normalizeMultiAgentMode(w.multiAgentMode),
         agentIds: Array.isArray(w.agentIds) ? w.agentIds.map(String) : [],
@@ -97,6 +106,7 @@ export async function findWidgetForWtToken(
         agentId: 1,
         userId: 1,
         allowedOrigins: 1,
+        active: 1,
         multiAgentEnabled: 1,
         multiAgentMode: 1,
         agentIds: 1,
@@ -107,6 +117,7 @@ export async function findWidgetForWtToken(
         agentId: unknown;
         userId: unknown;
         allowedOrigins?: string[];
+        active?: boolean;
         multiAgentEnabled?: boolean;
         multiAgentMode?: string;
         agentIds?: string[];
@@ -118,6 +129,7 @@ export async function findWidgetForWtToken(
         agentId: w.agentId,
         userId: String(w.userId),
         allowedOrigins: Array.isArray(w.allowedOrigins) ? w.allowedOrigins : [],
+        active: w.active !== false,
         multiAgentEnabled: w.multiAgentEnabled === true,
         multiAgentMode: normalizeMultiAgentMode(w.multiAgentMode),
         agentIds: Array.isArray(w.agentIds) ? w.agentIds.map(String) : [],

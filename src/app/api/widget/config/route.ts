@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   await connectDB();
 
   const widget = await Widget.findOne({ afhubToken: token })
-    .select('agentId color title subtitle welcome fabHint avatar position theme borderRadius autoOpen voiceEnabled humanSupportPhone shortcuts multiAgentEnabled multiAgentMode')
+    .select('agentId color title subtitle welcome fabHint avatar position theme borderRadius autoOpen voiceEnabled humanSupportPhone shortcuts multiAgentEnabled multiAgentMode active')
     .lean() as Record<string, unknown> | null;
 
   if (!widget) {
@@ -79,6 +79,7 @@ export async function GET(req: NextRequest) {
           : [],
         multiAgentEnabled: widget.multiAgentEnabled === true,
         multiAgentMode: validateMultiAgentMode(widget.multiAgentMode),
+        active: widget.active !== false,
       },
       {
         headers: {

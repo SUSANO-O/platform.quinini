@@ -17,7 +17,7 @@ import { randomUUID } from 'crypto';
 import { getAgentflowhubBaseUrl } from '@/lib/aibackhub-sync';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent, Subscription } from '@/lib/db/models';
-import { findWidgetForWtToken, sentAgentIdMatchesWidget } from '@/lib/widget-token-verify';
+import { findWidgetForWtToken, isWidgetActive, sentAgentIdMatchesWidget } from '@/lib/widget-token-verify';
 import { checkConversationQuota } from '@/lib/quota';
 import { trackWidgetChatUsage } from '@/lib/platform-agent-utils';
 import { trackWidgetUserMessageForFaqCandidates } from '@/lib/widget-faq-tracker';
@@ -133,6 +133,17 @@ export async function POST(req: NextRequest) {
       await connectDB();
       const w = await findWidgetForWtToken(widgetToken, parsedWidgetId || undefined);
       if (w) {
+        if (!isWidgetActive(w)) {
+          return new Response(
+            sseEvent({
+              type: 'error',
+              message: 'Este widget está desactivado. Contacta al administrador del sitio.',
+              code: 'WIDGET_DISABLED',
+            }),
+            { status: 403, headers: { 'Content-Type': 'text/event-stream', ...corsHeaders(origin) } },
+          );
+        }
+
         // ── Domain allowlist check ────────────────────────────────────────
         if (!isOriginAllowed(req.headers.get('origin'), w.allowedOrigins)) {
           return new Response(

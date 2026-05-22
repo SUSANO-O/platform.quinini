@@ -131,6 +131,8 @@ const WidgetSchema = new Schema({
   multiAgentMode: { type: String, enum: ['triage', 'parallel', 'pipeline'], default: 'triage' },
   /** Pasos y disparador del pipeline (Business+; modo pipeline). */
   pipelineConfig: { type: Schema.Types.Mixed, default: null },
+  /** Si false, el embed sigue visible pero /api/widget/chat rechaza peticiones. */
+  active: { type: Boolean, default: true },
 }, { timestamps: true });
 
 WidgetSchema.index({ userId: 1, createdAt: -1 });

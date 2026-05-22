@@ -10,7 +10,7 @@ import {
   iridescentOrbBlendModes,
 } from '@/lib/widget-iridescent';
 import Link from 'next/link';
-import { Trash2, Plus, Code2, Boxes, Pencil, Play, Sparkles, Copy, Check, Download, GitBranch } from 'lucide-react';
+import { Trash2, Plus, Code2, Boxes, Pencil, Play, Sparkles, Copy, Check, Download, GitBranch, Power, PowerOff } from 'lucide-react';
 import { useSubscription } from '@/hooks/use-subscription';
 
 import { BRAND_TEXT_COLOR, UI_SURFACE_SECONDARY } from '@/lib/brand';
@@ -34,6 +34,7 @@ interface Widget {
   avatar?: string | null;
   multiAgentEnabled?: boolean;
   multiAgentMode?: 'triage' | 'parallel' | 'pipeline';
+  active?: boolean;
 }
 
 interface MultiAgentAnalytics {
@@ -78,6 +79,7 @@ export default function WidgetsPage() {
   const [origin, setOrigin] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   useEffect(() => {
     setOrigin(typeof window !== 'undefined' ? window.location.origin : '');
@@ -93,6 +95,32 @@ export default function WidgetsPage() {
       toast.error('No se pudieron cargar los widgets');
     }
     setLoading(false);
+  }
+
+  async function toggleWidgetActive(w: Widget) {
+    const isActive = w.active !== false;
+    setTogglingId(w._id);
+    try {
+      const res = await fetch(`/api/widgets/${w._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: !isActive }),
+      });
+      if (!res.ok) {
+        toast.error(isActive ? 'No se pudo desactivar el widget' : 'No se pudo activar el widget');
+        return;
+      }
+      const data = (await res.json()) as { widget?: Widget };
+      const nextActive = data.widget?.active !== false;
+      setWidgets((prev) =>
+        prev.map((item) => (item._id === w._id ? { ...item, active: nextActive } : item)),
+      );
+      toast.success(nextActive ? 'Widget activado' : 'Widget desactivado — el embed ya no acepta mensajes');
+    } catch {
+      toast.error('Error al cambiar el estado del widget');
+    } finally {
+      setTogglingId(null);
+    }
   }
 
   async function confirmDeleteWidget() {
@@ -271,13 +299,19 @@ export default function WidgetsPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-4" data-tour="widgets-list">
-            {widgets.map((w) => (
+            {widgets.map((w) => {
+              const isActive = w.active !== false;
+              return (
               <div
                 key={w._id}
                 className="card-hover rounded-2xl overflow-hidden border"
-                style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
+                style={{
+                  borderColor: isActive ? 'var(--border)' : 'rgba(239,68,68,0.35)',
+                  background: 'var(--card)',
+                  opacity: isActive ? 1 : 0.92,
+                }}
               >
-                <div style={{ height: 3, background: w.color }} />
+                <div style={{ height: 3, background: isActive ? w.color : '#94a3b8' }} />
                 <div className="flex flex-wrap items-center gap-4 p-4 md:p-5">
                   <div
                     className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full shadow-md ring-1 ring-white/40"
@@ -308,6 +342,14 @@ export default function WidgetsPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm m-0 mb-0.5 flex items-center gap-2 flex-wrap">
                       {w.name}
+                      {!isActive && (
+                        <span
+                          className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md"
+                          style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}
+                        >
+                          Desactivado
+                        </span>
+                      )}
                       {w.multiAgentEnabled && (
                         <span
                           className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md"
@@ -330,6 +372,25 @@ export default function WidgetsPage() {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2 items-center justify-end w-full sm:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => void toggleWidgetActive(w)}
+                      disabled={togglingId === w._id}
+                      title={isActive ? 'Desactivar widget (bloquea mensajes en sitios embebidos)' : 'Activar widget'}
+                      className="inline-flex items-center gap-1 px-2.5 py-2 rounded-lg text-[11px] font-bold border cursor-pointer transition-colors hover:opacity-90 disabled:opacity-50"
+                      style={
+                        isActive
+                          ? BTN_SECONDARY
+                          : {
+                              background: 'rgba(34,197,94,0.1)',
+                              borderColor: 'rgba(34,197,94,0.28)',
+                              color: '#16a34a',
+                            }
+                      }
+                    >
+                      {isActive ? <PowerOff size={12} /> : <Power size={12} />}
+                      {isActive ? 'Desactivar' : 'Activar'}
+                    </button>
                     <Link
                       href={`/dashboard/widget-preview?id=${w._id}`}
                       title="Probar el chat con este widget"
@@ -457,7 +518,8 @@ export default function WidgetsPage() {
                   </div>
                 )}
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
       </div>
