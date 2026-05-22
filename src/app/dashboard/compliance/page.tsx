@@ -303,7 +303,7 @@ export default function CompliancePage() {
       <SecretRevealModal
         open={revealedSecret !== null}
         title="Secreto HMAC del webhook"
-        description="Copia y guarda este secreto en un lugar seguro. Lo usarás para verificar la firma X-Matias-Signature."
+        description="Copia y guarda este secreto en un lugar seguro. Lo usarás para verificar la firma X-BotIvA-Signature."
         secret={revealedSecret ?? ''}
         onClose={() => setRevealedSecret(null)}
       />
@@ -321,7 +321,7 @@ export default function CompliancePage() {
             </h1>
             <p style={{ margin: '10px 0 0', color: 'var(--muted-foreground)', maxWidth: 560, fontSize: 13.5, lineHeight: 1.65 }}>
               Exporta tus datos, elimina tu cuenta, revisa el historial de auditoría y configura webhooks
-              con firma HMAC (<code style={{ fontSize: 12 }}>X-Matias-Signature</code>).
+              con firma HMAC (<code style={{ fontSize: 12 }}>X-BotIvA-Signature</code>).
             </p>
           </div>
           {!loadingAudit && totalEvents > 0 && (
@@ -422,7 +422,7 @@ export default function CompliancePage() {
               background: 'rgba(248,118,0,0.08)', border: '1px solid rgba(248,118,0,0.28)',
             }}>
               <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--foreground)', lineHeight: 1.55 }}>
-                Recibe eventos firmados (<code style={{ fontSize: 12 }}>X-Matias-Signature</code>) en tu backend.
+                Recibe eventos firmados (<code style={{ fontSize: 12 }}>X-BotIvA-Signature</code>) en tu backend.
                 Disponible desde el plan <strong>{outboundWebhookUpgradeLabel()}</strong>.
               </p>
               <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--muted-foreground)', lineHeight: 1.5 }}>
@@ -505,7 +505,7 @@ export default function CompliancePage() {
                 ))}
               </div>
               <p style={{ margin: 0, fontSize: 10, color: 'var(--muted-foreground)', opacity: 0.6, fontFamily: 'ui-monospace, monospace' }}>
-                X-Matias-Signature: sha256=…
+                X-BotIvA-Signature: sha256=…
               </p>
             </div>
           </div>
@@ -520,7 +520,7 @@ export default function CompliancePage() {
                   type="url"
                   value={whUrl}
                   onChange={(e) => setWhUrl(e.target.value)}
-                  placeholder="https://api.tu-saas.com/webhooks/matias"
+                  placeholder="https://api.tu-saas.com/webhooks/BotIvA"
                   disabled={!whAllowed || busyWh}
                   style={{ ...inp, flex: 1, minWidth: 0, opacity: whAllowed ? 1 : 0.7 }}
                 />

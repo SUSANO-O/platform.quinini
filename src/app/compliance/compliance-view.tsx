@@ -21,7 +21,7 @@ import { Footer } from '@/components/shared/footer';
 const SECTIONS = [
   { id: 'definiciones', number: '1', title: 'Definiciones' },
   { id: 'objeto', number: '2', title: 'Objeto y alcance' },
-  { id: 'obligaciones-encargado', number: '3', title: 'Obligaciones de MatIAs' },
+  { id: 'obligaciones-encargado', number: '3', title: 'Obligaciones de BotIvA' },
   { id: 'obligaciones-cliente', number: '4', title: 'Obligaciones del Cliente' },
   { id: 'sub-encargados', number: '5', title: 'Sub-encargados' },
   { id: 'transferencias', number: '6', title: 'Transferencias internacionales' },
@@ -100,7 +100,7 @@ export function ComplianceView() {
 
   const copyEmail = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText('privacidad@matias.app');
+      await navigator.clipboard.writeText('privacidad@BotIvA.app');
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -125,7 +125,7 @@ export function ComplianceView() {
               <span className="gradient-text">Tratamiento de Datos</span>
             </h1>
             <p className="mt-4 text-lg" style={{ color: 'var(--muted-foreground)' }}>
-              DPA entre MatIAs y el Cliente: obligaciones, derechos y garantías en protección de datos personales.
+              DPA entre BotIvA y el Cliente: obligaciones, derechos y garantías en protección de datos personales.
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs font-medium">
               <span
@@ -264,13 +264,13 @@ export function ComplianceView() {
               >
                 <p>
                   Este Contrato de Tratamiento de Datos (&ldquo;<strong>CTD</strong>&rdquo; o &ldquo;<strong>Contrato</strong>&rdquo;)
-                  regula la relación entre <strong>MatAIs</strong> (&ldquo;<strong>Encargado del Tratamiento</strong>&rdquo; o
-                  &ldquo;<strong>MatIAs</strong>&rdquo;) y el <strong>Cliente</strong> (&ldquo;<strong>Responsable del
+                  regula la relación entre <strong>BotIvA</strong> (&ldquo;<strong>Encargado del Tratamiento</strong>&rdquo; o
+                  &ldquo;<strong>BotIvA</strong>&rdquo;) y el <strong>Cliente</strong> (&ldquo;<strong>Responsable del
                   Tratamiento</strong>&rdquo;), respecto de los datos personales que el Cliente transmite, almacena o procesa a
-                  través de la plataforma MatIAs, sus widgets de chat, APIs y servicios asociados.
+                  través de la plataforma BotIvA, sus widgets de chat, APIs y servicios asociados.
                 </p>
                 <p className="mt-4">
-                  Al crear una cuenta, instalar un widget o utilizar cualquier servicio de MatIAs, el Cliente declara
+                  Al crear una cuenta, instalar un widget o utilizar cualquier servicio de BotIvA, el Cliente declara
                   haber leído, comprendido y aceptado este Contrato en su totalidad. Si actúa en nombre de una organización,
                   declara tener las facultades necesarias para vincularla contractualmente.
                 </p>
@@ -281,7 +281,7 @@ export function ComplianceView() {
                   <Def term="Datos Personales">
                     Toda información que identifique o permita identificar a una persona física, incluyendo —sin limitación— nombre,
                     correo electrónico, identificador de sesión, dirección IP, historial de conversaciones y cualquier otro dato
-                    proporcionado por los usuarios finales del Cliente a través de los widgets o APIs de MatIAs.
+                    proporcionado por los usuarios finales del Cliente a través de los widgets o APIs de BotIvA.
                   </Def>
                   <Def term="Tratamiento">
                     Cualquier operación realizada sobre los Datos Personales: recopilación, almacenamiento, consulta, uso,
@@ -289,10 +289,10 @@ export function ComplianceView() {
                   </Def>
                   <Def term="Usuario Final">
                     La persona física que interactúa con los widgets de chat u otras interfaces del Cliente que utilizan la
-                    plataforma MatIAs.
+                    plataforma BotIvA.
                   </Def>
                   <Def term="Sub-encargado">
-                    Tercero contratado por MatIAs para ejecutar parte del Tratamiento en nombre del Cliente, sujeto a
+                    Tercero contratado por BotIvA para ejecutar parte del Tratamiento en nombre del Cliente, sujeto a
                     obligaciones equivalentes a las de este Contrato.
                   </Def>
                   <Def term="Incidente de Seguridad">
@@ -303,7 +303,7 @@ export function ComplianceView() {
 
               <Section id="objeto" number="2" title="Objeto y alcance del tratamiento">
                 <p>
-                  MatIAs actuará como <strong>Encargado del Tratamiento</strong> exclusivamente para prestar los servicios
+                  BotIvA actuará como <strong>Encargado del Tratamiento</strong> exclusivamente para prestar los servicios
                   contratados por el Cliente y bajo sus instrucciones documentadas. El Tratamiento abarca:
                 </p>
                 <BulletList>
@@ -314,13 +314,13 @@ export function ComplianceView() {
                   <li>Autenticación e identificación de los usuarios finales cuando el Cliente habilite dicha función.</li>
                 </BulletList>
                 <p className="mt-4">
-                  MatIAs no realizará ningún Tratamiento adicional sin instrucción previa y documentada del Cliente, salvo
+                  BotIvA no realizará ningún Tratamiento adicional sin instrucción previa y documentada del Cliente, salvo
                   obligación legal expresa.
                 </p>
               </Section>
 
-              <Section id="obligaciones-encargado" number="3" title="Obligaciones del Encargado del Tratamiento (MatIAs)">
-                <p>MatIAs se compromete a:</p>
+              <Section id="obligaciones-encargado" number="3" title="Obligaciones del Encargado del Tratamiento (BotIvA)">
+                <p>BotIvA se compromete a:</p>
                 <NumberedList>
                   <li>
                     <strong>Confidencialidad.</strong> Garantizar que las personas autorizadas para tratar los Datos Personales
@@ -362,15 +362,15 @@ export function ComplianceView() {
                     (consentimiento, contrato, interés legítimo u otra aplicable bajo la legislación local).
                   </li>
                   <li>
-                    Informar a sus Usuarios Finales sobre el uso de MatIAs como herramienta de procesamiento, conforme a su
+                    Informar a sus Usuarios Finales sobre el uso de BotIvA como herramienta de procesamiento, conforme a su
                     propia política de privacidad.
                   </li>
                   <li>
-                    No transmitir a MatIAs datos de categorías especiales (salud, opiniones políticas, datos biométricos,
+                    No transmitir a BotIvA datos de categorías especiales (salud, opiniones políticas, datos biométricos,
                     creencias religiosas, orientación sexual u otros datos sensibles) sin suscribir un addendum específico.
                   </li>
                   <li>
-                    Notificar a MatIAs de forma inmediata si toma conocimiento de cualquier acción legal, demanda regulatoria
+                    Notificar a BotIvA de forma inmediata si toma conocimiento de cualquier acción legal, demanda regulatoria
                     o reclamación relacionada con los Datos Personales tratados a través de la plataforma.
                   </li>
                   <li>
@@ -382,9 +382,9 @@ export function ComplianceView() {
 
               <Section id="sub-encargados" number="5" title="Sub-encargados autorizados">
                 <p>
-                  El Cliente autoriza de forma general a MatIAs a contratar Sub-encargados para la prestación del servicio.
-                  MatIAs publicará y mantendrá actualizada la lista de Sub-encargados en{' '}
-                  <strong>matias.app/sub-encargados</strong>. Ante cualquier incorporación o sustitución, MatIAs notificará
+                  El Cliente autoriza de forma general a BotIvA a contratar Sub-encargados para la prestación del servicio.
+                  BotIvA publicará y mantendrá actualizada la lista de Sub-encargados en{' '}
+                  <strong>BotIvA.app/sub-encargados</strong>. Ante cualquier incorporación o sustitución, BotIvA notificará
                   al Cliente con al menos <strong>15 días de antelación</strong>, período durante el cual el Cliente podrá
                   oponerse con causa justificada. Los Sub-encargados estarán sujetos a obligaciones equivalentes a las de
                   este Contrato.
@@ -412,7 +412,7 @@ export function ComplianceView() {
               <Section id="transferencias" number="6" title="Transferencias internacionales de datos">
                 <p>
                   Algunos Sub-encargados pueden procesar datos fuera del país de residencia del Cliente o de sus Usuarios
-                  Finales. MatIAs garantiza que toda transferencia internacional se realiza bajo un mecanismo legal adecuado,
+                  Finales. BotIvA garantiza que toda transferencia internacional se realiza bajo un mecanismo legal adecuado,
                   que puede incluir:
                 </p>
                 <BulletList>
@@ -428,7 +428,7 @@ export function ComplianceView() {
 
               <Section id="derechos" number="7" title="Derechos de los Usuarios Finales">
                 <p>
-                  MatIAs provee al Cliente los mecanismos técnicos necesarios para que este pueda atender las solicitudes
+                  BotIvA provee al Cliente los mecanismos técnicos necesarios para que este pueda atender las solicitudes
                   de derechos de sus Usuarios Finales. Dichos derechos incluyen, según la legislación aplicable:
                 </p>
                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -444,14 +444,14 @@ export function ComplianceView() {
                   ))}
                 </div>
                 <p className="mt-4">
-                  Las solicitudes deben dirigirse al Cliente, quien es el Responsable del Tratamiento. MatIAs asistirá al
+                  Las solicitudes deben dirigirse al Cliente, quien es el Responsable del Tratamiento. BotIvA asistirá al
                   Cliente en la ejecución técnica dentro de los plazos acordados.
                 </p>
               </Section>
 
               <Section id="seguridad" number="8" title="Medidas de seguridad">
                 <p>
-                  MatIAs aplica un programa de seguridad de la información que incluye, entre otras, las siguientes medidas:
+                  BotIvA aplica un programa de seguridad de la información que incluye, entre otras, las siguientes medidas:
                 </p>
                 <BulletList>
                   <li>Cifrado en tránsito con TLS 1.2 o superior en todos los endpoints.</li>
@@ -491,12 +491,12 @@ export function ComplianceView() {
               <Section id="responsabilidad" number="10" title="Responsabilidad y limitación de daños">
                 <p>
                   Cada parte será responsable ante la otra por los daños directos causados por el incumplimiento de sus
-                  obligaciones bajo este Contrato. La responsabilidad total acumulada de MatIAs frente al Cliente en relación
+                  obligaciones bajo este Contrato. La responsabilidad total acumulada de BotIvA frente al Cliente en relación
                   con el Tratamiento de Datos no excederá el importe total abonado por el Cliente en los <strong>12 meses</strong>{' '}
                   anteriores al evento que da lugar a la reclamación.
                 </p>
                 <p className="mt-4">
-                  MatIAs no será responsable de daños indirectos, lucro cesante o pérdida de datos atribuibles a instrucciones
+                  BotIvA no será responsable de daños indirectos, lucro cesante o pérdida de datos atribuibles a instrucciones
                   erróneas del Cliente, incumplimiento de sus propias obligaciones de seguridad o actuaciones de terceros
                   ajenos a la relación contractual.
                 </p>
@@ -504,7 +504,7 @@ export function ComplianceView() {
 
               <Section id="modificaciones" number="11" title="Modificaciones al Contrato">
                 <p>
-                  MatIAs podrá actualizar este Contrato para reflejar cambios normativos, tecnológicos o en su modelo de
+                  BotIvA podrá actualizar este Contrato para reflejar cambios normativos, tecnológicos o en su modelo de
                   negocio. Cualquier modificación sustancial será notificada al Cliente con al menos <strong>30 días de
                   antelación</strong> mediante correo electrónico o aviso prominente en el panel de administración. El uso
                   continuado del servicio tras la fecha de entrada en vigor de la modificación constituirá aceptación de los
@@ -528,21 +528,21 @@ export function ComplianceView() {
               <Section id="contacto" number="13" title="Contacto del Responsable de Privacidad">
                 <p>
                   Para ejercer derechos, reportar incidentes o formular preguntas sobre este Contrato, el Cliente puede
-                  contactar al Responsable de Privacidad de MatIAs a través de:
+                  contactar al Responsable de Privacidad de BotIvA a través de:
                 </p>
                 <div
                   className="mt-4 rounded-xl p-5 card-texture"
                   style={{ border: '1px solid var(--border)' }}
                 >
-                  <p className="font-bold" style={{ color: 'var(--foreground)' }}>MatAIs — Responsable de Privacidad</p>
+                  <p className="font-bold" style={{ color: 'var(--foreground)' }}>BotIvA — Responsable de Privacidad</p>
                   <div className="mt-3 flex flex-wrap items-center gap-3">
                     <a
-                      href="mailto:privacidad@matias.app"
+                      href="mailto:privacidad@BotIvA.app"
                       className="inline-flex items-center gap-2 font-semibold text-sm hover:underline"
                       style={{ color: 'var(--primary)' }}
                     >
                       <Mail size={15} />
-                      privacidad@matias.app
+                      privacidad@BotIvA.app
                     </a>
                     <button
                       type="button"
@@ -574,13 +574,13 @@ export function ComplianceView() {
                       Aceptación del Contrato
                     </p>
                     <p className="text-sm">
-                      Al utilizar los servicios de MatIAs (crear una cuenta, instalar un widget o realizar una llamada a la
+                      Al utilizar los servicios de BotIvA (crear una cuenta, instalar un widget o realizar una llamada a la
                       API), el Cliente declara haber leído y aceptado íntegramente este Contrato de Tratamiento de Datos.
                       Esta aceptación tiene el mismo valor legal que una firma manuscrita bajo la legislación aplicable en
                       materia de contratos electrónicos.
                     </p>
                     <p className="text-sm mt-3">
-                      La fecha de aceptación queda registrada en los sistemas de MatIAs junto con el identificador de cuenta,
+                      La fecha de aceptación queda registrada en los sistemas de BotIvA junto con el identificador de cuenta,
                       la dirección IP y la marca de tiempo UTC correspondiente.
                     </p>
                   </div>

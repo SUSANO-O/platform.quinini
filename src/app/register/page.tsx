@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Sparkles, KeyRound } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -47,8 +48,8 @@ export default function RegisterPage() {
       <div className="relative w-full max-w-[440px]">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex flex-col items-center gap-3 no-underline">
-            <Image src="/t1.png" alt="MatIAs" width={56} height={56} className="rounded-xl object-cover shadow-md" style={{ aspectRatio: '1/1' }} />
-            <span className="text-2xl font-bold gradient-text">MatIAs</span>
+            <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={180} height={54} className="h-14 w-auto object-contain rounded-xl shadow-md" priority />
+            <span className="text-2xl font-bold gradient-text">{BRAND_NAME}</span>
           </Link>
           <p className="mt-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
             Prueba gratuita de 7 días — requiere código de invitación

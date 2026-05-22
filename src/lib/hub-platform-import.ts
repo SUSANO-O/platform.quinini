@@ -82,7 +82,7 @@ export async function ensureHubPlatformAgentsInLanding(options?: {
     const prompt =
       typeof h.prompt === 'string' && h.prompt.trim() !== ''
         ? h.prompt.trim()
-        : 'Eres un asistente de la plataforma MatIAs.';
+        : 'Eres un asistente de la plataforma BotIvA.';
     const name = typeof h.name === 'string' && h.name.trim() !== '' ? h.name.trim() : hubSlug;
 
     const doc = await ClientAgent.create({

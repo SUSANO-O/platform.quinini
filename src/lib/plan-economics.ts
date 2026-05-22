@@ -206,7 +206,7 @@ export type MarketBenchmarkUnit =
   | 'session';
 
 export type MarketBenchmarkSegment =
-  | 'matias'
+  | 'BotIvA'
   | 'rag-widget'
   | 'agent-builder'
   | 'live-chat'
@@ -242,13 +242,13 @@ function bench(
   };
 }
 
-const MATIAS_BENCHMARKS: MarketBenchmark[] = PAID_PLAN_IDS.map((id) =>
+const BotIvA_BENCHMARKS: MarketBenchmark[] = PAID_PLAN_IDS.map((id) =>
   bench(
-    `MatIAs ${PLAN_DISPLAY[id].label}`,
+    `BotIvA ${PLAN_DISPLAY[id].label}`,
     PLAN_PRICES_USD[id],
     PLAN_CONVERSATION_LIMITS[id],
     'conversation',
-    'matias',
+    'BotIvA',
   ),
 );
 
@@ -297,7 +297,7 @@ const HELPDESK_BENCHMARKS: MarketBenchmark[] = [
  * Precios públicos referencia mayo 2026.
  */
 export const MARKET_BENCHMARKS: MarketBenchmark[] = [
-  ...MATIAS_BENCHMARKS,
+  ...BotIvA_BENCHMARKS,
   ...RAG_WIDGET_BENCHMARKS,
   ...AGENT_BUILDER_BENCHMARKS,
   ...LIVE_CHAT_BENCHMARKS,

@@ -32,12 +32,12 @@ const SYNC_ENV_ONLY = process.argv.includes('--sync-env');
 
 const PLANS = {
   subscriptions: [
-    { key: 'solo',     name: 'MatIAs Solo',     usd: 7,   interval: 'month', aliases: ['solo'] },
-    { key: 'basic',    name: 'MatIAs Basic',    usd: 17,  interval: 'month', aliases: ['basic'] },
-    { key: 'plus',     name: 'MatIAs Plus',     usd: 39,  interval: 'month', aliases: ['plus'] },
-    { key: 'starter',  name: 'MatIAs Starter',  usd: 65,  interval: 'month', aliases: ['starter'] },
-    { key: 'growth',   name: 'MatIAs Growth',   usd: 179, interval: 'month', aliases: ['growth'] },
-    { key: 'business', name: 'MatIAs Business', usd: 749, interval: 'month', aliases: ['business'] },
+    { key: 'solo',     name: 'BotIvA Solo',     usd: 7,   interval: 'month', aliases: ['solo'] },
+    { key: 'basic',    name: 'BotIvA Basic',    usd: 17,  interval: 'month', aliases: ['basic'] },
+    { key: 'plus',     name: 'BotIvA Plus',     usd: 39,  interval: 'month', aliases: ['plus'] },
+    { key: 'starter',  name: 'BotIvA Starter',  usd: 65,  interval: 'month', aliases: ['starter'] },
+    { key: 'growth',   name: 'BotIvA Growth',   usd: 179, interval: 'month', aliases: ['growth'] },
+    { key: 'business', name: 'BotIvA Business', usd: 749, interval: 'month', aliases: ['business'] },
   ],
   packs: [
     { key: 'pack_s', name: 'Pack Conversaciones S (1.000)',  usd: 15,  interval: null, aliases: ['pack conversaciones s', 'pack s', 'pack 1000', 'pack 1.000'] },
@@ -157,7 +157,7 @@ function matchVariantForItem(variants, item) {
   const norm = (s) => (s || '').toLowerCase().trim();
   const target = norm(item.name);
   const aliases = (item.aliases || []).map(norm);
-  const candidates = [target, ...aliases, norm(target.replace(/^matias\s+/i, ''))];
+  const candidates = [target, ...aliases, norm(target.replace(/^BotIvA\s+/i, ''))];
   for (const cand of candidates) {
     const exact = variants.find((v) => norm(v.productName) === cand);
     if (exact) return exact;

@@ -367,7 +367,7 @@ h1, h2, h3, h4, h5, h6 {
   background-attachment: fixed;
 }
 
-/* ── Onboarding driver.js (popover MatIAs) ───────────────────────────────── */
+/* ── Onboarding driver.js (popover BotIvA) ───────────────────────────────── */
 .driver-overlay.driver-overlay-animated {
   /* Sin desenfoque del fondo: solo el velo de color del tour */
   backdrop-filter: none;

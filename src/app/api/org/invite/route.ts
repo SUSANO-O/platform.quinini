@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     to: email,
     subject: `Invitación para unirte a ${org.name}`,
     html: `
-      <p>Has sido invitado a unirte a <strong>${org.name}</strong> en MatIAs como <strong>${role}</strong>.</p>
+      <p>Has sido invitado a unirte a <strong>${org.name}</strong> en BotIvA como <strong>${role}</strong>.</p>
       <p><a href="${inviteUrl}" style="background:#0d9488;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block">Aceptar invitación</a></p>
       <p>Este enlace expira en 7 días.</p>
     `,

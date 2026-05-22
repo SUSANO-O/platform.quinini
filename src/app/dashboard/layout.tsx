@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { SubscriptionProvider, useSubscription } from '@/hooks/use-subscription';
 import { TourProvider, useTour } from '@/components/onboarding/app-tour';
+import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 // import { initPaddleClient } from '@/lib/paddle-client'; // Paddle — comentado
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -449,8 +450,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           padding: '0 14px', background: 'var(--card)', borderBottom: '1px solid var(--border)',
         }}>
           <Link href="/" className="flex items-center gap-2 no-underline">
-            <Image src="/t1.png" alt="MatIAs" width={30} height={30} className="rounded-xl object-cover" style={{ aspectRatio: '1/1' }} />
-            <span className="text-base font-bold gradient-text">MatIAs</span>
+            <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={100} height={30} className="h-8 w-auto object-contain rounded-xl shrink-0" />
+            <span className="text-base font-bold gradient-text">{BRAND_NAME}</span>
           </Link>
           <button
             type="button"
@@ -561,8 +562,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               className={`flex items-center no-underline ${sidebarCollapsed ? 'justify-center p-0' : 'gap-2.5 px-2'}`}
               title="Ir al inicio"
             >
-              <Image src="/t1.png" alt="MatIAs" width={36} height={36} className="rounded-xl object-cover shrink-0" style={{ aspectRatio: '1/1' }} />
-              {!sidebarCollapsed ? <span className="text-lg font-bold gradient-text">MatIAs</span> : null}
+              <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={120} height={36} className="h-9 w-auto object-contain rounded-xl shrink-0" />
+              {!sidebarCollapsed ? <span className="text-lg font-bold gradient-text">{BRAND_NAME}</span> : null}
             </Link>
             <button
               type="button"

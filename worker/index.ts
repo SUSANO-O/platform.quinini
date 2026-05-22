@@ -21,7 +21,7 @@ sw.addEventListener('push', (event) => {
     data?: { json(): unknown; text(): string };
   };
   const fallback = {
-    title: 'MatIAs',
+    title: 'BotIvA',
     body: 'Tienes una nueva notificación.',
   };
 
@@ -41,8 +41,8 @@ sw.addEventListener('push', (event) => {
   pushEvent.waitUntil(
     sw.registration.showNotification(payload.title, {
       body: payload.body,
-      icon: '/t1.png',
-      badge: '/t1.png',
+      icon: '/assets/exampleRAG/Gemini_Generated_Image_6sm42y6sm42y6sm4.png',
+      badge: '/assets/exampleRAG/Gemini_Generated_Image_6sm42y6sm42y6sm4.png',
     }),
   );
 });

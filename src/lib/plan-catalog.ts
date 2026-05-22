@@ -1,5 +1,5 @@
 /**
- * Fuente única de verdad — planes MatIAs (widget SaaS no-code).
+ * Fuente única de verdad — planes BotIvA (widget SaaS no-code).
  * Todo pricing público, límites de producto y packs deben importarse desde aquí.
  *
  * Nota: agent-flow-gateway tiene planes API para developers (infra interna);

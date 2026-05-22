@@ -6,6 +6,7 @@
 
 import { Resend } from 'resend';
 import { planEmailLabel } from '@/lib/plan-catalog';
+import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
@@ -13,7 +14,7 @@ const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KE
  * Requiere dominio verificado en Resend cuando se usa EMAIL_FROM.
  * Fallback seguro: dominio de pruebas de Resend para evitar 403 por dominio no verificado.
  */
-const FROM = process.env.EMAIL_FROM?.trim() || 'MatIAs <onboarding@resend.dev>';
+const FROM = process.env.EMAIL_FROM?.trim() || `${BRAND_NAME} <onboarding@resend.dev>`;
 // En servidor priorizamos APP_URL (no público) para enlaces de correo en producción.
 const APP_URL =
   process.env.APP_URL?.trim() ||
@@ -31,7 +32,7 @@ const EMAIL_PUBLIC_ORIGIN = (
   process.env.APP_URL?.trim() ||
   'http://localhost:3201'
 ).replace(/\/$/, '');
-const EMAIL_LOGO_URL = `${EMAIL_PUBLIC_ORIGIN}/t1.png`;
+const EMAIL_LOGO_URL = `${EMAIL_PUBLIC_ORIGIN}${BRAND_LOGO_SRC}`;
 
 // ── Template helpers ──────────────────────────────────────────────────────────
 
@@ -53,10 +54,10 @@ function baseTemplate(title: string, bodyHtml: string): string {
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
               <tr>
                 <td valign="middle" style="width:52px;padding-right:14px;">
-                  <img src="${EMAIL_LOGO_URL}" width="40" height="40" alt="MatIAs" border="0" style="display:block;border-radius:10px;width:40px;height:40px;object-fit:cover;" />
+                  <img src="${EMAIL_LOGO_URL}" width="40" height="40" alt="BotIvA" border="0" style="display:block;border-radius:10px;width:40px;height:40px;object-fit:cover;" />
                 </td>
                 <td valign="middle">
-                  <span style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.5px;">MatIAs</span>
+                  <span style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.5px;">BotIvA</span>
                 </td>
               </tr>
             </table>
@@ -72,8 +73,8 @@ function baseTemplate(title: string, bodyHtml: string): string {
         <tr>
           <td style="padding:20px 32px;border-top:1px solid #334155;">
             <p style="margin:0;font-size:11px;color:#64748b;">
-             MatIAs· <a href="${APP_URL}" style="color:#6366f1;text-decoration:none;">matias.online</a>
-              · Este email fue enviado porque tienes una cuenta en MatIAs.
+             BotIvA· <a href="${APP_URL}" style="color:#6366f1;text-decoration:none;">BotIvA.online</a>
+              · Este email fue enviado porque tienes una cuenta en BotIvA.
             </p>
           </td>
         </tr>
@@ -234,7 +235,7 @@ export async function sendPaidInvoiceEmail(
     title = 'Renovación — factura';
     lead = `Se ha procesado la renovación de tu suscripción (${planLabel}). Importe: <strong style="color:#f1f5f9;">${amountFormatted}</strong>.`;
   } else {
-    title = 'Factura de MatIAs';
+    title = 'Factura de BotIvA';
     lead = `Nueva factura. Plan: ${planLabel}. Importe: ${amountFormatted}.`;
   }
 
@@ -246,13 +247,13 @@ export async function sendPaidInvoiceEmail(
     ${hostedInvoiceUrl ? p(`<a href="${hostedInvoiceUrl}" style="color:#6366f1;font-weight:600;">Ver factura en línea</a>`) : ''}
     ${btn('Ir al dashboard', `${APP_URL}/dashboard`, '#0d9488')}
   `;
-  const html = baseTemplate(`${invRef} — MatIAs`, bodyHtml);
+  const html = baseTemplate(`${invRef} — BotIvA`, bodyHtml);
 
   if (pdfBuffer && pdfBuffer.length > 0) {
     const safeName = `factura-agentflow-${invoiceNumber || 'stripe'}.pdf`.replace(/[^a-zA-Z0-9._-]/g, '_');
-    logSendFailure('invoice email', await sendWithAttachments(to, `${invRef} — MatIAs`, html, [{ filename: safeName, content: pdfBuffer }]));
+    logSendFailure('invoice email', await sendWithAttachments(to, `${invRef} — BotIvA`, html, [{ filename: safeName, content: pdfBuffer }]));
   } else {
-    logSendFailure('invoice email', await send(to, `${invRef} — MatIAs`, html));
+    logSendFailure('invoice email', await send(to, `${invRef} — BotIvA`, html));
   }
 }
 
@@ -281,11 +282,11 @@ export async function sendVerificationEmail(
   const safeName = displayName.trim() || email.split('@')[0];
 
   if (variant === 'welcome') {
-    const subject = 'Bienvenido a MatIAs — confirma tu correo';
+    const subject = 'Bienvenido a BotIvA — confirma tu correo';
     const html = baseTemplate(subject, `
       ${h1('Te damos la bienvenida')}
       ${p(`Hola <strong style="color:#f1f5f9;">${escapeHtml(safeName)}</strong>,`)}
-      ${p('Gracias por crear tu cuenta en MatIAs. Estamos encantados de tenerte con nosotros.')}
+      ${p('Gracias por crear tu cuenta en BotIvA. Estamos encantados de tenerte con nosotros.')}
       ${p(
         'Para confirmar que este correo es real y es tuyo, solo tienes que pulsar el botón de abajo. Así activamos tu cuenta por completo y podrás disfrutar del <strong style="color:#f1f5f9;">periodo de prueba</strong> y del resto de funciones sin trabas.',
       )}
@@ -296,7 +297,7 @@ export async function sendVerificationEmail(
     return await send(email, subject, html);
   }
 
-  const subject = 'Tu enlace de verificación — MatIAs';
+  const subject = 'Tu enlace de verificación — BotIvA';
   const html = baseTemplate(subject, `
     ${h1('Confirma tu correo')}
     ${p(`Hola ${escapeHtml(safeName)},`)}
@@ -322,14 +323,14 @@ export async function sendPasswordResetEmail(
   token: string,
 ): Promise<void> {
   const url = `${APP_URL}/reset-password?token=${token}`;
-  const html = baseTemplate('Recupera tu contraseña — MatIAs', `
+  const html = baseTemplate('Recupera tu contraseña — BotIvA', `
     ${h1('Recupera tu contraseña')}
     ${p(`Hola ${displayName}, recibimos una solicitud para restablecer la contraseña de tu cuenta.`)}
     ${p('Haz clic en el botón para crear una nueva contraseña. El enlace expira en 1 hora.')}
     ${btn('Restablecer contraseña', url, '#ef4444')}
     ${p('<br/>Si no solicitaste este cambio, ignora este mensaje. Tu contraseña no será modificada.')}
   `);
-  logSendFailure('password reset', await send(email, 'Recupera tu contraseña — MatIAs', html));
+  logSendFailure('password reset', await send(email, 'Recupera tu contraseña — BotIvA', html));
 }
 
 /** Código de 6 dígitos para confirmar cambio de email (se envía al correo nuevo). */
@@ -338,14 +339,14 @@ export async function sendEmailChangeCodeEmail(
   displayName: string,
   code: string,
 ): Promise<void> {
-  const html = baseTemplate('Confirma tu nuevo email — MatIAs', `
+  const html = baseTemplate('Confirma tu nuevo email — BotIvA', `
     ${h1('Código de verificación')}
-    ${p(`Hola ${displayName}, has solicitado usar esta dirección en tu cuenta MatIAs.`)}
+    ${p(`Hola ${displayName}, has solicitado usar esta dirección en tu cuenta BotIvA.`)}
     ${p('Introduce este código en Ajustes (válido 15 minutos):')}
     <p style="margin:20px 0;font-size:28px;font-weight:800;letter-spacing:0.3em;color:#0d9488;text-align:center;">${code}</p>
     ${p('Si no has sido tú, ignora este mensaje. Tu cuenta actual no cambia hasta que confirmes el código.')}
   `);
-  logSendFailure('email change code', await send(newEmail, `Tu código MatIAs: ${code}`, html));
+  logSendFailure('email change code', await send(newEmail, `Tu código BotIvA: ${code}`, html));
 }
 
 export async function sendSubscriptionEmail(
@@ -373,7 +374,7 @@ export async function sendSubscriptionEmail(
   let bodyHtml: string;
 
   if (event === 'activated') {
-    subject = `¡Bienvenido al plan ${planName}! — MatIAs`;
+    subject = `¡Bienvenido al plan ${planName}! — BotIvA`;
     bodyHtml = `
       ${h1('¡Suscripción activada!')}
       ${p(`Tu plan <strong style="color:#f1f5f9;">${planName}</strong> ya está activo.`)}
@@ -381,7 +382,7 @@ export async function sendSubscriptionEmail(
       ${btn('Ir al dashboard', dashUrl, '#22c55e')}
     `;
   } else if (event === 'canceled') {
-    subject = 'Tu suscripción ha sido cancelada — MatIAs';
+    subject = 'Tu suscripción ha sido cancelada — BotIvA';
     bodyHtml = `
       ${h1('Suscripción cancelada')}
       ${p(`Tu plan <strong style="color:#f1f5f9;">${planName}</strong> ha sido cancelado.`)}
@@ -389,18 +390,18 @@ export async function sendSubscriptionEmail(
       ${btn('Reactivar suscripción', dashUrl, '#6366f1')}
     `;
   } else if (event === 'payment_failed') {
-    subject = 'Problema con tu pago — MatIAs';
+    subject = 'Problema con tu pago — BotIvA';
     bodyHtml = `
       ${h1('Pago fallido')}
       ${p('No pudimos procesar el pago de tu suscripción.')}
-      ${p('Por favor actualiza tu método de pago para mantener el acceso a MatIAs.')}
+      ${p('Por favor actualiza tu método de pago para mantener el acceso a BotIvA.')}
       ${btn('Actualizar método de pago', dashUrl, '#ef4444')}
     `;
   } else {
-    subject = 'Tu trial vence pronto — MatIAs';
+    subject = 'Tu trial vence pronto — BotIvA';
     bodyHtml = `
       ${h1('Tu prueba vence pronto')}
-      ${p('Tu período de prueba gratuita de MatIAs está por finalizar.')}
+      ${p('Tu período de prueba gratuita de BotIvA está por finalizar.')}
       ${p('Suscríbete ahora para mantener el acceso a tus agentes y widgets sin interrupciones.')}
       ${btn('Ver planes', dashUrl, '#f59e0b')}
     `;
@@ -428,8 +429,8 @@ export async function sendSubscriptionReminderEmail(params: {
   const whenLabel = daysLeft === 0 ? 'hoy' : `en ${daysLeft} dia${daysLeft !== 1 ? 's' : ''}`;
   const title = kind === 'trial' ? 'Tu trial vence pronto' : 'Tu suscripcion vence pronto';
   const subject = kind === 'trial'
-    ? `Tu trial vence ${whenLabel} - MatIAs`
-    : `Tu renovacion vence ${whenLabel} - MatIAs`;
+    ? `Tu trial vence ${whenLabel} - BotIvA`
+    : `Tu renovacion vence ${whenLabel} - BotIvA`;
 
   const ctaText = kind === 'trial' ? 'Ver planes y suscribirme' : 'Revisar suscripcion';
   const detail = kind === 'trial'
@@ -458,7 +459,7 @@ export async function sendQuotaWarningEmail(
   const safeName = displayName.trim() || to.split('@')[0];
   const percent = Math.round((used / limit) * 100);
   const planLabel = planEmailLabel(plan);
-  const subject = `Has usado el ${percent} % de tus conversaciones este mes — MatIAs`;
+  const subject = `Has usado el ${percent} % de tus conversaciones este mes — BotIvA`;
   const html = baseTemplate(subject, `
     ${h1('Estás cerca del límite')}
     ${p(`Hola <strong style="color:#f1f5f9;">${escapeHtml(safeName)}</strong>,`)}

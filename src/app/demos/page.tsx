@@ -14,9 +14,9 @@ import {
 } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Demos | MatIAs',
+  title: 'Demos | BotIvA',
   description:
-    'Prueba la API, el playground, agentes de ejemplo y el panel demo. Todo lo necesario para verMatIAsen acción.',
+    'Prueba la API, el playground, agentes de ejemplo y el panel demo. Todo lo necesario para verBotIvAen acción.',
 };
 
 type DemoItem = {
@@ -82,7 +82,7 @@ export default function DemosPage() {
           </h1>
 
           <p className="mt-6 text-lg md:text-xl max-w-2xl mx-auto" style={{ color: 'var(--muted-foreground)' }}>
-            ExploraMatIAssin fricción: playground de API, agente de muestra, documentación y el panel demo. Si
+            ExploraBotIvAsin fricción: playground de API, agente de muestra, documentación y el panel demo. Si
             desarrollas en local, arranca también el <strong className="text-foreground">gateway</strong> y el backend
             para que el Playground responda.
           </p>

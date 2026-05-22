@@ -477,7 +477,7 @@ async function testWebhook() {
     assert(hook?.url, 'URL webhook');
     const headers = {
       'Content-Type': 'application/json',
-      'User-Agent': 'MatIAs-widget-chat-test/1.0',
+      'User-Agent': 'BotIvA-widget-chat-test/1.0',
     };
     if (hook.secret) {
       headers.Authorization = /^Bearer\s+/i.test(hook.secret) ? hook.secret : `Bearer ${hook.secret}`;
@@ -511,7 +511,7 @@ async function testWebhook() {
   await check('Webhook: mensaje con email → toolsUsed incluye webhook', async () => {
     const email = `suite+${Date.now()}@ejemplo.invalid`;
     const { done, error } = await chatStream(
-      `Prueba webhook MatIAs: me llamo Suite Test, mi email es ${email}, tel 3001234567. Registrame para pre-aprobado.`,
+      `Prueba webhook BotIvA: me llamo Suite Test, mi email es ${email}, tel 3001234567. Registrame para pre-aprobado.`,
       `wh-prefire-${Date.now()}`,
     );
     assert(!error, error?.message || 'SSE error');

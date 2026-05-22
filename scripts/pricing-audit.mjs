@@ -96,7 +96,7 @@ const PACKS = [
 ];
 
 console.log('\n══════════════════════════════════════════════════════════════════════');
-console.log('  AUDITORÍA DE MARGEN — MatIAs (LLM + RAG + infra externa mínima de pago)');
+console.log('  AUDITORÍA DE MARGEN — BotIvA (LLM + RAG + infra externa mínima de pago)');
 console.log('══════════════════════════════════════════════════════════════════════\n');
 
 console.log('Infra fija (Atlas M10 + Pinecone pago, repartida entre clientes):');
@@ -159,7 +159,7 @@ for (const pk of PACKS) {
 
 console.log('\n— Benchmark mercado ($/unidad) — fuente MARKET_BENCHMARKS —');
 const MARKET = [
-  ...PLANS.map((p) => ({ name: `MatIAs ${p.id[0].toUpperCase()}${p.id.slice(1)}`, price: p.price, conv: p.conv, unit: 'conv' })),
+  ...PLANS.map((p) => ({ name: `BotIvA ${p.id[0].toUpperCase()}${p.id.slice(1)}`, price: p.price, conv: p.conv, unit: 'conv' })),
   { name: 'Chatbase Hobby', price: 32, conv: 500, unit: 'crédito' },
   { name: 'Chatbase Standard', price: 120, conv: 4000, unit: 'crédito' },
   { name: 'Chatbase Pro', price: 400, conv: 15000, unit: 'crédito' },

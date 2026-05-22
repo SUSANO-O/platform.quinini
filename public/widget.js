@@ -287,7 +287,7 @@
     merged.host = merged.host || getScriptOrigin() || window.location.origin;
     merged.host = String(merged.host).replace(/\/$/, '');
     if (/:(9003)(\/|$)/.test(merged.host)) {
-      log(merged, 'warn', 'host apunta a AIBackHub (:9003). Usa la URL de la landing (ej. http://localhost:3201 o tu dominio MatIAs).');
+      log(merged, 'warn', 'host apunta a AIBackHub (:9003). Usa la URL de la landing (ej. http://localhost:3201 o tu dominio BotIvA).');
     }
     var pos = String(merged.position || 'bottom-right').toLowerCase();
     if (VALID_POSITIONS.indexOf(pos) === -1) {
@@ -1120,7 +1120,7 @@
 
     var powered = document.createElement('div');
     powered.className = 'afhub-powered';
-    powered.innerHTML = 'Powered by <a href="https://www.quinini.online" target="_blank" rel="noopener">MatAIs</a>';
+    powered.innerHTML = 'Powered by <a href="https://www.quinini.online" target="_blank" rel="noopener">BotIvA</a>';
     chat.appendChild(powered);
 
     root.appendChild(chat);

@@ -24,7 +24,7 @@ export default function CookiesPage() {
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-foreground">2. ¿Cómo utilizamos las Cookies?</h2>
               <p className="leading-relaxed">
-                En MatIAs, utilizamos cookies para:
+                En BotIvA, utilizamos cookies para:
               </p>
               <ul className="list-disc pl-6 space-y-3">
                 <li><strong>Autenticación:</strong> Mantener su sesión iniciada y proteger su cuenta.</li>
@@ -46,7 +46,7 @@ export default function CookiesPage() {
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-foreground">4. ¿Cómo controlar las Cookies?</h2>
               <p className="leading-relaxed">
-                Usted puede controlar o eliminar las cookies a través de la configuración de su navegador. Tenga en cuenta que si desactiva las cookies esenciales, algunas funciones de MatIAs podrían no estar disponibles o no funcionar correctamente.
+                Usted puede controlar o eliminar las cookies a través de la configuración de su navegador. Tenga en cuenta que si desactiva las cookies esenciales, algunas funciones de BotIvA podrían no estar disponibles o no funcionar correctamente.
               </p>
               <p className="leading-relaxed">
                 Para obtener más información sobre cómo gestionar las cookies en su navegador específico, consulte los menús de ayuda de Chrome, Firefox, Safari o Edge.

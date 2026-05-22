@@ -1,7 +1,7 @@
 /**
  * Webhooks salientes estándar para que un cliente SaaS enganche su backend.
  * Eventos: conversation.closed | conversation.handoff | quota.reached
- * Firma: HMAC-SHA256 hex en cabecera X-Matias-Signature (prefijo sha256=)
+ * Firma: HMAC-SHA256 hex en cabecera X-BotIvA-Signature (prefijo sha256=)
  */
 
 import crypto from 'crypto';
@@ -27,7 +27,7 @@ export type SaasWebhookEventType =
 export type SaasWebhookPayload<T = unknown> = {
   event: SaasWebhookEventType;
   timestamp: string;
-  /** Identificador interno del usuario MatIAs / landing */
+  /** Identificador interno del usuario BotIvA / landing */
   userId: string;
   data: T;
 };
@@ -52,9 +52,9 @@ async function deliver(url: string, secret: string, body: string): Promise<void>
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Matias-Signature': sig,
-          'X-Matias-Event': (JSON.parse(body) as SaasWebhookPayload).event,
-          'User-Agent': 'MatIAs-Landing-Webhooks/1.0',
+          'X-BotIvA-Signature': sig,
+          'X-BotIvA-Event': (JSON.parse(body) as SaasWebhookPayload).event,
+          'User-Agent': 'BotIvA-Landing-Webhooks/1.0',
         },
         body,
         signal: AbortSignal.timeout(12_000),

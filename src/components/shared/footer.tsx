@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { SITE_COMPANY_LINKS, SITE_LEGAL_LINKS, SITE_PRODUCT_LINKS } from '@/lib/site-nav';
+import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 
 export function Footer() {
   return (
@@ -9,19 +10,19 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2.5 mb-4">
-              <Image src="/t1.png" alt="MatIAs" width={32} height={32} className="rounded-lg object-cover" style={{ aspectRatio: '1/1' }} />
-              <span className="font-bold">MatIAs</span>
+              <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={100} height={30} className="h-8 w-auto object-contain rounded-lg" />
+              <span className="font-bold">{BRAND_NAME}</span>
             </div>
             <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
               Agentes de IA como servicio.<br />
               API REST full, integración en minutos.
             </p>
             <a
-              href="mailto:privacidad@matias.app"
+              href="mailto:privacidad@BotIvA.app"
               className="inline-block mt-4 text-sm font-medium hover:underline"
               style={{ color: 'var(--foreground)' }}
             >
-              privacidad@matias.app
+              privacidad@BotIvA.app
             </a>
           </div>
 
@@ -55,7 +56,7 @@ export function Footer() {
         </div>
 
         <div className="mt-12 pt-8 text-center text-xs" style={{ borderTop: '1px solid var(--border)', color: 'var(--muted-foreground)' }}>
-          &copy; {new Date().getFullYear()} MatIAs. Powered by quinini.
+          &copy; {new Date().getFullYear()} BotIvA. Powered by quinini.
         </div>
       </div>
     </footer>

@@ -7,6 +7,7 @@ import { Menu, X } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useTranslations } from 'next-intl';
 import { LanguageSwitcher } from './language-switcher';
+import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 
 export function LandingNavbar() {
   const [open, setOpen] = useState(false);
@@ -17,9 +18,9 @@ export function LandingNavbar() {
     <nav className="fixed top-0 left-0 right-0 z-50 glass border-b" style={{ borderColor: 'var(--border)' }}>
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5">
-          <Image src="/t1.png" alt="MatIAs" width={36} height={36} className="rounded-xl object-cover" style={{ aspectRatio: '1/1' }} />
+          <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={120} height={36} className="h-9 w-auto object-contain rounded-xl" priority />
           <span className="text-lg font-bold" style={{ color: 'var(--foreground)' }}>
-            MatIAs
+            {BRAND_NAME}
           </span>
         </Link>
 

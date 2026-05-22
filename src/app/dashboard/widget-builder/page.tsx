@@ -236,7 +236,7 @@ const DEFAULT: WidgetConfig = {
   name: 'Mi Widget',
   agentId: '',
   color: BRAND_R,
-  title: 'MatIAsAssistant',
+  title: 'BotIvA Assistant',
   subtitle: 'Siempre aquí para ayudarte',
   welcome: '¡Hola! ¿En qué puedo ayudarte?',
   fabHint: '¿Necesitas ayuda?',
@@ -335,7 +335,7 @@ function MockPreview({ cfg, shortcuts = [] }: { cfg: WidgetConfig; shortcuts?: W
                 />
               ) : null}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontWeight: 700, fontSize: 11, margin: 0 }}>{cfg.title || 'MatIAs'}</p>
+                <p style={{ fontWeight: 700, fontSize: 11, margin: 0 }}>{cfg.title || 'BotIvA'}</p>
                 <p style={{ fontSize: 9, opacity: 0.85, margin: 0 }}>{cfg.subtitle || ''}</p>
               </div>
               <button onClick={() => setChatOpen(false)} style={{ marginLeft: 'auto', flexShrink: 0, background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>✕</button>
@@ -1435,7 +1435,7 @@ export default function WidgetBuilderPage() {
         <div data-tour="widget-builder-chat-texts">
         <div style={fieldStyle}>
           <label style={labelStyle}>Título</label>
-          <input style={inputStyle} value={cfg.title} onChange={(e) => update({ title: e.target.value })} placeholder="MatIAsAssistant" />
+          <input style={inputStyle} value={cfg.title} onChange={(e) => update({ title: e.target.value })} placeholder="BotIvA Assistant" />
         </div>
         <div style={fieldStyle}>
           <label style={labelStyle}>Subtítulo</label>
