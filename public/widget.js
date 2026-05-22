@@ -68,6 +68,9 @@
     return ORB_HTML;
   }
 
+  var AFHUB_FONT_STACK =
+    '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans","Liberation Sans",sans-serif';
+
   var DEFAULTS = {
     agentId: '',
     /** Opcional: _id Mongo del widget (misma BD que Mis widgets); mejora la validación en la landing. */
@@ -377,6 +380,89 @@
     return isFinite(n) ? n : null;
   }
 
+  function chatPanelMaxWidth(vw) {
+    return Math.min(380, Math.max(260, vw - 40));
+  }
+
+  /** Posición vertical/horizontal del root en modo custom (arrastre del FAB). */
+  function applyCustomRootPosition(root, cfg) {
+    var ot = cfg.offsetTop;
+    var ob = cfg.offsetBottom;
+    var ol = cfg.offsetLeft;
+    var or = cfg.offsetRight;
+    var hasTop = ot != null && isFinite(ot);
+    var hasBottom = ob != null && isFinite(ob);
+    var hasL = ol != null && isFinite(ol);
+    var hasR = or != null && isFinite(or);
+
+    if (hasTop) {
+      root.style.top = ot + 'px';
+      root.setAttribute('data-afhub-v', 'top');
+    } else if (hasBottom) {
+      root.style.bottom = ob + 'px';
+      root.setAttribute('data-afhub-v', 'bottom');
+    } else {
+      root.style.bottom = '20px';
+      root.setAttribute('data-afhub-v', 'bottom');
+    }
+
+    if (hasR && !hasL) {
+      root.style.right = or + 'px';
+      root.style.left = '';
+    } else if (hasL) {
+      root.style.left = ol + 'px';
+      root.style.right = '';
+    } else if (hasR) {
+      root.style.right = or + 'px';
+      root.style.left = '';
+    } else {
+      root.style.right = '20px';
+      root.style.left = '';
+    }
+  }
+
+  /** Evita que el panel quede cortado al arrastrar el FAB cerca del borde derecho/izquierdo. */
+  function applyCustomChatAlign(root, chat, cfg) {
+    var pad = 8;
+    var vw = window.innerWidth || 320;
+    var nw = Math.max(40, root.offsetWidth || 72);
+    var chatW = chatPanelMaxWidth(vw);
+    var ol = cfg.offsetLeft;
+    var or = cfg.offsetRight;
+    var hasL = ol != null && isFinite(ol);
+    var hasR = or != null && isFinite(or);
+    var fabLeft;
+    var fabRight;
+
+    if (hasR && !hasL) {
+      fabRight = vw - or;
+      fabLeft = fabRight - nw;
+    } else if (hasL) {
+      fabLeft = ol;
+      fabRight = fabLeft + nw;
+    } else {
+      fabRight = vw - (hasR ? or : 20);
+      fabLeft = fabRight - nw;
+    }
+
+    var spaceRight = Math.max(0, vw - pad - fabLeft);
+    var spaceLeft = Math.max(0, fabRight - pad);
+    var openLeft = spaceLeft >= chatW || (spaceLeft > spaceRight && spaceLeft >= 260);
+
+    chat.style.width = '';
+    if (openLeft) {
+      chat.style.right = '0';
+      chat.style.left = 'auto';
+      root.setAttribute('data-afhub-h', 'right');
+      if (spaceLeft < chatW) chat.style.width = Math.max(260, spaceLeft) + 'px';
+    } else {
+      chat.style.left = '0';
+      chat.style.right = 'auto';
+      root.setAttribute('data-afhub-h', 'left');
+      if (spaceRight < chatW) chat.style.width = Math.max(260, spaceRight) + 'px';
+    }
+  }
+
   function applyWidgetGeometry(root, chat, cfg) {
     var pos = cfg.position;
     var inset = cfg.edgeInset;
@@ -398,38 +484,8 @@
     chat.style.marginBottom = '';
 
     if (pos === 'custom') {
-      var ot = cfg.offsetTop;
-      var ob = cfg.offsetBottom;
-      var ol = cfg.offsetLeft;
-      var or = cfg.offsetRight;
-      var hasTop = ot != null && isFinite(ot);
-      var hasBottom = ob != null && isFinite(ob);
-      if (hasTop) {
-        root.style.top = ot + 'px';
-        root.setAttribute('data-afhub-v', 'top');
-      } else if (hasBottom) {
-        root.style.bottom = ob + 'px';
-        root.setAttribute('data-afhub-v', 'bottom');
-      } else {
-        root.style.bottom = '20px';
-        root.setAttribute('data-afhub-v', 'bottom');
-      }
-      var hasL = ol != null && isFinite(ol);
-      var hasR = or != null && isFinite(or);
-      if (hasL) root.style.left = ol + 'px';
-      if (hasR) root.style.right = or + 'px';
-      if (!hasL && !hasR) root.style.right = '20px';
-
-      if (hasR && !hasL) {
-        chat.style.right = '0';
-        chat.style.left = 'auto';
-      } else if (hasL && !hasR) {
-        chat.style.left = '0';
-        chat.style.right = 'auto';
-      } else {
-        chat.style.right = '0';
-        chat.style.left = 'auto';
-      }
+      applyCustomRootPosition(root, cfg);
+      applyCustomChatAlign(root, chat, cfg);
     } else {
       var grid = POSITION_GRID[pos] || POSITION_GRID['bottom-right'];
       var tx = '';
@@ -466,10 +522,6 @@
 
       root.style.transform = [tx, ty].filter(Boolean).join(' ') || '';
       root.setAttribute('data-afhub-h', grid.h);
-    }
-
-    if (pos === 'custom') {
-      root.setAttribute('data-afhub-h', launcherAlign(cfg));
     }
 
     if (root.getAttribute('data-afhub-v') === 'top') {
@@ -533,7 +585,7 @@
       }
     }
     if (!html) html = '<p class="afhub-p">' + escapeHtml(s) + '</p>';
-    return html;
+    return '<div class="afhub-msg-text">' + html + '</div>';
   }
 
   /** Clave sessionStorage por widget — misma conversación mientras la pestaña siga abierta. */
@@ -762,7 +814,7 @@
     root.id = rootId;
     root.style.position = 'fixed';
     root.style.zIndex = String(2147483000 + INSTANCE_COUNT);
-    root.style.fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif';
+    root.style.fontFamily = AFHUB_FONT_STACK;
     root.setAttribute('data-afhub-theme', cfg.theme);
 
     var styleEl = document.createElement('style');
@@ -1168,10 +1220,16 @@
         if (!raw) return;
         var o = JSON.parse(raw);
         if (!o || typeof o !== 'object') return;
-        if (typeof o.l !== 'number' || !isFinite(o.l)) return;
+        if (typeof o.r === 'number' && isFinite(o.r)) {
+          cfg.offsetRight = Math.round(o.r);
+          cfg.offsetLeft = null;
+        } else if (typeof o.l === 'number' && isFinite(o.l)) {
+          cfg.offsetLeft = Math.round(o.l);
+          cfg.offsetRight = null;
+        } else {
+          return;
+        }
         cfg.position = 'custom';
-        cfg.offsetLeft = Math.round(o.l);
-        cfg.offsetRight = null;
         if (typeof o.b === 'number' && isFinite(o.b)) {
           cfg.offsetBottom = Math.round(o.b);
           cfg.offsetTop = null;
@@ -1193,6 +1251,7 @@
           fabDragStorageKey(),
           JSON.stringify({
             l: cfg.offsetLeft,
+            r: cfg.offsetRight,
             b: cfg.offsetBottom,
             t: cfg.offsetTop
           })
@@ -1232,18 +1291,28 @@
       var vh = window.innerHeight || 568;
       var left = clamp(Math.round(r.left), pad, Math.max(pad, vw - nw - pad));
       var top = clamp(Math.round(r.top), pad, Math.max(pad, vh - nh - pad));
-      root.style.left = left + 'px';
-      root.style.top = top + 'px';
-      root.style.right = '';
-      root.style.bottom = '';
+      var centerX = left + nw / 2;
+      cfg.position = 'custom';
       root.style.transform = '';
       root.style.width = '';
-      cfg.position = 'custom';
-      cfg.offsetLeft = left;
-      cfg.offsetRight = null;
+      if (centerX > vw * 0.5) {
+        cfg.offsetRight = Math.max(pad, Math.round(vw - left - nw));
+        cfg.offsetLeft = null;
+        root.style.right = cfg.offsetRight + 'px';
+        root.style.left = '';
+      } else {
+        cfg.offsetLeft = left;
+        cfg.offsetRight = null;
+        root.style.left = left + 'px';
+        root.style.right = '';
+      }
+      root.style.top = top + 'px';
+      root.style.bottom = '';
       if (top + nh / 2 > vh * 0.42) {
         cfg.offsetBottom = Math.max(pad, Math.round(vh - top - nh));
         cfg.offsetTop = null;
+        root.style.bottom = cfg.offsetBottom + 'px';
+        root.style.top = '';
       } else {
         cfg.offsetTop = Math.max(pad, top);
         cfg.offsetBottom = null;
@@ -1751,7 +1820,7 @@
             : cfg.multiAgentEnabled
               ? 'Analizando tu consulta…'
               : '';
-      showTyping(initialTyping || undefined);
+      showTyping(initialTyping || 'Generando respuesta…');
 
       var baseHost = cfg.host.replace(/\/$/, '');
       var endpoint = baseHost + '/api/widget/chat';
@@ -2663,8 +2732,17 @@
           '#' + rootId + ' .afhub-fallback-tag--debug { color:#fbbf24 !important; background:rgba(251,191,36,.1) !important; border-color:rgba(251,191,36,.3) !important; }'
         : '';
     return '' +
+      '#' + rootId + ',#' + rootId + ' *,#' + rootId + ' *::before,#' + rootId + ' *::after {' +
+        'font-family:' + AFHUB_FONT_STACK + ' !important;' +
+        '-webkit-font-smoothing:antialiased;' +
+        '-moz-osx-font-smoothing:grayscale;' +
+        'text-size-adjust:100%;' +
+        '-webkit-text-size-adjust:100%;' +
+      '}' +
       '#' + rootId + ' * { box-sizing:border-box; margin:0; padding:0; }' +
-      '#' + rootId + ' { -webkit-font-smoothing:antialiased; }' +
+      '#' + rootId + ' .afhub-msg,#' + rootId + ' .afhub-msg-rich .afhub-p,#' + rootId + ' .afhub-msg-text { font-weight:400; letter-spacing:.01em; color:inherit; }' +
+      '#' + rootId + ' .afhub-msg.user { font-weight:500; }' +
+      '#' + rootId + ' .afhub-msg-rich strong,#' + rootId + ' .afhub-header-info h3 { font-weight:600; }' +
       '#' + rootId + ' .afhub-launcher { display:flex; flex-direction:column; gap:12px; width:max-content; max-width:min(260px,calc(100vw - 40px)); }' +
       '#' + rootId + '[data-afhub-h="right"] .afhub-launcher { align-items:flex-end; }' +
       '#' + rootId + '[data-afhub-h="left"] .afhub-launcher { align-items:flex-start; }' +
@@ -2799,10 +2877,10 @@
       '#' + rootId + ' .afhub-shortcut-pill { display:flex; align-items:center; gap:10px; padding:11px 14px; border-radius:12px; border:1px solid ' + cfg.color + '28; background:' + cfg.color + '0a; color:var(--afhub-fg,#1e293b); font-size:13px; font-weight:500; cursor:pointer; font-family:inherit; transition:background .15s,border-color .15s; text-align:left; width:100%; box-sizing:border-box; }' +
       '#' + rootId + ' .afhub-shortcut-pill:hover { background:' + cfg.color + '18; border-color:' + cfg.color + '55; }' +
       '#' + rootId + ' .afhub-pill-icon { font-size:15px; flex-shrink:0; width:22px; text-align:center; }' +
-      '#' + rootId + ' .afhub-pill-text { flex:1; line-height:1.3; }' +
+      '#' + rootId + ' .afhub-pill-text { flex:1; line-height:1.35; white-space:normal; word-break:break-word; min-width:0; }' +
       '#' + rootId + ' .afhub-pill-arrow { font-size:18px; color:' + cfg.color + '; flex-shrink:0; font-weight:400; line-height:1; }' +
       '#' + rootId + ' .afhub-input-area { padding:12px 14px 14px; border-top:1px solid #e8eaed; display:flex; gap:8px; flex-shrink:0; background:#fff; }' +
-      '#' + rootId + ' .afhub-input { flex:1; border:1px solid #ddd; border-radius:22px; padding:10px 16px; font-size:14px; outline:none; resize:none; min-height:0; max-height:100px; line-height:1.45; font-family:inherit; }' +
+      '#' + rootId + ' .afhub-input { flex:1; border:1px solid #ddd; border-radius:22px; padding:10px 16px; font-size:14px; font-weight:400; outline:none; resize:none; min-height:0; max-height:100px; line-height:1.45; font-family:inherit !important; }' +
       '#' + rootId + ' .afhub-input:focus { border-color:' + cfg.color + '; box-shadow:0 0 0 3px rgba(0,0,0,.08); }' +
       '#' + rootId + ' .afhub-send { width:40px; height:40px; border-radius:50%; border:none; cursor:pointer; background:' + cfg.color + '; color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:opacity .15s; }' +
       '#' + rootId + ' .afhub-send:disabled { opacity:.4; cursor:default; }' +
