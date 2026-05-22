@@ -203,6 +203,8 @@ export async function POST(req: NextRequest) {
       if (widgetToken) headers['X-Widget-Token'] = widgetToken;
 
       try {
+        enqueue({ type: 'status', phase: 'start', message: 'Generando respuesta…' });
+
         if (multiAgentCtx) {
           if (multiAgentCtx.config.multiAgentEnabled) {
             enqueue({
@@ -372,6 +374,7 @@ export async function POST(req: NextRequest) {
           agentId: parsedAgentIdLocal || undefined,
           ...widgetMessageProbe(streamMsg),
         });
+        enqueue({ type: 'status', phase: 'hub', message: 'Consultando al asistente…' });
         // Call the regular (non-streaming) hub endpoint
         const res = await fetch(hubUrl, {
           method: 'POST',
