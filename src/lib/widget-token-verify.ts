@@ -20,6 +20,8 @@ function normalizeAgentField(v: unknown): string {
 }
 
 export type WidgetInfo = {
+  /** Mongo _id del widget (para transcript / handoff). */
+  id: string;
   agentId: unknown;
   userId: string;
   allowedOrigins: string[];
@@ -50,7 +52,7 @@ export async function findWidgetForWtToken(
   const cacheKey = `wt:${widgetId ?? t}`;
   try {
     const cached = await redis.get<WidgetInfo>(cacheKey);
-    if (cached) return cached;
+    if (cached?.id) return cached;
   } catch { /* redis no bloquea si falla */ }
 
   let result: WidgetInfo | null = null;
@@ -58,6 +60,7 @@ export async function findWidgetForWtToken(
   if (widgetId && mongoose.Types.ObjectId.isValid(widgetId)) {
     const w = await Widget.findById(widgetId)
       .select({
+        _id: 1,
         agentId: 1,
         userId: 1,
         afhubToken: 1,
@@ -70,6 +73,7 @@ export async function findWidgetForWtToken(
         pipelineConfig: 1,
       })
       .lean() as {
+        _id: unknown;
         agentId: unknown;
         userId: unknown;
         afhubToken?: unknown;
@@ -85,6 +89,7 @@ export async function findWidgetForWtToken(
       const stored = w.afhubToken != null ? String(w.afhubToken).trim() : '';
       if (stored && stored !== t) return null;
       result = {
+        id: String(w._id),
         agentId: w.agentId,
         userId: String(w.userId),
         allowedOrigins: Array.isArray(w.allowedOrigins) ? w.allowedOrigins : [],
@@ -103,6 +108,7 @@ export async function findWidgetForWtToken(
   if (!result) {
     const w = await Widget.findOne({ afhubToken: t })
       .select({
+        _id: 1,
         agentId: 1,
         userId: 1,
         allowedOrigins: 1,
@@ -114,6 +120,7 @@ export async function findWidgetForWtToken(
         pipelineConfig: 1,
       })
       .lean() as {
+        _id: unknown;
         agentId: unknown;
         userId: unknown;
         allowedOrigins?: string[];
@@ -126,6 +133,7 @@ export async function findWidgetForWtToken(
       } | null;
     if (w) {
       result = {
+        id: String(w._id),
         agentId: w.agentId,
         userId: String(w.userId),
         allowedOrigins: Array.isArray(w.allowedOrigins) ? w.allowedOrigins : [],

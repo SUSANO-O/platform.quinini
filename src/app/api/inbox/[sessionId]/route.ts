@@ -18,7 +18,12 @@ export async function GET(req: NextRequest, { params }: Params) {
   const { sessionId } = await params;
   await connectDB();
 
-  const session = await ConversationSession.findOne({ sessionId, userId, escalated: true }).lean();
+  const session = await ConversationSession.findOne({
+    sessionId,
+    userId,
+    escalated: true,
+    handoffAt: { $exists: true, $ne: null },
+  }).lean();
   if (!session) {
     return NextResponse.json({ error: 'Sesión no encontrada.' }, { status: 404 });
   }
@@ -32,6 +37,18 @@ export async function GET(req: NextRequest, { params }: Params) {
     .select({ role: 1, content: 1, createdAt: 1 })
     .limit(200)
     .lean();
+
+  const handoffMessage = typeof session.handoffMessage === 'string' ? session.handoffMessage.trim() : '';
+  const transcript =
+    messages.length > 0
+      ? messages
+      : handoffMessage
+        ? [{
+            role: 'user',
+            content: handoffMessage,
+            createdAt: session.handoffAt ?? session.startedAt,
+          }]
+        : [];
 
   const contact = session.handoffContact as { name?: string; email?: string; phone?: string } | null;
 
@@ -47,7 +64,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       handoffMessage: session.handoffMessage || '',
       contact: contact || {},
     },
-    messages: messages.map((m) => ({
+    messages: transcript.map((m) => ({
       role: m.role,
       content: m.content,
       createdAt: m.createdAt,
