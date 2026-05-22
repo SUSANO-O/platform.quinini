@@ -1,4 +1,4 @@
-import { planRank, type PlanId } from '@/lib/plan-catalog';
+import { planRank, PLAN_DISPLAY, type PlanId } from '@/lib/plan-catalog';
 
 /**
  * Plan mínimo por integración MCP (landing). Alineado con agent-plans / negocio.
@@ -24,15 +24,5 @@ export function isMcpIntegrationAllowedForPlan(integrationKey: string, userPlan:
 }
 
 export function planLabelForMin(min: PlanId): string {
-  const m: Record<PlanId, string> = {
-    free:       'Free',
-    solo:       'Solo',
-    basic:      'Basic',
-    plus:       'Plus',
-    starter:    'Starter',
-    growth:     'Growth',
-    business:   'Business',
-    enterprise: 'Enterprise',
-  };
-  return m[min] ?? min;
+  return PLAN_DISPLAY[min]?.label ?? min;
 }
