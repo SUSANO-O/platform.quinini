@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Sparkles,
   Inbox,
+  FileText,
 } from 'lucide-react';
 import { BRAND_LOGO_SRC, BRAND_NAME, BRAND_TEXT_COLOR } from '@/lib/brand';
 import { PwaInstallButton } from '@/components/shared/pwa-install-button';
@@ -61,6 +62,7 @@ export const NAV_GROUPS: { title: string; items: { href: string; label: string; 
   {
     title: 'Cuenta',
     items: [
+      { href: '/dashboard/facturas', label: 'Facturas', icon: FileText },
       { href: '/dashboard/compliance', label: 'Cumplimiento', icon: Shield },
       { href: '/dashboard/settings', label: 'Ajustes', icon: Settings },
     ],
@@ -75,6 +77,7 @@ export const SIDEBAR_TOUR_KEY_BY_HREF: Record<string, string> = {
   '/dashboard/widget-builder': 'sidebar-widget-builder',
   '/dashboard/widgets': 'sidebar-widgets',
   '/dashboard/compliance': 'sidebar-cumplimiento',
+  '/dashboard/facturas': 'sidebar-facturas',
   '/dashboard/settings': 'sidebar-ajustes',
 };
 

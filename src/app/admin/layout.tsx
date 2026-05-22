@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useAuthSplashLoading } from '@/hooks/use-auth-splash-loading';
 import { useEffect, useState } from 'react';
 import { AiLoadingScreen } from '@/components/ui/ai-loading-screen';
-import { LayoutDashboard, Users, LogOut, Shield, UserPlus, BarChart3, Wallet, Box, Network, Bot, Cpu, Menu, X, KeyRound, Activity } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Shield, UserPlus, BarChart3, Wallet, Box, Network, Bot, Cpu, Menu, X, KeyRound, Activity, FileText } from 'lucide-react';
 
 const NAV = [
   { href: '/admin', label: 'Resumen', icon: LayoutDashboard },
@@ -15,6 +15,7 @@ const NAV = [
   { href: '/admin/sub-agents', label: 'Sub-agentes', icon: Network },
   { href: '/admin/embeddings-3d', label: 'Embeddings 3D', icon: Box },
   { href: '/admin/finance', label: 'Finanzas clientes', icon: Wallet },
+  { href: '/admin/facturas', label: 'Facturas manuales', icon: FileText },
   { href: '/admin/users', label: 'Usuarios', icon: Users },
   { href: '/admin/registration-codes', label: 'Códigos acceso', icon: KeyRound },
   { href: '/admin/promote', label: 'Promover admin', icon: UserPlus },

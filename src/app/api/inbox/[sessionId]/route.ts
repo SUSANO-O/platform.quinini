@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { ConversationSession, WidgetMessage, Widget } from '@/lib/db/models';
+import { inboxSessionFilter } from '@/lib/inbox-handoff';
 import { verifySessionToken } from '@/lib/auth';
 
 type Params = { params: Promise<{ sessionId: string }> };
@@ -20,9 +21,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const session = await ConversationSession.findOne({
     sessionId,
-    userId,
-    escalated: true,
-    handoffAt: { $exists: true, $ne: null },
+    ...inboxSessionFilter(userId, 'all'),
   }).lean();
   if (!session) {
     return NextResponse.json({ error: 'Sesión no encontrada.' }, { status: 404 });

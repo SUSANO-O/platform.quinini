@@ -15,6 +15,7 @@ import { dispatchSaasWebhook } from '@/lib/saas-webhook-outbound';
 import { sendPushToUser } from '@/lib/push-notifications';
 import { createEscalationTicket } from '@/lib/escalation-tickets';
 import { notifySlackOnEscalation } from '@/lib/escalation-slack';
+import { upsertHandoffInboxSession } from '@/lib/inbox-handoff';
 import { getCorsHeaders, handlePreflight, withCors } from '@/lib/cors';
 
 export async function OPTIONS(req: NextRequest) {
@@ -63,7 +64,7 @@ export async function POST(
     return withCors(req, NextResponse.json({ error: 'Token de widget inválido.' }, { status: 403 }));
   }
 
-  const uid = widget.userId;
+  const uid = String(widget.userId).trim();
   const now = new Date();
   const contactInfo = {
     name: body.contactInfo?.name?.trim() || '',
@@ -71,30 +72,16 @@ export async function POST(
     phone: body.contactInfo?.phone?.trim() || '',
   };
 
-  if (body.sessionId) {
-    await ConversationSession.findOneAndUpdate(
-      { sessionId: body.sessionId, userId: uid },
-      {
-        $set: {
-          escalated: true,
-          inboxStatus: 'open',
-          handoffContact: contactInfo,
-          handoffMessage: body.userMessage?.trim() || '',
-          handoffAt: now,
-          widgetId: id,
-          agentId: body.agentId || '',
-        },
-        $setOnInsert: {
-          sessionId: body.sessionId,
-          userId: uid,
-          widgetId: id,
-          agentId: body.agentId || '',
-          startedAt: now,
-          messageCount: 0,
-        },
-      },
-      { upsert: true },
-    ).catch(() => {});
+  if (body.sessionId?.trim()) {
+    await upsertHandoffInboxSession({
+      sessionId: body.sessionId.trim(),
+      userId: uid,
+      widgetId: id,
+      agentId: body.agentId || '',
+      contactInfo,
+      userMessage: body.userMessage,
+      handoffAt: now,
+    });
 
     const handoffMsg = body.userMessage?.trim();
     if (handoffMsg) {

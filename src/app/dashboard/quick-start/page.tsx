@@ -6,6 +6,9 @@ import { Upload, FileText, Copy, Check, Sparkles, ExternalLink, Loader2 } from '
 import Link from 'next/link';
 import { BRAND_TEXT_COLOR, UI_SURFACE_SECONDARY } from '@/lib/brand';
 
+const MAX_PDF_MB = 4;
+const MAX_PDF_BYTES = MAX_PDF_MB * 1024 * 1024;
+
 type QuickStartResult = {
   agentId: string;
   widgetId: string;
@@ -32,6 +35,11 @@ export default function QuickStartPage() {
       toast.error('Solo se aceptan archivos PDF.');
       return;
     }
+    const tooLarge = pdfs.find((f) => f.size > MAX_PDF_BYTES);
+    if (tooLarge) {
+      toast.error(`${tooLarge.name} supera ${MAX_PDF_MB} MB. Comprime el PDF o divide el contenido.`);
+      return;
+    }
     setFiles(pdfs.slice(0, 3));
     setResult(null);
   }, []);
@@ -39,20 +47,62 @@ export default function QuickStartPage() {
   async function handleSubmit() {
     if (!files.length || loading) return;
     setLoading(true);
+    const ingestWarnings: string[] = [];
     try {
-      const form = new FormData();
-      files.forEach((f) => form.append('files', f));
-      const res = await fetch('/api/quick-start', { method: 'POST', body: form });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(typeof data.error === 'string' ? data.error : 'Error al crear el widget.');
+      const initRes = await fetch('/api/quick-start/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          files: files.map((f) => ({ name: f.name, size: f.size })),
+        }),
+      });
+      const initData = await initRes.json();
+      if (!initRes.ok) {
+        toast.error(typeof initData.error === 'string' ? initData.error : 'Error al iniciar Quick Start.');
         return;
       }
-      setResult(data as QuickStartResult);
-      toast.success('¡Widget listo! Copia el snippet e instálalo en tu web.');
-      if (Array.isArray(data.ingestWarnings) && data.ingestWarnings.length) {
-        data.ingestWarnings.forEach((w: string) => toast.message(w));
+
+      const agentId = initData.agentId as string;
+      for (const file of files) {
+        const form = new FormData();
+        form.append('file', file);
+        const uploadRes = await fetch(`/api/agents/${agentId}/rag-upload?deferSync=1`, {
+          method: 'POST',
+          body: form,
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok) {
+          toast.error(`${file.name}: ${typeof uploadData.error === 'string' ? uploadData.error : 'Error al subir el PDF.'}`);
+          return;
+        }
+        if (typeof uploadData.message === 'string' && uploadData.message.includes('aviso')) {
+          ingestWarnings.push(uploadData.message);
+        }
       }
+
+      const finalizeRes = await fetch('/api/quick-start/finalize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId }),
+      });
+      const data = await finalizeRes.json();
+      if (!finalizeRes.ok) {
+        toast.error(typeof data.error === 'string' ? data.error : 'Error al finalizar Quick Start.');
+        return;
+      }
+
+      setResult({
+        agentId,
+        widgetId: data.widgetId,
+        afhubToken: data.afhubToken,
+        agentName: initData.agentName,
+        widgetName: data.widgetName,
+        snippet: data.snippet,
+        filesIngested: data.filesIngested,
+        ingestWarnings,
+      });
+      toast.success('¡Widget listo! Copia el snippet e instálalo en tu web.');
+      ingestWarnings.forEach((w) => toast.message(w));
     } catch {
       toast.error('Error de red. Intenta de nuevo.');
     } finally {
@@ -118,7 +168,7 @@ export default function QuickStartPage() {
               Arrastra 1–3 PDFs o haz clic para seleccionar
             </p>
             <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0 }}>
-              Máx. 10 MB por archivo · Solo PDF
+              Máx. {MAX_PDF_MB} MB por PDF · Hasta 3 archivos · Solo PDF
             </p>
           </div>
 

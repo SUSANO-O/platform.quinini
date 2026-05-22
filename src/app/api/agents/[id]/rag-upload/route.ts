@@ -8,7 +8,7 @@ import { connectDB } from '@/lib/db/connection';
 import { ClientAgent, Subscription } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
 import { getAgentLimits } from '@/lib/agent-plans';
-import { ingestRagFileToAgent } from '@/lib/rag-file-ingest';
+import { ingestRagFileToAgent, RAG_MAX_FILE_SIZE } from '@/lib/rag-file-ingest';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -20,6 +20,17 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!userId) return NextResponse.json({ error: 'Sesión inválida.' }, { status: 401 });
 
   const { id } = await params;
+
+  const contentLength = Number(req.headers.get('content-length') ?? 0);
+  const uploadLimit = req.nextUrl.searchParams.get('deferSync') === '1'
+    ? 4 * 1024 * 1024
+    : RAG_MAX_FILE_SIZE;
+  if (contentLength > uploadLimit) {
+    return NextResponse.json(
+      { error: `El archivo supera el límite de ${uploadLimit / 1024 / 1024} MB del servidor.` },
+      { status: 413 },
+    );
+  }
 
   await connectDB();
 
@@ -62,6 +73,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       size: file.size,
     },
     limits,
+    { syncHub: req.nextUrl.searchParams.get('deferSync') !== '1' },
   );
 
   if (!result.ok) {
