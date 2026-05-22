@@ -408,7 +408,7 @@ function MockPreview({ cfg, shortcuts = [] }: { cfg: WidgetConfig; shortcuts?: W
                     <div
                       key={sc.id}
                       style={{
-                        display: 'flex', alignItems: 'center', gap: 5,
+                        display: 'flex', alignItems: 'flex-start', gap: 5,
                         padding: '5px 8px', borderRadius: 7,
                         border: `1px solid ${cfg.color}28`,
                         background: `${cfg.color}0a`,
@@ -417,7 +417,9 @@ function MockPreview({ cfg, shortcuts = [] }: { cfg: WidgetConfig; shortcuts?: W
                       }}
                     >
                       <span style={{ fontSize: 9, flexShrink: 0, width: 14, textAlign: 'center' }}>{sc.emoji || '💬'}</span>
-                      <span style={{ flex: 1, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sc.label}</span>
+                      <span style={{ flex: 1, lineHeight: 1.35, whiteSpace: 'normal', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                        {sc.message || sc.label}
+                      </span>
                       <span style={{ fontSize: 11, color: cfg.color, flexShrink: 0 }}>›</span>
                     </div>
                   ))}
@@ -883,10 +885,10 @@ export default function WidgetBuilderPage() {
 
       const suggested: WidgetShortcut[] = [
         ...(json.data.faqs ?? []).slice(0, 3).map((f) => ({
-          id: crypto.randomUUID(), label: f.question.slice(0, 35), message: f.question, emoji: '❓', enabled: true,
+          id: crypto.randomUUID(), label: f.question, message: f.question, emoji: '❓', enabled: true,
         })),
         ...(json.data.rules ?? []).slice(0, 2).map((r) => ({
-          id: crypto.randomUUID(), label: r.title.slice(0, 35), message: r.description.slice(0, 150), emoji: '⚡', enabled: true,
+          id: crypto.randomUUID(), label: r.title, message: r.description, emoji: '⚡', enabled: true,
         })),
       ];
       setShortcuts((prev) => {
