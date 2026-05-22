@@ -68,6 +68,15 @@
     return ORB_HTML;
   }
 
+  function hasFabAvatar(cfg) {
+    return Boolean(cfg.avatar && String(cfg.avatar).trim());
+  }
+
+  function syncFabAvatarMode(fab, cfg) {
+    if (hasFabAvatar(cfg)) fab.classList.add('afhub-fab--avatar');
+    else fab.classList.remove('afhub-fab--avatar');
+  }
+
   var AFHUB_FONT_STACK =
     '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans","Liberation Sans",sans-serif';
 
@@ -585,7 +594,19 @@
       }
     }
     if (!html) html = '<p class="afhub-p">' + escapeHtml(s) + '</p>';
-    return '<div class="afhub-msg-text">' + html + '</div>';
+    return html;
+  }
+
+  function formatBotHtmlWrapped(raw) {
+    return '<div class="afhub-msg-text">' + formatBotHtml(raw) + '</div>';
+  }
+
+  /** Texto visible del acceso rápido: mensaje completo (la etiqueta suele estar truncada en BD). */
+  function shortcutDisplayText(sc) {
+    var msg = String(sc && sc.message != null ? sc.message : '').trim();
+    var lbl = String(sc && sc.label != null ? sc.label : '').trim();
+    if (msg) return msg;
+    return lbl;
   }
 
   /** Clave sessionStorage por widget — misma conversación mientras la pestaña siga abierta. */
@@ -840,6 +861,7 @@
     var fab = document.createElement('button');
     fab.className = 'afhub-fab';
     fab.innerHTML = orbHtmlForCfg(cfg);
+    syncFabAvatarMode(fab, cfg);
     fab.setAttribute('aria-label', 'Abrir chat');
     launcher.appendChild(fab);
     root.appendChild(launcher);
@@ -1018,19 +1040,31 @@
         var pill = document.createElement('button');
         pill.className = 'afhub-shortcut-pill';
         pill.type = 'button';
-        pill.innerHTML =
-          '<span class="afhub-pill-icon">' + (sc.emoji || '💬') + '</span>' +
-          '<span class="afhub-pill-text">' + (sc.label || sc.message || '') + '</span>' +
-          '<span class="afhub-pill-arrow">›</span>';
+        var iconSpan = document.createElement('span');
+        iconSpan.className = 'afhub-pill-icon';
+        iconSpan.textContent = sc.emoji || '💬';
+        var textSpan = document.createElement('span');
+        textSpan.className = 'afhub-pill-text';
+        var scText = shortcutDisplayText(sc);
+        textSpan.textContent = scText;
+        textSpan.title = scText;
+        var arrowSpan = document.createElement('span');
+        arrowSpan.className = 'afhub-pill-arrow';
+        arrowSpan.textContent = '›';
+        pill.appendChild(iconSpan);
+        pill.appendChild(textSpan);
+        pill.appendChild(arrowSpan);
         pill.addEventListener('click', function() {
-          input.value = sc.message;
+          input.value = sc.message || sc.label || '';
           input.dispatchEvent(new Event('input'));
           send();
         });
         shortcutsBar.appendChild(pill);
       });
 
-      var scOpen = true;
+      var scOpen = false;
+      shortcutsBar.style.display = 'none';
+      shortcutsToggle.querySelector('.afhub-shortcuts-toggle-chevron').style.transform = 'rotate(90deg)';
       shortcutsToggle.addEventListener('click', function() {
         scOpen = !scOpen;
         shortcutsBar.style.display = scOpen ? 'flex' : 'none';
@@ -1516,7 +1550,7 @@
             ? '<div class="afhub-cooldown-pill" role="status">Agente en espera</div>'
             : '';
         var quotaPrefix = imgOpts && imgOpts.quotaHtml ? imgOpts.quotaHtml : '';
-        el.innerHTML = cooldownPrefix + quotaPrefix + formatBotHtml(displayBotText);
+        el.innerHTML = cooldownPrefix + quotaPrefix + formatBotHtmlWrapped(displayBotText);
         if (imgOpts && imgOpts.images && imgOpts.images.length) {
           for (var j = 0; j < imgOpts.images.length; j++) {
             var item = imgOpts.images[j];
@@ -1692,6 +1726,7 @@
       root.classList.add('afhub-open');
       chat.classList.add('visible');
       fab.classList.add('open');
+      fab.classList.remove('afhub-fab--avatar');
       fab.innerHTML = ICON_X;
       fab.setAttribute('aria-label', 'Cerrar chat');
       syncChatPanelLayout();
@@ -1711,6 +1746,7 @@
       chat.classList.remove('visible');
       fab.classList.remove('open');
       fab.innerHTML = orbHtmlForCfg(cfg);
+      syncFabAvatarMode(fab, cfg);
       fab.setAttribute('aria-label', 'Abrir chat');
       notify('onClose');
       emitEvent('widget_closed');
@@ -1895,7 +1931,7 @@
                   streamBubble = addMessage('bot', streamShown, { streaming: true });
                 } else {
                   var textEl = streamBubble.querySelector('.afhub-msg-text');
-                  if (textEl) textEl.textContent = streamShown;
+                  if (textEl) textEl.innerHTML = formatBotHtml(streamShown);
                   var msgs = root.querySelector('.afhub-messages');
                   if (msgs) msgs.scrollTop = msgs.scrollHeight;
                 }
@@ -1918,7 +1954,7 @@
                 }
                 if (streamBubble) {
                   var te2 = streamBubble.querySelector('.afhub-msg-text');
-                  if (te2) te2.textContent = finalReply;
+                  if (te2) te2.innerHTML = formatBotHtml(finalReply);
                   streamBubble.classList.remove('afhub-msg--streaming');
                   appendMultiAgentBadge(streamBubble, evt.multiAgent);
                   if (cfg.showMcpUi) {
@@ -2786,6 +2822,12 @@
       '#' + rootId + ' .afhub-orb-wave-b { animation-delay:1.2s; border-width:1px; border-color:rgba(255,255,255,.28); }' +
       '#' + rootId + ' .afhub-orb--avatar { width:36px; height:36px; display:flex; align-items:center; justify-content:center; }' +
       '#' + rootId + ' .afhub-orb-avatar-img { width:36px; height:36px; border-radius:50%; object-fit:cover; position:relative; z-index:2; box-shadow:0 0 0 2px rgba(255,255,255,.38), inset 0 1px 2px rgba(0,0,0,.12); }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar { background:transparent; background-blend-mode:normal; filter:none; padding:0; box-shadow:0 6px 24px rgba(0,0,0,.22),0 0 0 2px rgba(255,255,255,.72); }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar::before,#' + rootId + ' .afhub-fab.afhub-fab--avatar::after { display:none; }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-fab-inner { width:100%; height:100%; }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-orb--avatar { width:100%; height:100%; }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-orb-avatar-img { width:100%; height:100%; border-radius:50%; object-fit:cover; box-shadow:none; display:block; }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar:hover { box-shadow:0 8px 28px rgba(0,0,0,.28),0 0 0 2px rgba(255,255,255,.85); }' +
       '@media (prefers-reduced-motion:reduce){ #' + rootId + ' .afhub-orb-wave { animation:none; opacity:.35; transform:scale(1.15); } }' +
       '#' + rootId + ' .afhub-chat { position:absolute; width:380px; max-width:calc(100vw - 40px); height:520px; max-height:calc(100vh - 120px); background:#fff; border-radius:' + cfg.borderRadius + 'px; box-shadow:0 12px 48px rgba(0,0,0,.16),0 0 0 1px rgba(0,0,0,.04); display:flex; flex-direction:column; overflow:hidden; transform:scale(.88) translateY(16px); opacity:0; pointer-events:none; transition:transform .28s cubic-bezier(.34,1.2,.64,1),opacity .28s; }' +
       '#' + rootId + ' .afhub-chat.visible { transform:scale(1) translateY(0); opacity:1; pointer-events:auto; }' +
@@ -2815,7 +2857,7 @@
       '#' + rootId + ' .afhub-speaker-btn--active { background:rgba(255,255,255,.35) !important; opacity:1 !important; box-shadow:0 0 0 2px rgba(255,255,255,.55); }' +
       '#' + rootId + ' .afhub-close-btn { flex-shrink:0; margin-left:0; background:rgba(255,255,255,.14); border:none; color:#fff; cursor:pointer; padding:6px; border-radius:8px; opacity:.92; display:inline-flex; align-items:center; justify-content:center; line-height:0; }' +
       '#' + rootId + ' .afhub-close-btn:hover { opacity:1; background:rgba(255,255,255,.26); }' +
-      '#' + rootId + ' .afhub-messages { flex:1; overflow-y:auto; padding:18px 16px; display:flex; flex-direction:column; gap:12px; scroll-behavior:smooth; background:linear-gradient(180deg,#fafbfc 0%,#f4f6f8 100%); font-size:14px; line-height:1.55; }' +
+      '#' + rootId + ' .afhub-messages { flex:1 1 0; min-height:0; overflow-y:auto; padding:18px 16px; display:flex; flex-direction:column; gap:12px; scroll-behavior:smooth; background:linear-gradient(180deg,#fafbfc 0%,#f4f6f8 100%); font-size:14px; line-height:1.55; scrollbar-width:thin; }' +
       '#' + rootId + ' .afhub-msg { max-width:88%; padding:11px 15px; border-radius:16px; font-size:14px; line-height:1.55; word-wrap:break-word; }' +
       '#' + rootId + ' .afhub-msg.user { white-space:pre-wrap; background:' + cfg.color + '; color:#fff; align-self:flex-end; border-bottom-right-radius:5px; box-shadow:0 2px 10px rgba(0,0,0,.14); }' +
       '#' + rootId + ' .afhub-msg-rich { white-space:normal; }' +
@@ -2868,16 +2910,16 @@
       '#' + rootId + ' .afhub-persona-tag { display:inline-flex; align-items:center; justify-content:center; padding:4px 11px; border-radius:999px; font-size:11px; font-weight:700; letter-spacing:.03em; text-decoration:none; border:1px solid rgba(0,0,0,.1); background:rgba(0,0,0,.03); color:' + cfg.color + '; cursor:pointer; font-family:inherit; transition:background .15s; }' +
       '#' + rootId + ' .afhub-persona-tag:hover { background:rgba(0,0,0,.07); }' +
       '#' + rootId + ' .afhub-shortcuts-wrap { flex-shrink:0; border-top:1px solid #e8eaed; }' +
-      '#' + rootId + ' .afhub-shortcuts-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; padding:7px 14px; background:transparent; border:none; cursor:pointer; font-family:inherit; }' +
+      '#' + rootId + ' .afhub-shortcuts-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; padding:7px 14px; background:transparent; border:none; cursor:pointer; font-family:inherit; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-shortcuts-toggle:hover { background:' + cfg.color + '0a; }' +
       '#' + rootId + ' .afhub-shortcuts-toggle-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:' + cfg.color + '; }' +
       '#' + rootId + ' .afhub-shortcuts-toggle-chevron { font-size:18px; color:' + cfg.color + '; transition:transform .2s; line-height:1; }' +
-      '#' + rootId + ' .afhub-shortcuts { display:flex; flex-direction:column; gap:6px; padding:0 10px 8px; flex-shrink:0; max-height:200px; overflow-y:auto; scrollbar-width:none; }' +
+      '#' + rootId + ' .afhub-shortcuts { display:flex; flex-direction:column; gap:6px; padding:0 10px 8px; flex-shrink:0; max-height:112px; overflow-y:auto; scrollbar-width:none; }' +
       '#' + rootId + ' .afhub-shortcuts::-webkit-scrollbar { display:none; }' +
-      '#' + rootId + ' .afhub-shortcut-pill { display:flex; align-items:center; gap:10px; padding:11px 14px; border-radius:12px; border:1px solid ' + cfg.color + '28; background:' + cfg.color + '0a; color:var(--afhub-fg,#1e293b); font-size:13px; font-weight:500; cursor:pointer; font-family:inherit; transition:background .15s,border-color .15s; text-align:left; width:100%; box-sizing:border-box; }' +
+      '#' + rootId + ' .afhub-shortcut-pill { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:12px; border:1px solid ' + cfg.color + '28; background:' + cfg.color + '0a; color:var(--afhub-fg,#1e293b); font-size:13px; font-weight:500; cursor:pointer; font-family:inherit; transition:background .15s,border-color .15s; text-align:left; width:100%; box-sizing:border-box; }' +
       '#' + rootId + ' .afhub-shortcut-pill:hover { background:' + cfg.color + '18; border-color:' + cfg.color + '55; }' +
       '#' + rootId + ' .afhub-pill-icon { font-size:15px; flex-shrink:0; width:22px; text-align:center; }' +
-      '#' + rootId + ' .afhub-pill-text { flex:1; line-height:1.35; white-space:normal; word-break:break-word; min-width:0; }' +
+      '#' + rootId + ' .afhub-pill-text { flex:1; line-height:1.4; white-space:normal; overflow-wrap:break-word; word-break:break-word; min-width:0; }' +
       '#' + rootId + ' .afhub-pill-arrow { font-size:18px; color:' + cfg.color + '; flex-shrink:0; font-weight:400; line-height:1; }' +
       '#' + rootId + ' .afhub-input-area { padding:12px 14px 14px; border-top:1px solid #e8eaed; display:flex; gap:8px; flex-shrink:0; background:#fff; }' +
       '#' + rootId + ' .afhub-input { flex:1; border:1px solid #ddd; border-radius:22px; padding:10px 16px; font-size:14px; font-weight:400; outline:none; resize:none; min-height:0; max-height:100px; line-height:1.45; font-family:inherit !important; }' +
