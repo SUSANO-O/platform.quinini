@@ -7,7 +7,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { useAuthSplashLoading } from '@/hooks/use-auth-splash-loading';
 import { SubscriptionProvider, useSubscription } from '@/hooks/use-subscription';
 import { AiLoadingScreen } from '@/components/ui/ai-loading-screen';
-import { DashboardSidebar, SIDEBAR_COLLAPSED_PX, SIDEBAR_EXPANDED_PX } from '@/components/dashboard/dashboard-sidebar';
+import { DashboardSidebar, SIDEBAR_COLLAPSED_PX } from '@/components/dashboard/dashboard-sidebar';
+import { DashboardMobileNav, MOBILE_NAV_HEIGHT_PX } from '@/components/dashboard/dashboard-mobile-nav';
 import { TourProvider, useTour } from '@/components/onboarding/app-tour';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 // import { initPaddleClient } from '@/lib/paddle-client'; // Paddle — comentado
@@ -16,8 +17,6 @@ import {
   ShieldAlert,
   Route,
   RotateCcw,
-  Menu,
-  X,
 } from 'lucide-react';
 
 import { PLAN_DISPLAY, type PaidPlanId } from '@/lib/plan-catalog';
@@ -315,7 +314,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -412,70 +410,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
         <div style={{ display: 'flex', flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
 
-        {/* Topbar móvil */}
+        {/* Topbar móvil — solo marca */}
         <header className="flex md:hidden" style={{
-          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
-          height: 52, alignItems: 'center', justifyContent: 'space-between',
-          padding: '0 14px', background: 'var(--card)', borderBottom: '1px solid var(--border)',
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 40,
+          height: 52, alignItems: 'center', justifyContent: 'center',
+          padding: '0 14px', background: 'var(--card)',
+          borderBottom: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-surface-sm)',
         }}>
-          <Link href="/" className="flex items-center gap-2 no-underline">
+          <Link href="/dashboard" className="flex items-center gap-2 no-underline">
             <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={100} height={30} className="h-8 w-auto object-contain rounded-xl shrink-0" />
             <span className="text-base font-bold text-black">{BRAND_NAME}</span>
           </Link>
-          <button
-            type="button"
-            onClick={() => setMobileOpen((v) => !v)}
-            aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 36, height: 36, borderRadius: 10, cursor: 'pointer',
-              border: '1px solid var(--border)',
-              background: mobileOpen ? 'rgba(var(--brand-primary-rgb),0.08)' : 'transparent',
-              color: mobileOpen ? 'var(--primary)' : 'var(--foreground)',
-            }}
-          >
-            {mobileOpen ? <X size={18} /> : <Menu size={18} />}
-          </button>
         </header>
-
-        {/* Overlay móvil */}
-        {mobileOpen && (
-          <div
-            className="md:hidden"
-            onClick={() => setMobileOpen(false)}
-            style={{ position: 'fixed', inset: 0, zIndex: 48, background: 'rgba(0,0,0,0.4)' }}
-          />
-        )}
-
-        {/* Sidebar drawer móvil */}
-        <div
-          className="md:hidden"
-          style={{
-            position: 'fixed',
-            top: 52,
-            left: 0,
-            bottom: 0,
-            zIndex: 49,
-            width: SIDEBAR_EXPANDED_PX,
-            transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
-            transition: 'transform 0.25s ease',
-          }}
-        >
-          <DashboardSidebar
-            variant="mobile"
-            pathname={pathname}
-            user={user}
-            onLogout={() => void handleLogout()}
-            onNavigate={() => setMobileOpen(false)}
-            footer={
-              <>
-                <SidebarExpiryBadge />
-                <JourneyProgress />
-                <TourActions />
-              </>
-            }
-          />
-        </div>
 
         <DashboardSidebar
           variant="desktop"
@@ -496,10 +443,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         />
 
         {/* Main content — única columna que crece con el documento; scroll vertical aquí */}
-        <main style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}
-          className="pt-[52px] md:pt-0">
+        <main
+          style={{
+            flex: 1,
+            minWidth: 0,
+            minHeight: 0,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            paddingTop: 52,
+            paddingBottom: `calc(${MOBILE_NAV_HEIGHT_PX}px + env(safe-area-inset-bottom, 0px))`,
+          }}
+          className="md:pt-0 md:pb-0"
+        >
           {children}
         </main>
+
+        <DashboardMobileNav
+          pathname={pathname}
+          user={user}
+          onLogout={() => void handleLogout()}
+          menuFooter={
+            <>
+              <SidebarExpiryBadge />
+              <JourneyProgress />
+              <TourActions />
+            </>
+          }
+        />
         </div>
       </div>
       </TourProvider>

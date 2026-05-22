@@ -38,7 +38,7 @@ function SoftDivider({ margin }: { margin?: string }) {
   );
 }
 
-const NAV_GROUPS: { title: string; items: { href: string; label: string; icon: LucideIcon }[] }[] = [
+export const NAV_GROUPS: { title: string; items: { href: string; label: string; icon: LucideIcon }[] }[] = [
   {
     title: 'Panel',
     items: [{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }],
@@ -69,7 +69,7 @@ export const SIDEBAR_TOUR_KEY_BY_HREF: Record<string, string> = {
   '/dashboard/settings': 'sidebar-ajustes',
 };
 
-type SidebarUser = {
+export type SidebarUser = {
   email: string;
   displayName?: string | null;
   avatarUrl?: string | null;
@@ -81,7 +81,7 @@ function userRoleLabel(role?: string) {
   return 'Usuario';
 }
 
-function isActive(pathname: string, href: string) {
+export function isActive(pathname: string, href: string) {
   return href === '/dashboard' ? pathname === href : pathname.startsWith(href);
 }
 
