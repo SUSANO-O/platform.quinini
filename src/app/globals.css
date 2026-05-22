@@ -957,6 +957,24 @@ svg.lucide.lucide-code-xml {
 /* ── Dashboard sidebar (estilo rail / panel expandido) ───────────────────── */
 .dashboard-sidebar {
   isolation: isolate;
+  display: flex;
+}
+
+/* Solo escritorio — en móvil la navegación va en la barra inferior */
+.dashboard-sidebar--desktop {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .dashboard-sidebar--desktop {
+    display: flex;
+  }
+
+  .dashboard-mobile-nav,
+  .dashboard-mobile-nav__backdrop,
+  .dashboard-mobile-nav__sheet {
+    display: none !important;
+  }
 }
 
 .dashboard-sidebar-toggle {
@@ -1015,18 +1033,25 @@ button.dashboard-sidebar-link:hover {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
-  padding: 4px 6px;
+  padding: 4px 4px;
   border: none;
   border-radius: 12px;
   background: transparent;
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
   transition: color 0.15s ease, background 0.15s ease;
+}
+
+.dashboard-mobile-nav__tab span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dashboard-mobile-nav__tab--active {
