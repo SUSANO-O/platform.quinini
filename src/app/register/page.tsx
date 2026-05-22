@@ -43,13 +43,13 @@ export default function RegisterPage() {
     <div className="landing-auth-wrap">
       <div className="hero-glow" style={{ background: 'var(--gradient-start)', top: '-200px', right: '10%' }} />
       <div className="hero-glow" style={{ background: 'var(--accent-warm)', top: '-80px', left: '5%' }} />
-      <div className="hero-glow" style={{ background: 'var(--brand-cool)', top: '35%', left: '50%' }} />
+      <div className="hero-glow" style={{ background: 'var(--brand-primary)', top: '35%', left: '50%' }} />
 
       <div className="relative w-full max-w-[440px]">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex flex-col items-center gap-3 no-underline">
             <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={180} height={54} className="h-14 w-auto object-contain rounded-xl shadow-md" priority />
-            <span className="text-2xl font-bold gradient-text">{BRAND_NAME}</span>
+            <span className="text-2xl font-bold text-black">{BRAND_NAME}</span>
           </Link>
           <p className="mt-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
             Prueba gratuita de 7 días — requiere código de invitación
@@ -59,8 +59,8 @@ export default function RegisterPage() {
         <div
           className="rounded-2xl px-4 py-3.5 mb-6 flex items-start gap-3 border"
           style={{
-            background: 'linear-gradient(135deg, rgba(228,20,20,0.08), rgba(248,118,0,0.08))',
-            borderColor: 'rgba(228,20,20,0.22)',
+            background: 'rgba(var(--brand-primary-rgb),0.08)',
+            borderColor: 'rgba(var(--brand-primary-rgb),0.22)',
           }}
         >
           <KeyRound className="shrink-0 mt-0.5" size={18} style={{ color: 'var(--primary)' }} />

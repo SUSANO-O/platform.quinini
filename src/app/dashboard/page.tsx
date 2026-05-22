@@ -473,7 +473,7 @@ export default function DashboardPage() {
                   </p>
                   <Link href="/dashboard/settings"
                     className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold text-white no-underline"
-                    style={{ background: `linear-gradient(135deg,${R},${O})`, boxShadow: `0 4px 14px ${R}30` }}>
+                    style={{ background: R, boxShadow: `0 4px 14px ${R}30` }}>
                     Ver planes <ArrowUpRight size={12} />
                   </Link>
                 </div>

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Wrench, Settings, AlertTriangle, BarChart2, CheckCircle, ArrowRight, Zap, Cpu, ClipboardList } from 'lucide-react';
 
 const Rd = '#bb1b14';
-const O = '#f87600';
+const O = 'var(--brand-warm)';
 
 export const metadata = {
   title: 'Maximo Industrial AI — Agente de Mantenimiento Industrial con IA',
@@ -71,7 +71,7 @@ export default function MaximoAgentPage() {
         </div>
       </section>
 
-      <section style={{ padding: '80px 24px', textAlign: 'center', background: `linear-gradient(135deg, ${Rd}, ${O})` }}>
+      <section style={{ padding: '80px 24px', textAlign: 'center', background: Rd }}>
         <h2 style={{ fontSize: 32, fontWeight: 800, color: '#fff', marginBottom: 16 }}>Optimiza tus operaciones industriales con IA</h2>
         <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 16, marginBottom: 32, maxWidth: 500, margin: '0 auto 32px' }}>Comienza con 7 días gratis. Sin tarjeta de crédito.</p>
         <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '16px 32px', borderRadius: 12, background: '#fff', color: Rd, fontWeight: 700, textDecoration: 'none', fontSize: 16 }}>

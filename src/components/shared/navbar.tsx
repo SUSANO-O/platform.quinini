@@ -19,7 +19,7 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5">
           <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={120} height={36} className="h-9 w-auto object-contain rounded-xl" priority />
-          <span className="text-lg font-bold" style={{ color: 'var(--foreground)' }}>
+          <span className="text-lg font-bold text-black">
             {BRAND_NAME}
           </span>
         </Link>
@@ -44,7 +44,7 @@ export function Navbar() {
               <Link
                 href="/dashboard"
                 className="text-sm font-semibold px-5 py-2.5 rounded-xl text-white transition-all hover:shadow-lg"
-              style={{ background: 'linear-gradient(135deg, #e41414, #f87600)' }}
+              style={{ background: 'var(--brand-primary)' }}
               >
                 Dashboard →
               </Link>
@@ -60,7 +60,7 @@ export function Navbar() {
                 <Link
                   href="/register"
                   className="text-sm font-semibold px-5 py-2.5 rounded-xl text-white transition-all hover:shadow-lg"
-                  style={{ background: 'linear-gradient(135deg, #e41414, #f87600)' }}
+                  style={{ background: 'var(--brand-primary)' }}
                 >
                   Empezar gratis
                 </Link>
@@ -100,7 +100,7 @@ export function Navbar() {
               <Link
                 href="/dashboard"
                 className="block text-center text-sm font-semibold px-5 py-2.5 rounded-xl text-white"
-                style={{ background: 'linear-gradient(135deg, #e41414, #f87600)' }}
+                style={{ background: 'var(--brand-primary)' }}
                 onClick={() => setOpen(false)}
               >
                 Dashboard →
@@ -113,7 +113,7 @@ export function Navbar() {
                 <Link
                   href="/register"
                   className="block text-center text-sm font-semibold px-5 py-2.5 rounded-xl text-white"
-                  style={{ background: 'linear-gradient(135deg, #e41414, #f87600)' }}
+                  style={{ background: 'var(--brand-primary)' }}
                   onClick={() => setOpen(false)}
                 >
                   Empezar gratis

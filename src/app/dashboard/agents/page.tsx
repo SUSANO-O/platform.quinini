@@ -19,8 +19,10 @@ import {
   Globe2,
 } from 'lucide-react';
 
-const R = '#e41414';
-const B = '#00acf8';
+import { UI_SURFACE_SECONDARY } from '@/lib/brand';
+import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
+
+const R = 'var(--primary)';
 
 interface ClientAgent {
   _id: string;
@@ -58,12 +60,12 @@ function AgentCard({
     <div
       className="card-hover rounded-2xl overflow-hidden border"
       style={{
-        borderColor: isDisabled ? 'var(--border)' : `rgba(228,20,20,0.18)`,
+        borderColor: isDisabled ? 'var(--border)' : `rgba(var(--brand-primary-rgb),0.18)`,
         background: 'var(--card)',
         opacity: isDisabled ? 0.72 : 1,
       }}
     >
-      <div style={{ height: 3, background: `linear-gradient(90deg, ${barColor}, ${B}99)` }} />
+      <div style={{ height: 3, background: barColor }} />
       <div className="flex flex-wrap items-center gap-4 p-4 md:p-5">
         <div
           className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
@@ -90,13 +92,13 @@ function AgentCard({
             {agent.isPlatform && (
               <span
                 className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                style={{ background: `${B}18`, color: B }}
+                style={UI_SURFACE_SECONDARY}
               >
                 Plataforma
               </span>
             )}
             {agent.syncStatus === 'synced' && (
-              <span className="text-[10px] font-semibold" style={{ color: B }}>
+              <span className="text-[10px] font-semibold" style={{ color: 'var(--muted-foreground)' }}>
                 ✓ Hub sync
               </span>
             )}
@@ -121,7 +123,7 @@ function AgentCard({
               </span>
             )}
             {agent.ragEnabled && ragN > 0 && (
-              <span className="flex items-center gap-1 text-[11px] font-semibold" style={{ color: B }}>
+              <span className="flex items-center gap-1 text-[11px] font-semibold" style={{ color: R }}>
                 <Zap size={10} /> RAG cargado · {ragN} fuente{ragN !== 1 ? 's' : ''}
               </span>
             )}
@@ -272,7 +274,7 @@ export default function AgentsPage() {
   return (
     <div className="relative overflow-hidden" style={{ minHeight: '100%' }}>
       <div className="hero-glow pointer-events-none" style={{ background: R, top: '-200px', right: '-60px' }} />
-      <div className="hero-glow pointer-events-none" style={{ background: B, top: '100px', left: '-120px' }} />
+      <div className="hero-glow pointer-events-none" style={{ background: R, top: '-200px', right: '-60px' }} />
 
       <div className="relative px-4 py-4 max-w-4xl mx-auto">
         {/* Cabecera */}
@@ -303,7 +305,7 @@ export default function AgentsPage() {
               title={`Límite alcanzado (${usedAgents}/${agentLimitLabel})`}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold no-underline transition-all shrink-0"
               style={{
-                background: 'rgba(228,20,20,0.1)',
+                background: 'rgba(var(--brand-primary-rgb),0.1)',
                 color: R,
                 border: `1px solid ${R}35`,
               }}
@@ -316,9 +318,9 @@ export default function AgentsPage() {
             data-tour="agents-new"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold no-underline transition-all shrink-0"
             style={{
-              background: `linear-gradient(135deg, ${R}, #f87600)`,
+              background: R,
               color: '#fff',
-              boxShadow: '0 4px 18px rgba(228,20,20,0.28)',
+              boxShadow: '0 4px 18px rgba(var(--brand-primary-rgb),0.28)',
             }}
           >
             <Plus size={16} strokeWidth={2.5} /> Nuevo agente
@@ -344,7 +346,7 @@ export default function AgentsPage() {
                   className="h-full rounded-full transition-all duration-500"
                   style={{
                     width: `${pct}%`,
-                    background: atLimit ? '#ef4444' : `linear-gradient(90deg, ${R}, ${B})`,
+                    background: atLimit ? '#ef4444' : R,
                   }}
                 />
               </div>
@@ -360,9 +362,9 @@ export default function AgentsPage() {
                 href="/dashboard"
                 className="text-xs font-bold px-3 py-1.5 rounded-full no-underline transition-opacity hover:opacity-90"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(228,20,20,0.12), rgba(0,172,248,0.1))',
+                  background: 'linear-gradient(135deg, rgba(var(--brand-primary-rgb),0.12), rgba(var(--brand-cool-rgb),0.1))',
                   color: 'var(--primary)',
-                  border: '1px solid rgba(228,20,20,0.22)',
+                  border: '1px solid rgba(var(--brand-primary-rgb),0.22)',
                 }}
               >
                 Actualizar plan →
@@ -397,9 +399,7 @@ export default function AgentsPage() {
         {/* Lista: ancla `agents-list` siempre en el DOM (también en carga) para que el onboarding reanude al llegar desde /dashboard */}
         <div data-tour="agents-list">
         {loading ? (
-          <div className="flex justify-center py-14 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-            Cargando agentes...
-          </div>
+          <AiLoadingInline label="Cargando agentes…" hint="Sincronizando tu catálogo de IA" style={{ padding: '56px 0' }} />
         ) : mineAgents.length === 0 && catalogPlatformAgents.length === 0 ? (
           <div
             className="card-texture rounded-2xl border border-dashed text-center py-14 px-6"
@@ -419,8 +419,8 @@ export default function AgentsPage() {
               href="/dashboard/agents/new"
               className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white no-underline transition-transform hover:scale-[1.02]"
               style={{
-                background: `linear-gradient(135deg, ${R}, #f87600)`,
-                boxShadow: '0 4px 18px rgba(228,20,20,0.28)',
+                background: R,
+                boxShadow: '0 4px 18px rgba(var(--brand-primary-rgb),0.28)',
               }}
             >
               <Plus size={16} /> Crear primer agente
@@ -460,7 +460,7 @@ export default function AgentsPage() {
             {catalogPlatformAgents.length > 0 && (
               <section>
                 <h2 className="text-base font-bold m-0 mb-1 tracking-tight flex items-center gap-2 flex-wrap">
-                  <Globe2 size={18} style={{ color: B }} />
+                  <Globe2 size={18} style={{ color: R }} />
                   Catálogo plataforma
                 </h2>
                 <p className="text-xs m-0 mb-4" style={{ color: 'var(--muted-foreground)' }}>

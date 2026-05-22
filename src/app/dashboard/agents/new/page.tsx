@@ -12,15 +12,14 @@ import { Bot, ChevronLeft, Loader2, KeyRound, Plug, Plus, X, Sparkles } from 'lu
 import { AIInputButton } from '@/components/ui/AIInputButton';
 import Link from 'next/link';
 
-const R = '#e41414';
-const O = '#f87600';
-const B = '#00acf8';
+const R = 'var(--primary)';
+const O = 'var(--brand-warm)';
 
 const BTN_PRIMARY: CSSProperties = {
-  background: `linear-gradient(135deg, ${R}, ${O})`,
+  background: R,
   color: '#fff',
   border: 'none',
-  boxShadow: '0 4px 18px rgba(228,20,20,0.28)',
+  boxShadow: '0 4px 18px rgba(var(--brand-primary-rgb),0.28)',
 };
 
 /** Oculto en UI por ahora; al poner `true` vuelve el bloque «agente de plataforma» (solo admins). */
@@ -34,7 +33,7 @@ function FormSection({
   bar?: 'rb' | 'bo';
 }) {
   const barBg =
-    bar === 'bo' ? `linear-gradient(90deg, ${B}, ${O})` : `linear-gradient(90deg, ${R}, ${B})`;
+    bar === 'bo' ? `linear-gradient(90deg, ${O}, ${R})` : `linear-gradient(90deg, ${R}, ${O})`;
   return (
     <div
       className="rounded-2xl overflow-hidden border mb-4 card-texture card-hover"
@@ -212,7 +211,6 @@ export default function NewAgentPage() {
   return (
     <div className="relative overflow-hidden" style={{ minHeight: '100%' }}>
       <div className="hero-glow pointer-events-none" style={{ background: R, top: '-200px', right: '-60px' }} />
-      <div className="hero-glow pointer-events-none" style={{ background: B, top: '120px', left: '-120px' }} />
 
       <div className="relative px-4 py-4 max-w-3xl mx-auto">
         {mcpInfoModal && (
@@ -594,7 +592,7 @@ export default function NewAgentPage() {
               const activeCatTabStyle = (id: string): React.CSSProperties => ({
                 padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, cursor: 'pointer',
                 border: `1px solid ${modelCatFilter === id ? R : 'var(--border)'}`,
-                background: modelCatFilter === id ? `rgba(228,20,20,0.08)` : 'var(--background)',
+                background: modelCatFilter === id ? `rgba(var(--brand-primary-rgb),0.08)` : 'var(--background)',
                 color: modelCatFilter === id ? R : 'var(--muted-foreground)',
               });
               const activeTierTabStyle = (id: string, color: string): React.CSSProperties => ({
@@ -635,7 +633,7 @@ export default function NewAgentPage() {
                         <button key={m.id} type="button" onClick={() => setModel(m.id)} style={{
                           padding: '10px 12px', borderRadius: 10, textAlign: 'left', cursor: 'pointer',
                           border: `1px solid ${isSelected ? R : 'var(--border)'}`,
-                          background: isSelected ? 'rgba(228,20,20,0.07)' : 'var(--background)',
+                          background: isSelected ? 'rgba(var(--brand-primary-rgb),0.07)' : 'var(--background)',
                           position: 'relative',
                         }}>
                           <span style={{
@@ -719,7 +717,7 @@ export default function NewAgentPage() {
                       display: 'flex', alignItems: 'center', gap: 5,
                       padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700,
                       border: `1px solid ${showFallbackPanel ? R : 'var(--border)'}`,
-                      background: showFallbackPanel ? `rgba(228,20,20,0.08)` : 'var(--background)',
+                      background: showFallbackPanel ? `rgba(var(--brand-primary-rgb),0.08)` : 'var(--background)',
                       color: showFallbackPanel ? R : 'var(--foreground)',
                       cursor: 'pointer',
                     }}
@@ -905,7 +903,7 @@ export default function NewAgentPage() {
 
           <FormSection bar="bo">
             <div className="flex items-center gap-2 mb-2.5">
-              <Plug size={16} style={{ color: B, flexShrink: 0 }} />
+              <Plug size={16} style={{ color: R, flexShrink: 0 }} />
               <h2 style={{ ...sectionTitle, marginBottom: 0 }}>Integraciones MCP (proximamente)</h2>
             </div>
             <div className="text-xs mb-3.5 leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>

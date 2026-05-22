@@ -124,7 +124,7 @@ export default function GeoeconomicsLandingPage() {
             <Link
               href="/dashboard"
               className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl text-white font-semibold text-sm transition-all hover:shadow-xl hover:scale-[1.02]"
-              style={{ background: 'linear-gradient(135deg, #0d9488, #1e40af)' }}
+              style={{ background: 'var(--brand-primary)' }}
             >
               <Zap size={16} /> Probar Gratis <ArrowRight size={16} />
             </Link>
@@ -307,7 +307,7 @@ export default function GeoeconomicsLandingPage() {
             <Link
               href="/dashboard"
               className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white font-semibold transition-all hover:shadow-xl hover:scale-[1.02]"
-              style={{ background: 'linear-gradient(135deg, #0d9488, #1e40af)' }}
+              style={{ background: 'var(--brand-primary)' }}
             >
               Obtener API Key <ArrowRight size={18} />
             </Link>

@@ -185,9 +185,9 @@ export function ComplianceView() {
                   onClick={() => scrollTo(s.id)}
                   className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
                   style={{
-                    background: activeId === s.id ? 'rgba(228,20,20,0.1)' : 'transparent',
+                    background: activeId === s.id ? 'rgba(var(--brand-primary-rgb),0.1)' : 'transparent',
                     color: activeId === s.id ? 'var(--primary)' : 'var(--muted-foreground)',
-                    border: activeId === s.id ? '1px solid rgba(228,20,20,0.25)' : '1px solid transparent',
+                    border: activeId === s.id ? '1px solid rgba(var(--brand-primary-rgb),0.25)' : '1px solid transparent',
                   }}
                 >
                   {s.number}. {s.title}
@@ -218,7 +218,7 @@ export function ComplianceView() {
                         className="w-full text-left px-2.5 py-2 rounded-lg text-xs leading-snug transition-colors"
                         style={{
                           color: activeId === s.id ? 'var(--primary)' : 'var(--muted-foreground)',
-                          background: activeId === s.id ? 'rgba(228,20,20,0.07)' : 'transparent',
+                          background: activeId === s.id ? 'rgba(var(--brand-primary-rgb),0.07)' : 'transparent',
                           fontWeight: activeId === s.id ? 600 : 400,
                         }}
                       >
@@ -260,7 +260,7 @@ export function ComplianceView() {
               {/* Intro */}
               <div
                 className="rounded-2xl p-6 md:p-8 card-texture"
-                style={{ border: '1px solid rgba(228,20,20,0.2)', background: 'linear-gradient(135deg, rgba(228,20,20,0.04), rgba(0,172,248,0.03))' }}
+                style={{ border: '1px solid rgba(var(--brand-primary-rgb),0.2)', background: 'linear-gradient(135deg, rgba(var(--brand-primary-rgb),0.04), rgba(var(--brand-cool-rgb),0.03))' }}
               >
                 <p>
                   Este Contrato de Tratamiento de Datos (&ldquo;<strong>CTD</strong>&rdquo; o &ldquo;<strong>Contrato</strong>&rdquo;)
@@ -565,7 +565,7 @@ export function ComplianceView() {
               {/* Acceptance */}
               <div
                 className="rounded-2xl p-6 md:p-8 card-texture scroll-mt-28"
-                style={{ border: '1px solid rgba(228,20,20,0.25)', background: 'rgba(228,20,20,0.03)' }}
+                style={{ border: '1px solid rgba(var(--brand-primary-rgb),0.25)', background: 'rgba(var(--brand-primary-rgb),0.03)' }}
               >
                 <div className="flex items-start gap-3">
                   <CheckCircle2 size={22} className="shrink-0 mt-0.5" style={{ color: 'var(--primary)' }} />
@@ -642,7 +642,7 @@ function Section({
       <h2 className="flex items-start gap-3 text-xl font-bold" style={{ color: 'var(--foreground)' }}>
         <span
           className="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold"
-          style={{ background: 'rgba(228,20,20,0.1)', color: 'var(--primary)' }}
+          style={{ background: 'rgba(var(--brand-primary-rgb),0.1)', color: 'var(--primary)' }}
         >
           {number}
         </span>

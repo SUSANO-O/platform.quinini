@@ -67,7 +67,7 @@ export function SecretRevealModal({
         style={{
           width: 'min(480px, 100%)',
           borderRadius: 16,
-          border: '1px solid rgba(248,118,0,0.35)',
+          border: '1px solid rgba(var(--brand-warm-rgb),0.35)',
           background: 'var(--card)',
           padding: 22,
         }}
@@ -107,8 +107,8 @@ export function SecretRevealModal({
             marginTop: 16,
             padding: '12px 14px',
             borderRadius: 10,
-            background: 'rgba(248,118,0,0.08)',
-            border: '1px solid rgba(248,118,0,0.28)',
+            background: 'rgba(var(--brand-warm-rgb),0.08)',
+            border: '1px solid rgba(var(--brand-warm-rgb),0.28)',
           }}
         >
           <code
@@ -138,8 +138,8 @@ export function SecretRevealModal({
               gap: 6,
               padding: '9px 16px',
               borderRadius: 10,
-              border: '1px solid rgba(248,118,0,0.35)',
-              background: 'rgba(248,118,0,0.1)',
+              border: '1px solid rgba(var(--brand-warm-rgb),0.35)',
+              background: 'rgba(var(--brand-warm-rgb),0.1)',
               color: '#c45a00',
               fontSize: 13,
               fontWeight: 600,

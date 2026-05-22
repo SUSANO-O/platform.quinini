@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import { HeartPulse, Shield, Activity, CheckCircle, ArrowRight, Zap, Brain, Stethoscope } from 'lucide-react';
 
-const R = '#e41414';
-const O = '#f87600';
+const R = 'var(--primary)';
+const O = 'var(--brand-warm)';
 
 export const metadata = {
   title: 'Health Monitor AI — Agente de Salud con IA',
@@ -84,7 +84,7 @@ export default function HealthAgentPage() {
       </section>
 
       {/* CTA */}
-      <section style={{ padding: '80px 24px', textAlign: 'center', background: `linear-gradient(135deg, ${R}, ${O})` }}>
+      <section style={{ padding: '80px 24px', textAlign: 'center', background: R }}>
         <h2 style={{ fontSize: 32, fontWeight: 800, color: '#fff', marginBottom: 16 }}>
           Transforma la atención en salud con IA
         </h2>

@@ -7,3 +7,14 @@ export const BRAND_ASSISTANT_NAME_ES = 'Asistente BotIvA';
 
 /** Logo horizontal BotIvA (public/). */
 export const BRAND_LOGO_SRC = '/assets/exampleRAG/Gemini_Generated_Image_r3moxvr3moxvr3mo.png';
+
+/** Texto legible en panel. */
+export const BRAND_TEXT_COLOR = '#000000';
+
+/** Botón / badge secundario neutro (sin acentos cian). */
+export const UI_SURFACE_SECONDARY = {
+  background: 'var(--muted)',
+  border: 'none',
+  boxShadow: 'var(--shadow-surface-sm)',
+  color: 'var(--foreground)',
+} as const satisfies Record<string, string>;

@@ -177,6 +177,7 @@ export async function POST(req: NextRequest) {
           uid: user._id.toString(),
           email: user.email,
           displayName: user.displayName,
+          avatarUrl: user.avatarUrl ?? null,
           role: user.role || 'user',
           emailVerified: false,
         },
@@ -242,6 +243,7 @@ export async function POST(req: NextRequest) {
           uid: user._id.toString(),
           email: user.email,
           displayName: user.displayName,
+          avatarUrl: user.avatarUrl ?? null,
           role: user.role || 'user',
           emailVerified: user.emailVerified ?? true, // treat legacy users as verified
           pendingEmail: user.pendingEmail ?? null,
@@ -293,6 +295,7 @@ export async function GET(req: NextRequest) {
         email: user.email,
         role: user.role || 'user',
         displayName: user.displayName,
+        avatarUrl: user.avatarUrl ?? null,
         emailVerified: user.emailVerified ?? true,
         pendingEmail: user.pendingEmail ?? null,
         ...(impersonation ? { impersonation } : {}),

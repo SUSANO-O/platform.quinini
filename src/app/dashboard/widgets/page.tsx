@@ -13,9 +13,12 @@ import Link from 'next/link';
 import { Trash2, Plus, Code2, Boxes, Pencil, Play, Sparkles, Copy, Check, Download, GitBranch } from 'lucide-react';
 import { useSubscription } from '@/hooks/use-subscription';
 
-const BRAND_R = '#e41414';
-const BRAND_O = '#f87600';
-const BRAND_B = '#00acf8';
+import { BRAND_TEXT_COLOR, UI_SURFACE_SECONDARY } from '@/lib/brand';
+import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
+
+const BRAND_R = 'var(--primary)';
+const BRAND_O = 'var(--brand-warm)';
+const BTN_SECONDARY: CSSProperties = { ...UI_SURFACE_SECONDARY };
 
 interface Widget {
   _id: string;
@@ -162,7 +165,6 @@ export default function WidgetsPage() {
         onCancel={() => setDeleteTarget(null)}
       />
       <div className="hero-glow pointer-events-none" style={{ background: BRAND_R, top: '-200px', right: '-60px' }} />
-      <div className="hero-glow pointer-events-none" style={{ background: BRAND_B, top: '100px', left: '-100px' }} />
 
       <div className="relative px-4 py-4 max-w-4xl mx-auto">
         <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
@@ -174,9 +176,9 @@ export default function WidgetsPage() {
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight m-0 flex items-center gap-2 flex-wrap">
               <span
                 className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: `${BRAND_B}18`, border: `1px solid ${BRAND_B}35` }}
+                style={BTN_SECONDARY}
               >
-                <Boxes size={22} style={{ color: BRAND_B }} strokeWidth={1.75} />
+                <Boxes size={22} strokeWidth={1.75} />
               </span>
               <span>
                 Mis <span className="gradient-text">widgets</span>
@@ -191,9 +193,9 @@ export default function WidgetsPage() {
             data-tour="widgets-new"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold no-underline shrink-0 transition-all"
             style={{
-              background: `linear-gradient(135deg, ${BRAND_R}, ${BRAND_O})`,
+              background: BRAND_R,
               color: '#fff',
-              boxShadow: '0 4px 18px rgba(228,20,20,0.28)',
+              boxShadow: '0 4px 18px rgba(var(--brand-primary-rgb),0.28)',
             }}
           >
             <Plus size={16} strokeWidth={2.5} />
@@ -204,9 +206,9 @@ export default function WidgetsPage() {
         {/* Info: widgets ilimitados */}
         <div
           className="card-texture rounded-2xl border p-4 mb-8 flex items-center gap-3"
-          style={{ borderColor: `${BRAND_B}30`, background: `${BRAND_B}07` }}
+          style={{ borderColor: 'var(--border)', background: 'var(--muted)' }}
         >
-          <span className="text-xs font-semibold" style={{ color: BRAND_B }}>
+          <span className="text-xs font-semibold" style={{ color: BRAND_TEXT_COLOR }}>
             Puedes crear tantos widgets como necesites — cada widget debe tener un nombre único.
           </span>
         </div>
@@ -239,13 +241,7 @@ export default function WidgetsPage() {
         )}
 
         {loading ? (
-          <div className="flex items-center gap-3 py-12 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-            <div
-              className="w-5 h-5 rounded-full animate-spin shrink-0"
-              style={{ border: '2px solid var(--border)', borderTopColor: 'var(--primary)' }}
-            />
-            Cargando widgets...
-          </div>
+          <AiLoadingInline label="Cargando widgets…" hint="Recuperando tus chat widgets" style={{ padding: '48px 0' }} />
         ) : widgets.length === 0 ? (
           <div
             className="card-texture rounded-2xl border border-dashed text-center py-14 px-6"
@@ -265,8 +261,8 @@ export default function WidgetsPage() {
               href="/dashboard/widget-builder"
               className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white no-underline transition-transform hover:scale-[1.02]"
               style={{
-                background: `linear-gradient(135deg, ${BRAND_R}, ${BRAND_O})`,
-                boxShadow: '0 4px 18px rgba(228,20,20,0.28)',
+                background: BRAND_R,
+                boxShadow: '0 4px 18px rgba(var(--brand-primary-rgb),0.28)',
               }}
             >
               <Plus size={16} />
@@ -281,7 +277,7 @@ export default function WidgetsPage() {
                 className="card-hover rounded-2xl overflow-hidden border"
                 style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
               >
-                <div style={{ height: 3, background: `linear-gradient(90deg, ${w.color}, ${BRAND_B}99)` }} />
+                <div style={{ height: 3, background: w.color }} />
                 <div className="flex flex-wrap items-center gap-4 p-4 md:p-5">
                   <div
                     className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full shadow-md ring-1 ring-white/40"
@@ -315,7 +311,7 @@ export default function WidgetsPage() {
                       {w.multiAgentEnabled && (
                         <span
                           className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md"
-                          style={{ background: `${BRAND_B}18`, color: BRAND_B, border: `1px solid ${BRAND_B}40` }}
+                          style={BTN_SECONDARY}
                         >
                           Multi ·{' '}
                           {w.multiAgentMode === 'parallel'
@@ -338,11 +334,7 @@ export default function WidgetsPage() {
                       href={`/dashboard/widget-preview?id=${w._id}`}
                       title="Probar el chat con este widget"
                       className="inline-flex items-center gap-1 px-2.5 py-2 rounded-lg text-[11px] font-bold no-underline transition-opacity hover:opacity-90"
-                      style={{
-                        background: `${BRAND_B}14`,
-                        border: `1px solid ${BRAND_B}40`,
-                        color: BRAND_B,
-                      }}
+                      style={BTN_SECONDARY}
                     >
                       <Play size={12} />
                       Probar
@@ -350,11 +342,7 @@ export default function WidgetsPage() {
                     <Link
                       href={`/dashboard/widget-builder?edit=${w._id}`}
                       className="inline-flex items-center gap-1 px-2.5 py-2 rounded-lg text-[11px] font-bold no-underline transition-opacity hover:opacity-90"
-                      style={{
-                        background: `${BRAND_R}10`,
-                        border: `1px solid ${BRAND_R}30`,
-                        color: BRAND_R,
-                      }}
+                      style={BTN_SECONDARY}
                     >
                       <Pencil size={12} />
                       Editar
@@ -363,7 +351,7 @@ export default function WidgetsPage() {
                       href={`/api/widgets/${w._id}/export?format=json&months=3`}
                       download
                       className="inline-flex items-center gap-1 px-2.5 py-2 rounded-lg text-[11px] font-bold no-underline border cursor-pointer transition-colors hover:opacity-90"
-                      style={{ borderColor: 'rgba(0,172,248,0.3)', background: 'rgba(0,172,248,0.07)', color: BRAND_B }}
+                      style={BTN_SECONDARY}
                       title="Descargar historial de conversaciones (JSON)"
                     >
                       <Download size={12} />

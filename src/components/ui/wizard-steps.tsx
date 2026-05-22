@@ -32,7 +32,7 @@ export function WizardSteps({ steps, current, onStepClick }: WizardStepsProps) {
                   style={{
                     background: active || done ? 'var(--primary)' : 'var(--muted)',
                     color: active || done ? '#fff' : 'var(--muted-foreground)',
-                    border: active ? '2px solid rgba(228,20,20,0.35)' : '2px solid transparent',
+                    border: active ? '2px solid rgba(var(--brand-primary-rgb),0.35)' : '2px solid transparent',
                   }}
                 >
                   {done && !active ? '✓' : i + 1}

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Lock, Shield, AlertTriangle, Eye, CheckCircle, ArrowRight, Zap, Search, Terminal } from 'lucide-react';
 
-const R = '#e41414';
+const R = 'var(--primary)';
 const D = '#991b1b';
 
 export const metadata = {
@@ -71,7 +71,7 @@ export default function CybersecurityAgentPage() {
         </div>
       </section>
 
-      <section style={{ padding: '80px 24px', textAlign: 'center', background: `linear-gradient(135deg, ${D}, ${R})` }}>
+      <section style={{ padding: '80px 24px', textAlign: 'center', background: D }}>
         <h2 style={{ fontSize: 32, fontWeight: 800, color: '#fff', marginBottom: 16 }}>Protege tu organización con IA de seguridad</h2>
         <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 16, marginBottom: 32, maxWidth: 500, margin: '0 auto 32px' }}>Comienza con 7 días gratis. Sin tarjeta de crédito.</p>
         <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '16px 32px', borderRadius: 12, background: '#fff', color: D, fontWeight: 700, textDecoration: 'none', fontSize: 16 }}>

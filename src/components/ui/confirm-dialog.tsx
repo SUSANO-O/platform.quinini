@@ -68,10 +68,8 @@ export function ConfirmDialog({
         style={{
           width: 'min(420px, 100%)',
           borderRadius: 16,
-          border: '1px solid var(--border)',
-          background: 'var(--card)',
           padding: 22,
-          boxShadow: '0 24px 60px rgba(0,0,0,0.18)',
+          boxShadow: 'var(--shadow-surface-lg)',
         }}
       >
         <h2 id="confirm-dialog-title" style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
@@ -89,8 +87,9 @@ export function ConfirmDialog({
             style={{
               padding: '9px 16px',
               borderRadius: 10,
-              border: '1px solid var(--border)',
-              background: 'transparent',
+              border: 'none',
+              background: 'var(--muted)',
+              boxShadow: 'var(--shadow-surface-sm)',
               color: 'var(--foreground)',
               fontSize: 13,
               fontWeight: 600,

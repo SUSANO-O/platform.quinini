@@ -194,7 +194,7 @@ export function PlanChangeModal({
                     fontWeight: 700,
                     fontSize: '13px',
                     border: 'none',
-                    background: 'linear-gradient(135deg, #0d9488, #6366f1)',
+                    background: 'var(--brand-primary)',
                     color: '#fff',
                     cursor: isBusy ? 'not-allowed' : 'pointer',
                   }}

@@ -19,7 +19,7 @@ export function LandingNavbar() {
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5">
           <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={120} height={36} className="h-9 w-auto object-contain rounded-xl" priority />
-          <span className="text-lg font-bold" style={{ color: 'var(--foreground)' }}>
+          <span className="text-lg font-bold text-black">
             {BRAND_NAME}
           </span>
         </Link>
@@ -70,7 +70,7 @@ export function LandingNavbar() {
               <Link
                 href="/dashboard"
                 className="text-sm font-semibold px-5 py-2.5 rounded-xl text-white transition-all hover:shadow-lg"
-                style={{ background: 'linear-gradient(135deg, #e41414, #f87600)' }}
+                style={{ background: 'var(--brand-primary)' }}
               >
                 {t('dashboard')}
               </Link>
@@ -86,7 +86,7 @@ export function LandingNavbar() {
                 <Link
                   href="/register"
                   className="text-sm font-semibold px-5 py-2.5 rounded-xl text-white transition-all hover:shadow-lg"
-                  style={{ background: 'linear-gradient(135deg, #e41414, #f87600)' }}
+                  style={{ background: 'var(--brand-primary)' }}
                 >
                   {t('startFree')}
                 </Link>
@@ -98,7 +98,7 @@ export function LandingNavbar() {
         {/* Mobile toggle */}
         <button
           className="md:hidden flex items-center justify-center w-9 h-9 rounded-xl transition-colors"
-          style={{ border: '1px solid var(--border)', background: open ? 'rgba(228,20,20,0.07)' : 'transparent', color: open ? '#e41414' : 'var(--foreground)' }}
+          style={{ border: '1px solid var(--border)', background: open ? 'rgba(var(--brand-primary-rgb),0.07)' : 'transparent', color: open ? 'var(--primary)' : 'var(--foreground)' }}
           onClick={() => setOpen(!open)}
           aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
         >
@@ -170,7 +170,7 @@ export function LandingNavbar() {
                 <Link
                   href="/dashboard"
                   className="text-center text-sm font-bold px-5 py-2.5 rounded-xl text-white"
-                  style={{ background: 'linear-gradient(135deg, #e41414, #f87600)', boxShadow: '0 4px 14px rgba(228,20,20,0.25)' }}
+                  style={{ background: 'var(--brand-primary)', boxShadow: '0 4px 14px rgba(var(--brand-primary-rgb),0.25)' }}
                   onClick={() => setOpen(false)}
                 >
                   {t('dashboard')}
@@ -188,7 +188,7 @@ export function LandingNavbar() {
                   <Link
                     href="/register"
                     className="text-center text-sm font-bold px-5 py-2.5 rounded-xl text-white"
-                    style={{ background: 'linear-gradient(135deg, #e41414, #f87600)', boxShadow: '0 4px 14px rgba(228,20,20,0.25)' }}
+                    style={{ background: 'var(--brand-primary)', boxShadow: '0 4px 14px rgba(var(--brand-primary-rgb),0.25)' }}
                     onClick={() => setOpen(false)}
                   >
                     {t('startFree')}

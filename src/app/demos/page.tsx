@@ -92,8 +92,8 @@ export default function DemosPage() {
               href="/playground"
               className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl text-white font-semibold text-sm transition-all hover:shadow-xl hover:scale-[1.02]"
               style={{
-                background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))',
-                boxShadow: '0 4px 20px rgba(228,20,20,0.28)',
+                background: 'var(--brand-primary)',
+                boxShadow: '0 4px 20px rgba(var(--brand-primary-rgb),0.28)',
               }}
             >
               <Code2 size={18} />
@@ -138,14 +138,14 @@ export default function DemosPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div
                     className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl"
-                    style={{ background: 'rgba(228,20,20,0.1)', border: '1px solid rgba(228,20,20,0.2)', color: 'var(--primary)' }}
+                    style={{ background: 'rgba(var(--brand-primary-rgb),0.1)', border: '1px solid rgba(var(--brand-primary-rgb),0.2)', color: 'var(--primary)' }}
                   >
                     {d.icon}
                   </div>
                   {d.badge && (
                     <span
                       className="text-xs font-semibold px-2.5 py-1 rounded-md"
-                      style={{ background: 'rgba(0,172,248,0.12)', color: 'var(--accent)' }}
+                      style={{ background: 'rgba(var(--brand-cool-rgb),0.12)', color: 'var(--accent)' }}
                     >
                       {d.badge}
                     </span>
@@ -179,8 +179,8 @@ export default function DemosPage() {
               href="/register"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white font-semibold text-sm"
               style={{
-                background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))',
-                boxShadow: '0 4px 16px rgba(228,20,20,0.22)',
+                background: 'var(--brand-primary)',
+                boxShadow: '0 4px 16px rgba(var(--brand-primary-rgb),0.22)',
               }}
             >
               Crear cuenta gratis

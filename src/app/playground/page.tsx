@@ -234,7 +234,7 @@ export default function PlaygroundPage() {
                 onClick={execute}
                 disabled={loading}
                 className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-white font-semibold text-sm transition-all hover:shadow-lg disabled:opacity-50"
-                style={{ background: 'linear-gradient(135deg, #0d9488, #6366f1)' }}
+                style={{ background: 'var(--brand-primary)' }}
               >
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
                 {loading ? 'Executing...' : 'Send Request'}

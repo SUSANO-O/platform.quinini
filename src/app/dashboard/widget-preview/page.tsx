@@ -4,7 +4,6 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
-  Loader2,
   AlertCircle,
   Bot,
   Cpu,
@@ -17,6 +16,7 @@ import {
   Shield,
   RefreshCw,
 } from 'lucide-react';
+import { AiLoadingBlock } from '@/components/ui/ai-loading-screen';
 
 declare global {
   interface Window {
@@ -324,16 +324,15 @@ export default function WidgetPreviewPage() {
         {widget
           ? `Probando «${widget.name}». Usa el botón flotante para chatear.`
           : loading
-            ? 'Cargando configuración…'
+            ? 'Preparando la vista previa de tu widget.'
             : 'Abre esta vista desde Mis widgets con el botón Preview.'}
       </p>
 
       {loading && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--muted-foreground)' }}>
-          <Loader2 size={20} style={{ animation: 'spin .7s linear infinite' }} />
-          <span style={{ fontSize: 13 }}>Cargando…</span>
-          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-        </div>
+        <AiLoadingBlock
+          label="Cargando configuración…"
+          hint="Agente, herramientas y chat embebido"
+        />
       )}
 
       {!loading && error && !widget && (

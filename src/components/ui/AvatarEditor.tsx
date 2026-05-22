@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Scissors, Sliders, Sparkles, X, Check, Loader2, Minus, Plus, RotateCcw } from 'lucide-react';
+import { compressCanvasToDataUrl, computeAvatarCropRect } from '@/lib/avatar-export';
+import { USER_AVATAR_MAX_DATA_URL_LENGTH } from '@/lib/user-profile';
 
 type Tab = 'crop' | 'filters' | 'ai';
 
@@ -16,9 +18,22 @@ interface AvatarEditorProps {
   currentUrl: string;
   agentContext?: AgentContext;
   onResult: (url: string) => void;
+  /** Modo controlado: abre/cierra el modal desde fuera */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Oculta el botón "Editar · Retocar · Generar AI" */
+  hideTrigger?: boolean;
+  /** Pestañas visibles (por defecto: todas) */
+  visibleTabs?: Tab[];
+  title?: string;
+  cropHint?: string;
+  applyLabel?: string;
+  /** Tamaño del canvas de exportación (px) */
+  exportSize?: number;
+  maxExportLength?: number;
 }
 
-const SIZE = 200;
+const DEFAULT_EXPORT_SIZE = 200;
 
 function Slider({
   label, value, min, max, unit = '%', onChange,
@@ -38,10 +53,38 @@ function Slider({
   );
 }
 
-export function AvatarEditor({ currentUrl, agentContext, onResult }: AvatarEditorProps) {
-  const [open, setOpen]       = useState(false);
+export function AvatarEditor({
+  currentUrl,
+  agentContext,
+  onResult,
+  open: openProp,
+  onOpenChange,
+  hideTrigger = false,
+  visibleTabs,
+  title = 'Editor de avatar',
+  cropHint = 'Arrastra para reposicionar',
+  applyLabel = 'Aplicar',
+  exportSize = DEFAULT_EXPORT_SIZE,
+  maxExportLength = USER_AVATAR_MAX_DATA_URL_LENGTH,
+}: AvatarEditorProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = openProp !== undefined;
+  const open = isControlled ? openProp : internalOpen;
+
+  const setOpen = (next: boolean) => {
+    if (!isControlled) setInternalOpen(next);
+    onOpenChange?.(next);
+  };
+
+  const allowedTabs: Tab[] = visibleTabs ?? ['crop', 'filters', 'ai'];
+  const tabDefs: { id: Tab; label: string; Icon: React.FC<{ size: number }> }[] = [
+    { id: 'crop', label: 'Recortar', Icon: Scissors },
+    { id: 'filters', label: 'Retocar', Icon: Sliders },
+    { id: 'ai', label: 'Generar AI', Icon: Sparkles },
+  ].filter((t) => allowedTabs.includes(t.id));
+
   const [mounted, setMounted] = useState(false);
-  const [tab, setTab]         = useState<Tab>('crop');
+  const [tab, setTab]         = useState<Tab>(allowedTabs[0] ?? 'crop');
 
   // Crop / pan
   const [offsetX, setOffsetX] = useState(0);
@@ -65,6 +108,9 @@ export function AvatarEditor({ currentUrl, agentContext, onResult }: AvatarEdito
   const [generatedUrl, setGeneratedUrl] = useState('');
   const [aiError, setAiError]           = useState('');
   const aiRef = useRef<HTMLTextAreaElement>(null);
+  const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
+  const [busyExport, setBusyExport] = useState(false);
+  const [exportError, setExportError] = useState('');
 
   const activeUrl = generatedUrl || currentUrl;
 
@@ -74,10 +120,11 @@ export function AvatarEditor({ currentUrl, agentContext, onResult }: AvatarEdito
     if (!open) return;
     setOffsetX(0); setOffsetY(0); setZoom(1);
     setImgStatus('loading');
+    setNaturalSize(null);
     setBrightness(100); setContrast(100); setSaturation(100); setHue(0);
-    setGeneratedUrl(''); setAiError(''); setAiPrompt('');
-    setTab('crop');
-  }, [open]);
+    setGeneratedUrl(''); setAiError(''); setAiPrompt(''); setExportError('');
+    setTab(allowedTabs[0] ?? 'crop');
+  }, [open, currentUrl]);
 
   // Focus AI textarea
   useEffect(() => {
@@ -100,41 +147,56 @@ export function AvatarEditor({ currentUrl, agentContext, onResult }: AvatarEdito
   // Export: try canvas (needs CORS), fall back to plain URL
   const applyEdit = async () => {
     if (!activeUrl) { setOpen(false); return; }
+    setBusyExport(true);
+    setExportError('');
     try {
       const img = await new Promise<HTMLImageElement>((resolve, reject) => {
         const i = new Image();
         i.crossOrigin = 'anonymous';
         i.onload  = () => resolve(i);
         i.onerror = () => reject(new Error('cors'));
-        i.src = activeUrl + (activeUrl.includes('?') ? '&' : '?') + '_cb=' + Date.now();
+        i.src = activeUrl.startsWith('data:')
+          ? activeUrl
+          : activeUrl + (activeUrl.includes('?') ? '&' : '?') + '_cb=' + Date.now();
       });
 
       const canvas = document.createElement('canvas');
-      canvas.width = SIZE; canvas.height = SIZE;
+      canvas.width = exportSize;
+      canvas.height = exportSize;
       const ctx = canvas.getContext('2d')!;
 
       // Circular clip
       ctx.beginPath();
-      ctx.arc(SIZE / 2, SIZE / 2, SIZE / 2, 0, Math.PI * 2);
+      ctx.arc(exportSize / 2, exportSize / 2, exportSize / 2, 0, Math.PI * 2);
       ctx.clip();
 
       // Filters
       ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) hue-rotate(${hue}deg)`;
 
-      // Position + zoom (same logic as CSS preview)
-      const aspect = img.naturalWidth / img.naturalHeight;
-      const baseW  = aspect >= 1 ? SIZE * aspect : SIZE;
-      const baseH  = aspect >= 1 ? SIZE           : SIZE / aspect;
-      const sw = baseW * zoom;
-      const sh = baseH * zoom;
-      ctx.drawImage(img, (SIZE - sw) / 2 + offsetX, (SIZE - sh) / 2 + offsetY, sw, sh);
+      // Position + zoom (misma geometría que el preview)
+      const offsetScale = exportSize / previewSize;
+      const rect = computeAvatarCropRect(
+        img.naturalWidth,
+        img.naturalHeight,
+        exportSize,
+        zoom,
+        offsetX * offsetScale,
+        offsetY * offsetScale,
+      );
+      ctx.drawImage(img, rect.left, rect.top, rect.width, rect.height);
 
-      onResult(canvas.toDataURL('image/jpeg', 0.9));
-    } catch {
-      // CORS blocked — save the URL as-is (external image, crop stored visually only)
-      onResult(activeUrl);
+      onResult(compressCanvasToDataUrl(canvas, maxExportLength));
+      setOpen(false);
+    } catch (err) {
+      if (err instanceof Error && err.message === 'cors') {
+        onResult(activeUrl);
+        setOpen(false);
+      } else {
+        setExportError(err instanceof Error ? err.message : 'No se pudo exportar la imagen.');
+      }
+    } finally {
+      setBusyExport(false);
     }
-    setOpen(false);
   };
 
   const generateAi = async () => {
@@ -160,12 +222,10 @@ export function AvatarEditor({ currentUrl, agentContext, onResult }: AvatarEdito
   };
 
   const cssFilter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) hue-rotate(${hue}deg)`;
-
-  const TABS: { id: Tab; label: string; Icon: React.FC<{ size: number }> }[] = [
-    { id: 'crop',    label: 'Recortar',   Icon: Scissors },
-    { id: 'filters', label: 'Retocar',    Icon: Sliders  },
-    { id: 'ai',      label: 'Generar AI', Icon: Sparkles },
-  ];
+  const previewSize = DEFAULT_EXPORT_SIZE;
+  const previewRect = naturalSize
+    ? computeAvatarCropRect(naturalSize.w, naturalSize.h, previewSize, zoom, offsetX, offsetY)
+    : null;
 
   if (!mounted) return null;
 
@@ -184,7 +244,7 @@ export function AvatarEditor({ currentUrl, agentContext, onResult }: AvatarEdito
             <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(99,102,241,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Scissors size={13} style={{ color: '#6366f1' }} />
             </div>
-            <span style={{ fontSize: 14, fontWeight: 700 }}>Editor de avatar</span>
+            <span style={{ fontSize: 14, fontWeight: 700 }}>{title}</span>
           </div>
           <button type="button" onClick={() => setOpen(false)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-foreground)', padding: 4, borderRadius: 6 }}>
             <X size={15} />
@@ -192,8 +252,9 @@ export function AvatarEditor({ currentUrl, agentContext, onResult }: AvatarEdito
         </div>
 
         {/* Tabs */}
+        {tabDefs.length > 1 ? (
         <div style={{ display: 'flex', background: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
-          {TABS.map(({ id, label, Icon }) => (
+          {tabDefs.map(({ id, label, Icon }) => (
             <button key={id} type="button" onClick={() => setTab(id)}
               style={{
                 flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
@@ -207,9 +268,13 @@ export function AvatarEditor({ currentUrl, agentContext, onResult }: AvatarEdito
             </button>
           ))}
         </div>
+        ) : null}
 
         {/* Body */}
         <div style={{ padding: 20 }}>
+          {exportError ? (
+            <p style={{ fontSize: 12, color: '#ef4444', margin: '0 0 12px', lineHeight: 1.45 }}>{exportError}</p>
+          ) : null}
 
           {/* Crop + Filters — shared <img> preview (no canvas, no CORS issue) */}
           {(tab === 'crop' || tab === 'filters') && (
@@ -218,7 +283,7 @@ export function AvatarEditor({ currentUrl, agentContext, onResult }: AvatarEdito
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
                 <div
                   style={{
-                    width: SIZE, height: SIZE, borderRadius: '50%',
+                    width: previewSize, height: previewSize, borderRadius: '50%',
                     overflow: 'hidden', border: '3px solid var(--border)',
                     background: 'var(--muted)', position: 'relative',
                     cursor: tab === 'crop' ? (dragging ? 'grabbing' : 'grab') : 'default',
@@ -259,23 +324,28 @@ export function AvatarEditor({ currentUrl, agentContext, onResult }: AvatarEdito
                       src={activeUrl}
                       alt="Avatar preview"
                       referrerPolicy="no-referrer"
-                      onLoad={() => setImgStatus('ok')}
-                      onError={() => setImgStatus('error')}
+                      onLoad={(e) => {
+                        setNaturalSize({
+                          w: e.currentTarget.naturalWidth,
+                          h: e.currentTarget.naturalHeight,
+                        });
+                        setImgStatus('ok');
+                      }}
+                      onError={() => {
+                        setNaturalSize(null);
+                        setImgStatus('error');
+                      }}
                       style={{
                         position: 'absolute',
-                        // Fit the image to cover the circle initially
-                        width:  `${zoom * 100}%`,
-                        height: `${zoom * 100}%`,
-                        minWidth: '100%',
-                        minHeight: '100%',
-                        objectFit: 'cover',
-                        left: '50%',
-                        top: '50%',
-                        transform: `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`,
+                        width: previewRect?.width ?? previewSize,
+                        height: previewRect?.height ?? previewSize,
+                        left: previewRect?.left ?? 0,
+                        top: previewRect?.top ?? 0,
+                        maxWidth: 'none',
+                        maxHeight: 'none',
                         filter: cssFilter,
                         pointerEvents: 'none',
                         userSelect: 'none',
-                        // Hide until loaded to avoid flicker
                         opacity: imgStatus === 'ok' ? 1 : 0,
                         transition: 'opacity .2s',
                       }}
@@ -288,7 +358,7 @@ export function AvatarEditor({ currentUrl, agentContext, onResult }: AvatarEdito
               {tab === 'crop' && (
                 <>
                   <p style={{ fontSize: 11, color: 'var(--muted-foreground)', textAlign: 'center', margin: '0 0 14px' }}>
-                    Arrastra para reposicionar
+                    {cropHint}
                   </p>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <button type="button" onClick={() => setZoom(z => Math.max(0.5, +(z - 0.1).toFixed(2)))}
@@ -386,9 +456,10 @@ export function AvatarEditor({ currentUrl, agentContext, onResult }: AvatarEdito
               {generating ? 'Generando...' : 'Generar'}
             </button>
           ) : (
-            <button type="button" onClick={() => void applyEdit()}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-              <Check size={13} /> Aplicar
+            <button type="button" onClick={() => void applyEdit()} disabled={busyExport}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 8, border: 'none', background: busyExport ? 'var(--border)' : '#6366f1', color: '#fff', cursor: busyExport ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
+              {busyExport ? <Loader2 size={13} style={{ animation: 'spin .8s linear infinite' }} /> : <Check size={13} />}
+              {busyExport ? 'Guardando…' : applyLabel}
             </button>
           )}
         </div>
@@ -399,6 +470,7 @@ export function AvatarEditor({ currentUrl, agentContext, onResult }: AvatarEdito
 
   return (
     <>
+      {!hideTrigger ? (
       <button
         type="button" onClick={() => setOpen(true)}
         style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: '#6366f1', border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, opacity: 0.85, transition: 'opacity .15s' }}
@@ -407,6 +479,7 @@ export function AvatarEditor({ currentUrl, agentContext, onResult }: AvatarEdito
       >
         <Scissors size={11} /> Editar · Retocar · Generar AI
       </button>
+      ) : null}
       {modal}
     </>
   );

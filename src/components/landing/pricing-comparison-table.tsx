@@ -24,7 +24,7 @@ export function PricingComparisonTable() {
                 className="p-4 text-center font-bold whitespace-nowrap"
                 style={{
                   color: col.highlighted ? 'var(--primary)' : 'var(--foreground)',
-                  background: col.highlighted ? 'rgba(228,20,20,0.06)' : undefined,
+                  background: col.highlighted ? 'rgba(var(--brand-primary-rgb),0.06)' : undefined,
                 }}
               >
                 {col.label}
@@ -61,7 +61,7 @@ export function PricingComparisonTable() {
                     key={col.id}
                     className="p-4 text-center"
                     style={{
-                      background: col.highlighted ? 'rgba(228,20,20,0.03)' : undefined,
+                      background: col.highlighted ? 'rgba(var(--brand-primary-rgb),0.03)' : undefined,
                     }}
                   >
                     {display ? (

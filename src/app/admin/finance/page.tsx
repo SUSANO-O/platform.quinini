@@ -90,7 +90,7 @@ export default function AdminFinancePage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 12, marginBottom: 16 }}>
             {[
               { label: 'Tenants', value: data.totals.tenants, icon: Users, color: '#6366f1' },
-              { label: 'Mensajes totales', value: data.totals.totalMessages.toLocaleString('es'), icon: MessageSquare, color: '#00acf8' },
+              { label: 'Mensajes totales', value: data.totals.totalMessages.toLocaleString('es'), icon: MessageSquare, color: '#000' },
               { label: 'Coste estimado total', value: `${data.totals.estimatedUsd.toFixed(4)} USD`, icon: DollarSign, color: '#22c55e' },
               { label: 'Tarifa estimada', value: `${data.rateUsdPerMessage} USD/msg`, icon: Building2, color: '#f59e0b' },
             ].map((c) => (

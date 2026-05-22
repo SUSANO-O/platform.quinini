@@ -54,9 +54,9 @@ export function LandingSectionNav({ labels }: LandingSectionNavProps) {
             href={`#${id}`}
             className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold no-underline transition-colors"
             style={{
-              background: activeId === id ? 'rgba(228,20,20,0.1)' : 'transparent',
+              background: activeId === id ? 'rgba(var(--brand-primary-rgb),0.1)' : 'transparent',
               color: activeId === id ? 'var(--primary)' : 'var(--muted-foreground)',
-              border: activeId === id ? '1px solid rgba(228,20,20,0.25)' : '1px solid transparent',
+              border: activeId === id ? '1px solid rgba(var(--brand-primary-rgb),0.25)' : '1px solid transparent',
             }}
           >
             {labels?.[id] ?? label}
