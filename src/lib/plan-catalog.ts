@@ -297,6 +297,10 @@ export function outboundWebhookUpgradeLabel(): string {
   return PLAN_DISPLAY[OUTBOUND_SAAS_WEBHOOK_MIN_PLAN]?.label ?? 'Starter';
 }
 
+export function escalationTicketUpgradeLabel(): string {
+  return PLAN_DISPLAY[ESCALATION_TICKET_MIN_PLAN]?.label ?? 'Growth';
+}
+
 export function planRank(plan: string): number {
   const i = PLAN_ORDER.indexOf(plan as PlanId);
   return i >= 0 ? i : 0;

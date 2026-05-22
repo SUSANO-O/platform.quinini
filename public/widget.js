@@ -22,7 +22,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.5.5';
+  var VERSION = '1.5.6';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -1135,6 +1135,33 @@
       chat.insertBefore(voiceBar, inputArea);
     }
 
+    var handoffBar = document.createElement('div');
+    handoffBar.className = 'afhub-handoff-bar';
+    var handoffBtn = document.createElement('button');
+    handoffBtn.className = 'afhub-handoff-btn';
+    handoffBtn.type = 'button';
+    handoffBtn.textContent = 'Hablar con una persona';
+    handoffBtn.setAttribute('aria-label', 'Solicitar atención humana');
+    handoffBar.appendChild(handoffBtn);
+    chat.appendChild(handoffBar);
+
+    var handoffOverlay = document.createElement('div');
+    handoffOverlay.className = 'afhub-handoff-overlay';
+    handoffOverlay.innerHTML =
+      '<div class="afhub-handoff-modal" role="dialog" aria-labelledby="afhub-handoff-title">' +
+      '<h4 id="afhub-handoff-title">Atención humana</h4>' +
+      '<p class="afhub-handoff-desc">Déjanos tus datos y alguien del equipo te contactará.</p>' +
+      '<label>Nombre<input class="afhub-handoff-input" name="name" type="text" placeholder="Tu nombre" autocomplete="name"></label>' +
+      '<label>Email<input class="afhub-handoff-input" name="email" type="email" placeholder="correo@ejemplo.com" autocomplete="email"></label>' +
+      '<label>Teléfono<input class="afhub-handoff-input" name="phone" type="tel" placeholder="+34 600 000 000" autocomplete="tel"></label>' +
+      '<label>Mensaje (opcional)<textarea class="afhub-handoff-input afhub-handoff-textarea" name="message" rows="2" placeholder="¿En qué podemos ayudarte?"></textarea></label>' +
+      '<p class="afhub-handoff-error" style="display:none"></p>' +
+      '<div class="afhub-handoff-actions">' +
+      '<button type="button" class="afhub-handoff-cancel">Cancelar</button>' +
+      '<button type="button" class="afhub-handoff-submit">Enviar solicitud</button>' +
+      '</div></div>';
+    chat.appendChild(handoffOverlay);
+
     var powered = document.createElement('div');
     powered.className = 'afhub-powered';
     powered.innerHTML = 'Powered by <a href="https://www.quinini.online" target="_blank" rel="noopener">BotIvA</a>';
@@ -1735,6 +1762,111 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       }).catch(function () { /* noop */ });
+    }
+
+    function resolveWidgetIdForHandoff() {
+      return String(cfg.widgetId || '').trim();
+    }
+
+    function openHandoffModal() {
+      if (widgetDisabled) return;
+      handoffOverlay.classList.add('visible');
+      var errEl = handoffOverlay.querySelector('.afhub-handoff-error');
+      if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+    }
+
+    function closeHandoffModal() {
+      handoffOverlay.classList.remove('visible');
+    }
+
+    function submitHandoffRequest() {
+      var wid = resolveWidgetIdForHandoff();
+      if (!wid) {
+        addMessage('bot', 'No se pudo enviar la solicitud. Recarga la página e inténtalo de nuevo.');
+        return;
+      }
+      if (!cfg.token || !String(cfg.token).trim()) {
+        addMessage('bot', 'Configuración incompleta (token). Contacta al administrador del sitio.');
+        return;
+      }
+      var nameEl = handoffOverlay.querySelector('[name="name"]');
+      var emailEl = handoffOverlay.querySelector('[name="email"]');
+      var phoneEl = handoffOverlay.querySelector('[name="phone"]');
+      var msgEl = handoffOverlay.querySelector('[name="message"]');
+      var errEl = handoffOverlay.querySelector('.afhub-handoff-error');
+      var submitBtn = handoffOverlay.querySelector('.afhub-handoff-submit');
+      var contactInfo = {
+        name: nameEl && nameEl.value ? String(nameEl.value).trim() : '',
+        email: emailEl && emailEl.value ? String(emailEl.value).trim() : '',
+        phone: phoneEl && phoneEl.value ? String(phoneEl.value).trim() : ''
+      };
+      var userMessage = msgEl && msgEl.value ? String(msgEl.value).trim() : '';
+      if (!contactInfo.name && !contactInfo.email && !contactInfo.phone) {
+        if (errEl) {
+          errEl.textContent = 'Indica al menos nombre, email o teléfono.';
+          errEl.style.display = 'block';
+        }
+        return;
+      }
+      if (submitBtn) submitBtn.disabled = true;
+      var endpoint = cfg.host.replace(/\/$/, '') + '/api/widgets/' + encodeURIComponent(wid) + '/handoff';
+      fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Widget-Token': String(cfg.token).trim()
+        },
+        body: JSON.stringify({
+          sessionId: chatSessionId,
+          agentId: cfg.agentId || '',
+          userMessage: userMessage,
+          contactInfo: contactInfo,
+          token: String(cfg.token).trim()
+        })
+      })
+        .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+        .then(function (result) {
+          if (submitBtn) submitBtn.disabled = false;
+          if (!result.ok) {
+            if (errEl) {
+              errEl.textContent = (result.data && result.data.error) ? result.data.error : 'Error al enviar.';
+              errEl.style.display = 'block';
+            }
+            return;
+          }
+          closeHandoffModal();
+          addMessage('bot', result.data.message || 'Solicitud registrada. Te contactaremos pronto.');
+          var waDigits = humanWaDigits();
+          if (waDigits.length >= 8) {
+            appendHumanSupportOfferInChat('persona');
+          }
+          try {
+            emitEvent('conversation_handoff', {
+              reason: 'form_submit',
+              channel: 'inbox',
+              contactInfo: contactInfo
+            });
+          } catch (_ev) { /* noop */ }
+        })
+        .catch(function () {
+          if (submitBtn) submitBtn.disabled = false;
+          if (errEl) {
+            errEl.textContent = 'Error de red. Intenta de nuevo.';
+            errEl.style.display = 'block';
+          }
+        });
+    }
+
+    handoffBtn.addEventListener('click', openHandoffModal);
+    handoffOverlay.querySelector('.afhub-handoff-cancel').addEventListener('click', closeHandoffModal);
+    handoffOverlay.querySelector('.afhub-handoff-submit').addEventListener('click', submitHandoffRequest);
+    handoffOverlay.addEventListener('click', function (e) {
+      if (e.target === handoffOverlay) closeHandoffModal();
+    });
+
+    if (widgetDisabled) {
+      handoffBtn.disabled = true;
+      handoffBar.classList.add('afhub-handoff-bar--disabled');
     }
 
     function open() {
@@ -2927,6 +3059,24 @@
       '#' + rootId + ' .afhub-persona-offer-hint { color:#5a5a6e; font-size:13px; }' +
       '#' + rootId + ' .afhub-persona-tag { display:inline-flex; align-items:center; justify-content:center; padding:4px 11px; border-radius:999px; font-size:11px; font-weight:700; letter-spacing:.03em; text-decoration:none; border:1px solid rgba(0,0,0,.1); background:rgba(0,0,0,.03); color:' + cfg.color + '; cursor:pointer; font-family:inherit; transition:background .15s; }' +
       '#' + rootId + ' .afhub-persona-tag:hover { background:rgba(0,0,0,.07); }' +
+      '#' + rootId + ' .afhub-handoff-bar { flex-shrink:0; padding:6px 12px 4px; border-top:1px solid #e8eaed; background:#fff; }' +
+      '#' + rootId + ' .afhub-handoff-bar--disabled { opacity:.5; pointer-events:none; }' +
+      '#' + rootId + ' .afhub-handoff-btn { width:100%; padding:8px 12px; border-radius:10px; border:1px solid ' + cfg.color + '44; background:' + cfg.color + '0c; color:' + cfg.color + '; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; transition:background .15s; }' +
+      '#' + rootId + ' .afhub-handoff-btn:hover { background:' + cfg.color + '18; }' +
+      '#' + rootId + ' .afhub-handoff-btn:disabled { cursor:not-allowed; opacity:.6; }' +
+      '#' + rootId + ' .afhub-handoff-overlay { display:none; position:absolute; inset:0; z-index:30; background:rgba(0,0,0,.45); align-items:center; justify-content:center; padding:16px; box-sizing:border-box; }' +
+      '#' + rootId + ' .afhub-handoff-overlay.visible { display:flex; }' +
+      '#' + rootId + ' .afhub-handoff-modal { width:100%; max-width:320px; background:#fff; border-radius:14px; padding:18px 16px; box-shadow:0 12px 40px rgba(0,0,0,.18); font-family:inherit; }' +
+      '#' + rootId + ' .afhub-handoff-modal h4 { margin:0 0 6px; font-size:15px; font-weight:800; color:#111827; }' +
+      '#' + rootId + ' .afhub-handoff-desc { margin:0 0 12px; font-size:12px; color:#6b7280; line-height:1.4; }' +
+      '#' + rootId + ' .afhub-handoff-modal label { display:block; margin-bottom:8px; font-size:11px; font-weight:600; color:#374151; }' +
+      '#' + rootId + ' .afhub-handoff-input { display:block; width:100%; margin-top:4px; padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:13px; font-family:inherit; box-sizing:border-box; }' +
+      '#' + rootId + ' .afhub-handoff-textarea { resize:vertical; min-height:52px; }' +
+      '#' + rootId + ' .afhub-handoff-error { margin:0 0 8px; font-size:11px; color:#dc2626; font-weight:600; }' +
+      '#' + rootId + ' .afhub-handoff-actions { display:flex; gap:8px; margin-top:4px; }' +
+      '#' + rootId + ' .afhub-handoff-cancel { flex:1; padding:9px; border-radius:8px; border:1px solid #ddd; background:#fff; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; }' +
+      '#' + rootId + ' .afhub-handoff-submit { flex:1; padding:9px; border-radius:8px; border:none; background:' + cfg.color + '; color:#fff; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; }' +
+      '#' + rootId + ' .afhub-handoff-submit:disabled { opacity:.6; cursor:wait; }' +
       '#' + rootId + ' .afhub-shortcuts-wrap { flex-shrink:0; border-top:1px solid #e8eaed; }' +
       '#' + rootId + ' .afhub-shortcuts-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; padding:7px 14px; background:transparent; border:none; cursor:pointer; font-family:inherit; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-shortcuts-toggle:hover { background:' + cfg.color + '0a; }' +

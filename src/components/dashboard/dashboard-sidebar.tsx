@@ -13,6 +13,8 @@ import {
   Shield,
   ChevronLeft,
   ChevronRight,
+  Sparkles,
+  Inbox,
 } from 'lucide-react';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 import { PwaInstallButton } from '@/components/shared/pwa-install-button';
@@ -41,7 +43,11 @@ function SoftDivider({ margin }: { margin?: string }) {
 export const NAV_GROUPS: { title: string; items: { href: string; label: string; icon: LucideIcon }[] }[] = [
   {
     title: 'Panel',
-    items: [{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }],
+    items: [
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/dashboard/quick-start', label: 'Quick Start', icon: Sparkles },
+      { href: '/dashboard/inbox', label: 'Inbox', icon: Inbox },
+    ],
   },
   {
     title: 'Agentes y widgets',
@@ -62,6 +68,8 @@ export const NAV_GROUPS: { title: string; items: { href: string; label: string; 
 
 export const SIDEBAR_TOUR_KEY_BY_HREF: Record<string, string> = {
   '/dashboard': 'sidebar-inicio',
+  '/dashboard/quick-start': 'sidebar-quick-start',
+  '/dashboard/inbox': 'sidebar-inbox',
   '/dashboard/agents': 'sidebar-agentes',
   '/dashboard/widget-builder': 'sidebar-widget-builder',
   '/dashboard/widgets': 'sidebar-widgets',

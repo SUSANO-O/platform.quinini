@@ -30,6 +30,10 @@ const UserSchema = new Schema({
   allowedModelProviders: { type: [String], default: [] },
   /** WebPush subscription object (endpoint + keys) para notificaciones push en navegador. */
   pushSubscription:  { type: Schema.Types.Mixed, default: null },
+  /** Integración Zendesk/Freshdesk para tickets automáticos al escalar (plan Growth+). */
+  escalationTicketIntegration: { type: Schema.Types.Mixed, default: null },
+  /** Incoming Webhook URL de Slack para avisos al escalar (plan Starter+). */
+  escalationSlackWebhookUrl: { type: String, default: null },
   createdAt:         { type: Date,   default: Date.now },
 }, { timestamps: true });
 
@@ -302,6 +306,12 @@ const ConversationSessionSchema = new Schema({
   sentiment:    { type: String, enum: ['positive', 'neutral', 'negative'], default: 'neutral' },
   /** true si el usuario solicitó agente humano */
   escalated:    { type: Boolean, default: false },
+  /** Datos del formulario de handoff (nombre, email, teléfono) */
+  handoffContact: { type: Schema.Types.Mixed, default: null },
+  handoffMessage: { type: String, default: '' },
+  handoffAt:      { type: Date, default: null },
+  /** Bandeja de entrada: open | resolved */
+  inboxStatus:    { type: String, enum: ['open', 'resolved'], default: null },
   /** true si la sesión terminó sin respuesta final del bot (abandonó) */
   dropped:      { type: Boolean, default: false },
   /** true si el usuario respondió positivamente (resolved vía feedback) */
@@ -321,6 +331,24 @@ ConversationSessionSchema.index({ widgetId: 1, month: -1 });
 ConversationSessionSchema.index({ userId: 1, month: -1 });
 ConversationSessionSchema.index({ sessionId: 1 }, { unique: true });
 ConversationSessionSchema.index({ startedAt: -1 });
+ConversationSessionSchema.index({ userId: 1, escalated: 1, inboxStatus: 1, handoffAt: -1 });
+
+// ── RAG BULK JOBS ─────────────────────────────────────────────────────────────
+// Cola async para ingestión masiva de documentos RAG (ZIP o lotes grandes).
+
+const RagBulkJobSchema = new Schema({
+  userId:         { type: String, required: true },
+  agentId:        { type: String, required: true },
+  plan:           { type: String, default: 'free' },
+  status:         { type: String, enum: ['pending', 'processing', 'completed', 'failed'], default: 'pending' },
+  totalFiles:     { type: Number, default: 0 },
+  processedFiles: { type: Number, default: 0 },
+  fileErrors:     [{ file: String, error: String }],
+  startedAt:      { type: Date, default: null },
+  finishedAt:     { type: Date, default: null },
+}, { timestamps: true });
+
+RagBulkJobSchema.index({ userId: 1, agentId: 1, createdAt: -1 });
 
 // ── REGISTRATION CODES ───────────────────────────────────────────────────────
 // Códigos de invitación generados desde el admin. Reemplazan la variable REGISTRATION_CODES.
@@ -439,7 +467,7 @@ AbTestSchema.index({ userId: 1, status: 1 });
 if (process.env.NODE_ENV !== 'production') {
   const modelNames = [
     'User', 'ClientAgent', 'Subscription', 'PlatformUsage', 'ConversationPack',
-    'AuditLog', 'SecurityLog', 'ConversationSession', 'Organization', 'Referral', 'AbTest',
+    'AuditLog', 'SecurityLog', 'ConversationSession', 'RagBulkJob', 'Organization', 'Referral', 'AbTest',
   ] as const;
   modelNames.forEach((name) => {
     if (mongoose.models[name]) delete (mongoose.models as Record<string, unknown>)[name];
@@ -455,6 +483,7 @@ export const ConversationPack     = mongoose.models.ConversationPack     || mong
 export const AuditLog             = mongoose.models.AuditLog             || mongoose.model('AuditLog', AuditLogSchema);
 export const SecurityLog          = mongoose.models.SecurityLog          || mongoose.model('SecurityLog', SecurityLogSchema);
 export const ConversationSession  = mongoose.models.ConversationSession  || mongoose.model('ConversationSession', ConversationSessionSchema);
+export const RagBulkJob           = mongoose.models.RagBulkJob           || mongoose.model('RagBulkJob', RagBulkJobSchema);
 export const Organization         = mongoose.models.Organization         || mongoose.model('Organization', OrganizationSchema);
 export const Referral             = mongoose.models.Referral             || mongoose.model('Referral', ReferralSchema);
 export const AbTest               = mongoose.models.AbTest               || mongoose.model('AbTest', AbTestSchema);
