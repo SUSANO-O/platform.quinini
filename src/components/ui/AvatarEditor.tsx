@@ -35,6 +35,14 @@ interface AvatarEditorProps {
 
 const DEFAULT_EXPORT_SIZE = 200;
 
+type TabDef = { id: Tab; label: string; Icon: typeof Scissors };
+
+const ALL_TAB_DEFS: TabDef[] = [
+  { id: 'crop', label: 'Recortar', Icon: Scissors },
+  { id: 'filters', label: 'Retocar', Icon: Sliders },
+  { id: 'ai', label: 'Generar AI', Icon: Sparkles },
+];
+
 function Slider({
   label, value, min, max, unit = '%', onChange,
 }: {
@@ -77,11 +85,7 @@ export function AvatarEditor({
   };
 
   const allowedTabs: Tab[] = visibleTabs ?? ['crop', 'filters', 'ai'];
-  const tabDefs: { id: Tab; label: string; Icon: React.FC<{ size: number }> }[] = [
-    { id: 'crop', label: 'Recortar', Icon: Scissors },
-    { id: 'filters', label: 'Retocar', Icon: Sliders },
-    { id: 'ai', label: 'Generar AI', Icon: Sparkles },
-  ].filter((t) => allowedTabs.includes(t.id));
+  const tabDefs = ALL_TAB_DEFS.filter((t) => allowedTabs.includes(t.id));
 
   const [mounted, setMounted] = useState(false);
   const [tab, setTab]         = useState<Tab>(allowedTabs[0] ?? 'crop');
