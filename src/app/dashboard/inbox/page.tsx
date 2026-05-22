@@ -15,6 +15,7 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { BRAND_TEXT_COLOR, UI_SURFACE_SECONDARY } from '@/lib/brand';
+import { notifyInboxChanged } from '@/hooks/use-inbox-open-count';
 
 type InboxItem = {
   sessionId: string;
@@ -50,6 +51,7 @@ export default function InboxPage() {
       }
       setItems(Array.isArray(data.items) ? data.items : []);
       setOpenCount(typeof data.openCount === 'number' ? data.openCount : 0);
+      notifyInboxChanged();
     } finally {
       setLoading(false);
     }
@@ -89,6 +91,7 @@ export default function InboxPage() {
       return;
     }
     toast.success(inboxStatus === 'resolved' ? 'Marcada como resuelta' : 'Reabierta');
+    notifyInboxChanged();
     load();
   }
 

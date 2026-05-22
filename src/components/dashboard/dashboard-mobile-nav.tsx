@@ -12,6 +12,8 @@ import {
 } from '@/components/dashboard/dashboard-sidebar';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { PwaInstallButton } from '@/components/shared/pwa-install-button';
+import { useInboxOpenCount } from '@/hooks/use-inbox-open-count';
+import { BRAND_TEXT_COLOR } from '@/lib/brand';
 
 /** Accesos directos en la barra inferior (estilo app móvil). */
 const BOTTOM_TABS: { href: string; label: string; icon: LucideIcon }[] = [
@@ -42,6 +44,7 @@ export function DashboardMobileNav({
   menuFooter,
 }: DashboardMobileNavProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { openCount: inboxOpenCount } = useInboxOpenCount(true);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -129,9 +132,29 @@ export function DashboardMobileNav({
                         data-tour={SIDEBAR_TOUR_KEY_BY_HREF[item.href]}
                         onClick={() => setMenuOpen(false)}
                         className={`dashboard-mobile-nav__sheet-link${active ? ' dashboard-mobile-nav__sheet-link--active' : ''}`}
+                        style={{ position: 'relative' }}
                       >
                         <Icon size={20} strokeWidth={1.75} aria-hidden />
-                        <span>{item.label}</span>
+                        <span style={{ flex: 1 }}>{item.label}</span>
+                        {item.href === '/dashboard/inbox' && inboxOpenCount > 0 ? (
+                          <span
+                            aria-label={`${inboxOpenCount} solicitudes pendientes`}
+                            style={{
+                              minWidth: 20,
+                              height: 20,
+                              padding: '0 6px',
+                              borderRadius: 999,
+                              background: BRAND_TEXT_COLOR,
+                              color: '#fff',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              lineHeight: '20px',
+                              textAlign: 'center',
+                            }}
+                          >
+                            {inboxOpenCount > 99 ? '99+' : inboxOpenCount}
+                          </span>
+                        ) : null}
                       </Link>
                     );
                   })}
