@@ -1,5 +1,22 @@
 export const SUPPORTED_INVOICE_CURRENCIES = ['EUR', 'USD', 'COP', 'GBP', 'MXN'] as const;
 
+/** Medios de pago habituales en factura electrónica (Colombia). */
+export const INVOICE_PAYMENT_METHODS = [
+  'Transferencia bancaria',
+  'Consignación bancaria',
+  'PSE',
+  'Tarjeta de crédito',
+  'Tarjeta de débito',
+  'Efectivo',
+  'Nequi',
+  'Daviplata',
+  'Cheque',
+  'Criptomoneda / USDT',
+  'Otro',
+] as const;
+
+export type InvoicePaymentMethod = (typeof INVOICE_PAYMENT_METHODS)[number];
+
 /** Línea guardada: solo concepto, importe, moneda y notas opcionales. */
 export type ManualInvoiceLineItem = {
   concept: string;
@@ -108,6 +125,16 @@ export function formatMoneyCents(cents: number, currency: string): string {
   } catch {
     return `${(cents / 100).toFixed(2)} ${currency}`;
   }
+}
+
+/** Formato tipo factura CO (70.000 sin decimales en COP). */
+export function formatAmountDisplay(cents: number, currency: string): string {
+  const code = currency.toUpperCase();
+  const value = cents / 100;
+  if (code === 'COP') {
+    return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0, minimumFractionDigits: 0 }).format(value);
+  }
+  return formatMoneyCents(cents, code);
 }
 
 export function formatInvoiceTotalDisplay(
