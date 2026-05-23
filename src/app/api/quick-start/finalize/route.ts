@@ -62,6 +62,8 @@ export async function POST(req: NextRequest) {
     afhubToken: widget.afhubToken,
     widgetName: widget.name ?? '',
     filesIngested: result.filesIngested,
+    hubSynced: result.hubSynced,
+    shortcutsCount: result.shortcutsCount,
     snippet: buildEmbedSnippet(origin, widget.afhubToken),
     origin,
   });

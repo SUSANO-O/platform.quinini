@@ -20,6 +20,7 @@ export interface ProcessResult {
 }
 
 const MAX_CHARS = 120_000; // ~30k tokens — truncate beyond this
+export { MAX_CHARS as RAG_MAX_EXTRACTED_CHARS };
 
 export function getFileCategory(mimeType: string, filename: string): FileCategory {
   if (mimeType === 'application/pdf') return 'pdf';

@@ -6,7 +6,9 @@ import { Upload, FileText, Copy, Check, Sparkles, ExternalLink, Loader2 } from '
 import Link from 'next/link';
 import { BRAND_TEXT_COLOR, UI_SURFACE_SECONDARY } from '@/lib/brand';
 
-const MAX_PDF_MB = 4;
+import { uploadRagFileToAgent } from '@/lib/rag-upload-client';
+
+const MAX_PDF_MB = 10;
 const MAX_PDF_BYTES = MAX_PDF_MB * 1024 * 1024;
 
 type QuickStartResult = {
@@ -17,6 +19,8 @@ type QuickStartResult = {
   widgetName: string;
   snippet: string;
   filesIngested: number;
+  hubSynced?: boolean;
+  shortcutsCount?: number;
   ingestWarnings?: string[];
 };
 
@@ -64,19 +68,16 @@ export default function QuickStartPage() {
 
       const agentId = initData.agentId as string;
       for (const file of files) {
-        const form = new FormData();
-        form.append('file', file);
-        const uploadRes = await fetch(`/api/agents/${agentId}/rag-upload?deferSync=1`, {
-          method: 'POST',
-          body: form,
+        const upload = await uploadRagFileToAgent(agentId, file, {
+          deferSync: true,
+          onStatus: (msg) => toast.message(msg),
         });
-        const uploadData = await uploadRes.json();
-        if (!uploadRes.ok) {
-          toast.error(`${file.name}: ${typeof uploadData.error === 'string' ? uploadData.error : 'Error al subir el PDF.'}`);
+        if (!upload.ok) {
+          toast.error(`${file.name}: ${upload.error ?? 'Error al subir el PDF.'}`);
           return;
         }
-        if (typeof uploadData.message === 'string' && uploadData.message.includes('aviso')) {
-          ingestWarnings.push(uploadData.message);
+        if (typeof upload.message === 'string' && upload.message.includes('aviso')) {
+          ingestWarnings.push(upload.message);
         }
       }
 
@@ -99,9 +100,20 @@ export default function QuickStartPage() {
         widgetName: data.widgetName,
         snippet: data.snippet,
         filesIngested: data.filesIngested,
+        hubSynced: data.hubSynced !== false,
+        shortcutsCount: typeof data.shortcutsCount === 'number' ? data.shortcutsCount : 0,
         ingestWarnings,
       });
       toast.success('¡Widget listo! Copia el snippet e instálalo en tu web.');
+      if (typeof data.shortcutsCount === 'number' && data.shortcutsCount > 0) {
+        toast.info(`${data.shortcutsCount} accesos rápidos generados según tu documentación.`, { duration: 5000 });
+      }
+      if (data.hubSynced === false) {
+        toast.warning(
+          'El agente no se sincronizó con el motor de IA. El chat puede fallar hasta que arranques AgentFlowhub/AIBackHub o reintentes la sync.',
+          { duration: 8000 },
+        );
+      }
       ingestWarnings.forEach((w) => toast.message(w));
     } catch {
       toast.error('Error de red. Intenta de nuevo.');
@@ -168,7 +180,7 @@ export default function QuickStartPage() {
               Arrastra 1–3 PDFs o haz clic para seleccionar
             </p>
             <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0 }}>
-              Máx. {MAX_PDF_MB} MB por PDF · Hasta 3 archivos · Solo PDF
+              Máx. {MAX_PDF_MB} MB por PDF · Hasta 3 archivos · PDFs grandes se comprimen o se extrae solo el texto
             </p>
           </div>
 
@@ -231,7 +243,29 @@ export default function QuickStartPage() {
           </p>
           <p style={{ fontSize: 13, color: 'var(--muted-foreground)', margin: '0 0 16px' }}>
             {result.agentName} · {result.filesIngested} PDF{result.filesIngested !== 1 ? 's' : ''} indexado{result.filesIngested !== 1 ? 's' : ''}
+            {(result.shortcutsCount ?? 0) > 0 && (
+              <> · {result.shortcutsCount} acceso{(result.shortcutsCount ?? 0) !== 1 ? 's' : ''} rápido{(result.shortcutsCount ?? 0) !== 1 ? 's' : ''}</>
+            )}
           </p>
+
+          {result.hubSynced === false && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: '12px 14px',
+                borderRadius: 10,
+                border: '1px solid #f59e0b',
+                background: 'rgba(245, 158, 11, 0.08)',
+                fontSize: 12,
+                lineHeight: 1.5,
+                color: 'var(--foreground)',
+              }}
+            >
+              El agente no se sincronizó con el motor de IA. El chat fallará hasta que arranques{' '}
+              <strong>AgentFlowhub</strong> (puerto <strong>9002</strong>) y <strong>AIBackHub</strong>, y revises{' '}
+              <code style={{ fontSize: 11 }}>AGENTFLOWHUB_URL=http://127.0.0.1:9002</code> en tu <code>.env</code>.
+            </div>
+          )}
 
           <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted-foreground)', display: 'block', marginBottom: 8 }}>
             SNIPPET PARA TU WEB
@@ -275,7 +309,7 @@ export default function QuickStartPage() {
               {copied ? 'Copiado' : 'Copiar snippet'}
             </button>
             <Link
-              href={`/dashboard/widget-preview?widgetId=${result.widgetId}`}
+              href={`/dashboard/widget-preview?id=${result.widgetId}`}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -294,7 +328,7 @@ export default function QuickStartPage() {
               Probar widget
             </Link>
             <Link
-              href="/dashboard/agents"
+              href={`/dashboard/agents/${result.agentId}`}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',

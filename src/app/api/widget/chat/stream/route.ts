@@ -15,6 +15,13 @@
 import { NextRequest } from 'next/server';
 import { randomUUID } from 'crypto';
 import { getAgentflowhubBaseUrl } from '@/lib/aibackhub-sync';
+import {
+  fetchHubWidgetChat,
+  formatHubFetchError,
+  getHubWidgetChatUrl,
+  resolveHubAgentIdInBody,
+  validateHubProxyConfig,
+} from '@/lib/widget-chat-hub';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent, Subscription } from '@/lib/db/models';
 import { findWidgetForWtToken, isWidgetActive, sentAgentIdMatchesWidget } from '@/lib/widget-token-verify';
@@ -98,6 +105,19 @@ export async function POST(req: NextRequest) {
     return new Response(
       sseEvent({ type: 'error', message: guardResult.message, code: guardResult.code }),
       { status: 400, headers: { 'Content-Type': 'text/event-stream', ...corsHeaders(origin) } },
+    );
+  }
+
+  const hubConfigErr = validateHubProxyConfig(req.nextUrl.origin);
+  if (hubConfigErr) {
+    return new Response(
+      sseEvent({
+        type: 'error',
+        message: hubConfigErr.message,
+        code: hubConfigErr.code,
+        ...(hubConfigErr.hint ? { hint: hubConfigErr.hint } : {}),
+      }),
+      { status: 503, headers: { 'Content-Type': 'text/event-stream', ...corsHeaders(origin) } },
     );
   }
 
@@ -353,10 +373,10 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        if (parsedAgentIdLocal) {
+        if (parsedAgentId) {
           try {
             await connectDB();
-            const agentDoc = await ClientAgent.findById(parsedAgentIdLocal, { strictPurposeOnly: 1, systemPrompt: 1 })
+            const agentDoc = await ClientAgent.findById(parsedAgentId, { strictPurposeOnly: 1, systemPrompt: 1 })
               .lean() as { strictPurposeOnly?: boolean; systemPrompt?: string } | null;
             if (agentDoc?.strictPurposeOnly === true) {
               const parsed = JSON.parse(hubBody) as Record<string, unknown>;
@@ -367,6 +387,22 @@ export async function POST(req: NextRequest) {
               hubBody = JSON.stringify(parsed);
             }
           } catch { /* non-critical */ }
+        }
+
+        const hubAgentResolve = await resolveHubAgentIdInBody(hubBody, faqTrackOwnerId ?? undefined);
+        if (!hubAgentResolve.ok) {
+          enqueue({
+            type: 'error',
+            message: hubAgentResolve.message,
+            code: hubAgentResolve.code,
+            ...(hubAgentResolve.hint ? { hint: hubAgentResolve.hint } : {}),
+          });
+          return;
+        }
+        hubBody = hubAgentResolve.body;
+        const hubAgentId = hubAgentResolve.hubAgentId || parsedAgentIdLocal;
+        if (hubAgentResolve.hubAgentId) {
+          parsedAgentIdLocal = hubAgentResolve.hubAgentId;
         }
 
         if (hubSecret && widgetToken.startsWith('wt_')) {
@@ -381,16 +417,15 @@ export async function POST(req: NextRequest) {
         } catch {
           /* ignore */
         }
-        const hubUrl = `${base.replace(/\/$/, '')}/api/widget/chat`;
+        const hubUrl = getHubWidgetChatUrl(base);
         logWidgetFlow('🌊', 'stream:fetch', 'SSE → AgentFlowhub', {
           traceId,
           hubUrl,
-          agentId: parsedAgentIdLocal || undefined,
+          agentId: hubAgentId || parsedAgentId || undefined,
           ...widgetMessageProbe(streamMsg),
         });
         enqueue({ type: 'status', phase: 'hub', message: 'Consultando al asistente…' });
-        // Call the regular (non-streaming) hub endpoint
-        const res = await fetch(hubUrl, {
+        const res = await fetchHubWidgetChat(base, {
           method: 'POST',
           headers,
           body: hubBody,
@@ -443,7 +478,7 @@ export async function POST(req: NextRequest) {
         enqueue({
           type: 'done',
           reply: fullReply,
-          agentId: json.agentId || parsedAgentIdLocal,
+          agentId: json.agentId || hubAgentId || parsedAgentIdLocal,
           toolsUsed: json.toolsUsed || [],
           ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
           ...(mcpTag ? { mcpTag } : {}),
@@ -452,12 +487,12 @@ export async function POST(req: NextRequest) {
         });
 
         // Telemetry (non-blocking)
-        if (widgetToken.startsWith('wt_') && parsedAgentIdLocal) {
-          void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true, json.usage).catch(() => {});
+        if (widgetToken.startsWith('wt_') && parsedAgentId) {
+          void trackWidgetChatUsage(widgetToken, parsedAgentId, true, json.usage).catch(() => {});
           if (faqTrackOwnerId) {
             void trackWidgetUserMessageForFaqCandidates({
               ownerUserId: faqTrackOwnerId,
-              agentIdOrHubId: parsedAgentIdLocal,
+              agentIdOrHubId: parsedAgentId,
               rawBody,
             }).catch(() => {});
 
@@ -469,7 +504,7 @@ export async function POST(req: NextRequest) {
                   const baseMsg = {
                     widgetId: resolvedWidgetId,
                     userId: faqTrackOwnerId,
-                    agentId: parsedAgentIdLocal,
+                    agentId: parsedAgentId,
                     sessionId: parsedSessionId || traceId,
                     traceId,
                   };
@@ -495,8 +530,14 @@ export async function POST(req: NextRequest) {
           ).catch(() => {});
         }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Error de red.';
-        enqueue({ type: 'error', message: msg, code: 'STREAM_ERROR' });
+        const formatted = formatHubFetchError(err, base);
+        enqueue({
+          type: 'error',
+          message: formatted.message,
+          code: formatted.code,
+          ...(formatted.hint ? { hint: formatted.hint } : {}),
+          ...(formatted.details ? { details: formatted.details } : {}),
+        });
       } finally {
         controller.close();
       }
