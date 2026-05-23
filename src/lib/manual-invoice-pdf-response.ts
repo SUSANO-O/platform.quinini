@@ -54,6 +54,9 @@ export async function manualInvoicePdfResponse(inv: ManualInvoiceDoc): Promise<N
     totalCents: inv.totalCents,
     currency,
     taxPercent: inv.taxPercent ?? 0,
+    paymentMethod: inv.paymentMethod ?? '',
+    paymentRef: inv.paymentRef ?? '',
+    notes: inv.notes ?? '',
     buyer: { ...buyer, email },
     issuer,
   });

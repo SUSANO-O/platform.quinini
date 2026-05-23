@@ -8,8 +8,10 @@ import { BRAND_TEXT_COLOR } from '@/lib/brand';
 import { formatBillingProfileSummary, type BillingProfile } from '@/lib/billing-profile';
 import {
   computeTotalsByCurrency,
+  formatAmountDisplay,
   formatInvoiceTotalDisplay,
   formatMoneyCents,
+  INVOICE_PAYMENT_METHODS,
   SUPPORTED_INVOICE_CURRENCIES,
 } from '@/lib/manual-invoice-line';
 
@@ -27,6 +29,8 @@ type ManualInvoiceRow = {
   totalCents: number;
   currency: string;
   taxPercent: number;
+  paymentMethod?: string;
+  paymentRef?: string;
 };
 
 type ConceptLine = {
@@ -42,9 +46,53 @@ function newLine(from?: ConceptLine): ConceptLine {
     id: crypto.randomUUID(),
     concept: '',
     amount: '',
-    currency: from?.currency ?? 'USD',
+    currency: from?.currency ?? 'COP',
     notes: '',
   };
+}
+
+const FE_HEADER_BG = 'rgba(148, 163, 184, 0.14)';
+const FE_BORDER = 'var(--border)';
+
+function FeSectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        padding: '8px 12px',
+        background: FE_HEADER_BG,
+        border: `1px solid ${FE_BORDER}`,
+        borderBottom: 'none',
+        fontSize: 11,
+        fontWeight: 800,
+        letterSpacing: '0.03em',
+        textTransform: 'uppercase',
+        color: 'var(--foreground)',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function FeSectionBody({ children, noPad }: { children: React.ReactNode; noPad?: boolean }) {
+  return (
+    <div
+      style={{
+        padding: noPad ? 0 : 14,
+        border: `1px solid ${FE_BORDER}`,
+        borderTop: 'none',
+        marginBottom: 0,
+        background: 'var(--background)',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function displayTotal(cents: number, currency: string) {
+  if (currency === 'COP') return formatAmountDisplay(cents, currency);
+  return formatMoney(cents, currency);
 }
 
 function formatConceptSummary(concept: string, lineCount?: number) {
@@ -90,7 +138,13 @@ export function ManualInvoiceSection({ adminUserId, userEmail }: ManualInvoiceSe
   const [form, setForm] = useState({
     lines: [newLine()] as ConceptLine[],
     taxPercent: '19',
+    paymentMethod: 'Transferencia bancaria' as string,
+    paymentMethodCustom: '',
+    paymentRef: '',
   });
+
+  const resolvedPaymentMethod =
+    form.paymentMethod === 'Otro' ? form.paymentMethodCustom.trim() : form.paymentMethod;
 
   const parsedItems = linesToItems(form.lines);
   const taxRate = parseFloat(form.taxPercent) || 0;
@@ -123,6 +177,12 @@ export function ManualInvoiceSection({ adminUserId, userEmail }: ManualInvoiceSe
     setProfileSaved(false);
   }, [userEmail]);
 
+  const handleProfileLoaded = useCallback((profile: BillingProfile, ready: boolean) => {
+    setProfileReady(ready);
+    setProfileSummary(formatBillingProfileSummary(profile, userEmail));
+    setProfileSaved(ready);
+  }, [userEmail]);
+
   const handleProfileSaved = useCallback(() => {
     setProfileSaved(true);
   }, []);
@@ -146,6 +206,10 @@ export function ManualInvoiceSection({ adminUserId, userEmail }: ManualInvoiceSe
       toast.error('Completa y guarda los datos de facturación del cliente antes de generar el recibo.');
       return;
     }
+    if (!resolvedPaymentMethod || resolvedPaymentMethod.length < 2) {
+      toast.error('Indica el medio de pago.');
+      return;
+    }
     setCreating(true);
     try {
       const lineItems = form.lines.map((l) => ({
@@ -161,6 +225,8 @@ export function ManualInvoiceSection({ adminUserId, userEmail }: ManualInvoiceSe
         body: JSON.stringify({
           lineItems,
           taxPercent: parseFloat(form.taxPercent) || 0,
+          paymentMethod: resolvedPaymentMethod,
+          paymentRef: form.paymentRef.trim(),
         }),
       });
       const data = await res.json();
@@ -170,7 +236,13 @@ export function ManualInvoiceSection({ adminUserId, userEmail }: ManualInvoiceSe
       }
       toast.success(`Recibo ${data.invoiceNumber} creado.`);
       if (data.pdfUrl) window.open(data.pdfUrl, '_blank', 'noopener,noreferrer');
-      setForm({ lines: [newLine()], taxPercent: form.taxPercent });
+      setForm({
+        lines: [newLine()],
+        taxPercent: form.taxPercent,
+        paymentMethod: form.paymentMethod,
+        paymentMethodCustom: '',
+        paymentRef: '',
+      });
       load();
     } finally {
       setCreating(false);
@@ -194,370 +266,376 @@ export function ManualInvoiceSection({ adminUserId, userEmail }: ManualInvoiceSe
     marginBottom: 4,
   };
 
+  const cellInput: React.CSSProperties = {
+    width: '100%',
+    padding: '8px 8px',
+    borderRadius: 6,
+    border: '1px solid transparent',
+    background: 'transparent',
+    fontSize: 12,
+    boxSizing: 'border-box',
+  };
+
+  const thStyle: React.CSSProperties = {
+    padding: '8px 8px',
+    fontWeight: 700,
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+    color: 'var(--muted-foreground)',
+    textAlign: 'left',
+    whiteSpace: 'nowrap',
+  };
+
   return (
     <div>
-      <section
-        style={{
-          marginBottom: 16,
-          padding: 16,
-          borderRadius: 12,
-          border: '1px solid var(--border)',
-          background: 'var(--background)',
-        }}
-      >
+      {/* ── Adquiriente ── */}
+      <FeSectionTitle>Datos del Adquiriente</FeSectionTitle>
+      <FeSectionBody>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
-          <div>
-            <h3 style={{ fontSize: 14, fontWeight: 800, margin: '0 0 4px' }}>Datos de facturación (cliente)</h3>
-            <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.45 }}>
-              Se cargan del usuario seleccionado y aparecen en el PDF como receptor de la factura.
-            </p>
-          </div>
+          <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.45 }}>
+            Información que aparecerá en el bloque «Datos del Adquiriente» del PDF.
+          </p>
           {profileReady ? (
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                fontSize: 11,
-                fontWeight: 700,
-                color: '#16a34a',
-                background: 'rgba(22,163,74,0.1)',
-                padding: '5px 10px',
-                borderRadius: 999,
-              }}
-            >
-              <CheckCircle2 size={13} />
-              Cliente listo
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: '#16a34a', background: 'rgba(22,163,74,0.1)', padding: '5px 10px', borderRadius: 999 }}>
+              <CheckCircle2 size={13} /> Cliente listo
             </span>
           ) : (
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                fontSize: 11,
-                fontWeight: 700,
-                color: '#d97706',
-                background: 'rgba(217,119,6,0.1)',
-                padding: '5px 10px',
-                borderRadius: 999,
-              }}
-            >
-              <AlertCircle size={13} />
-              Falta nombre o NIF
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: '#d97706', background: 'rgba(217,119,6,0.1)', padding: '5px 10px', borderRadius: 999 }}>
+              <AlertCircle size={13} /> Falta nombre o NIF
             </span>
           )}
         </div>
-
         {profileReady && profileSummary ? (
-          <p
-            style={{
-              fontSize: 12,
-              color: 'var(--foreground)',
-              margin: '0 0 12px',
-              padding: '10px 12px',
-              borderRadius: 10,
-              background: 'rgba(99,102,241,0.06)',
-              border: '1px solid rgba(99,102,241,0.15)',
-              lineHeight: 1.5,
-            }}
-          >
+          <p style={{ fontSize: 12, margin: '0 0 12px', padding: '10px 12px', borderRadius: 8, background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.12)', lineHeight: 1.5 }}>
             {profileSummary}
           </p>
         ) : null}
-
         <BillingProfileForm
           key={adminUserId}
           adminUserId={adminUserId}
           onProfileChange={handleProfileChange}
+          onProfileLoaded={handleProfileLoaded}
           onSaved={handleProfileSaved}
         />
-      </section>
+      </FeSectionBody>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
-        <div>
-          <h3 style={{ fontSize: 14, fontWeight: 800, margin: '0 0 4px' }}>Nueva factura manual</h3>
-          <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.45 }}>
-            Para pagos fuera de LemonSqueezy o cuando no hay recibo automático.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowForm((v) => !v)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '8px 14px',
-            borderRadius: 10,
-            border: '1px solid var(--border)',
-            background: 'var(--card)',
-            color: 'var(--foreground)',
-            fontSize: 12,
-            fontWeight: 700,
-            cursor: 'pointer',
-          }}
-        >
-          <Plus size={14} />
-          {showForm ? 'Ocultar formulario' : 'Mostrar formulario'}
-        </button>
-      </div>
+      <div style={{ height: 16 }} />
 
       {showForm ? (
-        <form
-          onSubmit={createInvoice}
-          style={{
-            marginBottom: 20,
-            padding: 16,
-            borderRadius: 12,
-            border: '1px solid var(--border)',
-            background: 'var(--background)',
-          }}
-        >
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-              <span style={labelStyle}>Conceptos *</span>
-              <button
-                type="button"
-                onClick={addLine}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  padding: '6px 10px',
-                  borderRadius: 8,
-                  border: '1px dashed var(--border)',
-                  background: 'transparent',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  color: BRAND_TEXT_COLOR,
-                }}
-              >
-                <Plus size={12} /> Añadir concepto
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {form.lines.map((line, index) => (
-                <div
-                  key={line.id}
-                  style={{
-                    padding: 14,
-                    borderRadius: 12,
-                    border: '1px solid var(--border)',
-                    background: 'var(--card)',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                    <span style={{ fontSize: 12, fontWeight: 800, color: BRAND_TEXT_COLOR }}>
-                      Concepto {index + 1}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeLine(line.id)}
-                      disabled={form.lines.length <= 1}
-                      aria-label="Eliminar concepto"
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        padding: '5px 8px',
-                        borderRadius: 8,
-                        border: '1px solid var(--border)',
-                        background: 'transparent',
-                        color: form.lines.length <= 1 ? 'var(--muted)' : '#ef4444',
-                        fontSize: 11,
-                        fontWeight: 600,
-                        cursor: form.lines.length <= 1 ? 'not-allowed' : 'pointer',
-                      }}
-                    >
-                      <Trash2 size={12} /> Quitar
-                    </button>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
-                    <label style={{ gridColumn: '1 / -1' }}>
-                      <span style={labelStyle}>Concepto *</span>
-                      <input
-                        style={inputStyle}
-                        required
-                        value={line.concept}
-                        onChange={(e) => updateLine(line.id, { concept: e.target.value })}
-                        placeholder="Ej. Suscripción BotIvA Growth — mayo 2026"
-                      />
-                    </label>
-                    <label>
-                      <span style={labelStyle}>Importe *</span>
-                      <input
-                        style={inputStyle}
-                        required
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        value={line.amount}
-                        onChange={(e) => updateLine(line.id, { amount: e.target.value })}
-                        placeholder="39.00"
-                      />
-                    </label>
-                    <label>
-                      <span style={labelStyle}>Moneda</span>
-                      <select
-                        style={inputStyle}
-                        value={line.currency}
-                        onChange={(e) => updateLine(line.id, { currency: e.target.value })}
-                      >
-                        {SUPPORTED_INVOICE_CURRENCIES.map((c) => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label style={{ gridColumn: '1 / -1' }}>
-                      <span style={labelStyle}>Notas (opcional)</span>
-                      <textarea
-                        style={{ ...inputStyle, minHeight: 56, resize: 'vertical' }}
-                        value={line.notes}
-                        onChange={(e) => updateLine(line.id, { notes: e.target.value })}
-                        placeholder="Observaciones de esta línea"
-                      />
-                    </label>
-                  </div>
+        <form onSubmit={createInvoice}>
+          <div style={{ border: `2px solid ${FE_BORDER}`, borderRadius: 12, overflow: 'hidden', marginBottom: 20 }}>
+            <div style={{ padding: '14px 16px', background: 'var(--card)', borderBottom: `1px solid ${FE_BORDER}` }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, letterSpacing: '0.02em' }}>FACTURA ELECTRÓNICA DE VENTA</h3>
+                  <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--muted-foreground)' }}>
+                    Comprobante manual · numeración BIV-AAAA-0001
+                  </p>
                 </div>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${FE_BORDER}`, background: 'transparent', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Ocultar
+                </button>
+              </div>
             </div>
 
-            {parsedItems.length > 0 ? (
-              <div
-                style={{
-                  marginTop: 16,
-                  padding: 14,
-                  borderRadius: 12,
-                  border: '1px solid var(--border)',
-                  background: 'rgba(99,102,241,0.04)',
-                }}
-              >
-                <label style={{ display: 'block', marginBottom: 12 }}>
-                  <span style={labelStyle}>IVA % (documento)</span>
+            <FeSectionTitle>Datos del documento</FeSectionTitle>
+            <FeSectionBody>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+                <label>
+                  <span style={labelStyle}>Medio de pago</span>
+                  <select
+                    style={inputStyle}
+                    value={form.paymentMethod}
+                    onChange={(e) => setForm((f) => ({ ...f, paymentMethod: e.target.value }))}
+                    required
+                  >
+                    {INVOICE_PAYMENT_METHODS.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </label>
+                {form.paymentMethod === 'Otro' ? (
+                  <label>
+                    <span style={labelStyle}>Especificar medio</span>
+                    <input
+                      style={inputStyle}
+                      required
+                      value={form.paymentMethodCustom}
+                      onChange={(e) => setForm((f) => ({ ...f, paymentMethodCustom: e.target.value }))}
+                      placeholder="Ej. PayPal, Wise, efecty…"
+                    />
+                  </label>
+                ) : null}
+                <label>
+                  <span style={labelStyle}>Referencia de pago (opcional)</span>
                   <input
-                    style={{ ...inputStyle, maxWidth: 120 }}
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    value={form.taxPercent}
-                    onChange={(e) => setForm((f) => ({ ...f, taxPercent: e.target.value }))}
+                    style={inputStyle}
+                    value={form.paymentRef}
+                    onChange={(e) => setForm((f) => ({ ...f, paymentRef: e.target.value }))}
+                    placeholder="N.º transferencia, comprobante, etc."
                   />
                 </label>
-
-                {[...totalsByCurrency.entries()].map(([currency, t]) => (
-                  <div key={currency} style={{ fontSize: 13, lineHeight: 1.8, textAlign: 'right' }}>
-                    <div style={{ color: 'var(--muted-foreground)' }}>
-                      Subtotal ({currency}): <strong style={{ color: 'var(--foreground)' }}>{formatMoney(t.subtotalCents, currency)}</strong>
-                    </div>
-                    {taxRate > 0 ? (
-                      <div style={{ color: 'var(--muted-foreground)' }}>
-                        IVA ({taxRate}%): <strong style={{ color: 'var(--foreground)' }}>{formatMoney(t.taxCents, currency)}</strong>
-                      </div>
-                    ) : null}
-                    <div style={{ fontWeight: 800, fontSize: 14, marginTop: 4 }}>
-                      Total ({currency}): {formatMoney(t.totalCents, currency)}
-                    </div>
-                  </div>
-                ))}
+                <label>
+                  <span style={labelStyle}>Tipo de negociación</span>
+                  <input style={{ ...inputStyle, background: 'var(--muted)', color: 'var(--muted-foreground)' }} value="Contado" readOnly />
+                </label>
               </div>
-            ) : null}
-          </div>
-          <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '10px 0 12px' }}>
-            El PDF incluirá emisor BotIvA, numeración BIV-AAAA-0001 y los datos fiscales del cliente de arriba.
-          </p>
-          <button
-            type="submit"
-            disabled={creating || !profileReady || !profileSaved}
-            style={{
-              padding: '10px 18px',
-              borderRadius: 10,
-              border: 'none',
-              background: creating || !profileReady || !profileSaved ? 'var(--muted)' : BRAND_TEXT_COLOR,
-              color: '#fff',
-              fontWeight: 700,
-              fontSize: 13,
-              cursor: creating || !profileReady || !profileSaved ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {creating ? 'Generando…' : !profileSaved ? 'Guarda los datos del cliente primero' : 'Generar recibo PDF'}
-          </button>
-        </form>
-      ) : null}
+            </FeSectionBody>
 
-      <h3 style={{ fontSize: 14, fontWeight: 800, margin: '0 0 10px' }}>Recibos emitidos</h3>
+            <FeSectionTitle>Detalle de productos / servicios</FeSectionTitle>
+            <FeSectionBody noPad>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead style={{ background: FE_HEADER_BG }}>
+                    <tr>
+                      <th style={{ ...thStyle, width: 44 }}>Cód.</th>
+                      <th style={thStyle}>Descripción</th>
+                      <th style={{ ...thStyle, width: 44 }}>Cant.</th>
+                      <th style={{ ...thStyle, width: 100 }}>P/U</th>
+                      <th style={{ ...thStyle, width: 72 }}>Moneda</th>
+                      <th style={thStyle}>Notas</th>
+                      <th style={{ ...thStyle, width: 40 }} />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {form.lines.map((line, index) => (
+                      <tr key={line.id} style={{ borderTop: `1px solid ${FE_BORDER}` }}>
+                        <td style={{ padding: '6px 8px', fontWeight: 700, color: 'var(--muted-foreground)', fontSize: 11 }}>
+                          {String(index + 1).padStart(3, '0')}
+                        </td>
+                        <td style={{ padding: '4px 6px' }}>
+                          <input
+                            style={cellInput}
+                            required
+                            value={line.concept}
+                            onChange={(e) => updateLine(line.id, { concept: e.target.value })}
+                            placeholder="Descripción del producto o servicio"
+                          />
+                        </td>
+                        <td style={{ padding: '6px 8px', textAlign: 'center', color: 'var(--muted-foreground)' }}>1</td>
+                        <td style={{ padding: '4px 6px' }}>
+                          <input
+                            style={cellInput}
+                            required
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            value={line.amount}
+                            onChange={(e) => updateLine(line.id, { amount: e.target.value })}
+                            placeholder="0"
+                          />
+                        </td>
+                        <td style={{ padding: '4px 6px' }}>
+                          <select
+                            style={{ ...cellInput, padding: '7px 4px' }}
+                            value={line.currency}
+                            onChange={(e) => updateLine(line.id, { currency: e.target.value })}
+                          >
+                            {SUPPORTED_INVOICE_CURRENCIES.map((c) => (
+                              <option key={c} value={c}>{c}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td style={{ padding: '4px 6px' }}>
+                          <input
+                            style={cellInput}
+                            value={line.notes}
+                            onChange={(e) => updateLine(line.id, { notes: e.target.value })}
+                            placeholder="Opcional"
+                          />
+                        </td>
+                        <td style={{ padding: '4px 6px', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => removeLine(line.id)}
+                            disabled={form.lines.length <= 1}
+                            aria-label="Eliminar línea"
+                            style={{ border: 'none', background: 'transparent', color: form.lines.length <= 1 ? 'var(--muted)' : '#ef4444', cursor: form.lines.length <= 1 ? 'not-allowed' : 'pointer', padding: 4 }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ padding: '10px 12px', borderTop: `1px solid ${FE_BORDER}` }}>
+                <button
+                  type="button"
+                  onClick={addLine}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 8, border: '1px dashed var(--border)', background: 'transparent', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: BRAND_TEXT_COLOR }}
+                >
+                  <Plus size={12} /> Añadir línea
+                </button>
+              </div>
+            </FeSectionBody>
 
-      {loading ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted-foreground)' }}>
-          <Loader2 size={16} className="animate-spin" />
-          Cargando recibos manuales…
-        </div>
-      ) : items.length === 0 ? (
-        <p style={{ fontSize: 13, color: 'var(--muted-foreground)', margin: 0 }}>
-          Aún no hay recibos manuales para este usuario.
-        </p>
-      ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
-                <th style={{ padding: '8px 6px', fontWeight: 700, color: 'var(--muted-foreground)' }}>Fecha</th>
-                <th style={{ padding: '8px 6px', fontWeight: 700, color: 'var(--muted-foreground)' }}>N.º</th>
-                <th style={{ padding: '8px 6px', fontWeight: 700, color: 'var(--muted-foreground)' }}>Concepto</th>
-                <th style={{ padding: '8px 6px', fontWeight: 700, color: 'var(--muted-foreground)' }}>Total</th>
-                <th style={{ padding: '8px 6px' }} />
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((inv) => (
-                <tr key={inv.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                  <td style={{ padding: '10px 6px', whiteSpace: 'nowrap' }}>
-                    {new Date(inv.issuedAt).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </td>
-                  <td style={{ padding: '10px 6px', fontWeight: 600 }}>{inv.invoiceNumber}</td>
-                  <td style={{ padding: '10px 6px' }}>
-                    {formatConceptSummary(inv.concept, inv.lineItems?.length || undefined)}
-                  </td>
-                  <td style={{ padding: '10px 6px', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                    {formatInvoiceTotalDisplay(
-                      (inv.lineItems ?? []).map((l) => ({
-                        concept: l.concept,
-                        amountCents: l.amountCents,
-                        currency: l.currency ?? inv.currency,
-                        notes: l.notes ?? '',
-                      })),
-                      inv.taxPercent,
-                      { currency: inv.currency, totalCents: inv.totalCents },
-                    )}
-                  </td>
-                  <td style={{ padding: '10px 6px' }}>
-                    <a
-                      href={`${apiBase}/${inv.id}/pdf`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+            {parsedItems.length > 0 ? (
+              <>
+                <FeSectionTitle>Resumen de valores</FeSectionTitle>
+                <FeSectionBody>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 14 }}>
+                    <label>
+                      <span style={labelStyle}>IVA % (documento)</span>
+                      <input
+                        style={{ ...inputStyle, maxWidth: 100 }}
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        value={form.taxPercent}
+                        onChange={(e) => setForm((f) => ({ ...f, taxPercent: e.target.value }))}
+                      />
+                    </label>
+                  </div>
+                  {[...totalsByCurrency.entries()].map(([currency, t]) => (
+                    <div
+                      key={currency}
                       style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        color: BRAND_TEXT_COLOR,
-                        fontWeight: 600,
-                        textDecoration: 'none',
-                        fontSize: 11,
+                        display: 'grid',
+                        gridTemplateColumns: '140px 1fr 140px 1fr',
+                        gap: '8px 16px',
+                        fontSize: 12,
+                        padding: 12,
+                        borderRadius: 8,
+                        border: `1px solid ${FE_BORDER}`,
+                        background: 'var(--card)',
                       }}
                     >
-                      <FileDown size={12} /> PDF
-                    </a>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      <span style={{ color: 'var(--muted-foreground)', fontWeight: 700 }}>MONEDA:</span>
+                      <span>{currency}</span>
+                      <span style={{ color: 'var(--muted-foreground)', fontWeight: 700 }}>SUB TOTAL:</span>
+                      <span>{displayTotal(t.subtotalCents, currency)}</span>
+                      <span style={{ color: 'var(--muted-foreground)', fontWeight: 700 }}>BASE GRAVABLE:</span>
+                      <span>{displayTotal(t.subtotalCents, currency)}</span>
+                      <span style={{ color: 'var(--muted-foreground)', fontWeight: 700 }}>IVA {taxRate}%:</span>
+                      <span>{displayTotal(t.taxCents, currency)}</span>
+                      <span style={{ color: 'var(--foreground)', fontWeight: 800 }}>VALOR FACTURA:</span>
+                      <span style={{ fontWeight: 800, fontSize: 14 }}>{displayTotal(t.totalCents, currency)}</span>
+                    </div>
+                  ))}
+                </FeSectionBody>
+              </>
+            ) : null}
+
+            <div style={{ padding: '14px 16px', borderTop: `1px solid ${FE_BORDER}`, background: 'var(--card)' }}>
+              <button
+                type="submit"
+                disabled={creating || !profileReady || !profileSaved || !resolvedPaymentMethod}
+                style={{
+                  padding: '11px 20px',
+                  borderRadius: 10,
+                  border: 'none',
+                  background: creating || !profileReady || !profileSaved || !resolvedPaymentMethod ? 'var(--muted)' : BRAND_TEXT_COLOR,
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: creating || !profileReady || !profileSaved || !resolvedPaymentMethod ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {creating
+                  ? 'Generando PDF…'
+                  : !profileReady
+                    ? 'Completa nombre o NIF del adquiriente'
+                    : !profileSaved
+                      ? 'Guarda los datos del adquiriente primero'
+                      : !resolvedPaymentMethod
+                        ? 'Indica el medio de pago'
+                        : 'Generar factura PDF'}
+              </button>
+            </div>
+          </div>
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setShowForm(true)}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 16px', borderRadius: 10, border: 'none', background: BRAND_TEXT_COLOR, color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', marginBottom: 20 }}
+        >
+          <Plus size={14} /> Nueva factura electrónica
+        </button>
       )}
+
+      <FeSectionTitle>Recibos emitidos</FeSectionTitle>
+      <FeSectionBody noPad>
+        {loading ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted-foreground)', padding: 16 }}>
+            <Loader2 size={16} className="animate-spin" />
+            Cargando recibos manuales…
+          </div>
+        ) : items.length === 0 ? (
+          <p style={{ fontSize: 13, color: 'var(--muted-foreground)', margin: 0, padding: 16 }}>
+            Aún no hay recibos manuales para este usuario.
+          </p>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead style={{ background: FE_HEADER_BG }}>
+                <tr>
+                  <th style={{ ...thStyle, padding: '10px 8px' }}>Fecha</th>
+                  <th style={{ ...thStyle, padding: '10px 8px' }}>N.º factura</th>
+                  <th style={{ ...thStyle, padding: '10px 8px' }}>Concepto</th>
+                  <th style={{ ...thStyle, padding: '10px 8px' }}>Medio pago</th>
+                  <th style={{ ...thStyle, padding: '10px 8px' }}>Valor factura</th>
+                  <th style={{ ...thStyle, padding: '10px 8px' }} />
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((inv) => (
+                  <tr key={inv.id} style={{ borderTop: `1px solid ${FE_BORDER}` }}>
+                    <td style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}>
+                      {new Date(inv.issuedAt).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </td>
+                    <td style={{ padding: '10px 8px', fontWeight: 600 }}>{inv.invoiceNumber}</td>
+                    <td style={{ padding: '10px 8px' }}>
+                      {formatConceptSummary(inv.concept, inv.lineItems?.length || undefined)}
+                    </td>
+                    <td style={{ padding: '10px 8px', fontSize: 11, color: 'var(--muted-foreground)' }}>
+                      {inv.paymentMethod || '—'}
+                    </td>
+                    <td style={{ padding: '10px 8px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      {formatInvoiceTotalDisplay(
+                        (inv.lineItems ?? []).map((l) => ({
+                          concept: l.concept,
+                          amountCents: l.amountCents,
+                          currency: l.currency ?? inv.currency,
+                          notes: l.notes ?? '',
+                        })),
+                        inv.taxPercent,
+                        { currency: inv.currency, totalCents: inv.totalCents },
+                      )}
+                    </td>
+                    <td style={{ padding: '10px 8px' }}>
+                      <a
+                        href={`${apiBase}/${inv.id}/pdf`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          color: BRAND_TEXT_COLOR,
+                          fontWeight: 600,
+                          textDecoration: 'none',
+                          fontSize: 11,
+                        }}
+                      >
+                        <FileDown size={12} /> PDF
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </FeSectionBody>
     </div>
   );
 }

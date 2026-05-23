@@ -15,11 +15,13 @@ type RawLine = {
 function parseLineItems(body: {
   lineItems?: RawLine[];
   taxPercent?: number;
+  paymentMethod?: string;
+  paymentRef?: string;
   concept?: string;
   amount?: number;
   currency?: string;
   notes?: string;
-}): { lines: CreateManualInvoiceLineInput[]; taxPercent: number } | { error: string } {
+}): { lines: CreateManualInvoiceLineInput[]; taxPercent: number; paymentMethod: string; paymentRef: string } | { error: string } {
   const defaultCurrency = typeof body.currency === 'string' ? body.currency.trim().toUpperCase() : 'USD';
   const taxPercent = Math.min(100, Math.max(0, typeof body.taxPercent === 'number' ? body.taxPercent : 0));
 
@@ -57,7 +59,14 @@ function parseLineItems(body: {
     });
   }
 
-  return { lines, taxPercent };
+  const paymentMethod = typeof body.paymentMethod === 'string' ? body.paymentMethod.trim() : '';
+  if (!paymentMethod || paymentMethod.length < 2) {
+    return { error: 'Indica el medio de pago.' };
+  }
+
+  const paymentRef = typeof body.paymentRef === 'string' ? body.paymentRef.trim().slice(0, 200) : '';
+
+  return { lines, taxPercent, paymentMethod, paymentRef };
 }
 
 export async function GET(req: NextRequest, { params }: Params) {
@@ -85,6 +94,8 @@ export async function GET(req: NextRequest, { params }: Params) {
       totalCents: inv.totalCents,
       currency: inv.currency,
       taxPercent: inv.taxPercent,
+      paymentMethod: inv.paymentMethod || '',
+      paymentRef: inv.paymentRef || '',
       status: inv.status,
     })),
   });
@@ -105,6 +116,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   const result = await createManualInvoice(userId, {
     lineItems: parsed.lines,
     taxPercent: parsed.taxPercent,
+    paymentMethod: parsed.paymentMethod,
+    paymentRef: parsed.paymentRef,
   });
 
   if ('error' in result) {

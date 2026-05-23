@@ -31,14 +31,14 @@ export default function AdminFacturasPage() {
   }
 
   return (
-    <div style={{ maxWidth: 920, margin: '0 auto', padding: '24px 20px 48px' }}>
+    <div style={{ maxWidth: 1080, margin: '0 auto', padding: '24px 20px 48px' }}>
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
           <FileText size={22} style={{ color: '#6366f1' }} />
-          <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>Facturas manuales</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>Facturas electrónicas</h1>
         </div>
         <p style={{ color: 'var(--muted-foreground)', fontSize: 14, margin: '0 0 16px', lineHeight: 1.5 }}>
-          Selecciona un usuario, revisa o completa sus datos fiscales y genera recibos PDF para pagos fuera de
+          Genera facturas manuales con formato de factura electrónica de venta (Colombia) para pagos fuera de
           LemonSqueezy.
         </p>
         <AdminUserPicker selected={selectedUser} onSelect={setSelectedUser} />

@@ -16,6 +16,8 @@ export type { CreateManualInvoiceLineInput } from '@/lib/manual-invoice-line';
 export type CreateManualInvoiceInput = {
   lineItems: CreateManualInvoiceLineInput[];
   taxPercent: number;
+  paymentMethod: string;
+  paymentRef?: string;
 };
 
 export async function getUserBillingProfile(userId: string) {
@@ -105,8 +107,8 @@ export async function createManualInvoice(userId: string, input: CreateManualInv
     taxPercent: totals.taxPercent,
     taxCents: totals.taxCents,
     totalCents: totals.totalCents,
-    paymentMethod: '',
-    paymentRef: '',
+    paymentMethod: input.paymentMethod.trim().slice(0, 120),
+    paymentRef: (input.paymentRef ?? '').trim().slice(0, 200),
     notes: lineItems.map((l) => l.notes).filter(Boolean).join('\n').slice(0, 2000),
     buyer,
     issuer: getDefaultIssuer(),

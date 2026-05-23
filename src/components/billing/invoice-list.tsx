@@ -258,10 +258,12 @@ type BillingProfileFormProps = {
   /** Oculta el botón guardar y el pie de ayuda (p. ej. cuando el padre los controla). */
   hideActions?: boolean;
   onProfileChange?: (profile: BillingProfile, ready: boolean) => void;
+  /** Se invoca una vez al cargar el perfil desde la API (p. ej. admin facturas). */
+  onProfileLoaded?: (profile: BillingProfile, ready: boolean) => void;
   onSaved?: () => void;
 };
 
-export function BillingProfileForm({ adminUserId, hideActions, onProfileChange, onSaved }: BillingProfileFormProps) {
+export function BillingProfileForm({ adminUserId, hideActions, onProfileChange, onProfileLoaded, onSaved }: BillingProfileFormProps) {
   const [profile, setProfile] = useState<BillingProfile>({
     companyName: '',
     taxId: '',
@@ -283,12 +285,13 @@ export function BillingProfileForm({ adminUserId, hideActions, onProfileChange, 
       .then((r) => r.json())
       .then((d) => {
         if (d.profile) {
+          const ready = isBillingProfileReady(d.profile);
           setProfile(d.profile);
-          onProfileChange?.(d.profile, isBillingProfileReady(d.profile));
+          onProfileLoaded?.(d.profile, ready);
         }
       })
       .finally(() => setLoading(false));
-  }, [profileUrl, onProfileChange, onSaved]);
+  }, [profileUrl, onProfileLoaded]);
 
   function updateProfile(next: BillingProfile) {
     setProfile(next);
