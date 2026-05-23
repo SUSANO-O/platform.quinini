@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { ConversationSession, Widget, WidgetMessage } from '@/lib/db/models';
-import { inboxSessionFilter } from '@/lib/inbox-handoff';
+import { inboxSessionFilter, inboxTranscriptSessionId } from '@/lib/inbox-handoff';
 import { verifySessionToken } from '@/lib/auth';
 
 function getUserId(req: NextRequest): string | null {
@@ -37,10 +37,16 @@ export async function GET(req: NextRequest) {
     : [];
   const widgetNameById = new Map(widgets.map((w) => [String(w._id), typeof w.name === 'string' ? w.name : '']));
 
-  const sessionIds = sessions.map((s) => s.sessionId).filter(Boolean);
-  const lastMessages = sessionIds.length
+  const transcriptIds = [
+    ...new Set(
+      sessions
+        .map((s) => inboxTranscriptSessionId(s))
+        .filter(Boolean),
+    ),
+  ];
+  const lastMessages = transcriptIds.length
     ? await WidgetMessage.aggregate([
-        { $match: { userId, sessionId: { $in: sessionIds } } },
+        { $match: { userId, sessionId: { $in: transcriptIds } } },
         { $sort: { createdAt: -1 } },
         {
           $group: {
@@ -60,7 +66,8 @@ export async function GET(req: NextRequest) {
   );
 
   const items = sessions.map((s) => {
-    const msg = msgBySession.get(s.sessionId) as
+    const transcriptId = inboxTranscriptSessionId(s);
+    const msg = msgBySession.get(transcriptId) as
       | { lastContent?: string; lastRole?: string; messageCount?: number }
       | undefined;
     const contact = s.handoffContact as { name?: string; email?: string; phone?: string } | null;

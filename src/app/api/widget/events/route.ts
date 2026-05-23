@@ -229,7 +229,8 @@ export async function POST(req: NextRequest) {
           const isInboxHandoff =
             reason === 'form_submit' || channel === 'inbox' || hasContact;
 
-          if (isInboxHandoff && clientSessionId) {
+          // form_submit ya persiste vía POST /api/widgets/[id]/handoff — evitar duplicado en inbox
+          if (isInboxHandoff && clientSessionId && reason !== 'form_submit') {
             await upsertHandoffInboxSession({
               sessionId: clientSessionId,
               userId: uid,
@@ -238,7 +239,7 @@ export async function POST(req: NextRequest) {
               contactInfo,
               handoffAt: now,
             });
-          } else if (isInboxHandoff) {
+          } else if (isInboxHandoff && !clientSessionId) {
             const sessionFilter = { agentId, userId: uid, endedAt: null };
             await ConversationSession.findOneAndUpdate(
               sessionFilter,

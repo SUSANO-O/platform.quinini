@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { ConversationSession, WidgetMessage, Widget } from '@/lib/db/models';
-import { inboxSessionFilter } from '@/lib/inbox-handoff';
+import { inboxSessionFilter, inboxTranscriptSessionId } from '@/lib/inbox-handoff';
 import { verifySessionToken } from '@/lib/auth';
 
 type Params = { params: Promise<{ sessionId: string }> };
@@ -31,7 +31,8 @@ export async function GET(req: NextRequest, { params }: Params) {
     ? await Widget.findById(session.widgetId).select({ name: 1 }).lean()
     : null;
 
-  const messages = await WidgetMessage.find({ sessionId, userId })
+  const transcriptSessionId = inboxTranscriptSessionId(session);
+  const messages = await WidgetMessage.find({ sessionId: transcriptSessionId, userId })
     .sort({ createdAt: 1 })
     .select({ role: 1, content: 1, createdAt: 1 })
     .limit(200)
