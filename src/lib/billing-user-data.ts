@@ -1,9 +1,22 @@
 import { connectDB } from '@/lib/db/connection';
 import { ManualInvoice, Subscription as SubscriptionModel, User } from '@/lib/db/models';
 import { getPaymentService } from '@/lib/payment';
-import { normalizeBillingProfile, type BillingProfile } from '@/lib/billing-profile';
+import { normalizeBillingProfile } from '@/lib/billing-profile';
 import { getDefaultIssuer, nextManualInvoiceNumber } from '@/lib/manual-invoice-pdf';
+import {
+  buildLineItemFromInput,
+  computeInvoiceTotals,
+  summarizeConcepts,
+  type CreateManualInvoiceLineInput,
+} from '@/lib/manual-invoice-line';
 import type { InvoiceItem } from '@/lib/payment/interface';
+
+export type { CreateManualInvoiceLineInput } from '@/lib/manual-invoice-line';
+
+export type CreateManualInvoiceInput = {
+  lineItems: CreateManualInvoiceLineInput[];
+  taxPercent: number;
+};
 
 export async function getUserBillingProfile(userId: string) {
   await connectDB();
@@ -67,17 +80,6 @@ export async function listManualInvoices(userId: string) {
   return ManualInvoice.find({ userId, status: 'issued' }).sort({ issuedAt: -1 }).limit(100).lean();
 }
 
-export type CreateManualInvoiceInput = {
-  concept: string;
-  amount: number;
-  currency: string;
-  taxPercent: number;
-  issuedAt: Date;
-  paymentMethod?: string;
-  paymentRef?: string;
-  notes?: string;
-};
-
 export async function createManualInvoice(userId: string, input: CreateManualInvoiceInput) {
   await connectDB();
   const user = await User.findById(userId).select({ email: 1, billingProfile: 1 }).lean();
@@ -88,24 +90,24 @@ export async function createManualInvoice(userId: string, input: CreateManualInv
     return { error: 'Completa al menos nombre/razón social o NIF en datos de facturación del usuario.' as const };
   }
 
-  const amountCents = Math.round(input.amount * 100);
-  const taxCents = Math.round(amountCents * (input.taxPercent / 100));
-  const totalCents = amountCents + taxCents;
+  const lineItems = input.lineItems.map(buildLineItemFromInput);
+  const totals = computeInvoiceTotals(lineItems, input.taxPercent);
   const invoiceNumber = await nextManualInvoiceNumber(userId);
 
   const doc = await ManualInvoice.create({
     userId,
     invoiceNumber,
-    issuedAt: input.issuedAt,
-    concept: input.concept,
-    amountCents,
-    currency: input.currency,
-    taxPercent: input.taxPercent,
-    taxCents,
-    totalCents,
-    paymentMethod: input.paymentMethod ?? '',
-    paymentRef: input.paymentRef ?? '',
-    notes: input.notes ?? '',
+    issuedAt: totals.issuedAt,
+    concept: summarizeConcepts(lineItems),
+    lineItems,
+    amountCents: totals.amountCents,
+    currency: totals.currency,
+    taxPercent: totals.taxPercent,
+    taxCents: totals.taxCents,
+    totalCents: totals.totalCents,
+    paymentMethod: '',
+    paymentRef: '',
+    notes: lineItems.map((l) => l.notes).filter(Boolean).join('\n').slice(0, 2000),
     buyer,
     issuer: getDefaultIssuer(),
     status: 'issued',

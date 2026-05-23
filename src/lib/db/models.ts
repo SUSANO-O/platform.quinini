@@ -476,11 +476,19 @@ AbTestSchema.index({ userId: 1, status: 1 });
 
 // ── MANUAL INVOICES (recibos generados fuera de LemonSqueezy) ─────────────────
 
+const ManualInvoiceLineItemSchema = new Schema({
+  concept:     { type: String, required: true },
+  amountCents: { type: Number, required: true },
+  currency:    { type: String, default: 'EUR' },
+  notes:       { type: String, default: '' },
+}, { _id: false });
+
 const ManualInvoiceSchema = new Schema({
   userId:        { type: String, required: true, index: true },
   invoiceNumber: { type: String, required: true },
   issuedAt:      { type: Date, required: true },
   concept:       { type: String, required: true },
+  lineItems:     { type: [ManualInvoiceLineItemSchema], default: [] },
   amountCents:   { type: Number, required: true },
   currency:      { type: String, default: 'EUR' },
   taxPercent:    { type: Number, default: 0 },

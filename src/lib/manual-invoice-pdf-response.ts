@@ -2,10 +2,13 @@ import { NextResponse } from 'next/server';
 import { buildManualInvoicePdf, type InvoiceIssuer } from '@/lib/manual-invoice-pdf';
 import { normalizeBillingProfile } from '@/lib/billing-profile';
 
+import { normalizeStoredLineItem } from '@/lib/manual-invoice-line';
+
 type ManualInvoiceDoc = {
   invoiceNumber: string;
   issuedAt: Date | string;
   concept: string;
+  lineItems?: Record<string, unknown>[];
   amountCents: number;
   taxCents?: number | null;
   totalCents: number;
@@ -36,18 +39,21 @@ export async function manualInvoicePdfResponse(inv: ManualInvoiceDoc): Promise<N
         email: 'facturacion@botiva.app',
       };
 
+  const currency = inv.currency || 'EUR';
+  const issuedAt = inv.issuedAt instanceof Date ? inv.issuedAt : new Date(String(inv.issuedAt));
+
   const pdfBytes = await buildManualInvoicePdf({
     invoiceNumber: inv.invoiceNumber,
-    issuedAt: inv.issuedAt instanceof Date ? inv.issuedAt : new Date(String(inv.issuedAt)),
+    issuedAt,
     concept: inv.concept,
+    lineItems: inv.lineItems?.length
+      ? inv.lineItems.map((l) => normalizeStoredLineItem(l, currency))
+      : undefined,
     amountCents: inv.amountCents,
     taxCents: inv.taxCents ?? 0,
     totalCents: inv.totalCents,
-    currency: inv.currency || 'EUR',
+    currency,
     taxPercent: inv.taxPercent ?? 0,
-    paymentMethod: inv.paymentMethod || '',
-    paymentRef: inv.paymentRef || '',
-    notes: inv.notes || '',
     buyer: { ...buyer, email },
     issuer,
   });

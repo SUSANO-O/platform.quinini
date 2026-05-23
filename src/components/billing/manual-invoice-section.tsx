@@ -1,28 +1,76 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, CheckCircle2, FileDown, Loader2, Plus } from 'lucide-react';
+import { AlertCircle, CheckCircle2, FileDown, Loader2, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { BillingProfileForm } from '@/components/billing/invoice-list';
 import { BRAND_TEXT_COLOR } from '@/lib/brand';
 import { formatBillingProfileSummary, type BillingProfile } from '@/lib/billing-profile';
+import {
+  computeTotalsByCurrency,
+  formatInvoiceTotalDisplay,
+  formatMoneyCents,
+  SUPPORTED_INVOICE_CURRENCIES,
+} from '@/lib/manual-invoice-line';
 
 type ManualInvoiceRow = {
   id: string;
   invoiceNumber: string;
   issuedAt: string;
   concept: string;
+  lineItems?: {
+    concept: string;
+    amountCents: number;
+    currency?: string;
+    notes?: string;
+  }[];
   totalCents: number;
   currency: string;
   taxPercent: number;
 };
 
-function formatMoney(cents: number, currency: string) {
-  try {
-    return new Intl.NumberFormat('es', { style: 'currency', currency: currency.toUpperCase() }).format(cents / 100);
-  } catch {
-    return `${(cents / 100).toFixed(2)} ${currency}`;
+type ConceptLine = {
+  id: string;
+  concept: string;
+  amount: string;
+  currency: string;
+  notes: string;
+};
+
+function newLine(from?: ConceptLine): ConceptLine {
+  return {
+    id: crypto.randomUUID(),
+    concept: '',
+    amount: '',
+    currency: from?.currency ?? 'USD',
+    notes: '',
+  };
+}
+
+function formatConceptSummary(concept: string, lineCount?: number) {
+  if (lineCount && lineCount > 1) {
+    const first = concept.split(' · ')[0] || concept;
+    return `${first} (+${lineCount - 1} más)`;
   }
+  return concept;
+}
+
+function formatMoney(cents: number, currency: string) {
+  return formatMoneyCents(cents, currency);
+}
+
+function linesToItems(lines: ConceptLine[]) {
+  return lines
+    .filter((l) => {
+      const n = parseFloat(l.amount);
+      return l.concept.trim() && Number.isFinite(n) && n > 0;
+    })
+    .map((l) => ({
+      concept: l.concept.trim(),
+      amountCents: Math.round(parseFloat(l.amount) * 100),
+      currency: l.currency,
+      notes: l.notes.trim(),
+    }));
 }
 
 type ManualInvoiceSectionProps = {
@@ -40,15 +88,34 @@ export function ManualInvoiceSection({ adminUserId, userEmail }: ManualInvoiceSe
   const [profileSaved, setProfileSaved] = useState(false);
   const [profileSummary, setProfileSummary] = useState('');
   const [form, setForm] = useState({
-    concept: '',
-    amount: '',
-    currency: 'EUR',
-    taxPercent: '21',
-    issuedAt: new Date().toISOString().slice(0, 10),
-    paymentMethod: 'Transferencia',
-    paymentRef: '',
-    notes: '',
+    lines: [newLine()] as ConceptLine[],
+    taxPercent: '19',
   });
+
+  const parsedItems = linesToItems(form.lines);
+  const taxRate = parseFloat(form.taxPercent) || 0;
+  const totalsByCurrency = computeTotalsByCurrency(parsedItems, taxRate);
+
+  function updateLine(id: string, patch: Partial<Omit<ConceptLine, 'id'>>) {
+    setForm((f) => ({
+      ...f,
+      lines: f.lines.map((l) => (l.id === id ? { ...l, ...patch } : l)),
+    }));
+  }
+
+  function addLine() {
+    setForm((f) => {
+      const last = f.lines[f.lines.length - 1];
+      return { ...f, lines: [...f.lines, newLine(last)] };
+    });
+  }
+
+  function removeLine(id: string) {
+    setForm((f) => ({
+      ...f,
+      lines: f.lines.length <= 1 ? f.lines : f.lines.filter((l) => l.id !== id),
+    }));
+  }
 
   const handleProfileChange = useCallback((profile: BillingProfile, ready: boolean) => {
     setProfileReady(ready);
@@ -81,18 +148,19 @@ export function ManualInvoiceSection({ adminUserId, userEmail }: ManualInvoiceSe
     }
     setCreating(true);
     try {
+      const lineItems = form.lines.map((l) => ({
+        concept: l.concept.trim(),
+        amount: parseFloat(l.amount),
+        currency: l.currency,
+        notes: l.notes,
+      }));
+
       const res = await fetch(apiBase, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          concept: form.concept,
-          amount: parseFloat(form.amount),
-          currency: form.currency,
+          lineItems,
           taxPercent: parseFloat(form.taxPercent) || 0,
-          issuedAt: form.issuedAt,
-          paymentMethod: form.paymentMethod,
-          paymentRef: form.paymentRef,
-          notes: form.notes,
         }),
       });
       const data = await res.json();
@@ -102,7 +170,7 @@ export function ManualInvoiceSection({ adminUserId, userEmail }: ManualInvoiceSe
       }
       toast.success(`Recibo ${data.invoiceNumber} creado.`);
       if (data.pdfUrl) window.open(data.pdfUrl, '_blank', 'noopener,noreferrer');
-      setForm((f) => ({ ...f, concept: '', amount: '', paymentRef: '', notes: '' }));
+      setForm({ lines: [newLine()], taxPercent: form.taxPercent });
       load();
     } finally {
       setCreating(false);
@@ -246,92 +314,158 @@ export function ManualInvoiceSection({ adminUserId, userEmail }: ManualInvoiceSe
             background: 'var(--background)',
           }}
         >
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-            <label style={{ gridColumn: '1 / -1' }}>
-              <span style={labelStyle}>Concepto *</span>
-              <input
-                style={inputStyle}
-                required
-                value={form.concept}
-                onChange={(e) => setForm((f) => ({ ...f, concept: e.target.value }))}
-                placeholder="Ej. Suscripción BotIvA Growth — mayo 2026"
-              />
-            </label>
-            <label>
-              <span style={labelStyle}>Importe (base) *</span>
-              <input
-                style={inputStyle}
-                required
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={form.amount}
-                onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-                placeholder="39.00"
-              />
-            </label>
-            <label>
-              <span style={labelStyle}>Moneda</span>
-              <select
-                style={inputStyle}
-                value={form.currency}
-                onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <span style={labelStyle}>Conceptos *</span>
+              <button
+                type="button"
+                onClick={addLine}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '6px 10px',
+                  borderRadius: 8,
+                  border: '1px dashed var(--border)',
+                  background: 'transparent',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  color: BRAND_TEXT_COLOR,
+                }}
               >
-                <option value="EUR">EUR</option>
-                <option value="USD">USD</option>
-                <option value="COP">COP</option>
-                <option value="GBP">GBP</option>
-                <option value="MXN">MXN</option>
-              </select>
-            </label>
-            <label>
-              <span style={labelStyle}>IVA %</span>
-              <input
-                style={inputStyle}
-                type="number"
-                min="0"
-                max="100"
-                step="0.1"
-                value={form.taxPercent}
-                onChange={(e) => setForm((f) => ({ ...f, taxPercent: e.target.value }))}
-              />
-            </label>
-            <label>
-              <span style={labelStyle}>Fecha emisión</span>
-              <input
-                style={inputStyle}
-                type="date"
-                value={form.issuedAt}
-                onChange={(e) => setForm((f) => ({ ...f, issuedAt: e.target.value }))}
-              />
-            </label>
-            <label>
-              <span style={labelStyle}>Forma de pago</span>
-              <input
-                style={inputStyle}
-                value={form.paymentMethod}
-                onChange={(e) => setForm((f) => ({ ...f, paymentMethod: e.target.value }))}
-                placeholder="Transferencia, tarjeta…"
-              />
-            </label>
-            <label>
-              <span style={labelStyle}>Referencia pago</span>
-              <input
-                style={inputStyle}
-                value={form.paymentRef}
-                onChange={(e) => setForm((f) => ({ ...f, paymentRef: e.target.value }))}
-                placeholder="N.º transferencia, últimos 4 dígitos tarjeta…"
-              />
-            </label>
-            <label style={{ gridColumn: '1 / -1' }}>
-              <span style={labelStyle}>Notas (opcional)</span>
-              <textarea
-                style={{ ...inputStyle, minHeight: 64, resize: 'vertical' }}
-                value={form.notes}
-                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                placeholder="Observaciones adicionales"
-              />
-            </label>
+                <Plus size={12} /> Añadir concepto
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {form.lines.map((line, index) => (
+                <div
+                  key={line.id}
+                  style={{
+                    padding: 14,
+                    borderRadius: 12,
+                    border: '1px solid var(--border)',
+                    background: 'var(--card)',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: BRAND_TEXT_COLOR }}>
+                      Concepto {index + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeLine(line.id)}
+                      disabled={form.lines.length <= 1}
+                      aria-label="Eliminar concepto"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        padding: '5px 8px',
+                        borderRadius: 8,
+                        border: '1px solid var(--border)',
+                        background: 'transparent',
+                        color: form.lines.length <= 1 ? 'var(--muted)' : '#ef4444',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        cursor: form.lines.length <= 1 ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      <Trash2 size={12} /> Quitar
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
+                    <label style={{ gridColumn: '1 / -1' }}>
+                      <span style={labelStyle}>Concepto *</span>
+                      <input
+                        style={inputStyle}
+                        required
+                        value={line.concept}
+                        onChange={(e) => updateLine(line.id, { concept: e.target.value })}
+                        placeholder="Ej. Suscripción BotIvA Growth — mayo 2026"
+                      />
+                    </label>
+                    <label>
+                      <span style={labelStyle}>Importe *</span>
+                      <input
+                        style={inputStyle}
+                        required
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={line.amount}
+                        onChange={(e) => updateLine(line.id, { amount: e.target.value })}
+                        placeholder="39.00"
+                      />
+                    </label>
+                    <label>
+                      <span style={labelStyle}>Moneda</span>
+                      <select
+                        style={inputStyle}
+                        value={line.currency}
+                        onChange={(e) => updateLine(line.id, { currency: e.target.value })}
+                      >
+                        {SUPPORTED_INVOICE_CURRENCIES.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label style={{ gridColumn: '1 / -1' }}>
+                      <span style={labelStyle}>Notas (opcional)</span>
+                      <textarea
+                        style={{ ...inputStyle, minHeight: 56, resize: 'vertical' }}
+                        value={line.notes}
+                        onChange={(e) => updateLine(line.id, { notes: e.target.value })}
+                        placeholder="Observaciones de esta línea"
+                      />
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {parsedItems.length > 0 ? (
+              <div
+                style={{
+                  marginTop: 16,
+                  padding: 14,
+                  borderRadius: 12,
+                  border: '1px solid var(--border)',
+                  background: 'rgba(99,102,241,0.04)',
+                }}
+              >
+                <label style={{ display: 'block', marginBottom: 12 }}>
+                  <span style={labelStyle}>IVA % (documento)</span>
+                  <input
+                    style={{ ...inputStyle, maxWidth: 120 }}
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={form.taxPercent}
+                    onChange={(e) => setForm((f) => ({ ...f, taxPercent: e.target.value }))}
+                  />
+                </label>
+
+                {[...totalsByCurrency.entries()].map(([currency, t]) => (
+                  <div key={currency} style={{ fontSize: 13, lineHeight: 1.8, textAlign: 'right' }}>
+                    <div style={{ color: 'var(--muted-foreground)' }}>
+                      Subtotal ({currency}): <strong style={{ color: 'var(--foreground)' }}>{formatMoney(t.subtotalCents, currency)}</strong>
+                    </div>
+                    {taxRate > 0 ? (
+                      <div style={{ color: 'var(--muted-foreground)' }}>
+                        IVA ({taxRate}%): <strong style={{ color: 'var(--foreground)' }}>{formatMoney(t.taxCents, currency)}</strong>
+                      </div>
+                    ) : null}
+                    <div style={{ fontWeight: 800, fontSize: 14, marginTop: 4 }}>
+                      Total ({currency}): {formatMoney(t.totalCents, currency)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
           <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '10px 0 12px' }}>
             El PDF incluirá emisor BotIvA, numeración BIV-AAAA-0001 y los datos fiscales del cliente de arriba.
@@ -385,9 +519,20 @@ export function ManualInvoiceSection({ adminUserId, userEmail }: ManualInvoiceSe
                     {new Date(inv.issuedAt).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </td>
                   <td style={{ padding: '10px 6px', fontWeight: 600 }}>{inv.invoiceNumber}</td>
-                  <td style={{ padding: '10px 6px' }}>{inv.concept}</td>
+                  <td style={{ padding: '10px 6px' }}>
+                    {formatConceptSummary(inv.concept, inv.lineItems?.length || undefined)}
+                  </td>
                   <td style={{ padding: '10px 6px', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                    {formatMoney(inv.totalCents, inv.currency)}
+                    {formatInvoiceTotalDisplay(
+                      (inv.lineItems ?? []).map((l) => ({
+                        concept: l.concept,
+                        amountCents: l.amountCents,
+                        currency: l.currency ?? inv.currency,
+                        notes: l.notes ?? '',
+                      })),
+                      inv.taxPercent,
+                      { currency: inv.currency, totalCents: inv.totalCents },
+                    )}
                   </td>
                   <td style={{ padding: '10px 6px' }}>
                     <a
