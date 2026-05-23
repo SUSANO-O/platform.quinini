@@ -1,56 +1,31 @@
 /**
  * POST /api/agents/[id]/rag-upload
- * Accepts multipart/form-data with a single "file" field.
+ * Accepts multipart/form-data with a single "file" field (archivos pequeños / sin Blob).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { connectDB } from '@/lib/db/connection';
-import { ClientAgent, Subscription } from '@/lib/db/models';
-import { verifySessionToken } from '@/lib/auth';
-import { getAgentLimits } from '@/lib/agent-plans';
-import { ingestRagFileToAgent, RAG_MAX_FILE_SIZE } from '@/lib/rag-file-ingest';
+import { ingestRagFileToAgent } from '@/lib/rag-file-ingest';
+import { getRagDirectUploadMaxBytes } from '@/lib/rag-upload-limits';
+import { getRagUploadContext } from '@/lib/rag-upload-server';
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(req: NextRequest, { params }: Params) {
-  const token = req.cookies.get('afhub_session')?.value;
-  if (!token) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
-
-  const userId = verifySessionToken(token);
-  if (!userId) return NextResponse.json({ error: 'Sesión inválida.' }, { status: 401 });
-
   const { id } = await params;
 
+  const uploadLimit = getRagDirectUploadMaxBytes();
   const contentLength = Number(req.headers.get('content-length') ?? 0);
-  const uploadLimit = req.nextUrl.searchParams.get('deferSync') === '1'
-    ? 4 * 1024 * 1024
-    : RAG_MAX_FILE_SIZE;
   if (contentLength > uploadLimit) {
     return NextResponse.json(
-      { error: `El archivo supera el límite de ${uploadLimit / 1024 / 1024} MB del servidor.` },
+      {
+        error: `El archivo supera el límite de ${uploadLimit / 1024 / 1024} MB para subida directa. Usa un PDF más pequeño o configura BLOB_READ_WRITE_TOKEN.`,
+      },
       { status: 413 },
     );
   }
 
-  await connectDB();
-
-  const agent = await ClientAgent.findOne({ _id: id, userId });
-  if (!agent) return NextResponse.json({ error: 'Agente no encontrado.' }, { status: 404 });
-
-  if (agent.isPlatform) {
-    return NextResponse.json(
-      {
-        error:
-          'Los agentes de plataforma no se pueden modificar desde la landing. Edita el conocimiento en AgentFlowHub.',
-      },
-      { status: 403 },
-    );
-  }
-
-  const sub = await Subscription.findOne({ userId }).lean() as { plan?: string; status?: string } | null;
-  const hasActivePlan = sub?.status === 'active' || sub?.status === 'trialing';
-  const plan = hasActivePlan ? (sub?.plan ?? 'free') : 'free';
-  const limits = getAgentLimits(plan);
+  const ctx = await getRagUploadContext(req, id);
+  if (!ctx.ok) return NextResponse.json({ error: ctx.error }, { status: ctx.status });
 
   let formData: FormData;
   try {
@@ -65,14 +40,14 @@ export async function POST(req: NextRequest, { params }: Params) {
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
   const result = await ingestRagFileToAgent(
-    agent,
+    ctx.agent,
     {
       buffer,
       filename: file.name || 'archivo',
       mimeType: file.type || 'application/octet-stream',
       size: file.size,
     },
-    limits,
+    ctx.limits,
     { syncHub: req.nextUrl.searchParams.get('deferSync') !== '1' },
   );
 

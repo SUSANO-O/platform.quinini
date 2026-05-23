@@ -23,10 +23,12 @@ import {
   type FaqCandidateRow,
 } from '@/lib/agent-faq-utils';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { McpLandingConnectForm } from '@/components/mcp/mcp-landing-connect-form';
 import { AgentMcpOpenFromQuery } from '@/components/mcp/agent-mcp-open-from-query';
 import { AgentHubspotOauthReturn } from '@/components/mcp/agent-hubspot-oauth-return';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 import { R, O, B } from '@/lib/brand-colors';
 const RUNTIME_SKILL_TEMPLATES = [
@@ -310,6 +312,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [tab, setTab] = useState<Tab>('general');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -765,6 +769,28 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     await save({ status: agent.status === 'active' ? 'disabled' : 'active' });
   }
 
+  async function confirmDeleteAgent() {
+    if (!agent || agent.isPlatform || deleting) return;
+
+    setDeleting(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/agents/${agent._id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(typeof data.error === 'string' ? data.error : 'No se pudo eliminar el agente.');
+        return;
+      }
+      setShowDeleteConfirm(false);
+      toast.success('Agente eliminado.');
+      router.push('/dashboard/agents');
+    } catch {
+      setError('Error de red al eliminar el agente.');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   function toggleToolSelection(toolId: string) {
     setTools((prev) => {
       if (prev.some((t) => t.toolId === toolId)) {
@@ -821,18 +847,18 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     if (ragSourcesRef.current.length >= maxS) {
       return { ok: false, error: `Máximo ${maxS} fuentes en tu plan.` };
     }
-    const form = new FormData();
-    form.append('file', file);
-    const res = await fetch(`/api/agents/${id}/rag-upload`, { method: 'POST', body: form });
-    const data = await res.json();
-    if (!res.ok) return { ok: false, error: typeof data.error === 'string' ? data.error : 'Error al subir archivo.' };
+    const { uploadRagFileToAgent } = await import('@/lib/rag-upload-client');
+    const result = await uploadRagFileToAgent(id, file, {
+      onStatus: (msg) => setUploadMsg(msg),
+    });
+    if (!result.ok) return { ok: false, error: result.error ?? 'Error al subir archivo.' };
     const agentRes = await fetch(`/api/agents/${id}`);
     const agentData = await agentRes.json();
     if (agentData.agent) {
       setRagSources(agentData.agent.ragSources ?? []);
       setAgent(agentData.agent);
     }
-    return { ok: true, preview: data.source as RagSource | undefined };
+    return { ok: true, preview: result.source as RagSource | undefined };
   }
 
   async function runRagUploadBatch(files: File[]) {
@@ -1140,8 +1166,23 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     { id: 'subagents', label: `Sub-agentes (${subAgents.length})`, icon: <Network size={13} /> },
   ];
 
+  const deleteDescription =
+    (agent.subAgentIds?.length ?? 0) > 0
+      ? `Se eliminará «${agent.name}», sus ${agent.subAgentIds!.length} sub-agente(s) y los widgets vinculados. Esta acción no se puede deshacer.`
+      : `Se eliminará «${agent.name}» y los widgets vinculados. Esta acción no se puede deshacer.`;
+
   return (
     <div className="relative overflow-hidden" style={{ minHeight: '100%' }}>
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="Eliminar agente"
+        description={deleteDescription}
+        confirmLabel="Eliminar"
+        variant="danger"
+        loading={deleting}
+        onConfirm={() => void confirmDeleteAgent()}
+        onCancel={() => { if (!deleting) setShowDeleteConfirm(false); }}
+      />
       <div className="hero-glow pointer-events-none" style={{ background: R, top: '-200px', right: '-60px' }} />
       <div className="hero-glow pointer-events-none" style={{ background: B, top: '120px', left: '-120px' }} />
 
@@ -1211,8 +1252,10 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           <p className="m-0 text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>{agent.description || agent.model}</p>
         </div>
         {!readOnly && (
+        <>
         <button
           onClick={toggleStatus}
+          disabled={deleting}
           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-semibold cursor-pointer transition-colors card-hover"
           style={{
             borderColor: 'var(--border)',
@@ -1223,6 +1266,22 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           <CircleOff size={13} />
           {isDisabled ? 'Activar' : 'Desactivar'}
         </button>
+        <button
+          type="button"
+          onClick={() => setShowDeleteConfirm(true)}
+          disabled={deleting || saving}
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-semibold cursor-pointer transition-colors"
+          style={{
+            borderColor: 'rgba(239,68,68,0.35)',
+            background: 'rgba(239,68,68,0.06)',
+            color: '#ef4444',
+            opacity: deleting ? 0.6 : 1,
+          }}
+        >
+          {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+          {deleting ? 'Eliminando…' : 'Eliminar'}
+        </button>
+        </>
         )}
       </div>
 

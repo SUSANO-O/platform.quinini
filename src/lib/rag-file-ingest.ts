@@ -4,12 +4,14 @@
  */
 
 import crypto from 'crypto';
-import { processFile, getFileCategory } from '@/lib/rag-processor';
+import { processFile, getFileCategory, RAG_MAX_EXTRACTED_CHARS } from '@/lib/rag-processor';
 import { canAttemptHubSync, syncHubCatalogFromLandingAgentDoc } from '@/lib/aibackhub-sync';
 import type { AgentPlanLimits } from '@/lib/agent-plans';
 import type { ClientAgent } from '@/lib/db/models';
 
-export const RAG_MAX_FILE_SIZE = 10 * 1024 * 1024;
+import { RAG_MAX_FILE_SIZE as RAG_MAX_FILE_SIZE_BYTES } from '@/lib/rag-upload-limits';
+
+export const RAG_MAX_FILE_SIZE = RAG_MAX_FILE_SIZE_BYTES;
 export const RAG_DEFAULT_MAX_SOURCES = 20;
 
 export const RAG_ALLOWED_MIMES = new Set([
@@ -63,6 +65,13 @@ export type RagIngestInput = {
   filename: string;
   mimeType: string;
   size: number;
+};
+
+export type RagTextIngestInput = {
+  text: string;
+  filename: string;
+  /** Tamaño original del PDF/archivo (para cuotas). */
+  originalSize?: number;
 };
 
 export type RagIngestResult =
@@ -138,6 +147,71 @@ export function validateRagIngestInput(
   return null;
 }
 
+function validateRagTextInput(
+  input: RagTextIngestInput,
+  agent: { ragSources?: unknown[] },
+  limits: AgentPlanLimits,
+): RagIngestResult | null {
+  if (!limits.ragEnabled) {
+    return { ok: false, error: 'RAG no está disponible en tu plan. Actualiza tu suscripción.', status: 403 };
+  }
+  const text = input.text.trim();
+  if (!text) {
+    return { ok: false, error: 'El texto extraído está vacío.', status: 400 };
+  }
+  const maxSources = maxSourcesForPlan(limits);
+  const currentSources = agent.ragSources?.length ?? 0;
+  if (currentSources >= maxSources) {
+    return {
+      ok: false,
+      error: `Máximo ${maxSources} fuentes por agente en tu plan. Elimina alguna antes de subir más.`,
+      status: 403,
+    };
+  }
+  const sizeForQuota =
+    typeof input.originalSize === 'number' && Number.isFinite(input.originalSize) && input.originalSize > 0
+      ? input.originalSize
+      : Buffer.byteLength(text, 'utf8');
+  const usedBytes = ragUsedBytes(agent);
+  const maxStorageBytes = Math.max(0, limits.ragStorageMbPerAgent) * 1024 * 1024;
+  if (maxStorageBytes > 0 && usedBytes + sizeForQuota > maxStorageBytes) {
+    const usedMb = (usedBytes / 1024 / 1024).toFixed(1);
+    return {
+      ok: false,
+      error:
+        `Límite de almacenamiento RAG alcanzado para tu plan (${limits.ragStorageMbPerAgent} MB por agente). ` +
+        `Uso actual: ${usedMb} MB.`,
+      status: 403,
+    };
+  }
+  return null;
+}
+
+function appendRagSource(
+  agent: AgentDoc,
+  source: Record<string, unknown>,
+  options?: { syncHub?: boolean },
+): Promise<RagIngestResult> {
+  agent.ragSources = [...(agent.ragSources ?? []), source];
+  agent.ragEnabled = true;
+  return agent.save().then(async () => {
+    const shouldSync = options?.syncHub !== false;
+    if (shouldSync) {
+      const hubId = typeof agent.agentHubId === 'string' ? agent.agentHubId.trim() : '';
+      if (hubId && canAttemptHubSync()) {
+        const ok = await syncHubCatalogFromLandingAgentDoc(agent);
+        agent.syncStatus = ok ? 'synced' : 'failed';
+        await agent.save();
+      }
+    }
+    return {
+      ok: true as const,
+      source,
+      warning: typeof source.warning === 'string' ? source.warning : null,
+    };
+  });
+}
+
 export async function ingestRagFileToAgent(
   agent: AgentDoc,
   input: RagIngestInput,
@@ -170,19 +244,47 @@ export async function ingestRagFileToAgent(
     uploadedAt: new Date(),
   };
 
-  agent.ragSources = [...(agent.ragSources ?? []), newSource];
-  agent.ragEnabled = true;
-  await agent.save();
+  return appendRagSource(agent, newSource, options);
+}
 
-  const shouldSync = options?.syncHub !== false;
-  if (shouldSync) {
-    const hubId = typeof agent.agentHubId === 'string' ? agent.agentHubId.trim() : '';
-    if (hubId && canAttemptHubSync()) {
-      const ok = await syncHubCatalogFromLandingAgentDoc(agent);
-      agent.syncStatus = ok ? 'synced' : 'failed';
-      await agent.save();
-    }
+/** Ingesta texto ya extraído (p. ej. PDF procesado en el navegador). No guarda el binario. */
+export async function ingestRagTextToAgent(
+  agent: AgentDoc,
+  input: RagTextIngestInput,
+  limits: AgentPlanLimits,
+  options?: { syncHub?: boolean },
+): Promise<RagIngestResult> {
+  const validationError = validateRagTextInput(input, agent, limits);
+  if (validationError) return validationError;
+
+  const filename = input.filename || 'documento.pdf';
+  let text = input.text.replace(/\s+/g, ' ').trim();
+  let warning: string | null = 'Texto extraído en el navegador; el PDF original no se almacenó.';
+
+  if (text.length > RAG_MAX_EXTRACTED_CHARS) {
+    text = text.slice(0, RAG_MAX_EXTRACTED_CHARS);
+    warning = `${warning} Texto truncado a ${RAG_MAX_EXTRACTED_CHARS.toLocaleString('es')} caracteres.`;
   }
 
-  return { ok: true, source: newSource, warning: result.warning ?? null };
+  const sizeForQuota =
+    typeof input.originalSize === 'number' && Number.isFinite(input.originalSize) && input.originalSize > 0
+      ? input.originalSize
+      : Buffer.byteLength(text, 'utf8');
+
+  const fileId = crypto.randomBytes(8).toString('hex');
+  const newSource = {
+    type: 'file' as const,
+    name: filename,
+    content: text,
+    fileId,
+    fileName: filename,
+    fileMime: 'application/pdf',
+    fileSize: sizeForQuota,
+    fileCategory: 'pdf' as const,
+    charCount: text.length,
+    warning,
+    uploadedAt: new Date(),
+  };
+
+  return appendRagSource(agent, newSource, options);
 }

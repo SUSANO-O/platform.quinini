@@ -1,6 +1,7 @@
 /**
- * GET   /api/agents/[id]   — get single agent
- * PATCH /api/agents/[id]   — update (name, description, prompt, tools, rag, status, sub-agents)
+ * GET    /api/agents/[id]   — get single agent
+ * PATCH  /api/agents/[id]   — update (name, description, prompt, tools, rag, status, sub-agents)
+ * DELETE /api/agents/[id]   — delete agent and related widgets
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -8,6 +9,7 @@ import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db/connection';
 import { Subscription, ClientAgent } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
+import { deleteClientAgent } from '@/lib/delete-client-agent';
 import { getAgentLimits } from '@/lib/agent-plans';
 import {
   canAttemptHubSync,
@@ -547,4 +549,22 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   return NextResponse.json({ agent });
+}
+
+export async function DELETE(req: NextRequest, { params }: Params) {
+  const userId = await getAuth(req);
+  if (!userId) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
+
+  const { id } = await params;
+  const result = await deleteClientAgent(userId, id);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    deleted: true,
+    widgetsRemoved: result.widgetsRemoved,
+    subAgentsRemoved: result.subAgentsRemoved,
+  });
 }

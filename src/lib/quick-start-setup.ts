@@ -7,10 +7,11 @@ import { ClientAgent, Widget, Subscription } from '@/lib/db/models';
 import { getAgentLimits, isAgentLimitReached, formatAgentLimit } from '@/lib/agent-plans';
 import { canAttemptHubSync, ensureClientAgentHubSynced } from '@/lib/aibackhub-sync';
 import { ingestRagFileToAgent, type RagIngestInput } from '@/lib/rag-file-ingest';
+import { getRagMaxFileSizeBytes, RAG_MAX_FILE_SIZE } from '@/lib/rag-upload-limits';
+import { suggestWidgetShortcutsFromRag } from '@/lib/widget-shortcuts-suggest';
 
 export const QUICK_START_MAX_FILES = 3;
-/** Vercel serverless body limit is 4.5 MB; leave headroom for multipart overhead. */
-export const QUICK_START_MAX_FILE_SIZE = 4 * 1024 * 1024;
+export const QUICK_START_MAX_FILE_SIZE = RAG_MAX_FILE_SIZE;
 const DEFAULT_MODEL = 'gemini-2.5-flash';
 const DEFAULT_SYSTEM_PROMPT =
   'Eres un asistente virtual amable y preciso. Responde en el idioma del usuario usando ' +
@@ -65,7 +66,7 @@ function validateQuickStartFileMeta(
     if (f.size > QUICK_START_MAX_FILE_SIZE) {
       return {
         ok: false,
-        error: `Cada PDF debe pesar menos de ${QUICK_START_MAX_FILE_SIZE / 1024 / 1024} MB (límite del servidor).`,
+        error: `Cada PDF debe pesar menos de ${getRagMaxFileSizeBytes() / 1024 / 1024} MB.`,
         status: 413,
       };
     }
@@ -181,7 +182,7 @@ export async function runQuickStartFinalize(
   userId: string,
   agentId: string,
 ): Promise<
-  | { ok: true; agentId: string; filesIngested: number }
+  | { ok: true; agentId: string; filesIngested: number; hubSynced: boolean; shortcutsCount: number }
   | { ok: false; error: string; status: number }
 > {
   const agent = await ClientAgent.findOne({ _id: agentId, userId });
@@ -196,14 +197,40 @@ export async function runQuickStartFinalize(
 
   if (canAttemptHubSync()) {
     try {
-      await ensureClientAgentHubSynced(agent);
+      const hubId = await ensureClientAgentHubSynced(agent._id.toString(), userId);
+      if (!hubId) {
+        agent.syncStatus = 'failed';
+        await agent.save();
+      }
     } catch {
       agent.syncStatus = 'failed';
       await agent.save();
     }
   }
 
-  return { ok: true, agentId: agent._id.toString(), filesIngested };
+  let shortcutsCount = 0;
+  const widget = await Widget.findOne({ agentId: agent._id.toString(), userId });
+  if (widget) {
+    const shortcuts = await suggestWidgetShortcutsFromRag({
+      agentName: agent.name,
+      ragSources: agent.ragSources ?? [],
+    });
+    widget.shortcuts = shortcuts;
+    await widget.save();
+    shortcutsCount = shortcuts.length;
+  }
+
+  const refreshed = await ClientAgent.findById(agent._id).select({ syncStatus: 1, agentHubId: 1 }).lean() as
+    | { syncStatus?: string; agentHubId?: string | null }
+    | null;
+
+  return {
+    ok: true,
+    agentId: agent._id.toString(),
+    filesIngested,
+    hubSynced: refreshed?.syncStatus === 'synced' && Boolean(refreshed?.agentHubId),
+    shortcutsCount,
+  };
 }
 
 /** Flujo legacy: un solo PDF en el mismo request (≤ 4 MB). */
@@ -227,7 +254,7 @@ export async function runQuickStart(userId: string, files: QuickStartFile[]): Pr
   if (f.size > QUICK_START_MAX_FILE_SIZE) {
     return {
       ok: false,
-      error: `Cada PDF debe pesar menos de ${QUICK_START_MAX_FILE_SIZE / 1024 / 1024} MB (límite del servidor).`,
+      error: `Cada PDF debe pesar menos de ${getRagMaxFileSizeBytes() / 1024 / 1024} MB.`,
       status: 413,
     };
   }

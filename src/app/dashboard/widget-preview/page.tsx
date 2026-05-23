@@ -152,8 +152,9 @@ export default function WidgetPreviewPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const id = new URLSearchParams(window.location.search).get('id');
-    const valid = id && /^[a-f0-9]{24}$/i.test(id) ? id : null;
+    const params = new URLSearchParams(window.location.search);
+    const rawId = params.get('id') ?? params.get('widgetId');
+    const valid = rawId && /^[a-f0-9]{24}$/i.test(rawId) ? rawId : null;
 
     if (!valid) {
       setError('Falta un id de widget válido en la URL (?id=…).');
