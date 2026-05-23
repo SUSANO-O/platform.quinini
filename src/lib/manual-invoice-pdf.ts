@@ -5,6 +5,14 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { BRAND_NAME } from '@/lib/brand';
 import type { BillingProfile } from '@/lib/billing-profile';
+import {
+  computeTotalsByCurrency,
+  formatMoneyCents,
+  normalizeStoredLineItem,
+  type ManualInvoiceLineItem,
+} from '@/lib/manual-invoice-line';
+
+export type { ManualInvoiceLineItem } from '@/lib/manual-invoice-line';
 
 export type InvoiceIssuer = {
   name: string;
@@ -18,6 +26,7 @@ export type ManualInvoicePdfData = {
   invoiceNumber: string;
   issuedAt: Date;
   concept: string;
+  lineItems?: ManualInvoiceLineItem[];
   amountCents: number;
   taxCents: number;
   totalCents: number;
@@ -69,9 +78,21 @@ function sanitizePdfText(s: string): string {
   return s.replace(/[^\u0009\u000a\u000d\u0020-\u00ff]/g, '?').trim();
 }
 
+function resolveLineItems(data: ManualInvoicePdfData): ManualInvoiceLineItem[] {
+  if (data.lineItems?.length) {
+    return data.lineItems.map((l) => normalizeStoredLineItem(l, data.currency));
+  }
+  return [
+    normalizeStoredLineItem(
+      { concept: data.concept, amountCents: data.amountCents, currency: data.currency, notes: data.notes ?? '' },
+      data.currency,
+    ),
+  ];
+}
+
 export async function buildManualInvoicePdf(data: ManualInvoicePdfData): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
-  const page = doc.addPage([595.28, 841.89]);
+  let page = doc.addPage([595.28, 841.89]);
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
   const black = rgb(0.1, 0.1, 0.12);
@@ -79,10 +100,18 @@ export async function buildManualInvoicePdf(data: ManualInvoicePdfData): Promise
 
   let y = 800;
 
+  const ensureSpace = (needed: number) => {
+    if (y - needed < 70) {
+      page = doc.addPage([595.28, 841.89]);
+      y = 800;
+    }
+  };
+
   const draw = (
     text: string,
     opts: { x?: number; size?: number; bold?: boolean; color?: typeof black } = {},
   ) => {
+    ensureSpace((opts.size ?? 10) + 10);
     const t = sanitizePdfText(text);
     if (!t) return;
     page.drawText(t, {
@@ -95,10 +124,13 @@ export async function buildManualInvoicePdf(data: ManualInvoicePdfData): Promise
     y -= (opts.size ?? 10) + 6;
   };
 
+  const items = resolveLineItems(data);
+  const headerDate = data.issuedAt;
+
   draw('RECIBO / FACTURA', { size: 18, bold: true });
   draw(`N.º ${data.invoiceNumber}`, { size: 12, bold: true });
   draw(
-    `Fecha: ${data.issuedAt.toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' })}`,
+    `Fecha documento: ${headerDate.toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' })}`,
     { size: 10, color: muted },
   );
   y -= 8;
@@ -124,32 +156,62 @@ export async function buildManualInvoicePdf(data: ManualInvoicePdfData): Promise
   page.drawLine({ start: { x: 50, y }, end: { x: 545, y }, thickness: 0.5, color: muted });
   y -= 18;
 
-  draw('Concepto', { x: 50, size: 9, bold: true, color: muted });
+  draw('Detalle', { size: 11, bold: true });
   y -= 4;
-  for (const line of wrapLines(data.concept, 70).slice(0, 4)) {
-    draw(line, { x: 50, size: 10 });
-  }
-  y -= 6;
 
-  draw(`Base imponible: ${formatMoney(data.amountCents, data.currency)}`, { x: 320 });
-  if (data.taxPercent > 0) {
-    draw(`IVA (${data.taxPercent}%): ${formatMoney(data.taxCents, data.currency)}`, { x: 320 });
-  }
-  draw(`TOTAL: ${formatMoney(data.totalCents, data.currency)}`, { x: 320, size: 12, bold: true });
+  page.drawText('Concepto', { x: 50, y, size: 9, font: fontBold, color: muted });
+  page.drawText('Importe', { x: 420, y, size: 9, font: fontBold, color: muted });
+  page.drawText('Mon.', { x: 510, y, size: 9, font: fontBold, color: muted });
+  y -= 14;
 
-  if (data.paymentMethod?.trim()) {
-    y -= 8;
-    draw(`Forma de pago: ${data.paymentMethod}`, { size: 9, color: muted });
-  }
-  if (data.paymentRef?.trim()) {
-    draw(`Referencia: ${data.paymentRef}`, { size: 9, color: muted });
-  }
-  if (data.notes?.trim()) {
-    y -= 10;
-    draw('Notas', { size: 9, bold: true, color: muted });
-    for (const line of wrapLines(data.notes, 85).slice(0, 6)) {
-      draw(line, { size: 9, color: muted });
+  items.forEach((item, index) => {
+    ensureSpace(80);
+    if (index > 0) y -= 4;
+
+    const conceptLines = wrapLines(item.concept, 55).slice(0, 2);
+    for (let i = 0; i < conceptLines.length; i++) {
+      page.drawText(sanitizePdfText(conceptLines[i]), { x: 50, y, size: 10, font, color: black });
+      if (i === 0) {
+        page.drawText(sanitizePdfText(formatMoney(item.amountCents, item.currency)), {
+          x: 420, y, size: 10, font, color: black,
+        });
+        page.drawText(sanitizePdfText(item.currency), { x: 510, y, size: 10, font, color: black });
+      }
+      y -= 14;
     }
+
+    if (item.notes?.trim()) {
+      for (const line of wrapLines(item.notes, 75).slice(0, 2)) {
+        page.drawText(sanitizePdfText(`Nota: ${line}`), { x: 60, y, size: 8, font, color: muted });
+        y -= 11;
+      }
+    }
+  });
+
+  y -= 6;
+  page.drawLine({ start: { x: 50, y: y + 8 }, end: { x: 545, y: y + 8 }, thickness: 0.5, color: muted });
+  y -= 10;
+
+  const taxPercent = data.taxPercent ?? 0;
+  if (data.currency === 'MIX' || new Set(items.map((l) => l.currency)).size > 1) {
+    const byCurrency = computeTotalsByCurrency(items, taxPercent);
+    for (const [currency, t] of byCurrency.entries()) {
+      draw(`Subtotal (${currency}): ${formatMoneyCents(t.subtotalCents, currency)}`, { x: 320 });
+      if (taxPercent > 0) {
+        draw(`IVA (${taxPercent}%): ${formatMoneyCents(t.taxCents, currency)}`, { x: 320 });
+      }
+      draw(`TOTAL (${currency}): ${formatMoneyCents(t.totalCents, currency)}`, { x: 320, size: 11, bold: true });
+    }
+  } else {
+    const currency = data.currency || items[0]?.currency || 'EUR';
+    const subtotal = data.amountCents || items.reduce((s, l) => s + l.amountCents, 0);
+    const taxCents = data.taxCents ?? Math.round(subtotal * (taxPercent / 100));
+    const total = data.totalCents ?? subtotal + taxCents;
+    draw(`Subtotal: ${formatMoneyCents(subtotal, currency)}`, { x: 320 });
+    if (taxPercent > 0) {
+      draw(`IVA (${taxPercent}%): ${formatMoneyCents(taxCents, currency)}`, { x: 320 });
+    }
+    draw(`TOTAL: ${formatMoneyCents(total, currency)}`, { x: 320, size: 12, bold: true });
   }
 
   y = 60;
