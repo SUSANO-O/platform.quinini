@@ -310,6 +310,8 @@ const ConversationSessionSchema = new Schema({
   userId:       { type: String, required: true }, // dueño del widget
   agentId:      { type: String, default: '' },
   sessionId:    { type: String, required: true, unique: true },
+  /** Sesión de chat del widget (transcript); distinto de sessionId en entradas ho_* del inbox */
+  chatSessionId: { type: String, default: '' },
   startedAt:    { type: Date, required: true },
   endedAt:      { type: Date, default: null },
   /** Segundos de duración (null si no terminó) */
