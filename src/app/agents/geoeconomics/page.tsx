@@ -74,7 +74,7 @@ export default function GeoeconomicsLandingPage() {
           title: 'Analista Geoeconómico',
           subtitle: 'Pregúntame sobre economía global',
           color: '#0d9488',
-          position: 'right',
+          position: 'bottom-right',
           theme: 'dark',
           borderRadius: 16,
         });
