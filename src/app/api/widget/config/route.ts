@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { Widget, ClientAgent } from '@/lib/db/models';
 import { validateMultiAgentMode } from '@/lib/widget-multi-agent';
+import { normalizeHandoffNotifyMode } from '@/lib/handoff-notify';
 import { getCorsHeaders, handlePreflight, withCors } from '@/lib/cors';
 
 export async function OPTIONS(req: NextRequest) {
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
   await connectDB();
 
   const widget = await Widget.findOne({ afhubToken: token })
-    .select('_id agentId color title subtitle welcome fabHint avatar position theme borderRadius autoOpen voiceEnabled humanSupportPhone shortcuts multiAgentEnabled multiAgentMode active')
+    .select('_id agentId color title subtitle welcome fabHint avatar position theme borderRadius autoOpen voiceEnabled humanSupportPhone humanSupportEnabled handoffEnabled handoffNotifyMode shortcuts multiAgentEnabled multiAgentMode active')
     .lean() as Record<string, unknown> | null;
 
   if (!widget) {
@@ -73,6 +74,9 @@ export async function GET(req: NextRequest) {
         autoOpen:          widget.autoOpen,
         voiceEnabled:      widget.voiceEnabled !== false,
         humanSupportPhone: widget.humanSupportPhone,
+        humanSupportEnabled: widget.humanSupportEnabled !== false,
+        handoffEnabled:    widget.handoffEnabled !== false,
+        handoffNotifyMode: normalizeHandoffNotifyMode(widget.handoffNotifyMode),
         voiceName,
         shortcuts:         Array.isArray(widget.shortcuts)
           ? (widget.shortcuts as Array<{ id: string; label: string; message: string; emoji?: string; enabled: boolean }>)

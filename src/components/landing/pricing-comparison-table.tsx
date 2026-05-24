@@ -1,7 +1,23 @@
 'use client';
 
 import { buildPlanComparisonRows } from '@/lib/plan-economics';
+import { API_REST_COMING_SOON_LABEL } from '@/lib/plan-catalog';
 import { Check, Minus } from 'lucide-react';
+
+function ComingSoonTag() {
+  return (
+    <span
+      className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide"
+      style={{
+        background: 'rgba(245, 158, 11, 0.12)',
+        color: '#b45309',
+        border: '1px solid rgba(245, 158, 11, 0.35)',
+      }}
+    >
+      {API_REST_COMING_SOON_LABEL}
+    </span>
+  );
+}
 
 /**
  * Tabla comparativa de planes — datos desde plan-catalog.ts vía plan-economics.
@@ -51,11 +67,16 @@ export function PricingComparisonTable() {
           ].map(({ key, label }) => (
             <tr key={key} className="border-t" style={{ borderColor: 'var(--border)' }}>
               <td className="p-4 font-medium sticky left-0" style={{ background: 'var(--card)' }}>
-                {label}
+                <span className="inline-flex items-center gap-2 flex-wrap">
+                  {label}
+                  {key === 'apiAccess' ? <ComingSoonTag /> : null}
+                </span>
               </td>
               {columns.map((col) => {
                 const val = col[key as keyof typeof col];
                 const display = val === '—' ? null : String(val);
+                const isApiComingSoon =
+                  key === 'apiAccess' && display === API_REST_COMING_SOON_LABEL;
                 return (
                   <td
                     key={col.id}
@@ -64,7 +85,9 @@ export function PricingComparisonTable() {
                       background: col.highlighted ? 'rgba(var(--brand-primary-rgb),0.03)' : undefined,
                     }}
                   >
-                    {display ? (
+                    {isApiComingSoon ? (
+                      <ComingSoonTag />
+                    ) : display ? (
                       <span className="inline-flex items-center gap-1 justify-center">
                         <Check size={14} className="shrink-0 text-emerald-500" />
                         {display}

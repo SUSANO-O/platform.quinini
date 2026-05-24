@@ -129,11 +129,11 @@ export default function GeoeconomicsLandingPage() {
               <Zap size={16} /> Probar Gratis <ArrowRight size={16} />
             </Link>
             <Link
-              href="/playground"
+              href="/pricing#api"
               className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl font-semibold text-sm transition-all"
               style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
             >
-              <TrendingUp size={16} /> Ver en Playground
+              <TrendingUp size={16} /> API REST (Team+)
             </Link>
           </div>
         </div>

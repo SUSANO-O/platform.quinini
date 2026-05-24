@@ -29,7 +29,12 @@ type InboxItem = {
   messageCount: number;
 };
 
-type TranscriptMessage = { role: string; content: string; createdAt: string };
+type TranscriptMessage = {
+  role: string;
+  content: string;
+  createdAt: string;
+  attachments?: Array<{ type: string; url: string; ocrText?: string }>;
+};
 
 export default function InboxPage() {
   const [tab, setTab] = useState<'open' | 'resolved'>('open');
@@ -305,6 +310,26 @@ export default function InboxPage() {
                               {m.role === 'user' ? 'Usuario' : 'Bot'}
                             </span>
                             {m.content}
+                            {m.attachments?.map((att, ai) =>
+                              att.url ? (
+                                <div key={ai} style={{ marginTop: 8 }}>
+                                  <a href={att.url} target="_blank" rel="noopener noreferrer">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={att.url}
+                                      alt="Captura adjunta"
+                                      style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)' }}
+                                    />
+                                  </a>
+                                  {att.ocrText ? (
+                                    <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '6px 0 0', whiteSpace: 'pre-wrap' }}>
+                                      {att.ocrText.slice(0, 500)}
+                                      {att.ocrText.length > 500 ? '…' : ''}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              ) : null,
+                            )}
                           </div>
                         ))}
                       </div>

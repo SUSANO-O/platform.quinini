@@ -34,7 +34,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   const transcriptSessionId = inboxTranscriptSessionId(session);
   const messages = await WidgetMessage.find({ sessionId: transcriptSessionId, userId })
     .sort({ createdAt: 1 })
-    .select({ role: 1, content: 1, createdAt: 1 })
+    .select({ role: 1, content: 1, createdAt: 1, attachments: 1 })
     .limit(200)
     .lean();
 
@@ -68,6 +68,13 @@ export async function GET(req: NextRequest, { params }: Params) {
       role: m.role,
       content: m.content,
       createdAt: m.createdAt,
+      attachments: Array.isArray(m.attachments)
+        ? m.attachments.map((a: { type?: string; url?: string; ocrText?: string }) => ({
+            type: a.type || 'image',
+            url: a.url || '',
+            ocrText: a.ocrText || '',
+          }))
+        : [],
     })),
   });
 }

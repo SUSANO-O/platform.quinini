@@ -118,8 +118,21 @@ const WidgetSchema = new Schema({
   autoOpen:     { type: Boolean, default: false },
   /** Si false, oculta el botón de lectura en voz alta (speaker) en el header del chat. */
   voiceEnabled: { type: Boolean, default: true },
-  /** Teléfono WhatsApp (con código de país); el SDK ofrece “Hablar con una persona”. */
+  /** Teléfono WhatsApp (con código de país); el SDK ofrece enlace si humanSupportEnabled. */
   humanSupportPhone: { type: String, default: '' },
+  /** Si false, no se muestra oferta WhatsApp por palabras clave ni enlaces wa.me. */
+  humanSupportEnabled: { type: Boolean, default: true },
+  /**
+   * Destino externo al escalar desde el widget (Inbox siempre recibe la solicitud).
+   * inbox | webhook | slack | both (default both — retrocompat)
+   */
+  handoffNotifyMode: {
+    type: String,
+    enum: ['inbox', 'webhook', 'slack', 'both'],
+    default: 'both',
+  },
+  /** Si false, oculta el botón «Hablar con una persona» y rechaza POST /handoff. */
+  handoffEnabled: { type: Boolean, default: true },
   afhubToken:   { type: String, default: null },
   afhubWidgetId:{ type: String, default: null },
   orgId:        { type: String, default: null },
@@ -406,6 +419,11 @@ const WidgetMessageSchema = new Schema({
   role:      { type: String, enum: ['user', 'assistant'], required: true },
   content:   { type: String, required: true },
   traceId:   { type: String, default: '' },
+  attachments: [{
+    type:   { type: String, enum: ['image'], default: 'image' },
+    url:    { type: String, required: true },
+    ocrText: { type: String, default: '' },
+  }],
 }, { timestamps: true });
 
 WidgetMessageSchema.index({ widgetId: 1, createdAt: -1 });

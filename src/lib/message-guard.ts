@@ -61,11 +61,36 @@ export function guardUserMessage(text: string): GuardResult {
   return { ok: true };
 }
 
+/** Cuenta turnos del visitante en el formato del widget ({ message, history }). */
+export function countWidgetUserTurns(parsed: Record<string, unknown>): number {
+  let count = 0;
+  if (Array.isArray(parsed.history)) {
+    for (const m of parsed.history) {
+      if (!m || typeof m !== 'object') continue;
+      const role = String((m as { role?: string }).role || '').toLowerCase();
+      if (role === 'user') count++;
+    }
+  }
+  const msg = typeof parsed.message === 'string' ? parsed.message.trim() : '';
+  const hasImages =
+    Array.isArray(parsed.userImages) &&
+    (parsed.userImages as unknown[]).some(
+      (item) =>
+        item &&
+        typeof item === 'object' &&
+        typeof (item as { url?: unknown }).url === 'string' &&
+        /^https?:\/\//i.test(String((item as { url: string }).url)),
+    );
+  if (msg || hasImages) count++;
+  return count;
+}
+
 /**
  * Extrae y valida el mensaje del usuario desde el body del widget chat.
  * Compatible con los formatos message (string) y messages[] (array).
+ * Permite mensaje vacío si hay userImages (captura sin texto).
  */
-export function extractAndGuardMessage(rawBody: string): GuardResult & { text?: string; turnCount?: number } {
+export function extractAndGuardMessage(rawBody: string): GuardResult & { text?: string; turnCount?: number; hasImages?: boolean } {
   let parsed: Record<string, unknown>;
   try {
     parsed = JSON.parse(rawBody) as Record<string, unknown>;
@@ -73,10 +98,38 @@ export function extractAndGuardMessage(rawBody: string): GuardResult & { text?: 
     return { ok: false, code: 'INVALID_JSON', message: 'Cuerpo JSON inválido.' };
   }
 
+  const hasImages =
+    Array.isArray(parsed.userImages) &&
+    (parsed.userImages as unknown[]).some(
+      (item) =>
+        item &&
+        typeof item === 'object' &&
+        typeof (item as { url?: unknown }).url === 'string' &&
+        /^https?:\/\//i.test(String((item as { url: string }).url)),
+    );
+
+    const turnCount = countWidgetUserTurns(parsed);
+
+    if (turnCount > MAX_TURNS_PER_SESSION) {
+      return {
+        ok: false,
+        code: 'SESSION_TURN_LIMIT',
+        message: `Esta conversación ha alcanzado el límite de ${MAX_TURNS_PER_SESSION} turnos. Inicia una nueva conversación.`,
+      };
+    }
+
   // Formato 1: { message: "texto" }
   if (typeof parsed.message === 'string') {
-    const result = guardUserMessage(parsed.message);
-    return result.ok ? { ok: true, text: parsed.message, turnCount: 1 } : result;
+    const trimmed = parsed.message.trim();
+    if (!trimmed && !hasImages) {
+      return { ok: false, code: 'EMPTY_MESSAGE', message: 'El mensaje no puede estar vacío.' };
+    }
+    if (trimmed) {
+      const result = guardUserMessage(parsed.message);
+      const turnCount = countWidgetUserTurns(parsed);
+      return result.ok ? { ok: true, text: parsed.message, turnCount, hasImages } : result;
+    }
+    return { ok: true, text: '', turnCount: countWidgetUserTurns(parsed), hasImages: true };
   }
 
   // Formato 2: { messages: [{ role, content }] }
@@ -97,9 +150,15 @@ export function extractAndGuardMessage(rawBody: string): GuardResult & { text?: 
     // Validar el último mensaje del usuario
     const lastUserMsg = userMsgs[userMsgs.length - 1];
     const text = typeof lastUserMsg?.content === 'string' ? lastUserMsg.content : '';
-    const result = guardUserMessage(text);
-    return result.ok ? { ok: true, text, turnCount } : result;
+    if (!text.trim() && !hasImages) {
+      return { ok: false, code: 'EMPTY_MESSAGE', message: 'El mensaje no puede estar vacío.' };
+    }
+    if (text.trim()) {
+      const result = guardUserMessage(text);
+      return result.ok ? { ok: true, text, turnCount, hasImages } : result;
+    }
+    return { ok: true, text: '', turnCount, hasImages: true };
   }
 
-  return { ok: true };
+  return { ok: true, hasImages };
 }

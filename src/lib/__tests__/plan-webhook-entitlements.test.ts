@@ -23,7 +23,7 @@ describe('webhook entitlements (plan-catalog)', () => {
   it('defines expected minimum plans', () => {
     expect(AGENT_WEBHOOK_MIN_PLAN).toBe('solo');
     expect(OUTBOUND_SAAS_WEBHOOK_MIN_PLAN).toBe('starter');
-    expect(API_ACCESS_MIN_PLAN).toBe('starter');
+    expect(API_ACCESS_MIN_PLAN).toBe('team');
     expect(ESCALATION_TICKET_MIN_PLAN).toBe('growth');
     expect(CUSTOM_INTEGRATION_MIN_PLAN).toBe('business');
   });
@@ -59,6 +59,7 @@ describe('webhook entitlements (plan-catalog)', () => {
     expect(planHasOutboundWebhookFeature('plus')).toBe(false);
     expect(planHasOutboundWebhookFeature('starter')).toBe(true);
     expect(planHasApiAccessFeature('plus')).toBe(false);
+    expect(planHasApiAccessFeature('team')).toBe(true);
     expect(planHasApiAccessFeature('starter')).toBe(true);
     expect(planHasEscalationTicketFeature('starter')).toBe(false);
     expect(planHasEscalationTicketFeature('growth')).toBe(true);
@@ -119,7 +120,8 @@ describe('pricing comparison rows', () => {
     expect(solo?.agentWebhook).toBe('Incluido');
     expect(solo?.outboundWebhook).toBe('—');
     expect(plus?.conversationAnalytics).toBe('Básico');
-    expect(starter?.apiAccess).toBe('Incluido');
+    expect(rows.find((r) => r.id === 'team')?.apiAccess).toBe('Próximamente');
+    expect(starter?.apiAccess).toBe('Próximamente');
     expect(starter?.escalationTickets).toBe('—');
     expect(growth?.escalationTickets).toBe('Incluido');
     expect(growth?.conversationAnalytics).toBe('Avanzado');

@@ -1,7 +1,7 @@
 import { Navbar } from '@/components/shared/navbar';
 import { Footer } from '@/components/shared/footer';
 import { PLANS, buildPricingGridPlans } from '@/lib/gateway';
-import { PLAN_DISPLAY, PLAN_RAG_LIMITS, CONVERSATION_PACKS } from '@/lib/plan-catalog';
+import { PLAN_DISPLAY, PLAN_RAG_LIMITS, CONVERSATION_PACKS, API_REST_COMING_SOON_LABEL } from '@/lib/plan-catalog';
 import { Check, ArrowRight, Zap } from 'lucide-react';
 import { PricingComparisonTable } from '@/components/landing/pricing-comparison-table';
 import Link from 'next/link';
@@ -297,6 +297,39 @@ export default function PricingPage() {
                   </p>
                 </div>
               ))}
+            </div>
+          </div>
+
+          <div className="mt-24" id="api">
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
+              <h2 className="text-2xl font-bold text-center m-0">API REST</h2>
+              <span
+                className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide"
+                style={{
+                  background: 'rgba(245, 158, 11, 0.12)',
+                  color: '#b45309',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                }}
+              >
+                {API_REST_COMING_SOON_LABEL}
+              </span>
+            </div>
+            <p className="text-center text-sm mb-8 max-w-2xl mx-auto" style={{ color: 'var(--muted-foreground)' }}>
+              Integra agentes, widgets y conversaciones vía HTTP. Previsto desde el plan <strong>Team</strong> — la
+              documentación interactiva y las claves API estarán disponibles en el panel cuando lancemos esta función.
+            </p>
+            <div
+              className="max-w-2xl mx-auto rounded-2xl p-8 card-texture text-center"
+              style={{ border: '1px solid var(--border)' }}
+            >
+              <p className="text-sm mb-6" style={{ color: 'var(--muted-foreground)' }}>
+                Endpoints bajo <code className="text-xs">/api/v1</code>: agentes, widgets, conversaciones, claves API
+                y auditoría. Autenticación con API key.
+              </p>
+              <p className="text-xs m-0" style={{ color: 'var(--muted-foreground)' }}>
+                Te avisaremos cuando la API esté activa. Mientras tanto, el widget y el panel siguen disponibles en
+                todos los planes compatibles.
+              </p>
             </div>
           </div>
 

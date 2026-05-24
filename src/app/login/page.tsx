@@ -12,6 +12,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const from = searchParams.get('from') || '/dashboard';
+  const sessionExpired = searchParams.get('session') === 'expired';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -46,6 +47,11 @@ function LoginForm() {
           <p className="mt-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
             Inicia sesión en tu cuenta
           </p>
+          {sessionExpired && (
+            <p className="mt-3 text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+              Tu sesión expiró por inactividad. Vuelve a iniciar sesión.
+            </p>
+          )}
         </div>
 
         <div className="landing-card p-8">

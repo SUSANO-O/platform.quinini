@@ -44,6 +44,8 @@ import {
   type MultiAgentRoutingMeta,
   type WidgetMultiAgentConfig,
 } from '@/lib/widget-multi-agent';
+import { enrichWidgetChatBodyWithImages, type WidgetImageEnrichment } from '@/lib/widget-chat-images';
+import { persistWidgetTranscript } from '@/lib/widget-transcript';
 
 export const maxDuration = 60; // Vercel: allow up to 60s for LLM + streaming
 
@@ -91,22 +93,27 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const rawBody = await req.text();
-  if (rawBody.length > MAX_WIDGET_BODY_BYTES) {
+  const rawBodyInitial = await req.text();
+  if (rawBodyInitial.length > MAX_WIDGET_BODY_BYTES) {
     return new Response(
       sseEvent({ type: 'error', message: 'Payload demasiado grande.', code: 'PAYLOAD_TOO_LARGE' }),
       { status: 413, headers: { 'Content-Type': 'text/event-stream', ...corsHeaders(origin) } },
     );
   }
 
-  // ── Message guard ─────────────────────────────────────────────────────────
-  const guardResult = extractAndGuardMessage(rawBody);
+  // ── Message guard (antes de OCR) ──────────────────────────────────────────
+  const guardResult = extractAndGuardMessage(rawBodyInitial);
   if (!guardResult.ok) {
     return new Response(
       sseEvent({ type: 'error', message: guardResult.message, code: guardResult.code }),
       { status: 400, headers: { 'Content-Type': 'text/event-stream', ...corsHeaders(origin) } },
     );
   }
+
+  const imageEnriched = await enrichWidgetChatBodyWithImages(rawBodyInitial);
+  const rawBody = imageEnriched.body;
+  const imageEnrichment: WidgetImageEnrichment | null = imageEnriched.enrichment;
+  const userDisplayMessage = imageEnrichment?.displayMessage || guardResult.text || '';
 
   const hubConfigErr = validateHubProxyConfig(req.nextUrl.origin);
   if (hubConfigErr) {
@@ -192,6 +199,28 @@ export async function POST(req: NextRequest) {
         }
 
         try {
+          const subDoc = await Subscription.findOne({ userId: w.userId })
+            .select({ status: 1 })
+            .lean() as { status?: string } | null;
+          const hasActivePlan =
+            subDoc?.status === 'active' || subDoc?.status === 'trialing';
+          const userTurnCount = guardResult.turnCount ?? 0;
+          if (!hasActivePlan && userTurnCount >= 2) {
+            return new Response(
+              sseEvent({
+                type: 'error',
+                message:
+                  'No podemos responder en este momento. Por favor, comunicate con la empresa proveedora del servicio para continuar.',
+                code: 'WIDGET_PROVIDER_SUBSCRIPTION_REQUIRED',
+              }),
+              { status: 403, headers: { 'Content-Type': 'text/event-stream', ...corsHeaders(origin) } },
+            );
+          }
+        } catch {
+          /* fail-open */
+        }
+
+        try {
           const subForRoute = await Subscription.findOne({ userId: w.userId })
             .select({ plan: 1, status: 1 })
             .lean() as { plan?: string; status?: string } | null;
@@ -237,6 +266,9 @@ export async function POST(req: NextRequest) {
       if (widgetToken) headers['X-Widget-Token'] = widgetToken;
 
       try {
+        if (imageEnrichment?.images?.length) {
+          enqueue({ type: 'status', phase: 'vision', message: 'Analizando captura…' });
+        }
         enqueue({ type: 'status', phase: 'start', message: 'Generando respuesta…' });
 
         if (multiAgentCtx) {
@@ -497,23 +529,17 @@ export async function POST(req: NextRequest) {
             }).catch(() => {});
 
             // Persist transcript (fire-and-forget — never blocks stream)
-            if (streamMsg && fullReply && resolvedWidgetId) {
-              void (async () => {
-                try {
-                  const { WidgetMessage } = await import('@/lib/db/models');
-                  const baseMsg = {
-                    widgetId: resolvedWidgetId,
-                    userId: faqTrackOwnerId,
-                    agentId: parsedAgentId,
-                    sessionId: parsedSessionId || traceId,
-                    traceId,
-                  };
-                  await WidgetMessage.insertMany([
-                    { ...baseMsg, role: 'user',      content: streamMsg.slice(0, 4000) },
-                    { ...baseMsg, role: 'assistant', content: fullReply.slice(0, 8000) },
-                  ]);
-                } catch { /* non-critical */ }
-              })();
+            if (fullReply && resolvedWidgetId) {
+              void persistWidgetTranscript({
+                widgetId: resolvedWidgetId,
+                userId: faqTrackOwnerId,
+                agentId: parsedAgentId,
+                sessionId: parsedSessionId || traceId,
+                traceId,
+                userMessage: userDisplayMessage || streamMsg,
+                assistantMessage: fullReply,
+                enrichment: imageEnrichment,
+              }).catch(() => {});
             }
           }
         }

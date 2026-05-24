@@ -24,14 +24,16 @@ import { PLAN_DISPLAY, type PaidPlanId } from '@/lib/plan-catalog';
 const SIDEBAR_COLLAPSED_KEY = 'dashboard-sidebar-collapsed';
 const TRIAL_CHECKOUT_PLAN_IDS: PaidPlanId[] = ['starter', 'growth', 'business'];
 
+const TRIAL_MODAL_DISMISS_KEY = 'af_trial_expired_modal_dismissed';
+
 function SubscriptionExpiryGate() {
-  const { loading, hasAccess, isTrialActive, subscription, startCheckout } = useSubscription();
+  const { user, logout } = useAuth();
+  const { loading, hasAccess, isTrialActive, authExpired, subscription, startCheckout } = useSubscription();
   const [openModal, setOpenModal] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
 
   const trialExpired = useMemo(
-    () => !loading && !hasAccess && !isTrialActive,
-    [loading, hasAccess, isTrialActive],
+    () => Boolean(user) && !authExpired && !loading && !hasAccess && !isTrialActive,
+    [user, authExpired, loading, hasAccess, isTrialActive],
   );
   const expiredAt = subscription?.trialEndsAt
     ? new Date(subscription.trialEndsAt).toLocaleDateString('es', {
@@ -44,14 +46,20 @@ function SubscriptionExpiryGate() {
   useEffect(() => {
     if (!trialExpired) {
       setOpenModal(false);
-      setDismissed(false);
       return;
     }
+    try {
+      if (sessionStorage.getItem(TRIAL_MODAL_DISMISS_KEY) === '1') {
+        setOpenModal(false);
+        return;
+      }
+    } catch {
+      /* noop */
+    }
     setOpenModal(true);
-    setDismissed(false);
   }, [trialExpired]);
 
-  if (!trialExpired) return null;
+  if (!trialExpired || authExpired) return null;
 
   return (
     <>
@@ -60,7 +68,10 @@ function SubscriptionExpiryGate() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="trial-expired-title"
-          onClick={() => { setOpenModal(false); setDismissed(true); }}
+          onClick={() => {
+            setOpenModal(false);
+            try { sessionStorage.setItem(TRIAL_MODAL_DISMISS_KEY, '1'); } catch { /* noop */ }
+          }}
           style={{
             position: 'fixed',
             inset: 0,
@@ -90,10 +101,10 @@ function SubscriptionExpiryGate() {
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'flex-start' }}>
               <div>
                 <p style={{ margin: 0, fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.78 }}>
-                  Sesion vencida
+                  Trial finalizado
                 </p>
                 <h3 id="trial-expired-title" style={{ margin: '8px 0 0', fontSize: '22px', lineHeight: 1.18 }}>
-                  Tu trial ya expiro
+                  Tu período de prueba expiró
                 </h3>
               </div>
               <button
@@ -101,7 +112,7 @@ function SubscriptionExpiryGate() {
                 aria-label="Cerrar"
                 onClick={() => {
                   setOpenModal(false);
-                  setDismissed(true);
+                  try { sessionStorage.setItem(TRIAL_MODAL_DISMISS_KEY, '1'); } catch { /* noop */ }
                 }}
                 style={{
                   border: '1px solid rgba(255,255,255,0.28)',
@@ -120,11 +131,11 @@ function SubscriptionExpiryGate() {
 
             <p style={{ margin: '12px 0 16px', color: 'rgba(241,245,249,0.96)', lineHeight: 1.5 }}>
               {expiredAt
-                ? `Tu sesion de prueba vencio el ${expiredAt}.`
-                : 'Tu sesion de prueba ya vencio.'} Para seguir disfrutando los servicios, suscribete a un plan.
+                ? `Tu prueba gratuita terminó el ${expiredAt}.`
+                : 'Tu prueba gratuita ya terminó.'} Suscríbete para seguir usando BotIvA, o cierra sesión si prefieres salir.
             </p>
 
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
               {TRIAL_CHECKOUT_PLAN_IDS.map((planId) => {
                 const plan = PLAN_DISPLAY[planId];
                 return (
@@ -150,6 +161,24 @@ function SubscriptionExpiryGate() {
                 </button>
               );})}
             </div>
+
+            <button
+              type="button"
+              onClick={() => void logout().then(() => { window.location.href = '/login'; })}
+              style={{
+                marginTop: '4px',
+                border: '1px solid rgba(255,255,255,0.28)',
+                borderRadius: '10px',
+                padding: '8px 14px',
+                fontSize: '12px',
+                fontWeight: 700,
+                color: '#fff',
+                cursor: 'pointer',
+                background: 'transparent',
+              }}
+            >
+              Cerrar sesión
+            </button>
           </div>
         </div>
       ) : null}

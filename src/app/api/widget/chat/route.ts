@@ -18,7 +18,7 @@ import { getAgentLimits } from '@/lib/agent-plans';
 import { checkRateLimitAsync, getClientIp } from '@/lib/rate-limit';
 import { trackWidgetUserMessageForFaqCandidates } from '@/lib/widget-faq-tracker';
 import { isOriginAllowed } from '@/lib/widget-origin-check';
-import { extractAndGuardMessage } from '@/lib/message-guard';
+import { extractAndGuardMessage, countWidgetUserTurns } from '@/lib/message-guard';
 import { signRequest, SIGNATURE_HEADER } from '@/lib/hub-signature';
 import { logSecurityEvent } from '@/lib/security-log';
 import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
@@ -30,6 +30,8 @@ import {
   executePipelineMultiAgentFlow,
   type MultiAgentRoutingMeta,
 } from '@/lib/widget-multi-agent';
+import { enrichWidgetChatBodyWithImages, type WidgetImageEnrichment } from '@/lib/widget-chat-images';
+import { persistWidgetTranscript } from '@/lib/widget-transcript';
 
 /** Max body size accepted from widget SDK (512 KB — allows image-to-image thumbnail). */
 const MAX_WIDGET_BODY_BYTES = 512 * 1024;
@@ -61,10 +63,13 @@ function alternateHubOrigin(base: string): string | null {
 
 function estimateUserTurnFromBody(rawBody: string): number {
   try {
-    const payload = JSON.parse(rawBody) as { messages?: Array<{ role?: string }> };
+    const payload = JSON.parse(rawBody) as Record<string, unknown>;
+    if (typeof payload.message === 'string' || Array.isArray(payload.history)) {
+      return countWidgetUserTurns(payload);
+    }
     if (!Array.isArray(payload.messages)) return 0;
     return payload.messages.reduce((acc, msg) => {
-      const role = String(msg?.role || '').toLowerCase();
+      const role = String((msg as { role?: string })?.role || '').toLowerCase();
       return role === 'user' ? acc + 1 : acc;
     }, 0);
   } catch {
@@ -155,18 +160,40 @@ export async function POST(req: NextRequest) {
   }
 
   const base = getAgentflowhubBaseUrl();
-  const rawBody = await req.text();
-  let bodyToForward = rawBody;
-  let multiAgentMeta: MultiAgentRoutingMeta | null = null;
-  let orchestratorName = 'Asistente';
+  const rawBodyInitial = await req.text();
 
   // Enforce size after read (content-length puede ser falso o ausente)
-  if (rawBody.length > MAX_WIDGET_BODY_BYTES) {
+  if (rawBodyInitial.length > MAX_WIDGET_BODY_BYTES) {
     return NextResponse.json(
       { error: 'Payload demasiado grande.', code: 'PAYLOAD_TOO_LARGE' },
       { status: 413, headers: cors(origin) },
     );
   }
+
+  // ── Message guard (antes de enriquecer con OCR — valida solo texto del usuario) ─
+  const guardResult = extractAndGuardMessage(rawBodyInitial);
+  if (!guardResult.ok) {
+    const secEvent = guardResult.code === 'PROMPT_INJECTION_DETECTED'
+      ? 'injection_detected'
+      : guardResult.code === 'SESSION_TURN_LIMIT'
+        ? 'turn_limit'
+        : 'message_too_long';
+    logSecurityEvent({ event: secEvent, ip, origin, code: guardResult.code });
+    return NextResponse.json(
+      { error: guardResult.message, code: guardResult.code },
+      { status: 400, headers: cors(origin) },
+    );
+  }
+  const userTurnCount = guardResult.turnCount ?? estimateUserTurnFromBody(rawBodyInitial);
+
+  // ── Análisis de capturas (Cloudinary + Gemini Vision) ─────────────────────
+  const imageEnriched = await enrichWidgetChatBodyWithImages(rawBodyInitial);
+  const rawBody = imageEnriched.body;
+  const imageEnrichment: WidgetImageEnrichment | null = imageEnriched.enrichment;
+
+  let bodyToForward = rawBody;
+  let multiAgentMeta: MultiAgentRoutingMeta | null = null;
+  let orchestratorName = 'Asistente';
 
   // ── Rate limit paso 2: IP + agentId — 48/min por widget ─────────────────────────
   try {
@@ -203,32 +230,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── Message guard: longitud, turnos, prompt injection ────────────────────────
-  const guardResult = extractAndGuardMessage(rawBody);
-  if (!guardResult.ok) {
-    const secEvent = guardResult.code === 'PROMPT_INJECTION_DETECTED'
-      ? 'injection_detected'
-      : guardResult.code === 'SESSION_TURN_LIMIT'
-        ? 'turn_limit'
-        : 'message_too_long';
-    logSecurityEvent({ event: secEvent, ip, origin, code: guardResult.code });
-    return NextResponse.json(
-      { error: guardResult.message, code: guardResult.code },
-      { status: 400, headers: cors(origin) },
-    );
-  }
-  const userTurnCount = guardResult.turnCount ?? estimateUserTurnFromBody(rawBody);
-
   let parsedAgentId = '';
   let parsedWidgetId = '';
   let tokenFromBody = '';
   let parsedMessage = '';
+  let parsedSessionId = '';
   try {
-    const j = JSON.parse(rawBody) as { agentId?: string; widgetId?: string; token?: string; message?: string };
+    const j = JSON.parse(rawBody) as { agentId?: string; widgetId?: string; token?: string; message?: string; sessionId?: string };
     parsedAgentId = typeof j?.agentId === 'string' ? j.agentId.trim() : '';
     parsedWidgetId = typeof j?.widgetId === 'string' ? j.widgetId.trim() : '';
     tokenFromBody = typeof j?.token === 'string' ? j.token.trim() : '';
     parsedMessage = typeof j?.message === 'string' ? j.message : '';
+    parsedSessionId = typeof j?.sessionId === 'string' ? j.sessionId.trim() : '';
   } catch {
     /* body no JSON */
   }
@@ -249,6 +262,7 @@ export async function POST(req: NextRequest) {
 
   /** Dueño del widget (token wt_*): para telemetría de candidatas a FAQ tras respuesta OK. */
   let faqTrackOwnerId: string | null = null;
+  let resolvedWidgetId = parsedWidgetId;
 
   const headers: Record<string, string> = {
     'Content-Type': req.headers.get('content-type') || 'application/json',
@@ -262,6 +276,8 @@ export async function POST(req: NextRequest) {
       await connectDB();
       const w = await findWidgetForWtToken(widgetToken, parsedWidgetId || undefined);
       if (w) {
+        if (w.id && !resolvedWidgetId) resolvedWidgetId = w.id;
+        else if (w.id) resolvedWidgetId = w.id;
         if (!isWidgetActive(w)) {
           return NextResponse.json(
             {
@@ -656,8 +672,27 @@ export async function POST(req: NextRequest) {
         void trackWidgetUserMessageForFaqCandidates({
           ownerUserId: faqTrackOwnerId,
           agentIdOrHubId: parsedAgentId,
-          rawBody,
+          rawBody: rawBodyInitial,
         }).catch(() => {});
+
+        if (resolvedWidgetId) {
+          try {
+            const hubJson = JSON.parse(data) as { reply?: string };
+            const replyText = typeof hubJson.reply === 'string' ? hubJson.reply : '';
+            if (replyText) {
+              void persistWidgetTranscript({
+                widgetId: resolvedWidgetId,
+                userId: faqTrackOwnerId,
+                agentId: parsedAgentId,
+                sessionId: parsedSessionId || traceId,
+                traceId,
+                userMessage: guardResult.text || '',
+                assistantMessage: replyText,
+                enrichment: imageEnrichment,
+              }).catch(() => {});
+            }
+          } catch { /* non-critical */ }
+        }
       }
     }
 

@@ -31,6 +31,7 @@
   var ICON_SEND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
   var ICON_BOT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>';
   var ICON_MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
+  var ICON_ATTACH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>';
   var ICON_MIC_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
   var ICON_VOLUME_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>';
   var ICON_VOLUME_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
@@ -112,8 +113,11 @@
     voiceLang: '',
     /** Nombre exacto de la voz SpeechSynthesis; vacío = auto */
     voiceName: '',
-    /** WhatsApp: dígitos con código de país; menú ⋯ en la cabecera del chat */
+    /** WhatsApp: dígitos con código de país; oferta por palabras clave en el chat */
     humanSupportPhone: '',
+    humanSupportEnabled: true,
+    /** Botón «Hablar con una persona» y formulario de escalación */
+    handoffEnabled: true,
     /** Si true: chips MCP / tools y notas técnicas de HubSpot en burbujas (vista previa o data-show-mcp-ui). Producción: false. */
     showMcpUi: false,
     /** Arrastrar el orbe (FAB) para fijar posición; se recuerda en sessionStorage por agente/widget. */
@@ -342,6 +346,8 @@
     merged.humanSupportPhone = String(merged.humanSupportPhone == null ? '' : merged.humanSupportPhone)
       .trim()
       .substring(0, 48);
+    merged.humanSupportEnabled = input && input.humanSupportEnabled === false ? false : true;
+    merged.handoffEnabled = input && input.handoffEnabled === false ? false : true;
     merged.showMcpUi = Boolean(merged.showMcpUi);
     merged.fabDraggable =
       input && Object.prototype.hasOwnProperty.call(input, 'fabDraggable')
@@ -816,6 +822,8 @@
     var historyDomReady = false;
     var resolvedAgentId = null;
     var lastGeneratedImageDataUrl = persistedChat ? persistedChat.lastGeneratedImageDataUrl || '' : '';
+    var pendingAttachment = null;
+    var lastSessionImageUrls = [];
 
     function saveChatToSession() {
       persistChatState(cfg, chatSessionId, history, lastGeneratedImageDataUrl);
@@ -941,8 +949,9 @@
       return false;
     }
 
-    /** Oferta WhatsApp solo dentro del chat, si hay número y palabras clave. */
+    /** Oferta WhatsApp solo dentro del chat, si está habilitado, hay número y palabras clave. */
     function appendHumanSupportOfferInChat(userText) {
+      if (cfg.humanSupportEnabled === false) return;
       var digits = humanWaDigits();
       if (digits.length < 8) return;
       if (!messageAsksForHumanAgent(userText)) return;
@@ -1081,6 +1090,31 @@
 
     var inputArea = document.createElement('div');
     inputArea.className = 'afhub-input-area';
+
+    var attachPreview = document.createElement('div');
+    attachPreview.className = 'afhub-attach-preview';
+    attachPreview.style.display = 'none';
+
+    var attachBtn = null;
+    var attachInput = null;
+    if (cfg.imageUploadEnabled !== false) {
+      attachInput = document.createElement('input');
+      attachInput.type = 'file';
+      attachInput.accept = 'image/jpeg,image/png,image/webp,image/gif';
+      attachInput.className = 'afhub-attach-input';
+      attachInput.setAttribute('aria-hidden', 'true');
+      attachInput.tabIndex = -1;
+      inputArea.appendChild(attachInput);
+
+      attachBtn = document.createElement('button');
+      attachBtn.className = 'afhub-attach';
+      attachBtn.innerHTML = ICON_ATTACH;
+      attachBtn.type = 'button';
+      attachBtn.setAttribute('aria-label', 'Adjuntar captura');
+      attachBtn.setAttribute('title', 'Adjuntar captura');
+      inputArea.appendChild(attachBtn);
+    }
+
     var input = document.createElement('textarea');
     input.className = 'afhub-input';
     input.placeholder = 'Escribe un mensaje...';
@@ -1115,12 +1149,14 @@
     sendBtn.disabled = true;
     sendBtn.setAttribute('aria-label', 'Enviar');
     inputArea.appendChild(sendBtn);
+    chat.appendChild(attachPreview);
     chat.appendChild(inputArea);
     if (widgetDisabled) {
       input.disabled = true;
       input.placeholder = 'Chat desactivado';
       sendBtn.disabled = true;
       if (micBtn) micBtn.disabled = true;
+      if (attachBtn) attachBtn.disabled = true;
       inputArea.classList.add('afhub-input-area--disabled');
     }
     if (voiceBar) {
@@ -1135,7 +1171,9 @@
     handoffBtn.textContent = 'Hablar con una persona';
     handoffBtn.setAttribute('aria-label', 'Solicitar atención humana');
     handoffBar.appendChild(handoffBtn);
-    chat.appendChild(handoffBar);
+    if (cfg.handoffEnabled !== false) {
+      chat.appendChild(handoffBar);
+    }
 
     var handoffOverlay = document.createElement('div');
     handoffOverlay.className = 'afhub-handoff-overlay';
@@ -1607,6 +1645,18 @@
         }
       } else {
         el.textContent = text;
+        if (imgOpts && imgOpts.userImages && imgOpts.userImages.length) {
+          for (var ui = 0; ui < imgOpts.userImages.length; ui++) {
+            var uItem = imgOpts.userImages[ui];
+            var uUrl = uItem && (uItem.previewUrl || uItem.url);
+            if (typeof uUrl === 'string' && (/^data:image\//i.test(uUrl) || /^https?:\/\//i.test(uUrl))) {
+              var uWrap = document.createElement('div');
+              uWrap.className = 'afhub-img-wrap afhub-img-wrap--user';
+              appendGeneratedImage(uWrap, uUrl, uItem, ui);
+              el.appendChild(uWrap);
+            }
+          }
+        }
       }
       var copyBtn = document.createElement('button');
       copyBtn.type = 'button';
@@ -1761,6 +1811,7 @@
     }
 
     function openHandoffModal() {
+      if (cfg.handoffEnabled === false) return;
       if (widgetDisabled) return;
       handoffOverlay.classList.add('visible');
       var errEl = handoffOverlay.querySelector('.afhub-handoff-error');
@@ -1772,6 +1823,7 @@
     }
 
     function submitHandoffRequest() {
+      if (cfg.handoffEnabled === false) return;
       var wid = resolveWidgetIdForHandoff();
       if (!wid) {
         addMessage('bot', 'No se pudo enviar la solicitud. Recarga la página e inténtalo de nuevo.');
@@ -1793,6 +1845,9 @@
         phone: phoneEl && phoneEl.value ? String(phoneEl.value).trim() : ''
       };
       var userMessage = msgEl && msgEl.value ? String(msgEl.value).trim() : '';
+      if (!userMessage && lastSessionImageUrls.length) {
+        userMessage = 'Captura adjunta: ' + lastSessionImageUrls.join(', ');
+      }
       if (!contactInfo.name && !contactInfo.email && !contactInfo.phone) {
         if (errEl) {
           errEl.textContent = 'Indica al menos nombre, email o teléfono.';
@@ -1813,7 +1868,10 @@
           agentId: cfg.agentId || '',
           userMessage: userMessage,
           contactInfo: contactInfo,
-          token: String(cfg.token).trim()
+          token: String(cfg.token).trim(),
+          ...(lastSessionImageUrls.length
+            ? { imageUrls: lastSessionImageUrls }
+            : {}),
         })
       })
         .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
@@ -1829,7 +1887,7 @@
           closeHandoffModal();
           addMessage('bot', result.data.message || 'Solicitud registrada. Te contactaremos pronto.');
           var waDigits = humanWaDigits();
-          if (waDigits.length >= 8) {
+          if (cfg.humanSupportEnabled !== false && waDigits.length >= 8) {
             appendHumanSupportOfferInChat('persona');
           }
           try {
@@ -1900,6 +1958,10 @@
       chatSessionId = rotateChatSessionId(cfg);
       history = [];
       lastGeneratedImageDataUrl = '';
+      lastSessionImageUrls = [];
+      clearPendingAttachment();
+      lastSessionImageUrls = [];
+      clearPendingAttachment();
       historyDomReady = false;
       hideTyping();
       messages.innerHTML = '';
@@ -1968,10 +2030,100 @@
       });
     }
 
+    function resizeImageForUploadAsync(srcUrl, maxPx) {
+      return resizeImageForI2IAsync(srcUrl, maxPx || 1600).then(function (dataUrl) {
+        if (!dataUrl) return null;
+        if (dataUrl.length > 1200000) {
+          return resizeImageForI2IAsync(srcUrl, 1024);
+        }
+        return dataUrl;
+      });
+    }
+
+    function syncSendButtonState() {
+      var canSend = (!!input.value.trim() || !!pendingAttachment) && !isLoading;
+      sendBtn.disabled = !canSend;
+    }
+
+    function clearPendingAttachment() {
+      pendingAttachment = null;
+      attachPreview.style.display = 'none';
+      attachPreview.innerHTML = '';
+      if (attachInput) attachInput.value = '';
+      syncSendButtonState();
+    }
+
+    function renderAttachPreview() {
+      if (!pendingAttachment || !pendingAttachment.previewUrl) {
+        clearPendingAttachment();
+        return;
+      }
+      attachPreview.innerHTML =
+        '<div class="afhub-attach-preview-inner">' +
+        '<img class="afhub-attach-preview-img" src="' + pendingAttachment.previewUrl + '" alt="Captura adjunta">' +
+        '<span class="afhub-attach-preview-label">Captura lista para enviar</span>' +
+        '<button type="button" class="afhub-attach-preview-remove" aria-label="Quitar captura">×</button>' +
+        '</div>';
+      attachPreview.style.display = 'block';
+      var rm = attachPreview.querySelector('.afhub-attach-preview-remove');
+      if (rm) {
+        rm.addEventListener('click', function () { clearPendingAttachment(); });
+      }
+      syncSendButtonState();
+    }
+
+    async function handleAttachFile(file) {
+      if (!file || !/^image\//i.test(file.type || '')) return;
+      if (file.size > 8 * 1024 * 1024) {
+        addMessage('bot', 'La imagen es demasiado grande. Usa una captura de menos de 8 MB.');
+        return;
+      }
+      var reader = new FileReader();
+      var dataUrl = await new Promise(function (resolve, reject) {
+        reader.onload = function () { resolve(String(reader.result || '')); };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      }).catch(function () { return ''; });
+      if (!dataUrl) return;
+      var resized = await resizeImageForUploadAsync(dataUrl, 1600);
+      pendingAttachment = {
+        previewUrl: resized || dataUrl,
+        dataUrl: resized || dataUrl,
+        mimeType: file.type || 'image/jpeg',
+        fileName: file.name || 'captura.jpg',
+      };
+      renderAttachPreview();
+    }
+
+    async function uploadPendingAttachment() {
+      if (!pendingAttachment || !pendingAttachment.dataUrl) return [];
+      var uploadEndpoint = cfg.host.replace(/\/$/, '') + '/api/widget/upload-image';
+      var upHeaders = { 'Content-Type': 'application/json' };
+      if (cfg.token) upHeaders['X-Widget-Token'] = String(cfg.token).trim();
+      var upRes = await fetch(uploadEndpoint, {
+        method: 'POST',
+        headers: upHeaders,
+        body: JSON.stringify({
+          dataUrl: pendingAttachment.dataUrl,
+          sessionId: chatSessionId,
+          widgetId: cfg.widgetId && String(cfg.widgetId).trim() ? String(cfg.widgetId).trim() : undefined,
+          agentId: cfg.agentId || '',
+          token: cfg.token && String(cfg.token).trim() ? String(cfg.token).trim() : undefined,
+        }),
+        signal: AbortSignal.timeout(cfg.timeoutMs || 120000),
+      });
+      var upJson = await upRes.json().catch(function () { return {}; });
+      if (!upRes.ok || !upJson.url) {
+        throw new Error((upJson && upJson.error) ? upJson.error : 'No se pudo subir la captura.');
+      }
+      return [{ url: upJson.url, publicId: upJson.publicId || '', mimeType: pendingAttachment.mimeType }];
+    }
+
     async function send(textArg) {
       if (widgetDisabled) return;
       var text = typeof textArg === 'string' ? textArg.trim() : input.value.trim();
-      if (!text || isLoading) return;
+      var hasAttach = !!(pendingAttachment && pendingAttachment.dataUrl);
+      if ((!text && !hasAttach) || isLoading) return;
       if (!cfg.agentId) {
         var errNoAgent = { message: 'Configura agentId para usar el widget.', code: 'MISSING_AGENT_ID' };
         notify('onError', errNoAgent);
@@ -1979,36 +2131,59 @@
         return;
       }
 
-      addMessage('user', text);
-      appendHumanSupportOfferInChat(text);
-      history.push({ role: 'user', content: text });
+      var attachPreviewForMsg = null;
+      if (hasAttach) {
+        attachPreviewForMsg = {
+          previewUrl: pendingAttachment.previewUrl,
+          url: pendingAttachment.previewUrl,
+          mimeType: pendingAttachment.mimeType,
+        };
+      }
+
+      var displayText = text || 'Analiza esta captura y ayúdame a resolver el problema.';
+
+      addMessage('user', displayText, attachPreviewForMsg ? { userImages: [attachPreviewForMsg] } : undefined);
+      appendHumanSupportOfferInChat(displayText);
+      history.push({ role: 'user', content: displayText });
       saveChatToSession();
-      notify('onMessageSent', text);
-      emitEvent('message_sent', { length: text.length });
+      notify('onMessageSent', displayText);
+      emitEvent('message_sent', { length: displayText.length, hasImage: hasAttach });
       input.value = '';
       input.style.height = 'auto';
       sendBtn.disabled = true;
       newChatBtn.disabled = true;
       isLoading = true;
-      var initialTyping =
-        cfg.multiAgentEnabled && cfg.multiAgentMode === 'pipeline'
-          ? 'Recopilando información…'
-          : cfg.multiAgentEnabled && cfg.multiAgentMode === 'parallel'
-            ? 'Consultando especialistas…'
-            : cfg.multiAgentEnabled
-              ? 'Analizando tu consulta…'
-              : '';
-      showTyping(initialTyping || 'Generando respuesta…');
 
+      var userImagesPayload = [];
+      if (hasAttach) {
+        showTyping('Subiendo captura…');
+        try {
+          userImagesPayload = await uploadPendingAttachment();
+          lastSessionImageUrls = userImagesPayload.map(function (x) { return x.url; });
+          clearPendingAttachment();
+        } catch (upErr) {
+          hideTyping();
+          isLoading = false;
+          newChatBtn.disabled = false;
+          syncSendButtonState();
+          var upMsg = upErr && upErr.message ? upErr.message : 'Error al subir la captura.';
+          addMessage('bot', upMsg);
+          notify('onError', { message: upMsg, code: 'IMAGE_UPLOAD_FAILED' });
+          return;
+        }
+      }
       var baseHost = cfg.host.replace(/\/$/, '');
       var endpoint = baseHost + '/api/widget/chat';
       var streamEndpoint = baseHost + '/api/widget/chat/stream';
       var payload = {
         agentId: cfg.agentId,
-        message: text,
+        message: displayText,
         history: history.slice(0, -1),
         sessionId: chatSessionId,
       };
+      if (userImagesPayload.length) {
+        payload.userImages = userImagesPayload;
+      }
       if (cfg.widgetId && String(cfg.widgetId).trim()) {
         payload.widgetId = String(cfg.widgetId).trim();
       }
@@ -2017,7 +2192,7 @@
       }
 
       // ── Image-to-image: attach resized thumbnail when user asks to modify previous image ──
-      if (lastGeneratedImageDataUrl && isImageModificationIntent(text)) {
+      if (lastGeneratedImageDataUrl && isImageModificationIntent(displayText)) {
         try {
           var resizedI2I = await resizeImageForI2IAsync(lastGeneratedImageDataUrl, 128);
           if (resizedI2I) payload.previousImageDataUrl = resizedI2I;
@@ -2025,6 +2200,18 @@
           log(cfg, 'warn', 'Could not resize previous image for i2i', e);
         }
       }
+
+      var initialTyping =
+        userImagesPayload.length
+          ? 'Analizando captura…'
+          : cfg.multiAgentEnabled && cfg.multiAgentMode === 'pipeline'
+            ? 'Recopilando información…'
+            : cfg.multiAgentEnabled && cfg.multiAgentMode === 'parallel'
+              ? 'Consultando especialistas…'
+              : cfg.multiAgentEnabled
+                ? 'Analizando tu consulta…'
+                : '';
+      showTyping(initialTyping || 'Generando respuesta…');
 
       // ── SSE Streaming (cuando el servidor lo soporta) ──────────────────────
       var useStream = cfg.stream !== false && typeof window.ReadableStream !== 'undefined';
@@ -2137,13 +2324,18 @@
               } else if (evt.type === 'error') {
                 streamDone = true;
                 hideTyping();
-                addMessage('bot', evt.message || 'Error del agente.');
-                notify('onError', { message: evt.message, code: evt.code });
+                var errMsg = evt.message || 'Error del agente.';
+                if (evt.code === 'SESSION_TURN_LIMIT') {
+                  errMsg = 'Esta conversación llegó al límite de mensajes. Pulsa «Nueva conversación» para empezar de cero.';
+                }
+                addMessage('bot', errMsg);
+                notify('onError', { message: errMsg, code: evt.code });
               }
             }
           }
           isLoading = false;
-          sendBtn.disabled = !input.value.trim();
+          sendBtn.disabled = false;
+          syncSendButtonState();
           newChatBtn.disabled = false;
           return;
         } catch (streamErr) {
@@ -2226,7 +2418,8 @@
         log(cfg, 'error', 'Request failed', e);
       } finally {
         isLoading = false;
-        sendBtn.disabled = !input.value.trim();
+        sendBtn.disabled = false;
+        syncSendButtonState();
         newChatBtn.disabled = false;
       }
     }
@@ -2585,6 +2778,15 @@
     closeBtn.addEventListener('click', close);
     newChatBtn.addEventListener('click', startNewConversation);
     sendBtn.addEventListener('click', function () { send(); });
+    if (attachBtn && attachInput) {
+      attachBtn.addEventListener('click', function () {
+        if (!isLoading) attachInput.click();
+      });
+      attachInput.addEventListener('change', function () {
+        var f = attachInput.files && attachInput.files[0];
+        if (f) void handleAttachFile(f);
+      });
+    }
     input.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -2592,7 +2794,7 @@
       }
     });
     input.addEventListener('input', function () {
-      sendBtn.disabled = !input.value.trim() || isLoading;
+      syncSendButtonState();
       input.style.height = 'auto';
       input.style.height = Math.min(input.scrollHeight, 100) + 'px';
     });
@@ -3081,7 +3283,17 @@
       '#' + rootId + ' .afhub-pill-icon { font-size:15px; flex-shrink:0; width:22px; text-align:center; }' +
       '#' + rootId + ' .afhub-pill-text { flex:1; line-height:1.4; white-space:normal; overflow-wrap:break-word; word-break:break-word; min-width:0; }' +
       '#' + rootId + ' .afhub-pill-arrow { font-size:18px; color:' + cfg.color + '; flex-shrink:0; font-weight:400; line-height:1; }' +
-      '#' + rootId + ' .afhub-input-area { padding:12px 14px 14px; border-top:1px solid #e8eaed; display:flex; gap:8px; flex-shrink:0; background:#fff; }' +
+      '#' + rootId + ' .afhub-input-area { padding:12px 14px 14px; border-top:1px solid #e8eaed; display:flex; gap:8px; flex-shrink:0; background:#fff; align-items:flex-end; }' +
+      '#' + rootId + ' .afhub-attach-input { position:absolute; width:0; height:0; opacity:0; pointer-events:none; overflow:hidden; }' +
+      '#' + rootId + ' .afhub-attach { width:36px; height:36px; border-radius:50%; border:none; cursor:pointer; background:transparent; color:var(--afhub-mic-color, #9aa0ab); display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background .18s,color .18s; padding:0; }' +
+      '#' + rootId + ' .afhub-attach:hover { background:rgba(0,0,0,.06); color:' + cfg.color + '; }' +
+      '#' + rootId + ' .afhub-attach svg { width:18px; height:18px; }' +
+      '#' + rootId + ' .afhub-attach-preview { flex-shrink:0; padding:8px 14px 0; background:#fff; border-top:1px solid #e8eaed; }' +
+      '#' + rootId + ' .afhub-attach-preview-inner { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px; background:#f8fafc; border:1px solid #e2e8f0; }' +
+      '#' + rootId + ' .afhub-attach-preview-img { width:44px; height:44px; object-fit:cover; border-radius:8px; border:1px solid #e2e8f0; flex-shrink:0; }' +
+      '#' + rootId + ' .afhub-attach-preview-label { flex:1; font-size:12px; color:#64748b; font-weight:500; }' +
+      '#' + rootId + ' .afhub-attach-preview-remove { width:28px; height:28px; border-radius:50%; border:none; background:#fee2e2; color:#dc2626; font-size:18px; line-height:1; cursor:pointer; flex-shrink:0; }' +
+      '#' + rootId + ' .afhub-img-wrap--user { margin-top:8px; }' +
       '#' + rootId + ' .afhub-input { flex:1; border:1px solid #ddd; border-radius:22px; padding:10px 16px; font-size:14px; font-weight:400; outline:none; resize:none; min-height:0; max-height:100px; line-height:1.45; font-family:inherit !important; }' +
       '#' + rootId + ' .afhub-input:focus { border-color:' + cfg.color + '; box-shadow:0 0 0 3px rgba(0,0,0,.08); }' +
       '#' + rootId + ' .afhub-send { width:40px; height:40px; border-radius:50%; border:none; cursor:pointer; background:' + cfg.color + '; color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:opacity .15s; }' +

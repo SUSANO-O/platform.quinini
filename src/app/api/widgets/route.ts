@@ -10,6 +10,7 @@ import { connectDB } from '@/lib/db/connection';
 import { Widget, ClientAgent, User, Subscription } from '@/lib/db/models';
 import { verifySessionToken, isUserEmailVerified, isImpersonationSession } from '@/lib/auth';
 import { validateMultiAgentWidgetSave, validateMultiAgentMode, validatePipelineWidgetConfigSave } from '@/lib/widget-multi-agent';
+import { normalizeHandoffNotifyMode, normalizeWidgetSupportFields } from '@/lib/handoff-notify';
 
 function getUserId(req: NextRequest): string | null {
   const token = req.cookies.get('afhub_session')?.value;
@@ -36,12 +37,14 @@ export async function GET(req: NextRequest) {
       nameByAgentId.set(String(a._id), typeof a.name === 'string' ? a.name : '');
     }
   }
-  const widgetsOut = widgets.map((w) => ({
-    ...w,
-    agentName: nameByAgentId.get(String(w.agentId)) ?? null,
-    multiAgentEnabled: (w as { multiAgentEnabled?: boolean }).multiAgentEnabled === true,
-    multiAgentMode: validateMultiAgentMode((w as { multiAgentMode?: string }).multiAgentMode),
-  }));
+  const widgetsOut = widgets.map((w) =>
+    normalizeWidgetSupportFields({
+      ...w,
+      agentName: nameByAgentId.get(String(w.agentId)) ?? null,
+      multiAgentEnabled: (w as { multiAgentEnabled?: boolean }).multiAgentEnabled === true,
+      multiAgentMode: validateMultiAgentMode((w as { multiAgentMode?: string }).multiAgentMode),
+    } as Record<string, unknown>),
+  );
   return NextResponse.json({ widgets: widgetsOut });
 }
 
@@ -131,13 +134,16 @@ export async function POST(req: NextRequest) {
     name: nameStr,
     userId,
     afhubToken,
+    handoffNotifyMode: normalizeHandoffNotifyMode(rest.handoffNotifyMode),
+    handoffEnabled: rest.handoffEnabled !== false,
+    humanSupportEnabled: rest.humanSupportEnabled !== false,
     multiAgentEnabled: multiEnabled,
     multiAgentMode: resolvedMode,
     agentIds: multiValidation.agentIds,
     orchestratorAgentIds: multiValidation.orchestratorAgentIds,
     pipelineConfig: pipelineValidation.pipelineConfig,
   });
-  return NextResponse.json({ widget }, { status: 201 });
+  return NextResponse.json({ widget: normalizeWidgetSupportFields(widget as Record<string, unknown>) }, { status: 201 });
 }
 
 export async function DELETE(req: NextRequest) {

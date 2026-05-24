@@ -64,6 +64,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
+  // Revalidar sesión al volver a la pestaña (cookie expira a las 12 h)
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible') void refreshUser();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [refreshUser]);
+
   const login = useCallback(async (email: string, password: string) => {
     const res = await fetch('/api/auth', {
       method: 'POST',

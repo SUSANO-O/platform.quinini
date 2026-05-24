@@ -147,7 +147,7 @@
           "2,000 conversations per month (~65/day)",
           "3 agents · 2 sub-agents · Webhook included",
           "RAG: 128 MB · 15 sources · Pinecone included",
-          "Gmail & Slack · unlimited widgets · 45-day history",
+          "REST API access (coming soon) · Gmail & Slack · unlimited widgets",
           "Group training · email support (48h)"
         ]
       },
@@ -166,7 +166,7 @@
         "features": [
           "6,000 conversations per month (~200/day)",
           "25 agents · Agent + outbound webhook (HMAC)",
-          "REST API access · RAG: 1 GB · Pinecone + HubSpot, Notion",
+          "REST API access (coming soon) · RAG: 1 GB · Pinecone + HubSpot, Notion",
           "Basic analytics · unlimited widgets · 3-month history",
           "Training included · email support (48h)"
         ]
@@ -175,7 +175,7 @@
         "requests": "16,000 conv/mo",
         "features": [
           "16,000 conversations per month (~530/day)",
-          "50 agents · REST API · agent + outbound webhooks",
+          "50 agents · REST API (coming soon) · agent + outbound webhooks",
           "RAG: 10 GB · 300 sources · Pinecone included",
           "Escalation ticket creation · advanced analytics",
           "Pro models · 1-year history · priority chat support (24h)"
@@ -186,7 +186,7 @@
         "features": [
           "45,000 conversations per month (~1,500/day)",
           "Unlimited agents · custom integrations · full MCP",
-          "REST API · webhooks · RAG: 100 GB · dedicated Pinecone",
+          "REST API (coming soon) · webhooks · RAG: 100 GB · dedicated Pinecone",
           "Escalation tickets · full analytics (multi-agent)",
           "All models · unlimited history · 99.9% SLA"
         ]
@@ -196,7 +196,7 @@
         "requests": "Unlimited conversations",
         "features": [
           "Unlimited conversations",
-          "REST API · custom integrations · full analytics",
+          "REST API (coming soon) · custom integrations · full analytics",
           "Escalation tickets · custom volume agreements",
           "White-label available · dedicated 24/7 support",
           "Custom enterprise SLA"

@@ -147,7 +147,7 @@
           "2.000 conversaciones al mes (~65/día)",
           "3 agentes · 2 sub-agentes · Webhook incluido",
           "RAG: 128 MB · 15 fuentes · Pinecone incluido",
-          "Gmail y Slack · widgets ilimitados · historial 45 días",
+          "Acceso API REST (próximamente) · Gmail y Slack · widgets ilimitados",
           "Capacitación grupal · soporte email (48 h)"
         ]
       },
@@ -166,7 +166,7 @@
         "features": [
           "6.000 conversaciones al mes (~200/día)",
           "25 agentes · Webhook agente + saliente (HMAC)",
-          "Acceso API REST · RAG: 1 GB · Pinecone + HubSpot, Notion",
+          "Acceso API REST (próximamente) · RAG: 1 GB · Pinecone + HubSpot, Notion",
           "Analytics básico · widgets ilimitados · historial 3 meses",
           "Capacitación incluida · soporte email (48 h)"
         ]
@@ -175,7 +175,7 @@
         "requests": "16.000 conv/mes",
         "features": [
           "16.000 conversaciones al mes (~530/día)",
-          "50 agentes · API REST · webhook agente + saliente",
+          "50 agentes · API REST (próximamente) · webhook agente + saliente",
           "RAG: 10 GB · 300 fuentes · Pinecone incluido",
           "Creación de tickets al escalar · analytics avanzado",
           "Modelos Pro · historial 1 año · soporte chat (24 h)"
@@ -186,7 +186,7 @@
         "features": [
           "45.000 conversaciones al mes (~1.500/día)",
           "Agentes ilimitados · integraciones custom · MCP completo",
-          "API REST · webhooks · RAG: 100 GB · Pinecone dedicado",
+          "API REST (próximamente) · webhooks · RAG: 100 GB · Pinecone dedicado",
           "Tickets al escalar · analytics completo (multi-agente)",
           "Todos los modelos · historial ilimitado · SLA 99,9 %"
         ]
@@ -196,7 +196,7 @@
         "requests": "Conversaciones sin límite",
         "features": [
           "Conversaciones sin límite",
-          "API REST · integraciones custom · analytics completo",
+          "API REST (próximamente) · integraciones custom · analytics completo",
           "Tickets al escalar · acuerdos de volumen personalizados",
           "White-label disponible · soporte dedicado 24/7",
           "SLA empresarial personalizado"
