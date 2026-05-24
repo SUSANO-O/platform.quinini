@@ -15,7 +15,7 @@
  *   - welcome / subtitle: textos claros; debug: false en prod
  *   - showMcpUi: true solo en vista previa o con data-show-mcp-ui="true" en el script (chips MCP / tools; oculto en widget público)
  *   - fabDraggable: arrastrar el orbe para colocarlo (por defecto true; data-fab-draggable="false" para desactivar)
- *   - fabDismissible: botón × para ocultar el orbe y pestaña «Ayuda asistente» para mostrarlo de nuevo
+ *   - fabDismissible: botón × en el orbe para ocultar el widget; restaurar desde el menú «Ayuda asistente»
  *   - humanSupportPhone: WhatsApp; si el usuario escribe palabras clave (persona, humano, atención humana…), se muestra en el chat un acceso a WhatsApp
  */
 (function () {
@@ -25,6 +25,7 @@
 
   var VERSION = '1.5.6';
   var INSTANCES = {};
+  var LAUNCHER_MENU_HIDDEN_KEY = 'afhub-launcher-menu-hidden';
   var INSTANCE_COUNT = 0;
 
   var ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
@@ -867,15 +868,6 @@
 
     var launcher = document.createElement('div');
     launcher.className = 'afhub-launcher';
-    var launcherDismiss = null;
-    if (cfg.fabDismissible !== false) {
-      launcherDismiss = document.createElement('button');
-      launcherDismiss.className = 'afhub-launcher-dismiss';
-      launcherDismiss.type = 'button';
-      launcherDismiss.setAttribute('aria-label', 'Ocultar asistente');
-      launcherDismiss.title = 'Ocultar asistente';
-      launcherDismiss.innerHTML = '&#215;';
-    }
     if (cfg.fabHint) {
       var hintWrap = document.createElement('div');
       hintWrap.className = 'afhub-fab-hint-wrap';
@@ -885,22 +877,22 @@
       hintEl.className = 'afhub-fab-hint';
       hintEl.setAttribute('role', 'note');
       hintEl.textContent = cfg.fabHint;
-      if (launcherDismiss) {
-        var hintDismiss = launcherDismiss.cloneNode(true);
-        hintDismiss.className = 'afhub-launcher-dismiss afhub-launcher-dismiss--hint';
-        hintDismiss.setAttribute('aria-label', 'Ocultar asistente');
-        hintDismiss.title = 'Ocultar asistente';
-        hintEl.appendChild(hintDismiss);
-        launcherDismiss = hintDismiss;
-      }
       hintFloat.appendChild(hintEl);
       hintWrap.appendChild(hintFloat);
       launcher.appendChild(hintWrap);
-    } else if (launcherDismiss) {
-      var dismissRow = document.createElement('div');
-      dismissRow.className = 'afhub-launcher-dismiss-row';
-      dismissRow.appendChild(launcherDismiss);
-      launcher.appendChild(dismissRow);
+    }
+
+    var fabWrap = document.createElement('div');
+    fabWrap.className = 'afhub-fab-wrap';
+    var launcherDismiss = null;
+    if (cfg.fabDismissible !== false) {
+      launcherDismiss = document.createElement('button');
+      launcherDismiss.className = 'afhub-launcher-dismiss afhub-launcher-dismiss--orb';
+      launcherDismiss.type = 'button';
+      launcherDismiss.setAttribute('aria-label', 'Ocultar asistente');
+      launcherDismiss.title = 'Ocultar asistente';
+      launcherDismiss.innerHTML = '&#215;';
+      fabWrap.appendChild(launcherDismiss);
     }
 
     var fab = document.createElement('button');
@@ -908,15 +900,9 @@
     fab.innerHTML = orbHtmlForCfg(cfg);
     syncFabAvatarMode(fab, cfg);
     fab.setAttribute('aria-label', 'Abrir chat');
-    launcher.appendChild(fab);
+    fabWrap.appendChild(fab);
+    launcher.appendChild(fabWrap);
     root.appendChild(launcher);
-
-    var launcherRestore = document.createElement('button');
-    launcherRestore.className = 'afhub-launcher-restore';
-    launcherRestore.type = 'button';
-    launcherRestore.textContent = 'Ayuda asistente';
-    launcherRestore.setAttribute('aria-label', 'Mostrar asistente de chat');
-    root.appendChild(launcherRestore);
 
     var chat = document.createElement('div');
     chat.className = 'afhub-chat';
@@ -1358,6 +1344,18 @@
       return fabDragStorageKey().replace('afhub-fab-pos:', 'afhub-launcher-hidden:');
     }
 
+    function syncLauncherMenuHiddenFlag(hidden) {
+      try {
+        if (hidden) sessionStorage.setItem(LAUNCHER_MENU_HIDDEN_KEY, '1');
+        else sessionStorage.removeItem(LAUNCHER_MENU_HIDDEN_KEY);
+      } catch (_sm) { /* noop */ }
+      try {
+        window.dispatchEvent(
+          new CustomEvent('afhub:launcher-visibility', { detail: { hidden: hidden === true } })
+        );
+      } catch (_ev) { /* noop */ }
+    }
+
     function hideLauncher(persist) {
       if (isOpen) close();
       root.classList.add('afhub-launcher-hidden');
@@ -1365,6 +1363,7 @@
         try {
           sessionStorage.setItem(launcherHiddenStorageKey(), '1');
         } catch (_lh) { /* noop */ }
+        syncLauncherMenuHiddenFlag(true);
       }
       emitEvent('launcher_hidden');
     }
@@ -1375,6 +1374,7 @@
         try {
           sessionStorage.removeItem(launcherHiddenStorageKey());
         } catch (_ls) { /* noop */ }
+        syncLauncherMenuHiddenFlag(false);
       }
       emitEvent('launcher_shown');
     }
@@ -1382,9 +1382,17 @@
     function restoreLauncherHiddenFromSession() {
       if (cfg.fabDismissible === false) return;
       try {
-        if (sessionStorage.getItem(launcherHiddenStorageKey()) === '1') hideLauncher(false);
+        if (sessionStorage.getItem(launcherHiddenStorageKey()) === '1') {
+          hideLauncher(false);
+          syncLauncherMenuHiddenFlag(true);
+        }
       } catch (_rh) { /* noop */ }
     }
+
+    function onShowLauncherRequest() {
+      showLauncher(true);
+    }
+    window.addEventListener('afhub:show-launcher', onShowLauncherRequest);
 
     function restoreFabDragFromSession() {
       if (!cfg.fabDraggable) return;
@@ -2052,6 +2060,7 @@
         window.removeEventListener('resize', scheduleFabResizeForFab);
         clearTimeout(fabResizeTimer);
       }
+      window.removeEventListener('afhub:show-launcher', onShowLauncherRequest);
       root.remove();
       delete INSTANCES[id];
     }
@@ -2754,17 +2763,15 @@
     // ── Fin Voice Mode ─────────────────────────────────────────────────────────
 
     if (launcherDismiss) {
+      launcherDismiss.addEventListener('pointerdown', function (e) {
+        e.stopPropagation();
+      });
       launcherDismiss.addEventListener('click', function (e) {
         e.preventDefault();
         e.stopPropagation();
         hideLauncher(true);
       });
     }
-    launcherRestore.addEventListener('click', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      showLauncher(true);
-    });
 
     fab.addEventListener('click', function (e) {
       if (suppressFabClick) {
@@ -3207,16 +3214,11 @@
       '#' + rootId + ' .afhub-msg,#' + rootId + ' .afhub-msg-rich .afhub-p,#' + rootId + ' .afhub-msg-text { font-weight:400; letter-spacing:.01em; color:inherit; }' +
       '#' + rootId + ' .afhub-msg.user { font-weight:500; }' +
       '#' + rootId + ' .afhub-msg-rich strong,#' + rootId + ' .afhub-header-info h3 { font-weight:600; }' +
-      '#' + rootId + '.afhub-launcher-hidden .afhub-launcher,#' + rootId + '.afhub-launcher-hidden .afhub-chat { display:none !important; visibility:hidden !important; pointer-events:none !important; }' +
-      '#' + rootId + '.afhub-launcher-hidden .afhub-launcher-restore { display:inline-flex; }' +
-      '#' + rootId + ' .afhub-launcher-restore { display:none; align-items:center; gap:6px; padding:9px 14px; border-radius:999px 999px 999px 6px; border:none; cursor:pointer; font-family:inherit; font-size:12px; font-weight:700; letter-spacing:.01em; color:#fff; background:' + cfg.color + '; box-shadow:0 4px 18px rgba(0,0,0,.18),0 0 0 1px rgba(255,255,255,.25) inset; transition:transform .15s ease,box-shadow .15s ease; }' +
-      '#' + rootId + ' .afhub-launcher-restore:hover { transform:translateY(-1px); box-shadow:0 6px 22px rgba(0,0,0,.22); }' +
-      '#' + rootId + ' .afhub-launcher-restore::before { content:"💬"; font-size:13px; line-height:1; }' +
-      '#' + rootId + ' .afhub-launcher-dismiss-row { display:flex; justify-content:flex-end; width:100%; margin-bottom:4px; }' +
-      '#' + rootId + ' .afhub-launcher-dismiss { width:22px; height:22px; padding:0; border-radius:50%; border:1px solid rgba(0,0,0,.12); background:#fff; color:#64748b; font-size:15px; line-height:1; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.12); transition:background .15s,color .15s; }' +
-      '#' + rootId + ' .afhub-launcher-dismiss:hover { background:#f1f5f9; color:#0f172a; }' +
-      '#' + rootId + ' .afhub-launcher-dismiss--hint { position:absolute; top:6px; right:6px; z-index:2; width:20px; height:20px; font-size:14px; background:rgba(255,255,255,.92); }' +
-      '#' + rootId + ' .afhub-fab-hint { position:relative; padding-right:28px; }' +
+      '#' + rootId + '.afhub-launcher-hidden { display:none !important; visibility:hidden !important; pointer-events:none !important; }' +
+      '#' + rootId + ' .afhub-fab-wrap { position:relative; display:inline-flex; flex-shrink:0; }' +
+      '#' + rootId + ' .afhub-launcher-dismiss { width:20px; height:20px; padding:0; border-radius:50%; border:1px solid rgba(0,0,0,.14); background:#fff; color:#64748b; font-size:14px; line-height:1; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.14); transition:background .15s,color .15s; }' +
+      '#' + rootId + ' .afhub-launcher-dismiss:hover { background:#f8fafc; color:#0f172a; }' +
+      '#' + rootId + ' .afhub-launcher-dismiss--orb { position:absolute; top:-3px; right:-3px; z-index:6; }' +
       '#' + rootId + ' .afhub-launcher { display:flex; flex-direction:column; gap:12px; width:max-content; max-width:min(260px,calc(100vw - 40px)); }' +
       '#' + rootId + '[data-afhub-h="right"] .afhub-launcher { align-items:flex-end; }' +
       '#' + rootId + '[data-afhub-h="left"] .afhub-launcher { align-items:flex-start; }' +
@@ -3462,7 +3464,22 @@
 
   window.AgentFlowhub = {
     version: VERSION,
-    init: init
+    init: init,
+    showLauncher: function () {
+      var k;
+      for (k in INSTANCES) {
+        if (!Object.prototype.hasOwnProperty.call(INSTANCES, k)) continue;
+        var inst = INSTANCES[k];
+        if (inst && inst.api && typeof inst.api.showLauncher === 'function') inst.api.showLauncher();
+      }
+    },
+    isLauncherHidden: function () {
+      try {
+        return sessionStorage.getItem(LAUNCHER_MENU_HIDDEN_KEY) === '1';
+      } catch (_ih) {
+        return false;
+      }
+    }
   };
 
   autoInitFromScript();
