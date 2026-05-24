@@ -51,6 +51,8 @@ export type SubscriptionContextValue = SubscriptionStatus & {
   loading: boolean;
   /** Recarga en segundo plano (no bloquea la UI con pantalla de carga) */
   isRefreshing: boolean;
+  /** true cuando GET /api/subscription respondió 401 (cookie de sesión caducada) */
+  authExpired: boolean;
   /** Suscripción nueva (Checkout) o cambio de plan con proration si ya hay suscripción en Stripe */
   startCheckout: (plan: string) => Promise<{ error?: string; message?: string } | Record<string, never>>;
   openBillingPortal: () => Promise<{ error?: string } | Record<string, never>>;
@@ -63,10 +65,11 @@ export type SubscriptionContextValue = SubscriptionStatus & {
 const SubscriptionContext = createContext<SubscriptionContextValue | null>(null);
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [status, setStatus] = useState<SubscriptionStatus>(DEFAULT_STATUS);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [authExpired, setAuthExpired] = useState(false);
   const loadedOnce = useRef(false);
 
   const load = useCallback(
@@ -75,6 +78,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       if (!uid) {
         setStatus(DEFAULT_STATUS);
         setLoading(false);
+        setAuthExpired(false);
         loadedOnce.current = false;
         return;
       }
@@ -99,6 +103,14 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
       fetch('/api/subscription')
         .then(async (r) => {
+          if (r.status === 401) {
+            clearSubscriptionSessionCache(uid);
+            setAuthExpired(true);
+            setStatus(DEFAULT_STATUS);
+            void refreshUser();
+            return;
+          }
+          setAuthExpired(false);
           const data = (await r.json()) as SubscriptionStatus & { error?: string };
           if (!r.ok || (data && typeof data.error === 'string' && data.error)) {
             setStatus(DEFAULT_STATUS);
@@ -107,21 +119,30 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
           setStatus(data);
           writeSubscriptionSessionCache(uid, data);
         })
-        .catch(() => setStatus(DEFAULT_STATUS))
+        .catch(() => {
+          setAuthExpired(false);
+          setStatus(DEFAULT_STATUS);
+        })
         .finally(() => {
           loadedOnce.current = true;
           setLoading(false);
           setIsRefreshing(false);
         });
     },
-    [user?.uid],
+    [user?.uid, refreshUser],
   );
+
+  useEffect(() => {
+    if (!authExpired || typeof window === 'undefined') return;
+    window.location.replace('/login?session=expired');
+  }, [authExpired]);
 
   useEffect(() => {
     if (!user) {
       clearSubscriptionSessionCache();
       setStatus(DEFAULT_STATUS);
       setLoading(false);
+      setAuthExpired(false);
       loadedOnce.current = false;
       return;
     }
@@ -296,13 +317,14 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       ...status,
       loading,
       isRefreshing,
+      authExpired,
       startCheckout,
       openBillingPortal,
       cancelSubscription,
       resumeSubscription,
       refresh,
     }),
-    [status, loading, isRefreshing, startCheckout, openBillingPortal, cancelSubscription, resumeSubscription, refresh],
+    [status, loading, isRefreshing, authExpired, startCheckout, openBillingPortal, cancelSubscription, resumeSubscription, refresh],
   );
 
   return <SubscriptionContext.Provider value={value}>{children}</SubscriptionContext.Provider>;

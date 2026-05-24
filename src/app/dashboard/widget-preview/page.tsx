@@ -44,6 +44,9 @@ interface WidgetDoc {
   welcome?: string;
   fabHint?: string;
   humanSupportPhone?: string;
+  humanSupportEnabled?: boolean;
+  handoffEnabled?: boolean;
+  handoffNotifyMode?: string;
   avatar?: string;
   position: string;
   theme: string;
@@ -201,6 +204,8 @@ export default function WidgetPreviewPage() {
             welcome:   w.welcome || '',
             fabHint:   w.fabHint || '',
             humanSupportPhone: typeof w.humanSupportPhone === 'string' ? w.humanSupportPhone : '',
+            humanSupportEnabled: w.humanSupportEnabled !== false,
+            handoffEnabled: w.handoffEnabled !== false,
             avatar:    w.avatar || '',
             position:  w.position || 'bottom-right',
             theme:     w.theme === 'dark' ? 'dark' : 'light',
@@ -398,7 +403,21 @@ export default function WidgetPreviewPage() {
             <Row label="Auto-open" value={widget.autoOpen ? 'Sí' : 'No'} />
             <Row
               label="WhatsApp humano"
-              value={widget.humanSupportPhone?.trim() ? widget.humanSupportPhone.trim() : '—'}
+              value={
+                widget.humanSupportEnabled === false
+                  ? 'Desactivado'
+                  : widget.humanSupportPhone?.trim()
+                    ? widget.humanSupportPhone.trim()
+                    : '—'
+              }
+            />
+            <Row
+              label="Escalación humana"
+              value={
+                widget.handoffEnabled === false
+                  ? 'Desactivada'
+                  : widget.handoffNotifyMode ?? 'both'
+              }
             />
             <Row label="Token" value={widget.afhubToken ? <span style={{ color: '#22c55e', fontSize: 11 }}><Shield size={11} /> Asignado</span> : <span style={{ color: '#f59e0b', fontSize: 11 }}>Sin token</span>} />
             <Row label="Creado" value={formatDate(widget.createdAt)} />

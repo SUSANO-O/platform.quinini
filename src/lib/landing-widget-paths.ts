@@ -15,7 +15,6 @@ const EXACT = new Set<string>([
   '/demos',
   '/soluciones',
   '/preguntas-frecuentes',
-  '/playground',
   '/politica-de-cookies',
   '/politica-de-privacidad',
   '/politica-de-reembolso',

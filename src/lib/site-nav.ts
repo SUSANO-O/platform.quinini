@@ -1,7 +1,7 @@
 /** Enlaces compartidos entre navbar/footer de marketing (locale y páginas estáticas). */
 
 export const SITE_PRODUCT_LINKS = [
-  { href: '/playground', label: 'Playground' },
+  { href: '/pricing#api', label: 'API' },
   { href: '/pricing', label: 'Precios' },
 ] as const;
 

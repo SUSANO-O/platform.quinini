@@ -16,11 +16,14 @@ import {
   Sparkles,
   Inbox,
   FileText,
+  Code2,
 } from 'lucide-react';
 import { BRAND_LOGO_SRC, BRAND_NAME, BRAND_TEXT_COLOR } from '@/lib/brand';
 import { PwaInstallButton } from '@/components/shared/pwa-install-button';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { useInboxOpenCount } from '@/hooks/use-inbox-open-count';
+import { useSubscription } from '@/hooks/use-subscription';
+import { canUseApiAccess } from '@/lib/plan-catalog';
 
 export const SIDEBAR_EXPANDED_PX = 252;
 export const SIDEBAR_COLLAPSED_PX = 72;
@@ -78,6 +81,7 @@ export const SIDEBAR_TOUR_KEY_BY_HREF: Record<string, string> = {
   '/dashboard/widgets': 'sidebar-widgets',
   '/dashboard/compliance': 'sidebar-cumplimiento',
   '/dashboard/facturas': 'sidebar-facturas',
+  '/dashboard/api': 'sidebar-api',
   '/dashboard/settings': 'sidebar-ajustes',
 };
 
@@ -183,12 +187,25 @@ function SidebarNav({
   collapsed,
   onNavigate,
   inboxOpenCount,
+  showApiLink,
 }: {
   pathname: string;
   collapsed: boolean;
   onNavigate?: () => void;
   inboxOpenCount: number;
+  showApiLink: boolean;
 }) {
+  const groups = NAV_GROUPS.map((group) => {
+    if (group.title !== 'Cuenta' || !showApiLink) return group;
+    return {
+      ...group,
+      items: [
+        { href: '/dashboard/api', label: 'API', icon: Code2 },
+        ...group.items,
+      ],
+    };
+  });
+
   return (
     <nav
       id="dashboard-sidebar-nav"
@@ -202,7 +219,7 @@ function SidebarNav({
         WebkitOverflowScrolling: 'touch',
       }}
     >
-      {NAV_GROUPS.map((group, groupIndex) => (
+      {groups.map((group, groupIndex) => (
         <div key={group.title}>
           {groupIndex > 0 ? (
             <SoftDivider margin={collapsed ? '10px 6px' : '8px 8px 12px'} />
@@ -263,6 +280,11 @@ export function DashboardSidebar({
   const isDesktop = variant === 'desktop';
   const rail = isDesktop && collapsed;
   const { openCount: inboxOpenCount } = useInboxOpenCount(true);
+  const { subscription } = useSubscription();
+  const showApiLink = canUseApiAccess(
+    subscription?.plan ?? 'free',
+    subscription?.status ?? 'free',
+  );
 
   return (
     <aside
@@ -396,7 +418,7 @@ export function DashboardSidebar({
 
       {footer}
 
-      <SidebarNav pathname={pathname} collapsed={rail} onNavigate={onNavigate} inboxOpenCount={inboxOpenCount} />
+      <SidebarNav pathname={pathname} collapsed={rail} onNavigate={onNavigate} inboxOpenCount={inboxOpenCount} showApiLink={showApiLink} />
 
       {/* Pie */}
       <SoftDivider margin="12px 0 0" />

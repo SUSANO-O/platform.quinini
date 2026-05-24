@@ -5,10 +5,8 @@ import type { Metadata } from 'next';
 import {
   ArrowRight,
   Code2,
-  FlaskConical,
-  LayoutDashboard,
   Globe2,
-  MessageSquareCode,
+  LayoutDashboard,
   Sparkles,
   Cpu,
 } from 'lucide-react';
@@ -16,7 +14,7 @@ import {
 export const metadata: Metadata = {
   title: 'Demos | BotIvA',
   description:
-    'Prueba la API, el playground, agentes de ejemplo y el panel demo. Todo lo necesario para verBotIvAen acción.',
+    'Agentes de ejemplo, panel demo y planes. Todo lo necesario para ver BotIvA en acción.',
 };
 
 type DemoItem = {
@@ -29,12 +27,12 @@ type DemoItem = {
 
 const DEMOS: DemoItem[] = [
   {
-    title: 'API Playground',
+    title: 'API REST (Team+)',
     description:
-      'Llama a Agent Farm, modelos, embeddings y health sin escribir curl. Necesitas API key y el gateway en marcha.',
-    href: '/playground',
-    icon: <FlaskConical className="h-6 w-6" />,
-    badge: 'Interactivo',
+      'Documentación interactiva y prueba de endpoints desde el panel, con plan Team o superior. Sin playground público en la landing.',
+    href: '/pricing#api',
+    icon: <Code2 className="h-6 w-6" />,
+    badge: 'Developers',
   },
   {
     title: 'Agente de ejemplo: Geoeconomía',
@@ -47,7 +45,7 @@ const DEMOS: DemoItem[] = [
   {
     title: 'Dashboard demo',
     description:
-      'Flujo tipo producto: claves de API, uso y llamadas de ejemplo (modo demostración con datos simulados donde aplica).',
+      'Flujo tipo producto: agentes, widgets, inbox y cumplimiento (modo demostración con datos simulados donde aplica).',
     href: '/dashboard',
     icon: <LayoutDashboard className="h-6 w-6" />,
   },
@@ -82,14 +80,13 @@ export default function DemosPage() {
           </h1>
 
           <p className="mt-6 text-lg md:text-xl max-w-2xl mx-auto" style={{ color: 'var(--muted-foreground)' }}>
-            ExploraBotIvAsin fricción: playground de API, agente de muestra, documentación y el panel demo. Si
-            desarrollas en local, arranca también el <strong className="text-foreground">gateway</strong> y el backend
-            para que el Playground responda.
+            Explora BotIvA sin fricción: agente de muestra, panel demo y planes. La API REST y su documentación viven
+            en el servicio dedicado — disponible desde el plan <strong className="text-foreground">Team</strong>.
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/playground"
+              href="/pricing#api"
               className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl text-white font-semibold text-sm transition-all hover:shadow-xl hover:scale-[1.02]"
               style={{
                 background: 'var(--brand-primary)',
@@ -97,102 +94,61 @@ export default function DemosPage() {
               }}
             >
               <Code2 size={18} />
-              Abrir Playground
-              <ArrowRight size={16} />
+              Ver API en planes
             </Link>
             <Link
-              href="/soluciones"
+              href="/dashboard"
               className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl font-semibold text-sm transition-all"
               style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
             >
-              Casos por sector
+              Ir al panel
+              <ArrowRight size={16} />
             </Link>
           </div>
         </div>
       </section>
 
-      <section className="pb-20 md:pb-28 px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="mb-12 max-w-2xl">
-            <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-              <MessageSquareCode className="h-7 w-7 shrink-0" style={{ color: 'var(--primary)' }} />
-              Qué puedes probar
-            </h2>
-            <p className="mt-3" style={{ color: 'var(--muted-foreground)' }}>
-              Cada enlace abre en este mismo sitio (landing). El Playground hace proxy al gateway; sin servicios
-              backend verás errores de conexión hasta que levantes el ecosistema.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            {DEMOS.map((d) => (
-              <Link
-                key={d.href}
-                href={d.href}
-                className="group rounded-2xl p-6 md:p-8 text-left transition-all card-hover"
-                style={{
-                  background: 'var(--card)',
-                  border: '1px solid var(--border)',
-                }}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl"
-                    style={{ background: 'rgba(var(--brand-primary-rgb),0.1)', border: '1px solid rgba(var(--brand-primary-rgb),0.2)', color: 'var(--primary)' }}
-                  >
-                    {d.icon}
-                  </div>
-                  {d.badge && (
-                    <span
-                      className="text-xs font-semibold px-2.5 py-1 rounded-md"
-                      style={{ background: 'rgba(var(--brand-cool-rgb),0.12)', color: 'var(--accent)' }}
-                    >
-                      {d.badge}
-                    </span>
-                  )}
-                </div>
-                <h3 className="text-xl font-bold mt-5 group-hover:underline underline-offset-4">{d.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
-                  {d.description}
-                </p>
-                <span
-                  className="inline-flex items-center gap-1.5 mt-4 text-sm font-semibold"
-                  style={{ color: 'var(--primary)' }}
+      <section className="px-6 pb-24 max-w-5xl mx-auto">
+        <div className="grid sm:grid-cols-2 gap-5">
+          {DEMOS.map((demo) => (
+            <Link
+              key={demo.href}
+              href={demo.href}
+              className="group rounded-2xl p-6 transition-all hover:shadow-lg card-texture block no-underline"
+              style={{ border: '1px solid var(--border)', color: 'inherit' }}
+            >
+              <div className="flex items-start gap-4">
+                <div
+                  className="shrink-0 w-12 h-12 rounded-xl flex items-center justify-center"
+                  style={{ background: 'rgba(var(--brand-primary-rgb),0.1)', color: 'var(--primary)' }}
                 >
-                  Entrar
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                </span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="py-16 px-6 border-t" style={{ borderColor: 'var(--border)', background: 'var(--muted)' }}>
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-xl font-bold">¿Listo para integrar?</h2>
-          <p className="mt-3 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-            Después de los demos, crea tu clave en el dashboard o revisa los planes según volumen y funciones.
-          </p>
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link
-              href="/register"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white font-semibold text-sm"
-              style={{
-                background: 'var(--brand-primary)',
-                boxShadow: '0 4px 16px rgba(var(--brand-primary-rgb),0.22)',
-              }}
-            >
-              Crear cuenta gratis
+                  {demo.icon}
+                </div>
+                <div className="min-w-0 text-left">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="font-bold text-lg">{demo.title}</h2>
+                    {demo.badge ? (
+                      <span
+                        className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                        style={{ background: 'rgba(var(--brand-primary-rgb),0.12)', color: 'var(--primary)' }}
+                      >
+                        {demo.badge}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
+                    {demo.description}
+                  </p>
+                  <span
+                    className="inline-flex items-center gap-1 mt-4 text-sm font-semibold group-hover:gap-2 transition-all"
+                    style={{ color: 'var(--primary)' }}
+                  >
+                    Abrir <ArrowRight size={14} />
+                  </span>
+                </div>
+              </div>
             </Link>
-            <Link
-              href="/pricing"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm"
-              style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
-            >
-              Ver pricing
-            </Link>
-          </div>
+          ))}
         </div>
       </section>
 

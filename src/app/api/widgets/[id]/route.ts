@@ -10,6 +10,7 @@ import { Widget, Subscription } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
 import { validateMultiAgentWidgetSave, validateMultiAgentMode, validatePipelineWidgetConfigSave } from '@/lib/widget-multi-agent';
 import { invalidateWidgetTokenCache } from '@/lib/widget-token-verify';
+import { normalizeHandoffNotifyMode, normalizeWidgetSupportFields } from '@/lib/handoff-notify';
 
 function getUserId(req: NextRequest): string | null {
   const token = req.cookies.get('afhub_session')?.value;
@@ -32,6 +33,9 @@ const PATCHABLE = [
   'autoOpen',
   'voiceEnabled',
   'humanSupportPhone',
+  'humanSupportEnabled',
+  'handoffNotifyMode',
+  'handoffEnabled',
   'active',
 ] as const;
 
@@ -61,7 +65,7 @@ export async function GET(
   const widget = await Widget.findOne({ _id: id, userId }).lean();
   if (!widget) return NextResponse.json({ error: 'No encontrado.' }, { status: 404 });
 
-  return NextResponse.json({ widget });
+  return NextResponse.json({ widget: normalizeWidgetSupportFields(widget as Record<string, unknown>) });
 }
 
 export async function PATCH(
@@ -93,12 +97,16 @@ export async function PATCH(
   for (const key of PATCHABLE) {
     if (!(key in raw)) continue;
     const v = raw[key];
-    if (key === 'autoOpen' || key === 'voiceEnabled' || key === 'active') {
+    if (key === 'autoOpen' || key === 'voiceEnabled' || key === 'active' || key === 'handoffEnabled' || key === 'humanSupportEnabled') {
       $set[key] = Boolean(v);
       continue;
     }
     if (key === 'theme') {
       if (v === 'light' || v === 'dark') $set.theme = v;
+      continue;
+    }
+    if (key === 'handoffNotifyMode') {
+      if (typeof v === 'string') $set.handoffNotifyMode = normalizeHandoffNotifyMode(v);
       continue;
     }
     if (typeof v === 'string') {
@@ -217,5 +225,9 @@ export async function PATCH(
   if (widget?.afhubToken) {
     await invalidateWidgetTokenCache(String(widget.afhubToken), id);
   }
-  return NextResponse.json({ widget });
+  return NextResponse.json({
+    widget: widget
+      ? normalizeWidgetSupportFields(widget as Record<string, unknown>)
+      : null,
+  });
 }

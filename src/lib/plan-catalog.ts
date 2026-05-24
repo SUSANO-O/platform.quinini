@@ -235,7 +235,10 @@ export const AGENT_WEBHOOK_MIN_PLAN: PlanId = 'solo';
 export const OUTBOUND_SAAS_WEBHOOK_MIN_PLAN: PlanId = 'starter';
 
 /** Plan mínimo para acceso API REST (widgets, agentes, export). */
-export const API_ACCESS_MIN_PLAN: PlanId = 'starter';
+export const API_ACCESS_MIN_PLAN: PlanId = 'team';
+
+/** Etiqueta pública en landing mientras la API no está disponible en producción. */
+export const API_REST_COMING_SOON_LABEL = 'Próximamente';
 
 /** Plan mínimo para analytics de conversaciones (dashboard widget). */
 export const CONVERSATION_ANALYTICS_MIN_PLAN: PlanId = 'plus';
@@ -275,6 +278,16 @@ export function planHasOutboundWebhookFeature(planId: PlanId): boolean {
 
 export function planHasApiAccessFeature(planId: PlanId): boolean {
   return planRank(planId) >= planRank(API_ACCESS_MIN_PLAN);
+}
+
+/** Acceso API REST con suscripción activa (Team+). */
+export function canUseApiAccess(plan: string, status: string): boolean {
+  const effective = effectiveProductPlan(plan, status);
+  return planRank(effective) >= planRank(API_ACCESS_MIN_PLAN);
+}
+
+export function apiAccessUpgradeLabel(): string {
+  return PLAN_DISPLAY[API_ACCESS_MIN_PLAN]?.label ?? 'Team';
 }
 
 /** Etiqueta para tabla comparativa: — | Básico | Avanzado | Completo */
@@ -337,7 +350,7 @@ export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
     '2.000 conversaciones al mes (~65/día)',
     '3 agentes · 2 sub-agentes · Webhook incluido',
     'RAG: 128 MB · 15 fuentes por agente · Pinecone incluido',
-    'Gmail y Slack · widgets ilimitados · historial 45 días',
+    'Acceso API REST (próximamente) · Gmail y Slack · widgets ilimitados',
     'Capacitación grupal · soporte email (48 h)',
   ],
   plus: [
@@ -350,13 +363,13 @@ export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
   starter: [
     '6.000 conversaciones al mes (~200/día)',
     '25 agentes · 10 sub-agentes · Webhook del agente',
-    'Acceso API REST · webhook saliente (HMAC) · HubSpot, Notion',
+    'Acceso API REST (próximamente) · webhook saliente (HMAC) · HubSpot, Notion',
     'RAG: 1 GB · 60 fuentes · Pinecone · analytics básico',
     'Capacitación incluida · soporte email (48 h)',
   ],
   growth: [
     '16.000 conversaciones al mes (~530/día)',
-    '50 agentes · API REST · webhook agente + saliente',
+    '50 agentes · API REST (próximamente) · webhook agente + saliente',
     'RAG: 10 GB · 300 fuentes · Pinecone incluido',
     'Creación de tickets al escalar · analytics avanzado',
     'Historial: 1 año · modelos Pro · soporte chat (24 h)',
@@ -364,7 +377,7 @@ export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
   business: [
     '45.000 conversaciones al mes (~1.500/día)',
     'Agentes ilimitados · integraciones custom · MCP completo',
-    'API REST · webhooks · RAG: 100 GB · Pinecone dedicado',
+    'API REST (próximamente) · webhooks · RAG: 100 GB · Pinecone dedicado',
     'Tickets al escalar · analytics completo (multi-agente)',
     'Historial ilimitado · todos los modelos · SLA 99,9 %',
   ],
@@ -387,7 +400,7 @@ export const PLAN_PRICING_FEATURES: Record<PlanId, string[]> = {
   business: PLAN_FEATURE_BULLETS.business,
   enterprise: [
     'Conversaciones sin límite',
-    'API REST · integraciones custom · analytics completo',
+    'API REST (próximamente) · integraciones custom · analytics completo',
     'Tickets al escalar · acuerdos de volumen personalizados',
     'White-label disponible · soporte dedicado 24/7',
     'SLA empresarial personalizado',

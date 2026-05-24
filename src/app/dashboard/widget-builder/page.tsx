@@ -22,6 +22,8 @@ import {
   validatePipelineWidgetSetup,
   type PipelineConfig,
 } from '@/lib/widget-pipeline-ui';
+import type { HandoffNotifyMode } from '@/lib/handoff-notify';
+import { HANDOFF_NOTIFY_MODE_LABELS } from '@/lib/handoff-notify';
 import { PipelineEditor } from '@/components/dashboard/pipeline-editor';
 
 // ── Orb gradient (port of orb-gradient.ts) ───────────────────────────────────
@@ -212,6 +214,12 @@ interface WidgetConfig {
   fabHint: string;
   /** WhatsApp / teléfono con código de país (solo dígitos y símbolos al pegar). */
   humanSupportPhone: string;
+  /** Oferta WhatsApp por palabras clave en el chat */
+  humanSupportEnabled: boolean;
+  /** Destino externo al escalar: inbox | webhook | slack | both */
+  handoffNotifyMode: HandoffNotifyMode;
+  /** Muestra el botón «Hablar con una persona» y permite enviar escalaciones. */
+  handoffEnabled: boolean;
   avatar: string;
   position: string;
   theme: 'light' | 'dark';
@@ -248,6 +256,9 @@ const DEFAULT: WidgetConfig = {
   autoOpen: false,
   voiceEnabled: true,
   humanSupportPhone: '',
+  humanSupportEnabled: true,
+  handoffNotifyMode: 'both',
+  handoffEnabled: true,
   multiAgentEnabled: false,
   multiAgentMode: 'triage',
   agentIds: [],
@@ -352,6 +363,13 @@ function MockPreview({ cfg, shortcuts = [] }: { cfg: WidgetConfig; shortcuts?: W
               </div>
             </div>
             {(() => {
+              if (!cfg.humanSupportEnabled) {
+                return (
+                  <p style={{ fontSize: 9, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.35 }}>
+                    WhatsApp desactivado en este widget.
+                  </p>
+                );
+              }
               const d = String(cfg.humanSupportPhone ?? '').replace(/\D/g, '');
               const ok = d.length >= 8;
               if (!ok) {
@@ -784,6 +802,15 @@ export default function WidgetBuilderPage() {
               welcome: String(widget.welcome ?? ''),
               fabHint: String(widget.fabHint ?? ''),
               humanSupportPhone: String(widget.humanSupportPhone ?? ''),
+              humanSupportEnabled: widget.humanSupportEnabled !== false,
+              handoffNotifyMode:
+                widget.handoffNotifyMode === 'inbox' ||
+                widget.handoffNotifyMode === 'webhook' ||
+                widget.handoffNotifyMode === 'slack' ||
+                widget.handoffNotifyMode === 'both'
+                  ? widget.handoffNotifyMode
+                  : 'both',
+              handoffEnabled: widget.handoffEnabled !== false,
               avatar: String(widget.avatar ?? ''),
               position: String(widget.position ?? 'bottom-right'),
               theme: th,
@@ -1495,16 +1522,106 @@ export default function WidgetBuilderPage() {
         {wizardStep === 2 && (
         <>
         <div style={fieldStyle} data-tour="widget-builder-support">
-          <label style={labelStyle}>WhatsApp — atención humana</label>
-          <input
-            style={inputStyle}
-            value={cfg.humanSupportPhone ?? ''}
-            onChange={(e) => update({ humanSupportPhone: e.target.value.slice(0, 48) })}
-            placeholder="+52 55 1234 5678 (con código de país)"
-          />
-          <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 6, marginBottom: 0, lineHeight: 1.45 }}>
-            Si el visitante escribe palabras como «persona», «humano» o «atención humana», aparece en el chat un acceso a WhatsApp (con número válido). Opcional.
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: cfg.humanSupportEnabled ? 10 : 0 }}>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={cfg.humanSupportEnabled}
+              onClick={() => update({ humanSupportEnabled: !cfg.humanSupportEnabled })}
+              style={{
+                position: 'relative', flexShrink: 0,
+                width: 36, height: 20, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 0,
+                background: cfg.humanSupportEnabled ? cfg.color : 'var(--border)',
+                transition: 'background 0.2s',
+              }}
+            >
+              <span style={{
+                position: 'absolute', top: 3, left: cfg.humanSupportEnabled ? 19 : 3,
+                width: 14, height: 14, borderRadius: '50%', background: '#fff',
+                transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+              }} />
+            </button>
+            <label
+              style={{ fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}
+              onClick={() => update({ humanSupportEnabled: !cfg.humanSupportEnabled })}
+            >
+              WhatsApp — atención humana
+            </label>
+          </div>
+          {cfg.humanSupportEnabled && (
+            <>
+              <input
+                style={inputStyle}
+                value={cfg.humanSupportPhone ?? ''}
+                onChange={(e) => update({ humanSupportPhone: e.target.value.slice(0, 48) })}
+                placeholder="+52 55 1234 5678 (con código de país)"
+              />
+              <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 6, marginBottom: 0, lineHeight: 1.45 }}>
+                Si el visitante escribe palabras como «persona», «humano» o «atención humana», aparece en el chat un acceso a WhatsApp (con número válido). Opcional.
+              </p>
+            </>
+          )}
+          {!cfg.humanSupportEnabled && (
+            <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.45 }}>
+              Desactivado: no se mostrarán enlaces a WhatsApp aunque el visitante pida atención humana.
+            </p>
+          )}
+        </div>
+        <div style={fieldStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: cfg.handoffEnabled ? 10 : 0 }}>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={cfg.handoffEnabled}
+              onClick={() => update({ handoffEnabled: !cfg.handoffEnabled })}
+              style={{
+                position: 'relative', flexShrink: 0,
+                width: 36, height: 20, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 0,
+                background: cfg.handoffEnabled ? cfg.color : 'var(--border)',
+                transition: 'background 0.2s',
+              }}
+            >
+              <span style={{
+                position: 'absolute', top: 3, left: cfg.handoffEnabled ? 19 : 3,
+                width: 14, height: 14, borderRadius: '50%', background: '#fff',
+                transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+              }} />
+            </button>
+            <label
+              style={{ fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}
+              onClick={() => update({ handoffEnabled: !cfg.handoffEnabled })}
+            >
+              Botón «Hablar con una persona»
+            </label>
+          </div>
+          {cfg.handoffEnabled && (
+            <>
+              <label style={labelStyle}>Destino al escalar</label>
+              <select
+                style={{ ...inputStyle, cursor: 'pointer' }}
+                value={cfg.handoffNotifyMode}
+                onChange={(e) => update({ handoffNotifyMode: e.target.value as HandoffNotifyMode })}
+              >
+                {(Object.keys(HANDOFF_NOTIFY_MODE_LABELS) as HandoffNotifyMode[]).map((mode) => (
+                  <option key={mode} value={mode}>
+                    {HANDOFF_NOTIFY_MODE_LABELS[mode]}
+                  </option>
+                ))}
+              </select>
+              <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 6, marginBottom: 0, lineHeight: 1.45 }}>
+                El <strong>Inbox</strong> del panel siempre recibe la solicitud. Elige si además notificar por{' '}
+                <Link href="/dashboard/compliance" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>
+                  webhook saliente
+                </Link>{' '}
+                y/o Slack (configúralos en Cumplimiento).
+              </p>
+            </>
+          )}
+          {!cfg.handoffEnabled && (
+            <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.45 }}>
+              Desactivado: el visitante no verá el botón de escalación en el chat.
+            </p>
+          )}
         </div>
         <div data-tour="widget-builder-embed-options">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>

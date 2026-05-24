@@ -17,6 +17,10 @@ import { connectDB } from '@/lib/db/connection';
 import { Widget, ConversationSession } from '@/lib/db/models';
 import { inboxSessionFilter, upsertHandoffInboxSession } from '@/lib/inbox-handoff';
 import { dispatchSaasWebhook } from '@/lib/saas-webhook-outbound';
+import {
+  normalizeHandoffNotifyMode,
+  shouldDispatchHandoffWebhook,
+} from '@/lib/handoff-notify';
 import { scheduleWidgetUsageDiskLog } from '@/lib/widget-usage-disk';
 import { randomUUID } from 'crypto';
 
@@ -109,11 +113,20 @@ export async function POST(req: NextRequest) {
 
     // Validar token si viene en el payload (eventos autenticados)
     // Si no viene token, se acepta pero sin acceso a datos sensibles (retrocompatibilidad)
-    type WidgetRow = { userId?: string; _id?: unknown; allowedOrigins?: string[]; active?: boolean; agentId?: unknown };
+    type WidgetRow = {
+      userId?: string;
+      _id?: unknown;
+      allowedOrigins?: string[];
+      active?: boolean;
+      agentId?: unknown;
+      handoffNotifyMode?: string;
+      handoffEnabled?: boolean;
+      humanSupportEnabled?: boolean;
+    };
     let row: WidgetRow | null = null;
     if (widgetToken.startsWith('wt_')) {
       row = await Widget.findOne({ afhubToken: widgetToken })
-        .select({ userId: 1, _id: 1, allowedOrigins: 1, active: 1, agentId: 1 })
+        .select({ userId: 1, _id: 1, allowedOrigins: 1, active: 1, agentId: 1, handoffNotifyMode: 1, handoffEnabled: 1, humanSupportEnabled: 1 })
         .lean() as WidgetRow | null;
       if (row && (row as { active?: boolean }).active === false) {
         return NextResponse.json(
@@ -210,14 +223,21 @@ export async function POST(req: NextRequest) {
         const details = body.details as Record<string, unknown> | null;
         const reason = typeof details?.reason === 'string' ? details.reason.trim() : '';
         const channel = typeof details?.channel === 'string' ? details.channel.trim() : '';
+        const handoffNotifyMode = normalizeHandoffNotifyMode(row?.handoffNotifyMode);
+        const handoffEnabled = row?.handoffEnabled !== false;
+        const humanSupportEnabled = row?.humanSupportEnabled !== false;
 
         // Oferta WhatsApp por palabra clave: no es una solicitud de inbox.
         if (reason === 'keyword_whatsapp_offer') {
-          dispatchSaasWebhook(uid, 'conversation.handoff', {
-            agentId,
-            sessionId: clientSessionId || undefined,
-            details: details ?? {},
-          });
+          if (humanSupportEnabled && shouldDispatchHandoffWebhook(handoffNotifyMode)) {
+            dispatchSaasWebhook(uid, 'conversation.handoff', {
+              agentId,
+              sessionId: clientSessionId || undefined,
+              details: details ?? {},
+            });
+          }
+        } else if (reason === 'form_submit') {
+          // POST /api/widgets/[id]/handoff ya persiste inbox + webhook/Slack según handoffNotifyMode.
         } else {
           const contactRaw = details?.contactInfo as Record<string, unknown> | null;
           const contactInfo = {
@@ -257,11 +277,13 @@ export async function POST(req: NextRequest) {
             );
           }
 
-          dispatchSaasWebhook(uid, 'conversation.handoff', {
-            agentId,
-            sessionId: clientSessionId || undefined,
-            details: details ?? {},
-          });
+          if (handoffEnabled && shouldDispatchHandoffWebhook(handoffNotifyMode)) {
+            dispatchSaasWebhook(uid, 'conversation.handoff', {
+              agentId,
+              sessionId: clientSessionId || undefined,
+              details: details ?? {},
+            });
+          }
         }
       }
 
