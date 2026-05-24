@@ -64,7 +64,7 @@ function AssistantHelpRestoreItem({
   onNavigate?: () => void;
 }) {
   const hidden = useWidgetLauncherHidden();
-  if (!hidden || collapsed) return null;
+  if (!hidden) return null;
 
   return (
     <button
@@ -73,11 +73,14 @@ function AssistantHelpRestoreItem({
         window.AgentFlowhub?.showLauncher?.();
         onNavigate?.();
       }}
+      title="Ayuda asistente"
       className="dashboard-sidebar-link"
       style={{
         display: 'flex',
         alignItems: 'center',
-        padding: '8px 12px 8px 44px',
+        justifyContent: collapsed ? 'center' : 'flex-start',
+        gap: collapsed ? 0 : 12,
+        padding: collapsed ? '11px 0' : '10px 12px',
         marginTop: 2,
         borderRadius: 12,
         border: 'none',
@@ -91,7 +94,8 @@ function AssistantHelpRestoreItem({
         transition: 'background 0.15s ease, color 0.15s ease',
       }}
     >
-      Ayuda asistente
+      <Bot size={20} strokeWidth={1.75} style={{ flexShrink: 0 }} aria-hidden />
+      {!collapsed ? <span className="truncate">Ayuda asistente</span> : null}
     </button>
   );
 }
