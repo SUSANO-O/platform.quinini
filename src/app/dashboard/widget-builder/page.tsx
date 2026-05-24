@@ -296,7 +296,7 @@ function MockPreview({ cfg, shortcuts = [] }: { cfg: WidgetConfig; shortcuts?: W
 
   return (
     <div style={{
-      position: 'relative', width: '100%', aspectRatio: '2/1', minHeight: '180px', maxHeight: '220px',
+      position: 'relative', width: '100%', height: '380px', minHeight: '380px',
       background: cfg.theme === 'dark' ? '#1a1a2e' : '#f8fafc',
       borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border)',
     }}>
@@ -319,7 +319,7 @@ function MockPreview({ cfg, shortcuts = [] }: { cfg: WidgetConfig; shortcuts?: W
       {chatOpen && (
         <div style={{
           position: 'absolute', ...fabPos,
-          width: 240, height: 280,
+          width: 260, height: 300,
           background: cfg.theme === 'dark' ? '#1e1e3a' : '#fff',
           borderRadius: cfg.borderRadius,
           boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
@@ -353,7 +353,7 @@ function MockPreview({ cfg, shortcuts = [] }: { cfg: WidgetConfig; shortcuts?: W
               <button onClick={() => setChatOpen(false)} style={{ marginLeft: 'auto', flexShrink: 0, background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>✕</button>
             </div>
           </div>
-          <div style={{ flex: 1, padding: '10px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', gap: 6 }}>
+          <div style={{ flex: 1, minHeight: 0, padding: '10px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', gap: 6, overflowY: 'auto' }}>
             <div style={{ background: cfg.color + '22', borderRadius: '10px 10px 10px 2px', padding: '7px 10px', fontSize: 10, maxWidth: '85%' }}>
               {cfg.welcome || '¡Hola! ¿En qué puedo ayudarte?'}
             </div>
