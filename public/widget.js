@@ -1385,6 +1385,8 @@
         if (sessionStorage.getItem(launcherHiddenStorageKey()) === '1') {
           hideLauncher(false);
           syncLauncherMenuHiddenFlag(true);
+        } else {
+          syncLauncherMenuHiddenFlag(false);
         }
       } catch (_rh) { /* noop */ }
     }
@@ -2904,6 +2906,7 @@
         return {
           isOpen: isOpen,
           isLoading: isLoading,
+          launcherHidden: root.classList.contains('afhub-launcher-hidden'),
           agentId: cfg.agentId,
           resolvedAgentId: resolvedAgentId,
           sessionId: chatSessionId
@@ -3474,11 +3477,17 @@
       }
     },
     isLauncherHidden: function () {
-      try {
-        return sessionStorage.getItem(LAUNCHER_MENU_HIDDEN_KEY) === '1';
-      } catch (_ih) {
-        return false;
+      var k;
+      var hasInstance = false;
+      for (k in INSTANCES) {
+        if (!Object.prototype.hasOwnProperty.call(INSTANCES, k)) continue;
+        hasInstance = true;
+        var el = document.getElementById(k);
+        if (el && el.classList.contains('afhub-launcher-hidden')) return true;
+        if (el) return false;
       }
+      if (hasInstance) return false;
+      return false;
     }
   };
 

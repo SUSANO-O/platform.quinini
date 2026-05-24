@@ -11,6 +11,7 @@ import {
   LogOut,
   Cpu,
   Bot,
+  CircleHelp,
   Shield,
   ChevronLeft,
   ChevronRight,
@@ -31,7 +32,9 @@ export const SIDEBAR_COLLAPSED_PX = 72;
 
 const SIDEBAR_SURFACE = '#f5f6f8';
 const SIDEBAR_ACTIVE = 'rgba(var(--brand-primary-rgb), 0.12)';
-const AFHUB_LAUNCHER_MENU_HIDDEN_KEY = 'afhub-launcher-menu-hidden';
+const ASSISTANT_HELP_BG = 'rgba(239, 68, 68, 0.08)';
+const ASSISTANT_HELP_BORDER = 'rgba(239, 68, 68, 0.14)';
+const ASSISTANT_HELP_COLOR = '#dc2626';
 
 function useWidgetLauncherHidden() {
   const [hidden, setHidden] = useState(false);
@@ -43,14 +46,39 @@ function useWidgetLauncherHidden() {
           setHidden(window.AgentFlowhub.isLauncherHidden());
           return;
         }
-        setHidden(sessionStorage.getItem(AFHUB_LAUNCHER_MENU_HIDDEN_KEY) === '1');
+        // Widget aún no cargado: no mostrar hasta confirmar estado real
+        setHidden(false);
       } catch {
         setHidden(false);
       }
     };
+
     read();
-    window.addEventListener('afhub:launcher-visibility', read);
-    return () => window.removeEventListener('afhub:launcher-visibility', read);
+
+    const pollId = window.setInterval(() => {
+      if (typeof window.AgentFlowhub?.isLauncherHidden === 'function') {
+        read();
+        window.clearInterval(pollId);
+      }
+    }, 180);
+
+    const stopPollId = window.setTimeout(() => window.clearInterval(pollId), 10000);
+
+    const onVisibility = (event: Event) => {
+      const detail = (event as CustomEvent<{ hidden?: boolean }>).detail;
+      if (typeof detail?.hidden === 'boolean') {
+        setHidden(detail.hidden);
+        return;
+      }
+      read();
+    };
+
+    window.addEventListener('afhub:launcher-visibility', onVisibility);
+    return () => {
+      window.clearInterval(pollId);
+      window.clearTimeout(stopPollId);
+      window.removeEventListener('afhub:launcher-visibility', onVisibility);
+    };
   }, []);
 
   return hidden;
@@ -83,18 +111,18 @@ function AssistantHelpRestoreItem({
         padding: collapsed ? '11px 0' : '10px 12px',
         marginTop: 2,
         borderRadius: 12,
-        border: 'none',
-        background: 'transparent',
-        color: 'var(--muted-foreground)',
+        border: `1px solid ${ASSISTANT_HELP_BORDER}`,
+        background: ASSISTANT_HELP_BG,
+        color: ASSISTANT_HELP_COLOR,
         fontSize: 14,
-        fontWeight: 500,
+        fontWeight: 600,
         cursor: 'pointer',
         width: '100%',
         textAlign: 'left',
-        transition: 'background 0.15s ease, color 0.15s ease',
+        transition: 'background 0.15s ease, border-color 0.15s ease',
       }}
     >
-      <Bot size={20} strokeWidth={1.75} style={{ flexShrink: 0 }} aria-hidden />
+      <CircleHelp size={20} strokeWidth={1.75} style={{ flexShrink: 0 }} aria-hidden />
       {!collapsed ? <span className="truncate">Ayuda asistente</span> : null}
     </button>
   );
