@@ -296,7 +296,7 @@ function MockPreview({ cfg, shortcuts = [] }: { cfg: WidgetConfig; shortcuts?: W
 
   return (
     <div style={{
-      position: 'relative', width: '100%', aspectRatio: '16/9', minHeight: '300px',
+      position: 'relative', width: '100%', aspectRatio: '2/1', minHeight: '180px', maxHeight: '220px',
       background: cfg.theme === 'dark' ? '#1a1a2e' : '#f8fafc',
       borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border)',
     }}>
@@ -1015,10 +1015,10 @@ export default function WidgetBuilderPage() {
       <div className="hero-glow pointer-events-none" style={{ background: BRAND_R, top: '-200px', right: '-80px' }} />
       <div className="hero-glow pointer-events-none" style={{ background: BRAND_B, top: '120px', left: '-100px' }} />
 
-      <div className="relative flex flex-col xl:flex-row gap-[3px] max-w-7xl mx-auto px-1 py-2">
-        {/* Formulario */}
-        <div className="w-full xl:w-[360px] shrink-0 xl:max-h-[calc(100vh-5rem)] overflow-y-auto pr-1">
-          <div className="card-texture rounded-2xl border p-4" style={{ borderColor: 'var(--border)' }}>
+      <div className="relative flex flex-col xl:flex-row gap-4 max-w-[1440px] mx-auto px-2 py-2 xl:items-start">
+        {/* Formulario — columna principal */}
+        <div className="w-full xl:flex-[1.45] xl:min-w-[min(100%,480px)] shrink-0 xl:max-h-[calc(100vh-5rem)] overflow-y-auto">
+          <div className="card-texture rounded-2xl border p-4 sm:p-5" style={{ borderColor: 'var(--border)' }}>
             <div className="badge-primary mb-3 w-fit">Widget</div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight m-0 mb-1" data-tour="widget-builder-header">
               {editWidgetId ? (
@@ -1784,72 +1784,68 @@ export default function WidgetBuilderPage() {
           </div>
         </div>
 
-      {/* Preview + snippet */}
-      <div className="flex-1 min-w-0 flex flex-col gap-5">
-        {/* Live preview */}
+      {/* Vista previa + embed (secundario) */}
+      <div className="w-full xl:flex-[0.55] xl:max-w-[380px] shrink-0 flex flex-col gap-3 xl:sticky xl:top-4">
         <div data-tour="widget-builder-preview">
-          <p className="text-xs font-bold uppercase tracking-widest m-0 mb-2" style={{ color: 'var(--muted-foreground)' }}>
-            Vista previa — prueba el botón
+          <p className="text-[10px] font-bold uppercase tracking-widest m-0 mb-1.5" style={{ color: 'var(--muted-foreground)' }}>
+            Vista previa
           </p>
-          <div className="rounded-2xl overflow-hidden border shadow-sm" style={{ borderColor: 'var(--border)', boxShadow: '0 8px 32px rgba(0,0,0,0.06)' }}>
+          <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border)', boxShadow: '0 4px 16px rgba(0,0,0,0.04)' }}>
             <MockPreview cfg={cfg} shortcuts={shortcuts} />
           </div>
         </div>
 
-        {/* Code snippet */}
+        {wizardStep === 3 && (
         <div
-          className="rounded-2xl overflow-hidden border flex flex-col flex-1 min-h-0"
-          style={{ borderColor: 'var(--border)', background: '#0d1117' }}
+          className="rounded-xl overflow-hidden border flex flex-col"
+          style={{ borderColor: 'var(--border)', background: '#0d1117', maxHeight: 'min(42vh, 360px)' }}
           data-tour="widget-builder-snippet-panel"
         >
-          {/* Header bar */}
-          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)', background: '#161b22' }}>
-            <div className="flex items-center gap-3 min-w-0">
-              {/* Traffic lights */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#ff5f57' }} />
-                <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#febc2e' }} />
-                <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#28c840' }} />
+          <div className="flex items-center justify-between gap-2 px-3 py-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)', background: '#161b22' }}>
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-1 shrink-0">
+                <div className="w-2 h-2 rounded-full" style={{ background: '#ff5f57' }} />
+                <div className="w-2 h-2 rounded-full" style={{ background: '#febc2e' }} />
+                <div className="w-2 h-2 rounded-full" style={{ background: '#28c840' }} />
               </div>
-              <span className="text-[11px] font-semibold" style={{ color: '#94a3b8' }}>
+              <span className="text-[10px] font-semibold" style={{ color: '#94a3b8' }}>
                 Código embed
               </span>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
                 onClick={copySnippet}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold border-0 cursor-pointer transition-all"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold border-0 cursor-pointer transition-all"
                 style={{
                   background: copied ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.08)',
                   color: copied ? '#4ade80' : '#94a3b8',
                 }}
               >
-                {copied ? <Check size={12} /> : <Copy size={12} />}
-                {copied ? '¡Copiado!' : 'Copiar'}
+                {copied ? <Check size={11} /> : <Copy size={11} />}
+                {copied ? 'Copiado' : 'Copiar'}
               </button>
               <a
                 href="/widget"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold no-underline transition-all"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold no-underline"
                 style={{ background: 'rgba(255,255,255,0.06)', color: '#6b7280' }}
               >
-                <ExternalLink size={11} />
+                <ExternalLink size={10} />
                 Docs
               </a>
             </div>
           </div>
 
-          {/* Token badge — solo si ya está guardado */}
           {snippetToken !== 'YOUR_TOKEN' && (
-            <div className="flex items-center gap-2 px-4 py-2.5 border-b" style={{ borderColor: 'rgba(255,255,255,0.05)', background: 'rgba(99,102,241,0.07)' }}>
-              <span className="text-[10px] font-semibold uppercase tracking-widest shrink-0" style={{ color: '#818cf8' }}>Token</span>
-              <code className="text-[11px] font-mono flex-1 truncate" style={{ color: '#c7d2fe' }}>{snippetToken}</code>
+            <div className="flex items-center gap-2 px-3 py-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.05)', background: 'rgba(99,102,241,0.07)' }}>
+              <span className="text-[9px] font-semibold uppercase tracking-widest shrink-0" style={{ color: '#818cf8' }}>Token</span>
+              <code className="text-[10px] font-mono flex-1 truncate" style={{ color: '#c7d2fe' }}>{snippetToken}</code>
               <button
                 type="button"
                 onClick={() => { void navigator.clipboard.writeText(snippetToken); }}
-                className="shrink-0 border-0 cursor-pointer rounded px-2 py-0.5 text-[10px] font-semibold transition-all"
+                className="shrink-0 border-0 cursor-pointer rounded px-1.5 py-0.5 text-[9px] font-semibold"
                 style={{ background: 'rgba(99,102,241,0.18)', color: '#818cf8' }}
               >
                 Copiar
@@ -1857,18 +1853,17 @@ export default function WidgetBuilderPage() {
             </div>
           )}
 
-          {/* Code block */}
-          <pre className="p-4 text-[11px] overflow-auto m-0 flex-1" style={{ color: '#e2e8f0', lineHeight: 1.7, fontFamily: "'Fira Code', 'Cascadia Code', 'Consolas', monospace", tabSize: 2 }}>
+          <pre className="p-3 text-[10px] overflow-auto m-0 flex-1 min-h-[80px]" style={{ color: '#e2e8f0', lineHeight: 1.6, fontFamily: "'Fira Code', 'Cascadia Code', 'Consolas', monospace", tabSize: 2 }}>
             {generateSnippet(cfg, snippetToken)}
           </pre>
 
-          {/* Footer hint */}
-          <div className="px-4 py-2.5 border-t flex items-center gap-2" style={{ borderColor: 'rgba(255,255,255,0.05)', background: '#161b22' }}>
-            <span style={{ fontSize: 10, color: '#4b5563' }}>
-              ✓ Pega esto antes de &lt;/body&gt;. Los cambios del panel se propagan automáticamente a todos los embeds.
+          <div className="px-3 py-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)', background: '#161b22' }}>
+            <span style={{ fontSize: 9, color: '#4b5563' }}>
+              Pega antes de &lt;/body&gt;. El token basta — el resto se carga del servidor.
             </span>
           </div>
         </div>
+        )}
       </div>
       </div>
     </div>
