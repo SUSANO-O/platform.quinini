@@ -11,6 +11,7 @@ import type { McpCatalogRow } from '@/lib/mcp-catalog-types';
 import { Bot, ChevronLeft, Loader2, KeyRound, Plug, Plus, X, Sparkles } from 'lucide-react';
 import { AIInputButton } from '@/components/ui/AIInputButton';
 import Link from 'next/link';
+import { ModelPickerCard } from '@/components/dashboard/model-picker-card';
 
 const R = 'var(--primary)';
 const O = 'var(--brand-warm)';
@@ -625,38 +626,17 @@ export default function NewAgentPage() {
                     {filtered.length} modelo{filtered.length !== 1 ? 's' : ''}
                   </p>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 7 }}>
-                    {visible.map((m) => {
-                      const isSelected = model === m.id;
-                      const tierColor = TIER_COLOR[m.tier ?? 'stable'] ?? 'var(--muted-foreground)';
-                      return (
-                        <button key={m.id} type="button" onClick={() => setModel(m.id)} style={{
-                          padding: '10px 12px', borderRadius: 10, textAlign: 'left', cursor: 'pointer',
-                          border: `1px solid ${isSelected ? R : 'var(--border)'}`,
-                          background: isSelected ? 'rgba(var(--brand-primary-rgb),0.07)' : 'var(--background)',
-                          position: 'relative',
-                        }}>
-                          <span style={{
-                            position: 'absolute', top: 6, right: 7,
-                            fontSize: 9, fontWeight: 800, padding: '1px 5px', borderRadius: 8,
-                            background: `${tierColor}18`, color: tierColor, textTransform: 'uppercase', letterSpacing: '0.04em',
-                          }}>
-                            {m.tier ?? 'stable'}
-                          </span>
-                          <p style={{ fontSize: 11, fontWeight: 700, margin: '0 0 2px', paddingRight: 40, color: isSelected ? R : 'var(--foreground)' }}>
-                            {m.name}
-                            {m.deprecated ? <span style={{ fontSize: 9, color: '#d97706', marginLeft: 5 }}>(deprecado)</span> : null}
-                          </p>
-                          <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0 }}>
-                            {m.provider}
-                            {m.maxTokens != null ? ` · ${(m.maxTokens / 1000).toFixed(0)}k ctx` : ''}
-                          </p>
-                          {m.description ? (
-                            <p style={{ fontSize: 9, color: 'var(--muted-foreground)', margin: '3px 0 0', lineHeight: 1.35 }}>{m.description}</p>
-                          ) : null}
-                        </button>
-                      );
-                    })}
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-2.5">
+                    {visible.map((m) => (
+                      <ModelPickerCard
+                        key={m.id}
+                        model={m}
+                        selected={model === m.id}
+                        onSelect={() => setModel(m.id)}
+                        accentColor={R}
+                        tierColor={TIER_COLOR[m.tier ?? 'stable'] ?? 'var(--muted-foreground)'}
+                      />
+                    ))}
                   </div>
 
                   {filtered.length > 12 && (
@@ -762,7 +742,7 @@ export default function NewAgentPage() {
                     value={fallbackQuery}
                     onChange={(e) => setFallbackQuery(e.target.value)}
                   />
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 6, maxHeight: 260, overflowY: 'auto' }}>
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-2 max-h-[260px] overflow-y-auto">
                     {clientModels
                       .filter((m) => {
                         if (m.id === model) return false;
@@ -772,24 +752,19 @@ export default function NewAgentPage() {
                         return m.name.toLowerCase().includes(q) || m.provider?.toLowerCase().includes(q) || m.id.toLowerCase().includes(q);
                       })
                       .map((m) => (
-                        <button
+                        <ModelPickerCard
                           key={m.id}
-                          type="button"
-                          onClick={() => {
+                          model={m}
+                          selected={false}
+                          compact
+                          showTier={false}
+                          accentColor={R}
+                          onSelect={() => {
                             if (fallbackModels.length >= 3) return;
                             setFallbackModels((p) => [...p, m.id]);
                             if (fallbackModels.length + 1 >= 3) setShowFallbackPanel(false);
                           }}
-                          style={{
-                            padding: '8px 10px', borderRadius: 8, textAlign: 'left', cursor: 'pointer',
-                            border: '1px solid var(--border)', background: 'var(--background)',
-                          }}
-                        >
-                          <p style={{ fontSize: 11, fontWeight: 700, margin: '0 0 1px', color: 'var(--foreground)' }}>{m.name}</p>
-                          <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0 }}>
-                            {m.provider}{m.maxTokens ? ` · ${(m.maxTokens / 1000).toFixed(0)}k ctx` : ''}
-                          </p>
-                        </button>
+                        />
                       ))}
                   </div>
                   {fallbackModels.length >= 3 && (

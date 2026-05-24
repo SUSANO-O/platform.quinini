@@ -29,6 +29,7 @@ import { AgentMcpOpenFromQuery } from '@/components/mcp/agent-mcp-open-from-quer
 import { AgentHubspotOauthReturn } from '@/components/mcp/agent-hubspot-oauth-return';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { ModelPickerCard } from '@/components/dashboard/model-picker-card';
 
 import { R, O, B } from '@/lib/brand-colors';
 const RUNTIME_SKILL_TEMPLATES = [
@@ -1496,22 +1497,17 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 disabled={readOnly}
               />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px' }}>
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2.5">
               {visibleModels.map((m) => (
-                <button key={m.id} type="button" onClick={() => setModel(m.id)} style={{
-                  padding: '10px 12px', borderRadius: '10px', textAlign: 'left', cursor: 'pointer',
-                  border: `1px solid ${model === m.id ? R : 'var(--border)'}`,
-                  background: model === m.id ? 'rgba(var(--brand-primary-rgb),0.08)' : 'transparent',
-                }}>
-                  <p style={{ fontSize: '11px', fontWeight: 700, margin: '0 0 1px', color: model === m.id ? R : 'var(--foreground)' }}>{m.name}</p>
-                  <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: 0 }}>
-                    {m.provider}{m.badge ? ` · ${m.badge}` : ''}
-                    {m.maxTokens != null ? ` · ${m.maxTokens.toLocaleString()} ctx` : ''}
-                  </p>
-                  {m.description ? (
-                    <p style={{ fontSize: '9px', color: 'var(--muted-foreground)', margin: '4px 0 0', lineHeight: 1.35 }}>{m.description}</p>
-                  ) : null}
-                </button>
+                <ModelPickerCard
+                  key={m.id}
+                  model={m}
+                  selected={model === m.id}
+                  onSelect={() => setModel(m.id)}
+                  disabled={readOnly}
+                  accentColor={R}
+                  showTier={false}
+                />
               ))}
             </div>
             {filteredModels.length > 12 && (
