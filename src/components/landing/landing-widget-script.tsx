@@ -4,14 +4,6 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 import { isAppBotIvAWidgetPath, isLandingMarketingPath } from '@/lib/landing-widget-paths';
 
-declare global {
-  interface Window {
-    AgentFlowhub?: {
-      init: (cfg: Record<string, unknown>) => { destroy?: () => void } | void;
-    };
-  }
-}
-
 const SCRIPT_DATA_ATTR = 'botiva-landing-sdk';
 const AFHUB_BOOT_MAX_TRIES = 20;
 const AFHUB_BOOT_DELAY_MS = 120;
