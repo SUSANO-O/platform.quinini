@@ -18,14 +18,6 @@ import {
 } from 'lucide-react';
 import { AiLoadingBlock } from '@/components/ui/ai-loading-screen';
 
-declare global {
-  interface Window {
-    AgentFlowhub?: {
-      init: (cfg: Record<string, unknown>) => { destroy?: () => void } | void;
-    };
-  }
-}
-
 interface WidgetShortcut {
   id: string;
   label: string;

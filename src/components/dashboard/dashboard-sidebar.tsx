@@ -33,15 +33,6 @@ const SIDEBAR_SURFACE = '#f5f6f8';
 const SIDEBAR_ACTIVE = 'rgba(var(--brand-primary-rgb), 0.12)';
 const AFHUB_LAUNCHER_MENU_HIDDEN_KEY = 'afhub-launcher-menu-hidden';
 
-declare global {
-  interface Window {
-    AgentFlowhub?: {
-      showLauncher?: () => void;
-      isLauncherHidden?: () => boolean;
-    };
-  }
-}
-
 function useWidgetLauncherHidden() {
   const [hidden, setHidden] = useState(false);
 
