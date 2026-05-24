@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { Fragment, useEffect, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard,
@@ -30,6 +31,79 @@ export const SIDEBAR_COLLAPSED_PX = 72;
 
 const SIDEBAR_SURFACE = '#f5f6f8';
 const SIDEBAR_ACTIVE = 'rgba(var(--brand-primary-rgb), 0.12)';
+const AFHUB_LAUNCHER_MENU_HIDDEN_KEY = 'afhub-launcher-menu-hidden';
+
+declare global {
+  interface Window {
+    AgentFlowhub?: {
+      showLauncher?: () => void;
+      isLauncherHidden?: () => boolean;
+    };
+  }
+}
+
+function useWidgetLauncherHidden() {
+  const [hidden, setHidden] = useState(false);
+
+  useEffect(() => {
+    const read = () => {
+      try {
+        if (typeof window.AgentFlowhub?.isLauncherHidden === 'function') {
+          setHidden(window.AgentFlowhub.isLauncherHidden());
+          return;
+        }
+        setHidden(sessionStorage.getItem(AFHUB_LAUNCHER_MENU_HIDDEN_KEY) === '1');
+      } catch {
+        setHidden(false);
+      }
+    };
+    read();
+    window.addEventListener('afhub:launcher-visibility', read);
+    return () => window.removeEventListener('afhub:launcher-visibility', read);
+  }, []);
+
+  return hidden;
+}
+
+function AssistantHelpRestoreItem({
+  collapsed,
+  onNavigate,
+}: {
+  collapsed: boolean;
+  onNavigate?: () => void;
+}) {
+  const hidden = useWidgetLauncherHidden();
+  if (!hidden || collapsed) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        window.AgentFlowhub?.showLauncher?.();
+        onNavigate?.();
+      }}
+      className="dashboard-sidebar-link"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        padding: '8px 12px 8px 44px',
+        marginTop: 2,
+        borderRadius: 12,
+        border: 'none',
+        background: 'transparent',
+        color: 'var(--muted-foreground)',
+        fontSize: 14,
+        fontWeight: 500,
+        cursor: 'pointer',
+        width: '100%',
+        textAlign: 'left',
+        transition: 'background 0.15s ease, color 0.15s ease',
+      }}
+    >
+      Ayuda asistente
+    </button>
+  );
+}
 
 function SoftDivider({ margin }: { margin?: string }) {
   return (
@@ -240,14 +314,18 @@ function SidebarNav({
           ) : null}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {group.items.map((item) => (
-              <SidebarNavLink
-                key={item.href}
-                {...item}
-                active={isActive(pathname, item.href)}
-                collapsed={collapsed}
-                onNavigate={onNavigate}
-                badge={item.href === '/dashboard/inbox' ? inboxOpenCount : undefined}
-              />
+              <Fragment key={item.href}>
+                <SidebarNavLink
+                  {...item}
+                  active={isActive(pathname, item.href)}
+                  collapsed={collapsed}
+                  onNavigate={onNavigate}
+                  badge={item.href === '/dashboard/inbox' ? inboxOpenCount : undefined}
+                />
+                {item.href === '/dashboard/settings' ? (
+                  <AssistantHelpRestoreItem collapsed={collapsed} onNavigate={onNavigate} />
+                ) : null}
+              </Fragment>
             ))}
           </div>
         </div>
