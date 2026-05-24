@@ -105,6 +105,7 @@ function mockFabOrbInnerStyle(hex: string): React.CSSProperties {
 const AGENT_ICONS = ['🤖', '🧠', '💬', '✨', '📎', '🔮', '🛡️', '🌱', '📊'];
 
 import { BRAND } from '@/lib/brand-colors';
+import { UI_SURFACE_SECONDARY } from '@/lib/brand';
 
 const BRAND_R = BRAND.primary;
 const BRAND_O = BRAND.warm;
@@ -1135,14 +1136,12 @@ export default function WidgetBuilderPage() {
               </Link>
             </p>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {agents.map((a, i) => {
                 const agentIdForWidget = effectiveWidgetAgentId(a);
                 const selectable = agentIdForWidget.length > 0;
                 const selected = selectable && isOrchestratorSelected(agentIdForWidget);
                 const icon = AGENT_ICONS[i % AGENT_ICONS.length];
-                const short =
-                  a.name.length > 14 ? `${a.name.slice(0, 12)}…` : a.name;
                 const profile = agentProfileFromRow(a);
                 const pipelineCreative =
                   cfg.multiAgentEnabled &&
@@ -1165,84 +1164,58 @@ export default function WidgetBuilderPage() {
                         ? `${a.description || a.name}${a.isPlatform ? ' · Agente de plataforma' : ''}`
                         : 'ID de agente no válido. Revisa que el agente exista y esté activo.'
                     }
+                    className={[
+                      'rounded-2xl border card-texture overflow-hidden w-full text-left transition-all',
+                      selectable ? 'cursor-pointer hover:shadow-md' : 'cursor-not-allowed opacity-55',
+                    ].join(' ')}
                     style={{
-                      padding: '8px 6px',
-                      borderRadius: '8px',
-                      border: `1px solid ${selected ? cfg.color : 'var(--border)'}`,
-                      background: selected ? cfg.color + '18' : 'var(--background)',
-                      cursor: selectable ? 'pointer' : 'not-allowed',
-                      textAlign: 'center',
-                      opacity: selectable ? 1 : 0.55,
-                      position: 'relative',
+                      borderColor: selected ? cfg.color : 'var(--border)',
+                      boxShadow: selected
+                        ? `0 0 0 1px ${cfg.color}44, var(--shadow-surface-sm)`
+                        : undefined,
                     }}
                   >
-                    {a.isPlatform ? (
-                      <span
-                        style={{
-                          position: 'absolute',
-                          top: 2,
-                          right: 2,
-                          fontSize: 7,
-                          fontWeight: 800,
-                          color: BRAND_B,
-                          lineHeight: 1,
-                        }}
-                        title="Plataforma"
-                      >
-                        P
-                      </span>
-                    ) : null}
-                    <div style={{ fontSize: 16 }}>{icon}</div>
-                    <div
-                      style={{
-                        fontSize: 9,
-                        fontWeight: selected ? 700 : 500,
-                        marginTop: 2,
-                        color: selected ? cfg.color : 'var(--foreground)',
-                      }}
-                    >
-                      {short}
-                    </div>
-                    {pipelineCreative || pipelineContent ? (
-                      <div
-                        style={{
-                          display: 'flex',
-                          gap: 3,
-                          justifyContent: 'center',
-                          flexWrap: 'wrap',
-                          marginTop: 4,
-                        }}
-                      >
-                        {pipelineContent ? (
+                    <div className="p-3">
+                      <div className="flex items-start justify-between gap-1.5 mb-2">
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-base"
+                          style={{
+                            background: selected ? `${cfg.color}14` : 'rgba(var(--brand-primary-rgb), 0.06)',
+                            border: `1px solid ${selected ? `${cfg.color}30` : 'var(--border)'}`,
+                          }}
+                        >
+                          {icon}
+                        </div>
+                        {a.isPlatform ? (
                           <span
-                            style={{
-                              fontSize: 7,
-                              fontWeight: 700,
-                              padding: '1px 4px',
-                              borderRadius: 4,
-                              background: 'rgba(59,130,246,0.15)',
-                              color: 'rgb(37,99,235)',
-                            }}
+                            className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
+                            style={UI_SURFACE_SECONDARY}
                           >
-                            Contenido
-                          </span>
-                        ) : null}
-                        {pipelineCreative ? (
-                          <span
-                            style={{
-                              fontSize: 7,
-                              fontWeight: 700,
-                              padding: '1px 4px',
-                              borderRadius: 4,
-                              background: 'rgba(168,85,247,0.15)',
-                              color: 'rgb(126,34,206)',
-                            }}
-                          >
-                            Creativo
+                            Plataforma
                           </span>
                         ) : null}
                       </div>
-                    ) : null}
+                      <p
+                        className="text-xs font-bold m-0 truncate leading-snug"
+                        style={{ color: selected ? cfg.color : 'var(--foreground)' }}
+                      >
+                        {a.name}
+                      </p>
+                      {pipelineCreative || pipelineContent ? (
+                        <div className="flex gap-1 justify-start flex-wrap mt-2">
+                          {pipelineContent ? (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-700">
+                              Contenido
+                            </span>
+                          ) : null}
+                          {pipelineCreative ? (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-700">
+                              Creativo
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
                   </button>
                 );
               })}
