@@ -1582,6 +1582,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           </SectionCard>
 
           {!soloChatOnly && (
+          <>
           <SectionCard>
             <p style={sectionTitle}>Skills</p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
@@ -1750,6 +1751,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               })}
             </div>
           </SectionCard>
+          </>
           )}
 
           <SectionCard bar="bo">
