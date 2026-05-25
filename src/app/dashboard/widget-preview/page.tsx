@@ -504,7 +504,6 @@ export default function WidgetPreviewPage() {
                 ) : null}
                 <Row label="Tipo" value={agent.type === 'sub-agent' ? 'Sub-agente' : 'Agente'} />
                 <Row label="Modelo" value={agent.model || 'gemini-2.5-flash'} mono />
-                <Row label="Proveedor" value={inferProvider(agent.model || '')} />
                 {typeof agent.inferenceTemperature === 'number' && (
                   <Row label="Temperatura" value={String(agent.inferenceTemperature)} />
                 )}
