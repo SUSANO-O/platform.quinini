@@ -569,6 +569,10 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     loadMcp();
   }, [loadMcp]);
 
+  useEffect(() => {
+    if (soloChatOnly && tab !== 'general') setTab('general');
+  }, [soloChatOnly, tab]);
+
   const onHubspotOauthReturn = useCallback(
     (kind: 'ok' | 'partial' | 'err', detail?: string) => {
       setError('');
@@ -1169,10 +1173,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     { id: 'subagents', label: `Sub-agentes (${subAgents.length})`, icon: <Network size={13} /> },
   ];
   const visibleTabs = soloChatOnly ? TABS.filter((t) => t.id === 'general') : TABS;
-
-  useEffect(() => {
-    if (soloChatOnly && tab !== 'general') setTab('general');
-  }, [soloChatOnly, tab]);
 
   const deleteDescription =
     (agent.subAgentIds?.length ?? 0) > 0
