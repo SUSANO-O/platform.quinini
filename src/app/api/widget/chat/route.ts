@@ -8,6 +8,10 @@ import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAgentflowhubBaseUrl } from '@/lib/aibackhub-sync';
 import { tryServeWidgetChatViaHubMcp } from '@/lib/widget-chat-direct-mcp';
+import {
+  hubResponseNeedsDirectInference,
+  tryServeWidgetChatViaDirectInference,
+} from '@/lib/widget-chat-direct-inference';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent, Subscription } from '@/lib/db/models';
 import { findWidgetForWtToken, isWidgetActive, sentAgentIdMatchesWidget } from '@/lib/widget-token-verify';
@@ -600,6 +604,43 @@ export async function POST(req: NextRequest) {
           });
           console.error('[widget/chat] direct MCP path error:', directErr);
         }
+
+        /** Inferencia directa /api/models con modelo explícito del agente (evita orquestador obsoleto). */
+        try {
+          const inferred = await tryServeWidgetChatViaDirectInference({
+            parsedAgentId,
+            rawBody: bodyToForward,
+            ownerUserId: w.userId,
+          });
+          if (inferred) {
+            logWidgetFlow('✅', 'chat:inferOk', 'respuesta directa /api/models', {
+              traceId,
+              agentId: parsedAgentId,
+              replyLen: inferred.reply.length,
+              usedModel: inferred.usedModel,
+            });
+            trackWidgetChatUsage(widgetToken, parsedAgentId, true).catch(() => {});
+            void trackWidgetUserMessageForFaqCandidates({
+              ownerUserId: w.userId,
+              agentIdOrHubId: parsedAgentId,
+              rawBody,
+            }).catch(() => {});
+            return NextResponse.json(
+              {
+                reply: inferred.reply,
+                agentId: parsedAgentId,
+                usedModel: inferred.usedModel,
+                ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
+              },
+              { status: 200, headers: cors(origin) },
+            );
+          }
+        } catch (inferErr) {
+          logWidgetFlow('⚠️', 'chat:inferErr', 'falló inferencia directa', {
+            traceId,
+            err: inferErr instanceof Error ? inferErr.message : String(inferErr),
+          });
+        }
       }
     } catch {
       /* sin DB: el hub intentará validación remota si está configurada */
@@ -644,6 +685,47 @@ export async function POST(req: NextRequest) {
     });
 
     const data = await res.text();
+
+    if (
+      !res.ok &&
+      widgetToken.startsWith('wt_') &&
+      parsedAgentId &&
+      faqTrackOwnerId &&
+      hubResponseNeedsDirectInference(res.status, data)
+    ) {
+      try {
+        const inferred = await tryServeWidgetChatViaDirectInference({
+          parsedAgentId,
+          rawBody: bodyToForward,
+          ownerUserId: faqTrackOwnerId,
+        });
+        if (inferred) {
+          logWidgetFlow('✅', 'chat:inferFallback', 'recuperado tras fallo hub', {
+            traceId,
+            hubStatus: res.status,
+            replyLen: inferred.reply.length,
+          });
+          trackWidgetChatUsage(widgetToken, parsedAgentId, true).catch(() => {});
+          void trackWidgetUserMessageForFaqCandidates({
+            ownerUserId: faqTrackOwnerId,
+            agentIdOrHubId: parsedAgentId,
+            rawBody: rawBodyInitial,
+          }).catch(() => {});
+          return NextResponse.json(
+            {
+              reply: inferred.reply,
+              agentId: parsedAgentId,
+              usedModel: inferred.usedModel,
+              ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
+            },
+            { status: 200, headers: cors(origin) },
+          );
+        }
+      } catch {
+        /* sigue con respuesta original del hub */
+      }
+    }
+
     const outText =
       multiAgentMeta && res.ok
         ? enrichChatResponseJson(data, multiAgentMeta, orchestratorName)

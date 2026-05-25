@@ -14,9 +14,7 @@
  *   BASE_URL=https://www.quinini.online \
  *   node scripts/widget-chat-test.mjs
  *
- * Pruebas unitarias de historias multi-turno (extracción lead HubSpot, sin red):
- *   npx vitest run src/lib/hubspot-widget-user-stories.spec.ts
- *   (desde el directorio AIBackHub)
+ * Ver también: docs/widget-testing.md (smoke, AIBackHub aislado, curl, orden de diagnóstico).
  */
 
 import { createConnection, Types } from 'mongoose';
