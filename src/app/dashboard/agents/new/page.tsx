@@ -547,7 +547,7 @@ export default function NewAgentPage() {
                 style={inp}
                 value={modelQuery}
                 onChange={(e) => { setModelQuery(e.target.value); setShowAllModels(false); }}
-                placeholder="Buscar por nombre, proveedor o capacidad..."
+                placeholder="Buscar por nombre, capacidad o ID..."
               />
             </div>
 
@@ -576,7 +576,7 @@ export default function NewAgentPage() {
 
               const filtered = clientModels.filter((m) => {
                 const q = modelQuery.trim().toLowerCase();
-                if (q && !(m.name.toLowerCase().includes(q) || m.provider?.toLowerCase().includes(q) || m.id.toLowerCase().includes(q))) return false;
+                if (q && !(m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q) || (m.category ?? '').toLowerCase().includes(q))) return false;
                 if (modelCatFilter !== 'all' && (m.category ?? 'chat') !== modelCatFilter) return false;
                 if (modelTierFilter !== 'all' && (m.tier ?? 'stable') !== modelTierFilter) return false;
                 return true;
@@ -749,7 +749,7 @@ export default function NewAgentPage() {
                         if (fallbackModels.includes(m.id)) return false;
                         const q = fallbackQuery.trim().toLowerCase();
                         if (!q) return true;
-                        return m.name.toLowerCase().includes(q) || m.provider?.toLowerCase().includes(q) || m.id.toLowerCase().includes(q);
+                        return m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q) || (m.category ?? '').toLowerCase().includes(q);
                       })
                       .map((m) => (
                         <ModelPickerCard

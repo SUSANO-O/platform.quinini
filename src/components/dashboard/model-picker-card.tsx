@@ -10,12 +10,12 @@ const DEFAULT_TIER_COLOR: Record<string, string> = {
   preview: '#ec4899',
 };
 
-function providerInitials(provider?: string) {
-  const p = String(provider || '').trim();
-  if (!p) return 'AI';
-  const words = p.split(/\s+/).filter(Boolean);
+function modelInitials(name?: string) {
+  const n = String(name || '').trim();
+  if (!n) return 'AI';
+  const words = n.split(/\s+/).filter(Boolean);
   if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
-  return p.slice(0, 2).toUpperCase();
+  return n.slice(0, 2).toUpperCase();
 }
 
 function formatCtx(maxTokens?: number) {
@@ -48,6 +48,7 @@ export function ModelPickerCard({
   const tier = model.tier ?? 'stable';
   const badgeColor = tierColor ?? DEFAULT_TIER_COLOR[tier] ?? 'var(--muted-foreground)';
   const ctx = formatCtx(model.maxTokens);
+  const metaParts = [model.badge, ctx, model.category].filter(Boolean);
 
   return (
     <button
@@ -78,7 +79,7 @@ export function ModelPickerCard({
               color: selected ? accentColor : 'var(--muted-foreground)',
             }}
           >
-            {providerInitials(model.provider)}
+            {modelInitials(model.name)}
           </div>
           {showTier ? (
             <span
@@ -105,11 +106,11 @@ export function ModelPickerCard({
           ) : null}
         </p>
 
-        <p className="text-[10px] m-0 mt-1 truncate" style={{ color: 'var(--muted-foreground)' }}>
-          {model.provider}
-          {model.badge ? ` · ${model.badge}` : ''}
-          {ctx ? ` · ${ctx}` : ''}
-        </p>
+        {metaParts.length > 0 ? (
+          <p className="text-[10px] m-0 mt-1 truncate" style={{ color: 'var(--muted-foreground)' }}>
+            {metaParts.join(' · ')}
+          </p>
+        ) : null}
 
         {!compact && model.description ? (
           <p
