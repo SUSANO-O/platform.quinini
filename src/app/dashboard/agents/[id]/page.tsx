@@ -386,7 +386,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     const q = modelQuery.trim().toLowerCase();
     if (!q) return displayModels;
     return displayModels.filter((m) =>
-      `${m.name} ${m.id} ${m.provider} ${m.description ?? ''}`.toLowerCase().includes(q)
+      `${m.name} ${m.id} ${m.description ?? ''} ${m.category ?? ''}`.toLowerCase().includes(q)
     );
   }, [displayModels, modelQuery]);
   const orderedFilteredModels = useMemo(() => {
@@ -1479,7 +1479,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             <div style={{ border: '1px solid var(--border)', background: 'var(--muted)', borderRadius: 12, padding: 12, marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
                 <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)' }}>
-                  Busca por nombre, proveedor o capacidad
+                  Busca por nombre, capacidad o ID
                 </p>
                 <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)' }}>
                   {filteredModels.length} resultados
