@@ -46,6 +46,7 @@ import {
 } from '@/lib/widget-multi-agent';
 import { enrichWidgetChatBodyWithImages, type WidgetImageEnrichment } from '@/lib/widget-chat-images';
 import { persistWidgetTranscript } from '@/lib/widget-transcript';
+import { tryServeWidgetChatViaDirectInference } from '@/lib/widget-chat-direct-inference';
 
 export const maxDuration = 60; // Vercel: allow up to 60s for LLM + streaming
 
@@ -440,6 +441,42 @@ export async function POST(req: NextRequest) {
         if (hubSecret && widgetToken.startsWith('wt_')) {
           headers['X-Landing-Wt-Valid'] = '1';
           headers[SIGNATURE_HEADER] = signRequest(hubBody, hubSecret);
+        }
+
+        if (widgetToken.startsWith('wt_') && faqTrackOwnerId && parsedAgentIdLocal) {
+          try {
+            const inferred = await tryServeWidgetChatViaDirectInference({
+              parsedAgentId: parsedAgentIdLocal,
+              rawBody: hubBody,
+              ownerUserId: faqTrackOwnerId,
+            });
+            if (inferred?.reply) {
+              logWidgetFlow('✅', 'stream:inferOk', 'respuesta directa /api/models', {
+                traceId,
+                replyLen: inferred.reply.length,
+                usedModel: inferred.usedModel,
+              });
+              enqueue({ type: 'token', text: inferred.reply });
+              enqueue({
+                type: 'done',
+                reply: inferred.reply,
+                agentId: parsedAgentIdLocal,
+                ...(inferred.usedModel ? { usedModel: inferred.usedModel } : {}),
+                ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
+              });
+              void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true).catch(() => {});
+              if (faqTrackOwnerId) {
+                void trackWidgetUserMessageForFaqCandidates({
+                  ownerUserId: faqTrackOwnerId,
+                  agentIdOrHubId: parsedAgentIdLocal,
+                  rawBody: rawBodyInitial,
+                }).catch(() => {});
+              }
+              return;
+            }
+          } catch (inferErr) {
+            logWidgetFlow('⚠️', 'stream:inferErr', inferErr instanceof Error ? inferErr.message : String(inferErr));
+          }
         }
 
         let streamMsg = '';
