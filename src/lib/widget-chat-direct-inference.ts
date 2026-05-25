@@ -39,6 +39,51 @@ function isImageModel(model: string): boolean {
   );
 }
 
+/** Agente con MCP (Mongo, HubSpot, etc.) debe ir por /api/mcp/widget-chat, no /api/models plano. */
+async function agentNeedsMcpWidgetChat(ca: {
+  enabledMcpToolIds?: unknown;
+  agentHubId?: unknown;
+  tools?: Array<{ toolId?: string }>;
+}): Promise<boolean> {
+  const ids = Array.isArray(ca.enabledMcpToolIds) ? ca.enabledMcpToolIds : [];
+  if (
+    ids.some(
+      (id) => typeof id === 'string' && (id.startsWith('mcp:') || id.startsWith('std:')),
+    )
+  ) {
+    return true;
+  }
+  if (ca.tools?.some((t) => t.toolId === 'webhook')) return true;
+
+  const hubId = typeof ca.agentHubId === 'string' ? ca.agentHubId.trim() : '';
+  if (!hubId) return false;
+
+  const landingUri = process.env.MONGODB_URI?.trim();
+  if (!landingUri) return false;
+  const hubUri =
+    process.env.AIBACKHUB_MONGO_URI?.trim() ||
+    process.env.HUB_MONGODB_URI?.trim() ||
+    landingUri.replace(/agentflowhub_landing/i, 'agentflow');
+
+  try {
+    const { createConnection } = await import('mongoose');
+    const conn = await createConnection(hubUri).asPromise();
+    try {
+      const db = conn.db;
+      if (!db) return false;
+      const n = await db.collection('mcp_connections').countDocuments({
+        agentId: hubId,
+        syncStatus: 'ok',
+      });
+      return n > 0;
+    } finally {
+      await conn.close();
+    }
+  } catch {
+    return false;
+  }
+}
+
 function extractReply(json: Record<string, unknown>): string {
   const data = json.data && typeof json.data === 'object' ? (json.data as Record<string, unknown>) : null;
   for (const v of [json.reply, json.text, json.response, data?.text, data?.reply, data?.response]) {
@@ -86,6 +131,14 @@ export async function tryServeWidgetChatViaDirectInference(params: {
   const storedModel =
     (typeof ca.model === 'string' && ca.model.trim()) || 'vx/gemini-2.5-flash';
   if (isImageModel(storedModel)) return null;
+
+  if (await agentNeedsMcpWidgetChat(ca)) {
+    logWidgetFlow('⏭️', 'infer:skip', 'agente con MCP — requiere /api/mcp/widget-chat vía hub', {
+      agentId: id,
+      agentHubId: ca.agentHubId,
+    });
+    return null;
+  }
 
   const { provider, model } = normalizeModel(storedModel);
   logWidgetFlow('🧠', 'infer:start', 'POST /api/models directo', {
