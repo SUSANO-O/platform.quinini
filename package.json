@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
+    "build:widget": "node scripts/widget/build.mjs && node scripts/widget/verify-build.mjs",
     "dev": "next dev -p 3201",
     "dev:clean": "npm run clean && npm run dev",
-    "build": "next build",
+    "build": "npm run build:widget && next build",
     "start": "next start -p 3201",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",

@@ -58,8 +58,9 @@ describe('webhook entitlements (plan-catalog)', () => {
     expect(planHasAgentWebhookFeature('solo')).toBe(true);
     expect(planHasOutboundWebhookFeature('plus')).toBe(false);
     expect(planHasOutboundWebhookFeature('starter')).toBe(true);
-    expect(planHasApiAccessFeature('plus')).toBe(false);
+    expect(planHasApiAccessFeature('basic')).toBe(false);
     expect(planHasApiAccessFeature('team')).toBe(true);
+    expect(planHasApiAccessFeature('plus')).toBe(true);
     expect(planHasApiAccessFeature('starter')).toBe(true);
     expect(planHasEscalationTicketFeature('starter')).toBe(false);
     expect(planHasEscalationTicketFeature('growth')).toBe(true);
