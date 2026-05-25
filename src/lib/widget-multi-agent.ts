@@ -843,7 +843,7 @@ export function buildPipelineContentPrompt(userMessage: string): string {
   return [
     'Tarea interna (pipeline creativo del widget).',
     'Extrae SOLO un brief factual en viñetas para un diseñador gráfico.',
-    'Usa tu catálogo, RAG y conocimiento de producto. Sin saludos ni preguntas al visitante.',
+    'Usa tu catálogo, almacenamiento y conocimiento de producto. Sin saludos ni preguntas al visitante.',
     'Incluye claims, datos y textos sugeridos si aplican.',
     '',
     `Solicitud original: ${userMessage.slice(0, 2000)}`,

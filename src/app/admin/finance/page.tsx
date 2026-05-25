@@ -109,7 +109,7 @@ export default function AdminFinancePage() {
           ) : null}
           {data.rates ? (
             <p style={{ fontSize: 12, color: 'var(--muted-foreground)', marginTop: -8, marginBottom: 16 }}>
-              Costeo dinámico activo → Flash/Mini: {data.rates.flashRate} · Premium/Pro: {data.rates.premiumRate} · RAG x{data.rates.ragMultiplier}
+              Costeo dinámico activo → Flash/Mini: {data.rates.flashRate} · Premium/Pro: {data.rates.premiumRate} · Almacenamiento x{data.rates.ragMultiplier}
             </p>
           ) : null}
 

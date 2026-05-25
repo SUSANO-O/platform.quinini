@@ -68,7 +68,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const plan = hasActivePlan ? (sub?.plan ?? 'free') : 'free';
   const limits = getAgentLimits(plan);
   if (!limits.ragEnabled) {
-    return NextResponse.json({ error: 'RAG no disponible en tu plan.' }, { status: 403 });
+    return NextResponse.json({ error: 'Almacenamiento no disponible en tu plan.' }, { status: 403 });
   }
 
   let formData: FormData;

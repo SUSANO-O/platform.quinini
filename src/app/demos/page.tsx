@@ -52,7 +52,7 @@ const DEMOS: DemoItem[] = [
   {
     title: 'Pricing',
     description:
-      'Planes Free, Solo, Plus, Starter, Growth y Business — conversaciones, RAG y límites por nivel.',
+      'Planes Free, Solo, Plus, Starter, Growth y Business — conversaciones, almacenamiento y límites por nivel.',
     href: '/pricing',
     icon: <Cpu className="h-6 w-6" />,
   },

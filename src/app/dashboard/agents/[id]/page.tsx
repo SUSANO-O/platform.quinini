@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useClientModels, mergeSavedModelOptions } from '@/hooks/use-client-models';
 import { TOOLS, getAgentLimits, TOOL_MAP } from '@/lib/agent-plans';
+import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 import { AGENT_SKILLS } from '@/lib/agent-skills';
 import {
   Bot, ChevronLeft, Save, Loader2, Plus, Trash2, Network,
@@ -307,6 +308,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const { subscription } = useSubscription();
   const plan = subscription?.plan ?? 'free';
   const limits = getAgentLimits(plan);
+  const soloChatOnly = isSoloChatOnlyPlan(plan);
 
   const [agent, setAgent] = useState<ClientAgent | null>(null);
   const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
@@ -918,7 +920,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 setUploadMsg(
                   job.status === 'failed' && !job.processedFiles
                     ? 'La carga masiva falló.'
-                    : `Bulk RAG: ${job.processedFiles}/${job.totalFiles} archivo(s) indexados.`,
+                    : `Almacenamiento masivo: ${job.processedFiles}/${job.totalFiles} archivo(s) indexados.`,
                 );
                 setTimeout(() => setUploadMsg(''), 6000);
                 return;
@@ -1137,9 +1139,9 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const ragN = agent.ragSources?.length ?? 0;
   const ragLoaded = agent.ragEnabled && ragN > 0;
   const ragSummary =
-    ragLoaded ? `RAG cargado (${ragN} fuente${ragN !== 1 ? 's' : ''})`
-      : agent.ragEnabled && ragN === 0 ? 'RAG activo · sin fuentes'
-        : !agent.ragEnabled && ragN > 0 ? `RAG off · ${ragN} fuente${ragN !== 1 ? 's' : ''} guardada${ragN !== 1 ? 's' : ''}`
+    ragLoaded ? `Almacenamiento cargado (${ragN} fuente${ragN !== 1 ? 's' : ''})`
+      : agent.ragEnabled && ragN === 0 ? 'Almacenamiento activo · sin fuentes'
+        : !agent.ragEnabled && ragN > 0 ? `Almac. off · ${ragN} fuente${ragN !== 1 ? 's' : ''} guardada${ragN !== 1 ? 's' : ''}`
           : null;
   const conversationSyncBadge = (() => {
     if (!agent.agentHubId) {
@@ -1163,9 +1165,14 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       icon: <HelpCircle size={13} />,
     },
     { id: 'tools',   label: `Herramientas (${tools.length + mcpToolIds.length})`, icon: <Wrench size={13} /> },
-    { id: 'rag',     label: `RAG (${ragN})`, icon: <Zap size={13} /> },
+    { id: 'rag',     label: `Almacenamiento (${ragN})`, icon: <Zap size={13} /> },
     { id: 'subagents', label: `Sub-agentes (${subAgents.length})`, icon: <Network size={13} /> },
   ];
+  const visibleTabs = soloChatOnly ? TABS.filter((t) => t.id === 'general') : TABS;
+
+  useEffect(() => {
+    if (soloChatOnly && tab !== 'general') setTab('general');
+  }, [soloChatOnly, tab]);
 
   const deleteDescription =
     (agent.subAgentIds?.length ?? 0) > 0
@@ -1240,12 +1247,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             {agent.syncStatus === 'synced' && (
               <span className="text-[10px] font-semibold" style={{ color: B }}>✓ Hub sync</span>
             )}
-            {ragSummary && (
+            {ragSummary && !soloChatOnly && (
               <span style={{
                 fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
                 background: ragLoaded ? 'rgba(var(--brand-primary-rgb),0.12)' : agent.ragEnabled ? 'rgba(217,119,6,0.12)' : 'rgba(107,114,128,0.12)',
                 color: ragLoaded ? B : agent.ragEnabled ? '#d97706' : 'var(--muted-foreground)',
-              }} title="Estado del RAG de catálogo (texto, URL, archivos)">
+              }} title="Estado del almacenamiento de catálogo (texto, URL, archivos)">
                 {ragSummary}
               </span>
             )}
@@ -1287,8 +1294,9 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {/* Tabs */}
+      {visibleTabs.length > 1 && (
       <div className="flex gap-1 mb-6 p-1 rounded-2xl border card-texture" style={{ borderColor: 'var(--border)' }}>
-        {TABS.map(({ id: tabId, label, icon }) => (
+        {visibleTabs.map(({ id: tabId, label, icon }) => (
           <button
             key={tabId}
             onClick={() => setTab(tabId)}
@@ -1305,6 +1313,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           </button>
         ))}
       </div>
+      )}
+      {soloChatOnly && (
+        <p className="text-xs mb-4 m-0 px-3 py-2 rounded-xl border" style={{ color: 'var(--muted-foreground)', borderColor: 'var(--border)', background: 'var(--muted)' }}>
+          Plan <strong>Solo</strong>: chat básico. Actualiza a Basic o superior para reglas, FAQ, herramientas, almacenamiento y sub-agentes.
+        </p>
+      )}
 
       {/* Feedback */}
       {error && (
@@ -1335,6 +1349,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             </div>
           </SectionCard>
 
+          {!soloChatOnly && (
           <SectionCard bar="bo">
             <p style={{ ...sectionTitle, display: 'flex', alignItems: 'center', gap: '8px' }}>
               <KeyRound size={14} style={{ opacity: 0.85 }} /> Token público del widget <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 'normal', color: 'var(--muted-foreground)' }}>(opcional)</span>
@@ -1367,12 +1382,14 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               )}
             </div>
           </SectionCard>
+          )}
 
+          {!soloChatOnly && (
           <SectionCard>
             <p style={sectionTitle}>Solo propósito del agente</p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
               Si está activo, el motor en AIBackHub refuerza en el system prompt que el agente{' '}
-              <strong>no responda temas fuera de su rol</strong>: solo lo definido en instrucciones, FAQs, reglas y lo que permitan herramientas MCP, skills y RAG. Útil para un vendedor o soporte que no debe improvisar en otros dominios.
+              <strong>no responda temas fuera de su rol</strong>: solo lo definido en instrucciones, FAQs, reglas y lo que permitan herramientas MCP, skills y almacenamiento. Útil para un vendedor o soporte que no debe improvisar en otros dominios.
             </p>
             <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: readOnly ? 'default' : 'pointer' }}>
               <div
@@ -1409,6 +1426,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               Guarda con &quot;Guardar información&quot; para sincronizar con AIBackHub.
             </p>
           </SectionCard>
+          )}
 
           <SectionCard>
             <p style={sectionTitle}>Contexto de conversación</p>
@@ -1530,6 +1548,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 </button>
               </div>
             )}
+            {!soloChatOnly && (
             <div style={{ marginTop: '14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '6px', color: 'var(--muted-foreground)' }}>
@@ -1558,9 +1577,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 />
               </div>
             </div>
+            )}
             </div>
           </SectionCard>
 
+          {!soloChatOnly && (
           <SectionCard>
             <p style={sectionTitle}>Skills</p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
@@ -1729,6 +1750,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               })}
             </div>
           </SectionCard>
+          )}
 
           <SectionCard bar="bo">
             <p style={sectionTitle}>System Prompt</p>
@@ -2643,13 +2665,13 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         </>
       )}
 
-      {/* ── RAG TAB ──────────────────────────────────────────────────────────── */}
+      {/* ── ALMACENAMIENTO TAB ───────────────────────────────────────────────── */}
       {tab === 'rag' && (
         <>
           {!limits.ragEnabled ? (
             <SectionCard innerStyle={{ textAlign: 'center', padding: '36px 20px' }}>
               <Lock size={32} style={{ color: 'var(--muted-foreground)', margin: '0 auto 12px' }} />
-              <p style={{ fontWeight: 700, marginBottom: '6px' }}>RAG no disponible en tu plan</p>
+              <p style={{ fontWeight: 700, marginBottom: '6px' }}>Almacenamiento no disponible en tu plan</p>
               <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', marginBottom: '16px' }}>
                 Activa un plan Starter o superior para agregar conocimiento personalizado a tus agentes.
               </p>
@@ -2661,7 +2683,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             <>
               {/* Toggle + description */}
               <SectionCard>
-                <p style={sectionTitle}>RAG — Base de conocimiento</p>
+                <p style={sectionTitle}>Almacenamiento — Base de conocimiento</p>
                 <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', marginBottom: '10px' }}>
                   Sube archivos o agrega texto/URLs para que el agente responda con información precisa de tu negocio.
                   Soporta PDF, Word, imágenes (OCR automático), TXT, CSV, JSON y más. Los archivos se convierten a texto
@@ -2682,7 +2704,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                     }} />
                   </div>
                   <span style={{ fontSize: '13px', fontWeight: 600 }}>
-                    {ragEnabled ? 'RAG activado' : 'RAG desactivado'}
+                    {ragEnabled ? 'Almacenamiento activado' : 'Almacenamiento desactivado'}
                   </span>
                 </label>
                 {ragEnabled && !readOnly && (
@@ -2719,7 +2741,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                     >
                       <div style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--card)' }}>
                         <p style={{ margin: '0 0 4px', fontWeight: 700, color: 'var(--foreground)' }}>Plan</p>
-                        <p style={{ margin: 0 }}>{plan} · RAG {limits.ragEnabled ? 'incluido' : '—'}</p>
+                        <p style={{ margin: 0 }}>{plan} · Almacenamiento {limits.ragEnabled ? 'incluido' : '—'}</p>
                       </div>
                       <div style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--card)' }}>
                         <p style={{ margin: '0 0 4px', fontWeight: 700, color: 'var(--foreground)' }}>Fuentes</p>
@@ -2932,7 +2954,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                               value={ragSourceQuery}
                               onChange={(e) => setRagSourceQuery(e.target.value)}
                               style={{ ...inp, padding: '8px 12px', fontSize: '12px', flex: 1, minWidth: 0 }}
-                              aria-label="Filtrar fuentes RAG"
+                              aria-label="Filtrar fuentes de almacenamiento"
                             />
                           </div>
                           <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--muted-foreground)' }}>

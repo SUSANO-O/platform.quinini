@@ -389,7 +389,7 @@ export default function SettingsPage() {
         {[
           { id: 'settings-account', label: 'Cuenta' },
           { id: 'settings-billing', label: 'Plan' },
-          { id: 'settings-rag-limits', label: 'RAG' },
+          { id: 'settings-rag-limits', label: 'Almacenamiento' },
           { id: 'settings-invoices', label: 'Facturas' },
         ].map((s) => (
           <a
@@ -837,12 +837,12 @@ export default function SettingsPage() {
             style={{ borderColor: 'var(--border)' }}
             data-tour="settings-rag-limits"
           >
-            <p className="text-[13px] font-bold m-0 mb-1">Límites RAG y administración</p>
+            <p className="text-[13px] font-bold m-0 mb-1">Límites de almacenamiento y administración</p>
             <p className="text-[11px] m-0 mb-3 leading-snug" style={{ color: 'var(--muted-foreground)' }}>
               Límite técnico por agente en tu plan actual:{' '}
               {ragUsage.ragEnabled
                 ? `${ragUsage.maxStorageMbPerAgent.toLocaleString('es')} MB o ${ragUsage.maxSourcesPerAgent.toLocaleString('es')} fuentes`
-                : 'RAG no incluido en este plan'}
+                : 'Almacenamiento no incluido en este plan'}
               .
             </p>
 
@@ -873,7 +873,7 @@ export default function SettingsPage() {
                     <p className="text-[11px] m-0">
                       <strong>{planLabel}</strong>{' '}
                       <span style={{ color: 'var(--muted-foreground)' }}>
-                        — {limit ? `${limit.mb.toLocaleString('es')} MB / ${limit.sources.toLocaleString('es')} fuentes por agente` : 'sin RAG'}
+                        — {limit ? `${limit.mb.toLocaleString('es')} MB / ${limit.sources.toLocaleString('es')} fuentes por agente` : 'sin almacenamiento'}
                       </span>
                     </p>
                   </div>
@@ -885,7 +885,7 @@ export default function SettingsPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {ragUsage.perAgent.length === 0 ? (
                   <p className="text-[11px] m-0" style={{ color: 'var(--muted-foreground)' }}>
-                    Aún no tienes agentes propios para administrar RAG.
+                    Aún no tienes agentes propios para administrar almacenamiento.
                   </p>
                 ) : (
                   ragUsage.perAgent.map((agent) => (
@@ -910,7 +910,7 @@ export default function SettingsPage() {
               </div>
             ) : (
               <p className="text-[11px] m-0" style={{ color: 'var(--muted-foreground)' }}>
-                Para administrar fuentes y almacenamiento RAG, cambia a un plan con RAG.
+                Para administrar fuentes y almacenamiento, cambia a un plan con almacenamiento.
               </p>
             )}
           </div>

@@ -23,6 +23,7 @@ import {
   resolveProviderForModelId,
 } from '@/lib/model-provider-policy';
 import { validateModelForPlan } from '@/lib/model-plan-policy';
+import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 
 async function getAuth(req: NextRequest) {
   const token = req.cookies.get('afhub_session')?.value;
@@ -200,6 +201,13 @@ export async function POST(req: NextRequest) {
   if (!systemPrompt?.trim()) return NextResponse.json({ error: 'El system prompt es requerido.' }, { status: 400 });
   if (!model) return NextResponse.json({ error: 'El modelo es requerido.' }, { status: 400 });
 
+  if (isSoloChatOnlyPlan(plan) && type === 'sub-agent') {
+    return NextResponse.json(
+      { error: 'Los sub-agentes no están incluidos en el plan Solo.', code: 'SOLO_PLAN_LIMIT' },
+      { status: 403 },
+    );
+  }
+
   if (!isPlatform) {
     const modelCheck = await validateModelForPlan(plan, String(model));
     if (!modelCheck.ok) {
@@ -272,7 +280,9 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Validate ragSources (only text/url allowed at creation, not files) ───
-  const safeRagSources = Array.isArray(ragSources)
+  const safeRagSources = isSoloChatOnlyPlan(plan)
+    ? []
+    : Array.isArray(ragSources)
     ? ragSources
         .filter((s: { type?: string }) => s.type === 'text' || s.type === 'url')
         .slice(0, 20)
@@ -285,7 +295,9 @@ export async function POST(req: NextRequest) {
         }))
     : [];
 
-  const safeBehaviorRules = Array.isArray(behaviorRules)
+  const safeBehaviorRules = isSoloChatOnlyPlan(plan)
+    ? []
+    : Array.isArray(behaviorRules)
     ? behaviorRules
         .filter((r: unknown): r is Record<string, unknown> => Boolean(r) && typeof r === 'object')
         .map((r) => ({
@@ -324,7 +336,9 @@ export async function POST(req: NextRequest) {
         .slice(0, 80)
     : [];
 
-  const safeAgentFaqs = Array.isArray(agentFaqs)
+  const safeAgentFaqs = isSoloChatOnlyPlan(plan)
+    ? []
+    : Array.isArray(agentFaqs)
     ? agentFaqs
         .filter((x: unknown): x is Record<string, unknown> => Boolean(x) && typeof x === 'object')
         .map((x) => ({

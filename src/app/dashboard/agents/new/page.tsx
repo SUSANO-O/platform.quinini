@@ -12,6 +12,7 @@ import { Bot, ChevronLeft, Loader2, KeyRound, Plug, Plus, X, Sparkles } from 'lu
 import { AIInputButton } from '@/components/ui/AIInputButton';
 import Link from 'next/link';
 import { ModelPickerCard } from '@/components/dashboard/model-picker-card';
+import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 
 const R = 'var(--primary)';
 const O = 'var(--brand-warm)';
@@ -52,6 +53,7 @@ export default function NewAgentPage() {
   const isAdmin = user?.role === 'admin';
   const { subscription } = useSubscription();
   const plan = subscription?.plan ?? 'free';
+  const soloChatOnly = isSoloChatOnlyPlan(plan);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -270,7 +272,9 @@ export default function NewAgentPage() {
                 Crear <span className="gradient-text">agente</span>
               </h1>
               <p className="text-sm m-0 mt-1.5" style={{ color: 'var(--muted-foreground)' }}>
-                Define modelo, instrucciones y opciones de widget; luego podrás afinar RAG y herramientas en la ficha.
+                {soloChatOnly
+                  ? 'Plan Solo: chat básico con hasta 3 agentes. Define nombre, modelo e instrucciones.'
+                  : 'Define modelo, instrucciones y opciones de widget; luego podrás afinar almacenamiento y herramientas en la ficha.'}
               </p>
             </div>
           </div>
@@ -358,12 +362,14 @@ export default function NewAgentPage() {
                     placeholder="Ej: Agente de soporte al cliente"
                     required
                   />
+                  {!soloChatOnly && (
                   <AIInputButton
                     fieldType="agent_name"
                     fieldName="Nombre del agente"
                     agentContext={{ purpose: description }}
                     onResult={(text) => setName(text)}
                   />
+                  )}
                 </div>
               </div>
               <div>
@@ -379,18 +385,21 @@ export default function NewAgentPage() {
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Breve descripción de qué hace este agente"
                   />
+                  {!soloChatOnly && (
                   <AIInputButton
                     fieldType="agent_description"
                     fieldName="Descripción del agente"
                     agentContext={{ name, purpose: description }}
                     onResult={(text) => setDescription(text)}
                   />
+                  )}
                 </div>
               </div>
             </div>
           </FormSection>
 
           {/* ── Panel sugerencias AI ──────────────────────────────────────── */}
+          {!soloChatOnly && (
           <FormSection bar="bo">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: aiSuggestions ? 16 : 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -531,6 +540,7 @@ export default function NewAgentPage() {
               </div>
             )}
           </FormSection>
+          )}
 
           <FormSection>
             <h2 style={sectionTitle}>Modelo de IA</h2>
@@ -678,6 +688,8 @@ export default function NewAgentPage() {
               </div>
             </div>
 
+            {!soloChatOnly && (
+            <>
             {/* Modelos de respaldo */}
             <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -773,9 +785,12 @@ export default function NewAgentPage() {
                 </div>
               )}
             </div>
+            </>
+            )}
             </div>
           </FormSection>
 
+          {!soloChatOnly && (
           <FormSection>
             <h2
               style={{ ...sectionTitle, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}
@@ -824,6 +839,7 @@ export default function NewAgentPage() {
               </button>
             </div>
           </FormSection>
+          )}
 
           <FormSection>
             <h2 style={{ ...sectionTitle, marginBottom: '4px' }}>
@@ -841,6 +857,7 @@ export default function NewAgentPage() {
                 placeholder={`Eres un asistente de soporte de Acme Corp. Tu misión es ayudar a los clientes con sus dudas de forma amable y precisa. Siempre responde en español. Cuando no sepas algo, dilo claramente y ofrece escalar al equipo humano.`}
                 required
               />
+              {!soloChatOnly && (
               <AIInputButton
                 fieldType="system_prompt"
                 fieldName="System Prompt"
@@ -848,13 +865,15 @@ export default function NewAgentPage() {
                 onResult={(text) => setSystemPrompt(text)}
                 position="right-top"
               />
+              )}
             </div>
           </FormSection>
 
+          {!soloChatOnly && (
           <FormSection>
             <h2 style={sectionTitle}>Solo propósito</h2>
             <p className="text-xs m-0 mb-3 leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
-              Limita las respuestas del agente a su rol y a lo que permitan herramientas, skills y RAG. Rechaza temas ajenos (por ejemplo un agente de ventas no responde recetas de cocina).
+              Limita las respuestas del agente a su rol y a lo que permitan herramientas, skills y almacenamiento. Rechaza temas ajenos (por ejemplo un agente de ventas no responde recetas de cocina).
             </p>
             <label
               className="flex items-start gap-2.5 rounded-xl border p-3.5 cursor-pointer transition-colors card-hover"
@@ -875,7 +894,9 @@ export default function NewAgentPage() {
               </span>
             </label>
           </FormSection>
+          )}
 
+          {!soloChatOnly && (
           <FormSection bar="bo">
             <div className="flex items-center gap-2 mb-2.5">
               <Plug size={16} style={{ color: R, flexShrink: 0 }} />
@@ -906,6 +927,7 @@ export default function NewAgentPage() {
               }}
             />
           </FormSection>
+          )}
 
           {error && (
             <div

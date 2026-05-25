@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import { Upload, FileText, Copy, Check, Sparkles, ExternalLink, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { BRAND_TEXT_COLOR, UI_SURFACE_SECONDARY } from '@/lib/brand';
+import { useSubscription } from '@/hooks/use-subscription';
+import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 
 import { uploadRagFileToAgent } from '@/lib/rag-upload-client';
 
@@ -25,6 +27,8 @@ type QuickStartResult = {
 };
 
 export default function QuickStartPage() {
+  const { subscription } = useSubscription();
+  const soloChatOnly = isSoloChatOnlyPlan(subscription?.plan ?? 'free');
   const [files, setFiles] = useState<File[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -139,11 +143,35 @@ export default function QuickStartPage() {
         </div>
         <p style={{ color: 'var(--muted-foreground)', fontSize: 14, lineHeight: 1.55, margin: 0 }}>
           Sube hasta 3 PDFs y obtén un widget listo para embeber en menos de 2 minutos.
-          Creamos el agente con RAG y un widget con la configuración por defecto.
+          Creamos el agente con almacenamiento y un widget con la configuración por defecto.
         </p>
       </div>
 
-      {!result ? (
+      {soloChatOnly ? (
+        <div
+          style={{
+            padding: '20px 18px',
+            borderRadius: 16,
+            border: '1px solid var(--border)',
+            background: 'var(--muted)',
+            lineHeight: 1.55,
+          }}
+        >
+          <p style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>
+            No disponible en plan Solo
+          </p>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--muted-foreground)' }}>
+            Quick Start sube PDFs y crea un agente con almacenamiento. El plan Solo es solo chat básico.
+            Actualiza a <strong>Team</strong> o superior para usar esta función.
+          </p>
+          <Link
+            href="/dashboard/settings"
+            className="inline-flex items-center gap-1.5 mt-4 text-sm font-semibold landing-link-accent no-underline"
+          >
+            Ver planes →
+          </Link>
+        </div>
+      ) : !result ? (
         <>
           <div
             role="button"

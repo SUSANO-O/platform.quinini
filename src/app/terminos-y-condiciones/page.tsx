@@ -24,7 +24,7 @@ export default function TerminosPage() {
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-foreground">2. Descripción del Servicio</h2>
               <p className="leading-relaxed">
-                BotIvA proporciona una plataforma de Agentes de Inteligencia Artificial como Servicio (SaaS), que incluye acceso a APIs, widgets de chat personalizables, procesamiento de documentos (RAG) y herramientas de análisis. El servicio se ofrece en modalidades gratuita y de pago (suscripción).
+                BotIvA proporciona una plataforma de Agentes de Inteligencia Artificial como Servicio (SaaS), que incluye acceso a APIs, widgets de chat personalizables, procesamiento de documentos (almacenamiento) y herramientas de análisis. El servicio se ofrece en modalidades gratuita y de pago (suscripción).
               </p>
             </section>
 

@@ -523,7 +523,7 @@ export default function WidgetPreviewPage() {
                   } />
                 )}
                 {agent.description && <Row label="Descripción" value={<span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>{agent.description.slice(0, 120)}{agent.description.length > 120 ? '…' : ''}</span>} />}
-                {agent.ragEnabled && <Row label="RAG" value={<span style={{ color: '#22c55e' }}>Activo ({agent.ragSources?.length ?? 0} fuentes)</span>} />}
+                {agent.ragEnabled && <Row label="Almacenamiento" value={<span style={{ color: '#22c55e' }}>Activo ({agent.ragSources?.length ?? 0} fuentes)</span>} />}
                 {(agent.subAgentIds?.length ?? 0) > 0 && <Row label="Sub-agentes" value={`${agent.subAgentIds!.length}`} />}
                 {agent.createdAt && <Row label="Creado" value={formatDate(agent.createdAt)} />}
               </>

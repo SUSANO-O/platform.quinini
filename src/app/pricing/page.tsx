@@ -178,7 +178,7 @@ export default function PricingPage() {
                     background: 'rgba(255,255,255,0.04)',
                     border: '1px solid var(--border)',
                   }}>
-                    RAG: {PLAN_RAG_LIMITS[plan.id]!.mb.toLocaleString()} MB · {PLAN_RAG_LIMITS[plan.id]!.sources} fuentes por agente
+                    Almacenamiento: {PLAN_RAG_LIMITS[plan.id]!.mb.toLocaleString()} MB · {PLAN_RAG_LIMITS[plan.id]!.sources} fuentes por agente
                   </p>
                 )}
 
@@ -270,7 +270,7 @@ export default function PricingPage() {
           <div className="mt-24">
             <h2 className="text-2xl font-bold text-center mb-3">Comparativa de planes</h2>
             <p className="text-center text-sm mb-10" style={{ color: 'var(--muted-foreground)' }}>
-              Misma información en todos los canales — conversaciones, agentes, RAG y soporte
+              Misma información en todos los canales — conversaciones, agentes, almacenamiento y soporte
             </p>
             <PricingComparisonTable />
           </div>

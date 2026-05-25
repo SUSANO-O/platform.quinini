@@ -24,6 +24,8 @@ import {
 } from '@/lib/widget-pipeline-ui';
 import type { HandoffNotifyMode } from '@/lib/handoff-notify';
 import { HANDOFF_NOTIFY_MODE_LABELS } from '@/lib/handoff-notify';
+import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
+import { applySoloWidgetDefaults } from '@/lib/solo-plan-limits';
 import { PipelineEditor } from '@/components/dashboard/pipeline-editor';
 
 // ── Orb gradient (port of orb-gradient.ts) ───────────────────────────────────
@@ -565,6 +567,7 @@ export default function WidgetBuilderPage() {
   const plan = subscription?.plan ?? 'free';
   const planActive =
     subscription?.status === 'active' || subscription?.status === 'trialing';
+  const soloChatOnly = planActive && isSoloChatOnlyPlan(plan);
   const multiAgentEligible = planActive && (plan === 'business' || plan === 'enterprise');
 
   const selectedOrchestratorIds = useMemo(
@@ -588,6 +591,14 @@ export default function WidgetBuilderPage() {
       resolveAgentProfileByWidgetId(agents, id),
     );
   }, [cfg.multiAgentEnabled, cfg.multiAgentMode, cfg.pipelineConfig, selectedOrchestratorIds, agents]);
+
+  useEffect(() => {
+    if (!soloChatOnly) return;
+    setCfg((prev) => ({
+      ...prev,
+      ...applySoloWidgetDefaults(plan, prev as unknown as Record<string, unknown>),
+    } as WidgetConfig));
+  }, [soloChatOnly, plan]);
 
   const orchestratorOptions = useMemo(
     () =>
@@ -951,11 +962,14 @@ export default function WidgetBuilderPage() {
     }
     setSaving(true);
     try {
+      const payload = soloChatOnly
+        ? { ...applySoloWidgetDefaults(plan, { ...cfg, shortcuts } as Record<string, unknown>), shortcuts }
+        : { ...cfg, shortcuts };
       if (editWidgetId) {
         const res = await fetch(`/api/widgets/${editWidgetId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...cfg, shortcuts }),
+          body: JSON.stringify(payload),
         });
         if (res.ok) {
           setSaved(true);
@@ -969,7 +983,7 @@ export default function WidgetBuilderPage() {
         const res = await fetch('/api/widgets', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(cfg),
+          body: JSON.stringify(soloChatOnly ? applySoloWidgetDefaults(plan, cfg as unknown as Record<string, unknown>) : cfg),
         });
         if (res.ok) {
           const data = (await res.json()) as {
@@ -1494,6 +1508,12 @@ export default function WidgetBuilderPage() {
 
         {wizardStep === 2 && (
         <>
+        {soloChatOnly ? (
+          <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', margin: '0 0 16px', lineHeight: 1.5 }}>
+            Plan <strong>Solo</strong>: widget de chat básico. WhatsApp, escalación, voz y apertura automática están disponibles desde Basic.
+          </p>
+        ) : (
+        <>
         <div style={fieldStyle} data-tour="widget-builder-support">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: cfg.humanSupportEnabled ? 10 : 0 }}>
             <button
@@ -1640,22 +1660,26 @@ export default function WidgetBuilderPage() {
           El código embed solo contiene el token. El color, título, avatar y demás ajustes se cargan en tiempo real desde el servidor — cualquier cambio aquí se refleja automáticamente en todos los sitios donde esté instalado el widget.
         </p>
         </div>
+        </>
+        )}
 
         {/* Shortcuts */}
         <div style={{ marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Sparkles size={13} style={{ color: '#6366f1' }} />
-              <label style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6366f1' }}>
+              {!soloChatOnly && <Sparkles size={13} style={{ color: '#6366f1' }} />}
+              <label style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: soloChatOnly ? 'var(--muted-foreground)' : '#6366f1' }}>
                 Shortcuts del widget
               </label>
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
+              {!soloChatOnly && (
               <button type="button" onClick={suggestShortcuts} disabled={suggestingShortcuts || !cfg.agentId}
                 style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 8, border: 'none', background: cfg.agentId && !suggestingShortcuts ? 'rgba(99,102,241,0.1)' : 'var(--border)', color: cfg.agentId && !suggestingShortcuts ? '#6366f1' : 'var(--muted-foreground)', cursor: cfg.agentId && !suggestingShortcuts ? 'pointer' : 'not-allowed' }}>
                 {suggestingShortcuts ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
                 {suggestingShortcuts ? 'Generando...' : 'Sugerir con AI'}
               </button>
+              )}
               <button type="button"
                 onClick={() => setShortcuts((prev) => [...prev, { id: crypto.randomUUID(), label: '', message: '', emoji: '', enabled: true }])}
                 style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--foreground)', cursor: 'pointer' }}>

@@ -149,11 +149,11 @@ export function SubscriptionPlanPanel({ checkoutDisabled = false }: { checkoutDi
           </p>
           {PLAN_RAG_LIMITS[effectivePlan] ? (
             <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: '2px 0 0', lineHeight: 1.35 }}>
-              RAG: {PLAN_RAG_LIMITS[effectivePlan]!.mb.toLocaleString()} MB / {PLAN_RAG_LIMITS[effectivePlan]!.sources} fuentes por agente
+              Almacenamiento: {PLAN_RAG_LIMITS[effectivePlan]!.mb.toLocaleString()} MB / {PLAN_RAG_LIMITS[effectivePlan]!.sources} fuentes por agente
             </p>
           ) : (
             <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: '2px 0 0', lineHeight: 1.35 }}>
-              RAG no incluido en este plan
+              Almacenamiento no incluido en este plan
             </p>
           )}
         </div>

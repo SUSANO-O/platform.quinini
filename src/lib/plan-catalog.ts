@@ -120,7 +120,7 @@ export const PLAN_CONVERSATION_LIMITS: Record<string, number> = {
 /** Agentes principales por plan (límite realista para PME). `-1` = ilimitado. */
 export const PLAN_AGENT_LIMITS: Record<string, number> = {
   free:       1,
-  solo:       1,
+  solo:       3,
   basic:      3,
   team:       5,
   plus:       10,
@@ -154,7 +154,7 @@ export const PLAN_SUBAGENT_LIMITS: Record<string, number> = {
 
 export const PLAN_TOOLS_LIMITS: Record<string, number> = {
   free:       2,
-  solo:       3,
+  solo:       0,
   basic:      5,
   team:       6,
   plus:       8,
@@ -229,7 +229,7 @@ export function canPurchaseConversationPacks(plan: string, status: string): bool
 }
 
 /** Plan mínimo para herramienta Webhook en el agente (llamadas salientes del chat). */
-export const AGENT_WEBHOOK_MIN_PLAN: PlanId = 'solo';
+export const AGENT_WEBHOOK_MIN_PLAN: PlanId = 'basic';
 
 /** Plan mínimo para webhook SaaS saliente (eventos firmados a tu backend). */
 export const OUTBOUND_SAAS_WEBHOOK_MIN_PLAN: PlanId = 'starter';
@@ -330,12 +330,17 @@ export function planChangeDirection(
   return 'same';
 }
 
+/** Plan Solo ($7): chat básico sin herramientas, RAG, reglas ni widget avanzado. */
+export function isSoloChatOnlyPlan(plan: string): boolean {
+  return plan === 'solo';
+}
+
 /** Bullets para modales de cambio de plan y checkout. */
 export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
   solo: [
     '300 conversaciones al mes (~10/día)',
-    '1 agente · Webhook del agente · Web Search, Gmail',
-    'Widgets ilimitados',
+    '3 agentes · solo chat (sin herramientas ni almacenamiento)',
+    'Widgets básicos · historial 30 días',
     'Autoguiado: documentación y videos en YouTube',
     'Soporte por email (72 h, sin onboarding dedicado)',
   ],
@@ -349,14 +354,14 @@ export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
   team: [
     '2.000 conversaciones al mes (~65/día)',
     '5 agentes · 2 sub-agentes · Webhook incluido',
-    'RAG: 128 MB · 15 fuentes por agente · Pinecone incluido',
+    'Almacenamiento: 128 MB · 15 fuentes por agente · Pinecone incluido',
     'Acceso API REST (próximamente) · Gmail y Slack · widgets ilimitados',
     'Capacitación grupal · soporte email (48 h)',
   ],
   plus: [
     '3.000 conversaciones al mes (~100/día)',
     '10 agentes · 5 sub-agentes · Webhook incluido',
-    'RAG: 256 MB · 20 fuentes · búsqueda vectorial Pinecone',
+    'Almacenamiento: 256 MB · 20 fuentes · búsqueda vectorial Pinecone',
     'Analytics de conversaciones (básico) · historial 60 días',
     'Capacitación grupal · soporte email (48 h)',
   ],
@@ -364,20 +369,20 @@ export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
     '6.000 conversaciones al mes (~200/día)',
     '25 agentes · 10 sub-agentes · Webhook del agente',
     'Acceso API REST (próximamente) · webhook saliente (HMAC) · HubSpot, Notion',
-    'RAG: 1 GB · 60 fuentes · Pinecone · analytics básico',
+    'Almacenamiento: 1 GB · 60 fuentes · Pinecone · analytics básico',
     'Capacitación incluida · soporte email (48 h)',
   ],
   growth: [
     '16.000 conversaciones al mes (~530/día)',
     '50 agentes · API REST (próximamente) · webhook agente + saliente',
-    'RAG: 10 GB · 300 fuentes · Pinecone incluido',
+    'Almacenamiento: 10 GB · 300 fuentes · Pinecone incluido',
     'Creación de tickets al escalar · analytics avanzado',
     'Historial: 1 año · modelos Pro · soporte chat (24 h)',
   ],
   business: [
     '45.000 conversaciones al mes (~1.500/día)',
     'Agentes ilimitados · integraciones custom · MCP completo',
-    'API REST (próximamente) · webhooks · RAG: 100 GB · Pinecone dedicado',
+    'API REST (próximamente) · webhooks · Almacenamiento: 100 GB · Pinecone dedicado',
     'Tickets al escalar · analytics completo (multi-agente)',
     'Historial ilimitado · todos los modelos · SLA 99,9 %',
   ],

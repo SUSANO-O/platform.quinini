@@ -309,7 +309,7 @@ export function ComplianceView() {
                 <BulletList>
                   <li>Almacenamiento temporal y permanente del historial de conversaciones del widget.</li>
                   <li>Procesamiento de consultas contra modelos de lenguaje (LLMs) de terceros para generar respuestas.</li>
-                  <li>Indexación de documentos cargados por el Cliente para funcionalidad RAG (Retrieval-Augmented Generation).</li>
+                  <li>Indexación de documentos cargados por el Cliente para funcionalidad de almacenamiento (Retrieval-Augmented Generation).</li>
                   <li>Registro de métricas de uso anonimizadas para facturación y mejora del servicio.</li>
                   <li>Autenticación e identificación de los usuarios finales cuando el Cliente habilite dicha función.</li>
                 </BulletList>
