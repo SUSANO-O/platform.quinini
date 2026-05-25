@@ -121,8 +121,8 @@ export const PLAN_CONVERSATION_LIMITS: Record<string, number> = {
 export const PLAN_AGENT_LIMITS: Record<string, number> = {
   free:       1,
   solo:       1,
-  basic:      5,
-  team:       3,
+  basic:      3,
+  team:       5,
   plus:       10,
   starter:    25,
   growth:     50,
@@ -341,14 +341,14 @@ export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
   ],
   basic: [
     '1.500 conversaciones al mes (~50/día)',
-    '5 agentes · 2 sub-agentes · Webhook incluido',
+    '3 agentes · 2 sub-agentes · Webhook incluido',
     'Gmail y Slack · widgets ilimitados',
     'Historial: 30 días',
     'Capacitación grupal incluida · soporte email (72 h)',
   ],
   team: [
     '2.000 conversaciones al mes (~65/día)',
-    '3 agentes · 2 sub-agentes · Webhook incluido',
+    '5 agentes · 2 sub-agentes · Webhook incluido',
     'RAG: 128 MB · 15 fuentes por agente · Pinecone incluido',
     'Acceso API REST (próximamente) · Gmail y Slack · widgets ilimitados',
     'Capacitación grupal · soporte email (48 h)',

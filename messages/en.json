@@ -135,7 +135,7 @@
         "requests": "1,500 conv/mo",
         "features": [
           "1,500 conversations per month (~50/day)",
-          "5 agents · 2 sub-agents · Webhook included",
+          "3 agents · 2 sub-agents · Webhook included",
           "Gmail & Slack · unlimited widgets · 30-day history",
           "Group training included",
           "Email support (72h)"
@@ -145,7 +145,7 @@
         "requests": "2,000 conv/mo",
         "features": [
           "2,000 conversations per month (~65/day)",
-          "3 agents · 2 sub-agents · Webhook included",
+          "5 agents · 2 sub-agents · Webhook included",
           "RAG: 128 MB · 15 sources · Pinecone included",
           "REST API access (coming soon) · Gmail & Slack · unlimited widgets",
           "Group training · email support (48h)"
