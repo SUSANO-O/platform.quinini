@@ -21,16 +21,16 @@ import { getAgentLimits, TOOL_MAP } from '../agent-plans';
 
 describe('webhook entitlements (plan-catalog)', () => {
   it('defines expected minimum plans', () => {
-    expect(AGENT_WEBHOOK_MIN_PLAN).toBe('solo');
+    expect(AGENT_WEBHOOK_MIN_PLAN).toBe('basic');
     expect(OUTBOUND_SAAS_WEBHOOK_MIN_PLAN).toBe('starter');
     expect(API_ACCESS_MIN_PLAN).toBe('team');
     expect(ESCALATION_TICKET_MIN_PLAN).toBe('growth');
     expect(CUSTOM_INTEGRATION_MIN_PLAN).toBe('business');
   });
 
-  it('agent webhook: Solo+ only', () => {
+  it('agent webhook: Basic+ only', () => {
     expect(canUseAgentWebhookTool('free')).toBe(false);
-    expect(canUseAgentWebhookTool('solo')).toBe(true);
+    expect(canUseAgentWebhookTool('solo')).toBe(false);
     expect(canUseAgentWebhookTool('basic')).toBe(true);
     expect(canUseAgentWebhookTool('team')).toBe(true);
     expect(canUseAgentWebhookTool('plus')).toBe(true);
@@ -55,7 +55,7 @@ describe('webhook entitlements (plan-catalog)', () => {
 
   it('feature flags for pricing table', () => {
     expect(planHasAgentWebhookFeature('free')).toBe(false);
-    expect(planHasAgentWebhookFeature('solo')).toBe(true);
+    expect(planHasAgentWebhookFeature('solo')).toBe(false);
     expect(planHasOutboundWebhookFeature('plus')).toBe(false);
     expect(planHasOutboundWebhookFeature('starter')).toBe(true);
     expect(planHasApiAccessFeature('basic')).toBe(false);
@@ -73,9 +73,10 @@ describe('webhook entitlements (plan-catalog)', () => {
   });
 
   it('plan bullets mention webhooks on paid tiers', () => {
-    expect(PLAN_FEATURE_BULLETS.solo.some((b) => /webhook/i.test(b))).toBe(true);
+    expect(PLAN_FEATURE_BULLETS.solo.some((b) => /webhook/i.test(b))).toBe(false);
+    expect(PLAN_FEATURE_BULLETS.solo.some((b) => /solo chat|chat básico/i.test(b))).toBe(true);
     expect(PLAN_FEATURE_BULLETS.basic.some((b) => /webhook/i.test(b))).toBe(true);
-    expect(PLAN_FEATURE_BULLETS.team.some((b) => /RAG/i.test(b))).toBe(true);
+    expect(PLAN_FEATURE_BULLETS.team.some((b) => /Almacenamiento/i.test(b))).toBe(true);
     expect(PLAN_FEATURE_BULLETS.starter.some((b) => /saliente|HMAC/i.test(b))).toBe(true);
   });
 });
@@ -87,13 +88,15 @@ describe('agent tool limits (agent-plans)', () => {
     expect(limits.availableToolIds).toContain('web-search');
   });
 
-  it('solo plan includes webhook tool', () => {
+  it('solo plan has no agent tools (chat only)', () => {
     const limits = getAgentLimits('solo');
-    expect(limits.availableToolIds).toContain('webhook');
+    expect(limits.availableToolIds).toEqual([]);
+    expect(limits.toolsPerAgent).toBe(0);
+    expect(limits.agents).toBe(3);
   });
 
-  it('webhook tool minPlan matches Solo gate', () => {
-    expect(TOOL_MAP.webhook?.minPlan).toBe('solo');
+  it('webhook tool minPlan matches Basic gate', () => {
+    expect(TOOL_MAP.webhook?.minPlan).toBe('basic');
   });
 });
 
@@ -118,7 +121,7 @@ describe('pricing comparison rows', () => {
     expect(free?.agentWebhook).toBe('—');
     expect(free?.outboundWebhook).toBe('—');
     expect(free?.apiAccess).toBe('—');
-    expect(solo?.agentWebhook).toBe('Incluido');
+    expect(solo?.agentWebhook).toBe('—');
     expect(solo?.outboundWebhook).toBe('—');
     expect(plus?.conversationAnalytics).toBe('Básico');
     expect(rows.find((r) => r.id === 'team')?.apiAccess).toBe('Próximamente');

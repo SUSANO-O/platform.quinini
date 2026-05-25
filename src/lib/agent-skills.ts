@@ -22,7 +22,7 @@ export const AGENT_SKILLS: AgentSkill[] = [
   { id: 'crm_integration',     label: 'Integración CRM',        description: 'Opera con contactos y negocios en HubSpot CRM',                            color: '#f97316' },
   { id: 'maps_geolocation',    label: 'Mapas y Geolocalización', description: 'Geocodifica, busca lugares y calcula rutas con Google Maps',               color: '#84cc16' },
   { id: 'messaging',           label: 'Mensajería',             description: 'Envía mensajes y gestiona canales en Slack',                               color: '#6366f1' },
-  { id: 'knowledge_base',      label: 'Base de Conocimiento',   description: 'Consulta y responde desde una base de conocimiento RAG propia',            color: '#0ea5e9' },
+  { id: 'knowledge_base',      label: 'Base de Conocimiento',   description: 'Consulta y responde desde una base de conocimiento propia',            color: '#0ea5e9' },
   { id: 'translation',         label: 'Traducción',             description: 'Traduce textos y documentos entre idiomas',                                color: '#d946ef' },
   { id: 'scheduling',          label: 'Planificación de Tareas', description: 'Organiza, prioriza y hace seguimiento de tareas y proyectos',             color: '#64748b' },
 ];

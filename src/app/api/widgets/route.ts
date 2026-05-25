@@ -11,6 +11,7 @@ import { Widget, ClientAgent, User, Subscription } from '@/lib/db/models';
 import { verifySessionToken, isUserEmailVerified, isImpersonationSession } from '@/lib/auth';
 import { validateMultiAgentWidgetSave, validateMultiAgentMode, validatePipelineWidgetConfigSave } from '@/lib/widget-multi-agent';
 import { normalizeHandoffNotifyMode, normalizeWidgetSupportFields } from '@/lib/handoff-notify';
+import { applySoloWidgetDefaults } from '@/lib/solo-plan-limits';
 
 function getUserId(req: NextRequest): string | null {
   const token = req.cookies.get('afhub_session')?.value;
@@ -95,14 +96,15 @@ export async function POST(req: NextRequest) {
     .lean() as { plan?: string; status?: string } | null;
   const active = sub?.status === 'active' || sub?.status === 'trialing';
   const plan = active ? (sub?.plan ?? 'free') : 'free';
-  const multiMode = validateMultiAgentMode(rest.multiAgentMode);
+  const restNormalized = applySoloWidgetDefaults(plan, rest as Record<string, unknown>);
+  const multiMode = validateMultiAgentMode(restNormalized.multiAgentMode);
   const multiValidation = await validateMultiAgentWidgetSave({
     userId,
     plan,
     orchestratorAgentId,
-    multiAgentEnabled: rest.multiAgentEnabled === true,
-    agentIds: rest.agentIds,
-    orchestratorAgentIds: rest.orchestratorAgentIds,
+    multiAgentEnabled: restNormalized.multiAgentEnabled === true,
+    agentIds: restNormalized.agentIds,
+    orchestratorAgentIds: restNormalized.orchestratorAgentIds,
   });
   if (!multiValidation.ok) {
     return NextResponse.json(
@@ -111,7 +113,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const multiEnabled = rest.multiAgentEnabled === true;
+  const multiEnabled = restNormalized.multiAgentEnabled === true;
   const resolvedMode = multiEnabled ? multiMode : 'triage';
   const pipelineValidation = await validatePipelineWidgetConfigSave({
     userId,
@@ -120,7 +122,7 @@ export async function POST(req: NextRequest) {
     multiAgentMode: resolvedMode,
     orchestratorAgentId,
     orchestratorAgentIds: multiValidation.orchestratorAgentIds,
-    pipelineConfig: rest.pipelineConfig,
+    pipelineConfig: restNormalized.pipelineConfig,
   });
   if (!pipelineValidation.ok) {
     return NextResponse.json(
@@ -130,13 +132,15 @@ export async function POST(req: NextRequest) {
   }
 
   const widget = await Widget.create({
-    ...rest,
+    ...restNormalized,
     name: nameStr,
     userId,
     afhubToken,
-    handoffNotifyMode: normalizeHandoffNotifyMode(rest.handoffNotifyMode),
-    handoffEnabled: rest.handoffEnabled !== false,
-    humanSupportEnabled: rest.humanSupportEnabled !== false,
+    handoffNotifyMode: normalizeHandoffNotifyMode(
+      typeof restNormalized.handoffNotifyMode === 'string' ? restNormalized.handoffNotifyMode : 'inbox',
+    ),
+    handoffEnabled: restNormalized.handoffEnabled === true,
+    humanSupportEnabled: restNormalized.humanSupportEnabled === true,
     multiAgentEnabled: multiEnabled,
     multiAgentMode: resolvedMode,
     agentIds: multiValidation.agentIds,

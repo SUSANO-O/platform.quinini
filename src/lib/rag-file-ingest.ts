@@ -98,7 +98,7 @@ export function validateRagIngestInput(
   limits: AgentPlanLimits,
 ): RagIngestResult | null {
   if (!limits.ragEnabled) {
-    return { ok: false, error: 'RAG no está disponible en tu plan. Actualiza tu suscripción.', status: 403 };
+    return { ok: false, error: 'Almacenamiento no está disponible en tu plan. Actualiza tu suscripción.', status: 403 };
   }
   if (input.size > RAG_MAX_FILE_SIZE) {
     return {
@@ -132,7 +132,7 @@ export function validateRagIngestInput(
     return {
       ok: false,
       error:
-        `Límite de almacenamiento RAG alcanzado para tu plan (${limits.ragStorageMbPerAgent} MB por agente). ` +
+        `Límite de almacenamiento alcanzado para tu plan (${limits.ragStorageMbPerAgent} MB por agente). ` +
         `Uso actual: ${usedMb} MB.`,
       status: 403,
     };
@@ -153,7 +153,7 @@ function validateRagTextInput(
   limits: AgentPlanLimits,
 ): RagIngestResult | null {
   if (!limits.ragEnabled) {
-    return { ok: false, error: 'RAG no está disponible en tu plan. Actualiza tu suscripción.', status: 403 };
+    return { ok: false, error: 'Almacenamiento no está disponible en tu plan. Actualiza tu suscripción.', status: 403 };
   }
   const text = input.text.trim();
   if (!text) {
@@ -179,7 +179,7 @@ function validateRagTextInput(
     return {
       ok: false,
       error:
-        `Límite de almacenamiento RAG alcanzado para tu plan (${limits.ragStorageMbPerAgent} MB por agente). ` +
+        `Límite de almacenamiento alcanzado para tu plan (${limits.ragStorageMbPerAgent} MB por agente). ` +
         `Uso actual: ${usedMb} MB.`,
       status: 403,
     };

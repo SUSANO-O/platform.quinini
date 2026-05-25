@@ -160,7 +160,7 @@ export function pipelineRoleLabel(role: PipelineStepRole): string {
 
 export function pipelineRoleHint(role: PipelineStepRole): string {
   return role === 'content'
-    ? 'Catálogo, RAG, datos de producto'
+    ? 'Catálogo, almacenamiento, datos de producto'
     : 'Banner, imagen o diseño visual';
 }
 
@@ -340,7 +340,7 @@ export function validatePipelineWidgetSetup(
     creativeAgentNames.length === entries.length
   ) {
     warnings.push(
-      'Todos los agentes parecen creativos. Añade uno de ventas, catálogo o RAG para el paso de contenido.',
+      'Todos los agentes parecen creativos. Añade uno de ventas, catálogo o almacenamiento para el paso de contenido.',
     );
   }
 

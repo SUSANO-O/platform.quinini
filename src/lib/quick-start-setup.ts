@@ -8,6 +8,7 @@ import { getAgentLimits, isAgentLimitReached, formatAgentLimit } from '@/lib/age
 import { canAttemptHubSync, ensureClientAgentHubSynced } from '@/lib/aibackhub-sync';
 import { ingestRagFileToAgent, type RagIngestInput } from '@/lib/rag-file-ingest';
 import { getRagMaxFileSizeBytes, RAG_MAX_FILE_SIZE } from '@/lib/rag-upload-limits';
+import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 import { suggestWidgetShortcutsFromRag } from '@/lib/widget-shortcuts-suggest';
 
 export const QUICK_START_MAX_FILES = 3;
@@ -82,10 +83,18 @@ async function assertQuickStartAllowed(
   const plan = hasActivePlan ? (sub?.plan ?? 'free') : 'free';
   const limits = getAgentLimits(plan);
 
+  if (isSoloChatOnlyPlan(plan)) {
+    return {
+      ok: false,
+      error: 'Quick Start no está incluido en el plan Solo. Actualiza tu plan para subir documentos.',
+      status: 403,
+    };
+  }
+
   if (!limits.ragEnabled) {
     return {
       ok: false,
-      error: 'RAG no está disponible en tu plan. Actualiza tu suscripción para usar Quick Start.',
+      error: 'Almacenamiento no está disponible en tu plan. Actualiza tu suscripción para usar Quick Start.',
       status: 403,
     };
   }

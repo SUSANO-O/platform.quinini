@@ -61,7 +61,7 @@ export function PricingComparisonTable() {
             { key: 'customIntegration', label: 'Integraciones custom' },
             { key: 'escalationTickets', label: 'Creación de tickets al escalar' },
             { key: 'conversationAnalytics', label: 'Analytics de conversaciones' },
-            { key: 'rag', label: 'RAG (por agente)' },
+            { key: 'rag', label: 'Almacenamiento (por agente)' },
             { key: 'history', label: 'Historial' },
             { key: 'support', label: 'Soporte' },
           ].map(({ key, label }) => (

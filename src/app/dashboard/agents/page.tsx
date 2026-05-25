@@ -130,21 +130,21 @@ function AgentCard({
             )}
             {agent.ragEnabled && ragN > 0 && (
               <span className="flex items-center gap-1 text-[11px] font-semibold" style={{ color: R }}>
-                <Zap size={10} /> RAG cargado · {ragN} fuente{ragN !== 1 ? 's' : ''}
+                <Zap size={10} /> Almacenamiento cargado · {ragN} fuente{ragN !== 1 ? 's' : ''}
               </span>
             )}
             {agent.ragEnabled && ragN === 0 && (
               <span className="flex items-center gap-1 text-[11px]" style={{ color: '#d97706' }}>
-                <Zap size={10} /> RAG activo · sin fuentes
+                <Zap size={10} /> Almacenamiento activo · sin fuentes
               </span>
             )}
             {!agent.ragEnabled && ragN > 0 && (
               <span
                 className="flex items-center gap-1 text-[11px]"
                 style={{ color: 'var(--muted-foreground)' }}
-                title="RAG desactivado; las fuentes siguen guardadas"
+                title="Almacenamiento desactivado; las fuentes siguen guardadas"
               >
-                <Zap size={10} /> RAG off · {ragN} guardada{ragN !== 1 ? 's' : ''}
+                <Zap size={10} /> Almac. off · {ragN} guardada{ragN !== 1 ? 's' : ''}
               </span>
             )}
           </div>

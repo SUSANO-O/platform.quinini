@@ -23,7 +23,7 @@ export const TOOLS: ToolDef[] = [
     name: 'Webhook',
     icon: '🔗',
     description: 'Llama a cualquier endpoint HTTP externo.',
-    minPlan: 'solo',
+    minPlan: 'basic',
     configFields: [
       { key: 'url', label: 'URL del Webhook', placeholder: 'https://mi-api.com/hook', required: true },
       { key: 'secret', label: 'Secret (opcional)', placeholder: 'Bearer token o HMAC secret', required: false },
@@ -42,7 +42,7 @@ export const TOOLS: ToolDef[] = [
     name: 'Gmail',
     icon: '📧',
     description: 'Envía y lee correos desde una cuenta de Gmail.',
-    minPlan: 'solo',
+    minPlan: 'basic',
     configFields: [
       { key: 'accountEmail', label: 'Cuenta Gmail', placeholder: 'tu@gmail.com', required: true },
     ],
@@ -175,7 +175,7 @@ const ALL_TOOL_IDS = TOOLS.map((t) => t.id);
 
 const TOOLS_BY_PLAN: Record<string, string[]> = {
   free: ['web-search'],
-  solo: ['web-search', 'webhook', 'gmail'],
+  solo: [],
   basic: ['web-search', 'webhook', 'gmail', 'slack'],
   team: ['web-search', 'webhook', 'gmail', 'slack'],
   plus: ['web-search', 'webhook', 'gmail', 'slack'],

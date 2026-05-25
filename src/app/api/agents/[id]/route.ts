@@ -24,6 +24,8 @@ import {
   resolveProviderForModelId,
 } from '@/lib/model-provider-policy';
 import { validateModelForPlan } from '@/lib/model-plan-policy';
+import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
+import { soloAgentPatchBlocked } from '@/lib/solo-plan-limits';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -189,6 +191,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const body = await req.json();
 
+  const subEarly = await Subscription.findOne({ userId }).lean() as { plan?: string; status?: string } | null;
+  const hasActivePlanEarly = subEarly?.status === 'active' || subEarly?.status === 'trialing';
+  const planEarly = hasActivePlanEarly ? (subEarly?.plan ?? 'free') : 'free';
+  if (isSoloChatOnlyPlan(planEarly) && !('status' in body)) {
+    const blocked = soloAgentPatchBlocked(body as Record<string, unknown>);
+    if (blocked) {
+      return NextResponse.json({ error: blocked, code: 'SOLO_PLAN_LIMIT' }, { status: 403 });
+    }
+  }
+
   // ── Status toggle ────────────────────────────────────────────────────────
   if ('status' in body) {
     if (!['active', 'disabled'].includes(body.status)) {
@@ -253,7 +265,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const limits = getAgentLimits(plan);
 
     if (body.ragEnabled && !limits.ragEnabled) {
-      return NextResponse.json({ error: 'RAG no está disponible en tu plan actual.' }, { status: 403 });
+      return NextResponse.json({ error: 'Almacenamiento no está disponible en tu plan actual.' }, { status: 403 });
     }
     agent.ragEnabled = body.ragEnabled;
   }

@@ -11,6 +11,8 @@ import { verifySessionToken } from '@/lib/auth';
 import { validateMultiAgentWidgetSave, validateMultiAgentMode, validatePipelineWidgetConfigSave } from '@/lib/widget-multi-agent';
 import { invalidateWidgetTokenCache } from '@/lib/widget-token-verify';
 import { normalizeHandoffNotifyMode, normalizeWidgetSupportFields } from '@/lib/handoff-notify';
+import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
+import { SOLO_WIDGET_LOCKED } from '@/lib/solo-plan-limits';
 
 function getUserId(req: NextRequest): string | null {
   const token = req.cookies.get('afhub_session')?.value;
@@ -136,7 +138,14 @@ export async function PATCH(
       }));
   }
 
-  if (Object.keys($set).length === 0 && !('multiAgentEnabled' in raw) && !('agentIds' in raw) && !('multiAgentMode' in raw) && !('orchestratorAgentIds' in raw) && !('pipelineConfig' in raw)) {
+  if (
+    Object.keys($set).length === 0 &&
+    !('multiAgentEnabled' in raw) &&
+    !('agentIds' in raw) &&
+    !('multiAgentMode' in raw) &&
+    !('orchestratorAgentIds' in raw) &&
+    !('pipelineConfig' in raw)
+  ) {
     return NextResponse.json({ error: 'Nada que actualizar.' }, { status: 400 });
   }
 
@@ -153,6 +162,12 @@ export async function PATCH(
   if (!existing) {
     return NextResponse.json({ error: 'No encontrado.' }, { status: 404 });
   }
+
+  const subPlan = await Subscription.findOne({ userId })
+    .select({ plan: 1, status: 1 })
+    .lean() as { plan?: string; status?: string } | null;
+  const planActive = subPlan?.status === 'active' || subPlan?.status === 'trialing';
+  const userPlan = planActive ? (subPlan?.plan ?? 'free') : 'free';
 
   const orchestratorAgentId =
     typeof $set.agentId === 'string' ? $set.agentId : String(existing.agentId ?? '');
@@ -208,6 +223,15 @@ export async function PATCH(
     $set.agentIds = validation.agentIds;
     $set.orchestratorAgentIds = resolvedOrchIds;
     $set.pipelineConfig = pipelineValidation.pipelineConfig;
+  }
+
+  if (isSoloChatOnlyPlan(userPlan)) {
+    Object.assign($set, SOLO_WIDGET_LOCKED);
+    const agentId =
+      typeof $set.agentId === 'string'
+        ? $set.agentId
+        : String(existing.agentId ?? '');
+    if (agentId) $set.agentIds = [agentId];
   }
 
   if (Object.keys($set).length === 0) {

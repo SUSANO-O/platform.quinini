@@ -8,7 +8,7 @@ import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 
 export const metadata: Metadata = {
   title: `${BRAND_NAME} — AI Agents for Your App`,
-  description: 'Integra agentes de IA especializados en tu producto. Chat Widget API, RAG, embeddings y más — una sola API.',
+  description: 'Integra agentes de IA especializados en tu producto. Chat Widget API, almacenamiento, embeddings y más — una sola API.',
   manifest: '/manifest.json',
   icons: {
     icon: [

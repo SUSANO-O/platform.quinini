@@ -25,7 +25,7 @@ import { PwaInstallButton } from '@/components/shared/pwa-install-button';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { useInboxOpenCount } from '@/hooks/use-inbox-open-count';
 import { useSubscription } from '@/hooks/use-subscription';
-import { canUseApiAccess } from '@/lib/plan-catalog';
+import { canUseApiAccess, isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 
 export const SIDEBAR_EXPANDED_PX = 252;
 export const SIDEBAR_COLLAPSED_PX = 72;
@@ -285,14 +285,22 @@ function SidebarNav({
   onNavigate,
   inboxOpenCount,
   showApiLink,
+  hideQuickStart,
 }: {
   pathname: string;
   collapsed: boolean;
   onNavigate?: () => void;
   inboxOpenCount: number;
   showApiLink: boolean;
+  hideQuickStart: boolean;
 }) {
   const groups = NAV_GROUPS.map((group) => {
+    if (group.title === 'Panel' && hideQuickStart) {
+      return {
+        ...group,
+        items: group.items.filter((item) => item.href !== '/dashboard/quick-start'),
+      };
+    }
     if (group.title !== 'Cuenta' || !showApiLink) return group;
     return {
       ...group,
@@ -386,6 +394,7 @@ export function DashboardSidebar({
     subscription?.plan ?? 'free',
     subscription?.status ?? 'free',
   );
+  const hideQuickStart = isSoloChatOnlyPlan(subscription?.plan ?? 'free');
 
   return (
     <aside
@@ -519,7 +528,7 @@ export function DashboardSidebar({
 
       {footer}
 
-      <SidebarNav pathname={pathname} collapsed={rail} onNavigate={onNavigate} inboxOpenCount={inboxOpenCount} showApiLink={showApiLink} />
+      <SidebarNav pathname={pathname} collapsed={rail} onNavigate={onNavigate} inboxOpenCount={inboxOpenCount} showApiLink={showApiLink} hideQuickStart={hideQuickStart} />
 
       {/* Pie */}
       <SoftDivider margin="12px 0 0" />

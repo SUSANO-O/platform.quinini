@@ -81,7 +81,7 @@ export default function FinancePage() {
             {data.rates ? (
               <p style={{ margin: '8px 0 0', fontSize: 12, opacity: 0.86 }}>
                 Flash/Mini: <strong>{data.rates.flashRate}</strong> · Premium/Pro: <strong>{data.rates.premiumRate}</strong> ·
-                Multiplicador RAG: <strong>x{data.rates.ragMultiplier}</strong>
+                Multiplicador almacenamiento: <strong>x{data.rates.ragMultiplier}</strong>
               </p>
             ) : null}
             {data.disclaimer ? (
@@ -109,7 +109,7 @@ export default function FinancePage() {
                     <td style={{ padding: '10px' }}>{r.month}</td>
                     <td style={{ padding: '10px' }}>{r.agentLabel}</td>
                     <td style={{ padding: '10px' }}>
-                      {(r.modelClass || 'default')}{r.ragEnabled ? ' + RAG' : ''}
+                      {(r.modelClass || 'default')}{r.ragEnabled ? ' + Almacenamiento' : ''}
                       {typeof r.effectiveUsdPerMessage === 'number' ? ` (${r.effectiveUsdPerMessage})` : ''}
                     </td>
                     <td style={{ padding: '10px' }}>{r.billableMessages}</td>

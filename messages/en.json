@@ -99,7 +99,7 @@
       "available": "Available now",
       "msg1": "Hi! 👋 I'm your assistant. Are you looking for information about our plans?",
       "msg2": "Yes, what's included in the Growth plan?",
-      "msg3": "Growth includes unlimited agents, RAG with files/URLs and advanced analytics. Start with <strong>7 days free</strong> — no card required. 🚀",
+      "msg3": "Growth includes unlimited agents, storage with files/URLs and advanced analytics. Start with <strong>7 days free</strong> — no card required. 🚀",
       "inputPlaceholder": "Type your message…",
       "socialProof": "<red>+320 companies</red> already use BotIvA to convert more visitors into customers"
     },
@@ -146,7 +146,7 @@
         "features": [
           "2,000 conversations per month (~65/day)",
           "5 agents · 2 sub-agents · Webhook included",
-          "RAG: 128 MB · 15 sources · Pinecone included",
+          "Storage: 128 MB · 15 sources · Pinecone included",
           "REST API access (coming soon) · Gmail & Slack · unlimited widgets",
           "Group training · email support (48h)"
         ]
@@ -156,7 +156,7 @@
         "features": [
           "3,000 conversations per month (~100/day)",
           "10 agents · 5 sub-agents · Webhook included",
-          "RAG: 256 MB · 20 sources · Pinecone included",
+          "Storage: 256 MB · 20 sources · Pinecone included",
           "Conversation analytics (basic) · 60-day history",
           "Group training · email support (48h)"
         ]
@@ -166,7 +166,7 @@
         "features": [
           "6,000 conversations per month (~200/day)",
           "25 agents · Agent + outbound webhook (HMAC)",
-          "REST API access (coming soon) · RAG: 1 GB · Pinecone + HubSpot, Notion",
+          "REST API access (coming soon) · Storage: 1 GB · Pinecone + HubSpot, Notion",
           "Basic analytics · unlimited widgets · 3-month history",
           "Training included · email support (48h)"
         ]
@@ -176,7 +176,7 @@
         "features": [
           "16,000 conversations per month (~530/day)",
           "50 agents · REST API (coming soon) · agent + outbound webhooks",
-          "RAG: 10 GB · 300 sources · Pinecone included",
+          "Storage: 10 GB · 300 sources · Pinecone included",
           "Escalation ticket creation · advanced analytics",
           "Pro models · 1-year history · priority chat support (24h)"
         ]
@@ -186,7 +186,7 @@
         "features": [
           "45,000 conversations per month (~1,500/day)",
           "Unlimited agents · custom integrations · full MCP",
-          "REST API (coming soon) · webhooks · RAG: 100 GB · dedicated Pinecone",
+          "REST API (coming soon) · webhooks · Storage: 100 GB · dedicated Pinecone",
           "Escalation tickets · full analytics (multi-agent)",
           "All models · unlimited history · 99.9% SLA"
         ]
