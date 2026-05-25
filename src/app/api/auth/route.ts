@@ -17,6 +17,7 @@ import {
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { sendVerificationEmail } from '@/lib/email';
 import { recordAudit } from '@/lib/audit-log';
+import { resolveEnvRegistrationPlan } from '@/lib/registration-codes-env';
 
 const COOKIE = 'afhub_session';
 const COOKIE_MAX_AGE = 60 * 60 * 12; // 12 hours
@@ -84,26 +85,40 @@ export async function POST(req: NextRequest) {
         expiresAt?: Date | null;
       } | null;
 
-      if (!codeDoc || !codeDoc.active) {
-        return NextResponse.json(
-          { error: 'Código de autorización inválido.' },
-          { status: 403 },
-        );
-      }
-      if (codeDoc.expiresAt && new Date() > codeDoc.expiresAt) {
-        return NextResponse.json(
-          { error: 'El código de autorización ha expirado.' },
-          { status: 403 },
-        );
-      }
-      if (codeDoc.usedCount >= codeDoc.maxUses) {
-        return NextResponse.json(
-          { error: 'El código de autorización ya no está disponible.' },
-          { status: 403 },
-        );
-      }
+      let assignedPlan: string;
+      let mongoCodeId: string | null = null;
 
-      const assignedPlan = codeDoc.plan;
+      if (codeDoc) {
+        if (!codeDoc.active) {
+          return NextResponse.json(
+            { error: 'Código de autorización inválido.' },
+            { status: 403 },
+          );
+        }
+        if (codeDoc.expiresAt && new Date() > codeDoc.expiresAt) {
+          return NextResponse.json(
+            { error: 'El código de autorización ha expirado.' },
+            { status: 403 },
+          );
+        }
+        if (codeDoc.usedCount >= codeDoc.maxUses) {
+          return NextResponse.json(
+            { error: 'El código de autorización ya no está disponible.' },
+            { status: 403 },
+          );
+        }
+        assignedPlan = codeDoc.plan;
+        mongoCodeId = codeDoc._id.toString();
+      } else {
+        const envPlan = resolveEnvRegistrationPlan(submittedCode);
+        if (!envPlan) {
+          return NextResponse.json(
+            { error: 'Código de autorización inválido.' },
+            { status: 403 },
+          );
+        }
+        assignedPlan = envPlan;
+      }
 
       // Rate limit: 5 registrations per hour per IP
       const rl = checkRateLimit('register', ip, 5, 60 * 60 * 1000);
@@ -139,14 +154,16 @@ export async function POST(req: NextRequest) {
         verifyTokenExpiry,
       });
 
-      // Marcar código como usado
-      await RegistrationCode.updateOne(
-        { _id: codeDoc._id },
-        {
-          $inc: { usedCount: 1 },
-          $push: { uses: { userId: user._id.toString(), email: normalizedEmail, usedAt: new Date() } },
-        },
-      );
+      // Marcar código Mongo como usado (los de REGISTRATION_CODES en .env no llevan contador)
+      if (mongoCodeId) {
+        await RegistrationCode.updateOne(
+          { _id: mongoCodeId },
+          {
+            $inc: { usedCount: 1 },
+            $push: { uses: { userId: user._id.toString(), email: normalizedEmail, usedAt: new Date() } },
+          },
+        );
+      }
 
       // Asignar plan del código
       if (assignedPlan && assignedPlan !== 'free') {

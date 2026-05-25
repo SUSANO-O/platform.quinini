@@ -379,7 +379,7 @@ const RagBulkJobSchema = new Schema({
 RagBulkJobSchema.index({ userId: 1, agentId: 1, createdAt: -1 });
 
 // ── REGISTRATION CODES ───────────────────────────────────────────────────────
-// Códigos de invitación generados desde el admin. Reemplazan la variable REGISTRATION_CODES.
+// Códigos de invitación en Mongo (admin). REGISTRATION_CODES en .env actúa como respaldo.
 
 const RegistrationCodeSchema = new Schema({
   code:       { type: String, required: true, unique: true, uppercase: true, trim: true },
