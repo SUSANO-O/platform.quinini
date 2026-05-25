@@ -14,6 +14,8 @@ const withPWA = withPWAInit({
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  poweredByHeader: false,
+  productionBrowserSourceMaps: false,
   serverExternalPackages: [
     'mongoose', 'stripe', 'bcryptjs', 'pdf-parse', 'mammoth',
     'puppeteer-core', '@sparticuz/chromium', 'jsdom', '@mozilla/readability',

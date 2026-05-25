@@ -42,11 +42,10 @@ function useWidgetLauncherHidden() {
   useEffect(() => {
     const read = () => {
       try {
-        if (typeof window.AgentFlowhub?.isLauncherHidden === 'function') {
-          setHidden(window.AgentFlowhub.isLauncherHidden());
+        if (typeof window.__BIV?.isHidden === 'function') {
+          setHidden(window.__BIV.isHidden());
           return;
         }
-        // Widget aún no cargado: no mostrar hasta confirmar estado real
         setHidden(false);
       } catch {
         setHidden(false);
@@ -56,7 +55,7 @@ function useWidgetLauncherHidden() {
     read();
 
     const pollId = window.setInterval(() => {
-      if (typeof window.AgentFlowhub?.isLauncherHidden === 'function') {
+      if (typeof window.__BIV?.isHidden === 'function') {
         read();
         window.clearInterval(pollId);
       }
@@ -73,11 +72,11 @@ function useWidgetLauncherHidden() {
       read();
     };
 
-    window.addEventListener('afhub:launcher-visibility', onVisibility);
+    window.addEventListener('biv:assist-visibility', onVisibility);
     return () => {
       window.clearInterval(pollId);
       window.clearTimeout(stopPollId);
-      window.removeEventListener('afhub:launcher-visibility', onVisibility);
+      window.removeEventListener('biv:assist-visibility', onVisibility);
     };
   }, []);
 
@@ -98,7 +97,8 @@ function AssistantHelpRestoreItem({
     <button
       type="button"
       onClick={() => {
-        window.AgentFlowhub?.showLauncher?.();
+        window.__BIV?.show?.();
+        window.dispatchEvent(new CustomEvent('biv:show-assist'));
         onNavigate?.();
       }}
       title="Ayuda asistente"

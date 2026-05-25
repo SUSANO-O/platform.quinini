@@ -4,83 +4,34 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 import { isAppBotIvAWidgetPath, isLandingMarketingPath } from '@/lib/landing-widget-paths';
 
-const SCRIPT_DATA_ATTR = 'botiva-landing-sdk';
-const AFHUB_BOOT_MAX_TRIES = 20;
-const AFHUB_BOOT_DELAY_MS = 120;
+const SCRIPT_DATA_ATTR = 'biv-platform-sdk';
+const BOOT_MAX_TRIES = 20;
+const BOOT_DELAY_MS = 120;
 
-function resolveWidgetRuntime() {
-  const origin =
-    typeof window !== 'undefined'
-      ? window.location.origin
-      : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3201').replace(/\/$/, '');
+type AssistBootResponse = {
+  scriptUrl: string;
+  config: Record<string, unknown>;
+};
 
-  const scriptOverride = process.env.NEXT_PUBLIC_LANDING_WIDGET_SCRIPT_URL?.trim();
-
-  return {
-    host: origin,
-    scriptSrc: scriptOverride || `${origin}/widget.js`,
-  };
-}
-
-function buildLandingConfig(host: string): Record<string, unknown> {
-  return {
-    agentId: 'math',
-    host,
-    color: '#f5540f',
-    title: 'Math',
-    subtitle: 'En linea',
-    welcome: 'Hola! Como puedo ayudarte hoy?',
-    fabHint: 'preguntame lo que necesites',
-    avatar:
-      'https://img.freepik.com/premium-photo/bright-blue-orb_303714-30852.jpg',
-    position: 'bottom-right',
-    edgeInset: 20,
-    offsetBottom: 20,
-    offsetTop: 20,
-    humanSupportPhone: '+57 3196748729',
-    borderRadius: 16,
-    theme: 'light',
-    autoOpen: false,
-    debug: false,
-    onError: (err: unknown) => {
-      console.error('[math] Widget error', err);
-    },
-  };
-}
-
-function buildAppConfig(host: string): Record<string, unknown> {
-  return {
-    agentId: 'math-ais',
-    host,
-    color: '#fb0e0e',
-    title: 'Math-ais',
-    subtitle: 'En linea',
-    welcome: 'Hola! Como puedo ayudarte hoy?',
-    fabHint: '¿tienes duda en el uso?',
-    position: 'bottom-right',
-    edgeInset: 20,
-    offsetBottom: 20,
-    offsetTop: 20,
-    humanSupportPhone: '+57 3196748729',
-    borderRadius: 16,
-    theme: 'light',
-    autoOpen: false,
-    debug: false,
-    onError: (err: unknown) => {
-      console.error('[math-ais] Widget error', err);
-    },
-  };
+function removeAssistDom() {
+  document.querySelector('.biv-launcher')?.remove();
+  document.querySelector('.afhub-launcher')?.remove();
+  document.querySelector('.biv-chat-container')?.remove();
+  document.querySelector('.afhub-chat-container')?.remove();
+  document.querySelectorAll('[id^="biv_"]').forEach((el) => el.remove());
+  document.querySelectorAll('[id^="afhub_"]').forEach((el) => el.remove());
 }
 
 /**
- * Carga `/widget.js` del mismo origen (local o producción) y muestra:
- * - **math** en rutas marketing
- * - **math-ais** en `/dashboard` (no en `/admin` ni widget-preview)
+ * Asistente interno BotIvA: carga `/assist.js` (bundle distinto al embed público).
+ * - marketing → agente math
+ * - dashboard → agente math-ais
  */
 export function LandingWidgetScript() {
   const pathname = usePathname();
   const timeoutIdsRef = useRef<number[]>([]);
   const instanceRef = useRef<{ destroy?: () => void } | null>(null);
+  const bootRef = useRef<AssistBootResponse | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -100,17 +51,14 @@ export function LandingWidgetScript() {
         /* noop */
       }
       instanceRef.current = null;
-      document.querySelector('.afhub-launcher')?.remove();
-      document.querySelector('.afhub-chat-container')?.remove();
+      removeAssistDom();
       document
-        .querySelector<HTMLScriptElement>(`script[data-agentflowhub-sdk="${SCRIPT_DATA_ATTR}"]`)
+        .querySelector<HTMLScriptElement>(`script[data-biv-sdk="${SCRIPT_DATA_ATTR}"]`)
         ?.remove();
       return;
     }
 
-    const { host, scriptSrc } = resolveWidgetRuntime();
-    const config = onLanding ? buildLandingConfig(host) : buildAppConfig(host);
-    const logTag = onLanding ? '[math]' : '[math-ais]';
+    const context = onLanding ? 'marketing' : 'app';
     const pathOk = () =>
       onLanding ? isLandingMarketingPath(window.location.pathname) : isAppBotIvAWidgetPath(window.location.pathname);
 
@@ -126,14 +74,14 @@ export function LandingWidgetScript() {
       instanceRef.current = null;
     };
 
-    let afhubBootTries = 0;
+    let bootTries = 0;
 
-    function afhubInitWhenReady() {
+    function initWhenReady() {
       if (cancelled || !pathOk()) return;
-      if (instanceRef.current) return;
+      if (instanceRef.current || !bootRef.current) return;
 
-      if (window.AgentFlowhub && typeof window.AgentFlowhub.init === 'function') {
-        const api = window.AgentFlowhub.init(config);
+      if (window.__BIV && typeof window.__BIV.init === 'function') {
+        const api = window.__BIV.init(bootRef.current.config);
         if (api && typeof api === 'object' && 'destroy' in api) {
           instanceRef.current = api as { destroy?: () => void };
         }
@@ -141,61 +89,70 @@ export function LandingWidgetScript() {
         return;
       }
 
-      afhubBootTries += 1;
-      if (afhubBootTries >= AFHUB_BOOT_MAX_TRIES) {
-        console.error(`${logTag} AgentFlowhub SDK no cargado`);
-        return;
-      }
-      const id = window.setTimeout(afhubInitWhenReady, AFHUB_BOOT_DELAY_MS);
+      bootTries += 1;
+      if (bootTries >= BOOT_MAX_TRIES) return;
+      const id = window.setTimeout(initWhenReady, BOOT_DELAY_MS);
       timeoutIdsRef.current.push(id);
     }
 
-    const existingScript = document.querySelector<HTMLScriptElement>(
-      `script[data-agentflowhub-sdk="${SCRIPT_DATA_ATTR}"]`,
-    );
+    async function loadAssist() {
+      if (cancelled || !pathOk()) return;
 
-    const onScriptLoaded = () => {
-      if (cancelled) return;
-      destroyInstance();
-      afhubBootTries = 0;
-      clearPollTimeouts();
-      afhubInitWhenReady();
-    };
-
-    const onScriptError = () => {
-      console.error(`${logTag} No se pudo cargar ${scriptSrc}`);
-    };
-
-    if (existingScript) {
-      if (existingScript.src !== scriptSrc) {
-        existingScript.src = scriptSrc;
+      try {
+        const res = await fetch(`/api/internal/assist/boot?context=${context}`, {
+          credentials: 'same-origin',
+        });
+        if (!res.ok) return;
+        bootRef.current = (await res.json()) as AssistBootResponse;
+      } catch {
+        return;
       }
-      if (window.AgentFlowhub) {
-        onScriptLoaded();
-      } else {
-        existingScript.addEventListener('load', onScriptLoaded, { once: true });
-        existingScript.addEventListener('error', onScriptError, { once: true });
-      }
-      return () => {
-        cancelled = true;
-        existingScript.removeEventListener('load', onScriptLoaded);
-        existingScript.removeEventListener('error', onScriptError);
+
+      if (cancelled || !bootRef.current) return;
+
+      const scriptSrc = bootRef.current.scriptUrl;
+      const existingScript = document.querySelector<HTMLScriptElement>(
+        `script[data-biv-sdk="${SCRIPT_DATA_ATTR}"]`,
+      );
+
+      const onScriptLoaded = () => {
+        if (cancelled) return;
         destroyInstance();
+        bootTries = 0;
+        clearPollTimeouts();
+        initWhenReady();
       };
+
+      const onScriptError = () => {
+        /* silencioso en prod */
+      };
+
+      if (existingScript) {
+        if (existingScript.src !== scriptSrc) {
+          existingScript.src = scriptSrc;
+        }
+        if (window.__BIV) {
+          onScriptLoaded();
+        } else {
+          existingScript.addEventListener('load', onScriptLoaded, { once: true });
+          existingScript.addEventListener('error', onScriptError, { once: true });
+        }
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = scriptSrc;
+      script.async = true;
+      script.dataset.bivSdk = SCRIPT_DATA_ATTR;
+      script.addEventListener('load', onScriptLoaded, { once: true });
+      script.addEventListener('error', onScriptError, { once: true });
+      document.body.appendChild(script);
     }
 
-    const script = document.createElement('script');
-    script.src = scriptSrc;
-    script.async = true;
-    script.dataset.agentflowhubSdk = SCRIPT_DATA_ATTR;
-    script.addEventListener('load', onScriptLoaded, { once: true });
-    script.addEventListener('error', onScriptError, { once: true });
-    document.body.appendChild(script);
+    void loadAssist();
 
     return () => {
       cancelled = true;
-      script.removeEventListener('load', onScriptLoaded);
-      script.removeEventListener('error', onScriptError);
       destroyInstance();
     };
   }, [pathname]);
