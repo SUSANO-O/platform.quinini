@@ -146,7 +146,7 @@
         "features": [
           "2,000 conversations per month (~65/day)",
           "5 agents · 2 sub-agents · Webhook included",
-          "Storage: 128 MB · 15 sources · Pinecone included",
+          "Storage: 128 MB · 15 sources",
           "REST API access (coming soon) · Gmail & Slack · unlimited widgets",
           "Group training · email support (48h)"
         ]
@@ -156,7 +156,7 @@
         "features": [
           "3,000 conversations per month (~100/day)",
           "10 agents · 5 sub-agents · Webhook included",
-          "Storage: 256 MB · 20 sources · Pinecone included",
+          "Storage: 256 MB · 20 sources",
           "Conversation analytics (basic) · 60-day history",
           "Group training · email support (48h)"
         ]
@@ -166,7 +166,7 @@
         "features": [
           "6,000 conversations per month (~200/day)",
           "25 agents · Agent + outbound webhook (HMAC)",
-          "REST API access (coming soon) · Storage: 1 GB · Pinecone + HubSpot, Notion",
+          "REST API access (coming soon) · Storage: 1 GB · HubSpot, Notion",
           "Basic analytics · unlimited widgets · 3-month history",
           "Training included · email support (48h)"
         ]
@@ -176,7 +176,7 @@
         "features": [
           "16,000 conversations per month (~530/day)",
           "50 agents · REST API (coming soon) · agent + outbound webhooks",
-          "Storage: 10 GB · 300 sources · Pinecone included",
+          "Storage: 10 GB · 300 sources",
           "Escalation ticket creation · advanced analytics",
           "Pro models · 1-year history · priority chat support (24h)"
         ]
@@ -186,7 +186,7 @@
         "features": [
           "45,000 conversations per month (~1,500/day)",
           "Unlimited agents · custom integrations · full MCP",
-          "REST API (coming soon) · webhooks · Storage: 100 GB · dedicated Pinecone",
+          "REST API (coming soon) · webhooks · Storage: 100 GB",
           "Escalation tickets · full analytics (multi-agent)",
           "All models · unlimited history · 99.9% SLA"
         ]
