@@ -68,7 +68,7 @@ Lee siempre **`details`** además de `code`.
 | `AGENTFLOWHUB_URL_MISSING` | Falta URL del hub en Vercel | `AGENTFLOWHUB_URL` en proyecto landing |
 | `HUB_CHAT_PROXY_FAILED` | Landing no alcanza AgentFlowhub | Hub caído, URL incorrecta, firewall |
 | `HUB_CHAT_PROXY_LOOP` | `AGENTFLOWHUB_URL` = dominio de la landing | Separar URLs landing / hub |
-| `AGENT_COOLDOWN` | Rate limit / cooldown del agente | Esperar o revisar límites del plan |
+| `AGENT_COOLDOWN` | Cooldown del agente | Ver `cooldownKind` en la respuesta (ver abajo) |
 | `502` en non-stream | Timeout o hub no responde | Logs AgentFlowhub + AIBackHub |
 
 ## Inspección en Mongo
@@ -92,10 +92,26 @@ El script muestra widget, agente landing, agente hub y si los modelos coinciden 
 | Widget ID | `6a03a54c4f69fa7fa9027170` |
 | Agente | `69d5084c78e0af3d5536fe95` |
 | Hub ID | `ventas` |
-| Modelo esperado | `vx/gemini-3.1-pro-preview` |
+| Modelo esperado | `gemini-2.5-flash` (o `vx/gemini-2.5-flash`) |
 | RAG | habilitado en agente landing |
 
-Estado verificado en Mongo (2026-05): landing y hub alineados en modelo; chat en prod fallaba porque AIBackHub seguía invocando `gemini-3.1-flash-lite-preview` vía fallback de entorno/código desplegado, no por desincronización del documento del agente.
+Estado verificado en Mongo (2026-05): landing y hub alineados en `gemini-2.5-flash`. Si el catálogo muestra `enabled: false`, ejecuta `npm run enable:model-catalog`.
+
+## `AGENT_COOLDOWN` — no siempre es “tráfico saturado”
+
+Inspecciona el campo **`cooldownKind`** en la respuesta JSON:
+
+| `cooldownKind` | Origen | Qué hacer |
+|----------------|--------|-----------|
+| `landing_ip` | Rate limit landing (120/min IP) | Esperar o configurar `REDIS_*` en Vercel |
+| `landing_agent` | Rate limit widget (48/min IP+agente) | Reducir pruebas automatizadas seguidas |
+| `backend_error_rate_limited` | **AgentFlowhub** tras 429/errores de Google | Fijar `VERTEX_GEMINI_MODEL=gemini-2.5-flash` en AIBackHub prod; evitar modelos Pro sin billing; esperar 1–2 min |
+
+Mensaje típico de AgentFlowhub: *“El servicio de IA está temporalmente limitado o saturado…”* — engañoso; suele ser **cuota Gemini** o modelo inválido, no usuarios reales.
+
+## Variables de entorno en producción
+
+Checklist completo (solo nombres, sin secretos): **[prod-env-checklist.md](./prod-env-checklist.md)**
 
 ## Checklist rápido
 
@@ -106,6 +122,8 @@ Estado verificado en Mongo (2026-05): landing y hub alineados en modelo; chat en
 - [ ] Agente landing `syncStatus: synced` y `model` = hub `agents.model`
 - [ ] Widget `active: true` y origen permitido si `allowedOrigins` está definido
 - [ ] Tras cambiar modelo: guardar agente en dashboard o `npm run migrate:vertex-models`
+- [ ] Catálogo hub: `gemini-2.5-flash` con `enabled: true` (`npm run enable:model-catalog`)
+- [ ] Vercel: `BACKEND_URL`, `AIBACKHUB_API_KEY`, `AGENTFLOWHUB_URL`, `HUB_TO_LANDING_SECRET` (ver prod-env-checklist.md)
 
 ## Listar modelos Gemini (API)
 

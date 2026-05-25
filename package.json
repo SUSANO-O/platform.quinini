@@ -31,6 +31,8 @@
     "sync:legacy-agents": "node --env-file=.env scripts/sync-legacy-agents-to-hub.mjs",
     "migrate:vertex-models": "node --env-file=.env scripts/migrate-obsolete-vertex-models.mjs",
     "sync:vertex-catalog": "node scripts/sync-vertex-catalog.mjs",
+    "enable:model-catalog": "node --env-file=.env scripts/enable-model-catalog.mjs",
+    "sync:huggingface-catalog": "node --env-file=.env scripts/sync-huggingface-catalog.mjs",
     "inspect:widget": "node --env-file=.env scripts/inspect-widget.mjs",
     "stress:landing": "node --env-file=.env scripts/stress-landing.mjs",
     "stress:landing:widget": "node --env-file=.env scripts/stress-landing.mjs --mode widget",
