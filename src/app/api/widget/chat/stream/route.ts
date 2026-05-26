@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
   }
 
   const imageEnriched = await enrichWidgetChatBodyWithImages(rawBodyInitial);
-  const rawBody = imageEnriched.body;
+  let rawBody = imageEnriched.body;
   const imageEnrichment: WidgetImageEnrichment | null = imageEnriched.enrichment;
   const userDisplayMessage = imageEnrichment?.displayMessage || guardResult.text || '';
 

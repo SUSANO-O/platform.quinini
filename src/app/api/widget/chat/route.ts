@@ -194,7 +194,7 @@ export async function POST(req: NextRequest) {
 
   // ── Análisis de capturas (Cloudinary + Gemini Vision) ─────────────────────
   const imageEnriched = await enrichWidgetChatBodyWithImages(rawBodyInitial);
-  const rawBody = imageEnriched.body;
+  let rawBody = imageEnriched.body;
   const imageEnrichment: WidgetImageEnrichment | null = imageEnriched.enrichment;
 
   let bodyToForward = rawBody;
