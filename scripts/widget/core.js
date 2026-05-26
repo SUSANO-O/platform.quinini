@@ -1393,12 +1393,8 @@
     function hideLauncher(persist) {
       if (isOpen) close();
       root.classList.add('afhub-launcher-hidden');
-      if (persist !== false) {
-        try {
-          sessionStorage.setItem(launcherHiddenStorageKey(), '1');
-        } catch (_lh) { /* noop */ }
-        syncLauncherMenuHiddenFlag(true);
-      }
+      // No persistimos el cierre del launcher para que reaparezca en cada recarga.
+      if (persist !== false) syncLauncherMenuHiddenFlag(true);
       emitEvent('launcher_hidden');
     }
 
@@ -1416,13 +1412,9 @@
     function restoreLauncherHiddenFromSession() {
       if (cfg.fabDismissible === false) return;
       try {
-        if (sessionStorage.getItem(launcherHiddenStorageKey()) === '1') {
-          hideLauncher(false);
-          syncLauncherMenuHiddenFlag(true);
-        } else {
-          syncLauncherMenuHiddenFlag(false);
-        }
+        sessionStorage.removeItem(launcherHiddenStorageKey());
       } catch (_rh) { /* noop */ }
+      syncLauncherMenuHiddenFlag(false);
     }
 
     function onShowLauncherRequest() {
