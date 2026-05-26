@@ -10,7 +10,6 @@
 
   var VERSION = '1.5.6';
   var INSTANCES = {};
-  var LAUNCHER_MENU_HIDDEN_KEY = 'afhub-launcher-menu-hidden';
   var INSTANCE_COUNT = 0;
 
   var ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
@@ -1379,10 +1378,7 @@
     }
 
     function syncLauncherMenuHiddenFlag(hidden) {
-      try {
-        if (hidden) sessionStorage.setItem(LAUNCHER_MENU_HIDDEN_KEY, '1');
-        else sessionStorage.removeItem(LAUNCHER_MENU_HIDDEN_KEY);
-      } catch (_sm) { /* noop */ }
+      // No persistir este estado en storage: solo notificar en memoria por evento.
       try {
         window.dispatchEvent(
           new CustomEvent('afhub:launcher-visibility', { detail: { hidden: hidden === true } })

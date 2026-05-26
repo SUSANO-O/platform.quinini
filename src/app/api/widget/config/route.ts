@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   await connectDB();
 
   const widget = await Widget.findOne({ afhubToken: token })
-    .select('_id agentId color title subtitle welcome fabHint avatar position theme borderRadius autoOpen voiceEnabled humanSupportPhone humanSupportEnabled handoffEnabled handoffNotifyMode shortcuts multiAgentEnabled multiAgentMode active')
+    .select('_id agentId color title subtitle welcome fabHint avatar position theme borderRadius autoOpen fabDismissible voiceEnabled humanSupportPhone humanSupportEnabled handoffEnabled handoffNotifyMode shortcuts multiAgentEnabled multiAgentMode active')
     .lean() as Record<string, unknown> | null;
 
   if (!widget) {
@@ -72,6 +72,7 @@ export async function GET(req: NextRequest) {
         theme:             widget.theme,
         borderRadius:      widget.borderRadius,
         autoOpen:          widget.autoOpen,
+        fabDismissible:    widget.fabDismissible !== false,
         voiceEnabled:      widget.voiceEnabled !== false,
         humanSupportPhone: widget.humanSupportPhone,
         humanSupportEnabled: widget.humanSupportEnabled !== false,

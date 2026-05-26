@@ -36,5 +36,6 @@ export function normalizeWidgetSupportFields<T extends Record<string, unknown>>(
     handoffNotifyMode: normalizeHandoffNotifyMode(widget.handoffNotifyMode),
     handoffEnabled: widget.handoffEnabled !== false,
     humanSupportEnabled: widget.humanSupportEnabled !== false,
+    fabDismissible: widget.fabDismissible !== false,
   };
 }
