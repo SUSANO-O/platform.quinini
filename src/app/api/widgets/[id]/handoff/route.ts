@@ -99,6 +99,7 @@ export async function POST(
       userId: uid,
       widgetId: id,
       agentId: body.agentId || '',
+      visitorId: typeof body.visitorId === 'string' ? body.visitorId.trim() : '',
       contactInfo,
       userMessage: body.userMessage,
       handoffAt: now,

@@ -367,6 +367,15 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [ragSourceQuery, setRagSourceQuery] = useState('');
   const [ragSourceSort, setRagSourceSort] = useState<'order' | 'name' | 'size' | 'chars'>('order');
   const [ragRetryHubBusy, setRagRetryHubBusy] = useState(false);
+  const [memoryStats, setMemoryStats] = useState<{
+    conversationMemories: number;
+    vectorTotal: number;
+    ragSources: number;
+    activeSessionContexts: number;
+    historyRetentionDays: number;
+    plan: string;
+  } | null>(null);
+  const [memoryStatsLoading, setMemoryStatsLoading] = useState(false);
 
   // Sub-agent creation
   const [showNewSub, setShowNewSub] = useState(false);
@@ -445,6 +454,26 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [ragPreview]);
+
+  useEffect(() => {
+    if (tab !== 'rag' || !id) return;
+    let cancelled = false;
+    setMemoryStatsLoading(true);
+    fetch(`/api/agents/${id}/memory-stats`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data && typeof data.conversationMemories === 'number') {
+          setMemoryStats(data);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setMemoryStatsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, id]);
 
   useEffect(() => {
     fetch(`/api/agents/${id}`)
@@ -2723,6 +2752,59 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                     {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                     Guardar
                   </button>
+                )}
+              </SectionCard>
+
+              <SectionCard>
+                <p style={sectionTitle}>Memoria del agente</p>
+                <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
+                  Resumen de memoria semántica (RAG), episódica (conversaciones indexadas) y contexto compartido entre
+                  sesiones del widget. La ventana de historial activo depende de tu plan.
+                </p>
+                {memoryStatsLoading && (
+                  <p style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>
+                    <Loader2 size={14} className="animate-spin inline mr-1" />
+                    Cargando estadísticas…
+                  </p>
+                )}
+                {!memoryStatsLoading && memoryStats && (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                      gap: '10px',
+                    }}
+                  >
+                    {[
+                      { label: 'Fuentes RAG', value: memoryStats.ragSources },
+                      { label: 'Vectores (hub)', value: memoryStats.vectorTotal },
+                      { label: 'Memorias chat', value: memoryStats.conversationMemories },
+                      { label: 'Contextos widget', value: memoryStats.activeSessionContexts },
+                      { label: 'Retención (días)', value: memoryStats.historyRetentionDays },
+                    ].map((row) => (
+                      <div
+                        key={row.label}
+                        style={{
+                          padding: '10px 12px',
+                          borderRadius: 10,
+                          border: '1px solid var(--border)',
+                          background: 'var(--card)',
+                        }}
+                      >
+                        <p style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted-foreground)', margin: 0 }}>
+                          {row.label}
+                        </p>
+                        <p style={{ fontSize: '20px', fontWeight: 800, margin: '4px 0 0', color: R }}>
+                          {row.value.toLocaleString('es')}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {!memoryStatsLoading && !memoryStats && (
+                  <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: 0 }}>
+                    No hay datos de memoria disponibles (sincroniza el agente con el hub si aplica).
+                  </p>
                 )}
               </SectionCard>
 

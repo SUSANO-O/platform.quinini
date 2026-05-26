@@ -13,8 +13,21 @@ describe('resolveInternalAssistBoot', () => {
   it('returns marketing defaults', () => {
     const cfg = resolveInternalAssistBoot('marketing', 'https://app.example.com');
     expect(cfg.agentId).toBe('math');
+    expect(cfg.host).toBe('https://app.example.com');
     expect(cfg.fabHint).toBe('preguntame lo que necesites');
     expect(cfg.avatar).toContain('freepik');
+  });
+
+  it('prefers request origin over NEXT_PUBLIC_APP_URL for widget host', () => {
+    const prev = process.env.NEXT_PUBLIC_APP_URL;
+    process.env.NEXT_PUBLIC_APP_URL = 'https://preview.vercel.app';
+    try {
+      const cfg = resolveInternalAssistBoot('marketing', 'https://botiva.space');
+      expect(cfg.host).toBe('https://botiva.space');
+    } finally {
+      if (prev === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
+      else process.env.NEXT_PUBLIC_APP_URL = prev;
+    }
   });
 });
 
