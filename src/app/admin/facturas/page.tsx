@@ -94,7 +94,7 @@ export default function AdminFacturasPage() {
                 }}
               >
                 <ExternalLink size={14} />
-                Portal LemonSqueezy
+                Abrir portal
               </button>
             </div>
             <InvoiceList key={`invoices-${selectedUser.id}`} adminUserId={selectedUser.id} />

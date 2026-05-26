@@ -58,7 +58,7 @@ export default function FacturasPage() {
               }}
             >
               <ExternalLink size={14} />
-              Portal LemonSqueezy
+              Abrir portal
             </button>
           ) : null}
         </div>
