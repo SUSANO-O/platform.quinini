@@ -8,6 +8,7 @@ import { connectDB } from '@/lib/db/connection';
 import { User, RegistrationCode } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
 import { randomBytes } from 'crypto';
+import { PLAN_ORDER, type PlanId } from '@/lib/plan-catalog';
 
 async function requireAdmin(req: NextRequest): Promise<string | null> {
   const token = req.cookies.get('afhub_session')?.value;
@@ -24,8 +25,7 @@ function generateCode(): string {
   return randomBytes(4).toString('hex').toUpperCase(); // ej: A3F9B2C1
 }
 
-const VALID_PLANS = ['free', 'solo', 'basic', 'starter', 'growth', 'business'] as const;
-type Plan = (typeof VALID_PLANS)[number];
+const VALID_PLANS = PLAN_ORDER;
 
 export async function GET(req: NextRequest) {
   const adminId = await requireAdmin(req);
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null) as Record<string, unknown> | null;
   if (!body) return NextResponse.json({ error: 'JSON inválido.' }, { status: 400 });
 
-  const plan = String(body.plan ?? '').toLowerCase() as Plan;
+  const plan = String(body.plan ?? '').toLowerCase() as PlanId;
   if (!VALID_PLANS.includes(plan)) {
     return NextResponse.json({ error: 'Plan inválido.' }, { status: 400 });
   }

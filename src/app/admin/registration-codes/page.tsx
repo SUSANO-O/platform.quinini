@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Plus, RefreshCw, Trash2, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { PLAN_ORDER } from '@/lib/plan-catalog';
 
 interface UseEntry {
   userId: string;
@@ -24,7 +25,7 @@ interface CodeRow {
   uses: UseEntry[];
 }
 
-const PLANS = ['free', 'solo', 'basic', 'team', 'plus', 'starter', 'growth', 'business', 'enterprise'];
+const PLANS = [...PLAN_ORDER];
 
 const PLAN_COLORS: Record<string, { color: string; bg: string }> = {
   free:     { color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
