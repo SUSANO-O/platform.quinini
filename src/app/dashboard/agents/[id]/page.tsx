@@ -2211,7 +2211,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                                 )
                               }
                             >
-                              Ocultar
+                              Eliminar
                             </button>
                           </div>
                         )}

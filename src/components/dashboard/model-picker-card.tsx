@@ -24,6 +24,11 @@ function formatCtx(maxTokens?: number) {
   return `${maxTokens.toLocaleString()} ctx`;
 }
 
+function sanitizeModelUiText(value?: string) {
+  if (!value) return value;
+  return value.replace(/\bVERTEX_GEMINI_API_KEY\b/g, 'vx');
+}
+
 export type ModelPickerCardProps = {
   model: ClientModelOption;
   selected: boolean;
@@ -48,7 +53,8 @@ export function ModelPickerCard({
   const tier = model.tier ?? 'stable';
   const badgeColor = tierColor ?? DEFAULT_TIER_COLOR[tier] ?? 'var(--muted-foreground)';
   const ctx = formatCtx(model.maxTokens);
-  const metaParts = [model.badge, ctx, model.category].filter(Boolean);
+  const metaParts = [sanitizeModelUiText(model.badge), ctx, sanitizeModelUiText(model.category)].filter(Boolean);
+  const safeDescription = sanitizeModelUiText(model.description);
 
   return (
     <button
@@ -112,12 +118,12 @@ export function ModelPickerCard({
           </p>
         ) : null}
 
-        {!compact && model.description ? (
+        {!compact && safeDescription ? (
           <p
             className="text-[10px] m-0 mt-1.5 line-clamp-2 leading-snug"
             style={{ color: 'var(--muted-foreground)' }}
           >
-            {model.description}
+            {safeDescription}
           </p>
         ) : null}
       </div>
