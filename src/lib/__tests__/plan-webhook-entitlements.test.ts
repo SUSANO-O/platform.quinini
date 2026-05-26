@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   canUseAgentWebhookTool,
   canUseOutboundSaasWebhook,
+  canUseEscalationSlack,
   planHasAgentWebhookFeature,
   planHasOutboundWebhookFeature,
+  planHasEscalationSlackFeature,
   planHasApiAccessFeature,
   planHasEscalationTicketFeature,
   planHasCustomIntegrationFeature,
@@ -11,6 +13,7 @@ import {
   effectiveProductPlan,
   AGENT_WEBHOOK_MIN_PLAN,
   OUTBOUND_SAAS_WEBHOOK_MIN_PLAN,
+  ESCALATION_SLACK_MIN_PLAN,
   API_ACCESS_MIN_PLAN,
   ESCALATION_TICKET_MIN_PLAN,
   CUSTOM_INTEGRATION_MIN_PLAN,
@@ -23,6 +26,7 @@ describe('webhook entitlements (plan-catalog)', () => {
   it('defines expected minimum plans', () => {
     expect(AGENT_WEBHOOK_MIN_PLAN).toBe('basic');
     expect(OUTBOUND_SAAS_WEBHOOK_MIN_PLAN).toBe('starter');
+    expect(ESCALATION_SLACK_MIN_PLAN).toBe('team');
     expect(API_ACCESS_MIN_PLAN).toBe('team');
     expect(ESCALATION_TICKET_MIN_PLAN).toBe('growth');
     expect(CUSTOM_INTEGRATION_MIN_PLAN).toBe('business');
@@ -53,11 +57,31 @@ describe('webhook entitlements (plan-catalog)', () => {
     expect(effectiveProductPlan('starter', 'canceled')).toBe('free');
   });
 
+  it('escalation Slack: Team+ with active subscription', () => {
+    expect(canUseEscalationSlack('free', 'free')).toBe(false);
+    expect(canUseEscalationSlack('solo', 'active')).toBe(false);
+    expect(canUseEscalationSlack('basic', 'active')).toBe(false);
+    expect(canUseEscalationSlack('team', 'active')).toBe(true);
+    expect(canUseEscalationSlack('plus', 'active')).toBe(true);
+    expect(canUseEscalationSlack('starter', 'active')).toBe(true);
+    expect(canUseEscalationSlack('team', 'trialing')).toBe(true);
+    expect(canUseEscalationSlack('team', 'past_due')).toBe(true);
+    expect(canUseEscalationSlack('growth', 'active')).toBe(true);
+  });
+
+  it('escalation Slack blocked when subscription inactive', () => {
+    expect(canUseEscalationSlack('team', 'canceled')).toBe(false);
+  });
+
   it('feature flags for pricing table', () => {
     expect(planHasAgentWebhookFeature('free')).toBe(false);
     expect(planHasAgentWebhookFeature('solo')).toBe(false);
     expect(planHasOutboundWebhookFeature('plus')).toBe(false);
     expect(planHasOutboundWebhookFeature('starter')).toBe(true);
+    expect(planHasEscalationSlackFeature('basic')).toBe(false);
+    expect(planHasEscalationSlackFeature('team')).toBe(true);
+    expect(planHasEscalationSlackFeature('plus')).toBe(true);
+    expect(planHasEscalationSlackFeature('starter')).toBe(true);
     expect(planHasApiAccessFeature('basic')).toBe(false);
     expect(planHasApiAccessFeature('team')).toBe(true);
     expect(planHasApiAccessFeature('plus')).toBe(true);

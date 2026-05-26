@@ -32,7 +32,7 @@ const UserSchema = new Schema({
   pushSubscription:  { type: Schema.Types.Mixed, default: null },
   /** Integración Zendesk/Freshdesk para tickets automáticos al escalar (plan Growth+). */
   escalationTicketIntegration: { type: Schema.Types.Mixed, default: null },
-  /** Incoming Webhook URL de Slack para avisos al escalar (plan Starter+). */
+  /** Incoming Webhook URL de Slack para avisos al escalar (plan Team+). */
   escalationSlackWebhookUrl: { type: String, default: null },
   /** Datos de facturación para recibos PDF (nombre fiscal, NIF, dirección). */
   billingProfile: {

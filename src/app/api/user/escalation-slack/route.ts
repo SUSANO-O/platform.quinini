@@ -14,8 +14,8 @@ import {
   postSlackEscalationWebhook,
 } from '@/lib/escalation-slack';
 import {
-  OUTBOUND_SAAS_WEBHOOK_MIN_PLAN,
-  planRank,
+  ESCALATION_SLACK_MIN_PLAN,
+  canUseEscalationSlack,
   PLAN_DISPLAY,
   type PlanId,
 } from '@/lib/plan-catalog';
@@ -26,16 +26,18 @@ function getUserId(req: NextRequest): string | null {
   return verifySessionToken(token);
 }
 
-async function userPlan(userId: string): Promise<PlanId> {
+async function userSubscription(userId: string): Promise<{ plan: PlanId; status: string }> {
   const sub = await Subscription.findOne({ userId }).select({ plan: 1, status: 1 }).lean() as
     | { plan?: string; status?: string }
     | null;
-  const active = sub?.status === 'active' || sub?.status === 'trialing';
-  return (active ? (sub?.plan ?? 'free') : 'free') as PlanId;
+  return {
+    plan: (sub?.plan ?? 'free') as PlanId,
+    status: sub?.status ?? 'free',
+  };
 }
 
-function planEligible(plan: PlanId): boolean {
-  return planRank(plan) >= planRank(OUTBOUND_SAAS_WEBHOOK_MIN_PLAN);
+function planEligible(plan: PlanId, status: string): boolean {
+  return canUseEscalationSlack(plan, status);
 }
 
 function inboxUrl(req: NextRequest): string {
@@ -51,7 +53,7 @@ export async function GET(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
 
   await connectDB();
-  const plan = await userPlan(userId);
+  const { plan, status } = await userSubscription(userId);
   const u = await User.findById(userId).select({ escalationSlackWebhookUrl: 1 }).lean() as
     | { escalationSlackWebhookUrl?: string | null }
     | null;
@@ -60,8 +62,8 @@ export async function GET(req: NextRequest) {
   const configured = Boolean(url && isValidSlackIncomingWebhookUrl(url));
 
   return NextResponse.json({
-    planEligible: planEligible(plan),
-    minPlanLabel: PLAN_DISPLAY[OUTBOUND_SAAS_WEBHOOK_MIN_PLAN]?.label ?? 'Starter',
+    planEligible: planEligible(plan, status),
+    minPlanLabel: PLAN_DISPLAY[ESCALATION_SLACK_MIN_PLAN]?.label ?? 'Team',
     configured,
     webhookUrlPreview: configured ? `${url.slice(0, 40)}…${url.slice(-8)}` : null,
     hasExistingConfig: Boolean(url),
@@ -73,11 +75,11 @@ export async function PUT(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
 
   await connectDB();
-  const plan = await userPlan(userId);
-  if (!planEligible(plan)) {
+  const { plan, status } = await userSubscription(userId);
+  if (!planEligible(plan, status)) {
     return NextResponse.json(
       {
-        error: `Las notificaciones Slack requieren plan ${PLAN_DISPLAY[OUTBOUND_SAAS_WEBHOOK_MIN_PLAN]?.label ?? 'Starter'} o superior.`,
+        error: `Las notificaciones Slack requieren plan ${PLAN_DISPLAY[ESCALATION_SLACK_MIN_PLAN]?.label ?? 'Team'} o superior.`,
       },
       { status: 403 },
     );
@@ -117,8 +119,8 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
 
   await connectDB();
-  const plan = await userPlan(userId);
-  if (!planEligible(plan)) {
+  const { plan, status } = await userSubscription(userId);
+  if (!planEligible(plan, status)) {
     return NextResponse.json({ error: 'Plan insuficiente.' }, { status: 403 });
   }
 

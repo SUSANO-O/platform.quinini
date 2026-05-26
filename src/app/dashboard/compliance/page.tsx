@@ -21,7 +21,7 @@ import {
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { SecretRevealModal } from '@/components/ui/secret-reveal-modal';
 import { BRAND, STATE, METRIC } from '@/lib/brand-colors';
-import { outboundWebhookUpgradeLabel, escalationTicketUpgradeLabel } from '@/lib/plan-catalog';
+import { outboundWebhookUpgradeLabel, escalationSlackUpgradeLabel, escalationTicketUpgradeLabel } from '@/lib/plan-catalog';
 
 /* ── types ───────────────────────────────────────────────────────── */
 
@@ -186,6 +186,7 @@ export default function CompliancePage() {
   const [slackHasExisting, setSlackHasExisting] = useState(false);
   const [busySlack, setBusySlack] = useState(false);
   const [busySlackTest, setBusySlackTest] = useState(false);
+  const [busySlackUpgrade, setBusySlackUpgrade] = useState(false);
 
   const fetchAudit = useCallback(async () => {
     setLoadingAudit(true);
@@ -248,6 +249,16 @@ export default function CompliancePage() {
       if (err && 'error' in err && err.error) toast.error(err.error);
     } finally {
       setBusyUpgrade(false);
+    }
+  }
+
+  async function upgradeForSlack() {
+    setBusySlackUpgrade(true);
+    try {
+      const err = await startCheckout('team');
+      if (err && 'error' in err && err.error) toast.error(err.error);
+    } finally {
+      setBusySlackUpgrade(false);
     }
   }
 
@@ -941,23 +952,23 @@ export default function CompliancePage() {
             }}>
               <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--foreground)', lineHeight: 1.55 }}>
                 Publica un mensaje en tu canal de Slack cuando alguien pulse <strong>Hablar con una persona</strong>.
-                Disponible desde el plan <strong>{outboundWebhookUpgradeLabel()}</strong>.
+                Disponible desde el plan <strong>{escalationSlackUpgradeLabel()}</strong>.
               </p>
               <button
                 type="button"
-                disabled={busyUpgrade}
-                onClick={() => void upgradeForWebhook()}
+                disabled={busySlackUpgrade}
+                onClick={() => void upgradeForSlack()}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8,
                   padding: '9px 16px', borderRadius: 10,
                   border: '1px solid rgba(97,31,105,0.35)',
                   background: 'rgba(97,31,105,0.1)',
-                  color: '#611f69', cursor: busyUpgrade ? 'wait' : 'pointer',
+                  color: '#611f69', cursor: busySlackUpgrade ? 'wait' : 'pointer',
                   fontSize: 13, fontWeight: 600,
                 }}
               >
-                {busyUpgrade ? <Loader2 className="animate-spin" size={14} /> : null}
-                Mejorar a {outboundWebhookUpgradeLabel()}
+                {busySlackUpgrade ? <Loader2 className="animate-spin" size={14} /> : null}
+                Mejorar a {escalationSlackUpgradeLabel()}
               </button>
             </div>
           ) : null}

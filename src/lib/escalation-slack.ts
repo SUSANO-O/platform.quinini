@@ -1,10 +1,10 @@
 /**
  * Notificación nativa a Slack (Incoming Webhook) al escalar una conversación.
- * Plan mínimo: Starter (mismo que webhook saliente).
+ * Plan mínimo: Team.
  */
 
 import { Subscription, User } from '@/lib/db/models';
-import { planRank, OUTBOUND_SAAS_WEBHOOK_MIN_PLAN, type PlanId } from '@/lib/plan-catalog';
+import { planRank, ESCALATION_SLACK_MIN_PLAN, effectiveProductPlan, type PlanId } from '@/lib/plan-catalog';
 import {
   buildEscalationTranscript,
   type EscalationTicketContext,
@@ -36,12 +36,11 @@ async function resolveUserPlan(userId: string): Promise<PlanId> {
   const sub = await Subscription.findOne({ userId }).select({ plan: 1, status: 1 }).lean() as
     | { plan?: string; status?: string }
     | null;
-  const active = sub?.status === 'active' || sub?.status === 'trialing';
-  return (active ? (sub?.plan ?? 'free') : 'free') as PlanId;
+  return effectiveProductPlan(sub?.plan ?? 'free', sub?.status ?? 'free') as PlanId;
 }
 
 function planHasEscalationSlackFeature(planId: PlanId): boolean {
-  return planRank(planId) >= planRank(OUTBOUND_SAAS_WEBHOOK_MIN_PLAN);
+  return planRank(planId) >= planRank(ESCALATION_SLACK_MIN_PLAN);
 }
 
 export async function loadEscalationSlackWebhookUrl(userId: string): Promise<string | null> {

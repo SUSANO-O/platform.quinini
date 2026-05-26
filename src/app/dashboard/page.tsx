@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import { BRAND, METRIC, STATE, R, O, B } from '@/lib/brand-colors';
+import { countOwnedMainAgents } from '@/lib/agent-plans';
 
 interface UsageData {
   used: number;
@@ -99,7 +100,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user) return;
     fetch('/api/billing/usage').then(r => r.ok ? r.json() : null).then(d => d && setUsage(d)).catch(() => {});
-    fetch('/api/agents').then(r => r.ok ? r.json() : null).then(d => d && setAgentCount(d.agents?.length ?? 0)).catch(() => {});
+    fetch('/api/agents').then(r => r.ok ? r.json() : null).then(d => d && setAgentCount(countOwnedMainAgents(d.agents))).catch(() => {});
     fetch('/api/widgets').then(r => r.ok ? r.json() : null).then(d => {
       if (!d) return;
       const list: WidgetInfo[] = (d.widgets || []).map((w: { _id: string; name?: string }) => ({ _id: String(w._id), name: w.name || 'Widget' }));

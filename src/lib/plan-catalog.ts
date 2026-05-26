@@ -234,6 +234,9 @@ export const AGENT_WEBHOOK_MIN_PLAN: PlanId = 'basic';
 /** Plan mínimo para webhook SaaS saliente (eventos firmados a tu backend). */
 export const OUTBOUND_SAAS_WEBHOOK_MIN_PLAN: PlanId = 'starter';
 
+/** Plan mínimo para avisar en Slack al escalar (Incoming Webhook en Cumplimiento). */
+export const ESCALATION_SLACK_MIN_PLAN: PlanId = 'team';
+
 /** Plan mínimo para acceso API REST (widgets, agentes, export). */
 export const API_ACCESS_MIN_PLAN: PlanId = 'team';
 
@@ -276,6 +279,10 @@ export function planHasOutboundWebhookFeature(planId: PlanId): boolean {
   return planRank(planId) >= planRank(OUTBOUND_SAAS_WEBHOOK_MIN_PLAN);
 }
 
+export function planHasEscalationSlackFeature(planId: PlanId): boolean {
+  return planRank(planId) >= planRank(ESCALATION_SLACK_MIN_PLAN);
+}
+
 export function planHasApiAccessFeature(planId: PlanId): boolean {
   return planRank(planId) >= planRank(API_ACCESS_MIN_PLAN);
 }
@@ -284,6 +291,12 @@ export function planHasApiAccessFeature(planId: PlanId): boolean {
 export function canUseApiAccess(plan: string, status: string): boolean {
   const effective = effectiveProductPlan(plan, status);
   return planRank(effective) >= planRank(API_ACCESS_MIN_PLAN);
+}
+
+/** Notificaciones Slack al escalar con suscripción activa (Team+). */
+export function canUseEscalationSlack(plan: string, status: string): boolean {
+  const effective = effectiveProductPlan(plan, status);
+  return planRank(effective) >= planRank(ESCALATION_SLACK_MIN_PLAN);
 }
 
 export function apiAccessUpgradeLabel(): string {
@@ -308,6 +321,10 @@ export function planHasCustomIntegrationFeature(planId: PlanId): boolean {
 
 export function outboundWebhookUpgradeLabel(): string {
   return PLAN_DISPLAY[OUTBOUND_SAAS_WEBHOOK_MIN_PLAN]?.label ?? 'Starter';
+}
+
+export function escalationSlackUpgradeLabel(): string {
+  return PLAN_DISPLAY[ESCALATION_SLACK_MIN_PLAN]?.label ?? 'Team';
 }
 
 export function escalationTicketUpgradeLabel(): string {
