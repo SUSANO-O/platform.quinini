@@ -22,7 +22,7 @@ export default function FacturasPage() {
           <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>Facturas y recibos</h1>
         </div>
         <p style={{ color: 'var(--muted-foreground)', fontSize: 14, margin: 0, lineHeight: 1.5 }}>
-          Guarda tus datos fiscales y descarga recibos automáticos de LemonSqueezy (suscripción y packs).
+          Guarda tus datos fiscales y descarga recibos automáticos(suscripción y packs).
         </p>
       </div>
 
