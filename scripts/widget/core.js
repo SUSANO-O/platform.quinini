@@ -8,7 +8,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.5.6';
+  var VERSION = '1.5.7';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -1377,6 +1377,28 @@
       return fabDragStorageKey().replace('afhub-fab-pos:', 'afhub-launcher-hidden:');
     }
 
+    /** Elimina claves legacy de ocultar launcher (SDK antiguo; assist.js renombra afhub→biv en build). */
+    function clearLegacyLauncherHiddenSessionKeys() {
+      var fixed = ['afhub-launcher-menu-hidden'];
+      var prefixes = ['afhub-launcher-hidden:'];
+      try {
+        for (var f = 0; f < fixed.length; f++) {
+          sessionStorage.removeItem(fixed[f]);
+        }
+        for (var i = sessionStorage.length - 1; i >= 0; i--) {
+          var key = sessionStorage.key(i);
+          if (!key) continue;
+          for (var p = 0; p < prefixes.length; p++) {
+            if (key.indexOf(prefixes[p]) === 0) {
+              sessionStorage.removeItem(key);
+              break;
+            }
+          }
+        }
+        sessionStorage.removeItem(launcherHiddenStorageKey());
+      } catch (_cl) { /* noop */ }
+    }
+
     function syncLauncherMenuHiddenFlag(hidden) {
       // No persistir este estado en storage: solo notificar en memoria por evento.
       try {
@@ -1406,10 +1428,9 @@
     }
 
     function restoreLauncherHiddenFromSession() {
+      clearLegacyLauncherHiddenSessionKeys();
+      root.classList.remove('afhub-launcher-hidden');
       if (cfg.fabDismissible === false) return;
-      try {
-        sessionStorage.removeItem(launcherHiddenStorageKey());
-      } catch (_rh) { /* noop */ }
       syncLauncherMenuHiddenFlag(false);
     }
 

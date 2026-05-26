@@ -3,6 +3,9 @@
  * Valores por defecto; override vía env en servidor.
  */
 
+/** Mantener en sync con `VERSION` en scripts/widget/core.js (cache-bust de assist.js). */
+export const WIDGET_SDK_VERSION = '1.5.7';
+
 export type InternalAssistContext = 'app' | 'marketing';
 
 export type InternalAssistBootConfig = {
@@ -90,6 +93,7 @@ export function resolveInternalAssistBoot(
 
 export function resolveAssistScriptUrl(origin: string): string {
   const override = process.env.NEXT_PUBLIC_ASSIST_SCRIPT_URL?.trim();
-  if (override) return override;
-  return `${origin.replace(/\/$/, '')}/assist.js`;
+  const base = override || `${origin.replace(/\/$/, '')}/assist.js`;
+  const sep = base.includes('?') ? '&' : '?';
+  return `${base}${sep}v=${WIDGET_SDK_VERSION}`;
 }
