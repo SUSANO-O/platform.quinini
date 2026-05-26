@@ -36,6 +36,7 @@ export async function POST(
   const { id } = await params;
   const body = await req.json().catch(() => ({})) as {
     sessionId?: string;
+    visitorId?: string;
     userMessage?: string;
     contactInfo?: { name?: string; phone?: string; email?: string };
     agentId?: string;
