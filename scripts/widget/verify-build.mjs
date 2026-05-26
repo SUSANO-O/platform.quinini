@@ -3,6 +3,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -36,4 +37,12 @@ for (const c of checks) {
 }
 
 if (failed > 0) process.exit(1);
+
+const storageCheck = spawnSync(
+  process.execPath,
+  [path.join(path.dirname(fileURLToPath(import.meta.url)), 'check-storage-keys.mjs')],
+  { stdio: 'inherit' },
+);
+if (storageCheck.status !== 0) process.exit(storageCheck.status ?? 1);
+
 console.log('[verify:widget] All checks passed');
