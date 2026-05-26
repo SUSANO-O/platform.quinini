@@ -139,6 +139,7 @@ export async function POST(req: NextRequest) {
     handoffNotifyMode: normalizeHandoffNotifyMode(
       typeof restNormalized.handoffNotifyMode === 'string' ? restNormalized.handoffNotifyMode : 'inbox',
     ),
+    fabDismissible: restNormalized.fabDismissible !== false,
     handoffEnabled: restNormalized.handoffEnabled === true,
     humanSupportEnabled: restNormalized.humanSupportEnabled === true,
     multiAgentEnabled: multiEnabled,

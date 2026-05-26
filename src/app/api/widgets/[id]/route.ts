@@ -33,6 +33,7 @@ const PATCHABLE = [
   'theme',
   'borderRadius',
   'autoOpen',
+  'fabDismissible',
   'voiceEnabled',
   'humanSupportPhone',
   'humanSupportEnabled',
@@ -99,7 +100,7 @@ export async function PATCH(
   for (const key of PATCHABLE) {
     if (!(key in raw)) continue;
     const v = raw[key];
-    if (key === 'autoOpen' || key === 'voiceEnabled' || key === 'active' || key === 'handoffEnabled' || key === 'humanSupportEnabled') {
+    if (key === 'autoOpen' || key === 'fabDismissible' || key === 'voiceEnabled' || key === 'active' || key === 'handoffEnabled' || key === 'humanSupportEnabled') {
       $set[key] = Boolean(v);
       continue;
     }

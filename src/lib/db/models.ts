@@ -116,6 +116,8 @@ const WidgetSchema = new Schema({
   theme:        { type: String, enum: ['light', 'dark'], default: 'light' },
   borderRadius: { type: String, default: '16px' },
   autoOpen:     { type: Boolean, default: false },
+  /** Si false, no muestra la X para ocultar el launcher. */
+  fabDismissible: { type: Boolean, default: true },
   /** Si false, oculta el botón de lectura en voz alta (speaker) en el header del chat. */
   voiceEnabled: { type: Boolean, default: true },
   /** Teléfono WhatsApp (con código de país); el SDK ofrece enlace si humanSupportEnabled. */
