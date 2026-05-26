@@ -1,10 +1,10 @@
-# Checklist de variables de entorno — producción (quinini.online)
+# Checklist de variables de entorno — producción (botiva.space)
 
 Lista de **nombres** de variables por servicio. **No incluye valores** — revísalas en el panel de cada hosting (Vercel, Railway, Render, etc.).
 
 ## 1. Landing (`agent-flow-landing` → Vercel)
 
-Proyecto: dominio público **https://quinini.online**
+Proyecto: dominio público **https://botiva.space**
 
 ### Obligatorias para widget chat
 
@@ -12,7 +12,7 @@ Proyecto: dominio público **https://quinini.online**
 |----------|----------|
 | `MONGODB_URI` | Base `agentflowhub_landing` (widgets, agentes, tokens `wt_*`) |
 | `JWT_SECRET` | Sesiones del dashboard |
-| `NEXT_PUBLIC_APP_URL` | Origen público (`https://quinini.online`) |
+| `NEXT_PUBLIC_APP_URL` | Origen público (`https://botiva.space`) |
 | `AGENTFLOWHUB_URL` | URL **server-side** del proxy de chat → AgentFlowhub (no la landing) |
 | `HUB_TO_LANDING_SECRET` | HMAC landing ↔ AgentFlowhub; mismo valor en AgentFlowhub |
 | `BACKEND_URL` | URL pública de AIBackHub (inferencia directa, MCP, catálogo) |
@@ -50,7 +50,7 @@ Proyecto: dominio público **https://quinini.online**
 
 ```bash
 cd agent-flow-landing
-BASE_URL=https://quinini.online node --env-file=.env scripts/widget-chat-smoke.mjs
+BASE_URL=https://botiva.space node --env-file=.env scripts/widget-chat-smoke.mjs
 ```
 
 Respuesta OK = `reply` con texto real y **sin** `code: AGENT_COOLDOWN`.
@@ -102,7 +102,7 @@ Puerto local `9002` (API) / `9010` (UI).
 | `MONGODB_URI` | Misma base `agentflow` que AIBackHub |
 | `BACKEND_URL` | URL de AIBackHub |
 | `HUB_TO_LANDING_SECRET` | Igual que landing |
-| `LANDING_INTERNAL_URL` | URL base landing (`https://quinini.online`) para validar `wt_*` |
+| `LANDING_INTERNAL_URL` | URL base landing (`https://botiva.space`) para validar `wt_*` |
 | `VERTEX_GEMINI_API_KEY` | Si el hub llama Gemini directamente en algún path |
 
 El mensaje **“servicio limitado o saturado”** con `cooldownKind: backend_error_rate_limited` viene de **AgentFlowhub** cuando Google devuelve 429/errores repetidos — no es rate limit de la landing.
@@ -144,4 +144,4 @@ Modelos típicos a habilitar: `gemini-2.5-flash` (y `vx/gemini-2.5-flash` si usa
 2. Catálogo: `npm run enable:model-catalog`
 3. AgentFlowhub: redeploy si cambió secret o BACKEND_URL
 4. Landing (Vercel): env + redeploy con código de inferencia directa
-5. Smoke: `BASE_URL=https://quinini.online npm run test:widget:smoke`
+5. Smoke: `BASE_URL=https://botiva.space npm run test:widget:smoke`

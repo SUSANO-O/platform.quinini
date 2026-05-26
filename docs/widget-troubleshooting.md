@@ -54,7 +54,7 @@ Algunos IDs siguen apareciendo en el listado de la API Gemini pero **fallan en `
 ### Comprobar en terminal (sin CSP del navegador)
 
 ```powershell
-curl.exe -s -X POST "https://quinini.online/api/widget/chat" `
+curl.exe -s -X POST "https://botiva.space/api/widget/chat" `
   -H "Content-Type: application/json" `
   -d "{\"agentId\":\"AGENT_MONGO_ID\",\"message\":\"hola\",\"token\":\"wt_…\",\"widgetId\":\"WIDGET_ID\",\"sessionId\":\"diag1\"}"
 ```
@@ -127,7 +127,7 @@ Checklist completo (solo nombres, sin secretos): **[prod-env-checklist.md](./pro
 
 ## Listar modelos Gemini (API)
 
-Desde terminal (la consola del navegador en quinini.online puede bloquearse por CSP):
+Desde terminal (la consola del navegador en botiva.space puede bloquearse por CSP):
 
 ```powershell
 $key = (Get-Content .env | Where-Object { $_ -match '^VERTEX_GEMINI_API_KEY=' }) -replace '^VERTEX_GEMINI_API_KEY=',''
@@ -148,6 +148,6 @@ npm run test:widget:smoke
 npm run test:aibackhub:model
 
 # Suite E2E (22 casos)
-$env:BASE_URL = "https://quinini.online"
+$env:BASE_URL = "https://botiva.space"
 npm run test:widget
 ```

@@ -6,7 +6,7 @@
 import { createConnection, Types } from 'mongoose';
 
 const uri = process.env.MONGODB_URI || '';
-const BASE = (process.env.BASE_URL || 'https://www.quinini.online').replace(/\/$/, '');
+const BASE = (process.env.BASE_URL || 'https://botiva.space').replace(/\/$/, '');
 const WIDGET_ID = process.env.WIDGET_ID || '6a03a54c4f69fa7fa9027170';
 const AGENT_ID = process.env.AGENT_ID || '69d5084c78e0af3d5536fe95';
 

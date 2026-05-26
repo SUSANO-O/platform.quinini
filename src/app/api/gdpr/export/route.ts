@@ -1,5 +1,5 @@
 /**
- * GET /api/gdpr/export — descarga JSON con datos personales (RGPD).
+ * GET /api/gdpr/export — descarga JSON con datos personales (RGPD), incluye transcripciones de chat por widget.
  */
 
 import { NextRequest, NextResponse } from 'next/server';

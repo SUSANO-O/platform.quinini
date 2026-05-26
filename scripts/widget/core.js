@@ -1248,7 +1248,7 @@
 
     var powered = document.createElement('div');
     powered.className = 'afhub-powered';
-    powered.innerHTML = 'Powered by <a href="https://www.quinini.online" target="_blank" rel="noopener">BotIvA</a>';
+    powered.innerHTML = 'Powered by <a href="https://botiva.space" target="_blank" rel="noopener">BotIvA</a>';
     chat.appendChild(powered);
 
     root.appendChild(chat);

@@ -4,7 +4,7 @@
  *
  *   node --env-file=.env scripts/register-user-via-api.mjs \
  *     andresdias24@gmail.com andresdias1234 ANDRESDIAS1234 team \
- *     --base-url https://www.quinini.online
+ *     --base-url https://botiva.space
  */
 import mongoose from 'mongoose';
 

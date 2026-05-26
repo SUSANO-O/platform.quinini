@@ -1,6 +1,6 @@
 # agent-flow-landing — BotIvA / MatIAs
 
-Landing pública y dashboard de BotIvA (quinini.online). SDK embebible (`public/widget.js`), proxy de chat hacia AgentFlowhub y panel de agentes/widgets.
+Landing pública y dashboard de BotIvA (botiva.space). SDK embebible (`public/widget.js`), proxy de chat hacia AgentFlowhub y panel de agentes/widgets.
 
 ## Arranque
 

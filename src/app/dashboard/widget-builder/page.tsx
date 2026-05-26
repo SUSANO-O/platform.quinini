@@ -8,12 +8,6 @@ import { useSubscription } from '@/hooks/use-subscription';
 import { AvatarEditor } from '@/components/ui/AvatarEditor';
 import { WizardSteps } from '@/components/ui/wizard-steps';
 import {
-  defaultHueFromHex,
-  fabOrbitBlendModes,
-  hashWidgetSeed,
-  iridescentOrbBackgroundCss,
-} from '@/lib/widget-iridescent';
-import {
   createDefaultPipelineConfig,
   isContentCapableAgent,
   isCreativeCapableAgent,
@@ -86,20 +80,6 @@ function computeOrbGradient(hex: string) {
   const lHex = rgbToHex(light.r, light.g, light.b);
   const dHex = rgbToHex(deep.r, deep.g, deep.b);
   return `linear-gradient(155deg, rgba(255,255,255,.22) 0%, transparent 42%), linear-gradient(148deg, ${lHex} 0%, ${hex} 46%, ${dHex} 100%)`;
-}
-
-function computeIridescentFabBackground(hex: string): string {
-  const h = defaultHueFromHex(hex);
-  const seed = hashWidgetSeed(`${hex}:fab`);
-  return `${iridescentOrbBackgroundCss(h, seed)}, ${computeOrbGradient(hex)}`;
-}
-
-function mockFabOrbInnerStyle(hex: string): React.CSSProperties {
-  return {
-    background: computeIridescentFabBackground(hex),
-    ...( { backgroundBlendMode: fabOrbitBlendModes() } as Pick<React.CSSProperties, 'backgroundBlendMode'> ),
-    filter: 'saturate(1.3) contrast(1.1) brightness(1.06)',
-  };
 }
 
 // ── Agent list (from API; widget.agentId = id estable del ClientAgent en landing) ──
@@ -278,7 +258,8 @@ function MockPreview({ cfg, shortcuts = [] }: { cfg: WidgetConfig; shortcuts?: W
   /** Evita mutar el DOM con innerHTML en onError (rompe a React). */
   const [fabAvatarFailed, setFabAvatarFailed] = useState(false);
   const [headerAvatarFailed, setHeaderAvatarFailed] = useState(false);
-  const grad = computeIridescentFabBackground(cfg.color);
+  /** Preview del builder: gradiente simple del color elegido (sin orbe iridiscente). */
+  const brandGradient = computeOrbGradient(cfg.color);
 
   useEffect(() => {
     setFabAvatarFailed(false);
@@ -335,9 +316,7 @@ function MockPreview({ cfg, shortcuts = [] }: { cfg: WidgetConfig; shortcuts?: W
         }}>
           <div
             style={{
-              background: grad,
-              ...( { backgroundBlendMode: fabOrbitBlendModes() } as Pick<React.CSSProperties, 'backgroundBlendMode'> ),
-    filter: 'saturate(1.3) contrast(1.1) brightness(1.06)',
+              background: brandGradient,
               padding: '12px',
               color: '#fff',
             }}
@@ -498,15 +477,15 @@ function MockPreview({ cfg, shortcuts = [] }: { cfg: WidgetConfig; shortcuts?: W
           ) : (
             <>
               <div
-                className="absolute inset-[-36%] rounded-full"
-                style={mockFabOrbInnerStyle(cfg.color)}
+                className="absolute inset-0 rounded-full"
+                style={{ background: brandGradient }}
                 aria-hidden
               />
               <div
                 className="pointer-events-none absolute inset-0 z-[1] rounded-full"
                 style={{
                   boxShadow:
-                    'inset 0 2px 10px rgba(255,255,255,0.5), inset 0 -5px 12px rgba(0,0,0,0.2), inset 0 0 0 1px rgba(255,255,255,0.22)',
+                    'inset 0 2px 8px rgba(255,255,255,0.35), inset 0 -4px 10px rgba(0,0,0,0.15)',
                 }}
                 aria-hidden
               />
