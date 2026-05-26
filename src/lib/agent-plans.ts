@@ -237,3 +237,11 @@ export function planMeetsModelMin(userPlan: string, minPlan?: string): boolean {
   return u >= m;
 }
 
+/** Agentes principales del usuario (excluye sub-agentes y catálogo platform). */
+export function countOwnedMainAgents(
+  agents: Array<{ type?: string; isPlatform?: boolean }> | null | undefined,
+): number {
+  if (!agents?.length) return 0;
+  return agents.filter((a) => a.type === 'agent' && !a.isPlatform).length;
+}
+
