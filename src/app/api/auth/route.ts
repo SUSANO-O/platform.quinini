@@ -17,7 +17,7 @@ import {
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { sendVerificationEmail } from '@/lib/email';
 import { recordAudit } from '@/lib/audit-log';
-import { resolveEnvRegistrationPlan } from '@/lib/registration-codes-env';
+import { resolveEnvRegistrationCode, normalizeTrialDays, DEFAULT_REGISTRATION_TRIAL_DAYS } from '@/lib/registration-codes-env';
 
 const COOKIE = 'afhub_session';
 const COOKIE_MAX_AGE = 60 * 60 * 12; // 12 hours
@@ -82,10 +82,12 @@ export async function POST(req: NextRequest) {
         active: boolean;
         maxUses: number;
         usedCount: number;
+        trialDays?: number;
         expiresAt?: Date | null;
       } | null;
 
       let assignedPlan: string;
+      let trialDays = DEFAULT_REGISTRATION_TRIAL_DAYS;
       let mongoCodeId: string | null = null;
 
       if (codeDoc) {
@@ -108,16 +110,18 @@ export async function POST(req: NextRequest) {
           );
         }
         assignedPlan = codeDoc.plan;
+        trialDays = normalizeTrialDays(codeDoc.trialDays);
         mongoCodeId = codeDoc._id.toString();
       } else {
-        const envPlan = resolveEnvRegistrationPlan(submittedCode);
-        if (!envPlan) {
+        const envEntry = resolveEnvRegistrationCode(submittedCode);
+        if (!envEntry) {
           return NextResponse.json(
             { error: 'Código de autorización inválido.' },
             { status: 403 },
           );
         }
-        assignedPlan = envPlan;
+        assignedPlan = envEntry.plan;
+        trialDays = envEntry.trialDays;
       }
 
       // Rate limit: 5 registrations per hour per IP
@@ -165,15 +169,19 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Asignar plan del código
+      // Asignar plan del código (periodo de prueba configurable por código)
       if (assignedPlan && assignedPlan !== 'free') {
         const now = Math.floor(Date.now() / 1000);
+        const trialStartedAt = new Date();
+        const trialEndsAt = new Date(trialStartedAt.getTime() + trialDays * 24 * 60 * 60 * 1000);
         await Subscription.create({
           userId: user._id.toString(),
           plan: assignedPlan,
-          status: 'active',
+          status: 'trialing',
+          trialStartedAt,
+          trialEndsAt,
           currentPeriodStart: now,
-          currentPeriodEnd: now + 30 * 24 * 60 * 60, // 1 mes
+          currentPeriodEnd: Math.floor(trialEndsAt.getTime() / 1000),
         });
       }
 
