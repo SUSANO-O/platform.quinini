@@ -24,7 +24,7 @@ const APP_URL =
 
 /**
  * Base pública HTTPS para `<img src="…">` en HTML de correo.
- * Preferir NEXT_PUBLIC_APP_URL (p. ej. https://quinini.online) para que Gmail/Outlook carguen el logo.
+ * Preferir NEXT_PUBLIC_APP_URL (p. ej. https://botiva.space) para que Gmail/Outlook carguen el logo.
  * Opcional: EMAIL_PUBLIC_ASSET_BASE solo para imágenes (si difiere del enlace de botones).
  */
 const EMAIL_PUBLIC_ORIGIN = (

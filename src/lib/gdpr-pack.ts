@@ -13,6 +13,13 @@ import {
   ConversationPack,
   AuditLog,
 } from '@/lib/db/models';
+import { exportWidgetConversations } from '@/lib/widget-conversation-export';
+import { historyRetentionDays } from '@/lib/widget-memory-plan';
+import { effectiveProductPlan } from '@/lib/plan-catalog';
+
+/** Meses máximos de transcripciones en el paquete RGPD (alineado con /api/widgets/[id]/export). */
+const GDPR_CONVERSATION_MONTHS_CAP = 12;
+const GDPR_SESSIONS_PER_WIDGET = 200;
 
 export async function buildPersonalDataExport(userId: string): Promise<Record<string, unknown>> {
   await connectDB();
@@ -37,7 +44,7 @@ export async function buildPersonalDataExport(userId: string): Promise<Record<st
     auditTail,
   ] = await Promise.all([
     Subscription.findOne({ userId }).lean(),
-    Widget.find({ userId }).lean(),
+    Widget.find({ userId }).select({ name: 1, agentId: 1, createdAt: 1 }).lean(),
     ClientAgent.find({ userId }).select({
       name: 1,
       description: 1,
@@ -56,8 +63,27 @@ export async function buildPersonalDataExport(userId: string): Promise<Record<st
     AuditLog.find({ userId }).sort({ createdAt: -1 }).limit(200).lean(),
   ]);
 
+  const sub = subscription as { plan?: string; status?: string } | null;
+  const plan = effectiveProductPlan(sub?.plan ?? 'free', sub?.status ?? 'free');
+  const retentionDays = historyRetentionDays(plan);
+  const monthsFromRetention =
+    retentionDays < 0 ? GDPR_CONVERSATION_MONTHS_CAP : Math.max(1, Math.ceil(retentionDays / 30));
+  const exportMonths = Math.min(GDPR_CONVERSATION_MONTHS_CAP, monthsFromRetention);
+
+  const widgetRows = widgets as { _id: unknown; name?: string; agentId?: string }[];
+  const conversationExports = await Promise.all(
+    widgetRows.map((w) =>
+      exportWidgetConversations(String(w._id), {
+        widgetName: w.name ?? '',
+        agentId: typeof w.agentId === 'string' ? w.agentId : '',
+        months: exportMonths,
+        maxSessions: GDPR_SESSIONS_PER_WIDGET,
+      }),
+    ),
+  );
+
   return {
-    exportVersion: 1,
+    exportVersion: 2,
     exportedAt: new Date().toISOString(),
     subjectId: userId,
     user: safeUser,
@@ -69,10 +95,20 @@ export async function buildPersonalDataExport(userId: string): Promise<Record<st
       platformUsage,
       conversationPacks: packs,
     },
+    conversationExports,
+    conversationExportMeta: {
+      periodMonths: exportMonths,
+      maxSessionsPerWidget: GDPR_SESSIONS_PER_WIDGET,
+      plan,
+      historyRetentionDays: retentionDays,
+      note:
+        'Transcripciones de chat del widget (mensajes usuario/asistente). ' +
+        'Para exportar un solo widget en CSV de uso mensual: GET /api/widgets/{id}/export?format=csv.',
+    },
     auditLogRecent: auditTail,
     notice:
-      'Este archivo contiene los datos de cuenta almacenados en BotIvA Landing. ' +
-      'Los datos en AgentFlowhub/AIBackHub (motor de IA) pueden requerir borrado adicional por soporte si aplica.',
+      'Paquete RGPD: cuenta, widgets, agentes, uso y transcripciones de chat según retención de tu plan. ' +
+      'Memoria vectorial/RAG en AIBackHub puede requerir solicitud adicional a soporte.',
   };
 }
 

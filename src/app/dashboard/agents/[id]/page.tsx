@@ -2031,7 +2031,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             <p style={sectionTitle}>Preguntas frecuentes</p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
               Define pares pregunta–respuesta para que el modelo las use cuando la consulta sea equivalente. Al guardar,
-              se integran al system prompt y se sincronizan con AIBackHub. El widget registra preguntas repetidas que
+              se integran al system prompt y se sincronizan. El widget registra preguntas repetidas que
               aún no tienen FAQ: aparecen abajo como candidatas (≥3 veces) para que las conviertas en FAQ formal.
             </p>
             {!readOnly && (
@@ -2758,8 +2758,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               <SectionCard>
                 <p style={sectionTitle}>Memoria del agente</p>
                 <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
-                  Resumen de memoria semántica (RAG), episódica (conversaciones indexadas) y contexto compartido entre
-                  sesiones del widget. La ventana de historial activo depende de tu plan.
+                  Resumen de memoria.
                 </p>
                 {memoryStatsLoading && (
                   <p style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>

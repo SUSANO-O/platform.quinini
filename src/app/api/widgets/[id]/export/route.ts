@@ -12,7 +12,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
-import { Widget, RequestLog, WidgetMessage } from '@/lib/db/models';
+import { Widget, RequestLog } from '@/lib/db/models';
+import { exportWidgetConversations } from '@/lib/widget-conversation-export';
 
 function auth(req: NextRequest) {
   const token = req.cookies.get('afhub_session')?.value;
@@ -84,56 +85,25 @@ export async function GET(
   }
 
   // ── JSON: transcripción completa ──────────────────────────────────────────
-  const since = new Date();
-  since.setMonth(since.getMonth() - months);
-
-  // Get distinct sessionIds ordered by most recent
-  const sessionAgg = await WidgetMessage.aggregate([
-    { $match: { widgetId: id, createdAt: { $gte: since } } },
-    { $group: { _id: '$sessionId', firstAt: { $min: '$createdAt' }, lastAt: { $max: '$createdAt' }, count: { $sum: 1 } } },
-    { $sort: { lastAt: -1 } },
-    { $limit: maxSessions },
-  ]) as { _id: string; firstAt: Date; lastAt: Date; count: number }[];
-
-  const sessionIds = sessionAgg.map(s => s._id);
-
-  // Fetch all messages for those sessions
-  const messages = await WidgetMessage.find({ widgetId: id, sessionId: { $in: sessionIds } })
-    .select({ sessionId: 1, role: 1, content: 1, createdAt: 1 })
-    .sort({ sessionId: 1, createdAt: 1 })
-    .lean() as { sessionId: string; role: string; content: string; createdAt: Date }[];
-
-  // Group messages by session
-  const bySession = new Map<string, typeof messages>();
-  for (const m of messages) {
-    if (!bySession.has(m.sessionId)) bySession.set(m.sessionId, []);
-    bySession.get(m.sessionId)!.push(m);
-  }
-
-  const sessions = sessionAgg.map(s => ({
-    sessionId: s._id,
-    startedAt: s.firstAt,
-    endedAt: s.lastAt,
-    messageCount: s.count,
-    messages: (bySession.get(s._id) ?? []).map(m => ({
-      role: m.role,
-      content: m.content,
-      at: m.createdAt,
-    })),
-  }));
+  const conv = await exportWidgetConversations(id, {
+    widgetName: widget.name || '',
+    agentId: widget.agentId || '',
+    months,
+    maxSessions,
+  });
 
   const payload = {
     exportVersion: 2,
     exportedAt: new Date().toISOString(),
     widget: {
       id,
-      name: widget.name || '',
-      agentId: widget.agentId || '',
+      name: conv.widgetName,
+      agentId: conv.agentId,
       createdAt: widget.createdAt,
     },
-    periodMonths: months,
-    totalSessions: sessions.length,
-    sessions,
+    periodMonths: conv.periodMonths,
+    totalSessions: conv.totalSessions,
+    sessions: conv.sessions,
   };
 
   const filename = `widget-${id}-conversaciones-${new Date().toISOString().slice(0, 10)}.json`;

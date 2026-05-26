@@ -6,12 +6,12 @@
  *   WIDGET_ID=6a03a54c4f69fa7fa9027170 \
  *   AGENT_ID=69d5084c78e0af3d5536fe95 \
  *   MONGODB_URI="mongodb+srv://..." \
- *   BASE_URL=https://www.quinini.online \
+ *   BASE_URL=https://botiva.space \
  *   node scripts/widget-chat-test.mjs
  *
  * Sin MongoDB (token manual):
  *   WIDGET_TOKEN=wt_xxxx AGENT_ID=69d5084c78e0af3d5536fe95 \
- *   BASE_URL=https://www.quinini.online \
+ *   BASE_URL=https://botiva.space \
  *   node scripts/widget-chat-test.mjs
  *
  * Ver también: docs/widget-testing.md (smoke, AIBackHub aislado, curl, orden de diagnóstico).

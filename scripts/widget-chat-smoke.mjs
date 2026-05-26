@@ -4,7 +4,7 @@
  * Obtiene el token wt_* desde Mongo si MONGODB_URI está configurado.
  *
  *   node --env-file=.env scripts/widget-chat-smoke.mjs
- *   BASE_URL=https://quinini.online node --env-file=.env scripts/widget-chat-smoke.mjs
+ *   BASE_URL=https://botiva.space node --env-file=.env scripts/widget-chat-smoke.mjs
  *   BASE_URL=http://127.0.0.1:3201 STREAM=0 node --env-file=.env scripts/widget-chat-smoke.mjs
  *
  * Variables:

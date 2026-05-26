@@ -526,8 +526,16 @@ export default function CompliancePage() {
 
           {/* Export — blue */}
           <SectionCard icon={<Download size={14} />} title="Exportar mis datos" accent="var(--brand-cool)">
-            <p style={{ margin: '0 0 20px', fontSize: 13, color: 'var(--muted-foreground)', lineHeight: 1.65 }}>
-              Descarga un JSON con perfil, suscripción, widgets, agentes, uso mensual y últimas entradas de auditoría.
+            <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--muted-foreground)', lineHeight: 1.65 }}>
+              Descarga un JSON con perfil, suscripción, widgets, agentes, uso mensual, auditoría y{' '}
+              <strong>transcripciones de chat</strong> de todos tus widgets (según la retención de tu plan).
+            </p>
+            <p style={{ margin: '0 0 20px', fontSize: 12, color: 'var(--muted-foreground)', lineHeight: 1.55 }}>
+              Para un solo widget (JSON o CSV de uso):{' '}
+              <Link href="/dashboard/widgets" className="font-semibold landing-link-accent no-underline">
+                Mis widgets → Historial
+              </Link>
+              .
             </p>
             <button
               type="button"

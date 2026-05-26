@@ -20,7 +20,7 @@ Guía para reproducir diagnósticos de chat del SDK (`widget.js`) en local o pro
    - AIBackHub en `:9003` (`cd ../AIBackHub && npm run dev`)
    - Landing en `:3201` (`npm run dev`)
    - `.env` con `BACKEND_URL=http://127.0.0.1:9003`
-3. **Producción** — `BASE_URL=https://quinini.online` (o `https://www.quinini.online`).
+3. **Producción** — `BASE_URL=https://botiva.space`.
 
 Copia variables desde `.env.example` si hace falta.
 
@@ -70,7 +70,7 @@ npm run test:widget:smoke
 
 ```powershell
 cd agent-flow-landing
-$env:BASE_URL = "https://quinini.online"
+$env:BASE_URL = "https://botiva.space"
 npm run test:widget:smoke
 ```
 
@@ -125,7 +125,7 @@ AIBackHub debe estar en marcha. Revisa en `.env` de AIBackHub:
 
 ```powershell
 cd agent-flow-landing
-$env:BASE_URL = "https://quinini.online"
+$env:BASE_URL = "https://botiva.space"
 $env:MONGODB_URI = "mongodb+srv://…/agentflowhub_landing"
 npm run test:widget
 ```
@@ -159,7 +159,7 @@ $body = @{
   sessionId = "manual_1"
 } | ConvertTo-Json -Compress
 
-Invoke-RestMethod -Uri "https://quinini.online/api/widget/chat" `
+Invoke-RestMethod -Uri "https://botiva.space/api/widget/chat" `
   -Method POST -ContentType "application/json" -Body $body
 ```
 
