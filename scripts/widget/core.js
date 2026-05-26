@@ -624,6 +624,7 @@
 
   var CHAT_HISTORY_STORAGE_VER = 1;
   var CHAT_HISTORY_MAX_MESSAGES = 60;
+  var CHAT_HISTORY_WARN_USER_TURNS = 35;
   var CHAT_LAST_IMAGE_MAX_CHARS = 120000;
 
   function chatHistoryStorageKey(cfg) {
@@ -716,6 +717,52 @@
       /* noop */
     }
     return sid;
+  }
+
+  function visitorStorageKey(cfg) {
+    var h = String(cfg.host || '')
+      .replace(/^https?:\/\//i, '')
+      .replace(/[^a-z0-9]+/gi, '_')
+      .slice(0, 48);
+    var tok = String(cfg.widgetId || cfg.token || cfg.agentId || 'na').slice(0, 32);
+    return 'afhub:visitor:' + h + ':' + tok;
+  }
+
+  function getOrCreateVisitorId(cfg) {
+    var key = visitorStorageKey(cfg);
+    try {
+      var existing = localStorage.getItem(key);
+      if (existing && /^vis_[a-zA-Z0-9_-]{8,120}$/.test(existing)) return existing;
+      var vid = 'vis_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 14);
+      localStorage.setItem(key, vid);
+      return vid;
+    } catch (_e) {
+      return 'vis_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
+    }
+  }
+
+  function countUserTurnsInHistory(arr) {
+    if (!Array.isArray(arr)) return 0;
+    var n = 0;
+    for (var i = 0; i < arr.length; i++) {
+      if (arr[i] && arr[i].role === 'user') n++;
+    }
+    return n;
+  }
+
+  function maybeWarnLongConversation(cfg, turns) {
+    if (turns < CHAT_HISTORY_WARN_USER_TURNS) return;
+    try {
+      var warnKey = chatSessionStorageKey(cfg) + ':long-warn';
+      if (sessionStorage.getItem(warnKey) === '1') return;
+      sessionStorage.setItem(warnKey, '1');
+    } catch (_e) {
+      /* noop */
+    }
+    addMessage(
+      'bot',
+      'Esta conversación es larga. Para mejores respuestas, usa «Nueva conversación» (icono arriba) y empieza de cero.',
+    );
   }
 
   function imageExtFromMime(mime, url) {
@@ -1931,6 +1978,7 @@
         body: JSON.stringify({
           sessionId: chatSessionId,
           agentId: cfg.agentId || '',
+          visitorId: getOrCreateVisitorId(cfg),
           userMessage: userMessage,
           contactInfo: contactInfo,
           token: String(cfg.token).trim(),
@@ -2020,6 +2068,11 @@
       if (isLoading) return;
       emitEvent('widget_closed');
       clearPersistedChatState(cfg);
+      try {
+        sessionStorage.removeItem(chatSessionStorageKey(cfg) + ':long-warn');
+      } catch (_e) {
+        /* noop */
+      }
       chatSessionId = rotateChatSessionId(cfg);
       history = [];
       lastGeneratedImageDataUrl = '';
@@ -2241,11 +2294,14 @@
       var baseHost = cfg.host.replace(/\/$/, '');
       var endpoint = baseHost + '/api/widget/chat';
       var streamEndpoint = baseHost + '/api/widget/chat/stream';
+      maybeWarnLongConversation(cfg, countUserTurnsInHistory(history));
+
       var payload = {
         agentId: cfg.agentId,
         message: displayText,
         history: history.slice(0, -1),
         sessionId: chatSessionId,
+        visitorId: getOrCreateVisitorId(cfg),
       };
       if (userImagesPayload.length) {
         payload.userImages = userImagesPayload;

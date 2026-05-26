@@ -36,6 +36,8 @@ import {
 } from '@/lib/widget-multi-agent';
 import { enrichWidgetChatBodyWithImages, type WidgetImageEnrichment } from '@/lib/widget-chat-images';
 import { persistWidgetTranscript } from '@/lib/widget-transcript';
+import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-enrich';
+import { normalizeVisitorId } from '@/lib/widget-visitor';
 
 /** Max body size accepted from widget SDK (512 KB — allows image-to-image thumbnail). */
 const MAX_WIDGET_BODY_BYTES = 512 * 1024;
@@ -239,13 +241,22 @@ export async function POST(req: NextRequest) {
   let tokenFromBody = '';
   let parsedMessage = '';
   let parsedSessionId = '';
+  let parsedVisitorId: string | null = null;
   try {
-    const j = JSON.parse(rawBody) as { agentId?: string; widgetId?: string; token?: string; message?: string; sessionId?: string };
+    const j = JSON.parse(rawBody) as {
+      agentId?: string;
+      widgetId?: string;
+      token?: string;
+      message?: string;
+      sessionId?: string;
+      visitorId?: string;
+    };
     parsedAgentId = typeof j?.agentId === 'string' ? j.agentId.trim() : '';
     parsedWidgetId = typeof j?.widgetId === 'string' ? j.widgetId.trim() : '';
     tokenFromBody = typeof j?.token === 'string' ? j.token.trim() : '';
     parsedMessage = typeof j?.message === 'string' ? j.message : '';
     parsedSessionId = typeof j?.sessionId === 'string' ? j.sessionId.trim() : '';
+    parsedVisitorId = normalizeVisitorId(j?.visitorId);
   } catch {
     /* body no JSON */
   }
@@ -319,6 +330,22 @@ export async function POST(req: NextRequest) {
           );
         }
         faqTrackOwnerId = w.userId;
+
+        try {
+          rawBody = await enrichWidgetChatBody({
+            rawBody,
+            ownerUserId: w.userId,
+            widgetId: resolvedWidgetId || w.id,
+          });
+          bodyToForward = rawBody;
+          const reparse = JSON.parse(rawBody) as { sessionId?: string; visitorId?: string };
+          if (typeof reparse.sessionId === 'string' && reparse.sessionId.trim()) {
+            parsedSessionId = reparse.sessionId.trim();
+          }
+          parsedVisitorId = normalizeVisitorId(reparse.visitorId) ?? parsedVisitorId;
+        } catch (enrichErr) {
+          console.warn('[widget/chat] enrich body skipped:', enrichErr);
+        }
 
         try {
           const agentOr = [
@@ -464,6 +491,16 @@ export async function POST(req: NextRequest) {
                 agentIdOrHubId: parsedAgentId,
                 rawBody,
               }).catch(() => {});
+              void afterWidgetChatSuccess({
+                ownerUserId: w.userId,
+                widgetId: resolvedWidgetId || w.id,
+                chatSessionId: parsedSessionId || traceId,
+                visitorId: parsedVisitorId,
+                hubAgentId: parsedAgentId,
+                userMessage: parsedMessage,
+                agentResponse: pipeline.reply,
+                routingMeta: pipeline.meta,
+              });
               return NextResponse.json(
                 {
                   reply: pipeline.reply,
@@ -505,6 +542,16 @@ export async function POST(req: NextRequest) {
                 agentIdOrHubId: parsedAgentId,
                 rawBody,
               }).catch(() => {});
+              void afterWidgetChatSuccess({
+                ownerUserId: w.userId,
+                widgetId: resolvedWidgetId || w.id,
+                chatSessionId: parsedSessionId || traceId,
+                visitorId: parsedVisitorId,
+                hubAgentId: parsedAgentId,
+                userMessage: parsedMessage,
+                agentResponse: parallel.reply,
+                routingMeta: parallel.meta,
+              });
               return NextResponse.json(
                 {
                   reply: parallel.reply,
@@ -587,6 +634,16 @@ export async function POST(req: NextRequest) {
               agentIdOrHubId: parsedAgentId,
               rawBody,
             }).catch(() => {});
+            void afterWidgetChatSuccess({
+              ownerUserId: w.userId,
+              widgetId: resolvedWidgetId || w.id,
+              chatSessionId: parsedSessionId || traceId,
+              visitorId: parsedVisitorId,
+              hubAgentId: parsedAgentId,
+              userMessage: parsedMessage,
+              agentResponse: direct.reply,
+              routingMeta: multiAgentMeta,
+            });
             return NextResponse.json(
               {
                 reply: direct.reply,
@@ -625,6 +682,16 @@ export async function POST(req: NextRequest) {
               agentIdOrHubId: parsedAgentId,
               rawBody,
             }).catch(() => {});
+            void afterWidgetChatSuccess({
+              ownerUserId: w.userId,
+              widgetId: resolvedWidgetId || w.id,
+              chatSessionId: parsedSessionId || traceId,
+              visitorId: parsedVisitorId,
+              hubAgentId: parsedAgentId,
+              userMessage: parsedMessage,
+              agentResponse: inferred.reply,
+              routingMeta: multiAgentMeta,
+            });
             return NextResponse.json(
               {
                 reply: inferred.reply,

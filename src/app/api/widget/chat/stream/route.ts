@@ -45,8 +45,10 @@ import {
   type WidgetMultiAgentConfig,
 } from '@/lib/widget-multi-agent';
 import { enrichWidgetChatBodyWithImages, type WidgetImageEnrichment } from '@/lib/widget-chat-images';
+import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-enrich';
 import { persistWidgetTranscript } from '@/lib/widget-transcript';
 import { tryServeWidgetChatViaDirectInference } from '@/lib/widget-chat-direct-inference';
+import { normalizeVisitorId } from '@/lib/widget-visitor';
 
 export const maxDuration = 60; // Vercel: allow up to 60s for LLM + streaming
 
@@ -133,13 +135,24 @@ export async function POST(req: NextRequest) {
   let parsedWidgetId = '';
   let resolvedWidgetId = '';
   let parsedSessionId = '';
+  let parsedMessage = '';
+  let parsedVisitorId: string | null = null;
   let tokenFromBody = '';
   try {
-    const j = JSON.parse(rawBody) as { agentId?: string; widgetId?: string; token?: string; sessionId?: string };
+    const j = JSON.parse(rawBody) as {
+      agentId?: string;
+      widgetId?: string;
+      token?: string;
+      sessionId?: string;
+      message?: string;
+      visitorId?: string;
+    };
     parsedAgentId = typeof j?.agentId === 'string' ? j.agentId.trim() : '';
     parsedWidgetId = typeof j?.widgetId === 'string' ? j.widgetId.trim() : '';
     resolvedWidgetId = parsedWidgetId;
     parsedSessionId = typeof j?.sessionId === 'string' ? j.sessionId.trim() : '';
+    parsedMessage = typeof j?.message === 'string' ? j.message : '';
+    parsedVisitorId = normalizeVisitorId(j?.visitorId);
     tokenFromBody = typeof j?.token === 'string' ? j.token.trim() : '';
   } catch {
     return new Response(
@@ -236,6 +249,22 @@ export async function POST(req: NextRequest) {
         } catch (routeErr) {
           console.warn('[widget/chat/stream] multi-agent context skipped:', routeErr);
         }
+
+        try {
+          rawBody = await enrichWidgetChatBody({
+            rawBody,
+            ownerUserId: w.userId,
+            widgetId: resolvedWidgetId || w.id,
+          });
+          const reparse = JSON.parse(rawBody) as { sessionId?: string; visitorId?: string; message?: string };
+          if (typeof reparse.sessionId === 'string' && reparse.sessionId.trim()) {
+            parsedSessionId = reparse.sessionId.trim();
+          }
+          parsedVisitorId = normalizeVisitorId(reparse.visitorId) ?? parsedVisitorId;
+          if (typeof reparse.message === 'string') parsedMessage = reparse.message;
+        } catch (enrichErr) {
+          console.warn('[widget/chat/stream] enrich body skipped:', enrichErr);
+        }
       }
     } catch {
       /* fail-open */
@@ -316,6 +345,18 @@ export async function POST(req: NextRequest) {
               if (widgetToken.startsWith('wt_') && parsedAgentIdLocal) {
                 void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true).catch(() => {});
               }
+              if (faqTrackOwnerId) {
+                void afterWidgetChatSuccess({
+                  ownerUserId: faqTrackOwnerId,
+                  widgetId: resolvedWidgetId,
+                  chatSessionId: parsedSessionId || traceId,
+                  visitorId: parsedVisitorId,
+                  hubAgentId: pipeline.routedHubAgentId,
+                  userMessage: userDisplayMessage || parsedMessage,
+                  agentResponse: pipeline.reply,
+                  routingMeta: pipeline.meta,
+                });
+              }
               return;
             }
           }
@@ -354,6 +395,18 @@ export async function POST(req: NextRequest) {
               });
               if (widgetToken.startsWith('wt_') && parsedAgentIdLocal) {
                 void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true).catch(() => {});
+              }
+              if (faqTrackOwnerId) {
+                void afterWidgetChatSuccess({
+                  ownerUserId: faqTrackOwnerId,
+                  widgetId: resolvedWidgetId,
+                  chatSessionId: parsedSessionId || traceId,
+                  visitorId: parsedVisitorId,
+                  hubAgentId: parallel.routedHubAgentId,
+                  userMessage: userDisplayMessage || parsedMessage,
+                  agentResponse: parallel.reply,
+                  routingMeta: parallel.meta,
+                });
               }
               return;
             }
@@ -471,6 +524,16 @@ export async function POST(req: NextRequest) {
                   agentIdOrHubId: parsedAgentIdLocal,
                   rawBody: rawBodyInitial,
                 }).catch(() => {});
+                void afterWidgetChatSuccess({
+                  ownerUserId: faqTrackOwnerId,
+                  widgetId: resolvedWidgetId,
+                  chatSessionId: parsedSessionId || traceId,
+                  visitorId: parsedVisitorId,
+                  hubAgentId: parsedAgentIdLocal,
+                  userMessage: userDisplayMessage || parsedMessage,
+                  agentResponse: inferred.reply,
+                  routingMeta: multiAgentMeta,
+                });
               }
               return;
             }

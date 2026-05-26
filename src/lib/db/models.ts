@@ -325,6 +325,12 @@ const ConversationSessionSchema = new Schema({
   sessionId:    { type: String, required: true, unique: true },
   /** Sesión de chat del widget (transcript); distinto de sessionId en entradas ho_* del inbox */
   chatSessionId: { type: String, default: '' },
+  /** Visitante estable entre sesiones (memoria episódica cross-session). */
+  visitorId:    { type: String, default: '' },
+  /** Recordatorio prospectivo: contactar al visitante después de esta fecha. */
+  followUpAt:   { type: Date, default: null },
+  followUpNote: { type: String, default: '' },
+  followUpNotified: { type: Boolean, default: false },
   startedAt:    { type: Date, required: true },
   endedAt:      { type: Date, default: null },
   /** Segundos de duración (null si no terminó) */
@@ -360,6 +366,21 @@ ConversationSessionSchema.index({ userId: 1, month: -1 });
 ConversationSessionSchema.index({ sessionId: 1 }, { unique: true });
 ConversationSessionSchema.index({ startedAt: -1 });
 ConversationSessionSchema.index({ userId: 1, escalated: 1, inboxStatus: 1, handoffAt: -1 });
+ConversationSessionSchema.index({ userId: 1, followUpAt: 1, followUpNotified: 1 });
+
+// ── WIDGET SESSION CONTEXT (shared memory multi-agente + facts) ───────────────
+
+const WidgetSessionContextSchema = new Schema({
+  widgetId:       { type: String, required: true },
+  chatSessionId:  { type: String, required: true },
+  userId:         { type: String, required: true },
+  summary:        { type: String, default: '' },
+  facts:          { type: [Schema.Types.Mixed], default: [] },
+  lastRoutedAgentName: { type: String, default: '' },
+}, { timestamps: true });
+
+WidgetSessionContextSchema.index({ widgetId: 1, chatSessionId: 1, userId: 1 }, { unique: true });
+WidgetSessionContextSchema.index({ userId: 1, updatedAt: -1 });
 
 // ── RAG BULK JOBS ─────────────────────────────────────────────────────────────
 // Cola async para ingestión masiva de documentos RAG (ZIP o lotes grandes).
@@ -533,7 +554,7 @@ ManualInvoiceSchema.index({ userId: 1, issuedAt: -1 });
 if (process.env.NODE_ENV !== 'production') {
   const modelNames = [
     'User', 'ClientAgent', 'Subscription', 'PlatformUsage', 'ConversationPack',
-    'AuditLog', 'SecurityLog', 'ConversationSession', 'RagBulkJob', 'Organization', 'Referral', 'AbTest',
+    'AuditLog', 'SecurityLog', 'ConversationSession', 'WidgetSessionContext', 'RagBulkJob', 'Organization', 'Referral', 'AbTest',
     'ManualInvoice',
   ] as const;
   modelNames.forEach((name) => {
@@ -550,6 +571,7 @@ export const ConversationPack     = mongoose.models.ConversationPack     || mong
 export const AuditLog             = mongoose.models.AuditLog             || mongoose.model('AuditLog', AuditLogSchema);
 export const SecurityLog          = mongoose.models.SecurityLog          || mongoose.model('SecurityLog', SecurityLogSchema);
 export const ConversationSession  = mongoose.models.ConversationSession  || mongoose.model('ConversationSession', ConversationSessionSchema);
+export const WidgetSessionContext = mongoose.models.WidgetSessionContext || mongoose.model('WidgetSessionContext', WidgetSessionContextSchema);
 export const RagBulkJob           = mongoose.models.RagBulkJob           || mongoose.model('RagBulkJob', RagBulkJobSchema);
 export const Organization         = mongoose.models.Organization         || mongoose.model('Organization', OrganizationSchema);
 export const Referral             = mongoose.models.Referral             || mongoose.model('Referral', ReferralSchema);

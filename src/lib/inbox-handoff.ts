@@ -9,6 +9,7 @@ export type HandoffSessionInput = {
   userId: string;
   widgetId: string;
   agentId?: string;
+  visitorId?: string;
   contactInfo: { name: string; email: string; phone: string };
   userMessage?: string;
   handoffAt?: Date;
@@ -26,6 +27,7 @@ export async function upsertHandoffInboxSession(input: HandoffSessionInput): Pro
     await ConversationSession.create({
       sessionId: handoffSessionId,
       chatSessionId,
+      visitorId: typeof input.visitorId === 'string' ? input.visitorId.trim() : '',
       userId,
       widgetId: input.widgetId,
       agentId: input.agentId || '',

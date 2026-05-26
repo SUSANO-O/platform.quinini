@@ -27,6 +27,9 @@ type InboxItem = {
   handoffMessage: string;
   lastMessage: string;
   messageCount: number;
+  followUpAt: string | null;
+  followUpNote: string;
+  followUpNotified?: boolean;
 };
 
 type TranscriptMessage = {
@@ -44,6 +47,7 @@ export default function InboxPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [transcripts, setTranscripts] = useState<Record<string, TranscriptMessage[]>>({});
   const [loadingTranscript, setLoadingTranscript] = useState<string | null>(null);
+  const [followUpDraft, setFollowUpDraft] = useState<Record<string, { at: string; note: string }>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -97,6 +101,25 @@ export default function InboxPage() {
     }
     toast.success(inboxStatus === 'resolved' ? 'Marcada como resuelta' : 'Reabierta');
     notifyInboxChanged();
+    load();
+  }
+
+  async function saveFollowUp(sessionId: string) {
+    const draft = followUpDraft[sessionId];
+    const res = await fetch('/api/inbox', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId,
+        followUpAt: draft?.at ? new Date(draft.at).toISOString() : null,
+        followUpNote: draft?.note ?? '',
+      }),
+    });
+    if (!res.ok) {
+      toast.error('No se pudo guardar el recordatorio.');
+      return;
+    }
+    toast.success('Recordatorio guardado.');
     load();
   }
 
@@ -219,6 +242,75 @@ export default function InboxPage() {
                       <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: '8px 0 0', fontStyle: 'italic' }}>
                         Último mensaje: {item.lastMessage}
                       </p>
+                    )}
+                    {tab === 'open' && (
+                      <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 10, background: 'var(--card)', border: '1px solid var(--border)' }}>
+                        <p style={{ fontSize: 11, fontWeight: 700, margin: '0 0 8px', color: 'var(--muted-foreground)' }}>
+                          Recordatorio (seguimiento)
+                        </p>
+                        {item.followUpAt && (
+                          <p style={{ fontSize: 12, margin: '0 0 8px', color: BRAND_TEXT_COLOR }}>
+                            Programado: {fmtDate(item.followUpAt)}
+                            {item.followUpNote ? ` — ${item.followUpNote}` : ''}
+                          </p>
+                        )}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                          <input
+                            type="datetime-local"
+                            value={
+                              followUpDraft[item.sessionId]?.at ??
+                              (item.followUpAt
+                                ? new Date(item.followUpAt).toISOString().slice(0, 16)
+                                : '')
+                            }
+                            onChange={(e) =>
+                              setFollowUpDraft((prev) => ({
+                                ...prev,
+                                [item.sessionId]: {
+                                  at: e.target.value,
+                                  note: prev[item.sessionId]?.note ?? item.followUpNote ?? '',
+                                },
+                              }))
+                            }
+                            style={{ fontSize: 12, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--border)' }}
+                          />
+                          <input
+                            type="text"
+                            placeholder="Nota breve"
+                            value={followUpDraft[item.sessionId]?.note ?? item.followUpNote ?? ''}
+                            onChange={(e) =>
+                              setFollowUpDraft((prev) => ({
+                                ...prev,
+                                [item.sessionId]: {
+                                  at:
+                                    prev[item.sessionId]?.at ??
+                                    (item.followUpAt
+                                      ? new Date(item.followUpAt).toISOString().slice(0, 16)
+                                      : ''),
+                                  note: e.target.value,
+                                },
+                              }))
+                            }
+                            style={{ flex: 1, minWidth: 140, fontSize: 12, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--border)' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => void saveFollowUp(item.sessionId)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: 8,
+                              border: 'none',
+                              background: BRAND_TEXT_COLOR,
+                              color: '#fff',
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Guardar
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>

@@ -39,7 +39,9 @@ export function resolveInternalAssistBoot(
   context: InternalAssistContext,
   requestOrigin: string,
 ): InternalAssistBootConfig {
-  const host = envStr('NEXT_PUBLIC_APP_URL', requestOrigin).replace(/\/$/, '') || requestOrigin;
+  // El SDK corre en el navegador del visitante: las peticiones /api/widget/* deben ir
+  // al mismo origen donde se sirve la página (no a NEXT_PUBLIC_APP_URL si apunta a otro deploy).
+  const host = requestOrigin.replace(/\/$/, '') || envStr('NEXT_PUBLIC_APP_URL', requestOrigin).replace(/\/$/, '');
 
   if (context === 'marketing') {
     return {
