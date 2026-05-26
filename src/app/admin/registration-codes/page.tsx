@@ -18,6 +18,7 @@ interface CodeRow {
   plan: string;
   maxUses: number;
   usedCount: number;
+  trialDays: number;
   active: boolean;
   note: string;
   expiresAt: string | null;
@@ -49,6 +50,7 @@ export default function RegistrationCodesPage() {
   const [formCode, setFormCode] = useState('');
   const [formPlan, setFormPlan] = useState('basic');
   const [formMaxUses, setFormMaxUses] = useState(1);
+  const [formTrialDays, setFormTrialDays] = useState(7);
   const [formNote, setFormNote] = useState('');
   const [formExpiry, setFormExpiry] = useState('');
   const [creating, setCreating] = useState(false);
@@ -93,7 +95,12 @@ export default function RegistrationCodesPage() {
   async function createCode() {
     setFormError('');
     setCreating(true);
-    const body: Record<string, unknown> = { plan: formPlan, maxUses: formMaxUses, note: formNote };
+    const body: Record<string, unknown> = {
+      plan: formPlan,
+      maxUses: formMaxUses,
+      trialDays: formTrialDays,
+      note: formNote,
+    };
     if (formCode.trim()) body.code = formCode.trim();
     if (formExpiry) body.expiresAt = formExpiry;
     const res = await fetch('/api/admin/registration-codes', {
@@ -107,7 +114,7 @@ export default function RegistrationCodesPage() {
     } else if (data.code) {
       setCodes((prev) => [data.code as CodeRow, ...prev]);
       setShowForm(false);
-      setFormCode(''); setFormPlan('basic'); setFormMaxUses(1); setFormNote(''); setFormExpiry('');
+      setFormCode(''); setFormPlan('basic'); setFormMaxUses(1); setFormTrialDays(7); setFormNote(''); setFormExpiry('');
       toast.success('Código creado');
     }
     setCreating(false);
@@ -197,11 +204,24 @@ export default function RegistrationCodesPage() {
             </div>
             <div>
               <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--muted-foreground)', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Días de prueba
+              </label>
+              <input
+                type="number" min={1} max={365} style={inputStyle}
+                value={formTrialDays}
+                onChange={(e) => setFormTrialDays(Math.max(1, Math.min(365, Number(e.target.value) || 7)))}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--muted-foreground)', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Expira (opcional)
               </label>
               <input type="date" style={inputStyle} value={formExpiry} onChange={(e) => setFormExpiry(e.target.value)} />
             </div>
           </div>
+          <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '-4px 0 12px', lineHeight: 1.45 }}>
+            Los días de prueba definen cuánto dura el acceso al plan asignado tras registrarse (ej. 7, 15, 30, 40).
+          </p>
           <div style={{ marginBottom: '16px' }}>
             <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--muted-foreground)', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Nota interna
@@ -243,11 +263,11 @@ export default function RegistrationCodesPage() {
       <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', overflow: 'hidden' }}>
         {/* Header */}
         <div style={{
-          display: 'grid', gridTemplateColumns: '1.4fr 0.8fr 0.7fr 0.7fr 0.6fr 1fr 60px',
+          display: 'grid', gridTemplateColumns: '1.3fr 0.7fr 0.6fr 0.7fr 0.7fr 0.6fr 0.9fr 60px',
           gap: '10px', padding: '11px 20px', borderBottom: '1px solid var(--border)',
           background: 'rgba(0,0,0,0.02)',
         }}>
-          {['Código', 'Plan', 'Usos', 'Activo', 'Expira', 'Nota', ''].map((h) => (
+          {['Código', 'Plan', 'Prueba', 'Usos', 'Activo', 'Expira', 'Nota', ''].map((h) => (
             <span key={h} style={{ fontSize: '11px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</span>
           ))}
         </div>
@@ -267,7 +287,7 @@ export default function RegistrationCodesPage() {
             <div key={c._id} style={{ borderTop: i > 0 ? '1px solid var(--border)' : undefined }}>
               {/* Row */}
               <div style={{
-                display: 'grid', gridTemplateColumns: '1.4fr 0.8fr 0.7fr 0.7fr 0.6fr 1fr 60px',
+                display: 'grid', gridTemplateColumns: '1.3fr 0.7fr 0.6fr 0.7fr 0.7fr 0.6fr 0.9fr 60px',
                 gap: '10px', padding: '13px 20px', alignItems: 'center',
                 opacity: c.active ? 1 : 0.55,
               }}>
@@ -293,6 +313,11 @@ export default function RegistrationCodesPage() {
                   display: 'inline-block',
                 }}>
                   {c.plan}
+                </span>
+
+                {/* Trial days */}
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--foreground)' }}>
+                  {c.trialDays ?? 7}d
                 </span>
 
                 {/* Uses */}

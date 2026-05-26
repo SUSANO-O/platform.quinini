@@ -402,6 +402,8 @@ const RegistrationCodeSchema = new Schema({
   createdBy:  { type: String, required: true },
   /** Nota libre para identificar al cliente o campaña. */
   note:       { type: String, default: '' },
+  /** Días de prueba al registrarse con este código (1–365). */
+  trialDays:  { type: Number, default: 7, min: 1, max: 365 },
 }, { timestamps: true });
 
 RegistrationCodeSchema.index({ code: 1 }, { unique: true });

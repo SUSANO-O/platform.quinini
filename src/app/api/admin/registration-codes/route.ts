@@ -9,6 +9,7 @@ import { User, RegistrationCode } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
 import { randomBytes } from 'crypto';
 import { PLAN_ORDER, type PlanId } from '@/lib/plan-catalog';
+import { normalizeTrialDays } from '@/lib/registration-codes-env';
 
 async function requireAdmin(req: NextRequest): Promise<string | null> {
   const token = req.cookies.get('afhub_session')?.value;
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
   }
 
   const maxUses = Math.max(1, Math.min(1000, Number(body.maxUses ?? 1)));
+  const trialDays = normalizeTrialDays(body.trialDays);
   const note    = String(body.note ?? '').trim().slice(0, 120);
 
   // Código personalizado o autogenerado
@@ -76,6 +78,7 @@ export async function POST(req: NextRequest) {
     code,
     plan,
     maxUses,
+    trialDays,
     note,
     expiresAt,
     createdBy: adminId,
