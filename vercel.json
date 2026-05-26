@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/internal/inbox-follow-ups",
-      "schedule": "0 * * * *"
+      "schedule": "0 0 * * *"
     }
   ],
   "functions": {
