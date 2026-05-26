@@ -36,7 +36,7 @@ export default function FacturasPage() {
           <div>
             <h2 style={{ fontSize: 15, fontWeight: 800, margin: '0 0 4px' }}>Historial de pagos</h2>
             <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0 }}>
-              Suscripciones y compras únicas procesadas por LemonSqueezy.
+              Suscripciones y compras seguras.
             </p>
           </div>
           {!loading && hasPaid ? (
