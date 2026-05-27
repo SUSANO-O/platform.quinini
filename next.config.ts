@@ -19,6 +19,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: [
     'mongoose', 'stripe', 'bcryptjs', 'pdf-parse', 'mammoth',
     'puppeteer-core', '@sparticuz/chromium', 'jsdom', '@mozilla/readability',
+    'speakeasy', 'qrcode',
   ],
 
   async redirects() {
@@ -51,13 +52,13 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://control-BotIvA.vercel.app https://unpkg.com",
-              "script-src-elem 'self' 'unsafe-inline' https://control-BotIvA.vercel.app https://unpkg.com",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://control-BotIvA.vercel.app https://unpkg.com https://challenges.cloudflare.com",
+              "script-src-elem 'self' 'unsafe-inline' https://control-BotIvA.vercel.app https://unpkg.com https://challenges.cloudflare.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com https://unpkg.com",
               "font-src 'self' data: https://fonts.gstatic.com https://api.fontshare.com https://cdn.fontshare.com",
               "img-src 'self' data: blob: https:",
               "connect-src 'self' https://api.lemonsqueezy.com https://api.stripe.com https://*.upstash.io https://control-BotIvA.vercel.app wss:",
-              `frame-src https://app.lemonsqueezy.com https://checkout.lemonsqueezy.com https://js.stripe.com https://hooks.stripe.com ${agentflowApiOrigin}`,
+              `frame-src https://app.lemonsqueezy.com https://checkout.lemonsqueezy.com https://js.stripe.com https://hooks.stripe.com https://challenges.cloudflare.com ${agentflowApiOrigin}`,
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self' https://checkout.lemonsqueezy.com https://billing.stripe.com",
