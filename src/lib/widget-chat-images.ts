@@ -40,10 +40,6 @@ export function parseUserImages(body: Record<string, unknown>): WidgetUserImage[
   return out;
 }
 
-function defaultMessageForImages(): string {
-  return 'Analiza esta captura de pantalla y ayúdame a resolver el problema.';
-}
-
 /**
  * Si el body incluye userImages, analiza con visión y enriquece message para el hub.
  */
@@ -62,7 +58,6 @@ export async function enrichWidgetChatBodyWithImages(
 
   const userText =
     typeof parsed.message === 'string' ? parsed.message.trim() : '';
-  const displayMessage = userText || defaultMessageForImages();
 
   const analyses: Array<{ url: string; text: string }> = [];
   for (const img of images) {
@@ -72,21 +67,40 @@ export async function enrichWidgetChatBodyWithImages(
 
   const imageBlock = analyses
     .map((a, i) => {
-      const header = images.length > 1 ? `Captura ${i + 1}` : 'Captura adjunta';
+      const header = images.length > 1 ? `Imagen ${i + 1}` : 'Imagen adjunta';
       return `[${header}]\nURL: ${a.url}\nContenido detectado:\n${a.text}`;
     })
     .join('\n\n---\n\n');
 
-  const enrichedMessage = [
-    displayMessage,
-    '',
-    '---',
-    '[IMÁGENES DEL USUARIO — CONTEXTO PARA SOPORTE]',
-    imageBlock,
-    '---',
-    'Instrucciones: usa el contenido detectado para diagnosticar y proponer pasos concretos.',
-    'Si no puedes resolver con certeza, indica al usuario que pulse "Hablar con una persona" para escalar a un agente humano.',
-  ].join('\n');
+  let enrichedMessage: string;
+
+  if (!userText) {
+    // Sin instrucciones del usuario → pedir al LLM que pregunte qué quiere hacer
+    enrichedMessage = [
+      '[El usuario ha adjuntado una imagen sin especificar instrucciones.]',
+      '',
+      '---',
+      '[IMAGEN RECIBIDA — SIN INSTRUCCIONES]',
+      imageBlock,
+      '---',
+      'Instrucciones para el asistente: El usuario envió esta imagen pero no indicó qué quiere que hagas con ella.',
+      'Preséntate de forma amigable, confirma brevemente lo que ves en la imagen (1 línea) y luego pregúntale',
+      'qué desea que hagas: analizarla, extraer texto, describir su contenido, responder una pregunta, etc.',
+      'NO realices ningún análisis completo hasta que el usuario indique qué necesita.',
+    ].join('\n');
+  } else {
+    // Con instrucciones → flujo original de soporte
+    enrichedMessage = [
+      userText,
+      '',
+      '---',
+      '[IMÁGENES DEL USUARIO — CONTEXTO PARA SOPORTE]',
+      imageBlock,
+      '---',
+      'Instrucciones: usa el contenido detectado para diagnosticar y proponer pasos concretos.',
+      'Si no puedes resolver con certeza, indica al usuario que pulse "Hablar con una persona" para escalar a un agente humano.',
+    ].join('\n');
+  }
 
   parsed.message = enrichedMessage.slice(0, 12_000);
   delete parsed.userImages;
@@ -94,7 +108,7 @@ export async function enrichWidgetChatBodyWithImages(
   const enrichment: WidgetImageEnrichment = {
     images,
     analyses,
-    displayMessage,
+    displayMessage: userText || '📎 Imagen adjunta',
   };
 
   return { body: JSON.stringify(parsed), enrichment };
