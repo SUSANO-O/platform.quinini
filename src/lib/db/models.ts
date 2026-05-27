@@ -34,6 +34,9 @@ const UserSchema = new Schema({
   escalationTicketIntegration: { type: Schema.Types.Mixed, default: null },
   /** Incoming Webhook URL de Slack para avisos al escalar (plan Team+). */
   escalationSlackWebhookUrl: { type: String, default: null },
+  // Two-Factor Authentication (TOTP)
+  twoFactorEnabled: { type: Boolean, default: false },
+  twoFactorSecret:  { type: String, default: null },
   /** Datos de facturación para recibos PDF (nombre fiscal, NIF, dirección). */
   billingProfile: {
     type: {

@@ -154,6 +154,41 @@ export function generateSecureToken(): string {
   return crypto.randomBytes(32).toString('hex');
 }
 
+// ── Two-Factor Authentication (TOTP) ─────────────────────────────────────────
+
+/**
+ * Signed short-lived token used between password-OK and TOTP-OK steps.
+ * Format: base64url(userId:expiry:hmac) — same approach as session token.
+ */
+export function createTwoFactorPendingToken(userId: string): string {
+  const secret = getSessionSecret();
+  const expiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+  const payload = `2fa:${userId}:${expiry}`;
+  const hmac = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  return Buffer.from(`${payload}:${hmac}`).toString('base64url');
+}
+
+export function verifyTwoFactorPendingToken(token: string): string | null {
+  try {
+    const secret = getSessionSecret();
+    const decoded = Buffer.from(token, 'base64url').toString('utf8');
+    const parts = decoded.split(':');
+    // parts: ['2fa', userId, expiry, hmac]
+    if (parts.length < 4 || parts[0] !== '2fa') return null;
+    const hmac = parts[parts.length - 1];
+    const payload = parts.slice(0, -1).join(':');
+    const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+    if (hmac.length !== expected.length) return null;
+    const valid = crypto.timingSafeEqual(Buffer.from(hmac, 'hex'), Buffer.from(expected, 'hex'));
+    if (!valid) return null;
+    const expiry = parseInt(parts[2], 10);
+    if (Date.now() > expiry) return null;
+    return parts[1]; // userId
+  } catch {
+    return null;
+  }
+}
+
 /** Hash del código de 6 dígitos para cambio de email (comparación segura en servidor). */
 export function hashEmailChangeCode(code: string, userId: string): string {
   const secret = getSessionSecret();

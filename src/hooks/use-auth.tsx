@@ -20,7 +20,8 @@ export interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
-  login: (email: string, password: string, cfToken?: string) => Promise<{ error?: string; user?: AuthUser }>;
+  login: (email: string, password: string, cfToken?: string) => Promise<{ error?: string; user?: AuthUser; requires2FA?: boolean; tempToken?: string }>;
+  complete2FA: (tempToken: string, code: string) => Promise<{ error?: string; user?: AuthUser }>;
   register: (email: string, password: string, displayName?: string, registrationCode?: string, cfToken?: string) => Promise<{ error?: string; user?: AuthUser }>;
   logout: () => Promise<void>;
   /** Recarga usuario desde la sesión (tras cambiar email o nombre en Ajustes). */
@@ -33,6 +34,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   login: async () => ({}),
+  complete2FA: async () => ({}),
   register: async () => ({}),
   logout: async () => {},
   refreshUser: async () => {},
@@ -81,6 +83,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     const data = await res.json();
     if (!res.ok) return { error: data.error || 'Error al iniciar sesión.' };
+    if (data.requires2FA) return { requires2FA: true, tempToken: data.tempToken as string };
+    setUser(data.user);
+    return { user: data.user as AuthUser };
+  }, []);
+
+  const complete2FA = useCallback(async (tempToken: string, code: string) => {
+    const res = await fetch('/api/auth/2fa/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tempToken, code }),
+    });
+    const data = await res.json();
+    if (!res.ok) return { error: data.error || 'Código incorrecto.' };
     setUser(data.user);
     return { user: data.user as AuthUser };
   }, []);
@@ -114,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshUser]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser, stopImpersonating }}>
+    <AuthContext.Provider value={{ user, loading, login, complete2FA, register, logout, refreshUser, stopImpersonating }}>
       {children}
     </AuthContext.Provider>
   );

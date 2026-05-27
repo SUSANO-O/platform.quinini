@@ -13,6 +13,7 @@ import {
   verifySessionToken,
   generateSecureToken,
   validatePasswordStrength,
+  createTwoFactorPendingToken,
   IMPERSONATOR_COOKIE,
 } from '@/lib/auth';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
@@ -295,6 +296,12 @@ export async function POST(req: NextRequest) {
       if (needsUpgrade) {
         const newHash = await hashPassword(password);
         await User.updateOne({ _id: user._id }, { passwordHash: newHash, hashVersion: 'v2-bcrypt' });
+      }
+
+      // Si tiene 2FA activo → emitir token temporal (la sesión real se crea en /api/auth/2fa/complete)
+      if (user.twoFactorEnabled) {
+        const tempToken = createTwoFactorPendingToken(user._id.toString());
+        return noCache(NextResponse.json({ requires2FA: true, tempToken }));
       }
 
       const token = createSessionToken(user._id.toString());

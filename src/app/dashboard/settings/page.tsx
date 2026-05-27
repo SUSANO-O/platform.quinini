@@ -6,9 +6,9 @@ import { SubscriptionPlanPanel } from '@/components/dashboard/subscription-plan-
 import { UpdatePaymentModal } from '@/components/billing/update-payment-modal';
 import { InvoiceList } from '@/components/billing/invoice-list';
 // import { getStripePromise } from '@/lib/stripe-client'; // Stripe — comentado
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useEffect, useState, useRef, type ChangeEvent } from 'react';
 import Link from 'next/link';
-import { CreditCard, ExternalLink, Settings, Sparkles, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { CreditCard, ExternalLink, Settings, Sparkles, CheckCircle2, AlertTriangle, ShieldCheck, ShieldOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { AvatarEditor } from '@/components/ui/AvatarEditor';
@@ -388,6 +388,7 @@ export default function SettingsPage() {
       >
         {[
           { id: 'settings-account', label: 'Cuenta' },
+          { id: 'settings-security', label: 'Seguridad' },
           { id: 'settings-billing', label: 'Plan' },
           { id: 'settings-rag-limits', label: 'Almacenamiento' },
           { id: 'settings-invoices', label: 'Facturas' },
@@ -716,6 +717,9 @@ export default function SettingsPage() {
         </div>
         </div>
       </div>
+
+      {/* Security / 2FA */}
+      <TwoFactorSection />
 
       {/* Subscription info */}
       <div id="settings-billing" className="scroll-mt-24 rounded-2xl overflow-hidden border card-texture" style={{ borderColor: 'var(--border)' }} data-tour="settings-billing">
@@ -1086,6 +1090,147 @@ export default function SettingsPage() {
 
         </div>
       </div>
+      </div>
+    </div>
+  );
+}
+
+function TwoFactorSection() {
+  const { user } = useAuth();
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [step, setStep] = useState<'idle' | 'setup' | 'disable'>('idle');
+  const [qrCode, setQrCode] = useState('');
+  const [secret, setSecret] = useState('');
+  const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/2fa/status').then(r => r.json()).then(d => setEnabled(d.enabled ?? false)).catch(() => setEnabled(false));
+  }, []);
+
+  async function startSetup() {
+    setBusy(true); setMsg(null);
+    const r = await fetch('/api/auth/2fa/setup');
+    setBusy(false);
+    if (!r.ok) { const d = await r.json(); setMsg({ ok: false, text: d.error }); return; }
+    const d = await r.json();
+    setQrCode(d.qrCode); setSecret(d.secret); setCode(''); setStep('setup');
+  }
+
+  async function confirmSetup(e: React.FormEvent) {
+    e.preventDefault(); setBusy(true); setMsg(null);
+    const r = await fetch('/api/auth/2fa/setup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
+    const d = await r.json(); setBusy(false);
+    if (!r.ok) { setMsg({ ok: false, text: d.error }); return; }
+    setEnabled(true); setStep('idle'); setMsg({ ok: true, text: 'Autenticación en dos pasos activada.' });
+  }
+
+  async function confirmDisable(e: React.FormEvent) {
+    e.preventDefault(); setBusy(true); setMsg(null);
+    const r = await fetch('/api/auth/2fa/setup', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) });
+    const d = await r.json(); setBusy(false);
+    if (!r.ok) { setMsg({ ok: false, text: d.error }); return; }
+    setEnabled(false); setStep('idle'); setPassword(''); setMsg({ ok: true, text: 'Autenticación en dos pasos desactivada.' });
+  }
+
+  const cardStyle: React.CSSProperties = { padding: '14px 16px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--card)', marginBottom: '12px' };
+
+  return (
+    <div id="settings-security" className="scroll-mt-24 rounded-2xl overflow-hidden border mb-5 card-texture" style={{ borderColor: 'var(--border)' }}>
+      <div style={{ height: 3, background: 'linear-gradient(90deg,#6366f1,#8b5cf6)' }} />
+      <div style={{ padding: '20px 20px 24px' }}>
+        <h2 className="text-[15px] font-bold m-0 mb-4">Seguridad</h2>
+
+        {/* Estado actual */}
+        <div style={{ ...cardStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {enabled
+              ? <ShieldCheck size={18} style={{ color: '#22c55e', flexShrink: 0 }} />
+              : <ShieldOff size={18} style={{ color: 'var(--muted-foreground)', flexShrink: 0 }} />}
+            <div>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Autenticación en dos pasos (2FA)</p>
+              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--muted-foreground)' }}>
+                {enabled === null ? 'Cargando…' : enabled ? 'Activado — tu cuenta está protegida con TOTP.' : 'Desactivado — actívalo para mayor seguridad.'}
+              </p>
+            </div>
+          </div>
+          {step === 'idle' && enabled !== null && (
+            <button
+              type="button"
+              onClick={() => { setMsg(null); enabled ? setStep('disable') : startSetup(); }}
+              disabled={busy}
+              style={{
+                padding: '7px 14px', borderRadius: '8px', fontSize: 12, fontWeight: 700, cursor: busy ? 'wait' : 'pointer',
+                background: enabled ? 'transparent' : 'var(--brand-primary)',
+                color: enabled ? 'var(--muted-foreground)' : '#fff',
+                border: enabled ? '1px solid var(--border)' : 'none',
+              }}
+            >
+              {enabled ? 'Desactivar' : 'Activar 2FA'}
+            </button>
+          )}
+        </div>
+
+        {/* Paso: escanear QR */}
+        {step === 'setup' && (
+          <div style={cardStyle}>
+            <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 600 }}>1. Escanea el código QR con tu app autenticadora</p>
+            <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--muted-foreground)' }}>
+              Usa Google Authenticator, Authy o cualquier app compatible con TOTP.
+            </p>
+            {qrCode && <img src={qrCode} alt="QR 2FA" style={{ width: 180, height: 180, borderRadius: 8, display: 'block', marginBottom: 12 }} />}
+            <p style={{ margin: '0 0 4px', fontSize: 11, color: 'var(--muted-foreground)' }}>O introduce el código manual:</p>
+            <code style={{ fontSize: 11, letterSpacing: '0.1em', background: 'var(--muted)', padding: '4px 8px', borderRadius: 6, display: 'inline-block', marginBottom: 16 }}>{secret}</code>
+
+            <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600 }}>2. Ingresa el código de 6 dígitos para confirmar</p>
+            <form onSubmit={confirmSetup} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <input
+                type="text" inputMode="numeric" maxLength={6} pattern="\d{6}"
+                value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
+                placeholder="000000" required autoFocus
+                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 18, fontFamily: 'monospace', letterSpacing: '0.2em', textAlign: 'center', background: 'var(--background)' }}
+              />
+              <button type="submit" disabled={busy || code.length < 6}
+                style={{ padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: 'var(--brand-primary)', color: '#fff', border: 'none', cursor: busy ? 'wait' : 'pointer' }}>
+                {busy ? 'Verificando…' : 'Confirmar'}
+              </button>
+              <button type="button" onClick={() => setStep('idle')}
+                style={{ padding: '8px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600, background: 'transparent', color: 'var(--muted-foreground)', border: '1px solid var(--border)', cursor: 'pointer' }}>
+                Cancelar
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Paso: desactivar */}
+        {step === 'disable' && (
+          <div style={cardStyle}>
+            <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600 }}>Confirma tu contraseña para desactivar 2FA</p>
+            <form onSubmit={confirmDisable} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <input
+                type="password" value={password} onChange={e => setPassword(e.target.value)}
+                placeholder="Tu contraseña actual" required autoFocus
+                style={{ flex: 1, minWidth: 200, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, background: 'var(--background)' }}
+              />
+              <button type="submit" disabled={busy || !password}
+                style={{ padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: '#ef4444', color: '#fff', border: 'none', cursor: busy ? 'wait' : 'pointer' }}>
+                {busy ? 'Verificando…' : 'Desactivar 2FA'}
+              </button>
+              <button type="button" onClick={() => { setStep('idle'); setPassword(''); }}
+                style={{ padding: '8px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600, background: 'transparent', color: 'var(--muted-foreground)', border: '1px solid var(--border)', cursor: 'pointer' }}>
+                Cancelar
+              </button>
+            </form>
+          </div>
+        )}
+
+        {msg && (
+          <p style={{ margin: 0, fontSize: 13, padding: '10px 14px', borderRadius: 8, background: msg.ok ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: msg.ok ? '#16a34a' : '#dc2626', border: `1px solid ${msg.ok ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
+            {msg.text}
+          </p>
+        )}
       </div>
     </div>
   );
