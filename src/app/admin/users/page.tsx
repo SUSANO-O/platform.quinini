@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Search, ChevronLeft, ChevronRight, RefreshCw, UserRound } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, RefreshCw, UserRound, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useAuth } from '@/hooks/use-auth';
+import { SubscriptionManagerModal } from '@/components/admin/subscription-manager-modal';
 
 interface UserRow {
   uid: string;
@@ -53,6 +54,8 @@ export default function AdminUsersPage() {
   const [savingPolicyUid, setSavingPolicyUid] = useState<string | null>(null);
   const [impersonateTarget, setImpersonateTarget] = useState<string | null>(null);
   const [impersonating, setImpersonating] = useState(false);
+  const [subModalUid, setSubModalUid] = useState<string | null>(null);
+  const subModalUser = subModalUid ? users.find(u => u.uid === subModalUid) : null;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -115,6 +118,18 @@ export default function AdminUsersPage() {
 
   return (
     <div style={{ padding: '32px' }}>
+      {subModalUid && subModalUser && (
+        <SubscriptionManagerModal
+          userId={subModalUid}
+          userEmail={subModalUser.email}
+          onClose={() => setSubModalUid(null)}
+          onSaved={(plan, status) => {
+            setUsers(prev => prev.map(u => u.uid === subModalUid ? { ...u, plan, status } : u));
+            toast.success('Suscripción actualizada');
+          }}
+        />
+      )}
+
       <ConfirmDialog
         open={impersonateTarget !== null}
         title="Suplantar usuario"
@@ -233,6 +248,20 @@ export default function AdminUsersPage() {
                       <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>—</span>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+                        <button
+                          type="button"
+                          onClick={() => setSubModalUid(u.uid)}
+                          title="Gestionar suscripción"
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                            padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                            border: '1px solid rgba(34,197,94,0.45)', background: 'rgba(34,197,94,0.08)',
+                            color: '#16a34a', cursor: 'pointer',
+                          }}
+                        >
+                          <CreditCard size={12} />
+                          Suscripción
+                        </button>
                         <button
                           type="button"
                           onClick={() => setImpersonateTarget(u.uid)}
@@ -361,6 +390,19 @@ export default function AdminUsersPage() {
                   <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Sin acciones de suplantación</span>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setSubModalUid(u.uid)}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                        width: '100%', padding: '8px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                        border: '1px solid rgba(34,197,94,0.45)', background: 'rgba(34,197,94,0.08)',
+                        color: '#16a34a', cursor: 'pointer',
+                      }}
+                    >
+                      <CreditCard size={13} />
+                      Gestionar suscripción
+                    </button>
                     <button
                       type="button"
                       onClick={() => setImpersonateTarget(u.uid)}
