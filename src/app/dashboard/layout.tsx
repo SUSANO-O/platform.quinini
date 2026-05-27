@@ -19,10 +19,9 @@ import {
   RotateCcw,
 } from 'lucide-react';
 
-import { PLAN_DISPLAY, type PaidPlanId } from '@/lib/plan-catalog';
+import { CHECKOUT_UPGRADE_PLAN_IDS, PLAN_DISPLAY } from '@/lib/plan-catalog';
 
 const SIDEBAR_COLLAPSED_KEY = 'dashboard-sidebar-collapsed';
-const TRIAL_CHECKOUT_PLAN_IDS: PaidPlanId[] = ['starter', 'growth', 'business'];
 
 
 function SubscriptionExpiryGate() {
@@ -89,7 +88,7 @@ function SubscriptionExpiryGate() {
         </p>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
-          {TRIAL_CHECKOUT_PLAN_IDS.map((planId) => {
+          {CHECKOUT_UPGRADE_PLAN_IDS.map((planId) => {
             const plan = PLAN_DISPLAY[planId];
             return (
               <button
@@ -150,7 +149,7 @@ function SidebarExpiryBadge() {
         Período de prueba finalizado
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        {TRIAL_CHECKOUT_PLAN_IDS.map((planId) => {
+        {CHECKOUT_UPGRADE_PLAN_IDS.map((planId) => {
           const plan = PLAN_DISPLAY[planId];
           return (
           <button
