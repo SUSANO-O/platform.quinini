@@ -1,11 +1,15 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
+import { TurnstileWidget } from '@/components/ui/turnstile-widget';
+import type { TurnstileInstance } from '@marsidev/react-turnstile';
+
+const CAPTCHA_ENABLED = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
 function LoginForm() {
   const { login } = useAuth();
@@ -17,15 +21,27 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [cfToken, setCfToken] = useState('');
+  const turnstileRef = useRef<TurnstileInstance>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+
+    if (CAPTCHA_ENABLED && !cfToken) {
+      setError('Completa la verificación de seguridad antes de continuar.');
+      return;
+    }
+
     setLoading(true);
-    const result = await login(email, password);
+    const result = await login(email, password, cfToken || undefined);
     setLoading(false);
+
     if (result.error) {
       setError(result.error);
+      // Reset Turnstile so user can try again
+      turnstileRef.current?.reset();
+      setCfToken('');
     } else {
       const destination = result.user?.role === 'admin' ? '/admin' : from;
       router.push(destination);
@@ -82,6 +98,13 @@ function LoginForm() {
                 autoComplete="current-password"
               />
             </div>
+
+            <TurnstileWidget
+              ref={turnstileRef}
+              onSuccess={(token) => setCfToken(token)}
+              onExpire={() => setCfToken('')}
+              onError={() => { setCfToken(''); setError('Error en la verificación de seguridad. Recarga la página.'); }}
+            />
 
             {error && (
               <p className="text-[13px] text-red-600 bg-red-500/10 px-3.5 py-2.5 rounded-lg border border-red-500/20">

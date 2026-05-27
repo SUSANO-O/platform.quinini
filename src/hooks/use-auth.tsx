@@ -20,8 +20,8 @@ export interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ error?: string; user?: AuthUser }>;
-  register: (email: string, password: string, displayName?: string, registrationCode?: string) => Promise<{ error?: string; user?: AuthUser }>;
+  login: (email: string, password: string, cfToken?: string) => Promise<{ error?: string; user?: AuthUser }>;
+  register: (email: string, password: string, displayName?: string, registrationCode?: string, cfToken?: string) => Promise<{ error?: string; user?: AuthUser }>;
   logout: () => Promise<void>;
   /** Recarga usuario desde la sesión (tras cambiar email o nombre en Ajustes). */
   refreshUser: () => Promise<void>;
@@ -73,11 +73,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [refreshUser]);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string, cfToken?: string) => {
     const res = await fetch('/api/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'login', email, password }),
+      body: JSON.stringify({ action: 'login', email, password, cfToken }),
     });
     const data = await res.json();
     if (!res.ok) return { error: data.error || 'Error al iniciar sesión.' };
@@ -85,11 +85,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { user: data.user as AuthUser };
   }, []);
 
-  const register = useCallback(async (email: string, password: string, displayName?: string, registrationCode?: string) => {
+  const register = useCallback(async (email: string, password: string, displayName?: string, registrationCode?: string, cfToken?: string) => {
     const res = await fetch('/api/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'register', email, password, displayName, registrationCode }),
+      body: JSON.stringify({ action: 'register', email, password, displayName, registrationCode, cfToken }),
     });
     const data = await res.json();
     if (!res.ok) return { error: data.error || 'Error al registrarse.' };

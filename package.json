@@ -42,6 +42,7 @@
   },
   "dependencies": {
     "@lemonsqueezy/lemonsqueezy.js": "^4.0.0",
+    "@marsidev/react-turnstile": "^1.5.2",
     "@mozilla/readability": "^0.6.0",
     "@paddle/paddle-node-sdk": "^1.10.0",
     "@react-three/drei": "^10.0.3",
