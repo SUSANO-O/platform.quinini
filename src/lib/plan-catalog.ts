@@ -46,6 +46,12 @@ export const PRICING_GRID_PLAN_IDS: PaidPlanId[] = [
   'business',
 ];
 
+/**
+ * Planes que se ofrecen en el modal/sidebar de trial expirado y en los botones de upgrade.
+ * Deben coincidir con los variantes configurados en LemonSqueezy (.env LEMONSQUEEZY_VARIANT_*).
+ */
+export const CHECKOUT_UPGRADE_PLAN_IDS: PaidPlanId[] = ['starter', 'growth', 'business'];
+
 /** Precios revisados may 2026 — LLM + RAG + infra externa mínima (Atlas M10, Pinecone pago, storage). */
 export const PLAN_PRICES_USD: Record<PaidPlanId, number> = {
   solo: 7,
