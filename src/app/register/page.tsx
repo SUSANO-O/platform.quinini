@@ -29,6 +29,18 @@ export default function RegisterPage() {
       setError('La contraseña debe tener al menos 8 caracteres.');
       return;
     }
+    if (!/[a-z]/.test(password)) {
+      setError('La contraseña debe contener al menos una letra minúscula.');
+      return;
+    }
+    if (!/[A-Z]/.test(password)) {
+      setError('La contraseña debe contener al menos una letra mayúscula.');
+      return;
+    }
+    if (!/[0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)) {
+      setError('La contraseña debe contener al menos un número o carácter especial.');
+      return;
+    }
     setLoading(true);
     const result = await register(email, password, name || undefined, registrationCode.trim());
     setLoading(false);

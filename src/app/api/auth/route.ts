@@ -12,6 +12,7 @@ import {
   createSessionToken,
   verifySessionToken,
   generateSecureToken,
+  validatePasswordStrength,
   IMPERSONATOR_COOKIE,
 } from '@/lib/auth';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
@@ -28,6 +29,13 @@ const cookieBase = {
   sameSite: 'lax' as const,
   path: '/',
 };
+
+// Evita que proxies/CDN cacheen respuestas de autenticación
+function noCache(res: NextResponse): NextResponse {
+  res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.headers.set('Pragma', 'no-cache');
+  return res;
+}
 
 function setCookie(res: NextResponse, token: string) {
   res.cookies.set(COOKIE, token, {
@@ -48,7 +56,7 @@ export async function POST(req: NextRequest) {
 
     // ── Logout ────────────────────────────────────────────────────────────
     if (action === 'logout') {
-      const res = NextResponse.json({ ok: true });
+      const res = noCache(NextResponse.json({ ok: true }));
       res.cookies.set(COOKIE, '', { maxAge: 0, path: '/' });
       res.cookies.set(IMPERSONATOR_COOKIE, '', { maxAge: 0, path: '/' });
       return res;
@@ -57,7 +65,7 @@ export async function POST(req: NextRequest) {
     const { email, password, displayName } = body;
 
     if (!email || !password) {
-      return NextResponse.json({ error: 'Email y contraseña requeridos.' }, { status: 400 });
+      return noCache(NextResponse.json({ error: 'Email y contraseña requeridos.' }, { status: 400 }));
     }
 
     const normalizedEmail = email.toLowerCase().trim();
@@ -70,10 +78,10 @@ export async function POST(req: NextRequest) {
         : '';
 
       if (!submittedCode) {
-        return NextResponse.json(
+        return noCache(NextResponse.json(
           { error: 'El código de autorización es requerido.' },
           { status: 403 },
-        );
+        ));
       }
 
       const codeDoc = await RegistrationCode.findOne({ code: submittedCode }).lean() as {
@@ -92,22 +100,22 @@ export async function POST(req: NextRequest) {
 
       if (codeDoc) {
         if (!codeDoc.active) {
-          return NextResponse.json(
+          return noCache(NextResponse.json(
             { error: 'Código de autorización inválido.' },
             { status: 403 },
-          );
+          ));
         }
         if (codeDoc.expiresAt && new Date() > codeDoc.expiresAt) {
-          return NextResponse.json(
+          return noCache(NextResponse.json(
             { error: 'El código de autorización ha expirado.' },
             { status: 403 },
-          );
+          ));
         }
         if (codeDoc.usedCount >= codeDoc.maxUses) {
-          return NextResponse.json(
+          return noCache(NextResponse.json(
             { error: 'El código de autorización ya no está disponible.' },
             { status: 403 },
-          );
+          ));
         }
         assignedPlan = codeDoc.plan;
         trialDays = normalizeTrialDays(codeDoc.trialDays);
@@ -115,10 +123,10 @@ export async function POST(req: NextRequest) {
       } else {
         const envEntry = resolveEnvRegistrationCode(submittedCode);
         if (!envEntry) {
-          return NextResponse.json(
+          return noCache(NextResponse.json(
             { error: 'Código de autorización inválido.' },
             { status: 403 },
-          );
+          ));
         }
         assignedPlan = envEntry.plan;
         trialDays = envEntry.trialDays;
@@ -127,19 +135,20 @@ export async function POST(req: NextRequest) {
       // Rate limit: 5 registrations per hour per IP
       const rl = checkRateLimit('register', ip, 5, 60 * 60 * 1000);
       if (!rl.success) {
-        return NextResponse.json(
+        return noCache(NextResponse.json(
           { error: `Demasiados registros. Intenta en ${rl.retryAfter}s.` },
           { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } },
-        );
+        ));
       }
 
-      if (password.length < 8) {
-        return NextResponse.json({ error: 'La contraseña debe tener al menos 8 caracteres.' }, { status: 400 });
+      const pwError = validatePasswordStrength(password);
+      if (pwError) {
+        return noCache(NextResponse.json({ error: pwError }, { status: 400 }));
       }
 
       const existing = await User.findOne({ email: normalizedEmail });
       if (existing) {
-        return NextResponse.json({ error: 'El email ya está registrado.' }, { status: 409 });
+        return noCache(NextResponse.json({ error: 'El email ya está registrado.' }, { status: 409 }));
       }
 
       const passwordHash = await hashPassword(password);
@@ -197,7 +206,7 @@ export async function POST(req: NextRequest) {
         resource: 'session',
         ip,
       });
-      const res = NextResponse.json({
+      const res = noCache(NextResponse.json({
         user: {
           uid: user._id.toString(),
           email: user.email,
@@ -215,7 +224,7 @@ export async function POST(req: NextRequest) {
           : {
               emailErrorCode: emailResult.code,
             }),
-      });
+      }));
       setCookie(res, token);
       return res;
     }
@@ -225,29 +234,31 @@ export async function POST(req: NextRequest) {
       // Rate limit: 10 attempts per 15 minutes per IP
       const rl = checkRateLimit('login', ip, 10, 15 * 60 * 1000);
       if (!rl.success) {
-        return NextResponse.json(
+        return noCache(NextResponse.json(
           { error: `Demasiados intentos. Intenta en ${rl.retryAfter}s.` },
           { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } },
-        );
+        ));
       }
 
       // Also rate limit by email to prevent targeted attacks
       const emailRl = checkRateLimit('login-email', normalizedEmail, 10, 15 * 60 * 1000);
       if (!emailRl.success) {
-        return NextResponse.json(
+        return noCache(NextResponse.json(
           { error: `Demasiados intentos para esta cuenta. Intenta en ${emailRl.retryAfter}s.` },
           { status: 429, headers: { 'Retry-After': String(emailRl.retryAfter) } },
-        );
+        ));
       }
 
       const user = await User.findOne({ email: normalizedEmail });
       if (!user) {
-        return NextResponse.json({ error: 'Credenciales inválidas.' }, { status: 401 });
+        await recordAudit({ userId: normalizedEmail, action: 'auth.login.failed', resource: 'session', ip, meta: { reason: 'user_not_found' } });
+        return noCache(NextResponse.json({ error: 'Credenciales inválidas.' }, { status: 401 }));
       }
 
       const { valid, needsUpgrade } = await verifyPassword(password, user.passwordHash, user.hashVersion);
       if (!valid) {
-        return NextResponse.json({ error: 'Credenciales inválidas.' }, { status: 401 });
+        await recordAudit({ userId: user._id.toString(), action: 'auth.login.failed', resource: 'session', ip, meta: { reason: 'wrong_password' } });
+        return noCache(NextResponse.json({ error: 'Credenciales inválidas.' }, { status: 401 }));
       }
 
       // Upgrade SHA256 → bcrypt transparently on successful login
@@ -263,7 +274,7 @@ export async function POST(req: NextRequest) {
         resource: 'session',
         ip,
       });
-      const res = NextResponse.json({
+      const res = noCache(NextResponse.json({
         user: {
           uid: user._id.toString(),
           email: user.email,
@@ -273,31 +284,31 @@ export async function POST(req: NextRequest) {
           emailVerified: user.emailVerified ?? true, // treat legacy users as verified
           pendingEmail: user.pendingEmail ?? null,
         },
-      });
+      }));
       setCookie(res, token);
       return res;
     }
 
-    return NextResponse.json({ error: 'Acción no válida.' }, { status: 400 });
+    return noCache(NextResponse.json({ error: 'Acción no válida.' }, { status: 400 }));
 
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'unknown';
     console.error('[Auth] Error:', msg);
-    return NextResponse.json({ error: 'Error interno.' }, { status: 500 });
+    return noCache(NextResponse.json({ error: 'Error interno.' }, { status: 500 }));
   }
 }
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get('afhub_session')?.value;
-  if (!token) return NextResponse.json({ user: null });
+  if (!token) return noCache(NextResponse.json({ user: null }));
 
   const userId = verifySessionToken(token);
-  if (!userId) return NextResponse.json({ user: null });
+  if (!userId) return noCache(NextResponse.json({ user: null }));
 
   await connectDB();
   try {
     const user = await User.findById(userId);
-    if (!user) return NextResponse.json({ user: null });
+    if (!user) return noCache(NextResponse.json({ user: null }));
 
     let impersonation: { adminEmail: string; adminUid: string } | undefined;
     const impTok = req.cookies.get(IMPERSONATOR_COOKIE)?.value;
@@ -314,7 +325,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    return noCache(NextResponse.json({
       user: {
         uid: user._id.toString(),
         email: user.email,
@@ -325,8 +336,8 @@ export async function GET(req: NextRequest) {
         pendingEmail: user.pendingEmail ?? null,
         ...(impersonation ? { impersonation } : {}),
       },
-    });
+    }));
   } catch {
-    return NextResponse.json({ user: null });
+    return noCache(NextResponse.json({ user: null }));
   }
 }

@@ -114,6 +114,40 @@ export function isImpersonationSession(cookies: CookieGetter): boolean {
   return Boolean(imp && verifySessionToken(imp));
 }
 
+// ── Password strength validation ─────────────────────────────────────────────
+
+const COMMON_PASSWORDS = new Set([
+  'password', 'password1', 'password123', '12345678', '123456789', '1234567890',
+  'qwerty123', 'qwerty1', 'iloveyou', 'admin123', 'letmein1', 'welcome1',
+  'monkey123', 'dragon12', 'master12', 'sunshine', 'princess', 'football',
+  'superman', 'michael1', 'shadow12', 'jessica1', 'michelle', 'charlie1',
+  'baseball', 'batman12', 'trustno1', 'starwars', 'abc12345', 'passw0rd',
+  'contraseña', 'contraseña1', 'colombia', 'mexico123', 'argentina',
+]);
+
+/**
+ * Returns null if the password is strong enough, or a Spanish error string.
+ * Rules: min 8 chars, lowercase + uppercase + (digit or special char), not in common-password blocklist.
+ */
+export function validatePasswordStrength(password: string): string | null {
+  if (password.length < 8) {
+    return 'La contraseña debe tener al menos 8 caracteres.';
+  }
+  if (!/[a-z]/.test(password)) {
+    return 'La contraseña debe contener al menos una letra minúscula.';
+  }
+  if (!/[A-Z]/.test(password)) {
+    return 'La contraseña debe contener al menos una letra mayúscula.';
+  }
+  if (!/[0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)) {
+    return 'La contraseña debe contener al menos un número o carácter especial.';
+  }
+  if (COMMON_PASSWORDS.has(password.toLowerCase())) {
+    return 'Esa contraseña es demasiado común. Elige una más segura.';
+  }
+  return null;
+}
+
 // ── Secure random tokens (email verify, password reset) ───────────────────────
 
 export function generateSecureToken(): string {
