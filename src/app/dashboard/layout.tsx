@@ -24,12 +24,10 @@ import { PLAN_DISPLAY, type PaidPlanId } from '@/lib/plan-catalog';
 const SIDEBAR_COLLAPSED_KEY = 'dashboard-sidebar-collapsed';
 const TRIAL_CHECKOUT_PLAN_IDS: PaidPlanId[] = ['starter', 'growth', 'business'];
 
-const TRIAL_MODAL_DISMISS_KEY = 'af_trial_expired_modal_dismissed';
 
 function SubscriptionExpiryGate() {
   const { user, logout } = useAuth();
   const { loading, hasAccess, isTrialActive, authExpired, subscription, startCheckout } = useSubscription();
-  const [openModal, setOpenModal] = useState(false);
 
   const trialExpired = useMemo(
     () => Boolean(user) && !authExpired && !loading && !hasAccess && !isTrialActive,
@@ -43,146 +41,96 @@ function SubscriptionExpiryGate() {
     })
     : null;
 
-  useEffect(() => {
-    if (!trialExpired) {
-      setOpenModal(false);
-      return;
-    }
-    try {
-      if (sessionStorage.getItem(TRIAL_MODAL_DISMISS_KEY) === '1') {
-        setOpenModal(false);
-        return;
-      }
-    } catch {
-      /* noop */
-    }
-    setOpenModal(true);
-  }, [trialExpired]);
-
   if (!trialExpired || authExpired) return null;
 
+  // Bloqueo permanente — no se puede cerrar. Solo suscribirse o cerrar sesión.
   return (
-    <>
-      {openModal ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="trial-expired-title"
-          onClick={() => {
-            setOpenModal(false);
-            try { sessionStorage.setItem(TRIAL_MODAL_DISMISS_KEY, '1'); } catch { /* noop */ }
-          }}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 90,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-            background: 'rgba(2,6,23,0.45)',
-            backdropFilter: 'blur(4px)',
-          }}
-        >
-          <div
-            className="card-texture"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: 'min(560px, 100%)',
-              borderRadius: '18px',
-              border: '1px solid rgba(255,255,255,0.24)',
-              boxShadow: '0 24px 70px rgba(0,0,0,0.35)',
-              background: 'linear-gradient(145deg, rgba(255,255,255,0.22), rgba(255,255,255,0.07))',
-              backdropFilter: 'blur(14px)',
-              color: '#f8fafc',
-              padding: '22px',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'flex-start' }}>
-              <div>
-                <p style={{ margin: 0, fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.78 }}>
-                  Trial finalizado
-                </p>
-                <h3 id="trial-expired-title" style={{ margin: '8px 0 0', fontSize: '22px', lineHeight: 1.18 }}>
-                  Tu período de prueba expiró
-                </h3>
-              </div>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="trial-expired-title"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+        background: 'rgba(2,6,23,0.72)',
+        backdropFilter: 'blur(6px)',
+      }}
+    >
+      <div
+        className="card-texture"
+        style={{
+          width: 'min(560px, 100%)',
+          borderRadius: '18px',
+          border: '1px solid rgba(255,255,255,0.24)',
+          boxShadow: '0 24px 70px rgba(0,0,0,0.35)',
+          background: 'linear-gradient(145deg, rgba(255,255,255,0.22), rgba(255,255,255,0.07))',
+          backdropFilter: 'blur(14px)',
+          color: '#f8fafc',
+          padding: '28px 24px',
+        }}
+      >
+        <p style={{ margin: 0, fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.78 }}>
+          Trial finalizado
+        </p>
+        <h3 id="trial-expired-title" style={{ margin: '8px 0 12px', fontSize: '22px', lineHeight: 1.18 }}>
+          Tu período de prueba expiró
+        </h3>
+
+        <p style={{ margin: '0 0 20px', color: 'rgba(241,245,249,0.96)', lineHeight: 1.5 }}>
+          {expiredAt
+            ? `Tu prueba gratuita terminó el ${expiredAt}.`
+            : 'Tu prueba gratuita ya terminó.'}{' '}
+          Elige un plan para continuar usando BotIvA, o cierra sesión.
+        </p>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+          {TRIAL_CHECKOUT_PLAN_IDS.map((planId) => {
+            const plan = PLAN_DISPLAY[planId];
+            return (
               <button
+                key={planId}
                 type="button"
-                aria-label="Cerrar"
-                onClick={() => {
-                  setOpenModal(false);
-                  try { sessionStorage.setItem(TRIAL_MODAL_DISMISS_KEY, '1'); } catch { /* noop */ }
-                }}
+                onClick={() => startCheckout(planId)}
                 style={{
-                  border: '1px solid rgba(255,255,255,0.28)',
+                  border: 0,
                   borderRadius: '10px',
-                  background: 'rgba(15,23,42,0.38)',
+                  padding: '9px 14px',
+                  fontSize: '12px',
+                  fontWeight: 800,
                   color: '#fff',
-                  width: '34px',
-                  height: '34px',
                   cursor: 'pointer',
-                  fontWeight: 700,
+                  background: 'var(--brand-primary)',
                 }}
               >
-                ×
+                {plan.label} · {plan.priceLabel}
               </button>
-            </div>
-
-            <p style={{ margin: '12px 0 16px', color: 'rgba(241,245,249,0.96)', lineHeight: 1.5 }}>
-              {expiredAt
-                ? `Tu prueba gratuita terminó el ${expiredAt}.`
-                : 'Tu prueba gratuita ya terminó.'} Suscríbete para seguir usando BotIvA, o cierra sesión si prefieres salir.
-            </p>
-
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
-              {TRIAL_CHECKOUT_PLAN_IDS.map((planId) => {
-                const plan = PLAN_DISPLAY[planId];
-                return (
-                <button
-                  key={planId}
-                  type="button"
-                  onClick={() => startCheckout(planId)}
-                  style={{
-                    border: 0,
-                    borderRadius: '10px',
-                    padding: '9px 14px',
-                    fontSize: '12px',
-                    fontWeight: 800,
-                    color: '#fff',
-                    cursor: 'pointer',
-                    background:
-                      planId === 'growth'
-                        ? 'var(--brand-primary)'
-                        : 'var(--brand-primary)',
-                  }}
-                >
-                  {plan.label} · {plan.priceLabel}
-                </button>
-              );})}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => void logout().then(() => { window.location.href = '/login'; })}
-              style={{
-                marginTop: '4px',
-                border: '1px solid rgba(255,255,255,0.28)',
-                borderRadius: '10px',
-                padding: '8px 14px',
-                fontSize: '12px',
-                fontWeight: 700,
-                color: '#fff',
-                cursor: 'pointer',
-                background: 'transparent',
-              }}
-            >
-              Cerrar sesión
-            </button>
-          </div>
+            );
+          })}
         </div>
-      ) : null}
-    </>
+
+        <button
+          type="button"
+          onClick={() => void logout().then(() => { window.location.href = '/login'; })}
+          style={{
+            border: '1px solid rgba(255,255,255,0.28)',
+            borderRadius: '10px',
+            padding: '8px 14px',
+            fontSize: '12px',
+            fontWeight: 700,
+            color: '#fff',
+            cursor: 'pointer',
+            background: 'transparent',
+          }}
+        >
+          Cerrar sesión
+        </button>
+      </div>
+    </div>
   );
 }
 
