@@ -10,6 +10,8 @@ const withPWA = withPWAInit({
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
   customWorkerDir: 'worker',
+  // El SW nunca intercepta API routes, auth ni Cloudflare — van siempre a la red
+  publicExcludes: ['!/api/**', '!/widget/**'],
 });
 
 const nextConfig: NextConfig = {
