@@ -26,6 +26,9 @@ export type InternalAssistBootConfig = {
   theme: 'light' | 'dark';
   autoOpen: boolean;
   debug: boolean;
+  /** Token wt_* del widget en Mongo (capturas, handoff, cuota). */
+  token?: string;
+  widgetId?: string;
 };
 
 function envStr(key: string, fallback: string): string {

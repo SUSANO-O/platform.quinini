@@ -30,6 +30,12 @@ const nextConfig: NextConfig = {
   },
 
   async headers() {
+    // Origen del servicio agent-flow-api (documentación embebida en iframe)
+    const agentflowApiOrigin = (() => {
+      const raw = process.env.NEXT_PUBLIC_AGENTFLOW_API_URL?.trim() || 'http://localhost:4000';
+      try { return new URL(raw).origin; } catch { return 'http://localhost:4000'; }
+    })();
+
     return [
       {
         // Apply security headers to all routes
@@ -51,7 +57,7 @@ const nextConfig: NextConfig = {
               "font-src 'self' data: https://fonts.gstatic.com https://api.fontshare.com https://cdn.fontshare.com",
               "img-src 'self' data: blob: https:",
               "connect-src 'self' https://api.lemonsqueezy.com https://api.stripe.com https://*.upstash.io https://control-BotIvA.vercel.app wss:",
-              "frame-src https://app.lemonsqueezy.com https://checkout.lemonsqueezy.com https://js.stripe.com https://hooks.stripe.com",
+              `frame-src https://app.lemonsqueezy.com https://checkout.lemonsqueezy.com https://js.stripe.com https://hooks.stripe.com ${agentflowApiOrigin}`,
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self' https://checkout.lemonsqueezy.com https://billing.stripe.com",

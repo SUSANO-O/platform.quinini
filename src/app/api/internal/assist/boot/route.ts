@@ -5,6 +5,7 @@ import {
   resolveInternalAssistBoot,
   type InternalAssistContext,
 } from '@/lib/internal-assist-config';
+import { enrichInternalAssistWithWidget } from '@/lib/internal-assist-widget';
 
 function parseContext(raw: string | null): InternalAssistContext {
   return raw === 'marketing' ? 'marketing' : 'app';
@@ -27,7 +28,10 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const config = resolveInternalAssistBoot(context, origin);
+  const config = await enrichInternalAssistWithWidget(
+    context,
+    resolveInternalAssistBoot(context, origin),
+  );
   const scriptUrl = resolveAssistScriptUrl(origin);
 
   return NextResponse.json({

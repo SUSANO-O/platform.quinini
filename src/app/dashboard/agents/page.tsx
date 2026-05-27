@@ -118,7 +118,7 @@ function AgentCard({
             </p>
           ) : null}
           <div className="flex gap-3 mt-2 flex-wrap">
-            {agent.tools.length > 0 && (
+            {(agent.tools?.length ?? 0) > 0 && (
               <span className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--muted-foreground)' }}>
                 <Wrench size={10} /> {agent.tools.map((t) => TOOL_MAP[t.toolId]?.name ?? t.toolId).join(', ')}
               </span>
