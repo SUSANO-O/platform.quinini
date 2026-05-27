@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Search, ChevronLeft, ChevronRight, RefreshCw, UserRound, CreditCard } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, RefreshCw, UserRound, CreditCard, ShieldOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useAuth } from '@/hooks/use-auth';
@@ -56,6 +56,8 @@ export default function AdminUsersPage() {
   const [impersonating, setImpersonating] = useState(false);
   const [subModalUid, setSubModalUid] = useState<string | null>(null);
   const subModalUser = subModalUid ? users.find(u => u.uid === subModalUid) : null;
+  const [reset2faTarget, setReset2faTarget] = useState<string | null>(null);
+  const [resetting2fa, setResetting2fa] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -96,6 +98,16 @@ export default function AdminUsersPage() {
     window.location.href = '/dashboard';
   }
 
+  async function reset2FA(uid: string) {
+    setResetting2fa(true);
+    const res = await fetch(`/api/admin/users/${uid}/2fa`, { method: 'DELETE' });
+    const d = await res.json().catch(() => ({})) as { error?: string };
+    setResetting2fa(false);
+    setReset2faTarget(null);
+    if (!res.ok) { toast.error(d.error || 'No se pudo resetear el 2FA.'); return; }
+    toast.success('2FA desactivado. El usuario puede iniciar sesión sin código.');
+  }
+
   async function saveProviderPolicy(uid: string, providers: string[]) {
     setSavingPolicyUid(uid);
     try {
@@ -129,6 +141,16 @@ export default function AdminUsersPage() {
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={reset2faTarget !== null}
+        title="Desactivar 2FA del usuario"
+        description="¿Desactivar la autenticación en dos pasos para este usuario? Podrá iniciar sesión solo con email y contraseña hasta que lo reactive."
+        confirmLabel="Desactivar 2FA"
+        loading={resetting2fa}
+        onConfirm={() => reset2faTarget && void reset2FA(reset2faTarget)}
+        onCancel={() => setReset2faTarget(null)}
+      />
 
       <ConfirmDialog
         open={impersonateTarget !== null}
@@ -261,6 +283,20 @@ export default function AdminUsersPage() {
                         >
                           <CreditCard size={12} />
                           Suscripción
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setReset2faTarget(u.uid)}
+                          title="Desactivar 2FA del usuario"
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                            padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                            border: '1px solid rgba(239,68,68,0.35)', background: 'rgba(239,68,68,0.07)',
+                            color: '#dc2626', cursor: 'pointer',
+                          }}
+                        >
+                          <ShieldOff size={12} />
+                          Reset 2FA
                         </button>
                         <button
                           type="button"
@@ -402,6 +438,19 @@ export default function AdminUsersPage() {
                     >
                       <CreditCard size={13} />
                       Gestionar suscripción
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReset2faTarget(u.uid)}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                        width: '100%', padding: '8px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                        border: '1px solid rgba(239,68,68,0.35)', background: 'rgba(239,68,68,0.07)',
+                        color: '#dc2626', cursor: 'pointer',
+                      }}
+                    >
+                      <ShieldOff size={13} />
+                      Reset 2FA
                     </button>
                     <button
                       type="button"
