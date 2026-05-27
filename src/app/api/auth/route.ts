@@ -21,6 +21,28 @@ import { recordAudit } from '@/lib/audit-log';
 import { resolveEnvRegistrationCode, normalizeTrialDays, DEFAULT_REGISTRATION_TRIAL_DAYS } from '@/lib/registration-codes-env';
 
 const COOKIE = 'afhub_session';
+
+const TURNSTILE_SECRET = process.env.TURNSTILE_SECRET_KEY ?? '';
+
+async function verifyCaptcha(token: string | undefined, ip: string): Promise<boolean> {
+  if (!TURNSTILE_SECRET) return true; // CAPTCHA desactivado en dev (sin clave)
+  if (!token) return false;
+  try {
+    const form = new URLSearchParams();
+    form.set('secret', TURNSTILE_SECRET);
+    form.set('response', token);
+    form.set('remoteip', ip);
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString(),
+    });
+    const data = await res.json() as { success: boolean };
+    return data.success === true;
+  } catch {
+    return false;
+  }
+}
 const COOKIE_MAX_AGE = 60 * 60 * 12; // 12 hours
 
 const cookieBase = {
@@ -72,6 +94,10 @@ export async function POST(req: NextRequest) {
 
     // ── Register ──────────────────────────────────────────────────────────
     if (action === 'register') {
+      if (!await verifyCaptcha(body.cfToken, ip)) {
+        return noCache(NextResponse.json({ error: 'Verificación de seguridad fallida. Recarga e intenta de nuevo.' }, { status: 400 }));
+      }
+
       // ── Código de autorización ────────────────────────────────────────
       const submittedCode = typeof body.registrationCode === 'string'
         ? body.registrationCode.trim().toUpperCase()
@@ -231,6 +257,10 @@ export async function POST(req: NextRequest) {
 
     // ── Login ─────────────────────────────────────────────────────────────
     if (action === 'login') {
+      if (!await verifyCaptcha(body.cfToken, ip)) {
+        return noCache(NextResponse.json({ error: 'Verificación de seguridad fallida. Recarga e intenta de nuevo.' }, { status: 400 }));
+      }
+
       // Rate limit: 10 attempts per 15 minutes per IP
       const rl = checkRateLimit('login', ip, 10, 15 * 60 * 1000);
       if (!rl.success) {

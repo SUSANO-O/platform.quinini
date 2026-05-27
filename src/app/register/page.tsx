@@ -1,12 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Sparkles, KeyRound } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
+import { TurnstileWidget } from '@/components/ui/turnstile-widget';
+import type { TurnstileInstance } from '@marsidev/react-turnstile';
+
+const CAPTCHA_ENABLED = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -17,6 +21,8 @@ export default function RegisterPage() {
   const [registrationCode, setRegistrationCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [cfToken, setCfToken] = useState('');
+  const turnstileRef = useRef<TurnstileInstance>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -41,11 +47,17 @@ export default function RegisterPage() {
       setError('La contraseña debe contener al menos un número o carácter especial.');
       return;
     }
+    if (CAPTCHA_ENABLED && !cfToken) {
+      setError('Completa la verificación de seguridad antes de continuar.');
+      return;
+    }
     setLoading(true);
-    const result = await register(email, password, name || undefined, registrationCode.trim());
+    const result = await register(email, password, name || undefined, registrationCode.trim(), cfToken || undefined);
     setLoading(false);
     if (result.error) {
       setError(result.error);
+      turnstileRef.current?.reset();
+      setCfToken('');
     } else {
       router.push('/dashboard');
     }
@@ -144,6 +156,13 @@ export default function RegisterPage() {
                 autoComplete="new-password"
               />
             </div>
+
+            <TurnstileWidget
+              ref={turnstileRef}
+              onSuccess={(token) => setCfToken(token)}
+              onExpire={() => setCfToken('')}
+              onError={() => { setCfToken(''); setError('Error en la verificación de seguridad. Recarga la página.'); }}
+            />
 
             {error && (
               <p className="text-[13px] text-red-600 bg-red-500/10 px-3.5 py-2.5 rounded-lg border border-red-500/20">
