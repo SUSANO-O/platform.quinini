@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifySessionToken, hashPassword, generateShareId, generateSharePassword } from '@/lib/auth';
+import { verifySessionToken, hashPassword, generateShareId, generateSharePassword, computeShareExpiresAt } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
 import { Widget, WidgetShare } from '@/lib/db/models';
 
@@ -51,11 +51,17 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const plainPw  = generateSharePassword();
   const pwHash   = await hashPassword(plainPw);
 
-  let label = '';
+  let label         = '';
+  let durationValue = 8;
+  let durationUnit: 'hours' | 'days' | 'weeks' | 'months' = 'hours';
   try {
-    const body = await req.json() as { label?: string };
-    label = typeof body.label === 'string' ? body.label.trim().slice(0, 60) : '';
+    const body = await req.json() as { label?: string; durationValue?: number; durationUnit?: string };
+    label         = typeof body.label === 'string' ? body.label.trim().slice(0, 60) : '';
+    durationValue = typeof body.durationValue === 'number' && body.durationValue > 0 ? Math.floor(body.durationValue) : 8;
+    durationUnit  = ['hours', 'days', 'weeks', 'months'].includes(body.durationUnit ?? '') ? body.durationUnit as typeof durationUnit : 'hours';
   } catch { /* sin body */ }
+
+  const expiresAt = computeShareExpiresAt(durationValue, durationUnit);
 
   await WidgetShare.create({
     widgetId: id,
@@ -64,9 +70,12 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     passwordHash: pwHash,
     label: label || (typeof widget.name === 'string' ? widget.name : ''),
     active: true,
+    expiresAt,
+    durationValue,
+    durationUnit,
   });
 
-  return NextResponse.json({ shareId, password: plainPw });
+  return NextResponse.json({ shareId, password: plainPw, expiresAt });
 }
 
 export async function DELETE(req: NextRequest, { params }: Ctx) {

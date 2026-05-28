@@ -23,10 +23,14 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   await connectDB();
 
   const share = await WidgetShare.findOne({ shareId, active: true })
-    .select({ widgetId: 1, label: 1 })
-    .lean() as { widgetId: string; label: string } | null;
+    .select({ widgetId: 1, label: 1, expiresAt: 1 })
+    .lean() as { widgetId: string; label: string; expiresAt?: Date } | null;
 
   if (!share) return NextResponse.json({ error: 'Share no encontrado.' }, { status: 404 });
+
+  if (share.expiresAt && share.expiresAt < new Date()) {
+    return NextResponse.json({ error: 'Este enlace ha caducado.' }, { status: 410 });
+  }
 
   const widget = await Widget.findById(share.widgetId)
     .select({ agentId: 1, name: 1, title: 1, subtitle: 1, avatar: 1, color: 1, welcome: 1, active: 1, afhubToken: 1 })
