@@ -589,14 +589,18 @@ export const ManualInvoice        = mongoose.models.ManualInvoice        || mong
 // Acceso compartido público a un widget mediante contraseña generada.
 
 const WidgetShareSchema = new Schema({
-  widgetId:     { type: String, required: true },
-  userId:       { type: String, required: true },
-  shareId:      { type: String, required: true, unique: true },
-  passwordHash: { type: String, required: true },
-  label:        { type: String, default: '' },   // nombre opcional del share
-  active:       { type: Boolean, default: true },
+  widgetId:      { type: String, required: true },
+  userId:        { type: String, required: true },
+  shareId:       { type: String, required: true, unique: true },
+  passwordHash:  { type: String, required: true },
+  label:         { type: String, default: '' },
+  active:        { type: Boolean, default: true },
+  expiresAt:     { type: Date, required: true },
+  durationValue: { type: Number, default: 8 },
+  durationUnit:  { type: String, default: 'hours' },
 }, { timestamps: true });
 
 WidgetShareSchema.index({ widgetId: 1, userId: 1 });
+WidgetShareSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export const WidgetShare = mongoose.models.WidgetShare || mongoose.model('WidgetShare', WidgetShareSchema);

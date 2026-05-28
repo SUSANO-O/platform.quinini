@@ -1,7 +1,6 @@
 /**
- * GET    /api/widgets/[id]/share   — obtiene el share activo del widget (si existe)
- * POST   /api/widgets/[id]/share   — crea un nuevo share (genera shareId + password)
- * DELETE /api/widgets/[id]/share   — revoca el share activo
+ * GET  /api/widgets/[id]/shares  — lista todos los shares del widget (activos, expirados y revocados)
+ * POST /api/widgets/[id]/shares  — crea un nuevo share con duración configurable
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -24,14 +23,31 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   const { id } = await params;
   await connectDB();
 
-  const widget = await Widget.findOne({ _id: id, userId }).select({ _id: 1 }).lean();
+  const widget = await Widget.findOne({ _id: id, userId }).select({ _id: 1, name: 1 }).lean() as { _id: unknown; name?: string } | null;
   if (!widget) return NextResponse.json({ error: 'Widget no encontrado.' }, { status: 404 });
 
-  const share = await WidgetShare.findOne({ widgetId: id, userId, active: true })
-    .select({ shareId: 1, label: 1, createdAt: 1 })
-    .lean() as { shareId: string; label: string; createdAt: Date } | null;
+  const shares = await WidgetShare.find({ widgetId: id, userId })
+    .select({ shareId: 1, label: 1, active: 1, expiresAt: 1, durationValue: 1, durationUnit: 1, createdAt: 1 })
+    .sort({ createdAt: -1 })
+    .lean() as Array<{
+      shareId: string; label: string; active: boolean;
+      expiresAt: Date; durationValue: number; durationUnit: string; createdAt: Date;
+    }>;
 
-  return NextResponse.json({ share: share ?? null });
+  const now = new Date();
+  return NextResponse.json({
+    widgetName: typeof widget.name === 'string' ? widget.name : 'Widget',
+    shares: shares.map(s => ({
+      shareId:       s.shareId,
+      label:         s.label,
+      active:        s.active,
+      expired:       s.expiresAt ? s.expiresAt < now : false,
+      expiresAt:     s.expiresAt,
+      durationValue: s.durationValue,
+      durationUnit:  s.durationUnit,
+      createdAt:     s.createdAt,
+    })),
+  });
 }
 
 export async function POST(req: NextRequest, { params }: Ctx) {
@@ -44,13 +60,6 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const widget = await Widget.findOne({ _id: id, userId }).select({ _id: 1, name: 1 }).lean() as { _id: unknown; name?: string } | null;
   if (!widget) return NextResponse.json({ error: 'Widget no encontrado.' }, { status: 404 });
 
-  // Revocar share anterior si existe
-  await WidgetShare.deleteMany({ widgetId: id, userId });
-
-  const shareId  = generateShareId();
-  const plainPw  = generateSharePassword();
-  const pwHash   = await hashPassword(plainPw);
-
   let label         = '';
   let durationValue = 8;
   let durationUnit: 'hours' | 'days' | 'weeks' | 'months' = 'hours';
@@ -61,6 +70,9 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     durationUnit  = ['hours', 'days', 'weeks', 'months'].includes(body.durationUnit ?? '') ? body.durationUnit as typeof durationUnit : 'hours';
   } catch { /* sin body */ }
 
+  const shareId   = generateShareId();
+  const plainPw   = generateSharePassword();
+  const pwHash    = await hashPassword(plainPw);
   const expiresAt = computeShareExpiresAt(durationValue, durationUnit);
 
   await WidgetShare.create({
@@ -75,16 +87,5 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     durationUnit,
   });
 
-  return NextResponse.json({ shareId, password: plainPw, expiresAt });
-}
-
-export async function DELETE(req: NextRequest, { params }: Ctx) {
-  const userId = authUser(req);
-  if (!userId) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
-
-  const { id } = await params;
-  await connectDB();
-
-  await WidgetShare.deleteMany({ widgetId: id, userId });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ shareId, password: plainPw, expiresAt }, { status: 201 });
 }

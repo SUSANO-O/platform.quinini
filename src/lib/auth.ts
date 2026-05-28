@@ -221,10 +221,21 @@ export function generateSharePassword(): string {
   return `${raw.slice(0, 4)}-${raw.slice(4, 7)}-${raw.slice(7)}`;
 }
 
-/** Crea un token de sesión para un share (válido 72 h). */
-export function createShareSessionToken(shareId: string): string {
+/** Calcula la fecha de expiración de un share según su duración configurada. */
+export function computeShareExpiresAt(value: number, unit: 'hours' | 'days' | 'weeks' | 'months'): Date {
+  const msMap: Record<string, number> = {
+    hours:  3_600_000,
+    days:   86_400_000,
+    weeks:  604_800_000,
+    months: 2_592_000_000,
+  };
+  return new Date(Date.now() + value * (msMap[unit] ?? 3_600_000));
+}
+
+/** Crea un token de sesión para un share. maxAgeMs por defecto: 8 h (mín. share). */
+export function createShareSessionToken(shareId: string, maxAgeMs = 8 * 60 * 60 * 1000): string {
   const secret  = getSessionSecret();
-  const expiry   = Date.now() + 72 * 60 * 60 * 1000;
+  const expiry   = Date.now() + maxAgeMs;
   const payload  = `share:${shareId}:${expiry}`;
   const sig      = crypto.createHmac('sha256', secret).update(payload).digest('hex');
   return Buffer.from(`${payload}:${sig}`).toString('base64url');
