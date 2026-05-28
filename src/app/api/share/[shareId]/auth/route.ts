@@ -47,7 +47,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   res.cookies.set('share_session', sessionToken, {
     httpOnly: true,
     sameSite: 'lax',
-    path: `/share/${shareId}`,
+    path: '/',
     maxAge: 72 * 60 * 60,
   });
   return res;
