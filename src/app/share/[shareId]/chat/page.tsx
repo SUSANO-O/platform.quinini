@@ -4,16 +4,16 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
 interface WidgetConfig {
-  widgetId: string;
-  agentId:  string;
-  name:     string;
-  title:    string;
-  subtitle: string;
-  avatar:   string;
-  color:    string;
-  welcome:  string;
+  widgetId:   string;
+  agentId:    string;
+  afhubToken: string;
+  name:       string;
+  title:      string;
+  subtitle:   string;
+  avatar:     string;
+  color:      string;
+  welcome:    string;
 }
-
 
 export default function ShareChatPage() {
   const { shareId } = useParams<{ shareId: string }>();
@@ -40,7 +40,6 @@ export default function ShareChatPage() {
       .catch(() => setError('Error de red.'));
   }, [shareId, router]);
 
-  // Inject widget script once config is ready
   useEffect(() => {
     if (!config) return;
 
@@ -52,21 +51,36 @@ export default function ShareChatPage() {
 
     const script    = document.createElement('script');
     script.id       = 'afhub-widget-script';
-    script.src      = '/sdk/v1/widget.js';
+    script.src      = '/widget.js';
     script.async    = true;
-    script.onload   = () => { initWidget(config); setReady(true); };
+    script.onload   = () => { initWidget(config); };
     script.onerror  = () => setError('No se pudo cargar el widget.');
     document.head.appendChild(script);
   }, [config]);
 
   function initWidget(cfg: WidgetConfig) {
-    if (!window.AgentFlowhub) return;
-    window.AgentFlowhub.init({
-      agentId:   cfg.agentId,
-      widgetId:  cfg.widgetId,
-      autoOpen:  true,
-      embedded:  true,
-    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const af = (window as any).AgentFlowhub;
+    if (!af) return;
+
+    const initOpts: Record<string, unknown> = {
+      autoOpen: true,
+      host:     window.location.origin,
+    };
+
+    if (cfg.afhubToken) {
+      initOpts.token = cfg.afhubToken;
+    } else {
+      initOpts.agentId  = cfg.agentId;
+      initOpts.widgetId = cfg.widgetId;
+      initOpts.color    = cfg.color;
+      initOpts.title    = cfg.title;
+      initOpts.subtitle = cfg.subtitle;
+      initOpts.avatar   = cfg.avatar;
+      initOpts.welcome  = cfg.welcome;
+    }
+
+    af.init(initOpts);
     setReady(true);
   }
 
@@ -98,7 +112,7 @@ export default function ShareChatPage() {
 
   return (
     <>
-      {/* Header mínimo */}
+      {/* Header */}
       <div style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
         height: 56,
@@ -131,18 +145,15 @@ export default function ShareChatPage() {
         </div>
       </div>
 
-      {/* Chat area — el widget se monta aquí */}
-      <div
-        id="afhub-chat-container"
-        style={{
-          position: 'fixed',
-          top: 56,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: '#0f172a',
-        }}
-      />
+      {/* Background behind floating widget */}
+      <div style={{
+        position: 'fixed',
+        top: 56,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: '#0f172a',
+      }} />
     </>
   );
 }
