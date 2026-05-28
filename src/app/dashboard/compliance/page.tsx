@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { SecretRevealModal } from '@/components/ui/secret-reveal-modal';
+import { EncryptedDownloadModal } from '@/components/encrypted-download-modal';
 import { BRAND, STATE, METRIC } from '@/lib/brand-colors';
 import { outboundWebhookUpgradeLabel, escalationSlackUpgradeLabel, escalationTicketUpgradeLabel } from '@/lib/plan-catalog';
 
@@ -158,7 +159,8 @@ export default function CompliancePage() {
   const { startCheckout } = useSubscription();
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(true);
-  const [busyExport, setBusyExport] = useState(false);
+  const [busyExport, setBusyExport]         = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
   const [delEmail, setDelEmail] = useState('');
   const [delPass, setDelPass] = useState('');
   const [busyDel, setBusyDel] = useState(false);
@@ -384,22 +386,19 @@ export default function CompliancePage() {
     }
   }
 
-  async function downloadExport() {
-    setBusyExport(true);
-    try {
-      const r = await fetch('/api/gdpr/export');
-      if (!r.ok) { toast.error('No se pudo generar la exportación.'); return; }
-      const blob = await r.blob();
-      const cd = r.headers.get('Content-Disposition');
-      const nameMatch = cd?.match(/filename="([^"]+)"/);
-      const filename = nameMatch?.[1] || 'export-datos.json';
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = filename; a.click();
-      URL.revokeObjectURL(url);
-      toast.success('Descarga iniciada.');
-      await fetchAudit();
-    } finally { setBusyExport(false); }
+  async function downloadExportEncrypted(password: string) {
+    const r = await fetch('/api/gdpr/export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    if (!r.ok) { toast.error('No se pudo generar la exportación.'); return null; }
+    const blob = await r.blob();
+    const cd   = r.headers.get('Content-Disposition');
+    const filename = cd?.match(/filename="([^"]+)"/)?.[1] || 'export-datos.html';
+    toast.success('Descarga iniciada.');
+    void fetchAudit();
+    return { blob, filename };
   }
 
   async function saveWebhook(e: React.FormEvent) {
@@ -539,13 +538,10 @@ export default function CompliancePage() {
             </p>
             <button
               type="button"
-              disabled={busyExport}
-              onClick={() => void downloadExport()}
+              onClick={() => setExportModalOpen(true)}
               onMouseEnter={(e) => {
-                if (!busyExport) {
-                  e.currentTarget.style.background = 'rgba(var(--brand-cool-rgb),0.18)';
-                  e.currentTarget.style.borderColor = 'rgba(var(--brand-cool-rgb),0.5)';
-                }
+                e.currentTarget.style.background = 'rgba(var(--brand-cool-rgb),0.18)';
+                e.currentTarget.style.borderColor = 'rgba(var(--brand-cool-rgb),0.5)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = 'rgba(var(--brand-cool-rgb),0.1)';
@@ -557,14 +553,20 @@ export default function CompliancePage() {
                 border: '1px solid rgba(var(--brand-cool-rgb),0.35)',
                 background: 'rgba(var(--brand-cool-rgb),0.1)',
                 color: '#000',
-                cursor: busyExport ? 'wait' : 'pointer',
+                cursor: 'pointer',
                 fontSize: 13, fontWeight: 600,
                 transition: 'background 0.15s, border-color 0.15s',
               }}
             >
-              {busyExport ? <Loader2 className="animate-spin" size={15} /> : <Download size={15} />}
-              Descargar JSON
+              <Download size={15} />
+              Descargar (cifrado)
             </button>
+            <EncryptedDownloadModal
+              open={exportModalOpen}
+              onClose={() => setExportModalOpen(false)}
+              title="Exportar datos personales"
+              onDownload={(pw) => downloadExportEncrypted(pw)}
+            />
           </SectionCard>
 
           {/* Delete — red */}
