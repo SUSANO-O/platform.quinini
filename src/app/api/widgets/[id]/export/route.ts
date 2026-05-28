@@ -1,10 +1,13 @@
 /**
- * GET /api/widgets/[id]/export
+ * GET  /api/widgets/[id]/export  — descarga JSON/CSV plano (legacy)
+ * POST /api/widgets/[id]/export  — descarga HTML encriptado AES-256-GCM
  *
- * ?format=json  — Transcripción completa de conversaciones (mensajes reales)
- * ?format=csv   — Resumen de uso mensual (comportamiento anterior)
- * ?months=N     — Últimos N meses (máx 12, default 3) — afecta ambos formatos
- * ?sessions=N   — Últimas N sesiones para formato json (máx 500, default 200)
+ * Query params:
+ *   ?format=json|csv  (GET y POST)
+ *   ?months=N         últimos N meses (máx 12, default 3)
+ *   ?sessions=N       últimas N sesiones json (máx 500, default 200)
+ *
+ * POST body: { password: string, format?: 'json'|'csv' }
  *
  * Solo el dueño del widget puede descargar.
  */
@@ -14,6 +17,7 @@ import { verifySessionToken } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
 import { Widget, RequestLog } from '@/lib/db/models';
 import { exportWidgetConversations } from '@/lib/widget-conversation-export';
+import { buildEncryptedHtml, type EncryptedExportType } from '@/lib/encrypt-export';
 
 function auth(req: NextRequest) {
   const token = req.cookies.get('afhub_session')?.value;
@@ -114,5 +118,72 @@ export async function GET(
       'Content-Disposition': `attachment; filename="${filename}"`,
       'Cache-Control': 'no-store',
     },
+  });
+}
+
+// ── POST: descarga encriptada ────────────────────────────────────────────────
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const userId = auth(req);
+  if (!userId) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
+
+  let password: string;
+  let bodyFormat: string | undefined;
+  try {
+    const body = await req.json() as { password?: string; format?: string };
+    password   = typeof body.password === 'string' ? body.password.trim() : '';
+    bodyFormat = body.format;
+  } catch {
+    return NextResponse.json({ error: 'Body inválido.' }, { status: 400 });
+  }
+  if (password.length < 6) {
+    return NextResponse.json({ error: 'La clave debe tener al menos 6 caracteres.' }, { status: 400 });
+  }
+
+  const { id }   = await params;
+  const url      = new URL(req.url);
+  const format   = bodyFormat || url.searchParams.get('format') || 'json';
+  const months   = Math.min(12, Math.max(1, Number(url.searchParams.get('months') || '3')));
+  const maxSess  = Math.min(500, Math.max(1, Number(url.searchParams.get('sessions') || '200')));
+
+  await connectDB();
+  const widget = await Widget.findOne({ _id: id, userId })
+    .select({ name: 1, agentId: 1, createdAt: 1 })
+    .lean() as { name?: string; agentId?: string; createdAt?: Date } | null;
+
+  if (!widget) return NextResponse.json({ error: 'Widget no encontrado.' }, { status: 404 });
+
+  const dateStr = new Date().toISOString().slice(0, 10);
+
+  if (format === 'csv') {
+    const monthKeys = generatePastMonths(months);
+    const logs      = await RequestLog.find({ widgetId: id, month: { $in: monthKeys } })
+      .select({ month: 1, count: 1 }).sort({ month: -1 }).lean() as { month: string; count?: number }[];
+    const byMonth   = new Map<string, number>(logs.map(l => [l.month, l.count ?? 0]));
+    const rows      = [['Mes', 'Conversaciones', 'Widget', 'Agente ID'].join(',')];
+    for (const month of monthKeys) {
+      rows.push([escapeCsv(month), escapeCsv(byMonth.get(month) ?? 0), escapeCsv(widget.name || id), escapeCsv(widget.agentId || '')].join(','));
+    }
+    rows.push(['TOTAL', String([...byMonth.values()].reduce((s, v) => s + v, 0)), '', ''].join(','));
+    const csv      = rows.join('\n');
+    const filename = `widget-${id}-uso-${dateStr}.html`;
+    const html     = buildEncryptedHtml(csv, password, { type: 'widget-usage-csv' as EncryptedExportType, filename });
+    return new NextResponse(html, {
+      status: 200,
+      headers: { 'Content-Type': 'text/html; charset=utf-8', 'Content-Disposition': `attachment; filename="${filename}"`, 'Cache-Control': 'no-store' },
+    });
+  }
+
+  const conv    = await exportWidgetConversations(id, { widgetName: widget.name || '', agentId: widget.agentId || '', months, maxSessions: maxSess });
+  const payload = { exportVersion: 2, exportedAt: new Date().toISOString(), widget: { id, name: conv.widgetName, agentId: conv.agentId, createdAt: widget.createdAt }, periodMonths: conv.periodMonths, totalSessions: conv.totalSessions, sessions: conv.sessions };
+  const json    = JSON.stringify(payload, null, 2);
+  const filename = `widget-${id}-conversaciones-${dateStr}.html`;
+  const html    = buildEncryptedHtml(json, password, { type: 'widget-conversations', filename });
+  return new NextResponse(html, {
+    status: 200,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Content-Disposition': `attachment; filename="${filename}"`, 'Cache-Control': 'no-store' },
   });
 }

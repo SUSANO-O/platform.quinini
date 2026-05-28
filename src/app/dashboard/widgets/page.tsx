@@ -3,6 +3,7 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { EncryptedDownloadModal } from '@/components/encrypted-download-modal';
 import {
   defaultHueFromHex,
   hashWidgetSeed,
@@ -10,7 +11,7 @@ import {
   iridescentOrbBlendModes,
 } from '@/lib/widget-iridescent';
 import Link from 'next/link';
-import { Trash2, Plus, Code2, Boxes, Pencil, Play, Sparkles, Copy, Check, Download, GitBranch, Power, PowerOff } from 'lucide-react';
+import { Trash2, Plus, Code2, Boxes, Pencil, Play, Sparkles, Copy, Check, Download, GitBranch, Power, PowerOff, Share2, X } from 'lucide-react';
 import { useSubscription } from '@/hooks/use-subscription';
 
 import { BRAND_TEXT_COLOR, UI_SURFACE_SECONDARY } from '@/lib/brand';
@@ -77,8 +78,13 @@ export default function WidgetsPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [origin, setOrigin] = useState('');
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [deleteTarget, setDeleteTarget]         = useState<string | null>(null);
+  const [deleting, setDeleting]                 = useState(false);
+  const [exportModalWidget, setExportModalWidget] = useState<string | null>(null);
+  const [shareModal, setShareModal]   = useState<{ widgetId: string; url: string; password: string } | null>(null);
+  const [shareLoading, setShareLoading] = useState<string | null>(null);
+  const [copiedUrl, setCopiedUrl]     = useState(false);
+  const [copiedPw, setCopiedPw]       = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -180,8 +186,101 @@ export default function WidgetsPage() {
     })();
   }, [multiAgentEligible]);
 
+  async function createShare(widgetId: string) {
+    setShareLoading(widgetId);
+    try {
+      const res  = await fetch(`/api/widgets/${widgetId}/share`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      const data = await res.json() as { shareId?: string; password?: string; error?: string };
+      if (!res.ok || !data.shareId) { toast.error(data.error ?? 'No se pudo crear el enlace.'); return; }
+      const url = `${window.location.origin}/share/${data.shareId}`;
+      setShareModal({ widgetId, url, password: data.password! });
+    } catch { toast.error('Error de red.'); }
+    finally { setShareLoading(null); }
+  }
+
+  async function revokeShare(widgetId: string) {
+    await fetch(`/api/widgets/${widgetId}/share`, { method: 'DELETE' });
+    setShareModal(null);
+    toast.success('Enlace revocado.');
+  }
+
+  function copyToClipboard(text: string, type: 'url' | 'pw') {
+    void navigator.clipboard.writeText(text).then(() => {
+      if (type === 'url') { setCopiedUrl(true); setTimeout(() => setCopiedUrl(false), 2000); }
+      else { setCopiedPw(true); setTimeout(() => setCopiedPw(false), 2000); }
+    });
+  }
+
+  async function downloadWidgetEncrypted(widgetId: string, password: string) {
+    const r = await fetch(`/api/widgets/${widgetId}/export`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password, format: 'json' }),
+    });
+    if (!r.ok) { toast.error('No se pudo generar el archivo.'); return null; }
+    const blob     = await r.blob();
+    const filename = r.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] || `widget-${widgetId}.html`;
+    return { blob, filename };
+  }
+
   return (
     <div className="relative overflow-hidden min-h-full">
+      {/* Share modal */}
+      {shareModal && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}
+          onClick={e => { if (e.target === e.currentTarget) setShareModal(null); }}
+        >
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 420, fontFamily: 'system-ui, sans-serif' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Share2 size={18} style={{ color: '#6366f1' }} />
+                <span style={{ fontWeight: 700, fontSize: 15 }}>Enlace compartido</span>
+              </div>
+              <button type="button" onClick={() => setShareModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted-foreground)', padding: 4 }}>
+                <X size={16} />
+              </button>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--muted-foreground)', marginBottom: 18, lineHeight: 1.5 }}>
+              Comparte la URL y la contraseña. Cualquiera con ambas puede chatear con el agente.
+            </p>
+
+            {/* URL */}
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: 5 }}>URL de acceso</label>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+              <input readOnly value={shareModal.url} style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--muted)', color: 'var(--foreground)', fontSize: 12, fontFamily: 'monospace', outline: 'none' }} onClick={e => (e.target as HTMLInputElement).select()} />
+              <button type="button" onClick={() => copyToClipboard(shareModal.url, 'url')} style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--foreground)', whiteSpace: 'nowrap' }}>
+                {copiedUrl ? <><Check size={13} /> Copiado</> : <><Copy size={13} /> Copiar</>}
+              </button>
+            </div>
+
+            {/* Password */}
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: 5 }}>Contraseña</label>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+              <input readOnly value={shareModal.password} style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--muted)', color: 'var(--foreground)', fontSize: 13, fontFamily: 'monospace', letterSpacing: '0.08em', outline: 'none' }} onClick={e => (e.target as HTMLInputElement).select()} />
+              <button type="button" onClick={() => copyToClipboard(shareModal.password, 'pw')} style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--foreground)', whiteSpace: 'nowrap' }}>
+                {copiedPw ? <><Check size={13} /> Copiado</> : <><Copy size={13} /> Copiar</>}
+              </button>
+            </div>
+
+            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', background: 'var(--muted)', padding: '8px 12px', borderRadius: 8, marginBottom: 18, lineHeight: 1.5 }}>
+              ⚠️ Guarda esta contraseña — no se puede recuperar. Si la pierdes, genera un nuevo enlace.
+            </p>
+
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={() => setShareModal(null)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--foreground)', fontSize: 13, cursor: 'pointer' }}>Cerrar</button>
+              <button type="button" onClick={() => void revokeShare(shareModal.widgetId)} style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.08)', color: '#ef4444', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>Revocar enlace</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <EncryptedDownloadModal
+        open={exportModalWidget !== null}
+        onClose={() => setExportModalWidget(null)}
+        title="Descargar historial cifrado"
+        onDownload={(pw) => downloadWidgetEncrypted(exportModalWidget!, pw)}
+      />
       <ConfirmDialog
         open={deleteTarget !== null}
         title="Eliminar widget"
@@ -408,16 +507,27 @@ export default function WidgetsPage() {
                       <Pencil size={12} />
                       Editar
                     </Link>
-                    <a
-                      href={`/api/widgets/${w._id}/export?format=json&months=3`}
-                      download
-                      className="inline-flex items-center gap-1 px-2.5 py-2 rounded-lg text-[11px] font-bold no-underline border cursor-pointer transition-colors hover:opacity-90"
+                    <button
+                      type="button"
+                      onClick={() => setExportModalWidget(w._id)}
+                      className="inline-flex items-center gap-1 px-2.5 py-2 rounded-lg text-[11px] font-bold border cursor-pointer transition-colors hover:opacity-90"
                       style={BTN_SECONDARY}
-                      title="Descargar historial de conversaciones (JSON)"
+                      title="Descargar historial de conversaciones (cifrado)"
                     >
                       <Download size={12} />
                       Historial
-                    </a>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void createShare(w._id)}
+                      disabled={shareLoading === w._id}
+                      className="inline-flex items-center gap-1 px-2.5 py-2 rounded-lg text-[11px] font-bold border cursor-pointer transition-colors hover:opacity-90 disabled:opacity-50"
+                      style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'rgba(99,102,241,0.35)', color: '#6366f1', boxShadow: 'var(--shadow-surface-sm)' }}
+                      title="Generar enlace compartido"
+                    >
+                      <Share2 size={12} />
+                      {shareLoading === w._id ? '…' : 'Compartir'}
+                    </button>
                     <button
                       type="button"
                       onClick={() => toggleExpanded(w._id)}

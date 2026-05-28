@@ -200,3 +200,50 @@ export function hashEmailChangeCode(code: string, userId: string): string {
 export function generateEmailChangeCode(): string {
   return String(crypto.randomInt(100000, 1000000));
 }
+
+// ── Widget Share ──────────────────────────────────────────────────────────────
+
+const SHARE_ID_CHARS = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const SHARE_PW_CHARS = 'abcdefghijkmnpqrstuvwxyz23456789';
+
+/** Genera un shareId único de 12 caracteres (URL-safe). */
+export function generateShareId(): string {
+  return Array.from(crypto.randomBytes(12))
+    .map(b => SHARE_ID_CHARS[b % SHARE_ID_CHARS.length])
+    .join('');
+}
+
+/** Genera una contraseña legible de 10 caracteres (sin confusibles). */
+export function generateSharePassword(): string {
+  const raw = Array.from(crypto.randomBytes(10))
+    .map(b => SHARE_PW_CHARS[b % SHARE_PW_CHARS.length])
+    .join('');
+  return `${raw.slice(0, 4)}-${raw.slice(4, 7)}-${raw.slice(7)}`;
+}
+
+/** Crea un token de sesión para un share (válido 72 h). */
+export function createShareSessionToken(shareId: string): string {
+  const secret  = getSessionSecret();
+  const expiry   = Date.now() + 72 * 60 * 60 * 1000;
+  const payload  = `share:${shareId}:${expiry}`;
+  const sig      = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  return Buffer.from(`${payload}:${sig}`).toString('base64url');
+}
+
+/** Verifica un token de sesión de share. Devuelve el shareId o null. */
+export function verifyShareSessionToken(token: string): string | null {
+  try {
+    const secret  = getSessionSecret();
+    const decoded = Buffer.from(token, 'base64url').toString();
+    const parts   = decoded.split(':');
+    if (parts.length !== 4 || parts[0] !== 'share') return null;
+    const [, shareId, expiryStr, sig] = parts;
+    if (Date.now() > Number(expiryStr)) return null;
+    const payload  = `share:${shareId}:${expiryStr}`;
+    const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+    if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+    return shareId;
+  } catch {
+    return null;
+  }
+}

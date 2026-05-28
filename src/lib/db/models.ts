@@ -584,3 +584,19 @@ export const AbTest               = mongoose.models.AbTest               || mong
 export const WidgetMessage        = mongoose.models.WidgetMessage        || mongoose.model('WidgetMessage', WidgetMessageSchema);
 export const RegistrationCode     = mongoose.models.RegistrationCode     || mongoose.model('RegistrationCode', RegistrationCodeSchema);
 export const ManualInvoice        = mongoose.models.ManualInvoice        || mongoose.model('ManualInvoice', ManualInvoiceSchema);
+
+// ── WIDGET SHARES ─────────────────────────────────────────────────────────────
+// Acceso compartido público a un widget mediante contraseña generada.
+
+const WidgetShareSchema = new Schema({
+  widgetId:     { type: String, required: true },
+  userId:       { type: String, required: true },
+  shareId:      { type: String, required: true, unique: true },
+  passwordHash: { type: String, required: true },
+  label:        { type: String, default: '' },   // nombre opcional del share
+  active:       { type: Boolean, default: true },
+}, { timestamps: true });
+
+WidgetShareSchema.index({ widgetId: 1, userId: 1 });
+
+export const WidgetShare = mongoose.models.WidgetShare || mongoose.model('WidgetShare', WidgetShareSchema);

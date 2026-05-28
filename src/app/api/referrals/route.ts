@@ -4,8 +4,8 @@
  *
  * Mecánica:
  * - Cada usuario tiene un código único generado al primer GET.
- * - Al aplicar el código, el referido recibe 500 conversaciones bonus.
- * - El referidor recibe 500 conversaciones por cada referido exitoso.
+ * - Al aplicar el código, el referido recibe 150 conversaciones bonus.
+ * - El referidor recibe 150 conversaciones por cada referido exitoso.
  * - Los bonos se otorgan como ConversationPacks de 90 días.
  */
 
@@ -15,7 +15,7 @@ import { verifySessionToken } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
 import { Referral, ConversationPack, User } from '@/lib/db/models';
 
-const REFERRAL_BONUS_CONVERSATIONS = 500;
+const REFERRAL_BONUS_CONVERSATIONS = 150;
 const REFERRAL_PACK_DAYS = 90;
 
 function auth(req: NextRequest) {
