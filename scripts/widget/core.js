@@ -117,7 +117,15 @@
     onClose: null,
     onMessageSent: null,
     onMessageReceived: null,
-    onError: null
+    onError: null,
+    /**
+     * Layout inicial al abrir el widget.
+     * ''                  → flotante compacto (default)
+     * 'sidebar'           → barra lateral compacta
+     * 'sidebar-full'      → barra lateral ancha
+     * 'sidebar-fullscreen'→ pantalla completa
+     */
+    initialLayout: ''
   };
 
   /** Cuadrícula 9 posiciones (widget builder) → geometría del FAB embebido. */
@@ -346,6 +354,10 @@
       input && Object.prototype.hasOwnProperty.call(input, 'fabDismissible')
         ? input.fabDismissible !== false
         : true;
+    var validLayouts = ['', 'sidebar', 'sidebar-full', 'sidebar-fullscreen'];
+    merged.initialLayout = validLayouts.indexOf(String(merged.initialLayout || '')) !== -1
+      ? String(merged.initialLayout || '')
+      : '';
     return merged;
   }
 
@@ -851,6 +863,13 @@
     var DISABLED_MSG = 'Este chat está desactivado temporalmente. Vuelve más tarde.';
     var chatLayout = 'floating';
     var sidebarSize = 'compact';
+    if (cfg.initialLayout === 'sidebar-fullscreen') {
+      chatLayout = 'sidebar'; sidebarSize = 'fullscreen';
+    } else if (cfg.initialLayout === 'sidebar-full') {
+      chatLayout = 'sidebar'; sidebarSize = 'full';
+    } else if (cfg.initialLayout === 'sidebar') {
+      chatLayout = 'sidebar'; sidebarSize = 'compact';
+    }
     var suppressFabClick = false;
     var fabDrag = null;
     var history = [];
