@@ -8,6 +8,10 @@ import { useRouter } from 'next/navigation';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useClientModels, mergeSavedModelOptions } from '@/hooks/use-client-models';
 import { TOOLS, getAgentLimits, TOOL_MAP } from '@/lib/agent-plans';
+import {
+  extractWebhookEntries, generateWebhookId, sanitizeWebhookName,
+  type WebhookEntry,
+} from '@/lib/agent-webhooks';
 import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 import { AGENT_SKILLS } from '@/lib/agent-skills';
 import {
@@ -155,12 +159,12 @@ function SectionCard({
   );
 }
 
-interface ToolConfig { toolId: string; config: Record<string, string> }
+interface ToolConfig { toolId: string; config: Record<string, unknown> }
 
 function normalizeTools(raw: ToolConfig[] | undefined | null): ToolConfig[] {
   return (raw ?? []).map((t) => ({
     toolId: t.toolId,
-    config: t.config && typeof t.config === 'object' ? t.config : {},
+    config: t.config && typeof t.config === 'object' ? t.config as Record<string, unknown> : {},
   }));
 }
 interface RagSource {
@@ -837,10 +841,64 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     });
   }
 
-  function updateToolConfig(toolId: string, key: string, value: string) {
+  function updateToolConfig(toolId: string, key: string, value: unknown) {
     setTools((prev) => prev.map((t) =>
       t.toolId === toolId ? { ...t, config: { ...(t.config ?? {}), [key]: value } } : t,
     ));
+  }
+
+  // ── Multi-webhook helpers ───────────────────────────────────────────────
+  function getWebhookEntries(t: ToolConfig): WebhookEntry[] {
+    return extractWebhookEntries(t.config);
+  }
+  function setWebhookEntries(toolId: string, entries: WebhookEntry[]) {
+    setTools((prev) => prev.map((t) =>
+      t.toolId === toolId
+        ? { ...t, config: { ...(t.config ?? {}), webhooks: entries, url: undefined, secret: undefined } }
+        : t,
+    ));
+  }
+  function addWebhook(toolId: string) {
+    const cur = getWebhookEntries({ toolId, config: tools.find((x) => x.toolId === toolId)?.config ?? {} });
+    setWebhookEntries(toolId, [
+      ...cur,
+      { id: generateWebhookId(), name: `webhook_${cur.length + 1}`, description: '', url: '' },
+    ]);
+  }
+  function updateWebhook(toolId: string, whId: string, patch: Partial<WebhookEntry>) {
+    const cur = getWebhookEntries({ toolId, config: tools.find((x) => x.toolId === toolId)?.config ?? {} });
+    const next = cur.map((w) => w.id === whId
+      ? {
+          ...w,
+          ...patch,
+          ...(patch.name !== undefined ? { name: sanitizeWebhookName(patch.name) } : {}),
+        }
+      : w,
+    );
+    setWebhookEntries(toolId, next);
+  }
+  function removeWebhook(toolId: string, whId: string) {
+    const cur = getWebhookEntries({ toolId, config: tools.find((x) => x.toolId === toolId)?.config ?? {} });
+    setWebhookEntries(toolId, cur.filter((w) => w.id !== whId));
+  }
+  async function testSpecificWebhook(whId: string) {
+    setError(''); setSuccess(''); setWebhookTestBusy(true);
+    try {
+      const res = await fetch(`/api/agents/${encodeURIComponent(id)}/test-webhook`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ webhookId: whId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(typeof data.error === 'string' ? data.error : 'Error al probar webhook.'); return; }
+      setSuccess(`Webhook OK: el endpoint respondió HTTP ${data.status}.`);
+    } catch {
+      setError('No se pudo contactar el webhook.');
+    } finally {
+      setWebhookTestBusy(false);
+      setTimeout(() => setSuccess(''), 6000);
+    }
   }
 
   function addRagSource() {
@@ -2623,6 +2681,140 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           {/* Config fields for selected tools */}
           {tools.map((t) => {
             const def = TOOL_MAP[t.toolId];
+
+            // Webhook tool — UI especial multi-webhook (no usa configFields)
+            if (t.toolId === 'webhook') {
+              const entries = getWebhookEntries(t);
+              return (
+                <SectionCard key={t.toolId}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <p style={{ ...sectionTitle, margin: 0 }}>🔗 Webhooks del agente</p>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={() => addWebhook(t.toolId)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg font-bold text-xs transition-opacity"
+                        style={{ border: `1px solid ${B}`, background: 'rgba(var(--brand-primary-rgb),0.08)', color: B, cursor: 'pointer' }}
+                      >
+                        <Plus size={13} /> Añadir webhook
+                      </button>
+                    )}
+                  </div>
+                  <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '0 0 14px', lineHeight: 1.5 }}>
+                    Configura uno o varios webhooks. El LLM decide cuál disparar según la <strong>descripción de la tarea</strong> que escribas.
+                    Cada webhook puede apuntar a un flujo distinto en n8n / Zapier / tu API.
+                  </p>
+
+                  {entries.length === 0 ? (
+                    <div style={{ padding: '24px 16px', border: '1px dashed var(--border)', borderRadius: 10, textAlign: 'center', color: 'var(--muted-foreground)', fontSize: 12 }}>
+                      Aún no hay webhooks. Pulsa <strong>Añadir webhook</strong> para crear el primero.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                      {entries.map((w, idx) => (
+                        <div key={w.id} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 14, background: 'var(--muted)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted-foreground)' }}>WEBHOOK #{idx + 1}</span>
+                            {!readOnly && (
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button
+                                  type="button"
+                                  onClick={() => void testSpecificWebhook(w.id)}
+                                  disabled={webhookTestBusy || !w.url}
+                                  title="Enviar POST de prueba"
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', fontSize: 11, fontWeight: 600, cursor: webhookTestBusy || !w.url ? 'not-allowed' : 'pointer', opacity: !w.url ? 0.5 : 1 }}
+                                >
+                                  {webhookTestBusy ? <Loader2 size={11} className="animate-spin" /> : <Link2 size={11} />}
+                                  Probar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removeWebhook(t.toolId, w.id)}
+                                  title="Eliminar este webhook"
+                                  style={{ display: 'inline-flex', alignItems: 'center', padding: '5px 10px', borderRadius: 7, border: '1px solid rgba(239,68,68,0.35)', background: 'rgba(239,68,68,0.06)', color: '#ef4444', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+                                >
+                                  <Trash2 size={11} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            <div>
+                              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+                                Nombre interno <span style={{ color: '#ef4444' }}>*</span>
+                                <span style={{ marginLeft: 6, color: 'var(--muted-foreground)', fontWeight: 400 }}>(snake_case, se usa como id de la herramienta para el LLM)</span>
+                              </label>
+                              <input
+                                className="landing-input"
+                                style={inp}
+                                type="text"
+                                value={w.name}
+                                onChange={(e) => updateWebhook(t.toolId, w.id, { name: e.target.value })}
+                                placeholder="leer_correos"
+                                disabled={readOnly}
+                              />
+                            </div>
+
+                            <div>
+                              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+                                Descripción de la tarea <span style={{ color: '#ef4444' }}>*</span>
+                                <span style={{ marginLeft: 6, color: 'var(--muted-foreground)', fontWeight: 400 }}>(el LLM lee esto para decidir cuándo invocarlo)</span>
+                              </label>
+                              <textarea
+                                className="landing-input"
+                                style={{ ...inp, minHeight: 60, resize: 'vertical', fontFamily: 'inherit' }}
+                                value={w.description}
+                                onChange={(e) => updateWebhook(t.toolId, w.id, { description: e.target.value })}
+                                placeholder="Cuando el usuario pida leer su buzón de correos, escribe los datos en su Google Sheet, etc."
+                                disabled={readOnly}
+                              />
+                            </div>
+
+                            <div>
+                              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+                                URL del webhook <span style={{ color: '#ef4444' }}>*</span>
+                              </label>
+                              <input
+                                className="landing-input"
+                                style={inp}
+                                type="text"
+                                value={w.url}
+                                onChange={(e) => updateWebhook(t.toolId, w.id, { url: e.target.value })}
+                                placeholder="https://n8n.tu-dominio.com/webhook/abc-def"
+                                disabled={readOnly}
+                              />
+                            </div>
+
+                            <div>
+                              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+                                Secret (opcional)
+                                <span style={{ marginLeft: 6, color: 'var(--muted-foreground)', fontWeight: 400 }}>(Bearer token o HMAC)</span>
+                              </label>
+                              <input
+                                className="landing-input"
+                                style={inp}
+                                type="password"
+                                value={w.secret ?? ''}
+                                onChange={(e) => updateWebhook(t.toolId, w.id, { secret: e.target.value })}
+                                placeholder="opcional"
+                                disabled={readOnly}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '14px 0 0', lineHeight: 1.5 }}>
+                    Recuerda pulsar <strong>Guardar herramientas</strong> después de añadir/editar webhooks.
+                  </p>
+                </SectionCard>
+              );
+            }
+
+            // Resto de herramientas — UI genérica con configFields
             if (!def?.configFields?.length) return null;
             return (
               <SectionCard key={t.toolId}>
@@ -2637,42 +2829,13 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         className="landing-input"
                         style={inp}
                         type={field.key.toLowerCase().includes('token') || field.key.toLowerCase().includes('key') || field.key.toLowerCase().includes('secret') ? 'password' : 'text'}
-                        value={(t.config ?? {})[field.key] ?? ''}
+                        value={String((t.config ?? {})[field.key] ?? '')}
                         onChange={(e) => updateToolConfig(t.toolId, field.key, e.target.value)}
                         placeholder={field.placeholder}
                         disabled={readOnly}
                       />
                     </div>
                   ))}
-                  {!readOnly && t.toolId === 'webhook' && (
-                    <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
-                      <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '0 0 10px', lineHeight: 1.45 }}>
-                        El motor envía un POST automático al guardar un turno con <strong>correo</strong> o <strong>celular colombiano</strong> (10 dígitos, ej. 300…)
-                        en el mismo mensaje, además de cuando el visitante pide confirmar el envío. Tras editar la URL, pulsa <strong>Guardar herramientas</strong> y
-                        reintenta sincronización con el hub si hiciera falta.
-                      </p>
-                      <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '0 0 10px', lineHeight: 1.45 }}>
-                        En el chat el modelo puede escribir JSON sin llamar a tu URL. Esta prueba envía un POST real
-                        desde el servidor con la configuración <strong>ya guardada</strong> (pulsa Guardar herramientas antes si cambiaste la URL).
-                      </p>
-                      <button
-                        type="button"
-                        onClick={testSavedWebhook}
-                        disabled={webhookTestBusy}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-opacity"
-                        style={{
-                          border: `1px solid ${B}`,
-                          background: 'rgba(var(--brand-primary-rgb),0.08)',
-                          color: B,
-                          cursor: webhookTestBusy ? 'not-allowed' : 'pointer',
-                          opacity: webhookTestBusy ? 0.7 : 1,
-                        }}
-                      >
-                        {webhookTestBusy ? <Loader2 size={13} className="animate-spin" /> : <Link2 size={13} />}
-                        Probar webhook (POST de prueba)
-                      </button>
-                    </div>
-                  )}
                 </div>
               </SectionCard>
             );

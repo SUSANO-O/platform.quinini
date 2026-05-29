@@ -1,0 +1,73 @@
+{
+  "name": "AgentFlow Webhook Test",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agentflow-test",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1a2b3c4d-1111-2222-3333-444455556666",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [400, 300],
+      "webhookId": "agentflow-test-001"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Payload viene en $json.body (POST JSON desde AIBackHub)\nconst body = $input.first().json.body || $input.first().json;\n\n// El motor envía { payload: {...} } o el contenido plano según el LLM\nconst payload = body.payload || body;\n\n// Campos enviados por el motor de pruebas:\nconst webhookName = body.webhookName || 'desconocido';\nconst event = body.event || 'webhook_call';\n\nreturn [{\n  json: {\n    ok: true,\n    receivedAt: new Date().toISOString(),\n    webhookName,\n    event,\n    summary: `n8n recibió el webhook \"${webhookName}\" con ${Object.keys(payload).length} campo(s) en payload.`,\n    payloadEcho: payload,\n    note: 'Este es un flujo de prueba. En producción aquí irían las acciones reales (Gmail, Sheets, DB, etc.) y la respuesta sería lo que el LLM verá.'\n  }\n}];"
+      },
+      "id": "2b3c4d5e-2222-3333-4444-555566667777",
+      "name": "Procesar payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [620, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "3c4d5e6f-3333-4444-5555-666677778888",
+      "name": "Responder al agente",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [840, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Procesar payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar payload": {
+      "main": [
+        [
+          {
+            "node": "Responder al agente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}
