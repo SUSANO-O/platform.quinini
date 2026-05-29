@@ -36,6 +36,12 @@
   /** Pantalla completa */
   var ICON_FULLSCREEN =
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>';
+  /** Menu kebab (3 puntos) para ajustes */
+  var ICON_KEBAB =
+    '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>';
+  /** Papelera para borrar conversación */
+  var ICON_TRASH =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
   /** Centrado, ondas suaves (sin conic-spin); funciona con cualquier color de marca */
   var ORB_HTML =
     '<span class="afhub-fab-inner" aria-hidden="true"><span class="afhub-orb">' +
@@ -1076,6 +1082,29 @@
     newChatBtn.setAttribute('aria-label', 'Nueva conversación');
     newChatBtn.title = 'Nueva conversación';
 
+    /** Botón de Ajustes (kebab) + dropdown con "Borrar conversación" */
+    var settingsWrap = document.createElement('div');
+    settingsWrap.className = 'afhub-settings-wrap';
+
+    var settingsBtn = document.createElement('button');
+    settingsBtn.className = 'afhub-header-icon-btn afhub-settings-btn';
+    settingsBtn.setAttribute('type', 'button');
+    settingsBtn.innerHTML = ICON_KEBAB;
+    settingsBtn.setAttribute('aria-label', 'Ajustes');
+    settingsBtn.title = 'Ajustes';
+
+    var settingsMenu = document.createElement('div');
+    settingsMenu.className = 'afhub-settings-menu';
+    settingsMenu.style.display = 'none';
+    settingsMenu.innerHTML =
+      '<button type="button" class="afhub-settings-item afhub-settings-clear">' +
+        ICON_TRASH +
+        '<span>Borrar conversación</span>' +
+      '</button>';
+
+    settingsWrap.appendChild(settingsBtn);
+    settingsWrap.appendChild(settingsMenu);
+
     var closeBtn = document.createElement('button');
     closeBtn.className = 'afhub-close-btn';
     closeBtn.innerHTML = ICON_X;
@@ -1095,6 +1124,7 @@
     headerActions.appendChild(layoutBtn);
     headerActions.appendChild(expandBtn);
     headerActions.appendChild(newChatBtn);
+    headerActions.appendChild(settingsWrap);
     headerActions.appendChild(closeBtn);
     header.appendChild(headerActions);
     chat.appendChild(header);
@@ -2938,6 +2968,26 @@
     });
     closeBtn.addEventListener('click', close);
     newChatBtn.addEventListener('click', startNewConversation);
+
+    /** Menú Ajustes — abrir/cerrar y manejar opciones */
+    settingsBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var isOpen = settingsMenu.style.display !== 'none';
+      settingsMenu.style.display = isOpen ? 'none' : 'block';
+    });
+    /** Cerrar el menú al click fuera */
+    document.addEventListener('click', function (e) {
+      if (!settingsWrap.contains(e.target)) settingsMenu.style.display = 'none';
+    });
+    /** Opción Borrar conversación */
+    var clearBtnEl = settingsMenu.querySelector('.afhub-settings-clear');
+    if (clearBtnEl) {
+      clearBtnEl.addEventListener('click', function () {
+        settingsMenu.style.display = 'none';
+        var ok = window.confirm('¿Borrar toda la conversación? Esta acción no se puede deshacer.');
+        if (ok) startNewConversation();
+      });
+    }
     sendBtn.addEventListener('click', function () { send(); });
     if (attachBtn && attachInput) {
       attachBtn.addEventListener('click', function () {
@@ -3376,6 +3426,13 @@
       '#' + rootId + ' .afhub-header-icon-btn:hover { opacity:1; background:rgba(255,255,255,.26); }' +
       '#' + rootId + ' .afhub-header-icon-btn:disabled { opacity:.45; cursor:default; pointer-events:none; }' +
       '#' + rootId + ' .afhub-header-icon-btn svg { width:18px; height:18px; }' +
+      '#' + rootId + ' .afhub-settings-wrap { position:relative; flex-shrink:0; display:inline-flex; }' +
+      '#' + rootId + ' .afhub-settings-menu { position:absolute; top:calc(100% + 6px); right:0; min-width:200px; background:#fff; border:1px solid rgba(0,0,0,.08); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.16); padding:6px; z-index:10000; }' +
+      '#' + rootId + ' .afhub-settings-item { display:flex; align-items:center; gap:8px; width:100%; padding:9px 10px; background:transparent; border:none; border-radius:7px; color:#1a1a2e; font-size:13px; font-weight:500; cursor:pointer; text-align:left; min-height:44px; font-family:inherit; }' +
+      '#' + rootId + ' .afhub-settings-item:hover { background:rgba(0,0,0,.05); }' +
+      '#' + rootId + ' .afhub-settings-item svg { width:16px; height:16px; flex-shrink:0; }' +
+      '#' + rootId + ' .afhub-settings-clear { color:#dc2626; }' +
+      '#' + rootId + ' .afhub-settings-clear:hover { background:rgba(220,38,38,.08); }' +
       '#' + rootId + ' .afhub-speaker-btn--active { background:rgba(255,255,255,.35) !important; opacity:1 !important; box-shadow:0 0 0 2px rgba(255,255,255,.55); }' +
       '#' + rootId + ' .afhub-close-btn { flex-shrink:0; margin-left:0; background:rgba(255,255,255,.14); border:none; color:#fff; cursor:pointer; padding:6px; border-radius:8px; opacity:.92; display:inline-flex; align-items:center; justify-content:center; line-height:0; }' +
       '#' + rootId + ' .afhub-close-btn:hover { opacity:1; background:rgba(255,255,255,.26); }' +
