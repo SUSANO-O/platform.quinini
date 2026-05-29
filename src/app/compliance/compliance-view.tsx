@@ -38,7 +38,7 @@ const HIGHLIGHTS = [
   { icon: Clock, label: 'Notificación de incidentes', value: '72 horas' },
   { icon: Lock, label: 'Supresión tras baja', value: '30 días' },
   { icon: Shield, label: 'Cifrado en reposo', value: 'AES-256' },
-  { icon: Scale, label: 'Marco legal', value: 'LFPDPPP' },
+  { icon: Scale, label: 'Marco legal', value: 'Ley 1581 de 2012' },
 ] as const;
 
 const USER_RIGHTS = [
@@ -298,6 +298,19 @@ export function ComplianceView() {
                   <Def term="Incidente de Seguridad">
                     Acceso no autorizado, destrucción, pérdida, alteración o divulgación accidental de Datos Personales.
                   </Def>
+                  <Def term="Titular">
+                    La persona natural cuyos Datos Personales son objeto de Tratamiento, conforme a la definición del artículo
+                    3 de la Ley 1581 de 2012 de Colombia.
+                  </Def>
+                  <Def term="Autorización">
+                    Consentimiento <em>previo, expreso e informado</em> del Titular para llevar a cabo el Tratamiento de sus
+                    Datos Personales, otorgado mediante un acto inequívoco, demostrable y conservado por el Responsable.
+                  </Def>
+                  <Def term="Transmisión Internacional">
+                    Envío de Datos Personales a un Encargado o tercero ubicado fuera del territorio colombiano para la
+                    ejecución de operaciones de Tratamiento en nombre del Responsable, conforme al artículo 26 de la
+                    Ley 1581 de 2012 y al Decreto 1377 de 2013.
+                  </Def>
                 </DefinitionGrid>
               </Section>
 
@@ -337,9 +350,16 @@ export function ComplianceView() {
                     portabilidad), sin coste adicional salvo que el volumen supere lo razonable.
                   </li>
                   <li>
-                    <strong>Notificación de Incidentes.</strong> Informar al Cliente sin dilación indebida —y en todo caso
-                    dentro de las <strong>72 horas</strong> siguientes al conocimiento del hecho— sobre cualquier Incidente de
-                    Seguridad que afecte a los Datos Personales del Cliente.
+                    <strong>Notificación de Incidentes y soporte para reporte ante la SIC.</strong> Informar al Cliente sin
+                    dilación indebida —y en todo caso dentro de las <strong>72 horas</strong> siguientes al conocimiento del
+                    hecho— sobre cualquier Incidente de Seguridad que afecte a los Datos Personales del Cliente. La
+                    notificación incluirá, como mínimo, la naturaleza del incidente, las categorías y el volumen aproximado
+                    de Datos Personales y Titulares afectados, las medidas adoptadas o propuestas para mitigarlo y sus
+                    consecuencias probables. BotIvA proporcionará al Cliente toda la información técnica y documental
+                    necesaria con la antelación suficiente para que el Cliente pueda cumplir su obligación de reportar el
+                    incidente a la <strong>Superintendencia de Industria y Comercio (SIC)</strong> dentro de los{' '}
+                    <strong>15 días hábiles</strong> siguientes a su conocimiento, conforme a la Circular Externa 002 de 2024
+                    y demás normativa colombiana aplicable.
                   </li>
                   <li>
                     <strong>Supresión o devolución.</strong> Al término del Contrato, y a elección del Cliente, suprimir o
@@ -358,16 +378,33 @@ export function ComplianceView() {
                 <p>El Cliente se compromete a:</p>
                 <NumberedList>
                   <li>
-                    Contar con una base legal válida para el Tratamiento de los Datos Personales de sus Usuarios Finales
-                    (consentimiento, contrato, interés legítimo u otra aplicable bajo la legislación local).
+                    <strong>Autorización previa, expresa e informada del Titular.</strong> Obtener y conservar de manera{' '}
+                    <strong>previa, expresa e informada</strong> la autorización de cada Titular para el Tratamiento de sus
+                    Datos Personales y para su Transmisión Internacional, conforme al artículo 9 de la Ley 1581 de 2012. El
+                    Cliente implementará mecanismos demostrables de captación del consentimiento (por ejemplo, una{' '}
+                    <em>casilla de aceptación obligatoria</em> previa al inicio de la conversación con el agente de
+                    Inteligencia Artificial) y conservará evidencia auditable de dicha autorización. BotIvA únicamente
+                    procesará Datos Personales respecto de los cuales el Cliente declare contar con autorización válida y
+                    vigente.
+                  </li>
+                  <li>
+                    <strong>Indemnidad por falta de autorización.</strong> El Cliente, en su calidad de Responsable del
+                    Tratamiento, mantendrá <strong>indemne</strong> a BotIvA frente a cualquier sanción, multa, reclamación,
+                    investigación administrativa o judicial impuesta por la <strong>Superintendencia de Industria y Comercio
+                    (SIC)</strong> u otra autoridad competente que se derive de la falta, insuficiencia o invalidez de la
+                    autorización del Titular, de información incompleta o engañosa en su política de privacidad, o del
+                    incumplimiento de sus obligaciones como Responsable. Esta obligación incluye honorarios de defensa
+                    legal y montos pagados por concepto de transacción o condena.
                   </li>
                   <li>
                     Informar a sus Usuarios Finales sobre el uso de BotIvA como herramienta de procesamiento, conforme a su
-                    propia política de privacidad.
+                    propia política de privacidad y a los principios de transparencia y libertad de la Ley 1581 de 2012.
                   </li>
                   <li>
-                    No transmitir a BotIvA datos de categorías especiales (salud, opiniones políticas, datos biométricos,
-                    creencias religiosas, orientación sexual u otros datos sensibles) sin suscribir un addendum específico.
+                    No transmitir a BotIvA datos de categorías especiales o sensibles (salud, opiniones políticas, datos
+                    biométricos, creencias religiosas, orientación sexual, datos de niñas, niños y adolescentes u otros
+                    datos sensibles según el artículo 5 de la Ley 1581 de 2012) sin suscribir un addendum específico y
+                    contar con la autorización reforzada exigida por la ley.
                   </li>
                   <li>
                     Notificar a BotIvA de forma inmediata si toma conocimiento de cualquier acción legal, demanda regulatoria
@@ -409,20 +446,44 @@ export function ComplianceView() {
                 </div>
               </Section>
 
-              <Section id="transferencias" number="6" title="Transferencias internacionales de datos">
+              <Section id="transferencias" number="6" title="Transmisión y transferencia internacional de datos">
                 <p>
-                  Algunos Sub-encargados pueden procesar datos fuera del país de residencia del Cliente o de sus Usuarios
-                  Finales. BotIvA garantiza que toda transferencia internacional se realiza bajo un mecanismo legal adecuado,
-                  que puede incluir:
+                  Para la prestación del servicio, BotIvA utiliza Sub-encargados que pueden procesar y almacenar Datos
+                  Personales fuera del territorio colombiano, principalmente en los <strong>Estados Unidos de América</strong>{' '}
+                  y otras jurisdicciones donde operan los proveedores de infraestructura en la nube (Google Cloud, MongoDB
+                  Atlas, OpenAI, Anthropic, Vercel, Stripe, entre otros). Esta operación constituye una{' '}
+                  <strong>Transmisión Internacional de Datos</strong> en los términos del artículo 26 de la Ley 1581 de 2012
+                  y del Decreto 1377 de 2013.
+                </p>
+                <p className="mt-4">
+                  BotIvA garantiza al Cliente que los países de destino cuentan con <strong>niveles adecuados de protección
+                  de datos</strong> según los estándares fijados por la <strong>Superintendencia de Industria y Comercio
+                  (SIC)</strong>, o que, en su defecto, la transmisión se ampara en alguno de los mecanismos legales
+                  reconocidos por la normativa colombiana, los cuales pueden incluir:
                 </p>
                 <BulletList>
-                  <li>Cláusulas Contractuales Tipo (CCT) aprobadas por la autoridad competente.</li>
-                  <li>Certificaciones o marcos de adecuación reconocidos (p. ej., EU-US Data Privacy Framework).</li>
-                  <li>Reglas Corporativas Vinculantes (BCR) cuando aplique.</li>
+                  <li>
+                    Cláusulas Contractuales Tipo (CCT) o acuerdos de transmisión suscritos con cada Sub-encargado, en los que
+                    se replican las obligaciones de la Ley 1581 de 2012 y su decreto reglamentario.
+                  </li>
+                  <li>
+                    Certificaciones o marcos de adecuación internacionalmente reconocidos (p. ej., <em>EU-US Data Privacy
+                    Framework</em>, certificaciones ISO/IEC 27001, SOC 2 Tipo II).
+                  </li>
+                  <li>
+                    Declaración de conformidad de los países de destino con los principios de la Ley 1581 de 2012 conforme al
+                    listado y criterios publicados por la SIC.
+                  </li>
+                  <li>
+                    Autorización expresa e inequívoca del Titular obtenida por el Cliente como Responsable del Tratamiento,
+                    cuando ninguno de los mecanismos anteriores resulte aplicable.
+                  </li>
                 </BulletList>
                 <p className="mt-4 flex items-start gap-2">
                   <Globe size={16} className="shrink-0 mt-1" style={{ color: 'var(--accent)' }} />
-                  El Cliente podrá solicitar documentación sobre los mecanismos aplicables a través del canal de soporte.
+                  El Cliente podrá solicitar en cualquier momento, a través del canal de soporte, la documentación de los
+                  mecanismos aplicables a cada Sub-encargado, así como la lista actualizada de países donde se almacenan o
+                  procesan los Datos Personales.
                 </p>
               </Section>
 
@@ -514,14 +575,15 @@ export function ComplianceView() {
 
               <Section id="legislacion" number="12" title="Legislación aplicable y resolución de conflictos">
                 <p>
-                  Este Contrato se rige por las leyes de la República de México, incluyendo la Ley Federal de Protección de
-                  Datos Personales en Posesión de los Particulares (LFPDPPP) y su Reglamento, sin perjuicio de la normativa
-                  de protección de datos aplicable en la jurisdicción de residencia del Cliente.
+                  Este Contrato se rige por las leyes de la República de Colombia, incluyendo la Ley 1581 de 2012 (Régimen
+                  General de Protección de Datos Personales), el Decreto 1377 de 2013 y demás normas concordantes expedidas
+                  por la Superintendencia de Industria y Comercio (SIC), sin perjuicio de la normativa de protección de datos
+                  aplicable en la jurisdicción de residencia del Cliente.
                 </p>
                 <p className="mt-4">
                   Ante cualquier controversia, las partes intentarán resolverla de forma amistosa en un plazo de 30 días.
-                  Si no se alcanza acuerdo, la disputa se someterá a la jurisdicción de los tribunales competentes de la
-                  Ciudad de México.
+                  Si no se alcanza acuerdo, la disputa se someterá a la jurisdicción de los jueces y tribunales competentes
+                  de la ciudad de Bogotá D.C., Colombia.
                 </p>
               </Section>
 
