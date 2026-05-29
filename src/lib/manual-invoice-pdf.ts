@@ -54,7 +54,7 @@ export function getDefaultIssuer(): InvoiceIssuer {
     address: process.env.BILLING_ISSUER_ADDRESS?.trim() || '',
     city: process.env.BILLING_ISSUER_CITY?.trim() || '',
     state: process.env.BILLING_ISSUER_STATE?.trim() || '',
-    email: process.env.BILLING_ISSUER_EMAIL?.trim() || 'facturacion@botiva.app',
+    email: process.env.BILLING_ISSUER_EMAIL?.trim() || 'business.botiva@gmail.com',
     phone: process.env.BILLING_ISSUER_PHONE?.trim() || '',
   };
 }

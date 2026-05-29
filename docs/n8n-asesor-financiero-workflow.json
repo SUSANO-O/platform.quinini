@@ -1,0 +1,82 @@
+{
+  "name": "AgentFlow Asesor Financiero",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agentflow-test",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1111111-2222-3333-4444-555566667777",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        400,
+        300
+      ],
+      "webhookId": "agentflow-asesor-financiero"
+    },
+    {
+      "parameters": {
+        "jsCode": "// === Router para asesor financiero virtual ===\n// Copia y pega ESTE script en el nodo \"Code\" del workflow n8n.\n// Soporta 7 acciones encadenables + echo por defecto.\n\nconst body = $input.first().json.body || $input.first().json;\nconst payload = body.payload || body;\nconst action = payload.action || '';\n\n// ── Helpers de mock data ──\nfunction hash(str) { let h = 0; for (let i = 0; i < str.length; i++) h = ((h << 5) - h) + str.charCodeAt(i); return Math.abs(h); }\nfunction rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }\nfunction pickOne(arr) { return arr[rand(0, arr.length - 1)]; }\n\n// ━━━ 1. BUSCAR CLIENTE — Punto de entrada del flujo ━━━\nif (action === 'buscar_cliente') {\n  const rut = payload.rut || payload.documento || '11.111.111-1';\n  const h = hash(rut);\n  const score = 350 + (h % 500); // 350-850\n  const ciudades = ['Santiago', 'Valparaíso', 'Concepción', 'La Serena', 'Antofagasta'];\n  const planes = ['premium', 'gold', 'standard'];\n\n  return [{ json: {\n    ok: true,\n    cliente_id: 'CL_' + (h % 100000).toString().padStart(5, '0'),\n    rut,\n    nombre: pickOne(['Juan Pérez', 'María González', 'Carlos Soto', 'Ana Muñoz', 'Diego Castro']),\n    edad: 28 + (h % 35),\n    ciudad: pickOne(ciudades),\n    email: 'cliente' + (h % 999) + '@correo.cl',\n    telefono: '+569' + String(rand(10000000, 99999999)),\n\n    // Perfil financiero — el agente debe analizar estos campos\n    plan: planes[h % 3],\n    estado: 'activo',\n    cliente_desde: '20' + (15 + (h % 8)) + '-0' + ((h % 9) + 1) + '-15',\n    score_crediticio: score,\n    categoria_riesgo: score > 700 ? 'bajo' : score > 550 ? 'medio' : 'alto',\n    saldo_disponible_clp: rand(500000, 5000000),\n    deuda_total_clp: rand(0, 2000000),\n    productos_contratados: [\n      'cuenta_corriente',\n      ...(h % 2 === 0 ? ['tarjeta_credito'] : []),\n      ...(h % 3 === 0 ? ['seguro_vida'] : []),\n      ...(h % 5 === 0 ? ['credito_hipotecario'] : [])\n    ],\n    alertas: score < 500 ? ['atraso_pago_reciente'] : (score < 600 ? ['cuota_proxima_a_vencer'] : []),\n    elegible_credito: score > 600,\n    monto_pre_aprobado_clp: score > 600 ? rand(1000000, 10000000) : 0,\n    ultima_interaccion: new Date(Date.now() - rand(86400000, 30 * 86400000)).toISOString(),\n\n    note: 'Analiza score, alertas, productos contratados y elegible_credito para decidir el siguiente paso.'\n  }}];\n}\n\n// ━━━ 2. CONSULTAR PRODUCTOS DISPONIBLES ━━━\nif (action === 'consultar_productos_disponibles') {\n  const { cliente_id } = payload;\n  if (!cliente_id) return [{ json: { ok: false, error: 'Falta cliente_id (obtenlo de buscar_cliente)' }}];\n\n  return [{ json: {\n    ok: true,\n    cliente_id,\n    productos_recomendados: [\n      {\n        id: 'prod_credito_consumo',\n        nombre: 'Crédito de Consumo',\n        tipo: 'credito',\n        descripcion: 'Hasta $5M, plazo 6-48 meses, sin codeudor',\n        tasa_anual_pct: 12.5,\n        cae_pct: 14.2,\n        monto_min_clp: 200000,\n        monto_max_clp: 5000000,\n        plazo_min_meses: 6,\n        plazo_max_meses: 48,\n        recomendado_para: 'liquidez inmediata, score > 600'\n      },\n      {\n        id: 'prod_tarjeta_oro',\n        nombre: 'Tarjeta Visa Oro',\n        tipo: 'tarjeta',\n        descripcion: 'Sin anualidad primer año, cashback 1%, seguro viaje',\n        cupo_pre_aprobado_clp: 2500000,\n        anualidad_segunda_clp: 45000,\n        recomendado_para: 'cliente activo sin tarjeta crédito'\n      },\n      {\n        id: 'prod_seguro_auto',\n        nombre: 'Seguro Automotriz Todo Riesgo',\n        tipo: 'seguro',\n        descripcion: 'Cobertura total, asistencia 24/7, deducible bajo',\n        prima_mensual_clp: 35000,\n        cobertura_max_clp: 25000000,\n        recomendado_para: 'cliente con vehículo'\n      },\n      {\n        id: 'prod_deposito_plazo',\n        nombre: 'Depósito a Plazo',\n        tipo: 'inversion',\n        descripcion: 'Tasa garantizada, capital protegido',\n        tasa_anual_pct: 5.8,\n        monto_min_clp: 500000,\n        plazo_min_dias: 30,\n        recomendado_para: 'cliente con saldo disponible alto'\n      }\n    ],\n    note: 'Elige el producto adecuado segun el perfil del cliente (saldo, riesgo, productos ya contratados).'\n  }}];\n}\n\n// ━━━ 3. SIMULAR CRÉDITO ━━━\nif (action === 'simular_credito') {\n  const { monto_clp, plazo_meses } = payload;\n  if (!monto_clp || !plazo_meses) return [{ json: { ok: false, error: 'Falta monto_clp o plazo_meses' }}];\n\n  const tasaMensual = 0.0105;\n  const cuota = (monto_clp * tasaMensual * Math.pow(1 + tasaMensual, plazo_meses)) / (Math.pow(1 + tasaMensual, plazo_meses) - 1);\n  const total = cuota * plazo_meses;\n\n  return [{ json: {\n    ok: true,\n    simulacion_id: 'SIM_' + Math.random().toString(36).slice(2, 8).toUpperCase(),\n    monto_solicitado_clp: monto_clp,\n    plazo_meses,\n    tasa_mensual_pct: 1.05,\n    tasa_anual_pct: 12.6,\n    cae_pct: 14.2,\n    cuota_mensual_clp: Math.round(cuota),\n    costo_total_clp: Math.round(total),\n    intereses_totales_clp: Math.round(total - monto_clp),\n    primera_cuota: '2026-07-05',\n    ultima_cuota: new Date(Date.now() + plazo_meses * 30 * 86400000).toISOString().slice(0, 10),\n    aprobacion_automatica: monto_clp <= 3000000,\n    note: 'Presenta la cuota mensual al cliente. Si acepta, usa enviar_oferta.'\n  }}];\n}\n\n// ━━━ 4. ENVIAR OFERTA ━━━\nif (action === 'enviar_oferta') {\n  const { cliente_id, producto_id, canal } = payload;\n  if (!cliente_id || !producto_id) return [{ json: { ok: false, error: 'Falta cliente_id o producto_id' }}];\n\n  return [{ json: {\n    ok: true,\n    oferta_id: 'OF_' + Math.random().toString(36).slice(2, 10).toUpperCase(),\n    cliente_id,\n    producto_id,\n    canal: canal || 'WhatsApp',\n    enviada_a: canal === 'email' ? 'cliente@correo.cl' : '+569 1234 5678',\n    estado: 'enviada',\n    valida_hasta: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),\n    tracking_url: 'https://tracking.ejemplo.cl/of_' + Math.random().toString(36).slice(2, 8),\n    timestamp_envio: new Date().toISOString(),\n    note: 'Oferta enviada. Guarda oferta_id para consultar_estado_oferta despues.'\n  }}];\n}\n\n// ━━━ 5. CONSULTAR ESTADO DE LA OFERTA ━━━\nif (action === 'consultar_estado_oferta') {\n  const { oferta_id } = payload;\n  if (!oferta_id) return [{ json: { ok: false, error: 'Falta oferta_id' }}];\n\n  const estados = ['enviada', 'vista', 'en_revision', 'aceptada', 'rechazada', 'expirada'];\n  const estado = pickOne(estados);\n\n  return [{ json: {\n    ok: true,\n    oferta_id,\n    estado,\n    vista_at: estado !== 'enviada' ? new Date(Date.now() - rand(3600000, 86400000)).toISOString() : null,\n    aceptada_at: estado === 'aceptada' ? new Date(Date.now() - rand(3600000, 86400000)).toISOString() : null,\n    interacciones: rand(0, 5),\n    siguiente_accion_sugerida: estado === 'aceptada' ? 'enviar_documentos' : estado === 'rechazada' ? 'agendar_callback' : 'esperar_o_recordatorio'\n  }}];\n}\n\n// ━━━ 6. AGENDAR CALLBACK ━━━\nif (action === 'agendar_callback') {\n  const { cliente_id, fecha, motivo } = payload;\n  if (!cliente_id) return [{ json: { ok: false, error: 'Falta cliente_id' }}];\n\n  return [{ json: {\n    ok: true,\n    callback_id: 'CB_' + Math.random().toString(36).slice(2, 8).toUpperCase(),\n    cliente_id,\n    fecha_programada: fecha || new Date(Date.now() + 86400000).toISOString(),\n    asesor_asignado: pickOne(['Carla Rodríguez', 'Miguel Torres', 'Sofía Vargas', 'Pedro Hernández']),\n    motivo: motivo || 'seguimiento_general',\n    canal: 'llamada_telefonica',\n    estado: 'programado',\n    confirmacion_enviada: true\n  }}];\n}\n\n// ━━━ 7. DERIVAR A HUMANO ━━━\nif (action === 'derivar_humano') {\n  const { cliente_id, motivo, prioridad } = payload;\n  if (!cliente_id) return [{ json: { ok: false, error: 'Falta cliente_id' }}];\n\n  return [{ json: {\n    ok: true,\n    ticket_id: 'TK_' + Math.random().toString(36).slice(2, 10).toUpperCase(),\n    cliente_id,\n    motivo: motivo || 'consulta_general',\n    prioridad: prioridad || 'media',\n    cola: prioridad === 'alta' ? 'asesor_senior' : 'soporte_general',\n    tiempo_estimado_respuesta_min: prioridad === 'alta' ? 5 : prioridad === 'baja' ? 60 : 20,\n    asesor_disponible: 'Patricia López',\n    estado: 'en_cola',\n    note: 'Cliente derivado correctamente. Informa al usuario el tiempo estimado.'\n  }}];\n}\n\n// ━━━ Default: echo + lista de acciones ━━━\nreturn [{ json: {\n  ok: true,\n  receivedAt: new Date().toISOString(),\n  payloadEcho: payload,\n  acciones_disponibles: [\n    'buscar_cliente',\n    'consultar_productos_disponibles',\n    'simular_credito',\n    'enviar_oferta',\n    'consultar_estado_oferta',\n    'agendar_callback',\n    'derivar_humano'\n  ],\n  hint: 'Incluye payload.action con una de las acciones listadas para enrutar a la respuesta correcta.'\n}}];\n"
+      },
+      "id": "b2222222-3333-4444-5555-666677778888",
+      "name": "Router asesor financiero",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "c3333333-4444-5555-6666-777788889999",
+      "name": "Responder al agente",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        840,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Router asesor financiero",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Router asesor financiero": {
+      "main": [
+        [
+          {
+            "node": "Responder al agente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

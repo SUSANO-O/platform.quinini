@@ -2,13 +2,29 @@ import { Navbar } from '@/components/shared/navbar';
 import { Footer } from '@/components/shared/footer';
 import { PLANS, buildPricingGridPlans } from '@/lib/gateway';
 import { PLAN_DISPLAY, CONVERSATION_PACKS, API_REST_COMING_SOON_LABEL } from '@/lib/plan-catalog';
-import { Check, ArrowRight, Zap, Gift, Rocket } from 'lucide-react';
+import { Check, ArrowRight, Zap, Gift, Rocket, Smartphone, Wallet, Landmark, type LucideIcon } from 'lucide-react';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { PricingComparisonTable } from '@/components/landing/pricing-comparison-table';
 import { PricingPlanCard } from '@/components/landing/pricing-plan-card';
 import Link from 'next/link';
 
 /** Ventas manual — reactivar /register cuando las suscripciones sean automáticas. */
-const SALES_WHATSAPP = '573196748729';
+const SALES_WHATSAPP = '573144064925';
+
+/** Métodos de pago aceptados (pago coordinado por WhatsApp). Si existe el SVG oficial
+ *  en /public/payment/<slug>.svg se muestra el logo; si no, badge de color con icono. */
+const PAYMENT_METHODS: { name: string; slug: string; bg: string; Icon: LucideIcon }[] = [
+  { name: 'Nequi', slug: 'nequi', bg: '#DA0081', Icon: Smartphone },     // billetera móvil
+  { name: 'Daviplata', slug: 'daviplata', bg: '#E1251B', Icon: Wallet }, // billetera móvil
+  { name: 'PSE', slug: 'pse', bg: '#1D5BA4', Icon: Landmark },           // transferencia bancaria
+  { name: 'Bre-B', slug: 'bre-b', bg: '#0FB5BA', Icon: Zap },            // pago inmediato
+];
+
+/** Logo oficial colocado manualmente en public/payment/ (ver README ahí). */
+function paymentLogo(slug: string): boolean {
+  return existsSync(join(process.cwd(), 'public', 'payment', `${slug}.svg`));
+}
 
 function planWhatsAppUrl(planName: string, priceLabel?: string) {
   const pricePart = priceLabel ? ` (${priceLabel})` : '';
@@ -168,6 +184,39 @@ export default function PricingPage() {
               </a>
             </div>
           )}
+
+          {/* Medios de pago aceptados (pago coordinado por WhatsApp; activación manual) */}
+          <div className="mt-10 md:mt-12 text-center">
+            <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--muted-foreground)' }}>
+              Medios de pago aceptados
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2 md:gap-3">
+              {PAYMENT_METHODS.map((m) =>
+                paymentLogo(m.slug) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <span
+                    key={m.name}
+                    className="inline-flex items-center justify-center px-4 py-2 rounded-xl"
+                    style={{ background: '#fff', border: '1px solid var(--border)', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', height: 44 }}
+                  >
+                    <img src={`/payment/${m.slug}.svg`} alt={m.name} style={{ height: 22, width: 'auto' }} />
+                  </span>
+                ) : (
+                  <span
+                    key={m.name}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold no-underline"
+                    style={{ background: m.bg, color: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
+                  >
+                    <m.Icon size={16} strokeWidth={2.5} />
+                    {m.name}
+                  </span>
+                ),
+              )}
+            </div>
+            <p className="mt-3 text-xs px-2" style={{ color: 'var(--muted-foreground)' }}>
+              Coordina tu pago por WhatsApp y activamos tu plan apenas lo confirmes.
+            </p>
+          </div>
 
           <div className="mt-16 md:mt-24">
             <h2 className="text-xl md:text-2xl font-bold text-center mb-2 md:mb-3">Comparativa de planes</h2>

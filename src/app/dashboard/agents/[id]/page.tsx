@@ -19,8 +19,9 @@ import {
   Zap, Wrench, Settings, Lock, CircleOff, Upload, FileText,
   Image as ImageIcon, File, Link2, AlignLeft, CheckCircle2,
   AlertCircle, X, KeyRound, RefreshCw, Sparkles, HelpCircle,
-  Copy, Eye, Search,
+  Copy, Eye, Search, Clock,
 } from 'lucide-react';
+import ScheduledTasksTab from '@/components/agents/ScheduledTasksTab';
 import {
   stripManagedFaqPrompt,
   buildFaqPromptBlock,
@@ -94,7 +95,7 @@ const RAG_EXAMPLE_DOWNLOADS = [
 const RAG_MAX_EXTRACTED_CHARS = 120_000;
 const RAG_MAX_FILE_MB = 10;
 
-type Tab = 'general' | 'rules' | 'faqs' | 'tools' | 'rag' | 'subagents';
+type Tab = 'general' | 'rules' | 'faqs' | 'tools' | 'rag' | 'subagents' | 'scheduled-tasks';
 
 interface McpServerGroup {
   integrationKey: string;
@@ -1266,6 +1267,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     { id: 'tools',   label: `Herramientas (${tools.length + mcpToolIds.length})`, icon: <Wrench size={13} /> },
     { id: 'rag',     label: `Almacenamiento (${ragN})`, icon: <Zap size={13} /> },
     { id: 'subagents', label: `Sub-agentes (${subAgents.length})`, icon: <Network size={13} /> },
+    { id: 'scheduled-tasks', label: 'Tareas Programadas', icon: <Clock size={13} /> },
   ];
   const visibleTabs = soloChatOnly ? TABS.filter((t) => t.id === 'general') : TABS;
 
@@ -3524,6 +3526,10 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       )}
 
       {/* ── SUB-AGENTS TAB ───────────────────────────────────────────────────── */}
+      {tab === 'scheduled-tasks' && (
+        <ScheduledTasksTab agentId={String(agent._id)} plan={plan} readOnly={readOnly} />
+      )}
+
       {tab === 'subagents' && (
         <>
           {limits.subAgentsPerAgent === 0 ? (

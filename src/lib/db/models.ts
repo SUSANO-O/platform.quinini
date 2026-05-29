@@ -97,6 +97,12 @@ const SubscriptionSchema = new Schema({
   quotaWarningSentMonth: { type: String, default: null },
   /** Historial de recordatorios de vencimiento enviados para evitar duplicados (trial/renovacion). */
   reminderHistory: { type: [String], default: [] },
+  /** Overrides de features activados manualmente desde admin (ej. 'scheduled_tasks'),
+   *  independientes del plan, tras acordar precio. Ver scheduledTasksEnabled(). */
+  features: { type: [String], default: [] },
+  /** Override del límite de tareas programadas para este cliente (null = usar el del plan).
+   *  -1 = ilimitado. Acordado manualmente desde admin. */
+  scheduledTaskLimit: { type: Number, default: null },
 }, { timestamps: true });
 
 SubscriptionSchema.index({ lsCustomerId: 1 });
@@ -553,6 +559,70 @@ const ManualInvoiceSchema = new Schema({
 ManualInvoiceSchema.index({ userId: 1, invoiceNumber: 1 }, { unique: true });
 ManualInvoiceSchema.index({ userId: 1, issuedAt: -1 });
 
+// ── SCHEDULED TASKS (cron por agente) ─────────────────────────────────────────
+// Definición + estado de programación. Las ejecuta el worker `cron-schedule`
+// (Cloud Run) leyendo esta colección; el landing solo crea/edita y LEE estado.
+
+const ScheduledTaskSchema = new Schema({
+  agentId:   { type: String, required: true }, // ClientAgent._id
+  userId:    { type: String, required: true }, // dueño (para límites de plan + scoping)
+  widgetId:  { type: String, default: '' },     // destino para chat_message / agent_run
+  sessionId: { type: String, default: '' },     // conversación destino (opcional)
+  name:      { type: String, required: true },  // para preguntar por nombre en el chat
+  enabled:   { type: Boolean, default: true },
+  /** Cron expression generada por el wizard (el usuario no la escribe a mano). */
+  cron:      { type: String, required: true },
+  timezone:  { type: String, default: 'America/Bogota' },
+  action: {
+    type:   { type: String, enum: ['webhook', 'agent_run', 'chat_message', 'email'], required: true },
+    /** Varía según `type`. Mixed: requiere markModified('action.config') al editar anidado. */
+    config: { type: Schema.Types.Mixed, default: {} },
+  },
+  retryPolicy: {
+    maxRetries:        { type: Number, default: 3, min: 0, max: 10 },
+    backoff:           { type: String, enum: ['fixed', 'exponential'], default: 'fixed' },
+    retryDelayMinutes: { type: Number, default: 5, min: 1, max: 1440 },
+  },
+  // ── Estado de scheduling ────────────────────────────────────────────────────
+  status:      { type: String, enum: ['idle', 'running', 'success', 'failed', 'exhausted', 'paused'], default: 'idle' },
+  /** Reloj del horario normal (próxima corrida programada). */
+  nextRunAt:   { type: Date, default: null },
+  /** SEPARADO de nextRunAt: solo existe mientras hay un fallo en curso. */
+  nextRetryAt: { type: Date, default: null },
+  /** Fallos consecutivos del ciclo actual (se resetea al tener éxito o agotar). */
+  attempts:    { type: Number, default: 0 },
+  lastRunAt:   { type: Date, default: null },
+  lastStatus:  { type: String, default: '' },
+  lastError:   { type: String, default: '' },
+  /** Marca de lock para detectar corridas colgadas (el worker lo reclama tras timeout). */
+  lockedAt:    { type: Date, default: null },
+}, { timestamps: true });
+
+ScheduledTaskSchema.index({ enabled: 1, nextRunAt: 1 });
+ScheduledTaskSchema.index({ enabled: 1, nextRetryAt: 1 });
+ScheduledTaskSchema.index({ agentId: 1, createdAt: -1 });
+ScheduledTaskSchema.index({ userId: 1, createdAt: -1 });
+
+// ── TASK EXECUTIONS (historial de corridas; lo lee el agente para "última ejecución") ─
+
+const TaskExecutionSchema = new Schema({
+  taskId:        { type: String, required: true },
+  agentId:       { type: String, default: '' },
+  userId:        { type: String, default: '' },
+  runAt:         { type: Date, required: true },
+  status:        { type: String, enum: ['success', 'failed'], required: true },
+  attempt:       { type: Number, default: 0 },
+  durationMs:    { type: Number, default: 0 },
+  triggeredBy:   { type: String, enum: ['schedule', 'retry'], default: 'schedule' },
+  error:         { type: String, default: '' },
+  outputSummary: { type: String, default: '' },
+}, { timestamps: true });
+
+TaskExecutionSchema.index({ taskId: 1, runAt: -1 });
+TaskExecutionSchema.index({ agentId: 1, runAt: -1 });
+// TTL 90 días — historial suficiente sin acumular indefinidamente.
+TaskExecutionSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 90 });
+
 // ── EXPORTS (safe for Next.js HMR) ───────────────────────────────────────────
 
 // Delete cached models in dev so schema changes take effect on hot reload
@@ -560,7 +630,7 @@ if (process.env.NODE_ENV !== 'production') {
   const modelNames = [
     'User', 'ClientAgent', 'Subscription', 'PlatformUsage', 'ConversationPack',
     'AuditLog', 'SecurityLog', 'ConversationSession', 'WidgetSessionContext', 'RagBulkJob', 'Organization', 'Referral', 'AbTest',
-    'ManualInvoice',
+    'ManualInvoice', 'ScheduledTask', 'TaskExecution',
   ] as const;
   modelNames.forEach((name) => {
     if (mongoose.models[name]) delete (mongoose.models as Record<string, unknown>)[name];
@@ -584,6 +654,8 @@ export const AbTest               = mongoose.models.AbTest               || mong
 export const WidgetMessage        = mongoose.models.WidgetMessage        || mongoose.model('WidgetMessage', WidgetMessageSchema);
 export const RegistrationCode     = mongoose.models.RegistrationCode     || mongoose.model('RegistrationCode', RegistrationCodeSchema);
 export const ManualInvoice        = mongoose.models.ManualInvoice        || mongoose.model('ManualInvoice', ManualInvoiceSchema);
+export const ScheduledTask        = mongoose.models.ScheduledTask        || mongoose.model('ScheduledTask', ScheduledTaskSchema);
+export const TaskExecution        = mongoose.models.TaskExecution        || mongoose.model('TaskExecution', TaskExecutionSchema);
 
 // ── WIDGET SHARES ─────────────────────────────────────────────────────────────
 // Acceso compartido público a un widget mediante contraseña generada.

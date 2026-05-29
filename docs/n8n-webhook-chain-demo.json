@@ -1,0 +1,49 @@
+{
+  "name": "AgentFlow Webhook Chain Demo",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agentflow-test",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "aa11bb22-cc33-dd44-ee55-ff6677889900",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [400, 300],
+      "webhookId": "agentflow-chain-demo"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Router inteligente para webhooks encadenados\n// Backwards compatible con el workflow simple (echo)\n\nconst body = $input.first().json.body || $input.first().json;\nconst payload = body.payload || body;\nconst action = payload.action || payload._action || '';\n\n// ── Ruta 1: buscar_cliente ─────────────────────────────────────────\nif (action === 'buscar_cliente') {\n  const rut = payload.rut || payload.documento || '11.111.111-1';\n  return [{ json: {\n    ok: true,\n    action: 'cliente_encontrado',\n    cliente_id: 'CL_' + Math.random().toString(36).slice(2, 8).toUpperCase(),\n    rut,\n    nombre: 'Juan Pérez',\n    plan: 'premium',\n    estado: 'activo',\n    saldo_disponible_clp: 1500000,\n    note: 'Mock data — usa cliente_id para llamar a enviar_oferta'\n  }}];\n}\n\n// ── Ruta 2: enviar_oferta (requiere cliente_id de la llamada anterior) ──\nif (action === 'enviar_oferta') {\n  const { cliente_id, plan } = payload;\n  if (!cliente_id) {\n    return [{ json: {\n      ok: false,\n      error: 'Falta cliente_id. Llama primero a buscar_cliente para obtenerlo.'\n    }}];\n  }\n  return [{ json: {\n    ok: true,\n    action: 'oferta_enviada',\n    oferta_id: 'OF_' + Math.random().toString(36).slice(2, 8).toUpperCase(),\n    cliente_id,\n    plan: plan || 'standard',\n    descuento_clp: plan === 'premium' ? 25000 : 10000,\n    moneda: 'CLP',\n    valida_hasta: '2026-06-30',\n    canal: 'WhatsApp + Email',\n    note: 'Mock data — oferta enviada al cliente ' + cliente_id\n  }}];\n}\n\n// ── Ruta 3: cobrar (tercer eslabón opcional para chains más largos) ──\nif (action === 'cobrar') {\n  const { oferta_id } = payload;\n  if (!oferta_id) {\n    return [{ json: { ok: false, error: 'Falta oferta_id de enviar_oferta.' }}];\n  }\n  return [{ json: {\n    ok: true,\n    action: 'cobro_realizado',\n    transaccion_id: 'TX_' + Math.random().toString(36).slice(2, 10).toUpperCase(),\n    oferta_id,\n    monto_cobrado_clp: 25000,\n    estado: 'completado',\n    timestamp: new Date().toISOString()\n  }}];\n}\n\n// ── Default: echo (compat con el workflow original) ──\nconst webhookName = body.webhookName || 'desconocido';\nreturn [{ json: {\n  ok: true,\n  receivedAt: new Date().toISOString(),\n  webhookName,\n  summary: `n8n recibió webhook \"${webhookName}\" con ${Object.keys(payload).length} campo(s).`,\n  payloadEcho: payload,\n  note: 'Echo default. Para chain demo incluye payload.action: \"buscar_cliente\", \"enviar_oferta\" o \"cobrar\".'\n}}];"
+      },
+      "id": "bb22cc33-dd44-ee55-ff66-778899001122",
+      "name": "Router por acción",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [620, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "cc33dd44-ee55-ff66-7788-99001122aabb",
+      "name": "Responder al agente",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [840, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Router por acción", "type": "main", "index": 0 }]] },
+    "Router por acción": { "main": [[{ "node": "Responder al agente", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "meta": { "templateCredsSetupCompleted": true },
+  "tags": []
+}
