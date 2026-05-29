@@ -320,7 +320,11 @@ export function ComplianceView() {
                   contratados por el Cliente y bajo sus instrucciones documentadas. El Tratamiento abarca:
                 </p>
                 <BulletList>
-                  <li>Almacenamiento temporal y permanente del historial de conversaciones del widget.</li>
+                  <li>
+                    Almacenamiento del historial de conversaciones del widget durante el plazo máximo de retención asociado
+                    al plan contratado por el Cliente. Vencido dicho plazo, BotIvA suprime automáticamente las conversaciones
+                    más antiguas conforme a la tabla detallada en la cláusula 9 (Retención y supresión de datos).
+                  </li>
                   <li>Procesamiento de consultas contra modelos de lenguaje (LLMs) de terceros para generar respuestas.</li>
                   <li>Indexación de documentos cargados por el Cliente para funcionalidad de almacenamiento (Retrieval-Augmented Generation).</li>
                   <li>Registro de métricas de uso anonimizadas para facturación y mejora del servicio.</li>
@@ -527,26 +531,79 @@ export function ComplianceView() {
 
               <Section id="retencion" number="9" title="Retención y supresión de datos">
                 <p>
-                  Los Datos Personales se conservarán durante el tiempo estrictamente necesario para la prestación del
-                  servicio contratado, con los siguientes plazos orientativos:
+                  En cumplimiento del <strong>principio de finalidad</strong> de la Ley 1581 de 2012, los Datos Personales se
+                  conservan durante el tiempo estrictamente necesario para la prestación del servicio contratado. El plazo
+                  máximo de retención del historial de conversaciones depende del <strong>plan suscrito por el Cliente</strong>{' '}
+                  y se aplica de forma automática mediante un proceso de supresión periódica:
                 </p>
+
+                <div
+                  className="mt-4 rounded-xl overflow-hidden card-texture"
+                  style={{ border: '1px solid var(--border)' }}
+                >
+                  <table className="w-full text-xs sm:text-sm">
+                    <thead>
+                      <tr style={{ background: 'rgba(var(--brand-primary-rgb),0.06)' }}>
+                        <th className="text-left px-4 py-2.5 font-bold" style={{ color: 'var(--foreground)' }}>Plan contratado</th>
+                        <th className="text-left px-4 py-2.5 font-bold" style={{ color: 'var(--foreground)' }}>Retención máxima del historial</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        ['Free', '7 días'],
+                        ['Solo', '30 días'],
+                        ['Basic', '30 días'],
+                        ['Team', '45 días'],
+                        ['Plus', '60 días'],
+                        ['Starter', '90 días'],
+                        ['Growth', '365 días'],
+                        ['Business', 'Sin límite (mientras la cuenta esté activa)'],
+                        ['Enterprise', 'Sin límite (mientras la cuenta esté activa)'],
+                      ].map(([plan, retention], i) => (
+                        <tr
+                          key={plan}
+                          style={{ borderTop: i === 0 ? 'none' : '1px solid var(--border)' }}
+                        >
+                          <td className="px-4 py-2.5 font-semibold" style={{ color: 'var(--foreground)' }}>{plan}</td>
+                          <td className="px-4 py-2.5">{retention}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <p className="mt-5">Adicionalmente, se aplican los siguientes plazos para otras categorías de información:</p>
                 <BulletList>
                   <li>
-                    <strong>Historial de conversaciones activas:</strong> Mientras la cuenta del Cliente esté activa o hasta
-                    que el Cliente solicite su eliminación.
+                    <strong>Registros de auditoría de la cuenta (AuditLog):</strong> Se generan en tiempo real ante cada
+                    evento relevante (inicio y cierre de sesión, registro, actualización de perfil, ejercicio de derechos
+                    RGPD/Habeas Data, eventos de facturación) y se conservan mientras la cuenta del Cliente esté activa,
+                    para fines de trazabilidad y demostración de cumplimiento.
                   </li>
                   <li>
-                    <strong>Registros de auditoría y seguridad:</strong> Hasta 12 meses desde su generación.
+                    <strong>Registros de eventos de seguridad del widget (SecurityLog):</strong> Se generan en tiempo real
+                    ante incidentes técnicos (intentos de acceso no autorizado, rate-limiting, detección de prompt injection,
+                    tokens inválidos, abuso de cuota) y se suprimen automáticamente a los <strong>90 días</strong> mediante
+                    un mecanismo TTL en la base de datos.
                   </li>
                   <li>
-                    <strong>Datos de facturación:</strong> El tiempo requerido por la legislación fiscal aplicable (generalmente
-                    5 años).
+                    <strong>Datos de facturación y obligaciones fiscales:</strong> El tiempo requerido por la legislación
+                    tributaria colombiana aplicable (generalmente hasta 5 años, conforme al Estatuto Tributario).
                   </li>
                   <li>
-                    <strong>Tras la baja del servicio:</strong> Supresión o devolución en un máximo de 30 días calendario,
-                    salvo retención legal obligatoria.
+                    <strong>Tras la cancelación o baja del servicio:</strong> Supresión o devolución de todos los Datos
+                    Personales en un máximo de <strong>30 días calendario</strong>, salvo obligación legal de conservación
+                    o solicitud expresa de devolución por parte del Cliente.
+                  </li>
+                  <li>
+                    <strong>Cambio de plan a uno inferior:</strong> El nuevo plazo de retención se aplicará a partir del
+                    primer ciclo de supresión posterior al cambio, eliminando las conversaciones que excedan el nuevo límite.
                   </li>
                 </BulletList>
+                <p className="mt-4">
+                  El Cliente podrá, en cualquier momento, solicitar la supresión anticipada de conversaciones específicas o
+                  de la totalidad del historial desde el panel de administración o mediante solicitud al canal de soporte.
+                </p>
               </Section>
 
               <Section id="responsabilidad" number="10" title="Responsabilidad y limitación de daños">
