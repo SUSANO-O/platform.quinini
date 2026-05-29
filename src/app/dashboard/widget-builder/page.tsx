@@ -989,8 +989,26 @@ export default function WidgetBuilderPage() {
           toast.success('Widget creado correctamente');
           setTimeout(() => setSaved(false), 3000);
         } else {
-          const err = (await res.json().catch(() => null)) as { error?: string } | null;
-          toast.error(err?.error ?? 'No se pudo crear el widget');
+          const err = (await res.json().catch(() => null)) as {
+            error?: string;
+            code?: string;
+            existingWidgetId?: string;
+          } | null;
+          if (err?.code === 'WIDGET_NAME_TAKEN' && err.existingWidgetId) {
+            setEditWidgetId(String(err.existingWidgetId));
+            if (typeof window !== 'undefined') {
+              window.history.replaceState(
+                null,
+                '',
+                `/dashboard/widget-builder?edit=${err.existingWidgetId}`,
+              );
+            }
+            toast.error(
+              err.error ?? 'Ya existe un widget con ese nombre. Abriéndolo en modo edición.',
+            );
+          } else {
+            toast.error(err?.error ?? 'No se pudo crear el widget');
+          }
         }
       }
     } catch {
