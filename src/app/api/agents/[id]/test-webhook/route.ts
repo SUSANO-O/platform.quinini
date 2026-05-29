@@ -8,21 +8,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
+import { extractAgentWebhooks, type WebhookEntry } from '@/lib/agent-webhooks';
 
 type Params = { params: Promise<{ id: string }> };
 
 const TEST_TIMEOUT_MS = 12_000;
 
-function getWebhookFromTools(
-  tools: { toolId: string; config?: Record<string, unknown> }[] | undefined,
-): { url: string; secret: string } | null {
-  if (!Array.isArray(tools)) return null;
-  const row = tools.find((t) => t?.toolId === 'webhook');
-  if (!row?.config || typeof row.config !== 'object') return null;
-  const url = typeof row.config.url === 'string' ? row.config.url.trim() : '';
-  if (!url) return null;
-  const secret = typeof row.config.secret === 'string' ? row.config.secret.trim() : '';
-  return { url, secret };
+/** Devuelve el webhook a probar: si se pasa webhookId, busca por id; si no, el primero. */
+function pickWebhook(entries: WebhookEntry[], webhookId?: string | null): WebhookEntry | null {
+  if (entries.length === 0) return null;
+  if (!webhookId) return entries[0];
+  return entries.find((w) => w.id === webhookId) ?? null;
 }
 
 function isAllowedWebhookUrl(raw: string): boolean {
@@ -54,11 +50,19 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
   }
 
-  const rawTools = (agent as { tools?: { toolId: string; config?: Record<string, unknown> }[] }).tools;
-  const hook = getWebhookFromTools(rawTools);
+  let webhookId: string | null = null;
+  try {
+    const body = (await req.json()) as { webhookId?: string };
+    if (typeof body?.webhookId === 'string' && body.webhookId.trim()) webhookId = body.webhookId.trim();
+  } catch { /* sin body */ }
+
+  const entries = extractAgentWebhooks(
+    agent as { tools?: Array<{ toolId?: string; config?: unknown }> },
+  );
+  const hook = pickWebhook(entries, webhookId);
   if (!hook) {
     return NextResponse.json(
-      { error: 'No hay URL de webhook guardada. Activa Webhook, pega la URL y pulsa Guardar herramientas.' },
+      { error: 'No hay webhooks configurados. Añade al menos uno y pulsa Guardar herramientas.' },
       { status: 400 },
     );
   }
@@ -69,6 +73,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const payload = {
     event: 'webhook_test',
+    webhookName: hook.name,
     timestamp: new Date().toISOString(),
     source: 'matias_landing_test',
     message: 'Prueba manual desde el panel del agente (datos ficticios).',

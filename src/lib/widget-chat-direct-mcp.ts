@@ -12,15 +12,12 @@ import {
   syncHubCatalogFromLandingAgentDoc,
 } from '@/lib/aibackhub-sync';
 import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
+import { agentHasAnyWebhook } from '@/lib/agent-webhooks';
 
 export function clientAgentHasWebhookUrl(agent: {
   tools?: Array<{ toolId?: string; config?: unknown }>;
 } | null): boolean {
-  if (!agent?.tools?.length) return false;
-  const row = agent.tools.find((t) => t.toolId === 'webhook');
-  const cfg = row?.config && typeof row.config === 'object' && row.config !== null ? row.config : null;
-  const url = cfg && 'url' in cfg ? String((cfg as Record<string, unknown>).url ?? '').trim() : '';
-  return url.length > 0;
+  return agentHasAnyWebhook(agent);
 }
 
 const HUBSPOT_WIDGET_AUTO_TOOL_IDS = [
