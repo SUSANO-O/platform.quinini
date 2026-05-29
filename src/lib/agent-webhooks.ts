@@ -37,8 +37,15 @@ type ToolConfigShape = {
   webhooks?: unknown;
 };
 
-/** Extrae el array de webhooks del config (acepta formato nuevo o legacy). */
-export function extractWebhookEntries(rawConfig: unknown): WebhookEntry[] {
+/**
+ * Extrae el array de webhooks del config (acepta formato nuevo o legacy).
+ * @param opts.includeIncomplete — si true, incluye entradas con URL vacía (útil
+ *   para la UI de edición donde el usuario aún está rellenando los campos).
+ */
+export function extractWebhookEntries(
+  rawConfig: unknown,
+  opts: { includeIncomplete?: boolean } = {},
+): WebhookEntry[] {
   if (!rawConfig || typeof rawConfig !== 'object') return [];
   const cfg = rawConfig as ToolConfigShape;
 
@@ -49,7 +56,7 @@ export function extractWebhookEntries(rawConfig: unknown): WebhookEntry[] {
       if (!w || typeof w !== 'object') continue;
       const e = w as Record<string, unknown>;
       const url = typeof e.url === 'string' ? e.url.trim() : '';
-      if (!url) continue;
+      if (!url && !opts.includeIncomplete) continue;
       out.push({
         id:          typeof e.id === 'string' && e.id ? e.id : generateWebhookId(),
         name:        sanitizeWebhookName(typeof e.name === 'string' ? e.name : 'webhook'),
@@ -58,6 +65,8 @@ export function extractWebhookEntries(rawConfig: unknown): WebhookEntry[] {
         ...(typeof e.secret === 'string' && e.secret.trim() ? { secret: e.secret.trim() } : {}),
       });
     }
+    // En modo UI, devolver el array tal cual (aunque esté vacío) para que se vea la entrada nueva
+    if (opts.includeIncomplete) return out;
     if (out.length > 0) return out;
   }
 
