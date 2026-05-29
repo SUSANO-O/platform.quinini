@@ -47,6 +47,7 @@ import {
 import { enrichWidgetChatBodyWithImages, type WidgetImageEnrichment } from '@/lib/widget-chat-images';
 import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-enrich';
 import { persistWidgetTranscript } from '@/lib/widget-transcript';
+import { agentHasAnyWebhook } from '@/lib/agent-webhooks';
 import { tryServeWidgetChatViaDirectInference } from '@/lib/widget-chat-direct-inference';
 import { normalizeVisitorId } from '@/lib/widget-visitor';
 
@@ -232,6 +233,32 @@ export async function POST(req: NextRequest) {
           }
         } catch {
           /* fail-open */
+        }
+
+        // ── Multi-webhook detection — fuerza fallback al endpoint non-stream ──
+        // Si el agente tiene webhooks configurados, NO streamear: el path streaming
+        // proxya a AgentFlowhub que NO expone los webhooks como tools. El path
+        // non-stream sí pasa por tryServeWidgetChatViaHubMcp → AIBackHub → tools.
+        try {
+          const ca = await ClientAgent.findOne(
+            /^[a-f0-9]{24}$/i.test(parsedAgentId)
+              ? { _id: parsedAgentId }
+              : { agentHubId: parsedAgentId },
+          )
+            .select({ tools: 1 })
+            .lean() as { tools?: Array<{ toolId?: string; config?: unknown }> } | null;
+          if (ca && agentHasAnyWebhook(ca)) {
+            logWidgetFlow('🔀', 'stream:skip', 'agente con webhooks → forzando fallback non-stream', {
+              traceId,
+              agentId: parsedAgentId,
+            });
+            return new Response(
+              sseEvent({ type: 'error', message: 'stream_unavailable', code: 'STREAM_NOT_SUPPORTED' }),
+              { status: 503, headers: { 'Content-Type': 'text/event-stream', ...corsHeaders(origin) } },
+            );
+          }
+        } catch (e) {
+          logWidgetFlow('⚠️', 'stream:webhookCheckErr', e instanceof Error ? e.message : String(e));
         }
 
         try {
