@@ -57,7 +57,7 @@ export function resolveInternalAssistBoot(
     return {
       agentId: envStr('INTERNAL_MARKETING_ASSIST_AGENT_ID', 'math'),
       host,
-      color: envStr('INTERNAL_MARKETING_ASSIST_COLOR', '#f5540f'),
+      color: envStr('INTERNAL_MARKETING_ASSIST_COLOR', '#00838f'),
       title: envStr('INTERNAL_MARKETING_ASSIST_TITLE', 'Math'),
       subtitle: envStr('INTERNAL_MARKETING_ASSIST_SUBTITLE', 'En linea'),
       welcome: envStr('INTERNAL_MARKETING_ASSIST_WELCOME', 'Hola! Como puedo ayudarte hoy?'),
@@ -84,7 +84,7 @@ export function resolveInternalAssistBoot(
   return {
     agentId: envStr('INTERNAL_APP_ASSIST_AGENT_ID', 'math-ais'),
     host,
-    color: envStr('INTERNAL_APP_ASSIST_COLOR', '#fb0e0e'),
+    color: envStr('INTERNAL_APP_ASSIST_COLOR', '#00838f'),
     title: envStr('INTERNAL_APP_ASSIST_TITLE', 'Math-ais'),
     subtitle: envStr('INTERNAL_APP_ASSIST_SUBTITLE', 'En linea'),
     welcome: envStr('INTERNAL_APP_ASSIST_WELCOME', 'Hola! Como puedo ayudarte hoy?'),
