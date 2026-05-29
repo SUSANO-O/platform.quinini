@@ -86,23 +86,38 @@ export async function GET(req: NextRequest, { params }: Params) {
       if (typeof hub.ragEnabled === 'boolean') $set.ragEnabled = hub.ragEnabled;
       if (hub.ragSources !== undefined) $set.ragSources = hub.ragSources;
       if (Array.isArray(hub.tools)) {
+        // Mapa de tools que YA están en Mongo (preservar campos complejos como webhooks[])
+        const existingTools = Array.isArray((agent as { tools?: Array<{ toolId?: string; config?: Record<string, unknown> }> }).tools)
+          ? (agent as { tools: Array<{ toolId?: string; config?: Record<string, unknown> }> }).tools
+          : [];
+        const existingByToolId = new Map<string, Record<string, unknown>>();
+        for (const t of existingTools) {
+          if (t?.toolId && t.config && typeof t.config === 'object') {
+            existingByToolId.set(t.toolId, t.config);
+          }
+        }
+
         $set.tools = hub.tools
           .filter(
-            (x): x is { toolId: string; config?: Record<string, string> } =>
+            (x): x is { toolId: string; config?: Record<string, unknown> } =>
               Boolean(x) &&
               typeof x === 'object' &&
               typeof x.toolId === 'string' &&
               x.toolId.trim().length > 0,
           )
           .map((x) => {
-            const cfg: Record<string, string> = {};
-            if (x.config && typeof x.config === 'object') {
-              for (const [k, v] of Object.entries(x.config)) {
-                if (typeof v === 'string') cfg[k] = v;
-                else if (v != null) cfg[k] = String(v);
-              }
-            }
-            return { toolId: x.toolId.trim(), config: cfg };
+            const toolId = x.toolId.trim();
+            // Preservar config tal cual (Mixed schema acepta cualquier estructura).
+            // NO flattenar a strings — el array webhooks[] y otras estructuras complejas se perderían.
+            const hubCfg: Record<string, unknown> =
+              x.config && typeof x.config === 'object' && !Array.isArray(x.config)
+                ? { ...x.config }
+                : {};
+            // Merge con lo que hay en Mongo: hub gana, pero claves ausentes en hub se preservan de Mongo.
+            // Esto cubre el caso de webhooks[] guardados en landing pero no aún en hub.
+            const existing = existingByToolId.get(toolId) ?? {};
+            const mergedCfg: Record<string, unknown> = { ...existing, ...hubCfg };
+            return { toolId, config: mergedCfg };
           })
           .slice(0, 100);
       }
@@ -237,6 +252,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       }
     }
     agent.tools = body.tools;
+    // Schema.Types.Mixed en `config` requiere markModified para que Mongoose detecte cambios anidados (webhooks[]).
+    agent.markModified('tools');
   }
 
   if ('enabledMcpToolIds' in body) {

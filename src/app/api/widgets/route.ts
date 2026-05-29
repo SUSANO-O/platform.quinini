@@ -66,15 +66,26 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json() as Record<string, unknown>;
 
-  // ── Unicidad: no dos widgets con el mismo nombre para el mismo usuario ────
+  // ── Unicidad: no dos widgets con el mismo nombre (case-insensitive) ───────
   const nameStr = typeof body.name === 'string' ? body.name.trim() : '';
   if (!nameStr) {
     return NextResponse.json({ error: 'El nombre del widget es requerido.' }, { status: 400 });
   }
-  const nameExists = await Widget.exists({ userId, name: nameStr });
-  if (nameExists) {
+  const escaped = nameStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const existing = await Widget.findOne({
+    userId,
+    name: { $regex: `^${escaped}$`, $options: 'i' },
+  })
+    .select({ _id: 1, name: 1 })
+    .lean() as { _id: unknown; name: string } | null;
+  if (existing) {
     return NextResponse.json(
-      { error: 'Ya tienes un widget con ese nombre. Usa un nombre diferente para crear uno nuevo.' },
+      {
+        error: `Ya tienes un widget llamado "${existing.name}". Usa un nombre diferente para crear uno nuevo.`,
+        code: 'WIDGET_NAME_TAKEN',
+        existingWidgetId: String(existing._id),
+        existingWidgetName: existing.name,
+      },
       { status: 409 },
     );
   }

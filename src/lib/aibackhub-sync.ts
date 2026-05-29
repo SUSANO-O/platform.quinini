@@ -93,7 +93,7 @@ export function hubCatalogStatusToLandingStatus(
   return undefined;
 }
 
-type LandingToolConfig = { toolId: string; config?: Record<string, string> };
+type LandingToolConfig = { toolId: string; config?: Record<string, unknown> };
 
 function normalizeLandingTools(raw: unknown): LandingToolConfig[] | undefined {
   if (!Array.isArray(raw)) return undefined;
@@ -103,13 +103,12 @@ function normalizeLandingTools(raw: unknown): LandingToolConfig[] | undefined {
         Boolean(item) && typeof item === 'object' && typeof item.toolId === 'string',
     )
     .map((item) => {
-      const cfg: Record<string, string> = {};
-      if (item.config && typeof item.config === 'object') {
-        for (const [k, v] of Object.entries(item.config as Record<string, unknown>)) {
-          if (typeof v === 'string') cfg[k] = v;
-          else if (v != null) cfg[k] = String(v);
-        }
-      }
+      // Preservar config tal cual (Mixed schema en Mongo, JSON arbitrario en hub).
+      // NO flattenar a strings — destruye estructuras anidadas como webhooks[].
+      const cfg: Record<string, unknown> =
+        item.config && typeof item.config === 'object' && !Array.isArray(item.config)
+          ? { ...(item.config as Record<string, unknown>) }
+          : {};
       return { toolId: item.toolId.trim(), config: cfg };
     })
     .filter((t) => t.toolId.length > 0)
