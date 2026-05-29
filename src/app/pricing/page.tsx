@@ -23,7 +23,7 @@ const PAYMENT_METHODS: { name: string; slug: string; bg: string; Icon: LucideIco
 
 /** Logo oficial en public/payment/<slug>.(svg|png|webp). Devuelve la ruta pública o null. */
 function paymentLogo(slug: string): string | null {
-  for (const ext of ['svg', 'png', 'webp']) {
+  for (const ext of ['svg', 'png', 'webp', 'jpg', 'jpeg']) {
     if (existsSync(join(process.cwd(), 'public', 'payment', `${slug}.${ext}`))) {
       return `/payment/${slug}.${ext}`;
     }
