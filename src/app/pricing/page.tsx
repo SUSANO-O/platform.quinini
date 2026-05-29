@@ -21,9 +21,14 @@ const PAYMENT_METHODS: { name: string; slug: string; bg: string; Icon: LucideIco
   { name: 'Bre-B', slug: 'bre-b', bg: '#0FB5BA', Icon: Zap },            // pago inmediato
 ];
 
-/** Logo oficial colocado manualmente en public/payment/ (ver README ahí). */
-function paymentLogo(slug: string): boolean {
-  return existsSync(join(process.cwd(), 'public', 'payment', `${slug}.svg`));
+/** Logo oficial en public/payment/<slug>.(svg|png|webp). Devuelve la ruta pública o null. */
+function paymentLogo(slug: string): string | null {
+  for (const ext of ['svg', 'png', 'webp']) {
+    if (existsSync(join(process.cwd(), 'public', 'payment', `${slug}.${ext}`))) {
+      return `/payment/${slug}.${ext}`;
+    }
+  }
+  return null;
 }
 
 function planWhatsAppUrl(planName: string, priceLabel?: string) {
@@ -191,15 +196,16 @@ export default function PricingPage() {
               Medios de pago aceptados
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2 md:gap-3">
-              {PAYMENT_METHODS.map((m) =>
-                paymentLogo(m.slug) ? (
+              {PAYMENT_METHODS.map((m) => {
+                const logo = paymentLogo(m.slug);
+                return logo ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <span
                     key={m.name}
                     className="inline-flex items-center justify-center px-4 py-2 rounded-xl"
                     style={{ background: '#fff', border: '1px solid var(--border)', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', height: 44 }}
                   >
-                    <img src={`/payment/${m.slug}.svg`} alt={m.name} style={{ height: 22, width: 'auto' }} />
+                    <img src={logo} alt={m.name} style={{ height: 24, width: 'auto' }} />
                   </span>
                 ) : (
                   <span
@@ -210,8 +216,8 @@ export default function PricingPage() {
                     <m.Icon size={16} strokeWidth={2.5} />
                     {m.name}
                   </span>
-                ),
-              )}
+                );
+              })}
             </div>
             <p className="mt-3 text-xs px-2" style={{ color: 'var(--muted-foreground)' }}>
               Coordina tu pago por WhatsApp y activamos tu plan apenas lo confirmes.
