@@ -849,7 +849,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
   // ── Multi-webhook helpers ───────────────────────────────────────────────
   function getWebhookEntries(t: ToolConfig): WebhookEntry[] {
-    return extractWebhookEntries(t.config);
+    // UI muestra entradas incompletas para que el usuario pueda rellenarlas
+    return extractWebhookEntries(t.config, { includeIncomplete: true });
   }
   function setWebhookEntries(toolId: string, entries: WebhookEntry[]) {
     setTools((prev) => prev.map((t) =>
