@@ -7,7 +7,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Clock, Plus, Trash2, Pause, Play, AlertTriangle, CheckCircle2, Loader2, Eye, X, ScrollText, Pencil } from 'lucide-react';
+import { Clock, Plus, Trash2, Pause, Play, AlertTriangle, CheckCircle2, Loader2, Eye, X, ScrollText, Pencil, Zap } from 'lucide-react';
 
 const TZ = 'America/Bogota';
 
@@ -107,6 +107,7 @@ export default function ScheduledTasksTab({
   const [detailId, setDetailId] = useState<string | null>(null);
   const [editTask, setEditTask] = useState<ScheduledTask | null>(null);
   const [access, setAccess] = useState<{ hasAccess: boolean; limit: number; plan: string } | null>(null);
+  const [runMsg, setRunMsg] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -143,6 +144,20 @@ export default function ScheduledTasksTab({
     void load();
   };
 
+  const runNow = async (t: ScheduledTask) => {
+    setRunMsg('');
+    try {
+      const res = await fetch(`/api/agents/${agentId}/scheduled-tasks/${t._id}/run`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'No se pudo encolar.');
+      setRunMsg(`⚡ "${t.name}" encolada — se ejecutará en menos de 1 min. Abre 👁 para ver el resultado.`);
+      // Refrescar el estado tras unos segundos (cuando el worker la haya corrido).
+      setTimeout(() => void load(), 8000);
+    } catch (e) {
+      setRunMsg(`⚠️ ${(e as Error).message}`);
+    }
+  };
+
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -177,6 +192,15 @@ export default function ScheduledTasksTab({
       {error && (
         <div className="mb-3 text-sm" style={{ color: '#ef4444' }}>
           {error}
+        </div>
+      )}
+
+      {runMsg && (
+        <div
+          className="mb-3 text-sm px-3 py-2 rounded-lg"
+          style={{ background: 'rgba(13,148,136,0.08)', color: 'var(--foreground)', border: '1px solid var(--border)' }}
+        >
+          {runMsg}
         </div>
       )}
 
@@ -228,6 +252,7 @@ export default function ScheduledTasksTab({
               readOnly={readOnly}
               onOpen={() => setDetailId(t._id)}
               onEdit={() => setEditTask(t)}
+              onRun={() => runNow(t)}
               onToggle={() => toggle(t)}
               onDelete={() => remove(t)}
             />
@@ -264,6 +289,7 @@ function TaskRow({
   readOnly,
   onOpen,
   onEdit,
+  onRun,
   onToggle,
   onDelete,
 }: {
@@ -271,6 +297,7 @@ function TaskRow({
   readOnly: boolean;
   onOpen: () => void;
   onEdit: () => void;
+  onRun: () => void;
   onToggle: () => void;
   onDelete: () => void;
 }) {
@@ -324,6 +351,21 @@ function TaskRow({
         </button>
         {!readOnly && (
           <>
+            <button
+              type="button"
+              onClick={onRun}
+              title="Ejecutar ahora"
+              disabled={!task.enabled}
+              className="p-2 rounded-lg"
+              style={{
+                border: '1px solid var(--border)',
+                cursor: task.enabled ? 'pointer' : 'not-allowed',
+                opacity: task.enabled ? 1 : 0.4,
+                color: '#0d9488',
+              }}
+            >
+              <Zap size={14} />
+            </button>
             <button
               type="button"
               onClick={onEdit}
