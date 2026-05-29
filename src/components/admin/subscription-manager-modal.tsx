@@ -19,7 +19,13 @@ interface SubForm {
   cancelAtPeriodEnd: boolean;
   lsCustomerId: string;
   lsSubscriptionId: string;
+  /** Override: activa Tareas Programadas aunque el plan no lo incluya. */
+  scheduledTasks: boolean;
+  /** Override del límite de tareas ('' = usar el del plan; -1 = ilimitado). */
+  scheduledTaskLimit: string;
 }
+
+const SCHEDULED_TASKS_FEATURE = 'scheduled_tasks';
 
 const EMPTY_FORM: SubForm = {
   plan: 'starter',
@@ -31,6 +37,8 @@ const EMPTY_FORM: SubForm = {
   cancelAtPeriodEnd: false,
   lsCustomerId: '',
   lsSubscriptionId: '',
+  scheduledTasks: false,
+  scheduledTaskLimit: '',
 };
 
 function toDateInput(val: string | number | null | undefined): string {
@@ -79,6 +87,8 @@ export function SubscriptionManagerModal({ userId, userEmail, onClose, onSaved }
             cancelAtPeriodEnd:  s.cancelAtPeriodEnd ?? false,
             lsCustomerId:       s.lsCustomerId     || '',
             lsSubscriptionId:   s.lsSubscriptionId || '',
+            scheduledTasks:     Array.isArray(s.features) && s.features.includes(SCHEDULED_TASKS_FEATURE),
+            scheduledTaskLimit: s.scheduledTaskLimit != null ? String(s.scheduledTaskLimit) : '',
           });
         } else {
           setHasSub(false);
@@ -107,6 +117,8 @@ export function SubscriptionManagerModal({ userId, userEmail, onClose, onSaved }
       cancelAtPeriodEnd:  form.cancelAtPeriodEnd,
       lsCustomerId:       form.lsCustomerId      || null,
       lsSubscriptionId:   form.lsSubscriptionId  || null,
+      features:           form.scheduledTasks ? [SCHEDULED_TASKS_FEATURE] : [],
+      scheduledTaskLimit: form.scheduledTaskLimit.trim() === '' ? null : Number(form.scheduledTaskLimit),
     };
     const r = await fetch(`/api/admin/subscriptions/${userId}`, {
       method: 'PUT',
@@ -262,6 +274,35 @@ export function SubscriptionManagerModal({ userId, userEmail, onClose, onSaved }
                     <label style={labelStyle}>Subscription ID</label>
                     <input type="text" style={inputStyle} value={form.lsSubscriptionId} placeholder="sub_..." onChange={e => set('lsSubscriptionId', e.target.value)} />
                   </div>
+                </div>
+              </div>
+
+              {/* Overrides de features */}
+              <div style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--muted)/30' }}>
+                <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Features adicionales (override)</p>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                  <input type="checkbox" id="scheduledTasks" checked={form.scheduledTasks} onChange={e => set('scheduledTasks', e.target.checked)} style={{ cursor: 'pointer', marginTop: 2 }} />
+                  <label htmlFor="scheduledTasks" style={{ fontSize: 12, cursor: 'pointer', color: 'var(--foreground)' }}>
+                    <strong>Tareas Programadas</strong>
+                    <span style={{ display: 'block', color: 'var(--muted-foreground)', marginTop: 2 }}>
+                      Activa el feature aunque el plan no lo incluya (acuerdo de precio aparte). Por defecto está incluido desde Plus.
+                    </span>
+                  </label>
+                </div>
+                <div style={{ ...fieldStyle, marginTop: 12 }}>
+                  <label style={labelStyle}>Límite de tareas (override)</label>
+                  <input
+                    type="number"
+                    min={-1}
+                    max={9999}
+                    style={inputStyle}
+                    value={form.scheduledTaskLimit}
+                    placeholder="Vacío = usar el del plan · -1 = ilimitado"
+                    onChange={e => set('scheduledTaskLimit', e.target.value)}
+                  />
+                  <span style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 4 }}>
+                    Sobrescribe el máximo de tareas del plan para este cliente. Déjalo vacío para usar el del plan.
+                  </span>
                 </div>
               </div>
 

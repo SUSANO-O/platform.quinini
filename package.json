@@ -56,6 +56,7 @@
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.10.0",
     "clsx": "^2.1.1",
+    "cron-parser": "^4.9.0",
     "driver.js": "^1.4.0",
     "jsdom": "^29.1.1",
     "jszip": "^3.10.1",

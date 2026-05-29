@@ -18,11 +18,11 @@ export function Footer() {
               API REST full, integración en minutos.
             </p>
             <a
-              href="mailto:privacidad@BotIvA.app"
+              href="mailto:business.botiva@gmail.com"
               className="inline-block mt-4 text-sm font-medium hover:underline"
               style={{ color: 'var(--foreground)' }}
             >
-              privacidad@BotIvA.app
+              business.botiva@gmail.com
             </a>
           </div>
 

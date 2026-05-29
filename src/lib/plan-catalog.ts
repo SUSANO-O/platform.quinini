@@ -57,9 +57,9 @@ export const PLAN_PRICES_USD: Record<PaidPlanId, number> = {
   solo: 7,
   basic: 17,
   team: 29,
-  plus: 39,
-  starter: 65,
-  growth: 179,
+  plus: 42,    // +3 — incluye Tareas Programadas (acceso por defecto desde Plus)
+  starter: 69, // +4
+  growth: 189, // +10
   business: 749,
 };
 
@@ -169,6 +169,80 @@ export const PLAN_TOOLS_LIMITS: Record<string, number> = {
   business:   999,
   enterprise: 999,
 };
+
+// ── TAREAS PROGRAMADAS (cron por agente) ─────────────────────────────────────
+// Acceso por DEFECTO desde Plus. Team y planes inferiores solo por override de
+// admin (subscription.features incluye 'scheduled_tasks'). Los límites siempre
+// salen del plan; un override sobre un plan sin cupo recibe cortesía de 3.
+
+export const SCHEDULED_TASKS_FEATURE = 'scheduled_tasks';
+
+/** Máx. tareas por agente. `-1` = ilimitado. 0 = sin cupo propio (solo override → 3). */
+export const PLAN_SCHEDULED_TASK_LIMITS: Record<string, number> = {
+  free:       0,
+  solo:       0,
+  basic:      0,
+  team:       3,
+  plus:       5,
+  starter:    15,
+  growth:     40,
+  business:   100,
+  enterprise: -1,
+};
+
+/** Intervalo mínimo permitido entre corridas (minutos). Anti-abuso de costo. */
+export const PLAN_SCHEDULED_TASK_MIN_INTERVAL_MIN: Record<string, number> = {
+  free:       60,
+  solo:       60,
+  basic:      60,
+  team:       60,
+  plus:       30,
+  starter:    15,
+  growth:     5,
+  business:   1,
+  enterprise: 1,
+};
+
+/** Plan mínimo con acceso por defecto a Tareas Programadas. */
+const SCHEDULED_TASKS_MIN_PLAN: PlanId = 'plus';
+
+/**
+ * ¿El cliente puede usar Tareas Programadas?
+ * true si su plan es >= Plus, O si su suscripción tiene el override del feature.
+ */
+export function scheduledTasksEnabled(plan: string, subscriptionFeatures?: string[] | null): boolean {
+  if (Array.isArray(subscriptionFeatures) && subscriptionFeatures.includes(SCHEDULED_TASKS_FEATURE)) {
+    return true;
+  }
+  const idx = PLAN_ORDER.indexOf(plan as PlanId);
+  return idx >= 0 && idx >= PLAN_ORDER.indexOf(SCHEDULED_TASKS_MIN_PLAN);
+}
+
+/** Máx. tareas efectivo. `hasAccess` aplica la cortesía de 3 a overrides sin cupo de plan. */
+export function getScheduledTaskLimit(plan: string, hasAccess: boolean): number {
+  const base = PLAN_SCHEDULED_TASK_LIMITS[plan] ?? 0;
+  if (base !== 0) return base; // incluye -1 (ilimitado) y positivos
+  return hasAccess ? 3 : 0;
+}
+
+/**
+ * Límite efectivo considerando un override manual por cliente.
+ * `customLimit` (subscription.scheduledTaskLimit): número = manda (incl. -1 ilimitado);
+ * null/undefined = usar el del plan.
+ */
+export function effectiveScheduledTaskLimit(
+  plan: string,
+  hasAccess: boolean,
+  customLimit?: number | null,
+): number {
+  if (typeof customLimit === 'number' && Number.isFinite(customLimit)) return customLimit;
+  return getScheduledTaskLimit(plan, hasAccess);
+}
+
+/** Intervalo mínimo (min) entre corridas para el plan. */
+export function getScheduledTaskMinIntervalMin(plan: string): number {
+  return PLAN_SCHEDULED_TASK_MIN_INTERVAL_MIN[plan] ?? 60;
+}
 
 /** Solicitudes por minuto (rate limit técnico). */
 export const PLAN_RATE_LIMITS_PER_MIN: Record<string, number> = {

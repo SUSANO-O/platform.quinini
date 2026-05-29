@@ -100,7 +100,7 @@ export function ComplianceView() {
 
   const copyEmail = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText('privacidad@BotIvA.app');
+      await navigator.clipboard.writeText('business.botiva@gmail.com');
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -656,12 +656,12 @@ export function ComplianceView() {
                   <p className="font-bold" style={{ color: 'var(--foreground)' }}>BotIvA — Responsable de Privacidad</p>
                   <div className="mt-3 flex flex-wrap items-center gap-3">
                     <a
-                      href="mailto:privacidad@BotIvA.app"
+                      href="mailto:business.botiva@gmail.com"
                       className="inline-flex items-center gap-2 font-semibold text-sm hover:underline"
                       style={{ color: 'var(--primary)' }}
                     >
                       <Mail size={15} />
-                      privacidad@BotIvA.app
+                      business.botiva@gmail.com
                     </a>
                     <button
                       type="button"

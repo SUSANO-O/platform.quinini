@@ -66,7 +66,7 @@ export function resolveInternalAssistBoot(
       edgeInset: envNum('INTERNAL_ASSIST_EDGE_INSET', 20),
       offsetBottom: envNum('INTERNAL_ASSIST_OFFSET_BOTTOM', 20),
       offsetTop: envNum('INTERNAL_ASSIST_OFFSET_TOP', 20),
-      humanSupportPhone: envStr('INTERNAL_ASSIST_HUMAN_PHONE', '+57 3196748729'),
+      humanSupportPhone: envStr('INTERNAL_ASSIST_HUMAN_PHONE', '+57 3144064925'),
       borderRadius: envNum('INTERNAL_ASSIST_BORDER_RADIUS', 16),
       theme: 'light',
       autoOpen: false,

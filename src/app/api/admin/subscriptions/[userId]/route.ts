@@ -9,9 +9,12 @@ import { connectDB } from '@/lib/db/connection';
 import { User, Subscription } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
 import { recordAudit } from '@/lib/audit-log';
+import { SCHEDULED_TASKS_FEATURE } from '@/lib/plan-catalog';
 
 const VALID_PLANS   = ['free', 'solo', 'basic', 'team', 'plus', 'starter', 'growth', 'business', 'enterprise'] as const;
 const VALID_STATUSES = ['trialing', 'active', 'canceled', 'past_due', 'incomplete'] as const;
+/** Overrides de feature que un admin puede activar manualmente en una suscripción. */
+const VALID_FEATURES = [SCHEDULED_TASKS_FEATURE] as const;
 
 async function requireAdmin(req: NextRequest): Promise<string | null> {
   const token = req.cookies.get('afhub_session')?.value;
@@ -58,6 +61,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
     lsCustomerId?: string | null;
     lsSubscriptionId?: string | null;
     notes?: string | null;
+    features?: string[];
+    scheduledTaskLimit?: number | null;
   };
 
   if (body.plan && !VALID_PLANS.includes(body.plan as typeof VALID_PLANS[number])) {
@@ -88,6 +93,25 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (body.lsCustomerId      !== undefined) update.lsCustomerId      = body.lsCustomerId      ?? null;
   if (body.lsSubscriptionId  !== undefined) update.lsSubscriptionId  = body.lsSubscriptionId  ?? null;
 
+  // Overrides de feature (allowlist): ej. activar 'scheduled_tasks' a un plan inferior.
+  if (body.features !== undefined) {
+    update.features = Array.isArray(body.features)
+      ? [...new Set(body.features.filter((f) => (VALID_FEATURES as readonly string[]).includes(f)))]
+      : [];
+  }
+
+  // Override del límite de tareas programadas (null = usar el del plan; -1 = ilimitado).
+  if (body.scheduledTaskLimit !== undefined) {
+    const n = body.scheduledTaskLimit;
+    if (n === null) {
+      update.scheduledTaskLimit = null;
+    } else if (typeof n === 'number' && Number.isInteger(n) && n >= -1 && n <= 9999) {
+      update.scheduledTaskLimit = n;
+    } else {
+      return NextResponse.json({ error: 'scheduledTaskLimit debe ser un entero ≥ -1 (o null).' }, { status: 400 });
+    }
+  }
+
   const sub = await Subscription.findOneAndUpdate(
     { userId },
     { $set: update },
@@ -98,7 +122,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     userId: adminId,
     action: 'admin.subscription.upsert',
     resource: userId,
-    meta: { plan: update.plan, status: update.status, targetEmail: target.email },
+    meta: { plan: update.plan, status: update.status, features: update.features, targetEmail: target.email },
   });
 
   return NextResponse.json({ ok: true, subscription: sub });

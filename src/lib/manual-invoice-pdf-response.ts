@@ -36,7 +36,7 @@ export async function manualInvoicePdfResponse(inv: ManualInvoiceDoc): Promise<N
         taxId: '',
         address: '',
         city: '',
-        email: 'facturacion@botiva.app',
+        email: 'business.botiva@gmail.com',
       };
 
   const currency = inv.currency || 'EUR';
