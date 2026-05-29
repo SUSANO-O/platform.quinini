@@ -82,23 +82,37 @@ export async function GET(req: NextRequest) {
       if (typeof hub.ragEnabled === 'boolean') $set.ragEnabled = hub.ragEnabled;
       if (hub.ragSources !== undefined) $set.ragSources = hub.ragSources;
       if (Array.isArray(hub.tools)) {
+        // Preservar tools complejos (webhooks[]) que YA están en Mongo y que el hub no envía.
+        const existingTools = Array.isArray((a as { tools?: Array<{ toolId?: string; config?: Record<string, unknown> }> }).tools)
+          ? (a as { tools: Array<{ toolId?: string; config?: Record<string, unknown> }> }).tools
+          : [];
+        const existingByToolId = new Map<string, Record<string, unknown>>();
+        for (const t of existingTools) {
+          if (t?.toolId && t.config && typeof t.config === 'object') {
+            existingByToolId.set(t.toolId, t.config);
+          }
+        }
+
         $set.tools = hub.tools
           .filter(
-            (x): x is { toolId: string; config?: Record<string, string> } =>
+            (x): x is { toolId: string; config?: Record<string, unknown> } =>
               Boolean(x) &&
               typeof x === 'object' &&
               typeof x.toolId === 'string' &&
               x.toolId.trim().length > 0,
           )
           .map((x) => {
-            const cfg: Record<string, string> = {};
-            if (x.config && typeof x.config === 'object') {
-              for (const [k, v] of Object.entries(x.config)) {
-                if (typeof v === 'string') cfg[k] = v;
-                else if (v != null) cfg[k] = String(v);
-              }
-            }
-            return { toolId: x.toolId.trim(), config: cfg };
+            const toolId = x.toolId.trim();
+            // Preservar config tal cual (Mixed schema acepta cualquier estructura).
+            // NO flattenar — el array webhooks[] se perdería.
+            const hubCfg: Record<string, unknown> =
+              x.config && typeof x.config === 'object' && !Array.isArray(x.config)
+                ? { ...(x.config as Record<string, unknown>) }
+                : {};
+            // Merge con lo que hay en Mongo (hub gana, claves ausentes se preservan).
+            const existing = existingByToolId.get(toolId) ?? {};
+            const mergedCfg: Record<string, unknown> = { ...existing, ...hubCfg };
+            return { toolId, config: mergedCfg };
           })
           .slice(0, 100);
       }

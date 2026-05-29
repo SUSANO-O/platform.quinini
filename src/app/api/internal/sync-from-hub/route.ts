@@ -170,20 +170,36 @@ export async function POST(req: NextRequest) {
       .slice(0, 200);
   }
   if (Array.isArray(body.tools)) {
+    // Leemos los tools EXISTENTES en Mongo para preservar campos complejos como webhooks[]
+    // que el hub no envíe (porque AgentFlowhub aún no entiende el formato nuevo).
+    const lookupFilter = buildClientFilter(agentHubId, body.landingClientAgentId, body.description);
+    const existingDoc = await ClientAgent.findOne(lookupFilter).select({ tools: 1 }).lean() as
+      | { tools?: Array<{ toolId?: string; config?: Record<string, unknown> }> }
+      | null;
+    const existingByToolId = new Map<string, Record<string, unknown>>();
+    for (const t of existingDoc?.tools ?? []) {
+      if (t?.toolId && t.config && typeof t.config === 'object') {
+        existingByToolId.set(t.toolId, t.config);
+      }
+    }
+
     $set.tools = body.tools
       .filter(
         (x): x is { toolId: string; config?: Record<string, unknown> } =>
           Boolean(x) && typeof x === 'object' && typeof x.toolId === 'string' && x.toolId.trim().length > 0,
       )
       .map((x) => {
-        const cfg: Record<string, string> = {};
-        if (x.config && typeof x.config === 'object') {
-          for (const [k, v] of Object.entries(x.config)) {
-            if (typeof v === 'string') cfg[k] = v;
-            else if (v != null) cfg[k] = String(v);
-          }
-        }
-        return { toolId: x.toolId.trim().slice(0, 80), config: cfg };
+        const toolId = x.toolId.trim().slice(0, 80);
+        // Preservar config tal cual (Mixed acepta arrays/objetos).
+        // NO aplanar a strings — destruye estructuras como webhooks[].
+        const hubCfg: Record<string, unknown> =
+          x.config && typeof x.config === 'object' && !Array.isArray(x.config)
+            ? { ...(x.config as Record<string, unknown>) }
+            : {};
+        // Merge con lo existente: hub gana, claves ausentes en hub se preservan.
+        const existing = existingByToolId.get(toolId) ?? {};
+        const mergedCfg: Record<string, unknown> = { ...existing, ...hubCfg };
+        return { toolId, config: mergedCfg };
       })
       .slice(0, 100);
   }
@@ -191,7 +207,7 @@ export async function POST(req: NextRequest) {
   // Convert AgentFlowhub top-level webhookUrl → tools[webhook] entry so AIBackHub can find it.
   const hubWebhookUrl = typeof body.webhookUrl === 'string' ? body.webhookUrl.trim() : '';
   if (hubWebhookUrl) {
-    const existing = ($set.tools as Array<{ toolId: string; config: Record<string, string> }> | undefined) ?? [];
+    const existing = ($set.tools as Array<{ toolId: string; config: Record<string, unknown> }> | undefined) ?? [];
     const alreadyHas = existing.some((t) => t.toolId === 'webhook');
     if (!alreadyHas) {
       const secret = typeof body.webhookSecret === 'string' ? body.webhookSecret.trim() : '';
