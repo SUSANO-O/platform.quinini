@@ -22,6 +22,10 @@ export type InternalAssistBootConfig = {
   offsetBottom: number;
   offsetTop: number;
   humanSupportPhone?: string;
+  /** WhatsApp (oferta de atención humana por palabra clave). */
+  humanSupportEnabled?: boolean;
+  /** Botón/formulario "Hablar con una persona" (inbox/canales). Desactivado: solo WhatsApp. */
+  handoffEnabled?: boolean;
   borderRadius: number;
   theme: 'light' | 'dark';
   autoOpen: boolean;
@@ -62,6 +66,9 @@ export function resolveInternalAssistBoot(
         'INTERNAL_MARKETING_ASSIST_AVATAR',
         'https://img.freepik.com/premium-photo/bright-blue-orb_303714-30852.jpg',
       ),
+      // Solo WhatsApp por ahora: sin "Hablar con una persona" (inbox/canales).
+      humanSupportEnabled: true,
+      handoffEnabled: false,
       position: 'bottom-right',
       edgeInset: envNum('INTERNAL_ASSIST_EDGE_INSET', 20),
       offsetBottom: envNum('INTERNAL_ASSIST_OFFSET_BOTTOM', 20),
@@ -82,11 +89,14 @@ export function resolveInternalAssistBoot(
     subtitle: envStr('INTERNAL_APP_ASSIST_SUBTITLE', 'En linea'),
     welcome: envStr('INTERNAL_APP_ASSIST_WELCOME', 'Hola! Como puedo ayudarte hoy?'),
     fabHint: envStr('INTERNAL_APP_ASSIST_FAB_HINT', '¿tienes duda en el uso?'),
+    // Solo WhatsApp por ahora: sin "Hablar con una persona" (inbox/canales).
+    humanSupportEnabled: true,
+    handoffEnabled: false,
     position: 'bottom-right',
     edgeInset: envNum('INTERNAL_ASSIST_EDGE_INSET', 20),
     offsetBottom: envNum('INTERNAL_ASSIST_OFFSET_BOTTOM', 20),
     offsetTop: envNum('INTERNAL_ASSIST_OFFSET_TOP', 20),
-    humanSupportPhone: envStr('INTERNAL_ASSIST_HUMAN_PHONE', '+57 3196748729'),
+    humanSupportPhone: envStr('INTERNAL_ASSIST_HUMAN_PHONE', '+57 3144064925'),
     borderRadius: envNum('INTERNAL_ASSIST_BORDER_RADIUS', 16),
     theme: 'light',
     autoOpen: false,
