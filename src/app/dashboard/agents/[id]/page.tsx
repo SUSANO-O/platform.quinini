@@ -893,12 +893,19 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setError(typeof data.error === 'string' ? data.error : 'Error al probar webhook.'); return; }
-      setSuccess(`Webhook OK: el endpoint respondió HTTP ${data.status}.`);
+      // data.ok refleja el res.ok del fetch al webhook real (solo true para 2xx)
+      if (data.ok) {
+        setSuccess(`Webhook OK: el endpoint respondió HTTP ${data.status}.`);
+      } else if (data.status === 404) {
+        setError(`HTTP 404 — la URL existe pero el path no responde. Verifica que el workflow esté ACTIVADO en n8n (toggle Active) y que estés usando la Production URL, no la Test URL.`);
+      } else {
+        setError(`El endpoint respondió HTTP ${data.status} ${data.statusText ?? ''}. Revisa que acepte POST JSON y devuelva 2xx.`);
+      }
     } catch {
-      setError('No se pudo contactar el webhook.');
+      setError('No se pudo contactar el webhook (red, timeout o servidor inalcanzable).');
     } finally {
       setWebhookTestBusy(false);
-      setTimeout(() => setSuccess(''), 6000);
+      setTimeout(() => { setSuccess(''); setError(''); }, 8000);
     }
   }
 
