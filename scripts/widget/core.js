@@ -914,6 +914,7 @@
     var resolvedAgentId = null;
     var lastGeneratedImageDataUrl = persistedChat ? persistedChat.lastGeneratedImageDataUrl || '' : '';
     var pendingAttachment = null;
+    var pendingHumanAttachments = []; // adjuntos del visitante para el agente (modo humano)
     var lastSessionImageUrls = [];
 
     function saveChatToSession() {
@@ -1229,7 +1230,8 @@
     if (cfg.imageUploadEnabled !== false) {
       attachInput = document.createElement('input');
       attachInput.type = 'file';
-      attachInput.accept = 'image/jpeg,image/png,image/webp,image/gif';
+      // Imágenes para el asistente; además video/documentos cuando se habla con un agente.
+      attachInput.accept = 'image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip';
       attachInput.className = 'afhub-attach-input';
       attachInput.setAttribute('aria-hidden', 'true');
       attachInput.tabIndex = -1;
@@ -1292,8 +1294,7 @@
       chat.insertBefore(voiceBar, inputArea);
     }
 
-    // Barra de acciones compacta: "Hablar con una persona" + "Finalizar y calificar"
-    // como chips en una sola fila (se añade al chat más abajo, tras conocer feedbackQs).
+    // Barra de acciones compacta: "Hablar con una persona" (chip en una sola fila).
     var actionBar = document.createElement('div');
     actionBar.className = 'afhub-action-bar';
     var handoffBtn = document.createElement('button');
@@ -1329,15 +1330,6 @@
     var feedbackQs = (cfg.feedbackEnabled && Array.isArray(cfg.feedbackQuestions))
       ? cfg.feedbackQuestions.filter(function (q) { return q && q.enabled !== false && q.text; })
       : [];
-
-    var feedbackBtn = document.createElement('button');
-    feedbackBtn.className = 'afhub-action-btn afhub-action-btn--ghost';
-    feedbackBtn.type = 'button';
-    feedbackBtn.textContent = 'Finalizar y calificar';
-    feedbackBtn.setAttribute('aria-label', 'Finalizar la conversación y calificar');
-    if (feedbackQs.length) {
-      actionBar.appendChild(feedbackBtn);
-    }
 
     // Añadir la barra de acciones solo si tiene al menos un botón visible.
     if (actionBar.childNodes.length) {
@@ -1877,6 +1869,12 @@
           }
         }
       }
+      // Adjuntos genéricos (img/video/archivo) — p.ej. lo que el visitante envía al agente.
+      if (imgOpts && Array.isArray(imgOpts.attachments) && imgOpts.attachments.length) {
+        for (var ax = 0; ax < imgOpts.attachments.length; ax++) {
+          appendHumanAttachment(el, imgOpts.attachments[ax]);
+        }
+      }
       var copyBtn = document.createElement('button');
       copyBtn.type = 'button';
       copyBtn.className = 'afhub-msg-copy-btn';
@@ -2249,6 +2247,8 @@
       humanModeActive = false;
       if (humanPollTimer) { clearInterval(humanPollTimer); humanPollTimer = null; }
       if (humanModeTimer) { clearTimeout(humanModeTimer); humanModeTimer = null; }
+      // Descartar adjuntos del visitante que quedaran sin enviar.
+      if (pendingHumanAttachments.length) { pendingHumanAttachments = []; renderHumanAttachPreviews(); }
       if (msg) addMessage('bot', msg);
       // Reactiva el input de chat (si lo habíamos desactivado).
       var inp = chat.querySelector('.afhub-input, .afhub-chat-input, textarea');
@@ -2554,8 +2554,6 @@
       feedbackCard.querySelector('.afhub-fb-skip').addEventListener('click', dismissFeedback);
       feedbackCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
-    feedbackBtn.addEventListener('click', function () { openFeedbackSurvey(null); });
-
     if (widgetDisabled) {
       handoffBtn.disabled = true;
       handoffBtn.classList.add('afhub-action-btn--disabled');
@@ -2705,16 +2703,86 @@
     }
 
     function syncSendButtonState() {
-      var canSend = (!!input.value.trim() || !!pendingAttachment) && !isLoading;
+      var canSend = (!!input.value.trim() || !!pendingAttachment || pendingHumanAttachments.length > 0) && !isLoading;
       sendBtn.disabled = !canSend;
     }
 
     function clearPendingAttachment() {
       pendingAttachment = null;
+      pendingHumanAttachments = [];
       attachPreview.style.display = 'none';
       attachPreview.innerHTML = '';
       if (attachInput) attachInput.value = '';
       syncSendButtonState();
+    }
+
+    // ── Adjuntos del visitante hacia el agente (modo humano): img/video/documento ──
+    function renderHumanAttachPreviews() {
+      if (!pendingHumanAttachments.length) {
+        attachPreview.style.display = 'none';
+        attachPreview.innerHTML = '';
+        syncSendButtonState();
+        return;
+      }
+      attachPreview.innerHTML = '';
+      var row = document.createElement('div');
+      row.className = 'afhub-attach-preview-inner';
+      row.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;';
+      for (var i = 0; i < pendingHumanAttachments.length; i++) {
+        (function (att, idx) {
+          var chip = document.createElement('div');
+          chip.style.cssText = 'position:relative;display:flex;align-items:center;gap:6px;padding:' + (att.type === 'image' ? '0' : '5px 9px 5px 7px') + ';border:1px solid rgba(0,0,0,.12);border-radius:8px;background:#fff;max-width:160px;';
+          if (att.type === 'image') {
+            var im = document.createElement('img');
+            im.src = att.url; im.alt = att.name || 'imagen';
+            im.style.cssText = 'width:48px;height:48px;object-fit:cover;border-radius:8px;display:block;';
+            chip.appendChild(im);
+          } else {
+            var ic = document.createElement('span');
+            ic.textContent = att.type === 'video' ? '🎬' : '📄';
+            ic.style.cssText = 'font-size:15px;flex-shrink:0;';
+            var nm = document.createElement('span');
+            nm.textContent = att.name || (att.type === 'video' ? 'video' : 'archivo');
+            nm.style.cssText = 'font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+            chip.appendChild(ic); chip.appendChild(nm);
+          }
+          var rm = document.createElement('button');
+          rm.type = 'button'; rm.textContent = '×'; rm.setAttribute('aria-label', 'Quitar');
+          rm.style.cssText = 'position:absolute;top:-7px;right:-7px;width:18px;height:18px;border-radius:999px;border:none;background:#ef4444;color:#fff;font-size:12px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;';
+          rm.addEventListener('click', function () {
+            pendingHumanAttachments.splice(idx, 1);
+            renderHumanAttachPreviews();
+          });
+          chip.appendChild(rm);
+          row.appendChild(chip);
+        })(pendingHumanAttachments[i], i);
+      }
+      attachPreview.appendChild(row);
+      attachPreview.style.display = 'block';
+      syncSendButtonState();
+    }
+
+    function humanAttachLimitBytes(mime) {
+      if (/^image\//i.test(mime)) return 10 * 1024 * 1024;
+      if (/^video\//i.test(mime)) return 100 * 1024 * 1024;
+      return 25 * 1024 * 1024;
+    }
+
+    async function uploadVisitorAttachment(file) {
+      var endpoint = cfg.host.replace(/\/$/, '') + '/api/widget/upload-attachment';
+      var fd = new FormData();
+      fd.append('file', file);
+      if (cfg.token) fd.append('token', String(cfg.token).trim());
+      if (cfg.widgetId && String(cfg.widgetId).trim()) fd.append('widgetId', String(cfg.widgetId).trim());
+      if (chatSessionId) fd.append('sessionId', chatSessionId);
+      var headers = {};
+      if (cfg.token) headers['X-Widget-Token'] = String(cfg.token).trim();
+      var res = await fetch(endpoint, { method: 'POST', headers: headers, body: fd });
+      var json = await res.json().catch(function () { return {}; });
+      if (!res.ok || !json.attachment) {
+        throw new Error((json && json.error) ? json.error : 'No se pudo subir el archivo.');
+      }
+      return json.attachment;
     }
 
     function renderAttachPreview() {
@@ -2737,7 +2805,39 @@
     }
 
     async function handleAttachFile(file) {
-      if (!file || !/^image\//i.test(file.type || '')) return;
+      if (!file) return;
+      var mime = file.type || '';
+
+      // ── MODO HUMANO: cualquier archivo (img/video/doc) se envía al agente (inbox) ──
+      if (typeof humanModeActive !== 'undefined' && humanModeActive) {
+        if (file.size > humanAttachLimitBytes(mime)) {
+          addMessage('bot', 'El archivo es demasiado grande para enviarlo.');
+          if (attachInput) attachInput.value = '';
+          return;
+        }
+        if (pendingHumanAttachments.length >= 10) {
+          if (attachInput) attachInput.value = '';
+          return;
+        }
+        var placeholder = { type: /^image\//i.test(mime) ? 'image' : /^video\//i.test(mime) ? 'video' : 'file', name: file.name || 'archivo', url: '' };
+        try {
+          var uploaded = await uploadVisitorAttachment(file);
+          pendingHumanAttachments.push(uploaded);
+          renderHumanAttachPreviews();
+        } catch (e) {
+          addMessage('bot', (e && e.message) ? e.message : 'No se pudo subir el archivo.');
+        }
+        if (attachInput) attachInput.value = '';
+        void placeholder;
+        return;
+      }
+
+      // ── MODO AI: solo imágenes (visión) ──
+      if (!/^image\//i.test(mime)) {
+        addMessage('bot', 'Con el asistente solo puedes adjuntar imágenes. Para enviar videos o documentos, pulsa «Hablar con una persona».');
+        if (attachInput) attachInput.value = '';
+        return;
+      }
       if (file.size > 8 * 1024 * 1024) {
         addMessage('bot', 'La imagen es demasiado grande. Usa una captura de menos de 8 MB.');
         return;
@@ -2786,8 +2886,10 @@
     async function send(textArg) {
       if (widgetDisabled) return;
       var text = typeof textArg === 'string' ? textArg.trim() : input.value.trim();
+      var humanActive = (typeof humanModeActive !== 'undefined' && humanModeActive);
       var hasAttach = !!(pendingAttachment && pendingAttachment.dataUrl);
-      if ((!text && !hasAttach) || isLoading) return;
+      var hasHumanAttach = humanActive && pendingHumanAttachments.length > 0;
+      if ((!text && !hasAttach && !hasHumanAttach) || isLoading) return;
       if (!cfg.agentId) {
         var errNoAgent = { message: 'Configura agentId para usar el widget.', code: 'MISSING_AGENT_ID' };
         notify('onError', errNoAgent);
@@ -2804,9 +2906,13 @@
         };
       }
 
-      var displayText = text || 'Analiza esta captura y ayúdame a resolver el problema.';
+      var displayText = text || (hasHumanAttach ? '' : 'Analiza esta captura y ayúdame a resolver el problema.');
 
-      addMessage('user', displayText, attachPreviewForMsg ? { userImages: [attachPreviewForMsg] } : undefined);
+      var humanAttachForMsg = hasHumanAttach ? pendingHumanAttachments.slice() : null;
+      var userMsgOpts = attachPreviewForMsg
+        ? { userImages: [attachPreviewForMsg] }
+        : (humanAttachForMsg ? { attachments: humanAttachForMsg } : undefined);
+      addMessage('user', displayText, userMsgOpts);
       appendHumanSupportOfferInChat(displayText);
       history.push({ role: 'user', content: displayText });
       saveChatToSession();
@@ -2829,6 +2935,7 @@
             body: JSON.stringify({
               sessionId: chatSessionId,
               content: displayText,
+              attachments: humanAttachForMsg || [],
               token: String(cfg.token || '').trim(),
             }),
           });
@@ -4004,7 +4111,7 @@
       '#' + rootId + ' .afhub-handoff-btn { width:100%; padding:8px 12px; border-radius:10px; border:1px solid ' + cfg.color + '44; background:' + cfg.color + '0c; color:' + cfg.color + '; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; transition:background .15s; }' +
       '#' + rootId + ' .afhub-handoff-btn:hover { background:' + cfg.color + '18; }' +
       '#' + rootId + ' .afhub-handoff-btn:disabled { cursor:not-allowed; opacity:.6; }' +
-      // Barra de acciones compacta (chips) — "Hablar con una persona" + "Finalizar y calificar"
+      // Barra de acciones compacta (chips) — "Hablar con una persona"
       '#' + rootId + ' .afhub-action-bar { flex-shrink:0; display:flex; gap:6px; padding:5px 10px; border-top:1px solid #f0f1f3; background:#fff; }' +
       '#' + rootId + ' .afhub-action-btn { flex:1; min-width:0; padding:5px 8px; border-radius:999px; border:1px solid ' + cfg.color + '33; background:transparent; color:' + cfg.color + '; font-size:11px; font-weight:600; cursor:pointer; font-family:inherit; transition:background .15s,border-color .15s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }' +
       '#' + rootId + ' .afhub-action-btn:hover { background:' + cfg.color + '12; }' +

@@ -17,7 +17,27 @@ export async function POST(req: NextRequest) {
   const sessionId = typeof body?.sessionId === 'string' ? body.sessionId.trim() : '';
   const content = typeof body?.content === 'string' ? body.content.trim() : '';
 
-  if (!token || !sessionId || !content) {
+  // Adjuntos del visitante (ya subidos vía /api/widget/upload-attachment).
+  const VALID_TYPES = ['image', 'video', 'file'];
+  const VALID_RT = ['image', 'video', 'raw'];
+  const attachments = Array.isArray(body?.attachments)
+    ? (body.attachments as Array<Record<string, unknown>>)
+        .filter((a) => a && typeof a.url === 'string' && /^https?:\/\//.test(a.url as string))
+        .slice(0, 10)
+        .map((a) => ({
+          type: VALID_TYPES.includes(String(a.type)) ? String(a.type) : 'file',
+          url: String(a.url),
+          publicId: typeof a.publicId === 'string' ? a.publicId : '',
+          resourceType: VALID_RT.includes(String(a.resourceType)) ? String(a.resourceType) : 'raw',
+          name: typeof a.name === 'string' ? a.name.slice(0, 200) : '',
+          mime: typeof a.mime === 'string' ? a.mime.slice(0, 120) : '',
+          bytes: typeof a.bytes === 'number' && a.bytes >= 0 ? a.bytes : 0,
+          width: typeof a.width === 'number' && a.width >= 0 ? a.width : 0,
+          height: typeof a.height === 'number' && a.height >= 0 ? a.height : 0,
+        }))
+    : [];
+
+  if (!token || !sessionId || (!content && attachments.length === 0)) {
     return NextResponse.json({ error: 'Faltan parámetros.' }, { status: 400 });
   }
 
@@ -37,6 +57,7 @@ export async function POST(req: NextRequest) {
     sessionId,
     role: 'user',
     content: content.slice(0, 4000),
+    attachments,
     traceId: `human-mode:${Date.now()}`,
   });
 

@@ -97,6 +97,7 @@ export async function uploadAgentAttachment(
     userId?: string;
     sessionId?: string;
     filename?: string;
+    kind?: 'agent' | 'visitor';
   },
 ): Promise<AttachmentUploadResult> {
   if (!isConfigured()) {
@@ -105,7 +106,7 @@ export async function uploadAgentAttachment(
   configureCloudinary();
 
   const subfolder = options.userId ? options.userId.slice(0, 24) : 'anonymous';
-  const folder = `${getFolder()}/agent/${subfolder}`;
+  const folder = `${getFolder()}/${options.kind || 'agent'}/${subfolder}`;
 
   const result = await new Promise<Record<string, unknown>>((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
