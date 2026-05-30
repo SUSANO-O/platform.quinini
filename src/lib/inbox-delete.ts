@@ -8,12 +8,35 @@ import {
 import { deleteCloudinaryAsset, type CloudinaryResourceType } from '@/lib/cloudinary';
 import { inboxSessionFilter, inboxTranscriptSessionId } from '@/lib/inbox-handoff';
 
+type MessageAttachment = {
+  publicId?: string;
+  resourceType?: string;
+};
+
+type InboxSessionRow = {
+  widgetId?: string;
+  chatSessionId?: string;
+};
+
+type WidgetMessageRow = {
+  attachments?: MessageAttachment[];
+};
+
 export type InboxDeleteResult = {
   ok: boolean;
   error?: string;
   messagesDeleted?: number;
   sessionsDeleted?: number;
 };
+
+async function deleteAttachmentsFromCloudinary(atts: MessageAttachment[]): Promise<void> {
+  const tasks = atts
+    .filter((att): att is MessageAttachment & { publicId: string } => Boolean(att?.publicId))
+    .map((att) =>
+      deleteCloudinaryAsset(String(att.publicId), (att.resourceType as CloudinaryResourceType) || 'image'),
+    );
+  await Promise.all(tasks);
+}
 
 /** Elimina una entrada del inbox y, si aplica, el transcript y datos relacionados. */
 export async function deleteInboxSessionForUser(
@@ -27,11 +50,7 @@ export async function deleteInboxSessionForUser(
   const session = await ConversationSession.findOne({
     sessionId: sid,
     ...inboxSessionFilter(uid, 'all'),
-  }).lean() as {
-    widgetId?: string;
-    sessionId?: string;
-    chatSessionId?: string;
-  } | null;
+  }).lean() as InboxSessionRow | null;
 
   if (!session) return { ok: false, error: 'Sesión no encontrada.' };
 
@@ -48,18 +67,11 @@ export async function deleteInboxSessionForUser(
   let messagesDeleted = 0;
 
   if (chatSessionId) {
-    const messages = await WidgetMessage.find({ sessionId: chatSessionId, userId: uid }).lean();
+    const messages = await WidgetMessage.find({ sessionId: chatSessionId, userId: uid }).lean() as WidgetMessageRow[];
     messagesDeleted = messages.length;
 
     await Promise.all(
-      messages.flatMap((msg) => {
-        const atts = Array.isArray(msg.attachments) ? msg.attachments : [];
-        return atts
-          .filter((a) => a && a.publicId)
-          .map((a) =>
-            deleteCloudinaryAsset(String(a.publicId), (a.resourceType as CloudinaryResourceType) || 'image'),
-          );
-      }),
+      messages.map((msg) => deleteAttachmentsFromCloudinary(Array.isArray(msg.attachments) ? msg.attachments : [])),
     );
 
     await WidgetMessage.deleteMany({ sessionId: chatSessionId, userId: uid });
