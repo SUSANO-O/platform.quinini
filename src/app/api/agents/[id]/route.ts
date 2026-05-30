@@ -26,6 +26,8 @@ import {
 import { validateModelForPlan } from '@/lib/model-plan-policy';
 import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 import { soloAgentPatchBlocked } from '@/lib/solo-plan-limits';
+import { encryptSecret, decryptSecret, maskSecret, isEncryptionAvailable } from '@/lib/secret-crypto';
+import { generateVerifyToken, getWhatsAppWebhookUrl } from '@/lib/whatsapp';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -33,6 +35,44 @@ async function getAuth(req: NextRequest) {
   const token = req.cookies.get('afhub_session')?.value;
   if (!token) return null;
   return verifySessionToken(token);
+}
+
+type RawWhatsApp = {
+  enabled?: boolean;
+  phoneNumberId?: string;
+  wabaId?: string;
+  displayPhone?: string;
+  apiVersion?: string;
+  accessTokenEnc?: string;
+  appSecretEnc?: string;
+  verifyToken?: string;
+  status?: string;
+  lastError?: string;
+};
+
+/** Vista de WhatsApp segura para el cliente: nunca expone tokens en claro. */
+function publicWhatsApp(w: RawWhatsApp | undefined | null) {
+  const cfg = w || {};
+  const tokenPlain = cfg.accessTokenEnc ? decryptSecret(cfg.accessTokenEnc) : '';
+  return {
+    enabled: Boolean(cfg.enabled),
+    phoneNumberId: cfg.phoneNumberId || '',
+    wabaId: cfg.wabaId || '',
+    displayPhone: cfg.displayPhone || '',
+    apiVersion: cfg.apiVersion || 'v21.0',
+    status: cfg.status || 'disconnected',
+    lastError: cfg.lastError || '',
+    verifyToken: cfg.verifyToken || '',
+    webhookUrl: getWhatsAppWebhookUrl(),
+    hasAccessToken: Boolean(cfg.accessTokenEnc),
+    hasAppSecret: Boolean(cfg.appSecretEnc),
+    accessTokenHint: tokenPlain ? maskSecret(tokenPlain) : '',
+  };
+}
+
+/** Reemplaza el subdoc whatsapp por su vista pública en el objeto del agente. */
+function withSafeWhatsApp<T extends { whatsapp?: unknown }>(agentObj: T): T {
+  return { ...agentObj, whatsapp: publicWhatsApp(agentObj.whatsapp as RawWhatsApp) };
 }
 
 export async function GET(req: NextRequest, { params }: Params) {
@@ -178,7 +218,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       }).lean()
     : [];
 
-  return NextResponse.json({ agent, subAgents });
+  return NextResponse.json({ agent: withSafeWhatsApp(agent as { whatsapp?: unknown }), subAgents });
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
@@ -229,7 +269,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       agent.syncStatus = pushedOk ? 'synced' : 'failed';
       await ClientAgent.updateOne({ _id: agent._id }, { syncStatus: agent.syncStatus });
     }
-    return NextResponse.json({ agent });
+    return NextResponse.json({ agent: withSafeWhatsApp(agent.toObject() as { whatsapp?: unknown }) });
   }
 
   // ── Tools update ─────────────────────────────────────────────────────────
@@ -568,6 +608,62 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     agent.set('fallbackModels', cleaned);
   }
 
+  // ── WhatsApp Business (Fase 2): captura de credenciales del cliente ─────────
+  if ('whatsapp' in body && body.whatsapp && typeof body.whatsapp === 'object') {
+    const w = body.whatsapp as Record<string, unknown>;
+    if (!agent.get('whatsapp')) agent.set('whatsapp', {});
+
+    if (typeof w.enabled === 'boolean') agent.set('whatsapp.enabled', w.enabled);
+    if (typeof w.phoneNumberId === 'string') agent.set('whatsapp.phoneNumberId', w.phoneNumberId.trim().slice(0, 64));
+    if (typeof w.wabaId === 'string') agent.set('whatsapp.wabaId', w.wabaId.trim().slice(0, 64));
+    if (typeof w.displayPhone === 'string') agent.set('whatsapp.displayPhone', w.displayPhone.trim().slice(0, 32));
+    if (typeof w.apiVersion === 'string' && /^v\d+\.\d+$/.test(w.apiVersion.trim())) {
+      agent.set('whatsapp.apiVersion', w.apiVersion.trim());
+    }
+
+    // Access token (write-only): se ignora el placeholder enmascarado.
+    if (typeof w.accessToken === 'string') {
+      const t = w.accessToken.trim();
+      if (t && !t.startsWith('•')) {
+        if (!isEncryptionAvailable()) {
+          return NextResponse.json(
+            { error: 'Cifrado de secretos no configurado en el servidor (SECRET_ENCRYPTION_KEY).', code: 'ENCRYPTION_NOT_CONFIGURED' },
+            { status: 503 },
+          );
+        }
+        agent.set('whatsapp.accessTokenEnc', encryptSecret(t));
+      }
+    }
+    if (w.clearAccessToken === true) agent.set('whatsapp.accessTokenEnc', '');
+
+    // App secret (write-only, opcional): firma del webhook.
+    if (typeof w.appSecret === 'string') {
+      const s = w.appSecret.trim();
+      if (s && !s.startsWith('•')) {
+        if (!isEncryptionAvailable()) {
+          return NextResponse.json(
+            { error: 'Cifrado de secretos no configurado en el servidor (SECRET_ENCRYPTION_KEY).', code: 'ENCRYPTION_NOT_CONFIGURED' },
+            { status: 503 },
+          );
+        }
+        agent.set('whatsapp.appSecretEnc', encryptSecret(s));
+      }
+    }
+    if (w.clearAppSecret === true) agent.set('whatsapp.appSecretEnc', '');
+
+    // Verify token: generarlo si falta o si se pide regenerar.
+    if (w.regenerateVerifyToken === true || !agent.get('whatsapp.verifyToken')) {
+      agent.set('whatsapp.verifyToken', generateVerifyToken());
+    }
+
+    // Estado derivado.
+    const hasTok = Boolean(agent.get('whatsapp.accessTokenEnc'));
+    const pnid = String(agent.get('whatsapp.phoneNumberId') || '');
+    const enabled = Boolean(agent.get('whatsapp.enabled'));
+    agent.set('whatsapp.status', enabled ? (hasTok && pnid ? 'connected' : 'pending') : 'disconnected');
+    agent.markModified('whatsapp');
+  }
+
   await agent.save();
 
   const hubId = typeof agent.agentHubId === 'string' ? agent.agentHubId.trim() : '';
@@ -577,7 +673,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     await ClientAgent.updateOne({ _id: agent._id }, { syncStatus: agent.syncStatus });
   }
 
-  return NextResponse.json({ agent });
+  return NextResponse.json({ agent: withSafeWhatsApp(agent.toObject() as { whatsapp?: unknown }) });
 }
 
 export async function DELETE(req: NextRequest, { params }: Params) {

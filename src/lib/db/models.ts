@@ -279,7 +279,29 @@ const ClientAgentSchema = new Schema({
   widgetVoiceName: { type: String, default: null },
   /** Modelos de respaldo (máx. 3). Se prueban en orden cuando el modelo principal falla. */
   fallbackModels:  { type: [String], default: [] },
+  /**
+   * WhatsApp Business (Cloud API) — Fase 2 del chat multiusuario.
+   * Credenciales que el CLIENTE conecta (su propia cuenta de Meta). El access
+   * token y el app secret se guardan CIFRADOS (secret-crypto). Nunca se
+   * devuelven al cliente ni se sincronizan al hub.
+   */
+  whatsapp: {
+    enabled:        { type: Boolean, default: false },
+    phoneNumberId:  { type: String, default: '' },   // ID del número (Meta)
+    wabaId:         { type: String, default: '' },    // WhatsApp Business Account ID (opcional)
+    displayPhone:   { type: String, default: '' },    // número legible para la UI
+    accessTokenEnc: { type: String, default: '' },    // token permanente CIFRADO
+    appSecretEnc:   { type: String, default: '' },    // app secret CIFRADO (firma webhook, opcional)
+    verifyToken:    { type: String, default: '' },    // lo generamos; el cliente lo pega en Meta
+    apiVersion:     { type: String, default: 'v21.0' },
+    status:         { type: String, enum: ['disconnected', 'pending', 'connected', 'error'], default: 'disconnected' },
+    lastError:      { type: String, default: '' },
+    connectedAt:    { type: Date, default: null },
+  },
 }, { timestamps: true });
+
+// Buscar agente por su Phone Number ID (entrante de WhatsApp → agente).
+ClientAgentSchema.index({ 'whatsapp.phoneNumberId': 1 }, { sparse: true });
 
 ClientAgentSchema.index({ userId: 1, type: 1, createdAt: -1 });
 ClientAgentSchema.index({ parentAgentId: 1 });
