@@ -485,12 +485,21 @@ const WidgetMessageSchema = new Schema({
   role:      { type: String, enum: ['user', 'assistant'], required: true },
   /** 'ai' = respuesta del LLM · 'human' = respuesta del agente humano desde inbox o WhatsApp */
   sentBy:    { type: String, enum: ['ai', 'human'], default: 'ai' },
-  content:   { type: String, required: true },
+  content:   { type: String, default: '' }, // puede ir vacío si el mensaje es solo adjunto
   traceId:   { type: String, default: '' },
+  /** Mensaje retirado por el agente: se conserva la fila (auditoría) pero el widget lo elimina. */
+  deleted:   { type: Boolean, default: false },
   attachments: [{
-    type:   { type: String, enum: ['image'], default: 'image' },
-    url:    { type: String, required: true },
-    ocrText: { type: String, default: '' },
+    type:        { type: String, enum: ['image', 'video', 'file'], default: 'image' },
+    url:         { type: String, required: true },
+    publicId:    { type: String, default: '' },   // Cloudinary public_id (para borrar)
+    resourceType:{ type: String, enum: ['image', 'video', 'raw'], default: 'image' },
+    name:        { type: String, default: '' },   // nombre original del archivo
+    mime:        { type: String, default: '' },
+    bytes:       { type: Number, default: 0 },
+    width:       { type: Number, default: 0 },
+    height:      { type: Number, default: 0 },
+    ocrText:     { type: String, default: '' },
   }],
 }, { timestamps: true });
 

@@ -26,7 +26,30 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { sessionId } = await params;
   const body = await req.json().catch(() => null);
   const message = typeof body?.message === 'string' ? body.message.trim() : '';
-  if (!message) return NextResponse.json({ error: 'El mensaje no puede estar vacío.' }, { status: 400 });
+
+  // Adjuntos: validados desde la metadata que devolvió /attachment (url + publicId).
+  const VALID_TYPES = ['image', 'video', 'file'];
+  const VALID_RT = ['image', 'video', 'raw'];
+  const attachments = Array.isArray(body?.attachments)
+    ? (body.attachments as Array<Record<string, unknown>>)
+        .filter((a) => a && typeof a.url === 'string' && /^https?:\/\//.test(a.url as string))
+        .slice(0, 10)
+        .map((a) => ({
+          type: VALID_TYPES.includes(String(a.type)) ? String(a.type) : 'file',
+          url: String(a.url),
+          publicId: typeof a.publicId === 'string' ? a.publicId : '',
+          resourceType: VALID_RT.includes(String(a.resourceType)) ? String(a.resourceType) : 'raw',
+          name: typeof a.name === 'string' ? a.name.slice(0, 200) : '',
+          mime: typeof a.mime === 'string' ? a.mime.slice(0, 120) : '',
+          bytes: typeof a.bytes === 'number' && a.bytes >= 0 ? a.bytes : 0,
+          width: typeof a.width === 'number' && a.width >= 0 ? a.width : 0,
+          height: typeof a.height === 'number' && a.height >= 0 ? a.height : 0,
+        }))
+    : [];
+
+  if (!message && attachments.length === 0) {
+    return NextResponse.json({ error: 'El mensaje no puede estar vacío.' }, { status: 400 });
+  }
 
   await connectDB();
 
@@ -51,7 +74,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const chatSessionId = session.chatSessionId || sessionId;
 
   // Insertar mensaje del agente humano en la transcripción del widget.
-  await WidgetMessage.create({
+  const created = await WidgetMessage.create({
     widgetId,
     userId,
     agentId: '',
@@ -59,6 +82,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     role: 'assistant',
     sentBy: 'human',
     content: message,
+    attachments,
     traceId: `human:${Date.now()}`,
   });
 
@@ -79,5 +103,5 @@ export async function POST(req: NextRequest, { params }: Params) {
     ],
   );
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, messageId: String(created._id), attachments });
 }
