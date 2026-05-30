@@ -56,25 +56,31 @@ export default function InboxPage() {
   // Polling del hilo mientras una sesión está expandida y abierta.
   const [livePolling, setLivePolling] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await fetch(`/api/inbox?status=${tab}`);
       const data = await res.json();
       if (!res.ok) {
-        toast.error(typeof data.error === 'string' ? data.error : 'Error al cargar inbox.');
+        if (!silent) toast.error(typeof data.error === 'string' ? data.error : 'Error al cargar inbox.');
         return;
       }
       setItems(Array.isArray(data.items) ? data.items : []);
       setOpenCount(typeof data.openCount === 'number' ? data.openCount : 0);
       notifyInboxChanged();
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [tab]);
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  // Inbox reactivo: refresca la lista en segundo plano cada 8s (sin spinner).
+  useEffect(() => {
+    const id = setInterval(() => { void load(true); }, 8000);
+    return () => clearInterval(id);
   }, [load]);
 
   // Polling del hilo cada 4s mientras la sesión está expandida y abierta.
