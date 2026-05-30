@@ -174,6 +174,27 @@ const WidgetSchema = new Schema({
   pipelineConfig: { type: Schema.Types.Mixed, default: null },
   /** Si false, el embed sigue visible pero /api/widget/chat rechaza peticiones. */
   active: { type: Boolean, default: true },
+  /** Minutos sin respuesta del agente antes de ofrecer WhatsApp como fallback. 0 = sin timeout. */
+  handoffTimeout: { type: Number, default: 5 },
+  // ── Encuesta de satisfacción al final de la conversación ─────────────────────
+  feedbackEnabled: { type: Boolean, default: false },
+  feedbackTitle:   { type: String, default: '¿Cómo fue tu experiencia?' },
+  feedbackThanks:  { type: String, default: '¡Gracias por tu feedback!' },
+  /** Minutos de inactividad tras los cuales, al reabrir, la conversación se da por finalizada
+   *  y se ofrece la encuesta antes de iniciar otra. 0 = desactivado. */
+  conversationIdleTimeout: { type: Number, default: 15 },
+  /** Preguntas configurables por el dueño del widget (muy dinámico). */
+  feedbackQuestions: {
+    type: [{
+      id:       { type: String, required: true },
+      text:     { type: String, required: true },
+      type:     { type: String, enum: ['rating', 'choice', 'text', 'yesno'], default: 'rating' },
+      options:  { type: [String], default: [] }, // solo para 'choice'
+      required: { type: Boolean, default: false },
+      enabled:  { type: Boolean, default: true },
+    }],
+    default: [],
+  },
 }, { timestamps: true });
 
 WidgetSchema.index({ userId: 1, createdAt: -1 });
@@ -370,6 +391,15 @@ const ConversationSessionSchema = new Schema({
   multiAgentRouted:   { type: Number, default: 0 },
   multiAgentHandoffs: { type: Number, default: 0 },
   multiAgentParallel: { type: Number, default: 0 },
+  // ── Live chat con agente humano ──────────────────────────────────────────────
+  /** Score de satisfacción (1-5) de la encuesta final, si el visitante respondió. */
+  satisfactionScore:  { type: Number, default: null },
+  /** true mientras un agente humano está atendiendo (AI en silencio). */
+  humanMode:          { type: Boolean, default: false },
+  /** Cuándo se activó el modo humano (inicio del handoff efectivo). */
+  humanModeAt:        { type: Date, default: null },
+  /** Timestamp del último mensaje enviado por el agente humano. */
+  lastHumanMessageAt: { type: Date, default: null },
 }, { timestamps: true });
 
 ConversationSessionSchema.index({ widgetId: 1, month: -1 });
@@ -378,6 +408,8 @@ ConversationSessionSchema.index({ sessionId: 1 }, { unique: true });
 ConversationSessionSchema.index({ startedAt: -1 });
 ConversationSessionSchema.index({ userId: 1, escalated: 1, inboxStatus: 1, handoffAt: -1 });
 ConversationSessionSchema.index({ userId: 1, followUpAt: 1, followUpNotified: 1 });
+// Guard de modo humano en /api/widget/chat (consulta por chatSessionId + humanMode).
+ConversationSessionSchema.index({ chatSessionId: 1, humanMode: 1 });
 
 // ── WIDGET SESSION CONTEXT (shared memory multi-agente + facts) ───────────────
 
@@ -451,6 +483,8 @@ const WidgetMessageSchema = new Schema({
   agentId:   { type: String, default: '' },
   sessionId: { type: String, default: '' },
   role:      { type: String, enum: ['user', 'assistant'], required: true },
+  /** 'ai' = respuesta del LLM · 'human' = respuesta del agente humano desde inbox o WhatsApp */
+  sentBy:    { type: String, enum: ['ai', 'human'], default: 'ai' },
   content:   { type: String, required: true },
   traceId:   { type: String, default: '' },
   attachments: [{
@@ -623,6 +657,30 @@ TaskExecutionSchema.index({ agentId: 1, runAt: -1 });
 // TTL 90 días — historial suficiente sin acumular indefinidamente.
 TaskExecutionSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 90 });
 
+// ── WIDGET FEEDBACK (encuesta de satisfacción por conversación) ───────────────
+// Una respuesta por sesión. El dueño ve score agregado + respuestas en el dashboard.
+
+const WidgetFeedbackSchema = new Schema({
+  widgetId:  { type: String, required: true },
+  userId:    { type: String, required: true }, // dueño del widget
+  agentId:   { type: String, default: '' },
+  sessionId: { type: String, default: '' },
+  visitorId: { type: String, default: '' },
+  /** Promedio de las respuestas tipo rating (1-5). null si no hubo rating. */
+  score:     { type: Number, default: null },
+  answers: [{
+    questionId:   { type: String, default: '' },
+    questionText: { type: String, default: '' },
+    type:         { type: String, enum: ['rating', 'choice', 'text', 'yesno'], default: 'rating' },
+    /** number (rating) o string (choice/text/yesno). */
+    value:        { type: Schema.Types.Mixed, default: null },
+  }],
+}, { timestamps: true });
+
+WidgetFeedbackSchema.index({ widgetId: 1, createdAt: -1 });
+WidgetFeedbackSchema.index({ sessionId: 1 });
+WidgetFeedbackSchema.index({ userId: 1, createdAt: -1 });
+
 // ── EXPORTS (safe for Next.js HMR) ───────────────────────────────────────────
 
 // Delete cached models in dev so schema changes take effect on hot reload
@@ -630,7 +688,7 @@ if (process.env.NODE_ENV !== 'production') {
   const modelNames = [
     'User', 'ClientAgent', 'Subscription', 'PlatformUsage', 'ConversationPack',
     'AuditLog', 'SecurityLog', 'ConversationSession', 'WidgetSessionContext', 'RagBulkJob', 'Organization', 'Referral', 'AbTest',
-    'ManualInvoice', 'ScheduledTask', 'TaskExecution',
+    'ManualInvoice', 'ScheduledTask', 'TaskExecution', 'WidgetFeedback',
   ] as const;
   modelNames.forEach((name) => {
     if (mongoose.models[name]) delete (mongoose.models as Record<string, unknown>)[name];
@@ -656,6 +714,7 @@ export const RegistrationCode     = mongoose.models.RegistrationCode     || mong
 export const ManualInvoice        = mongoose.models.ManualInvoice        || mongoose.model('ManualInvoice', ManualInvoiceSchema);
 export const ScheduledTask        = mongoose.models.ScheduledTask        || mongoose.model('ScheduledTask', ScheduledTaskSchema);
 export const TaskExecution        = mongoose.models.TaskExecution        || mongoose.model('TaskExecution', TaskExecutionSchema);
+export const WidgetFeedback       = mongoose.models.WidgetFeedback       || mongoose.model('WidgetFeedback', WidgetFeedbackSchema);
 
 // ── WIDGET SHARES ─────────────────────────────────────────────────────────────
 // Acceso compartido público a un widget mediante contraseña generada.

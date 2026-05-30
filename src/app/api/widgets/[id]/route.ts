@@ -39,7 +39,12 @@ const PATCHABLE = [
   'humanSupportEnabled',
   'handoffNotifyMode',
   'handoffEnabled',
+  'handoffTimeout',
   'active',
+  'feedbackEnabled',
+  'feedbackTitle',
+  'feedbackThanks',
+  'conversationIdleTimeout',
 ] as const;
 
 type PatchableKey = (typeof PATCHABLE)[number];
@@ -90,6 +95,7 @@ export async function PATCH(
 
   const $set: Partial<Record<PatchableKey, unknown>> & {
     shortcuts?: WidgetShortcut[];
+    feedbackQuestions?: Array<{ id: string; text: string; type: string; options: string[]; required: boolean; enabled: boolean }>;
     multiAgentEnabled?: boolean;
     multiAgentMode?: 'triage' | 'parallel' | 'pipeline';
     agentIds?: string[];
@@ -100,7 +106,7 @@ export async function PATCH(
   for (const key of PATCHABLE) {
     if (!(key in raw)) continue;
     const v = raw[key];
-    if (key === 'autoOpen' || key === 'fabDismissible' || key === 'voiceEnabled' || key === 'active' || key === 'handoffEnabled' || key === 'humanSupportEnabled') {
+    if (key === 'autoOpen' || key === 'fabDismissible' || key === 'voiceEnabled' || key === 'active' || key === 'handoffEnabled' || key === 'humanSupportEnabled' || key === 'feedbackEnabled') {
       $set[key] = Boolean(v);
       continue;
     }
@@ -110,6 +116,16 @@ export async function PATCH(
     }
     if (key === 'handoffNotifyMode') {
       if (typeof v === 'string') $set.handoffNotifyMode = normalizeHandoffNotifyMode(v);
+      continue;
+    }
+    if (key === 'handoffTimeout') {
+      const n = typeof v === 'number' ? v : parseInt(String(v), 10);
+      if (Number.isFinite(n) && n >= 0) $set.handoffTimeout = Math.min(n, 1440);
+      continue;
+    }
+    if (key === 'conversationIdleTimeout') {
+      const n = typeof v === 'number' ? v : parseInt(String(v), 10);
+      if (Number.isFinite(n) && n >= 0) $set.conversationIdleTimeout = Math.min(n, 1440);
       continue;
     }
     if (typeof v === 'string') {
@@ -137,6 +153,28 @@ export async function PATCH(
         emoji: typeof s.emoji === 'string' ? s.emoji.slice(0, 8) : '',
         enabled: s.enabled !== false,
       }));
+  }
+
+  // Handle feedbackQuestions array (encuesta de satisfacción)
+  if ('feedbackQuestions' in raw && Array.isArray(raw.feedbackQuestions)) {
+    const VALID_TYPES = ['rating', 'choice', 'text', 'yesno'];
+    $set.feedbackQuestions = (raw.feedbackQuestions as Array<Record<string, unknown>>)
+      .filter((q) => q && typeof q.id === 'string' && typeof q.text === 'string' && String(q.text).trim())
+      .slice(0, 10)
+      .map((q) => {
+        const type = VALID_TYPES.includes(String(q.type)) ? String(q.type) : 'rating';
+        return {
+          id: String(q.id).slice(0, 64),
+          text: String(q.text).slice(0, 200),
+          type,
+          options:
+            type === 'choice' && Array.isArray(q.options)
+              ? (q.options as unknown[]).map((o) => String(o).slice(0, 80)).filter(Boolean).slice(0, 8)
+              : [],
+          required: q.required === true,
+          enabled: q.enabled !== false,
+        };
+      });
   }
 
   if (

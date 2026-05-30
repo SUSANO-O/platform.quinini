@@ -112,6 +112,15 @@
     humanSupportEnabled: true,
     /** Botón «Hablar con una persona» y formulario de escalación */
     handoffEnabled: true,
+    /** Minutos sin respuesta del agente antes de ofrecer WhatsApp. 0 = sin límite. */
+    handoffTimeout: 5,
+    /** Encuesta de satisfacción al final de la conversación */
+    feedbackEnabled: false,
+    feedbackTitle: '¿Cómo fue tu experiencia?',
+    feedbackThanks: '¡Gracias por tu feedback!',
+    feedbackQuestions: [],
+    /** Minutos de inactividad para finalizar la conversación. 0 = off. */
+    conversationIdleTimeout: 15,
     /** Si true: chips MCP / tools y notas técnicas de HubSpot en burbujas (vista previa o data-show-mcp-ui). Producción: false. */
     showMcpUi: false,
     /** Arrastrar el orbe (FAB) para fijar posición; se recuerda en sessionStorage por agente/widget. */
@@ -351,6 +360,12 @@
       .substring(0, 48);
     merged.humanSupportEnabled = input && input.humanSupportEnabled === false ? false : true;
     merged.handoffEnabled = input && input.handoffEnabled === false ? false : true;
+    merged.handoffTimeout = (input && typeof input.handoffTimeout === 'number') ? Math.max(0, input.handoffTimeout) : 5;
+    merged.feedbackEnabled = input && input.feedbackEnabled === true ? true : false;
+    merged.feedbackTitle = String((input && input.feedbackTitle) || '¿Cómo fue tu experiencia?');
+    merged.feedbackThanks = String((input && input.feedbackThanks) || '¡Gracias por tu feedback!');
+    merged.feedbackQuestions = (input && Array.isArray(input.feedbackQuestions)) ? input.feedbackQuestions : [];
+    merged.conversationIdleTimeout = (input && typeof input.conversationIdleTimeout === 'number') ? Math.max(0, input.conversationIdleTimeout) : 15;
     merged.showMcpUi = Boolean(merged.showMcpUi);
     merged.fabDraggable =
       input && Object.prototype.hasOwnProperty.call(input, 'fabDraggable')
@@ -1295,6 +1310,28 @@
       '</div></div>';
     chat.appendChild(handoffOverlay);
 
+    // ── Encuesta de satisfacción (overlay dinámico; reusa estilos del modal) ──
+    var feedbackOverlay = document.createElement('div');
+    feedbackOverlay.className = 'afhub-handoff-overlay';
+    chat.appendChild(feedbackOverlay);
+    var feedbackOnDone = null;
+    var feedbackOfferShown = false; // botón "Calificar" por intención de cierre (1 vez por sesión)
+    var feedbackQs = (cfg.feedbackEnabled && Array.isArray(cfg.feedbackQuestions))
+      ? cfg.feedbackQuestions.filter(function (q) { return q && q.enabled !== false && q.text; })
+      : [];
+
+    var feedbackBar = document.createElement('div');
+    feedbackBar.className = 'afhub-handoff-bar';
+    var feedbackBtn = document.createElement('button');
+    feedbackBtn.className = 'afhub-handoff-btn';
+    feedbackBtn.type = 'button';
+    feedbackBtn.textContent = 'Finalizar y calificar';
+    feedbackBtn.setAttribute('aria-label', 'Finalizar la conversación y calificar');
+    feedbackBar.appendChild(feedbackBtn);
+    if (feedbackQs.length) {
+      chat.appendChild(feedbackBar);
+    }
+
     var powered = document.createElement('div');
     powered.className = 'afhub-powered';
     powered.innerHTML = 'Powered by <a href="https://botiva.space" target="_blank" rel="noopener">BotIvA</a>';
@@ -2056,11 +2093,8 @@
             return;
           }
           closeHandoffModal();
-          addMessage('bot', result.data.message || 'Solicitud registrada. Te contactaremos pronto.');
-          var waDigits = humanWaDigits();
-          if (cfg.humanSupportEnabled !== false && waDigits.length >= 8) {
-            appendHumanSupportOfferInChat('persona');
-          }
+          addMessage('bot', '⏳ Conectando con un agente… Te respondemos aquí mismo en este chat.');
+          activateHumanMode();
           try {
             emitEvent('conversation_handoff', {
               reason: 'form_submit',
@@ -2078,12 +2112,318 @@
         });
     }
 
+    // ── MODO HUMANO: polling + timeout + badge "Agente" ──────────────────────
+    var humanModeActive = false;
+    var humanModeTimer = null;
+    var humanPollTimer = null;
+    var humanLastPoll = new Date().toISOString();
+    var humanTimeoutOffered = false;
+    var humanPollCount = 0;
+    var HUMAN_POLL_MAX = 1200; // ~1h a 3s/poll: tope de seguridad.
+
+    function addHumanMessage(text) {
+      var wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex;flex-direction:column;align-items:flex-start;margin-bottom:8px;';
+      var badge = document.createElement('span');
+      badge.textContent = 'Agente';
+      badge.style.cssText = 'font-size:10px;font-weight:700;color:' + cfg.color + ';margin-bottom:2px;opacity:0.8;';
+      var bubble = document.createElement('div');
+      bubble.style.cssText = 'max-width:85%;padding:8px 12px;border-radius:10px;font-size:13px;line-height:1.5;background:rgba(0,0,0,0.05);border:1px solid rgba(0,0,0,0.08);';
+      bubble.textContent = text;
+      wrap.appendChild(badge);
+      wrap.appendChild(bubble);
+      var msgList = chat.querySelector('.afhub-messages') || chat;
+      msgList.appendChild(wrap);
+      wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function deactivateHumanMode(msg) {
+      humanModeActive = false;
+      if (humanPollTimer) { clearInterval(humanPollTimer); humanPollTimer = null; }
+      if (humanModeTimer) { clearTimeout(humanModeTimer); humanModeTimer = null; }
+      if (msg) addMessage('bot', msg);
+      // Reactiva el input de chat (si lo habíamos desactivado).
+      var inp = chat.querySelector('.afhub-input, .afhub-chat-input, textarea');
+      if (inp) inp.disabled = false;
+    }
+
+    function pollHumanMessages() {
+      if (!humanModeActive || !chatSessionId || !cfg.token) return;
+      // Tope de seguridad: evita polling infinito si nunca se resuelve.
+      humanPollCount += 1;
+      if (humanPollCount > HUMAN_POLL_MAX) {
+        deactivateHumanMode();
+        return;
+      }
+      var pollUrl = cfg.host.replace(/\/$/, '') + '/api/widget/messages'
+        + '?sessionId=' + encodeURIComponent(chatSessionId)
+        + '&since=' + encodeURIComponent(humanLastPoll)
+        + '&token=' + encodeURIComponent(String(cfg.token).trim());
+      fetch(pollUrl)
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (!humanModeActive) return;
+          // Avanzar el cursor con la HORA DEL SERVIDOR (evita drift de reloj del cliente).
+          if (data && typeof data.now === 'string') humanLastPoll = data.now;
+          // Mensajes nuevos del agente humano.
+          if (Array.isArray(data.messages) && data.messages.length) {
+            data.messages.forEach(function (m) {
+              addHumanMessage(m.content);
+            });
+            // Cancelar el timeout de fallback: ya hubo respuesta.
+            if (humanModeTimer) { clearTimeout(humanModeTimer); humanModeTimer = null; }
+            humanTimeoutOffered = false;
+          }
+          // Sesión resuelta por el agente.
+          if (data.resolved === true) {
+            deactivateHumanMode('La conversación con el agente ha finalizado. ¿Puedo ayudarte en algo más?');
+          }
+        })
+        .catch(function () { /* silencioso: reintenta en el próximo tick */ });
+    }
+
+    // Verifica al abrir el widget si la sesión sigue en modo humano (sobrevive recargas).
+    function checkHumanModeOnOpen() {
+      if (humanModeActive || !chatSessionId || !cfg.token) return;
+      var url = cfg.host.replace(/\/$/, '') + '/api/widget/messages'
+        + '?sessionId=' + encodeURIComponent(chatSessionId)
+        + '&since=' + encodeURIComponent(new Date(0).toISOString())
+        + '&token=' + encodeURIComponent(String(cfg.token).trim());
+      fetch(url)
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data && data.humanMode === true && data.resolved !== true) {
+            // Reactivar con cursor = hora del servidor (no re-mostrar mensajes ya en el historial).
+            activateHumanMode(data.now);
+            addMessage('bot', 'Sigues conectado con un agente. Escríbele aquí y te responderá en este chat.');
+          }
+        })
+        .catch(function () { /* silencioso */ });
+    }
+
+    function activateHumanMode(initialCursor) {
+      if (humanModeActive) return;
+      humanModeActive = true;
+      humanLastPoll = initialCursor || new Date().toISOString();
+      humanTimeoutOffered = false;
+      humanPollCount = 0;
+      // Iniciar polling cada 3s.
+      humanPollTimer = setInterval(pollHumanMessages, 3000);
+      // Timeout de fallback: si handoffTimeout > 0 y no hay respuesta, ofrecer WhatsApp.
+      var timeoutMin = typeof cfg.handoffTimeout === 'number' ? cfg.handoffTimeout : 5;
+      if (timeoutMin > 0) {
+        humanModeTimer = setTimeout(function () {
+          if (!humanModeActive || humanTimeoutOffered) return;
+          humanTimeoutOffered = true;
+          var waDigits = humanWaDigits();
+          var waMsg = 'Nuestro equipo tardará un poco más en responder.';
+          if (cfg.humanSupportEnabled !== false && waDigits.length >= 8) {
+            waMsg += ' ¿Prefieres continuar por WhatsApp mientras esperas?';
+            addMessage('bot', waMsg);
+            appendHumanSupportOfferInChat('persona');
+          } else {
+            addMessage('bot', waMsg + ' Por favor, espera unos minutos más.');
+          }
+        }, timeoutMin * 60 * 1000);
+      }
+    }
+    // ── FIN MODO HUMANO ───────────────────────────────────────────────────────
+
     handoffBtn.addEventListener('click', openHandoffModal);
     handoffOverlay.querySelector('.afhub-handoff-cancel').addEventListener('click', closeHandoffModal);
     handoffOverlay.querySelector('.afhub-handoff-submit').addEventListener('click', submitHandoffRequest);
     handoffOverlay.addEventListener('click', function (e) {
       if (e.target === handoffOverlay) closeHandoffModal();
     });
+
+    // ── Encuesta de satisfacción: render dinámico + envío ─────────────────────
+    function fbEsc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    function feedbackAlreadyDone() {
+      try { return sessionStorage.getItem('afhub-fb-done:' + chatSessionId) === '1'; } catch (e) { return false; }
+    }
+    function touchActivity() {
+      try { sessionStorage.setItem('afhub-last-activity:' + chatSessionId, String(Date.now())); } catch (e) { /* */ }
+    }
+    function lastActivityAge() {
+      try {
+        var v = parseInt(sessionStorage.getItem('afhub-last-activity:' + chatSessionId) || '0', 10);
+        return v ? (Date.now() - v) : 0;
+      } catch (e) { return 0; }
+    }
+    // Disparador #3: al reabrir tras inactividad, finalizar y ofrecer encuesta antes de otra conversación.
+    function checkIdleFeedback() {
+      if (!feedbackQs.length || feedbackAlreadyDone()) return;
+      if (typeof humanModeActive !== 'undefined' && humanModeActive) return;
+      var mins = typeof cfg.conversationIdleTimeout === 'number' ? cfg.conversationIdleTimeout : 15;
+      if (mins <= 0 || countUserTurnsInHistory(history) <= 0) return;
+      var age = lastActivityAge();
+      if (age > 0 && age > mins * 60 * 1000) {
+        addMessage('bot', 'Esta conversación se finalizó por inactividad. Antes de empezar otra, ¿nos dejas tu opinión?');
+        openFeedbackSurvey(function () { startNewConversation(); });
+      }
+    }
+    // Disparador #4: detectar intención de cierre (agradecimiento corto / "no" tras "¿algo más?").
+    function detectClosingIntent(userText) {
+      if (!feedbackQs.length || feedbackAlreadyDone() || feedbackOfferShown) return false;
+      var t = String(userText || '').trim().toLowerCase();
+      if (!t || t.indexOf('?') !== -1) return false;
+      if (t.length <= 30 && /\bgracias\b/.test(t) && !/(pero|otra|tambi[eé]n|adem[aá]s|c[oó]mo|cu[aá]l|cu[aá]ndo|d[oó]nde|por qu[eé])/.test(t)) {
+        return true;
+      }
+      var lastBot = '';
+      for (var i = history.length - 1; i >= 0; i--) {
+        var role = history[i] && history[i].role;
+        if (role === 'model' || role === 'assistant' || role === 'bot') { lastBot = String(history[i].content || '').toLowerCase(); break; }
+      }
+      var botAskedMore = /algo m[aá]s|puedo ayudar(te)? en algo|necesitas? algo|otra (cosa|duda|pregunta|consulta)|algo en lo que/.test(lastBot);
+      var userSaidNo = /^(no\b|no,? gracias|eso es todo|nada m[aá]s|ya est[aá]|as[ií] est[aá] bien|todo bien|listo|est[aá] bien as[ií])/.test(t);
+      return botAskedMore && userSaidNo && t.length <= 40;
+    }
+    function offerFeedbackButton() {
+      if (feedbackOfferShown || feedbackAlreadyDone() || !feedbackQs.length) return;
+      feedbackOfferShown = true;
+      var wrap = document.createElement('div');
+      wrap.className = 'afhub-msg bot afhub-fb-offer';
+      wrap.style.cssText = 'display:flex;flex-direction:column;gap:8px;align-items:flex-start;margin-bottom:8px';
+      var p = document.createElement('div');
+      p.style.cssText = 'font-size:13px;line-height:1.5';
+      p.textContent = '¡Con gusto! 🙌 Antes de irte, ¿nos dejas tu opinión?';
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = 'Calificar';
+      btn.style.cssText = 'background:' + cfg.color + ';color:#fff;border:none;border-radius:10px;padding:7px 18px;font-size:12px;font-weight:700;cursor:pointer';
+      btn.addEventListener('click', function () { openFeedbackSurvey(null); });
+      wrap.appendChild(p);
+      wrap.appendChild(btn);
+      messages.appendChild(wrap);
+      wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    function buildFeedbackHtml() {
+      var h = '<div class="afhub-handoff-modal" role="dialog" aria-label="Encuesta">';
+      h += '<h4>' + fbEsc(cfg.feedbackTitle) + '</h4>';
+      for (var i = 0; i < feedbackQs.length; i++) {
+        var q = feedbackQs[i];
+        var qid = q.id || ('q' + i);
+        h += '<div class="afhub-fb-q" data-qid="' + fbEsc(qid) + '" data-type="' + fbEsc(q.type) + '" data-required="' + (q.required ? '1' : '0') + '" style="margin-bottom:12px">';
+        h += '<label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">' + fbEsc(q.text) + (q.required ? ' *' : '') + '</label>';
+        if (q.type === 'rating') {
+          h += '<div class="afhub-fb-stars" data-value="0" style="display:flex;gap:6px">';
+          for (var s = 1; s <= 5; s++) h += '<button type="button" class="afhub-fb-star" data-star="' + s + '" style="background:none;border:none;cursor:pointer;font-size:26px;line-height:1;color:#ccc;padding:0">★</button>';
+          h += '</div>';
+        } else if (q.type === 'yesno') {
+          h += '<div style="display:flex;gap:14px;font-size:13px">';
+          h += '<label style="cursor:pointer"><input type="radio" name="fb_' + fbEsc(qid) + '" value="Sí"> Sí</label>';
+          h += '<label style="cursor:pointer"><input type="radio" name="fb_' + fbEsc(qid) + '" value="No"> No</label>';
+          h += '</div>';
+        } else if (q.type === 'choice') {
+          h += '<div style="display:flex;flex-direction:column;gap:6px;font-size:13px">';
+          var opts = Array.isArray(q.options) ? q.options : [];
+          for (var o = 0; o < opts.length; o++) h += '<label style="cursor:pointer"><input type="radio" name="fb_' + fbEsc(qid) + '" value="' + fbEsc(opts[o]) + '"> ' + fbEsc(opts[o]) + '</label>';
+          h += '</div>';
+        } else {
+          h += '<textarea class="afhub-handoff-input afhub-handoff-textarea afhub-fb-text" rows="2" placeholder="Tu comentario…"></textarea>';
+        }
+        h += '</div>';
+      }
+      h += '<p class="afhub-handoff-error" style="display:none"></p>';
+      h += '<div class="afhub-handoff-actions">';
+      h += '<button type="button" class="afhub-fb-skip">Ahora no</button>';
+      h += '<button type="button" class="afhub-fb-submit">Enviar</button>';
+      h += '</div></div>';
+      return h;
+    }
+    function collectFeedbackAnswers() {
+      var answers = [];
+      var qEls = feedbackOverlay.querySelectorAll('.afhub-fb-q');
+      for (var i = 0; i < qEls.length; i++) {
+        var el = qEls[i];
+        var qid = el.getAttribute('data-qid');
+        var type = el.getAttribute('data-type');
+        var required = el.getAttribute('data-required') === '1';
+        var value = null;
+        if (type === 'rating') {
+          var v = parseInt(el.querySelector('.afhub-fb-stars').getAttribute('data-value'), 10);
+          if (v > 0) value = v;
+        } else if (type === 'choice' || type === 'yesno') {
+          var checked = el.querySelector('input[type=radio]:checked');
+          if (checked) value = checked.value;
+        } else {
+          var ta = el.querySelector('.afhub-fb-text');
+          var t = ta && ta.value ? ta.value.trim() : '';
+          if (t) value = t;
+        }
+        if (value === null || value === '') {
+          if (required) return { error: 'Por favor responde las preguntas marcadas con *.' };
+          continue;
+        }
+        answers.push({ questionId: qid, value: value });
+      }
+      return { answers: answers };
+    }
+    function closeFeedbackSurvey() { feedbackOverlay.classList.remove('visible'); }
+    function closeFeedbackSurveyAndDone() {
+      closeFeedbackSurvey();
+      var cb = feedbackOnDone; feedbackOnDone = null;
+      if (typeof cb === 'function') cb();
+    }
+    function submitFeedback() {
+      var res = collectFeedbackAnswers();
+      var errEl = feedbackOverlay.querySelector('.afhub-handoff-error');
+      if (res.error) { if (errEl) { errEl.textContent = res.error; errEl.style.display = 'block'; } return; }
+      if (!res.answers.length) { closeFeedbackSurveyAndDone(); return; }
+      var wid = resolveWidgetIdForHandoff();
+      if (wid && cfg.token) {
+        try {
+          fetch(cfg.host.replace(/\/$/, '') + '/api/widgets/' + encodeURIComponent(wid) + '/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Widget-Token': String(cfg.token).trim() },
+            body: JSON.stringify({
+              sessionId: chatSessionId,
+              visitorId: getOrCreateVisitorId(cfg),
+              agentId: cfg.agentId || '',
+              answers: res.answers,
+              token: String(cfg.token).trim(),
+            }),
+          });
+        } catch (e) { /* fire-and-forget */ }
+      }
+      try { sessionStorage.setItem('afhub-fb-done:' + chatSessionId, '1'); } catch (e) { /* */ }
+      try { emitEvent('survey_submitted', { count: res.answers.length }); } catch (e) { /* */ }
+      feedbackOverlay.innerHTML = '<div class="afhub-handoff-modal" style="text-align:center"><h4>' + fbEsc(cfg.feedbackThanks) + '</h4>'
+        + '<div class="afhub-handoff-actions" style="justify-content:center"><button type="button" class="afhub-fb-close">Cerrar</button></div></div>';
+      feedbackOverlay.querySelector('.afhub-fb-close').addEventListener('click', closeFeedbackSurveyAndDone);
+      setTimeout(closeFeedbackSurveyAndDone, 1800);
+    }
+    function openFeedbackSurvey(onDone) {
+      if (!feedbackQs.length) { if (typeof onDone === 'function') onDone(); return; }
+      feedbackOnDone = onDone || null;
+      feedbackOverlay.innerHTML = buildFeedbackHtml();
+      var groups = feedbackOverlay.querySelectorAll('.afhub-fb-stars');
+      for (var g = 0; g < groups.length; g++) {
+        (function (group) {
+          var stars = group.querySelectorAll('.afhub-fb-star');
+          for (var k = 0; k < stars.length; k++) {
+            stars[k].addEventListener('click', function () {
+              var val = parseInt(this.getAttribute('data-star'), 10);
+              group.setAttribute('data-value', String(val));
+              for (var m = 0; m < stars.length; m++) {
+                var bv = parseInt(stars[m].getAttribute('data-star'), 10);
+                stars[m].style.color = bv <= val ? '#f5b301' : '#ccc';
+              }
+            });
+          }
+        })(groups[g]);
+      }
+      feedbackOverlay.querySelector('.afhub-fb-submit').addEventListener('click', submitFeedback);
+      feedbackOverlay.querySelector('.afhub-fb-skip').addEventListener('click', closeFeedbackSurveyAndDone);
+      feedbackOverlay.addEventListener('click', function (e) { if (e.target === feedbackOverlay) closeFeedbackSurveyAndDone(); });
+      feedbackOverlay.classList.add('visible');
+    }
+    feedbackBtn.addEventListener('click', function () { openFeedbackSurvey(null); });
 
     if (widgetDisabled) {
       handoffBtn.disabled = true;
@@ -2101,12 +2441,26 @@
       fab.setAttribute('aria-label', 'Cerrar chat');
       syncChatPanelLayout();
       renderHistoryToDom();
+      checkHumanModeOnOpen();
+      checkIdleFeedback();
       if (!widgetDisabled) input.focus();
       notify('onOpen');
       emitEvent('widget_opened');
     }
 
     function close() {
+      if (!isOpen) return;
+      // Encuesta al cerrar: si hay preguntas, hubo conversación y no se respondió aún.
+      if (feedbackQs.length && !feedbackAlreadyDone()
+          && countUserTurnsInHistory(history) > 0
+          && !feedbackOverlay.classList.contains('visible')
+          && typeof humanModeActive !== 'undefined' && !humanModeActive) {
+        openFeedbackSurvey(function () { closeImpl(); });
+        return;
+      }
+      closeImpl();
+    }
+    function closeImpl() {
       if (!isOpen) return;
       isOpen = false;
       chatLayout = 'floating';
@@ -2133,6 +2487,8 @@
       }
       chatSessionId = rotateChatSessionId(cfg);
       history = [];
+      feedbackOfferShown = false; // nueva conversación → puede volver a ofrecer la encuesta
+      touchActivity();
       lastGeneratedImageDataUrl = '';
       lastSessionImageUrls = [];
       clearPendingAttachment();
@@ -2323,10 +2679,34 @@
       appendHumanSupportOfferInChat(displayText);
       history.push({ role: 'user', content: displayText });
       saveChatToSession();
+      touchActivity();
+      // Disparador #4: intención de cierre → ofrecer botón "Calificar" (suave, tras la respuesta del bot).
+      if ((typeof humanModeActive === 'undefined' || !humanModeActive) && detectClosingIntent(displayText)) {
+        setTimeout(offerFeedbackButton, 1500);
+      }
       notify('onMessageSent', displayText);
       emitEvent('message_sent', { length: displayText.length, hasImage: hasAttach });
       input.value = '';
       input.style.height = 'auto';
+
+      // ── MODO HUMANO: el mensaje va al agente (inbox), el AI NO responde ──────
+      if (typeof humanModeActive !== 'undefined' && humanModeActive) {
+        try {
+          fetch(cfg.host.replace(/\/$/, '') + '/api/widget/user-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Widget-Token': String(cfg.token || '').trim() },
+            body: JSON.stringify({
+              sessionId: chatSessionId,
+              content: displayText,
+              token: String(cfg.token || '').trim(),
+            }),
+          });
+        } catch (_hm) { /* el agente igual verá el mensaje en el siguiente refresh */ }
+        clearPendingAttachment();
+        syncSendButtonState();
+        return; // No llamar al AI mientras un humano atiende.
+      }
+
       sendBtn.disabled = true;
       newChatBtn.disabled = true;
       isLoading = true;

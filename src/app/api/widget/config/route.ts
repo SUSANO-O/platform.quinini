@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   await connectDB();
 
   const widget = await Widget.findOne({ afhubToken: token })
-    .select('_id agentId color title subtitle welcome fabHint avatar position theme borderRadius autoOpen fabDismissible voiceEnabled humanSupportPhone humanSupportEnabled handoffEnabled handoffNotifyMode shortcuts multiAgentEnabled multiAgentMode active')
+    .select('_id agentId color title subtitle welcome fabHint avatar position theme borderRadius autoOpen fabDismissible voiceEnabled humanSupportPhone humanSupportEnabled handoffEnabled handoffNotifyMode handoffTimeout shortcuts multiAgentEnabled multiAgentMode active feedbackEnabled feedbackTitle feedbackThanks feedbackQuestions conversationIdleTimeout')
     .lean() as Record<string, unknown> | null;
 
   if (!widget) {
@@ -78,6 +78,15 @@ export async function GET(req: NextRequest) {
         humanSupportEnabled: widget.humanSupportEnabled !== false,
         handoffEnabled:    widget.handoffEnabled !== false,
         handoffNotifyMode: normalizeHandoffNotifyMode(widget.handoffNotifyMode),
+        handoffTimeout:    typeof widget.handoffTimeout === 'number' ? widget.handoffTimeout : 5,
+        feedbackEnabled:   widget.feedbackEnabled === true,
+        feedbackTitle:     typeof widget.feedbackTitle === 'string' ? widget.feedbackTitle : '¿Cómo fue tu experiencia?',
+        feedbackThanks:    typeof widget.feedbackThanks === 'string' ? widget.feedbackThanks : '¡Gracias por tu feedback!',
+        feedbackQuestions: Array.isArray(widget.feedbackQuestions)
+          ? (widget.feedbackQuestions as Array<{ id: string; text: string; type: string; options?: string[]; required?: boolean; enabled?: boolean }>)
+              .filter((q) => q.enabled !== false)
+          : [],
+        conversationIdleTimeout: typeof widget.conversationIdleTimeout === 'number' ? widget.conversationIdleTimeout : 15,
         voiceName,
         shortcuts:         Array.isArray(widget.shortcuts)
           ? (widget.shortcuts as Array<{ id: string; label: string; message: string; emoji?: string; enabled: boolean }>)

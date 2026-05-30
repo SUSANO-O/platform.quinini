@@ -187,6 +187,16 @@ interface WidgetShortcut {
   enabled: boolean;
 }
 
+type FeedbackQuestionType = 'rating' | 'choice' | 'text' | 'yesno';
+interface FeedbackQuestion {
+  id: string;
+  text: string;
+  type: FeedbackQuestionType;
+  options: string[];
+  required: boolean;
+  enabled: boolean;
+}
+
 interface WidgetConfig {
   name: string;
   agentId: string;
@@ -201,8 +211,16 @@ interface WidgetConfig {
   humanSupportEnabled: boolean;
   /** Destino externo al escalar: inbox | webhook | slack | both */
   handoffNotifyMode: HandoffNotifyMode;
+  /** Minutos sin respuesta del agente antes de ofrecer WhatsApp. 0 = sin timeout. */
+  handoffTimeout: number;
   /** Muestra el botón «Hablar con una persona» y permite enviar escalaciones. */
   handoffEnabled: boolean;
+  /** Encuesta de satisfacción al final de la conversación. */
+  feedbackEnabled: boolean;
+  feedbackTitle: string;
+  feedbackThanks: string;
+  /** Minutos de inactividad para dar la conversación por finalizada. 0 = off. */
+  conversationIdleTimeout: number;
   avatar: string;
   position: string;
   theme: 'light' | 'dark';
@@ -244,6 +262,11 @@ const DEFAULT: WidgetConfig = {
   humanSupportEnabled: true,
   handoffNotifyMode: 'both',
   handoffEnabled: true,
+  handoffTimeout: 5,
+  feedbackEnabled: false,
+  feedbackTitle: '¿Cómo fue tu experiencia?',
+  feedbackThanks: '¡Gracias por tu feedback!',
+  conversationIdleTimeout: 15,
   multiAgentEnabled: false,
   multiAgentMode: 'triage',
   agentIds: [],
@@ -542,6 +565,7 @@ export default function WidgetBuilderPage() {
   const [saved, setSaved] = useState(false);
   const [shortcuts, setShortcuts] = useState<WidgetShortcut[]>([]);
   const [suggestingShortcuts, setSuggestingShortcuts] = useState(false);
+  const [feedbackQuestions, setFeedbackQuestions] = useState<FeedbackQuestion[]>([]);
   const [shortcutSuggestErr, setShortcutSuggestErr] = useState('');
   const [wizardStep, setWizardStep] = useState(0);
 
@@ -804,6 +828,11 @@ export default function WidgetBuilderPage() {
                   ? widget.handoffNotifyMode
                   : 'both',
               handoffEnabled: widget.handoffEnabled !== false,
+              handoffTimeout: typeof (widget as { handoffTimeout?: number }).handoffTimeout === 'number' ? (widget as { handoffTimeout?: number }).handoffTimeout! : 5,
+              feedbackEnabled: (widget as { feedbackEnabled?: boolean }).feedbackEnabled === true,
+              feedbackTitle: String((widget as { feedbackTitle?: string }).feedbackTitle ?? '¿Cómo fue tu experiencia?'),
+              feedbackThanks: String((widget as { feedbackThanks?: string }).feedbackThanks ?? '¡Gracias por tu feedback!'),
+              conversationIdleTimeout: typeof (widget as { conversationIdleTimeout?: number }).conversationIdleTimeout === 'number' ? (widget as { conversationIdleTimeout?: number }).conversationIdleTimeout! : 15,
               avatar: String(widget.avatar ?? ''),
               position: String(widget.position ?? 'bottom-right'),
               theme: th,
@@ -841,6 +870,16 @@ export default function WidgetBuilderPage() {
                 message: s.message || '',
                 emoji: s.emoji || '',
                 enabled: s.enabled !== false,
+              })));
+            }
+            if (Array.isArray((widget as { feedbackQuestions?: FeedbackQuestion[] }).feedbackQuestions)) {
+              setFeedbackQuestions(((widget as { feedbackQuestions?: FeedbackQuestion[] }).feedbackQuestions || []).map((q) => ({
+                id: q.id || crypto.randomUUID(),
+                text: q.text || '',
+                type: (['rating', 'choice', 'text', 'yesno'].includes(q.type) ? q.type : 'rating') as FeedbackQuestionType,
+                options: Array.isArray(q.options) ? q.options : [],
+                required: q.required === true,
+                enabled: q.enabled !== false,
               })));
             }
           }
@@ -945,8 +984,8 @@ export default function WidgetBuilderPage() {
     setSaving(true);
     try {
       const payload = soloChatOnly
-        ? { ...applySoloWidgetDefaults(plan, { ...cfg, shortcuts } as Record<string, unknown>), shortcuts }
-        : { ...cfg, shortcuts };
+        ? { ...applySoloWidgetDefaults(plan, { ...cfg, shortcuts, feedbackQuestions } as Record<string, unknown>), shortcuts, feedbackQuestions }
+        : { ...cfg, shortcuts, feedbackQuestions };
       if (editWidgetId) {
         const res = await fetch(`/api/widgets/${editWidgetId}`, {
           method: 'PATCH',
@@ -965,7 +1004,7 @@ export default function WidgetBuilderPage() {
         const res = await fetch('/api/widgets', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(soloChatOnly ? applySoloWidgetDefaults(plan, cfg as unknown as Record<string, unknown>) : cfg),
+          body: JSON.stringify(soloChatOnly ? { ...applySoloWidgetDefaults(plan, cfg as unknown as Record<string, unknown>), feedbackQuestions } : { ...cfg, feedbackQuestions }),
         });
         if (res.ok) {
           const data = (await res.json()) as {
@@ -1608,6 +1647,20 @@ export default function WidgetBuilderPage() {
                 </Link>{' '}
                 y/o Slack (configúralos en Cumplimiento).
               </p>
+              <label style={{ ...labelStyle, marginTop: 10 }}>
+                Tiempo de espera antes de ofrecer WhatsApp (minutos)
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={60}
+                style={inputStyle}
+                value={cfg.handoffTimeout}
+                onChange={(e) => update({ handoffTimeout: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+              />
+              <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 4, marginBottom: 0, lineHeight: 1.45 }}>
+                Si el agente no responde en ese tiempo, el widget ofrece continuar por WhatsApp. <strong>0</strong> = sin límite de espera.
+              </p>
             </>
           )}
           {!cfg.handoffEnabled && (
@@ -1616,6 +1669,138 @@ export default function WidgetBuilderPage() {
             </p>
           )}
         </div>
+
+        {/* ── Encuesta de satisfacción ─────────────────────────────────────── */}
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: cfg.feedbackEnabled ? 12 : 0 }}>
+            <input
+              type="checkbox"
+              id="feedbackEnabled"
+              checked={cfg.feedbackEnabled}
+              onChange={(e) => update({ feedbackEnabled: e.target.checked })}
+              style={{ width: 16, height: 16, cursor: 'pointer' }}
+            />
+            <label htmlFor="feedbackEnabled" style={{ fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+              Encuesta de satisfacción al final de la conversación
+            </label>
+          </div>
+
+          {cfg.feedbackEnabled && (
+            <>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Título de la encuesta</label>
+                <input style={inputStyle} value={cfg.feedbackTitle} onChange={(e) => update({ feedbackTitle: e.target.value })} placeholder="¿Cómo fue tu experiencia?" />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Mensaje de agradecimiento</label>
+                <input style={inputStyle} value={cfg.feedbackThanks} onChange={(e) => update({ feedbackThanks: e.target.value })} placeholder="¡Gracias por tu feedback!" />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Finalizar conversación por inactividad (minutos)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={1440}
+                  style={inputStyle}
+                  value={cfg.conversationIdleTimeout}
+                  onChange={(e) => update({ conversationIdleTimeout: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                />
+                <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 4, marginBottom: 0, lineHeight: 1.45 }}>
+                  Si el visitante reabre el chat tras este tiempo sin actividad, se da por finalizada y se le ofrece la encuesta antes de iniciar otra. <strong>0</strong> = desactivado.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <label style={labelStyle}>Preguntas ({feedbackQuestions.length}/10)</label>
+                {feedbackQuestions.length < 10 && (
+                  <button
+                    type="button"
+                    onClick={() => setFeedbackQuestions((prev) => [...prev, { id: crypto.randomUUID(), text: '', type: 'rating', options: [], required: false, enabled: true }])}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--foreground)', cursor: 'pointer' }}
+                  >
+                    <Plus size={11} /> Agregar pregunta
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {feedbackQuestions.map((q, i) => (
+                  <div key={q.id} style={{ padding: '10px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--background)' }}>
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                      <select
+                        value={q.type}
+                        onChange={(e) => setFeedbackQuestions((p) => p.map((x, j) => j === i ? { ...x, type: e.target.value as FeedbackQuestionType } : x))}
+                        style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '5px 8px', fontSize: 12, background: 'var(--card)', cursor: 'pointer' }}
+                      >
+                        <option value="rating">⭐ Estrellas (1-5)</option>
+                        <option value="choice">☑ Opción múltiple</option>
+                        <option value="yesno">Sí / No</option>
+                        <option value="text">✍ Comentario libre</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => setFeedbackQuestions((p) => p.filter((_, j) => j !== i))}
+                        style={{ marginLeft: 'auto', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444', padding: 4, display: 'flex' }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                    <input
+                      value={q.text}
+                      onChange={(e) => setFeedbackQuestions((p) => p.map((x, j) => j === i ? { ...x, text: e.target.value } : x))}
+                      placeholder="Texto de la pregunta (ej. ¿Resolvimos tu duda?)"
+                      style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 8px', fontSize: 12, background: 'var(--card)' }}
+                    />
+                    {q.type === 'choice' && (
+                      <div style={{ marginTop: 6, paddingLeft: 8 }}>
+                        {q.options.map((opt, oi) => (
+                          <div key={oi} style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
+                            <input
+                              value={opt}
+                              onChange={(e) => setFeedbackQuestions((p) => p.map((x, j) => j === i ? { ...x, options: x.options.map((o, k) => k === oi ? e.target.value : o) } : x))}
+                              placeholder={`Opción ${oi + 1}`}
+                              style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 6, padding: '4px 8px', fontSize: 12, background: 'var(--card)' }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setFeedbackQuestions((p) => p.map((x, j) => j === i ? { ...x, options: x.options.filter((_, k) => k !== oi) } : x))}
+                              style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-foreground)', fontSize: 16, lineHeight: 1, padding: '0 4px' }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                        {q.options.length < 8 && (
+                          <button
+                            type="button"
+                            onClick={() => setFeedbackQuestions((p) => p.map((x, j) => j === i ? { ...x, options: [...x.options, ''] } : x))}
+                            style={{ fontSize: 11, fontWeight: 600, color: 'var(--primary)', background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 0' }}
+                          >
+                            + opción
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 11, color: 'var(--muted-foreground)', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={q.required}
+                        onChange={(e) => setFeedbackQuestions((p) => p.map((x, j) => j === i ? { ...x, required: e.target.checked } : x))}
+                      />
+                      Obligatoria
+                    </label>
+                  </div>
+                ))}
+                {feedbackQuestions.length === 0 && (
+                  <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0 }}>
+                    Agrega preguntas para tu encuesta: estrellas (dan el score), opción múltiple, sí/no o comentario libre.
+                  </p>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
         <div data-tour="widget-builder-embed-options">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

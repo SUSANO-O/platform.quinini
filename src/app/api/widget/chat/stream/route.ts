@@ -23,7 +23,7 @@ import {
   validateHubProxyConfig,
 } from '@/lib/widget-chat-hub';
 import { connectDB } from '@/lib/db/connection';
-import { ClientAgent, Subscription } from '@/lib/db/models';
+import { ClientAgent, Subscription, ConversationSession, WidgetMessage } from '@/lib/db/models';
 import { findWidgetForWtToken, isWidgetActive, sentAgentIdMatchesWidget } from '@/lib/widget-token-verify';
 import { checkConversationQuota } from '@/lib/quota';
 import { trackWidgetChatUsage } from '@/lib/platform-agent-utils';
@@ -295,6 +295,39 @@ export async function POST(req: NextRequest) {
       }
     } catch {
       /* fail-open */
+    }
+  }
+
+  // ── Guard modo humano (defensa server-side, también en stream) ─────────────
+  // Si un agente humano atiende, NO ejecutar el AI: guardamos el mensaje del
+  // visitante y devolvemos un aviso por SSE. Protege contra SDKs viejos.
+  if (parsedSessionId && faqTrackOwnerId) {
+    try {
+      await connectDB();
+      const liveSession = await ConversationSession.findOne({
+        chatSessionId: parsedSessionId,
+        humanMode: true,
+      }).select({ inboxStatus: 1 }).lean() as { inboxStatus?: string } | null;
+      if (liveSession && liveSession.inboxStatus !== 'resolved') {
+        if (parsedMessage.trim()) {
+          await WidgetMessage.create({
+            widgetId: resolvedWidgetId,
+            userId: faqTrackOwnerId,
+            agentId: parsedAgentId || '',
+            sessionId: parsedSessionId,
+            role: 'user',
+            content: parsedMessage.trim().slice(0, 4000),
+            traceId: `human-mode:${traceId}`,
+          }).catch(() => {});
+        }
+        const note = 'Un miembro del equipo está atendiendo esta conversación y te responderá aquí mismo.';
+        return new Response(
+          sseEvent({ type: 'token', text: note }) + sseEvent({ type: 'done', humanMode: true }),
+          { status: 200, headers: { 'Content-Type': 'text/event-stream', ...corsHeaders(origin) } },
+        );
+      }
+    } catch (hmErr) {
+      console.warn('[widget/chat/stream] human-mode guard skipped:', hmErr);
     }
   }
 

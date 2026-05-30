@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import {
   Sparkles, Activity, MessageSquare,
   TrendingUp, Crown, Clock, Zap, ArrowUpRight, RefreshCw,
-  BarChart2, Users, UserCheck, Bot,
+  BarChart2, Users, UserCheck, Bot, X, Loader2,
 } from 'lucide-react';
 
 import { BRAND, METRIC, STATE, R, O, B } from '@/lib/brand-colors';
@@ -49,6 +49,20 @@ interface WidgetAnalytics {
   };
   peakHour: number;
   byMonth: { month: string; sessions: number; conversations: number }[];
+  satisfaction?: {
+    avgScore: number | null;
+    totalResponses: number;
+    scoredResponses: number;
+    distribution: Record<number, number>;
+    responseRate: number;
+  };
+}
+
+interface FeedbackItem {
+  _id: string;
+  score: number | null;
+  createdAt: string;
+  answers: { questionText: string; type: string; value: unknown }[];
 }
 
 function formatHour(h: number) {
@@ -89,6 +103,9 @@ export default function DashboardPage() {
   const [selectedWidget,   setSelectedWidget]   = useState<string | null>(null);
   const [widgetAnalytics,  setWidgetAnalytics]  = useState<WidgetAnalytics | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [feedbackList,     setFeedbackList]     = useState<FeedbackItem[]>([]);
+  const [loadingFeedback,  setLoadingFeedback]  = useState(false);
 
   const coreMetricsReady =
     usage !== null && agentCount !== null && widgetCount !== null;
@@ -109,6 +126,19 @@ export default function DashboardPage() {
       if (list.length > 0) setSelectedWidget(list[0]._id);
     }).catch(() => {});
   }, [user]);
+
+  const openFeedbackModal = async () => {
+    if (!selectedWidget) return;
+    setFeedbackModalOpen(true);
+    setLoadingFeedback(true);
+    try {
+      const res = await fetch(`/api/widgets/${selectedWidget}/feedback/list`);
+      const data = await res.json();
+      if (res.ok) setFeedbackList(Array.isArray(data.items) ? data.items : []);
+    } catch { /* */ } finally {
+      setLoadingFeedback(false);
+    }
+  };
 
   /** Estado del sistema: última petición — solo tras métricas principales (conv, agentes, widgets). */
   useEffect(() => {
@@ -565,6 +595,35 @@ export default function DashboardPage() {
                       sub="abrieron sin escribir" />
                   </div>
 
+                  {/* Satisfacción — clic para ver respuestas */}
+                  {widgetAnalytics.satisfaction && (
+                    <button
+                      type="button"
+                      onClick={() => void openFeedbackModal()}
+                      className="w-full text-left rounded-xl p-4 mb-4 transition-opacity hover:opacity-90"
+                      style={{ background: 'rgba(245,179,1,0.07)', border: '1px solid rgba(245,179,1,0.3)', cursor: 'pointer' }}
+                    >
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase" style={{ color: '#b58100', letterSpacing: '0.05em' }}>Satisfacción</span>
+                          <p className="text-2xl font-extrabold m-0 mt-1">
+                            {widgetAnalytics.satisfaction.avgScore != null
+                              ? `${widgetAnalytics.satisfaction.avgScore.toFixed(1)} / 5`
+                              : 'Sin datos'}
+                            <span style={{ color: '#f5b301', marginLeft: 8, fontSize: 18 }}>
+                              {'★'.repeat(Math.round(widgetAnalytics.satisfaction.avgScore || 0))}
+                              <span style={{ color: '#d9d9d9' }}>{'★'.repeat(5 - Math.round(widgetAnalytics.satisfaction.avgScore || 0))}</span>
+                            </span>
+                          </p>
+                          <p className="text-[11px] m-0 mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                            {widgetAnalytics.satisfaction.totalResponses} respuesta{widgetAnalytics.satisfaction.totalResponses === 1 ? '' : 's'} · {widgetAnalytics.satisfaction.responseRate}% de las sesiones respondió
+                          </p>
+                        </div>
+                        <span className="text-xs font-bold" style={{ color: '#b58100' }}>Ver respuestas →</span>
+                      </div>
+                    </button>
+                  )}
+
                   {/* Peak hour + monthly bars */}
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="rounded-xl p-4" style={{ background: 'rgba(15,23,42,0.03)', border: '1px solid var(--border)' }}>
@@ -608,6 +667,65 @@ export default function DashboardPage() {
         )}
 
       </div>
+
+      {/* Modal: respuestas de la encuesta de satisfacción */}
+      {feedbackModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(2,6,23,0.6)' }}
+          onClick={() => setFeedbackModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl"
+            style={{ background: 'var(--card)', border: '1px solid var(--border)', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid var(--border)' }}>
+              <p className="font-bold m-0">Respuestas de clientes</p>
+              <button type="button" onClick={() => setFeedbackModalOpen(false)} className="p-1.5 rounded-lg" style={{ border: '1px solid var(--border)', cursor: 'pointer' }}>
+                <X size={15} />
+              </button>
+            </div>
+            <div className="p-4 overflow-auto">
+              {loadingFeedback ? (
+                <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                  <Loader2 size={15} className="animate-spin" /> Cargando…
+                </div>
+              ) : feedbackList.length === 0 ? (
+                <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Aún no hay respuestas de la encuesta para este widget.</p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {feedbackList.map((f) => (
+                    <div key={f._id} className="rounded-xl p-3" style={{ border: '1px solid var(--border)' }}>
+                      <div className="flex items-center justify-between mb-2">
+                        {f.score != null ? (
+                          <span style={{ color: '#f5b301', fontSize: 15 }}>
+                            {'★'.repeat(Math.round(f.score))}
+                            <span style={{ color: '#d9d9d9' }}>{'★'.repeat(5 - Math.round(f.score))}</span>
+                          </span>
+                        ) : <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Sin rating</span>}
+                        <span className="text-[11px]" style={{ color: 'var(--muted-foreground)' }}>
+                          {new Date(f.createdAt).toLocaleDateString('es-CO', { dateStyle: 'medium' })}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        {f.answers.map((a, ai) => (
+                          <div key={ai} className="text-xs">
+                            <span style={{ color: 'var(--muted-foreground)' }}>{a.questionText}: </span>
+                            <span className="font-semibold">
+                              {a.type === 'rating' ? `${a.value}/5 ★` : String(a.value)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
