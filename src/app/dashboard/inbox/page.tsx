@@ -22,6 +22,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { BRAND_TEXT_COLOR, UI_SURFACE_SECONDARY } from '@/lib/brand';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { notifyInboxChanged } from '@/hooks/use-inbox-open-count';
 
 type InboxItem = {
@@ -87,6 +88,8 @@ export default function InboxPage() {
   const [followUpDraft, setFollowUpDraft] = useState<Record<string, { at: string; note: string }>>({});
   const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
   const [sendingReply, setSendingReply] = useState<string | null>(null);
+  const [deletingSession, setDeletingSession] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ sessionId: string; label: string } | null>(null);
   // Adjuntos pendientes de envío (ya subidos a Cloudinary) por sesión.
   const [pendingAttachments, setPendingAttachments] = useState<Record<string, Attachment[]>>({});
   const [uploadingAttachment, setUploadingAttachment] = useState<string | null>(null);
@@ -247,6 +250,37 @@ export default function InboxPage() {
     }
   }
 
+  async function confirmDeleteSession() {
+    if (!deleteTarget) return;
+    const { sessionId } = deleteTarget;
+    setDeletingSession(sessionId);
+    try {
+      const res = await fetch(`/api/inbox/${encodeURIComponent(sessionId)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(typeof data.error === 'string' ? data.error : 'No se pudo eliminar la conversación.');
+        return;
+      }
+      if (expanded === sessionId) {
+        setExpanded(null);
+        setLivePolling(null);
+      }
+      setTranscripts((prev) => {
+        const next = { ...prev };
+        delete next[sessionId];
+        return next;
+      });
+      setDeleteTarget(null);
+      toast.success('Conversación eliminada.');
+      notifyInboxChanged();
+      await load(true);
+    } catch {
+      toast.error('Error de red al eliminar.');
+    } finally {
+      setDeletingSession(null);
+    }
+  }
+
   async function setStatus(sessionId: string, inboxStatus: 'open' | 'resolved') {
     const res = await fetch('/api/inbox', {
       method: 'PATCH',
@@ -291,6 +325,20 @@ export default function InboxPage() {
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', padding: '24px 20px 48px' }}>
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Eliminar conversación"
+        description={
+          deleteTarget
+            ? `¿Eliminar "${deleteTarget.label}"? Se borrará del inbox y se eliminarán los mensajes guardados de esta conversación (incluye adjuntos). Esta acción no se puede deshacer.`
+            : ''
+        }
+        confirmLabel="Eliminar"
+        variant="danger"
+        loading={deletingSession !== null}
+        onConfirm={() => void confirmDeleteSession()}
+        onCancel={() => { if (!deletingSession) setDeleteTarget(null); }}
+      />
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
@@ -533,6 +581,33 @@ export default function InboxPage() {
                     >
                       Transcript ({item.messageCount})
                       {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={deletingSession === item.sessionId}
+                      onClick={() => setDeleteTarget({ sessionId: item.sessionId, label: item.contact.name || 'Visitante sin nombre' })}
+                      title="Eliminar conversación y mensajes guardados"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        padding: '6px 10px',
+                        borderRadius: 8,
+                        border: '1px solid rgba(239,68,68,0.35)',
+                        background: 'transparent',
+                        color: '#ef4444',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: deletingSession === item.sessionId ? 'not-allowed' : 'pointer',
+                        opacity: deletingSession === item.sessionId ? 0.6 : 1,
+                      }}
+                    >
+                      {deletingSession === item.sessionId ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={14} />
+                      )}
+                      Eliminar
                     </button>
                   </div>
                 </div>

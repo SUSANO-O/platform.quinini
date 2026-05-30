@@ -1,11 +1,13 @@
 /**
- * GET /api/inbox/[sessionId] — transcript de una sesión escalada
+ * GET    /api/inbox/[sessionId] — transcript de una sesión escalada
+ * DELETE /api/inbox/[sessionId] — eliminar entrada del inbox y transcript asociado
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { ConversationSession, WidgetMessage, Widget } from '@/lib/db/models';
 import { inboxSessionFilter, inboxTranscriptSessionId } from '@/lib/inbox-handoff';
+import { deleteInboxSessionForUser } from '@/lib/inbox-delete';
 import { verifySessionToken } from '@/lib/auth';
 
 type Params = { params: Promise<{ sessionId: string }> };
@@ -83,5 +85,28 @@ export async function GET(req: NextRequest, { params }: Params) {
           }))
         : [],
     })),
+  });
+}
+
+export async function DELETE(req: NextRequest, { params }: Params) {
+  const token = req.cookies.get('afhub_session')?.value;
+  if (!token) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
+  const userId = verifySessionToken(token);
+  if (!userId) return NextResponse.json({ error: 'Sesión inválida.' }, { status: 401 });
+
+  const { sessionId } = await params;
+  await connectDB();
+
+  const result = await deleteInboxSessionForUser(userId, sessionId);
+  if (!result.ok) {
+    const status = result.error === 'Sesión no encontrada.' ? 404 : result.error === 'No autorizado para esta sesión.' ? 403 : 400;
+    return NextResponse.json({ error: result.error }, { status });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    sessionId,
+    messagesDeleted: result.messagesDeleted ?? 0,
+    sessionsDeleted: result.sessionsDeleted ?? 0,
   });
 }
