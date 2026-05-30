@@ -13,6 +13,8 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  Send,
+  UserCheck,
 } from 'lucide-react';
 import { BRAND_TEXT_COLOR, UI_SURFACE_SECONDARY } from '@/lib/brand';
 import { notifyInboxChanged } from '@/hooks/use-inbox-open-count';
@@ -34,6 +36,7 @@ type InboxItem = {
 
 type TranscriptMessage = {
   role: string;
+  sentBy?: string;
   content: string;
   createdAt: string;
   attachments?: Array<{ type: string; url: string; ocrText?: string }>;
@@ -48,6 +51,10 @@ export default function InboxPage() {
   const [transcripts, setTranscripts] = useState<Record<string, TranscriptMessage[]>>({});
   const [loadingTranscript, setLoadingTranscript] = useState<string | null>(null);
   const [followUpDraft, setFollowUpDraft] = useState<Record<string, { at: string; note: string }>>({});
+  const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
+  const [sendingReply, setSendingReply] = useState<string | null>(null);
+  // Polling del hilo mientras una sesión está expandida y abierta.
+  const [livePolling, setLivePolling] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -70,13 +77,58 @@ export default function InboxPage() {
     load();
   }, [load]);
 
-  async function toggleTranscript(sessionId: string) {
+  // Polling del hilo cada 4s mientras la sesión está expandida y abierta.
+  useEffect(() => {
+    if (!livePolling) return;
+    const id = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/inbox/${encodeURIComponent(livePolling)}`);
+        const data = await res.json();
+        if (res.ok && Array.isArray(data.messages)) {
+          setTranscripts((prev) => ({ ...prev, [livePolling]: data.messages }));
+        }
+      } catch { /* silencioso */ }
+    }, 4000);
+    return () => clearInterval(id);
+  }, [livePolling]);
+
+  async function sendReply(sessionId: string) {
+    const message = replyDraft[sessionId]?.trim();
+    if (!message) return;
+    setSendingReply(sessionId);
+    try {
+      const res = await fetch(`/api/inbox/${encodeURIComponent(sessionId)}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        toast.error(d.error || 'No se pudo enviar el mensaje.');
+        return;
+      }
+      setReplyDraft((prev) => ({ ...prev, [sessionId]: '' }));
+      // Refrescar el hilo inmediatamente.
+      const tr = await fetch(`/api/inbox/${encodeURIComponent(sessionId)}`);
+      const td = await tr.json();
+      if (tr.ok && Array.isArray(td.messages)) {
+        setTranscripts((prev) => ({ ...prev, [sessionId]: td.messages }));
+      }
+      toast.success('Mensaje enviado al visitante.');
+    } finally {
+      setSendingReply(null);
+    }
+  }
+
+  async function toggleTranscript(sessionId: string, isOpen: boolean) {
     if (expanded === sessionId) {
       setExpanded(null);
+      setLivePolling(null);
       return;
     }
     setExpanded(sessionId);
-    if (transcripts[sessionId]) return;
+    // Activar polling en vivo solo para sesiones abiertas.
+    setLivePolling(isOpen ? sessionId : null);
     setLoadingTranscript(sessionId);
     try {
       const res = await fetch(`/api/inbox/${encodeURIComponent(sessionId)}`);
@@ -358,7 +410,7 @@ export default function InboxPage() {
                     )}
                     <button
                       type="button"
-                      onClick={() => toggleTranscript(item.sessionId)}
+                      onClick={() => toggleTranscript(item.sessionId, item.inboxStatus !== 'resolved')}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -381,54 +433,105 @@ export default function InboxPage() {
 
                 {isExpanded && (
                   <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+                    {/* Badge modo humano activo */}
+                    {item.inboxStatus !== 'resolved' && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, fontSize: 11, fontWeight: 700, color: BRAND_TEXT_COLOR }}>
+                        <UserCheck size={13} />
+                        <span>Modo humano activo — tus respuestas llegan al chat del visitante en tiempo real</span>
+                      </div>
+                    )}
                     {loadingTranscript === item.sessionId ? (
                       <Loader2 size={18} className="animate-spin" style={{ color: BRAND_TEXT_COLOR }} />
                     ) : msgs?.length ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 280, overflow: 'auto' }}>
-                        {msgs.map((m, i) => (
-                          <div
-                            key={i}
-                            style={{
-                              alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-                              maxWidth: '85%',
-                              padding: '8px 12px',
-                              borderRadius: 10,
-                              fontSize: 12,
-                              lineHeight: 1.45,
-                              background: m.role === 'user' ? 'rgba(var(--brand-primary-rgb),0.12)' : 'var(--background)',
-                            }}
-                          >
-                            <span style={{ fontWeight: 700, fontSize: 10, display: 'block', marginBottom: 2, opacity: 0.7 }}>
-                              {m.role === 'user' ? 'Usuario' : 'Bot'}
-                            </span>
-                            {m.content}
-                            {m.attachments?.map((att, ai) =>
-                              att.url ? (
-                                <div key={ai} style={{ marginTop: 8 }}>
-                                  <a href={att.url} target="_blank" rel="noopener noreferrer">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                      src={att.url}
-                                      alt="Captura adjunta"
-                                      style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)' }}
-                                    />
-                                  </a>
-                                  {att.ocrText ? (
-                                    <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '6px 0 0', whiteSpace: 'pre-wrap' }}>
-                                      {att.ocrText.slice(0, 500)}
-                                      {att.ocrText.length > 500 ? '…' : ''}
-                                    </p>
-                                  ) : null}
-                                </div>
-                              ) : null,
-                            )}
-                          </div>
-                        ))}
+                        {msgs.map((m, i) => {
+                          const isHuman = m.sentBy === 'human';
+                          const isUser = m.role === 'user';
+                          return (
+                            <div
+                              key={i}
+                              style={{
+                                alignSelf: isUser ? 'flex-end' : 'flex-start',
+                                maxWidth: '85%',
+                                padding: '8px 12px',
+                                borderRadius: 10,
+                                fontSize: 12,
+                                lineHeight: 1.45,
+                                background: isUser
+                                  ? 'rgba(var(--brand-primary-rgb),0.12)'
+                                  : isHuman
+                                    ? 'rgba(var(--brand-primary-rgb),0.06)'
+                                    : 'var(--background)',
+                                border: isHuman ? '1px solid rgba(var(--brand-primary-rgb),0.2)' : 'none',
+                              }}
+                            >
+                              <span style={{ fontWeight: 700, fontSize: 10, display: 'block', marginBottom: 2, opacity: 0.7, color: isHuman ? BRAND_TEXT_COLOR : 'inherit' }}>
+                                {isUser ? 'Visitante' : isHuman ? '✓ Agente (tú)' : 'Bot'}
+                              </span>
+                              {m.content}
+                              {m.attachments?.map((att, ai) =>
+                                att.url ? (
+                                  <div key={ai} style={{ marginTop: 8 }}>
+                                    <a href={att.url} target="_blank" rel="noopener noreferrer">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img src={att.url} alt="Captura adjunta" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)' }} />
+                                    </a>
+                                    {att.ocrText ? (
+                                      <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '6px 0 0', whiteSpace: 'pre-wrap' }}>
+                                        {att.ocrText.slice(0, 500)}{att.ocrText.length > 500 ? '…' : ''}
+                                      </p>
+                                    ) : null}
+                                  </div>
+                                ) : null,
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : (
                       <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0 }}>
                         Sin mensajes guardados para esta sesión.
                       </p>
+                    )}
+
+                    {/* Caja de respuesta — solo sesiones abiertas */}
+                    {item.inboxStatus !== 'resolved' && (
+                      <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+                        <textarea
+                          rows={2}
+                          placeholder="Escribe tu respuesta al visitante…"
+                          className="landing-input"
+                          style={{ flex: 1, resize: 'vertical', fontSize: 12 }}
+                          value={replyDraft[item.sessionId] ?? ''}
+                          onChange={(e) => setReplyDraft((p) => ({ ...p, [item.sessionId]: e.target.value }))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) void sendReply(item.sessionId);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          disabled={!replyDraft[item.sessionId]?.trim() || sendingReply === item.sessionId}
+                          onClick={() => void sendReply(item.sessionId)}
+                          style={{
+                            padding: '8px 14px',
+                            borderRadius: 10,
+                            border: 'none',
+                            background: BRAND_TEXT_COLOR,
+                            color: '#fff',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            opacity: !replyDraft[item.sessionId]?.trim() || sendingReply === item.sessionId ? 0.5 : 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            alignSelf: 'flex-end',
+                          }}
+                        >
+                          {sendingReply === item.sessionId ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                          Enviar
+                        </button>
+                      </div>
                     )}
                   </div>
                 )}

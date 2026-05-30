@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
-import { Widget, ConversationSession, RequestLog } from '@/lib/db/models';
+import { Widget, ConversationSession, RequestLog, WidgetFeedback } from '@/lib/db/models';
 
 function auth(req: NextRequest) {
   const token = req.cookies.get('afhub_session')?.value;
@@ -113,6 +113,22 @@ export async function GET(
     ? Math.round(sessions.reduce((s, r) => s + (r.messageCount ?? 0), 0) / total)
     : 0;
 
+  // ── Satisfacción (encuesta final) ────────────────────────────────────────
+  const oldest = monthKeys[monthKeys.length - 1] || monthKeys[0];
+  const [oy, om] = oldest.split('-').map(Number);
+  const sinceDate = new Date(oy, (om || 1) - 1, 1);
+  const feedbacks = await WidgetFeedback.find({ widgetId: id, userId, createdAt: { $gte: sinceDate } })
+    .select({ score: 1 }).lean() as { score?: number | null }[];
+  const fbScored = feedbacks.filter((f) => typeof f.score === 'number') as { score: number }[];
+  const fbAvg = fbScored.length
+    ? Math.round((fbScored.reduce((s, f) => s + f.score, 0) / fbScored.length) * 10) / 10
+    : null;
+  const fbDist: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  for (const f of fbScored) {
+    const r = Math.round(f.score);
+    if (r >= 1 && r <= 5) fbDist[r] += 1;
+  }
+
   return NextResponse.json({
     widgetId: id,
     widgetName: widget.name || id,
@@ -129,5 +145,12 @@ export async function GET(
     peakHour,
     hourDistribution: hourBuckets,
     byMonth,
+    satisfaction: {
+      avgScore: fbAvg,
+      totalResponses: feedbacks.length,
+      scoredResponses: fbScored.length,
+      distribution: fbDist,
+      responseRate: total ? Math.round((feedbacks.length / total) * 100) : 0,
+    },
   });
 }

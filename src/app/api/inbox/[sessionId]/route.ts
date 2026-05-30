@@ -34,7 +34,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   const transcriptSessionId = inboxTranscriptSessionId(session);
   const messages = await WidgetMessage.find({ sessionId: transcriptSessionId, userId })
     .sort({ createdAt: 1 })
-    .select({ role: 1, content: 1, createdAt: 1, attachments: 1 })
+    .select({ role: 1, sentBy: 1, content: 1, createdAt: 1, attachments: 1 })
     .limit(200)
     .lean();
 

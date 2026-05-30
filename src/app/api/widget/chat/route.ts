@@ -13,7 +13,7 @@ import {
   tryServeWidgetChatViaDirectInference,
 } from '@/lib/widget-chat-direct-inference';
 import { connectDB } from '@/lib/db/connection';
-import { ClientAgent, Subscription } from '@/lib/db/models';
+import { ClientAgent, Subscription, ConversationSession, WidgetMessage } from '@/lib/db/models';
 import { findWidgetForWtToken, isWidgetActive, sentAgentIdMatchesWidget } from '@/lib/widget-token-verify';
 import { trackWidgetChatUsage } from '@/lib/platform-agent-utils';
 import { checkConversationQuota } from '@/lib/quota';
@@ -345,6 +345,39 @@ export async function POST(req: NextRequest) {
           parsedVisitorId = normalizeVisitorId(reparse.visitorId) ?? parsedVisitorId;
         } catch (enrichErr) {
           console.warn('[widget/chat] enrich body skipped:', enrichErr);
+        }
+
+        // ── Guard modo humano (defensa server-side) ──────────────────────────
+        // Si un agente humano está atendiendo esta sesión, NO ejecutar el AI:
+        // guardamos el mensaje del visitante (para que el agente lo vea en el inbox)
+        // y devolvemos una respuesta informativa. Protege contra SDKs viejos/cacheados.
+        if (parsedSessionId) {
+          try {
+            const liveSession = await ConversationSession.findOne({
+              chatSessionId: parsedSessionId,
+              humanMode: true,
+            }).select({ inboxStatus: 1 }).lean() as { inboxStatus?: string } | null;
+            if (liveSession && liveSession.inboxStatus !== 'resolved') {
+              if (parsedMessage.trim()) {
+                await WidgetMessage.create({
+                  widgetId: resolvedWidgetId || w.id,
+                  userId: w.userId,
+                  agentId: parsedAgentId || '',
+                  sessionId: parsedSessionId,
+                  role: 'user',
+                  content: parsedMessage.trim().slice(0, 4000),
+                  traceId: `human-mode:${traceId}`,
+                }).catch(() => {});
+              }
+              const note = 'Un miembro del equipo está atendiendo esta conversación y te responderá aquí mismo.';
+              return NextResponse.json(
+                { reply: note, text: note, response: note, humanMode: true },
+                { headers: cors(origin) },
+              );
+            }
+          } catch (hmErr) {
+            console.warn('[widget/chat] human-mode guard skipped:', hmErr);
+          }
         }
 
         try {
