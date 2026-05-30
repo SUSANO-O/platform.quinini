@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   Inbox,
@@ -439,61 +439,32 @@ export default function InboxPage() {
 
                 {isExpanded && (
                   <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
-                    {/* Badge modo humano activo */}
+                    {/* Badge "EN VIVO" — modo humano activo */}
                     {item.inboxStatus !== 'resolved' && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, fontSize: 11, fontWeight: 700, color: BRAND_TEXT_COLOR }}>
-                        <UserCheck size={13} />
-                        <span>Modo humano activo — tus respuestas llegan al chat del visitante en tiempo real</span>
+                      <div
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '7px 12px',
+                          borderRadius: 10, background: 'rgba(var(--brand-primary-rgb),0.08)',
+                          border: '1px solid rgba(var(--brand-primary-rgb),0.18)',
+                        }}
+                      >
+                        <span style={{ position: 'relative', display: 'flex', width: 8, height: 8 }}>
+                          <span className="animate-ping" style={{ position: 'absolute', inset: 0, borderRadius: 9999, background: '#22c55e', opacity: 0.6 }} />
+                          <span style={{ position: 'relative', width: 8, height: 8, borderRadius: 9999, background: '#22c55e' }} />
+                        </span>
+                        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.04em', color: '#16a34a' }}>EN VIVO</span>
+                        <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>
+                          Tus respuestas llegan al chat del visitante al instante.
+                        </span>
                       </div>
                     )}
+
                     {loadingTranscript === item.sessionId ? (
-                      <Loader2 size={18} className="animate-spin" style={{ color: BRAND_TEXT_COLOR }} />
-                    ) : msgs?.length ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 280, overflow: 'auto' }}>
-                        {msgs.map((m, i) => {
-                          const isHuman = m.sentBy === 'human';
-                          const isUser = m.role === 'user';
-                          return (
-                            <div
-                              key={i}
-                              style={{
-                                alignSelf: isUser ? 'flex-end' : 'flex-start',
-                                maxWidth: '85%',
-                                padding: '8px 12px',
-                                borderRadius: 10,
-                                fontSize: 12,
-                                lineHeight: 1.45,
-                                background: isUser
-                                  ? 'rgba(var(--brand-primary-rgb),0.12)'
-                                  : isHuman
-                                    ? 'rgba(var(--brand-primary-rgb),0.06)'
-                                    : 'var(--background)',
-                                border: isHuman ? '1px solid rgba(var(--brand-primary-rgb),0.2)' : 'none',
-                              }}
-                            >
-                              <span style={{ fontWeight: 700, fontSize: 10, display: 'block', marginBottom: 2, opacity: 0.7, color: isHuman ? BRAND_TEXT_COLOR : 'inherit' }}>
-                                {isUser ? 'Visitante' : isHuman ? '✓ Agente (tú)' : 'Bot'}
-                              </span>
-                              {m.content}
-                              {m.attachments?.map((att, ai) =>
-                                att.url ? (
-                                  <div key={ai} style={{ marginTop: 8 }}>
-                                    <a href={att.url} target="_blank" rel="noopener noreferrer">
-                                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                                      <img src={att.url} alt="Captura adjunta" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)' }} />
-                                    </a>
-                                    {att.ocrText ? (
-                                      <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '6px 0 0', whiteSpace: 'pre-wrap' }}>
-                                        {att.ocrText.slice(0, 500)}{att.ocrText.length > 500 ? '…' : ''}
-                                      </p>
-                                    ) : null}
-                                  </div>
-                                ) : null,
-                              )}
-                            </div>
-                          );
-                        })}
+                      <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--brand-primary)' }}>
+                        <Loader2 size={16} className="animate-spin" /> Cargando conversación…
                       </div>
+                    ) : msgs?.length ? (
+                      <ConversationThread messages={msgs} />
                     ) : (
                       <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0 }}>
                         Sin mensajes guardados para esta sesión.
@@ -502,41 +473,40 @@ export default function InboxPage() {
 
                     {/* Caja de respuesta — solo sesiones abiertas */}
                     {item.inboxStatus !== 'resolved' && (
-                      <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-                        <textarea
-                          rows={2}
-                          placeholder="Escribe tu respuesta al visitante…"
-                          className="landing-input"
-                          style={{ flex: 1, resize: 'vertical', fontSize: 12 }}
-                          value={replyDraft[item.sessionId] ?? ''}
-                          onChange={(e) => setReplyDraft((p) => ({ ...p, [item.sessionId]: e.target.value }))}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) void sendReply(item.sessionId);
-                          }}
-                        />
-                        <button
-                          type="button"
-                          disabled={!replyDraft[item.sessionId]?.trim() || sendingReply === item.sessionId}
-                          onClick={() => void sendReply(item.sessionId)}
-                          style={{
-                            padding: '8px 14px',
-                            borderRadius: 10,
-                            border: 'none',
-                            background: BRAND_TEXT_COLOR,
-                            color: '#fff',
-                            fontSize: 12,
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            opacity: !replyDraft[item.sessionId]?.trim() || sendingReply === item.sessionId ? 0.5 : 1,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 4,
-                            alignSelf: 'flex-end',
-                          }}
-                        >
-                          {sendingReply === item.sessionId ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-                          Enviar
-                        </button>
+                      <div style={{ marginTop: 12 }}>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                          <textarea
+                            rows={2}
+                            placeholder="Escribe tu respuesta al visitante…"
+                            className="landing-input"
+                            style={{ flex: 1, resize: 'none', fontSize: 13, lineHeight: 1.5, borderRadius: 12, padding: '10px 12px' }}
+                            value={replyDraft[item.sessionId] ?? ''}
+                            onChange={(e) => setReplyDraft((p) => ({ ...p, [item.sessionId]: e.target.value }))}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) void sendReply(item.sessionId);
+                            }}
+                          />
+                          <button
+                            type="button"
+                            disabled={!replyDraft[item.sessionId]?.trim() || sendingReply === item.sessionId}
+                            onClick={() => void sendReply(item.sessionId)}
+                            title="Enviar (Ctrl/⌘ + Enter)"
+                            style={{
+                              width: 44, height: 44, flexShrink: 0,
+                              borderRadius: 12, border: 'none',
+                              background: 'var(--brand-primary)', color: '#fff',
+                              cursor: !replyDraft[item.sessionId]?.trim() || sendingReply === item.sessionId ? 'not-allowed' : 'pointer',
+                              opacity: !replyDraft[item.sessionId]?.trim() || sendingReply === item.sessionId ? 0.45 : 1,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              transition: 'opacity .15s',
+                            }}
+                          >
+                            {sendingReply === item.sessionId ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                          </button>
+                        </div>
+                        <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: '5px 2px 0' }}>
+                          <kbd style={{ fontFamily: 'inherit', fontWeight: 700 }}>Ctrl</kbd> + <kbd style={{ fontFamily: 'inherit', fontWeight: 700 }}>Enter</kbd> para enviar
+                        </p>
                       </div>
                     )}
                   </div>
@@ -546,6 +516,76 @@ export default function InboxPage() {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+function fmtTime(iso: string) {
+  try {
+    return new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '';
+  }
+}
+
+/** Hilo de conversación estilo chat, con auto-scroll al último mensaje. */
+function ConversationThread({ messages }: { messages: TranscriptMessage[] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
+  }, [messages]);
+
+  return (
+    <div
+      ref={ref}
+      style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 320, overflowY: 'auto', padding: '4px 2px' }}
+    >
+      {messages.map((m, i) => {
+        const isUser = m.role === 'user';
+        const isHuman = m.sentBy === 'human';
+        // Visitante → izquierda. Bot y Agente (lado del negocio) → derecha.
+        const right = !isUser;
+        const label = isUser ? 'Visitante' : isHuman ? 'Tú · Agente' : 'Bot';
+        const bubble: React.CSSProperties = isUser
+          ? { background: '#f1f5f9', color: 'var(--foreground)' }
+          : isHuman
+            ? { background: 'var(--brand-primary)', color: '#fff' }
+            : { background: 'rgba(15,23,42,0.05)', color: 'var(--foreground)' };
+        return (
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: right ? 'flex-end' : 'flex-start' }}>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3, padding: '0 4px' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: isHuman ? 'var(--brand-primary)' : 'var(--muted-foreground)' }}>{label}</span>
+              <span style={{ fontSize: 10, color: 'var(--muted-foreground)', opacity: 0.75 }}>{fmtTime(m.createdAt)}</span>
+            </div>
+            <div
+              style={{
+                maxWidth: '85%', padding: '9px 13px', borderRadius: 14, fontSize: 13, lineHeight: 1.5,
+                whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                borderBottomRightRadius: right ? 4 : 14,
+                borderBottomLeftRadius: right ? 14 : 4,
+                ...bubble,
+              }}
+            >
+              {m.content}
+              {m.attachments?.map((att, ai) =>
+                att.url ? (
+                  <div key={ai} style={{ marginTop: 8 }}>
+                    <a href={att.url} target="_blank" rel="noopener noreferrer">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={att.url} alt="Captura adjunta" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)' }} />
+                    </a>
+                    {att.ocrText ? (
+                      <p style={{ fontSize: 11, opacity: 0.8, margin: '6px 0 0', whiteSpace: 'pre-wrap' }}>
+                        {att.ocrText.slice(0, 500)}{att.ocrText.length > 500 ? '…' : ''}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null,
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
