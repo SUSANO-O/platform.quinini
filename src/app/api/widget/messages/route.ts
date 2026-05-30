@@ -38,21 +38,41 @@ export async function GET(req: NextRequest) {
 
   const resolved = session?.inboxStatus === 'resolved';
 
-  // Mensajes nuevos desde `since` con sentBy: 'human'.
+  // Mensajes nuevos desde `since` con sentBy: 'human' (excluye los retirados).
   const sinceDate = since ? new Date(since) : new Date(0);
   const messages = await WidgetMessage.find({
     widgetId,
     sessionId,
     sentBy: 'human',
+    deleted: { $ne: true },
     createdAt: { $gt: sinceDate },
   })
     .sort({ createdAt: 1 })
     .limit(50)
-    .select({ content: 1, sentBy: 1, createdAt: 1 })
-    .lean();
+    .select({ content: 1, sentBy: 1, createdAt: 1, attachments: 1 })
+    .lean() as Array<{ _id: unknown; content?: string; createdAt?: Date; attachments?: unknown[] }>;
+
+  // IDs de mensajes retirados recientemente (updatedAt > since) para que el widget
+  // los elimine de la vista del cliente.
+  const deletedDocs = await WidgetMessage.find({
+    widgetId,
+    sessionId,
+    sentBy: 'human',
+    deleted: true,
+    updatedAt: { $gt: sinceDate },
+  })
+    .select({ _id: 1 })
+    .lean() as Array<{ _id: unknown }>;
 
   return NextResponse.json({
-    messages,
+    messages: messages.map((m) => ({
+      id: String(m._id),
+      content: m.content || '',
+      sentBy: 'human',
+      createdAt: m.createdAt,
+      attachments: Array.isArray(m.attachments) ? m.attachments : [],
+    })),
+    deletedIds: deletedDocs.map((d) => String(d._id)),
     resolved,
     humanMode: session?.humanMode ?? false,
     // Hora del servidor: el cliente la usa como cursor del siguiente poll

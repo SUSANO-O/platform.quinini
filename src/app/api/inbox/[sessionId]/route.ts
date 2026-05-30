@@ -32,7 +32,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     : null;
 
   const transcriptSessionId = inboxTranscriptSessionId(session);
-  const messages = await WidgetMessage.find({ sessionId: transcriptSessionId, userId })
+  const messages = await WidgetMessage.find({ sessionId: transcriptSessionId, userId, deleted: { $ne: true } })
     .sort({ createdAt: 1 })
     .select({ role: 1, sentBy: 1, content: 1, createdAt: 1, attachments: 1 })
     .limit(200)
@@ -65,13 +65,20 @@ export async function GET(req: NextRequest, { params }: Params) {
       contact: contact || {},
     },
     messages: transcript.map((m) => ({
+      id: (m as { _id?: unknown })._id ? String((m as { _id?: unknown })._id) : '',
       role: m.role,
+      sentBy: (m as { sentBy?: string }).sentBy || 'ai',
       content: m.content,
       createdAt: m.createdAt,
       attachments: Array.isArray(m.attachments)
-        ? m.attachments.map((a: { type?: string; url?: string; ocrText?: string }) => ({
+        ? m.attachments.map((a: { type?: string; url?: string; name?: string; mime?: string; bytes?: number; width?: number; height?: number; ocrText?: string }) => ({
             type: a.type || 'image',
             url: a.url || '',
+            name: a.name || '',
+            mime: a.mime || '',
+            bytes: typeof a.bytes === 'number' ? a.bytes : 0,
+            width: typeof a.width === 'number' ? a.width : 0,
+            height: typeof a.height === 'number' ? a.height : 0,
             ocrText: a.ocrText || '',
           }))
         : [],

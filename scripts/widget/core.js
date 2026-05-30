@@ -2133,16 +2133,112 @@
     var humanPollCount = 0;
     var HUMAN_POLL_MAX = 1200; // ~1h a 3s/poll: tope de seguridad.
 
-    function addHumanMessage(text) {
+    // IDs de mensajes del agente ocultados por el cliente en su propia vista.
+    function isHumanMsgHidden(id) {
+      if (!id) return false;
+      try { return sessionStorage.getItem('biv-hide-msg:' + id) === '1'; } catch (e) { return false; }
+    }
+    function removeHumanMessageById(id) {
+      if (!id) return;
+      var node = chat.querySelector('[data-mid="' + id + '"]');
+      if (node && node.parentNode) node.parentNode.removeChild(node);
+    }
+    function humanBytesLabel(n) {
+      if (!n || n <= 0) return '';
+      if (n < 1024) return n + ' B';
+      if (n < 1048576) return Math.round(n / 1024) + ' KB';
+      return (n / 1048576).toFixed(1) + ' MB';
+    }
+    // Fuerza descarga en assets de Cloudinary (Content-Disposition: attachment).
+    function cloudinaryDownloadUrl(url) {
+      if (typeof url === 'string' && /res\.cloudinary\.com/.test(url) && url.indexOf('/upload/') !== -1) {
+        return url.replace('/upload/', '/upload/fl_attachment/');
+      }
+      return url;
+    }
+    // Renderiza un adjunto del agente en la burbuja: imagen, video o archivo descargable.
+    function appendHumanAttachment(container, att) {
+      if (!att || typeof att.url !== 'string' || !/^https?:\/\//i.test(att.url)) return;
+      var box = document.createElement('div');
+      box.style.cssText = 'margin-top:6px;';
+      if (att.type === 'image') {
+        var a = document.createElement('a');
+        a.href = att.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        a.setAttribute('download', att.name || '');
+        var img = document.createElement('img');
+        img.src = att.url; img.alt = att.name || 'imagen';
+        img.style.cssText = 'max-width:100%;border-radius:8px;display:block;';
+        a.appendChild(img);
+        box.appendChild(a);
+      } else if (att.type === 'video') {
+        var v = document.createElement('video');
+        v.src = att.url; v.controls = true;
+        v.style.cssText = 'max-width:100%;border-radius:8px;display:block;';
+        box.appendChild(v);
+      } else {
+        // archivo: tarjeta descargable (fl_attachment fuerza la descarga)
+        var link = document.createElement('a');
+        link.href = cloudinaryDownloadUrl(att.url); link.target = '_blank'; link.rel = 'noopener noreferrer';
+        link.setAttribute('download', att.name || '');
+        link.style.cssText = 'display:flex;align-items:center;gap:8px;text-decoration:none;padding:8px 10px;border-radius:10px;background:rgba(0,0,0,0.06);color:inherit;max-width:240px;';
+        var ico = document.createElement('span');
+        ico.textContent = '📄'; ico.style.cssText = 'font-size:18px;flex-shrink:0;';
+        var meta = document.createElement('span');
+        meta.style.cssText = 'flex:1;min-width:0;';
+        var nm = document.createElement('span');
+        nm.textContent = att.name || 'archivo';
+        nm.style.cssText = 'display:block;font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+        meta.appendChild(nm);
+        var bl = humanBytesLabel(att.bytes);
+        if (bl) {
+          var sz = document.createElement('span');
+          sz.textContent = bl; sz.style.cssText = 'display:block;font-size:10px;opacity:0.7;';
+          meta.appendChild(sz);
+        }
+        var dl = document.createElement('span');
+        dl.textContent = '⬇'; dl.style.cssText = 'flex-shrink:0;opacity:0.7;';
+        link.appendChild(ico); link.appendChild(meta); link.appendChild(dl);
+        box.appendChild(link);
+      }
+      container.appendChild(box);
+    }
+    function addHumanMessage(m) {
+      // Compatibilidad: acepta string (texto) u objeto { id, content, attachments }.
+      var text = (m && typeof m === 'object') ? (m.content || '') : String(m || '');
+      var mid = (m && typeof m === 'object' && m.id) ? String(m.id) : '';
+      var atts = (m && typeof m === 'object' && Array.isArray(m.attachments)) ? m.attachments : [];
+      if (mid && isHumanMsgHidden(mid)) return;
       var wrap = document.createElement('div');
+      if (mid) wrap.setAttribute('data-mid', mid);
       wrap.style.cssText = 'display:flex;flex-direction:column;align-items:flex-start;margin-bottom:8px;';
+      var head = document.createElement('div');
+      head.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:2px;';
       var badge = document.createElement('span');
       badge.textContent = 'Agente';
-      badge.style.cssText = 'font-size:10px;font-weight:700;color:' + cfg.color + ';margin-bottom:2px;opacity:0.8;';
+      badge.style.cssText = 'font-size:10px;font-weight:700;color:' + cfg.color + ';opacity:0.8;';
+      head.appendChild(badge);
+      // Botón "ocultar" para el cliente (solo en su vista local).
+      if (mid) {
+        var hide = document.createElement('button');
+        hide.type = 'button';
+        hide.textContent = '✕';
+        hide.title = 'Ocultar de mi vista';
+        hide.style.cssText = 'border:none;background:none;color:#9aa0a6;font-size:11px;line-height:1;cursor:pointer;padding:0;opacity:0.6;';
+        hide.addEventListener('click', function () {
+          try { sessionStorage.setItem('biv-hide-msg:' + mid, '1'); } catch (e) { /* */ }
+          removeHumanMessageById(mid);
+        });
+        head.appendChild(hide);
+      }
       var bubble = document.createElement('div');
       bubble.style.cssText = 'max-width:85%;padding:8px 12px;border-radius:10px;font-size:13px;line-height:1.5;background:rgba(0,0,0,0.05);border:1px solid rgba(0,0,0,0.08);';
-      bubble.textContent = text;
-      wrap.appendChild(badge);
+      if (text) {
+        var tx = document.createElement('div');
+        tx.textContent = text;
+        bubble.appendChild(tx);
+      }
+      for (var i = 0; i < atts.length; i++) appendHumanAttachment(bubble, atts[i]);
+      wrap.appendChild(head);
       wrap.appendChild(bubble);
       var msgList = chat.querySelector('.afhub-messages') || chat;
       msgList.appendChild(wrap);
@@ -2177,14 +2273,18 @@
           if (!humanModeActive) return;
           // Avanzar el cursor con la HORA DEL SERVIDOR (evita drift de reloj del cliente).
           if (data && typeof data.now === 'string') humanLastPoll = data.now;
-          // Mensajes nuevos del agente humano.
+          // Mensajes nuevos del agente humano (texto y/o adjuntos).
           if (Array.isArray(data.messages) && data.messages.length) {
             data.messages.forEach(function (m) {
-              addHumanMessage(m.content);
+              addHumanMessage(m);
             });
             // Cancelar el timeout de fallback: ya hubo respuesta.
             if (humanModeTimer) { clearTimeout(humanModeTimer); humanModeTimer = null; }
             humanTimeoutOffered = false;
+          }
+          // Mensajes retirados por el agente: eliminarlos de la vista del cliente.
+          if (Array.isArray(data.deletedIds) && data.deletedIds.length) {
+            data.deletedIds.forEach(function (id) { removeHumanMessageById(id); });
           }
           // Sesión resuelta por el agente.
           if (data.resolved === true) {
