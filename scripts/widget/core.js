@@ -2176,7 +2176,14 @@
           }
           // Sesión resuelta por el agente.
           if (data.resolved === true) {
-            deactivateHumanMode('La conversación con el agente ha finalizado. ¿Puedo ayudarte en algo más?');
+            if (feedbackQs.length && !feedbackAlreadyDone()) {
+              // Cerrar modo humano y ofrecer la encuesta final.
+              deactivateHumanMode();
+              addMessage('bot', 'La conversación con el agente ha finalizado. Antes de irte, ¿nos dejas tu opinión?');
+              openFeedbackSurvey(null);
+            } else {
+              deactivateHumanMode('La conversación con el agente ha finalizado. ¿Puedo ayudarte en algo más?');
+            }
           }
         })
         .catch(function () { /* silencioso: reintenta en el próximo tick */ });
