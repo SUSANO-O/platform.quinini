@@ -1685,6 +1685,15 @@ export default function WidgetBuilderPage() {
             </label>
           </div>
 
+          {cfg.feedbackEnabled && feedbackQuestions.filter((q) => q.text.trim()).length === 0 && (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, padding: '8px 10px', marginBottom: 12, borderRadius: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
+              <span style={{ fontSize: 13 }}>⚠️</span>
+              <span style={{ fontSize: 11, color: '#dc2626', lineHeight: 1.45 }}>
+                Agrega al menos una pregunta <strong>con texto</strong> para que la encuesta funcione. Sin preguntas, no se le mostrará nada al visitante.
+              </span>
+            </div>
+          )}
+
           {cfg.feedbackEnabled && (
             <>
               <div style={fieldStyle}>
