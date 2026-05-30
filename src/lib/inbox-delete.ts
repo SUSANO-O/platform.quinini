@@ -41,7 +41,10 @@ export async function deleteInboxSessionForUser(
     return { ok: false, error: 'No autorizado para esta sesión.' };
   }
 
-  const chatSessionId = inboxTranscriptSessionId(session);
+  const chatSessionId = inboxTranscriptSessionId({
+    sessionId: sid,
+    chatSessionId: session.chatSessionId,
+  });
   let messagesDeleted = 0;
 
   if (chatSessionId) {
