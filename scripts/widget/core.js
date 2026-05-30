@@ -232,17 +232,25 @@
 
     var fetchTimeoutMs = typeof localInput.configFetchTimeoutMs === 'number' ? localInput.configFetchTimeoutMs : 20000;
 
+    // If the remote fetch fails but the embed carried enough inline config
+    // (agentId present), render from inline config instead of failing silently.
+    var hasInlineAgent = typeof localInput.agentId === 'string' && localInput.agentId.trim().length > 0;
+    function onConfigFailed() {
+      if (hasInlineAgent) finishInit({});
+      else warnConfigFailed(tempHost, token, debug);
+    }
+
     fetchWidgetConfig(tempHost, token, function (remoteCfg) {
       if (!remoteCfg) {
         var scriptHost = getScriptOrigin();
         if (scriptHost && scriptHost !== tempHost.replace(/\/$/, '')) {
           fetchWidgetConfig(scriptHost, token, function (retryCfg) {
             if (retryCfg) finishInit(retryCfg);
-            else warnConfigFailed(tempHost, token, debug);
+            else onConfigFailed();
           }, fetchTimeoutMs);
           return;
         }
-        warnConfigFailed(tempHost, token, debug);
+        onConfigFailed();
         return;
       }
       finishInit(remoteCfg);
@@ -281,12 +289,15 @@
     var hasToken   = typeof localInput.token === 'string' && localInput.token.indexOf('wt_') === 0;
     var hasAgentId = typeof localInput.agentId === 'string' && localInput.agentId.trim().length > 0;
 
-    // Minimal embed: only token provided — fetch full config from server
-    if (hasToken && !hasAgentId) {
+    // Any embed with a token fetches the authoritative config from the server
+    // (feedbackQuestions, conversationIdleTimeout, etc. only live there). Inline
+    // values still override the remote config in finishInit. If the fetch fails
+    // and we have an agentId, initDeferred falls back to the inline config.
+    if (hasToken) {
       return initDeferred(localInput);
     }
 
-    // Legacy / full-config embed: sync path (backward compatible)
+    // Legacy / full-config embed without token: sync path (backward compatible)
     var cfg = normalizeConfig(localInput);
     var errors = validateConfig(cfg);
     if (errors.length) {
