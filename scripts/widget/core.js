@@ -1292,16 +1292,17 @@
       chat.insertBefore(voiceBar, inputArea);
     }
 
-    var handoffBar = document.createElement('div');
-    handoffBar.className = 'afhub-handoff-bar';
+    // Barra de acciones compacta: "Hablar con una persona" + "Finalizar y calificar"
+    // como chips en una sola fila (se añade al chat más abajo, tras conocer feedbackQs).
+    var actionBar = document.createElement('div');
+    actionBar.className = 'afhub-action-bar';
     var handoffBtn = document.createElement('button');
-    handoffBtn.className = 'afhub-handoff-btn';
+    handoffBtn.className = 'afhub-action-btn';
     handoffBtn.type = 'button';
     handoffBtn.textContent = 'Hablar con una persona';
     handoffBtn.setAttribute('aria-label', 'Solicitar atención humana');
-    handoffBar.appendChild(handoffBtn);
     if (cfg.handoffEnabled !== false) {
-      chat.appendChild(handoffBar);
+      actionBar.appendChild(handoffBtn);
     }
 
     var handoffOverlay = document.createElement('div');
@@ -1321,26 +1322,26 @@
       '</div></div>';
     chat.appendChild(handoffOverlay);
 
-    // ── Encuesta de satisfacción (overlay dinámico; reusa estilos del modal) ──
-    var feedbackOverlay = document.createElement('div');
-    feedbackOverlay.className = 'afhub-handoff-overlay';
-    chat.appendChild(feedbackOverlay);
+    // ── Encuesta de satisfacción (inline dentro del chat, no popup) ──
+    var feedbackCard = null;        // tarjeta de encuesta activa en el flujo de mensajes (o null)
     var feedbackOnDone = null;
     var feedbackOfferShown = false; // botón "Calificar" por intención de cierre (1 vez por sesión)
     var feedbackQs = (cfg.feedbackEnabled && Array.isArray(cfg.feedbackQuestions))
       ? cfg.feedbackQuestions.filter(function (q) { return q && q.enabled !== false && q.text; })
       : [];
 
-    var feedbackBar = document.createElement('div');
-    feedbackBar.className = 'afhub-handoff-bar';
     var feedbackBtn = document.createElement('button');
-    feedbackBtn.className = 'afhub-handoff-btn';
+    feedbackBtn.className = 'afhub-action-btn afhub-action-btn--ghost';
     feedbackBtn.type = 'button';
     feedbackBtn.textContent = 'Finalizar y calificar';
     feedbackBtn.setAttribute('aria-label', 'Finalizar la conversación y calificar');
-    feedbackBar.appendChild(feedbackBtn);
     if (feedbackQs.length) {
-      chat.appendChild(feedbackBar);
+      actionBar.appendChild(feedbackBtn);
+    }
+
+    // Añadir la barra de acciones solo si tiene al menos un botón visible.
+    if (actionBar.childNodes.length) {
+      chat.appendChild(actionBar);
     }
 
     var powered = document.createElement('div');
@@ -2321,42 +2322,43 @@
       wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
     function buildFeedbackHtml() {
-      var h = '<div class="afhub-handoff-modal" role="dialog" aria-label="Encuesta">';
-      h += '<h4>' + fbEsc(cfg.feedbackTitle) + '</h4>';
+      var h = '<div class="afhub-fb-inner">';
+      h += '<div class="afhub-fb-title">' + fbEsc(cfg.feedbackTitle) + '</div>';
       for (var i = 0; i < feedbackQs.length; i++) {
         var q = feedbackQs[i];
         var qid = q.id || ('q' + i);
-        h += '<div class="afhub-fb-q" data-qid="' + fbEsc(qid) + '" data-type="' + fbEsc(q.type) + '" data-required="' + (q.required ? '1' : '0') + '" style="margin-bottom:12px">';
-        h += '<label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">' + fbEsc(q.text) + (q.required ? ' *' : '') + '</label>';
+        h += '<div class="afhub-fb-q" data-qid="' + fbEsc(qid) + '" data-type="' + fbEsc(q.type) + '" data-required="' + (q.required ? '1' : '0') + '" style="margin-bottom:10px">';
+        h += '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:5px;color:#3c4043">' + fbEsc(q.text) + (q.required ? ' *' : '') + '</label>';
         if (q.type === 'rating') {
-          h += '<div class="afhub-fb-stars" data-value="0" style="display:flex;gap:6px">';
-          for (var s = 1; s <= 5; s++) h += '<button type="button" class="afhub-fb-star" data-star="' + s + '" style="background:none;border:none;cursor:pointer;font-size:26px;line-height:1;color:#ccc;padding:0">★</button>';
+          h += '<div class="afhub-fb-stars" data-value="0" style="display:flex;gap:5px">';
+          for (var s = 1; s <= 5; s++) h += '<button type="button" class="afhub-fb-star" data-star="' + s + '" style="background:none;border:none;cursor:pointer;font-size:24px;line-height:1;color:#ccc;padding:0">★</button>';
           h += '</div>';
         } else if (q.type === 'yesno') {
-          h += '<div style="display:flex;gap:14px;font-size:13px">';
+          h += '<div style="display:flex;gap:14px;font-size:12px">';
           h += '<label style="cursor:pointer"><input type="radio" name="fb_' + fbEsc(qid) + '" value="Sí"> Sí</label>';
           h += '<label style="cursor:pointer"><input type="radio" name="fb_' + fbEsc(qid) + '" value="No"> No</label>';
           h += '</div>';
         } else if (q.type === 'choice') {
-          h += '<div style="display:flex;flex-direction:column;gap:6px;font-size:13px">';
+          h += '<div style="display:flex;flex-direction:column;gap:6px;font-size:12px">';
           var opts = Array.isArray(q.options) ? q.options : [];
           for (var o = 0; o < opts.length; o++) h += '<label style="cursor:pointer"><input type="radio" name="fb_' + fbEsc(qid) + '" value="' + fbEsc(opts[o]) + '"> ' + fbEsc(opts[o]) + '</label>';
           h += '</div>';
         } else {
-          h += '<textarea class="afhub-handoff-input afhub-handoff-textarea afhub-fb-text" rows="2" placeholder="Tu comentario…"></textarea>';
+          h += '<textarea class="afhub-fb-text" rows="2" placeholder="Tu comentario…" style="width:100%;box-sizing:border-box;border:1px solid #e2e4e8;border-radius:8px;padding:6px 8px;font-size:12px;font-family:inherit;resize:vertical"></textarea>';
         }
         h += '</div>';
       }
-      h += '<p class="afhub-handoff-error" style="display:none"></p>';
-      h += '<div class="afhub-handoff-actions">';
-      h += '<button type="button" class="afhub-fb-skip">Ahora no</button>';
-      h += '<button type="button" class="afhub-fb-submit">Enviar</button>';
+      h += '<p class="afhub-fb-error" style="display:none;color:#d93025;font-size:11px;margin:2px 0 6px"></p>';
+      h += '<div style="display:flex;align-items:center;gap:8px;margin-top:2px">';
+      h += '<button type="button" class="afhub-fb-submit" style="flex:1;background:' + cfg.color + ';color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">Enviar</button>';
+      h += '<button type="button" class="afhub-fb-skip" style="background:none;border:none;color:#80868b;font-size:12px;cursor:pointer;padding:7px 4px">Ahora no</button>';
       h += '</div></div>';
       return h;
     }
     function collectFeedbackAnswers() {
       var answers = [];
-      var qEls = feedbackOverlay.querySelectorAll('.afhub-fb-q');
+      if (!feedbackCard) return { answers: answers };
+      var qEls = feedbackCard.querySelectorAll('.afhub-fb-q');
       for (var i = 0; i < qEls.length; i++) {
         var el = qEls[i];
         var qid = el.getAttribute('data-qid');
@@ -2382,17 +2384,21 @@
       }
       return { answers: answers };
     }
-    function closeFeedbackSurvey() { feedbackOverlay.classList.remove('visible'); }
-    function closeFeedbackSurveyAndDone() {
-      closeFeedbackSurvey();
+    function removeFeedbackCard() {
+      if (feedbackCard && feedbackCard.parentNode) feedbackCard.parentNode.removeChild(feedbackCard);
+      feedbackCard = null;
+    }
+    // "Ahora no": quita la encuesta y continúa con la acción pendiente (cerrar, nueva conv., etc.)
+    function dismissFeedback() {
+      removeFeedbackCard();
       var cb = feedbackOnDone; feedbackOnDone = null;
       if (typeof cb === 'function') cb();
     }
     function submitFeedback() {
       var res = collectFeedbackAnswers();
-      var errEl = feedbackOverlay.querySelector('.afhub-handoff-error');
+      var errEl = feedbackCard && feedbackCard.querySelector('.afhub-fb-error');
       if (res.error) { if (errEl) { errEl.textContent = res.error; errEl.style.display = 'block'; } return; }
-      if (!res.answers.length) { closeFeedbackSurveyAndDone(); return; }
+      if (!res.answers.length) { dismissFeedback(); return; }
       var wid = resolveWidgetIdForHandoff();
       if (wid && cfg.token) {
         try {
@@ -2411,16 +2417,24 @@
       }
       try { sessionStorage.setItem('afhub-fb-done:' + chatSessionId, '1'); } catch (e) { /* */ }
       try { emitEvent('survey_submitted', { count: res.answers.length }); } catch (e) { /* */ }
-      feedbackOverlay.innerHTML = '<div class="afhub-handoff-modal" style="text-align:center"><h4>' + fbEsc(cfg.feedbackThanks) + '</h4>'
-        + '<div class="afhub-handoff-actions" style="justify-content:center"><button type="button" class="afhub-fb-close">Cerrar</button></div></div>';
-      feedbackOverlay.querySelector('.afhub-fb-close').addEventListener('click', closeFeedbackSurveyAndDone);
-      setTimeout(closeFeedbackSurveyAndDone, 1800);
+      // Reemplazar la encuesta por el agradecimiento, en línea (sin popup).
+      if (feedbackCard) {
+        feedbackCard.innerHTML = '<div class="afhub-fb-inner afhub-fb-thanks"><span class="afhub-fb-check">✓</span><span>' + fbEsc(cfg.feedbackThanks) + '</span></div>';
+        feedbackCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+      feedbackCard = null; // ya no hay encuesta activa (el agradecimiento queda en el chat)
+      var cb = feedbackOnDone; feedbackOnDone = null;
+      if (typeof cb === 'function') setTimeout(cb, 1600);
     }
     function openFeedbackSurvey(onDone) {
       if (!feedbackQs.length) { if (typeof onDone === 'function') onDone(); return; }
+      if (feedbackCard) return; // ya hay una encuesta abierta en el chat
       feedbackOnDone = onDone || null;
-      feedbackOverlay.innerHTML = buildFeedbackHtml();
-      var groups = feedbackOverlay.querySelectorAll('.afhub-fb-stars');
+      feedbackCard = document.createElement('div');
+      feedbackCard.className = 'afhub-msg bot afhub-fb-card';
+      feedbackCard.innerHTML = buildFeedbackHtml();
+      messages.appendChild(feedbackCard);
+      var groups = feedbackCard.querySelectorAll('.afhub-fb-stars');
       for (var g = 0; g < groups.length; g++) {
         (function (group) {
           var stars = group.querySelectorAll('.afhub-fb-star');
@@ -2436,16 +2450,15 @@
           }
         })(groups[g]);
       }
-      feedbackOverlay.querySelector('.afhub-fb-submit').addEventListener('click', submitFeedback);
-      feedbackOverlay.querySelector('.afhub-fb-skip').addEventListener('click', closeFeedbackSurveyAndDone);
-      feedbackOverlay.addEventListener('click', function (e) { if (e.target === feedbackOverlay) closeFeedbackSurveyAndDone(); });
-      feedbackOverlay.classList.add('visible');
+      feedbackCard.querySelector('.afhub-fb-submit').addEventListener('click', submitFeedback);
+      feedbackCard.querySelector('.afhub-fb-skip').addEventListener('click', dismissFeedback);
+      feedbackCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
     feedbackBtn.addEventListener('click', function () { openFeedbackSurvey(null); });
 
     if (widgetDisabled) {
       handoffBtn.disabled = true;
-      handoffBar.classList.add('afhub-handoff-bar--disabled');
+      handoffBtn.classList.add('afhub-action-btn--disabled');
     }
 
     function open() {
@@ -2471,7 +2484,7 @@
       // Encuesta al cerrar: si hay preguntas, hubo conversación y no se respondió aún.
       if (feedbackQs.length && !feedbackAlreadyDone()
           && countUserTurnsInHistory(history) > 0
-          && !feedbackOverlay.classList.contains('visible')
+          && !feedbackCard
           && typeof humanModeActive !== 'undefined' && !humanModeActive) {
         openFeedbackSurvey(function () { closeImpl(); });
         return;
@@ -3891,6 +3904,18 @@
       '#' + rootId + ' .afhub-handoff-btn { width:100%; padding:8px 12px; border-radius:10px; border:1px solid ' + cfg.color + '44; background:' + cfg.color + '0c; color:' + cfg.color + '; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; transition:background .15s; }' +
       '#' + rootId + ' .afhub-handoff-btn:hover { background:' + cfg.color + '18; }' +
       '#' + rootId + ' .afhub-handoff-btn:disabled { cursor:not-allowed; opacity:.6; }' +
+      // Barra de acciones compacta (chips) — "Hablar con una persona" + "Finalizar y calificar"
+      '#' + rootId + ' .afhub-action-bar { flex-shrink:0; display:flex; gap:6px; padding:5px 10px; border-top:1px solid #f0f1f3; background:#fff; }' +
+      '#' + rootId + ' .afhub-action-btn { flex:1; min-width:0; padding:5px 8px; border-radius:999px; border:1px solid ' + cfg.color + '33; background:transparent; color:' + cfg.color + '; font-size:11px; font-weight:600; cursor:pointer; font-family:inherit; transition:background .15s,border-color .15s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }' +
+      '#' + rootId + ' .afhub-action-btn:hover { background:' + cfg.color + '12; }' +
+      '#' + rootId + ' .afhub-action-btn--ghost { border-color:#e2e4e8; color:#80868b; }' +
+      '#' + rootId + ' .afhub-action-btn--ghost:hover { background:#f5f6f7; color:#5f6368; }' +
+      '#' + rootId + ' .afhub-action-btn--disabled { cursor:not-allowed; opacity:.5; pointer-events:none; }' +
+      // Encuesta inline (tarjeta dentro del flujo de mensajes, no popup)
+      '#' + rootId + ' .afhub-msg.afhub-fb-card { align-self:stretch; max-width:100%; width:100%; box-sizing:border-box; background:#f7f8fa; border:1px solid #e8eaed; border-radius:14px; padding:12px 14px; box-shadow:none; }' +
+      '#' + rootId + ' .afhub-fb-title { font-size:13px; font-weight:700; color:#202124; margin-bottom:10px; }' +
+      '#' + rootId + ' .afhub-fb-thanks { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:#202124; }' +
+      '#' + rootId + ' .afhub-fb-check { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:999px; background:#22c55e; color:#fff; font-size:12px; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-handoff-overlay { display:none; position:absolute; inset:0; z-index:30; background:rgba(0,0,0,.45); align-items:center; justify-content:center; padding:16px; box-sizing:border-box; }' +
       '#' + rootId + ' .afhub-handoff-overlay.visible { display:flex; }' +
       '#' + rootId + ' .afhub-handoff-modal { width:100%; max-width:320px; background:#fff; border-radius:14px; padding:18px 16px; box-shadow:0 12px 40px rgba(0,0,0,.18); font-family:inherit; }' +
