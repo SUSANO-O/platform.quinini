@@ -25,8 +25,15 @@ import {
 } from '@/lib/plan-catalog';
 import { financeRateConfig, estimatedUsdPerMessageWithRag } from '@/lib/finance-rates';
 import { estimatePlanInfraUsdMonth } from '@/lib/finance-infra';
+import {
+  GEMINI_API_USD_PER_1M,
+  TOKENS_PER_MESSAGE,
+  geminiCostPerMessage,
+  type ModelTier,
+} from '@/lib/llm-cost';
 
-export type ModelTier = 'flash' | 'default' | 'premium';
+export type { ModelTier };
+export { GEMINI_API_USD_PER_1M, TOKENS_PER_MESSAGE, geminiCostPerMessage };
 
 /** Perfil de coste asumido por plan si el cliente usa el techo de cuota. */
 export const PLAN_ASSUMED_MODEL_TIER: Record<PlanId, ModelTier> = {
@@ -41,19 +48,6 @@ export const PLAN_ASSUMED_MODEL_TIER: Record<PlanId, ModelTier> = {
   enterprise: 'premium',
 };
 
-/** Tokens por mensaje (alineado con admin/model-stats). */
-export const TOKENS_PER_MESSAGE: Record<ModelTier, { input: number; output: number }> = {
-  flash:   { input: 350, output: 100 },
-  default: { input: 550, output: 150 },
-  premium: { input: 750, output: 200 },
-};
-
-/** Precios API Gemini (USD / 1M tokens) — referencia mayo 2026. */
-export const GEMINI_API_USD_PER_1M = {
-  'gemini-2.5-flash': { input: 0.30, output: 2.50 },
-  'gemini-2.5-pro':   { input: 1.25, output: 10.00 },
-} as const;
-
 export function costPerMessageUsd(tier: ModelTier, ragEnabled: boolean): number {
   const cfg = financeRateConfig();
   const base =
@@ -61,13 +55,6 @@ export function costPerMessageUsd(tier: ModelTier, ragEnabled: boolean): number 
     : tier === 'premium' ? cfg.premiumRate
     : cfg.defaultRate;
   return estimatedUsdPerMessageWithRag(base, ragEnabled);
-}
-
-export function geminiCostPerMessage(modelId: string, tier: ModelTier): number {
-  const t = TOKENS_PER_MESSAGE[tier];
-  const isPro = modelId.toLowerCase().includes('pro');
-  const rates = isPro ? GEMINI_API_USD_PER_1M['gemini-2.5-pro'] : GEMINI_API_USD_PER_1M['gemini-2.5-flash'];
-  return (t.input * rates.input + t.output * rates.output) / 1_000_000;
 }
 
 export type PlanEconomicsRow = {

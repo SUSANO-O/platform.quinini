@@ -11,10 +11,12 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
+  const [notRegistered, setNotRegistered] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    setNotRegistered(false);
     setLoading(true);
 
     const res = await fetch('/api/auth/forgot-password', {
@@ -27,6 +29,7 @@ export default function ForgotPasswordPage() {
 
     if (!res.ok) {
       setError(data.error ?? 'Error. Intenta de nuevo.');
+      setNotRegistered(data.code === 'USER_NOT_REGISTERED');
       return;
     }
     setSent(true);
@@ -48,7 +51,7 @@ export default function ForgotPasswordPage() {
             <CheckCircle size={48} className="mx-auto mb-4 text-green-600" />
             <h1 className="text-xl font-bold mb-2">Email enviado</h1>
             <p className="text-sm mb-6" style={{ color: 'var(--muted-foreground)' }}>
-              Si existe una cuenta con ese email, recibirás un enlace para restablecer tu contraseña. Revisa tu bandeja de entrada.
+              Te enviamos un enlace para restablecer tu contraseña. Revisa tu bandeja de entrada y la carpeta de spam.
             </p>
             <Link href="/login" className="landing-btn-primary no-underline !w-auto inline-flex px-6">
               ← Volver al login
@@ -77,7 +80,14 @@ export default function ForgotPasswordPage() {
 
               {error && (
                 <div className="text-[13px] px-3.5 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600">
-                  {error}
+                  <p className="m-0">{error}</p>
+                  {notRegistered && (
+                    <p className="m-0 mt-2">
+                      <Link href="/register" className="landing-link-accent font-semibold">
+                        Crear una cuenta →
+                      </Link>
+                    </p>
+                  )}
                 </div>
               )}
 

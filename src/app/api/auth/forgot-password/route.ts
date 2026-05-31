@@ -20,10 +20,18 @@ export async function POST(req: NextRequest) {
   if (!email) return NextResponse.json({ error: 'Email requerido.' }, { status: 400 });
 
   await connectDB();
-  const user = await User.findOne({ email: email.toLowerCase().trim() });
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await User.findOne({ email: normalizedEmail });
 
-  // Always return success to prevent email enumeration
-  if (!user) return NextResponse.json({ ok: true });
+  if (!user) {
+    return NextResponse.json(
+      {
+        error: 'No hay ninguna cuenta registrada con este email.',
+        code: 'USER_NOT_REGISTERED',
+      },
+      { status: 404 },
+    );
+  }
 
   const resetToken = generateSecureToken();
   const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
