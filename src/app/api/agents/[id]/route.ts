@@ -26,6 +26,7 @@ import {
 import { validateModelForPlan } from '@/lib/model-plan-policy';
 import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 import { soloAgentPatchBlocked } from '@/lib/solo-plan-limits';
+import { validateAgentFallbackModels } from '@/lib/fallback-models-config';
 import { encryptSecret, decryptSecret, maskSecret, isEncryptionAvailable } from '@/lib/secret-crypto';
 import { generateVerifyToken, getWhatsAppWebhookUrl } from '@/lib/whatsapp';
 
@@ -605,6 +606,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       .filter((x: unknown): x is string => typeof x === 'string' && x.trim().length > 0)
       .map((x) => x.trim())
       .slice(0, 3);
+    const fbCheck = await validateAgentFallbackModels(cleaned, planEarly);
+    if (!fbCheck.ok) {
+      return NextResponse.json({ error: fbCheck.error }, { status: 400 });
+    }
     agent.set('fallbackModels', cleaned);
   }
 

@@ -24,6 +24,7 @@ import {
 } from '@/lib/model-provider-policy';
 import { validateModelForPlan } from '@/lib/model-plan-policy';
 import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
+import { validateAgentFallbackModels } from '@/lib/fallback-models-config';
 
 async function getAuth(req: NextRequest) {
   const token = req.cookies.get('afhub_session')?.value;
@@ -180,6 +181,7 @@ export async function POST(req: NextRequest) {
     inferenceTemperature: bodyInfTemp,
     inferenceMaxTokens: bodyInfMax,
     strictPurposeOnly: bodyStrictPurpose,
+    fallbackModels: bodyFallbackModels = [],
   } = body;
 
   const user = await User.findById(userId).select({ role: 1, emailVerified: 1 }).lean() as { role?: string; emailVerified?: boolean } | null;
@@ -399,6 +401,18 @@ export async function POST(req: NextRequest) {
       ? false
       : true;
 
+  let safeFallbackModels: string[] = [];
+  if (!isSoloChatOnlyPlan(plan) && Array.isArray(bodyFallbackModels) && bodyFallbackModels.length > 0) {
+    safeFallbackModels = bodyFallbackModels
+      .filter((x: unknown): x is string => typeof x === 'string' && x.trim().length > 0)
+      .map((x) => x.trim())
+      .slice(0, 3);
+    const fbCheck = await validateAgentFallbackModels(safeFallbackModels, plan);
+    if (!fbCheck.ok) {
+      return NextResponse.json({ error: fbCheck.error }, { status: 400 });
+    }
+  }
+
   // ── Create in MongoDB ────────────────────────────────────────────────────
   const agent = await ClientAgent.create({
     userId,
@@ -420,6 +434,7 @@ export async function POST(req: NextRequest) {
     ...(isPlatform ? { isPlatform: true } : {}),
     ...(inferenceTemperature !== undefined ? { inferenceTemperature } : {}),
     ...(inferenceMaxTokens !== undefined ? { inferenceMaxTokens } : {}),
+    ...(safeFallbackModels.length > 0 ? { fallbackModels: safeFallbackModels } : {}),
   });
 
   // ── If sub-agent, link to parent ─────────────────────────────────────────

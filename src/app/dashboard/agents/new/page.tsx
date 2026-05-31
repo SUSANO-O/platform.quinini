@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useClientModels } from '@/hooks/use-client-models';
+import { useFallbackModelOptions } from '@/hooks/use-fallback-model-options';
+import { AgentFallbackPicker } from '@/components/dashboard/agent-fallback-picker';
 import { McpAvailablePanel } from '@/components/mcp/mcp-available-panel';
 import { McpConnectModal } from '@/components/mcp/mcp-connect-modal';
 import type { McpCatalogRow } from '@/lib/mcp-catalog-types';
-import { Bot, ChevronLeft, Loader2, KeyRound, Plug, Plus, X, Sparkles } from 'lucide-react';
+import { Bot, ChevronLeft, Loader2, KeyRound, Plug, Sparkles, X } from 'lucide-react';
 import { AIInputButton } from '@/components/ui/AIInputButton';
 import Link from 'next/link';
 import { ModelPickerCard } from '@/components/dashboard/model-picker-card';
@@ -71,8 +73,6 @@ export default function NewAgentPage() {
   const [modelCatFilter, setModelCatFilter] = useState<string>('all');
   const [modelTierFilter, setModelTierFilter] = useState<string>('all');
   const [fallbackModels, setFallbackModels] = useState<string[]>([]);
-  const [showFallbackPanel, setShowFallbackPanel] = useState(false);
-  const [fallbackQuery, setFallbackQuery] = useState('');
   /** Tras crear el agente, abrir modal de MCP en la ficha con esta integración. */
   const [pendingMcp, setPendingMcp] = useState<{ key: string; name: string } | null>(null);
 
@@ -111,6 +111,13 @@ export default function NewAgentPage() {
   }
   const [mcpInfoModal, setMcpInfoModal] = useState<McpCatalogRow | null>(null);
   const { models: clientModels, hubError: modelsHubError } = useClientModels(plan);
+  const {
+    models: hfFallbackCatalog,
+    loading: hfFallbackLoading,
+    error: hfFallbackError,
+    adminRestricted: hfAdminRestricted,
+    planHasFallbacks: hfPlanHasFallbacks,
+  } = useFallbackModelOptions(fallbackModels);
   const hubUiBase = (process.env.NEXT_PUBLIC_AGENTFLOWHUB_URL || 'http://127.0.0.1:9010').replace(
     /\/$/,
     '',
@@ -689,103 +696,17 @@ export default function NewAgentPage() {
             </div>
 
             {!soloChatOnly && (
-            <>
-            {/* Modelos de respaldo */}
-            <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: '12px', fontWeight: 700, color: 'var(--foreground)' }}>
-                    Modelos de respaldo
-                  </p>
-                  <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--muted-foreground)' }}>
-                    Se usan si el modelo principal falla o llega al límite. Máx. 3
-                  </p>
-                </div>
-                {fallbackModels.length < 3 && (
-                  <button
-                    type="button"
-                    onClick={() => { setShowFallbackPanel((v) => !v); setFallbackQuery(''); }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700,
-                      border: `1px solid ${showFallbackPanel ? R : 'var(--border)'}`,
-                      background: showFallbackPanel ? `rgba(var(--brand-primary-rgb),0.08)` : 'var(--background)',
-                      color: showFallbackPanel ? R : 'var(--foreground)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Plus size={13} />
-                    Agregar
-                  </button>
-                )}
-              </div>
-
-              {fallbackModels.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: showFallbackPanel ? 12 : 0 }}>
-                  {fallbackModels.map((mid, idx) => {
-                    const info = clientModels.find((m) => m.id === mid);
-                    return (
-                      <div key={mid} style={{
-                        display: 'flex', alignItems: 'center', gap: 6,
-                        padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
-                        border: '1px solid var(--border)', background: 'var(--muted)', color: 'var(--foreground)',
-                      }}>
-                        <span style={{ fontSize: 10, color: 'var(--muted-foreground)', marginRight: 2 }}>#{idx + 1}</span>
-                        {info?.name ?? mid}
-                        <button
-                          type="button"
-                          onClick={() => setFallbackModels((p) => p.filter((x) => x !== mid))}
-                          style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444', padding: 0, display: 'flex', lineHeight: 1 }}
-                        >
-                          <X size={11} />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {showFallbackPanel && (
-                <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 12, background: 'var(--muted)' }}>
-                  <input
-                    className="landing-input"
-                    style={{ ...inp, marginBottom: 10 }}
-                    placeholder="Buscar modelo de respaldo..."
-                    value={fallbackQuery}
-                    onChange={(e) => setFallbackQuery(e.target.value)}
-                  />
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-2 max-h-[260px] overflow-y-auto">
-                    {clientModels
-                      .filter((m) => {
-                        if (m.id === model) return false;
-                        if (fallbackModels.includes(m.id)) return false;
-                        const q = fallbackQuery.trim().toLowerCase();
-                        if (!q) return true;
-                        return m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q) || (m.category ?? '').toLowerCase().includes(q);
-                      })
-                      .map((m) => (
-                        <ModelPickerCard
-                          key={m.id}
-                          model={m}
-                          selected={false}
-                          compact
-                          showTier={false}
-                          accentColor={R}
-                          onSelect={() => {
-                            if (fallbackModels.length >= 3) return;
-                            setFallbackModels((p) => [...p, m.id]);
-                            if (fallbackModels.length + 1 >= 3) setShowFallbackPanel(false);
-                          }}
-                        />
-                      ))}
-                  </div>
-                  {fallbackModels.length >= 3 && (
-                    <p style={{ fontSize: 11, color: '#d97706', margin: '8px 0 0' }}>Máximo 3 modelos de respaldo alcanzado.</p>
-                  )}
-                </div>
-              )}
-            </div>
-            </>
+            <AgentFallbackPicker
+              primaryModelId={model}
+              fallbackModels={fallbackModels}
+              onChange={setFallbackModels}
+              catalogModels={hfFallbackCatalog}
+              loading={hfFallbackLoading}
+              catalogError={hfFallbackError}
+              adminRestricted={hfAdminRestricted}
+              planHasFallbacks={hfPlanHasFallbacks}
+              accentColor={R}
+            />
             )}
             </div>
           </FormSection>

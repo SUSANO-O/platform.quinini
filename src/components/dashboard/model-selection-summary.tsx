@@ -109,11 +109,11 @@ export function ModelSelectionSummary({
 
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10 }}>
           <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, color: 'var(--foreground)' }}>
-            Modelos de respaldo
+            Modelos de respaldo <span style={{ fontWeight: 600, color: 'var(--muted-foreground)' }}>(solo Hugging Face)</span>
           </p>
           {fallbacks.length === 0 ? (
             <p style={{ margin: 0, fontSize: 11, color: 'var(--muted-foreground)' }}>
-              Ninguno configurado. Se usan solo si el principal falla o llega al límite.
+              Ninguno configurado. Elige uno abajo — solo modelos <strong>hf/</strong> del hub.
             </p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
