@@ -360,26 +360,15 @@ export default function DashboardPage() {
                   </div>
                 )}
 
+
                 {/* Cuota de plataforma */}
                 {usage && typeof usage.platformFreeLimit === 'number' && usage.platformFreeLimit > 0 && (
-                  <div className="mt-4 rounded-xl px-4 py-3" style={{ background: `${B}08`, border: `1px solid ${B}20` }}>
-                    <div className="flex items-center justify-between mb-1.5 text-xs">
-                      <span className="font-bold" style={{ color: B }}>Cuota de plataforma (Obsequio)</span>
-                      <span style={{ color: 'var(--muted-foreground)' }}>
-                        {(usage.platformFreeUsed ?? 0).toLocaleString('es')} / {usage.platformFreeLimit.toLocaleString('es')}
-                      </span>
-                    </div>
-                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(15,23,42,0.08)' }}>
-                      <div style={{
-                        height: '100%',
-                        width: `${Math.min(((usage.platformFreeUsed ?? 0) / usage.platformFreeLimit) * 100, 100)}%`,
-                        background: `linear-gradient(90deg,${B},${B}99)`,
-                        borderRadius: 999,
-                      }} />
-                    </div>
-                    <p className="text-[11px] m-0 mt-1.5" style={{ color: 'var(--muted-foreground)' }}>
-                      Restan {(usage.platformFreeRemaining ?? 0).toLocaleString('es')} conversaciones gratuitas
-                    </p>
+                  <div className="mt-3 flex items-center justify-between px-3 py-2 rounded-lg text-[11px]"
+                    style={{ background: `${B}06`, border: `1px solid ${B}15` }}>
+                    <span style={{ color: B, fontWeight: 600 }}>Plataforma</span>
+                    <span style={{ color: 'var(--muted-foreground)' }}>
+                      {(usage.platformFreeUsed ?? 0).toLocaleString('es')} / {usage.platformFreeLimit.toLocaleString('es')} conv.
+                    </span>
                   </div>
                 )}
 

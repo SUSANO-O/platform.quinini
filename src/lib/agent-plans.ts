@@ -148,7 +148,7 @@ export const CLIENT_MODELS = [
 // ── Agentes de plataforma (no cuentan en el límite de creación de agentes del plan) ─
 
 /** Solicitudes por usuario y mes que no descuentan del contador de widget (`RequestLog`) si el agente es de plataforma. */
-export const PLATFORM_AGENT_FREE_REQUESTS_PER_USER_MONTH = 500;
+export const PLATFORM_AGENT_FREE_REQUESTS_PER_USER_MONTH = 90;
 
 import {
   PLAN_AGENT_LIMITS,
