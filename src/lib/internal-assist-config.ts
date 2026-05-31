@@ -61,7 +61,7 @@ export function resolveInternalAssistBoot(
       title: envStr('INTERNAL_MARKETING_ASSIST_TITLE', 'Math'),
       subtitle: envStr('INTERNAL_MARKETING_ASSIST_SUBTITLE', 'En linea'),
       welcome: envStr('INTERNAL_MARKETING_ASSIST_WELCOME', 'Hola! Como puedo ayudarte hoy?'),
-      fabHint: envStr('INTERNAL_MARKETING_ASSIST_FAB_HINT', 'preguntame lo que necesites'),
+      fabHint: envStr('INTERNAL_MARKETING_ASSIST_FAB_HINT', 'Hola! Como puedo ayudarte hoy?'),
       avatar: envStr(
         'INTERNAL_MARKETING_ASSIST_AVATAR',
         'https://img.freepik.com/premium-photo/bright-blue-orb_303714-30852.jpg',
