@@ -1,30 +1,72 @@
 /**
  * Política de modelos por plan — evita pérdidas por modelos premium en planes bajos.
+ * Los tiers por plan son editables desde /admin/ai-config y se guardan en platform_config.
  */
 
 import { planMeetsModelMin } from '@/lib/agent-plans';
 import { getAibackhubBaseUrl, hubCreateHeaders } from '@/lib/aibackhub-sync';
+import { connectDB } from '@/lib/db/connection';
+import mongoose from 'mongoose';
 
-export type ModelTier = 'flash' | 'default' | 'premium';
+// 'lite' < 'flash' < 'default' < 'premium'
+export type ModelTier = 'lite' | 'flash' | 'default' | 'premium';
 
-const TIER_RANK: Record<ModelTier, number> = {
-  flash: 0,
-  default: 1,
-  premium: 2,
+export const TIER_RANK: Record<ModelTier, number> = {
+  lite:    0,
+  flash:   1,
+  default: 2,
+  premium: 3,
 };
 
-/** Tier máximo permitido por plan (techo de coste de inferencia). */
-export const PLAN_MAX_MODEL_TIER: Record<string, ModelTier> = {
-  free:       'flash',
-  solo:       'flash',
+export const TIER_LABELS: Record<ModelTier, string> = {
+  lite:    'Flash Lite (más económico)',
+  flash:   'Flash (estándar)',
+  default: 'Estándar / Pro-Light',
+  premium: 'Pro / Premium (todos)',
+};
+
+/** Defaults hardcoded basados en análisis de costos Vertex AI (may 2026). */
+export const PLAN_MAX_MODEL_TIER_DEFAULT: Record<string, ModelTier> = {
+  free:       'lite',
+  solo:       'lite',
   basic:      'flash',
-  team:       'default',
+  team:       'flash',
   plus:       'default',
   starter:    'default',
   growth:     'premium',
   business:   'premium',
   enterprise: 'premium',
 };
+
+/** @deprecated use PLAN_MAX_MODEL_TIER_DEFAULT. Mantenido por compatibilidad. */
+export const PLAN_MAX_MODEL_TIER = PLAN_MAX_MODEL_TIER_DEFAULT;
+
+// ── DB cache (TTL 60s) ────────────────────────────────────────────────────────
+let tierCache: { at: number; tiers: Record<string, ModelTier> } | null = null;
+
+export async function getPlanModelTiers(): Promise<Record<string, ModelTier>> {
+  const now = Date.now();
+  if (tierCache && now - tierCache.at < 60_000) return tierCache.tiers;
+  try {
+    await connectDB();
+    const col = mongoose.connection.db!.collection<{ key: string; tiers?: Record<string, string> }>('platform_config');
+    const doc = await col.findOne({ key: 'plan_model_tiers' });
+    if (doc?.tiers && typeof doc.tiers === 'object') {
+      const merged: Record<string, ModelTier> = { ...PLAN_MAX_MODEL_TIER_DEFAULT };
+      for (const [plan, tier] of Object.entries(doc.tiers)) {
+        if (tier in TIER_RANK) merged[plan] = tier as ModelTier;
+      }
+      tierCache = { at: now, tiers: merged };
+      return merged;
+    }
+  } catch { /* fail-open */ }
+  tierCache = { at: now, tiers: { ...PLAN_MAX_MODEL_TIER_DEFAULT } };
+  return tierCache.tiers;
+}
+
+export function invalidateTierCache() {
+  tierCache = null;
+}
 
 export function classifyModelTier(modelId: string): ModelTier {
   const m = modelId.toLowerCase();
@@ -39,19 +81,25 @@ export function classifyModelTier(modelId: string): ModelTier {
     m.includes('72b') ||
     m.includes('70b')
   ) return 'premium';
+  // lite antes de flash para que flash-lite no caiga en flash
   if (
-    m.includes('flash') ||
+    m.includes('lite') ||
     m.includes('mini') ||
     m.includes('nano') ||
-    m.includes('small') ||
-    m.includes('lite') ||
-    m.includes('2.0-flash')
+    m.includes('small')
+  ) return 'lite';
+  if (
+    m.includes('flash') ||
+    m.includes('2.0-flash') ||
+    m.includes('3-flash') ||
+    m.includes('3.1-flash')
   ) return 'flash';
   return 'default';
 }
 
-function maxTierForPlan(plan: string): ModelTier {
-  return PLAN_MAX_MODEL_TIER[plan] ?? 'flash';
+async function maxTierForPlan(plan: string): Promise<ModelTier> {
+  const tiers = await getPlanModelTiers();
+  return tiers[plan] ?? 'lite';
 }
 
 type CatalogRow = { modelId: string; minPlan?: string };
@@ -106,12 +154,13 @@ export async function validateModelForPlan(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const plan = userPlan || 'free';
   const tier = classifyModelTier(modelId);
-  const maxTier = maxTierForPlan(plan);
+  const maxTier = await maxTierForPlan(plan);
 
   if (TIER_RANK[tier] > TIER_RANK[maxTier]) {
+    const label = TIER_LABELS[maxTier];
     return {
       ok: false,
-      error: `El modelo seleccionado requiere un plan superior. Tu plan ${plan} permite hasta modelos ${maxTier === 'flash' ? 'rápidos (Flash)' : maxTier === 'default' ? 'estándar' : 'premium'}. Mejora tu plan o elige Gemini Flash.`,
+      error: `El modelo seleccionado no está disponible en el plan ${plan}. Máximo permitido: ${label}. Elige un modelo más económico o mejora tu plan.`,
     };
   }
 
