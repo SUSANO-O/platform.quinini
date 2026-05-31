@@ -35,8 +35,8 @@ import { AgentMcpOpenFromQuery } from '@/components/mcp/agent-mcp-open-from-quer
 import { AgentHubspotOauthReturn } from '@/components/mcp/agent-hubspot-oauth-return';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { ModelPickerCard } from '@/components/dashboard/model-picker-card';
 import { ModelSelectionSummary } from '@/components/dashboard/model-selection-summary';
+import { ModelCatalogPicker } from '@/components/dashboard/model-catalog-picker';
 import { AgentFallbackPicker } from '@/components/dashboard/agent-fallback-picker';
 import { useFallbackModelOptions } from '@/hooks/use-fallback-model-options';
 
@@ -346,8 +346,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [strictPurposeOnly, setStrictPurposeOnly] = useState(true);
   const [inferenceTemperature, setInferenceTemperature] = useState('');
   const [inferenceMaxTokens, setInferenceMaxTokens] = useState('');
-  const [modelQuery, setModelQuery] = useState('');
-  const [showAllModels, setShowAllModels] = useState(false);
   const [fallbackModels, setFallbackModels] = useState<string[]>([]);
   const [skills, setSkills] = useState<string[]>([]);
   const [skillsConfig, setSkillsConfig] = useState<NonNullable<ClientAgent['skillsConfig']>>([]);
@@ -414,21 +412,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     () => Boolean(model.trim()) && !displayModels.some((x) => x.id === model),
     [displayModels, model],
   );
-  const filteredModels = useMemo(() => {
-    const q = modelQuery.trim().toLowerCase();
-    if (!q) return displayModels;
-    return displayModels.filter((m) =>
-      `${m.name} ${m.id} ${m.description ?? ''} ${m.category ?? ''}`.toLowerCase().includes(q)
-    );
-  }, [displayModels, modelQuery]);
-  const orderedFilteredModels = useMemo(() => {
-    const selectedIndex = filteredModels.findIndex((m) => m.id === model);
-    if (selectedIndex <= 0) return filteredModels;
-    const selectedModel = filteredModels[selectedIndex];
-    return [selectedModel, ...filteredModels.slice(0, selectedIndex), ...filteredModels.slice(selectedIndex + 1)];
-  }, [filteredModels, model]);
-  const visibleModels = showAllModels ? orderedFilteredModels : orderedFilteredModels.slice(0, 12);
-
   const ragMaxSources = limits.ragSourcesPerAgent > 0 ? limits.ragSourcesPerAgent : 20;
 
   const ragUsage = useMemo(() => {
@@ -1615,61 +1598,16 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 El modelo guardado (<code style={{ fontSize: '11px' }}>{model}</code>) no está en el catálogo actual o no cumple tu plan. Elige uno de la lista o ajústalo en AgentFlowHub.
               </p>
             )}
-            <div style={{ border: '1px solid var(--border)', background: 'var(--muted)', borderRadius: 12, padding: 12, marginBottom: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
-                <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)' }}>
-                  Busca por nombre, capacidad o ID
-                </p>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted-foreground)' }}>
-                  {filteredModels.length} resultados
-                </span>
-              </div>
-              <input
-                className="landing-input"
-                style={inp}
-                value={modelQuery}
-                onChange={(e) => {
-                  setModelQuery(e.target.value);
-                  setShowAllModels(false);
-                }}
-                placeholder="Buscar modelo..."
-                disabled={readOnly}
-              />
-            </div>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2.5">
-              {visibleModels.map((m) => (
-                <ModelPickerCard
-                  key={m.id}
-                  model={m}
-                  selected={model === m.id}
-                  onSelect={() => setModel(m.id)}
-                  disabled={readOnly}
-                  accentColor={R}
-                  showTier={false}
-                  selectionBadge="Principal"
-                />
-              ))}
-            </div>
-            {filteredModels.length > 12 && (
-              <div style={{ marginTop: 10 }}>
-                <button
-                  type="button"
-                  onClick={() => setShowAllModels((v) => !v)}
-                  style={{
-                    padding: '6px 10px',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    border: '1px solid var(--border)',
-                    background: 'var(--background)',
-                    color: 'var(--foreground)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {showAllModels ? 'Ver menos modelos' : `Ver todos (${filteredModels.length})`}
-                </button>
-              </div>
-            )}
+            <ModelCatalogPicker
+              models={displayModels}
+              selectedId={model}
+              onSelect={setModel}
+              disabled={readOnly}
+              accentColor={R}
+              showTier={false}
+              searchPlaceholder="Buscar modelo..."
+              inputStyle={inp}
+            />
             {!soloChatOnly && (
             <div style={{ marginTop: '14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
               <div>
