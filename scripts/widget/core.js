@@ -18,6 +18,7 @@
   var ICON_BOT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>';
   var ICON_MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
   var ICON_ATTACH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>';
+  var ICON_COPY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
   var ICON_MIC_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
   var ICON_VOLUME_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>';
   var ICON_VOLUME_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
@@ -860,7 +861,6 @@
     btn.type = 'button';
     btn.className = 'afhub-msg-copy-btn afhub-img-download-btn';
     btn.setAttribute('aria-label', 'Descargar imagen');
-    btn.setAttribute('title', 'Descargar imagen');
     btn.textContent = '↓';
     btn.addEventListener('click', function (ev) {
       ev.preventDefault();
@@ -1879,16 +1879,16 @@
       }
       var copyBtn = document.createElement('button');
       copyBtn.type = 'button';
-      copyBtn.className = 'afhub-msg-copy-btn';
+      copyBtn.className = 'afhub-feedback-btn afhub-msg-copy-btn';
       copyBtn.setAttribute('aria-label', 'Copiar mensaje');
-      copyBtn.setAttribute('title', 'Copiar mensaje');
-      copyBtn.textContent = '⧉';
+      copyBtn.innerHTML = ICON_COPY;
       copyBtn.addEventListener('click', function () {
         var plain = type === 'bot' ? botReplyForDisplay(text) : String(text || '');
         if (!plain) return;
+        var copied = false;
         try {
           if (navigator && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-            navigator.clipboard.writeText(plain).catch(function () { /* noop */ });
+            navigator.clipboard.writeText(plain).then(function () { copied = true; }).catch(function () { /* noop */ });
           } else {
             var ta = document.createElement('textarea');
             ta.value = plain;
@@ -1897,12 +1897,18 @@
             ta.style.left = '-9999px';
             document.body.appendChild(ta);
             ta.select();
-            try { document.execCommand('copy'); } catch (_e) { /* noop */ }
+            try { copied = document.execCommand('copy'); } catch (_e) { /* noop */ }
             document.body.removeChild(ta);
           }
         } catch (_err) {
           /* noop */
         }
+        copyBtn.classList.add('active');
+        copyBtn.setAttribute('aria-label', 'Copiado');
+        window.setTimeout(function () {
+          copyBtn.classList.remove('active');
+          copyBtn.setAttribute('aria-label', 'Copiar mensaje');
+        }, 1200);
       });
       messages.appendChild(el);
       var hasBotImages = type === 'bot' && imgOpts && imgOpts.images && imgOpts.images.length;
@@ -4070,8 +4076,9 @@
       '#' + rootId + ' .afhub-msg-rich .afhub-code { font-size:.9em; padding:2px 6px; border-radius:5px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:rgba(0,0,0,.07); }' +
       '#' + rootId + ' .afhub-msg-rich strong { font-weight:600; }' +
       '#' + rootId + ' .afhub-msg-rich em { font-style:italic; opacity:.95; }' +
-      '#' + rootId + ' .afhub-msg-copy-btn { width:20px; height:20px; border-radius:999px; border:1px solid rgba(0,0,0,.14); background:transparent; color:inherit; font-size:11px; line-height:1; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; opacity:.7; padding:0; }' +
-      '#' + rootId + ' .afhub-msg-copy-btn:hover { opacity:1; border-color:rgba(0,0,0,.24); }' +
+      '#' + rootId + ' .afhub-msg-copy-btn { width:24px; height:24px; opacity:1; }' +
+      '#' + rootId + ' .afhub-msg-copy-btn svg { width:13px; height:13px; }' +
+      '#' + rootId + ' .afhub-msg-copy-btn.active { border-color:' + cfg.color + '; color:' + cfg.color + '; background:' + cfg.color + '14; }' +
       '#' + rootId + ' .afhub-img-frame { position:relative; border-radius:12px; overflow:hidden; border:1px solid rgba(0,0,0,.08); }' +
       '#' + rootId + ' .afhub-img-download-btn { position:absolute; top:8px; right:8px; z-index:2; opacity:.92; background:rgba(255,255,255,.92); border-color:rgba(0,0,0,.12); color:#374151; box-shadow:0 1px 4px rgba(0,0,0,.12); }' +
       '#' + rootId + ' .afhub-img-download-btn:hover { opacity:1; background:#fff; }' +
