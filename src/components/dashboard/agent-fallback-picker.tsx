@@ -182,7 +182,7 @@ export function AgentFallbackPicker({
         <p style={{ fontSize: 12, color: '#d97706', margin: '0 0 10px' }}>{catalogError}</p>
       )}
 
-      {panelOpen && canAdd && !loading && (
+      {panelOpen && canAdd && !loading && displayModels.length > 0 && (
         <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 12, background: 'var(--muted)' }}>
           <input
             className="landing-input"
@@ -192,11 +192,20 @@ export function AgentFallbackPicker({
             onChange={(e) => setQuery(e.target.value)}
           />
           {filtered.length === 0 ? (
-            <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0 }}>
-              {displayModels.length === 0
-                ? 'No hay modelos HF habilitados para tu plan.'
-                : 'Ningún modelo coincide con la búsqueda.'}
-            </p>
+            <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>
+              <p style={{ margin: '0 0 8px' }}>Ningún modelo coincide con la búsqueda.</p>
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                style={{
+                  padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                  border: '1px solid var(--border)', background: 'var(--background)',
+                  color: 'var(--foreground)', cursor: 'pointer',
+                }}
+              >
+                Limpiar búsqueda
+              </button>
+            </div>
           ) : (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-2 max-h-[280px] overflow-y-auto">
               {filtered.map((m) => (

@@ -13,7 +13,7 @@ import type { McpCatalogRow } from '@/lib/mcp-catalog-types';
 import { Bot, ChevronLeft, Loader2, KeyRound, Plug, Sparkles, X } from 'lucide-react';
 import { AIInputButton } from '@/components/ui/AIInputButton';
 import Link from 'next/link';
-import { ModelPickerCard } from '@/components/dashboard/model-picker-card';
+import { ModelCatalogPicker } from '@/components/dashboard/model-catalog-picker';
 import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 
 const R = 'var(--primary)';
@@ -68,10 +68,6 @@ export default function NewAgentPage() {
   const [strictPurposeOnly, setStrictPurposeOnly] = useState(true);
   const [inferenceTemperature, setInferenceTemperature] = useState('');
   const [inferenceMaxTokens, setInferenceMaxTokens] = useState('');
-  const [modelQuery, setModelQuery] = useState('');
-  const [showAllModels, setShowAllModels] = useState(false);
-  const [modelCatFilter, setModelCatFilter] = useState<string>('all');
-  const [modelTierFilter, setModelTierFilter] = useState<string>('all');
   const [fallbackModels, setFallbackModels] = useState<string[]>([]);
   /** Tras crear el agente, abrir modal de MCP en la ficha con esta integración. */
   const [pendingMcp, setPendingMcp] = useState<{ key: string; name: string } | null>(null);
@@ -557,114 +553,12 @@ export default function NewAgentPage() {
                 {modelsHubError} Revisa que AIBackHub esté en marcha y BACKEND_URL configurado.
               </p>
             )}
-            {/* Buscador */}
-            <div style={{ border: '1px solid var(--border)', background: 'var(--muted)', borderRadius: 12, padding: 12, marginBottom: 10 }}>
-              <input
-                className="landing-input"
-                style={inp}
-                value={modelQuery}
-                onChange={(e) => { setModelQuery(e.target.value); setShowAllModels(false); }}
-                placeholder="Buscar por nombre, capacidad o ID..."
-              />
-            </div>
-
-            {/* Tabs categoría + tier */}
-            {(() => {
-              const CATS: { id: string; label: string }[] = [
-                { id: 'all', label: 'Todos' },
-                { id: 'multimodal', label: 'Multimodal' },
-                { id: 'chat', label: 'Chat' },
-                { id: 'vision', label: 'Visión' },
-                { id: 'audio', label: 'Audio' },
-                { id: 'tts', label: 'TTS' },
-                { id: 'image', label: 'Imagen' },
-              ];
-              const TIERS: { id: string; label: string; color: string }[] = [
-                { id: 'all', label: 'Todos', color: 'var(--foreground)' },
-                { id: 'stable', label: 'Stable', color: '#16a34a' },
-                { id: 'pro', label: 'Pro', color: '#7c3aed' },
-                { id: 'flash', label: 'Flash', color: '#0284c7' },
-                { id: 'lite', label: 'Lite', color: '#d97706' },
-                { id: 'preview', label: 'Preview', color: '#6366f1' },
-              ];
-              const TIER_COLOR: Record<string, string> = {
-                stable: '#16a34a', pro: '#7c3aed', flash: '#0284c7', lite: '#d97706', preview: '#6366f1',
-              };
-
-              const filtered = clientModels.filter((m) => {
-                const q = modelQuery.trim().toLowerCase();
-                if (q && !(m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q) || (m.category ?? '').toLowerCase().includes(q))) return false;
-                if (modelCatFilter !== 'all' && (m.category ?? 'chat') !== modelCatFilter) return false;
-                if (modelTierFilter !== 'all' && (m.tier ?? 'stable') !== modelTierFilter) return false;
-                return true;
-              });
-
-              const selectedFirst = (() => {
-                const idx = filtered.findIndex((m) => m.id === model);
-                if (idx <= 0) return filtered;
-                return [filtered[idx], ...filtered.slice(0, idx), ...filtered.slice(idx + 1)];
-              })();
-
-              const visible = showAllModels ? selectedFirst : selectedFirst.slice(0, 12);
-
-              const activeCatTabStyle = (id: string): React.CSSProperties => ({
-                padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                border: `1px solid ${modelCatFilter === id ? R : 'var(--border)'}`,
-                background: modelCatFilter === id ? `rgba(var(--brand-primary-rgb),0.08)` : 'var(--background)',
-                color: modelCatFilter === id ? R : 'var(--muted-foreground)',
-              });
-              const activeTierTabStyle = (id: string, color: string): React.CSSProperties => ({
-                padding: '3px 9px', borderRadius: 20, fontSize: 10, fontWeight: 700, cursor: 'pointer',
-                border: `1px solid ${modelTierFilter === id ? color : 'var(--border)'}`,
-                background: modelTierFilter === id ? `${color}18` : 'var(--background)',
-                color: modelTierFilter === id ? color : 'var(--muted-foreground)',
-              });
-
-              return (
-                <>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
-                    {CATS.filter((c) => c.id === 'all' || clientModels.some((m) => (m.category ?? 'chat') === c.id)).map((c) => (
-                      <button key={c.id} type="button" style={activeCatTabStyle(c.id)}
-                        onClick={() => { setModelCatFilter(c.id); setShowAllModels(false); }}>
-                        {c.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
-                    {TIERS.filter((t) => t.id === 'all' || clientModels.some((m) => (m.tier ?? 'stable') === t.id)).map((t) => (
-                      <button key={t.id} type="button" style={activeTierTabStyle(t.id, t.color)}
-                        onClick={() => { setModelTierFilter(t.id); setShowAllModels(false); }}>
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '0 0 8px' }}>
-                    {filtered.length} modelo{filtered.length !== 1 ? 's' : ''}
-                  </p>
-
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-2.5">
-                    {visible.map((m) => (
-                      <ModelPickerCard
-                        key={m.id}
-                        model={m}
-                        selected={model === m.id}
-                        onSelect={() => setModel(m.id)}
-                        accentColor={R}
-                        tierColor={TIER_COLOR[m.tier ?? 'stable'] ?? 'var(--muted-foreground)'}
-                      />
-                    ))}
-                  </div>
-
-                  {filtered.length > 12 && (
-                    <button type="button" onClick={() => setShowAllModels((v) => !v)}
-                      style={{ marginTop: 10, padding: '6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--foreground)', cursor: 'pointer' }}>
-                      {showAllModels ? 'Ver menos' : `Ver todos (${filtered.length})`}
-                    </button>
-                  )}
-                </>
-              );
-            })()}
+            <ModelCatalogPicker
+              models={clientModels}
+              selectedId={model}
+              onSelect={setModel}
+              accentColor={R}
+            />
 
             <div className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
               <div>
