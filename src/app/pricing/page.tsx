@@ -10,7 +10,7 @@ import { PricingPlanCard } from '@/components/landing/pricing-plan-card';
 import Link from 'next/link';
 
 /** Ventas manual — reactivar /register cuando las suscripciones sean automáticas. */
-const SALES_WHATSAPP = '+57 3144064925';
+const SALES_WHATSAPP = '+57 313 3174629';
 
 /** Métodos de pago aceptados (pago coordinado por WhatsApp). Si existe el SVG oficial
  *  en /public/payment/<slug>.svg se muestra el logo; si no, badge de color con icono. */
