@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Bot, CheckCircle, AlertTriangle, ChevronRight, Loader2, Save, RefreshCw, ShieldAlert, Layers } from 'lucide-react';
+import { AdminCollapsibleSection } from '@/components/admin/admin-collapsible-section';
 
 // ── Plan model tiers ──────────────────────────────────────────────────────────
 type ModelTier = 'lite' | 'flash' | 'default' | 'premium';
@@ -384,34 +385,44 @@ export default function AiConfigPage() {
       </div>
 
       {/* Lista de Modelos */}
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
-            Modelos disponibles
-          </p>
+      <AdminCollapsibleSection
+        title="Modelos disponibles"
+        subtitle={PROVIDERS.find((p) => p.key === selectedProvider)?.label}
+        count={models.length}
+        defaultOpen
+        maxHeight={480}
+        accentColor="#6366f1"
+        empty={!loadingModels && models.length === 0}
+        headerActions={(
           <button
+            type="button"
             onClick={() => loadModels(selectedProvider)}
-            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--muted-foreground)', fontSize: 11, cursor: 'pointer' }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 8,
+              border: '1px solid var(--border)', background: 'transparent', color: 'var(--muted-foreground)',
+              fontSize: 11, cursor: 'pointer',
+            }}
           >
             <RefreshCw size={11} style={{ animation: loadingModels ? 'spin 0.8s linear infinite' : 'none' }} />
             Actualizar
           </button>
-        </div>
+        )}
+      >
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-
         {loadingModels ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, gap: 8, color: 'var(--muted-foreground)', fontSize: 13 }}>
             <Loader2 size={16} style={{ animation: 'spin 0.8s linear infinite' }} />
             Cargando modelos...
           </div>
         ) : models.length === 0 ? (
-          <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted-foreground)', fontSize: 13, border: '1.5px dashed var(--border)', borderRadius: 12 }}>
-            No hay modelos disponibles para este proveedor.<br />
+          <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted-foreground)', fontSize: 13 }}>
+            No hay modelos disponibles para este proveedor.
+            <br />
             <span style={{ fontSize: 11 }}>Verifica que el hub esté activo y el API key configurado.</span>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {models.map(model => {
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 10 }}>
+            {models.map((model) => {
               const isSelected = selectedModelId === model.modelId;
               const isCurrent = currentConfig?.modelId === model.modelId;
 
@@ -490,7 +501,7 @@ export default function AiConfigPage() {
             })}
           </div>
         )}
-      </div>
+      </AdminCollapsibleSection>
 
       {/* Botón guardar */}
       <div style={{ marginTop: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -619,26 +630,18 @@ export default function AiConfigPage() {
           </div>
         )}
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+        <div style={{ marginBottom: 12 }}>
           <input
             type="search"
             placeholder="Buscar modelo HF…"
             value={fallbackQuery}
             onChange={(e) => setFallbackQuery(e.target.value)}
             style={{
-              flex: 1, maxWidth: 320, padding: '8px 12px', borderRadius: 8,
+              width: '100%', maxWidth: 360, padding: '8px 12px', borderRadius: 8,
               border: '1px solid var(--border)', background: 'var(--background)',
               color: 'var(--foreground)', fontSize: 13,
             }}
           />
-          <button
-            type="button"
-            onClick={loadFallbackModels}
-            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--muted-foreground)', fontSize: 11, cursor: 'pointer' }}
-          >
-            <RefreshCw size={11} style={{ animation: loadingFallback ? 'spin 0.8s linear infinite' : 'none' }} />
-            Actualizar catálogo
-          </button>
         </div>
 
         {loadingFallback ? (
@@ -650,8 +653,38 @@ export default function AiConfigPage() {
             No hay modelos HuggingFace en el catálogo del hub. Verifica AIBackHub y la sincronización del catálogo.
           </div>
         ) : (
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', maxHeight: 420, overflowY: 'auto' }}>
-            {filteredFallbackCatalog.map((m, i) => {
+          <AdminCollapsibleSection
+            title="Catálogo HuggingFace"
+            subtitle={
+              fallbackModeDraft === 'per_plan'
+                ? `Selección para plan ${PLAN_LABELS[fallbackPlanTab] ?? fallbackPlanTab}`
+                : 'Modelos hf/ habilitables como respaldo'
+            }
+            count={filteredFallbackCatalog.length}
+            defaultOpen
+            maxHeight={420}
+            accentColor="#f59e0b"
+            headerActions={(
+              <button
+                type="button"
+                onClick={loadFallbackModels}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 8,
+                  border: '1px solid var(--border)', background: 'transparent', color: 'var(--muted-foreground)',
+                  fontSize: 11, cursor: 'pointer',
+                }}
+              >
+                <RefreshCw size={11} style={{ animation: loadingFallback ? 'spin 0.8s linear infinite' : 'none' }} />
+                Actualizar
+              </button>
+            )}
+          >
+            {filteredFallbackCatalog.length === 0 ? (
+              <div style={{ padding: 20, textAlign: 'center', fontSize: 12, color: 'var(--muted-foreground)' }}>
+                Ningún modelo coincide con la búsqueda.
+              </div>
+            ) : (
+              filteredFallbackCatalog.map((m, i) => {
               const checked = activeFallbackDraft.includes(m.modelId);
               return (
                 <label
@@ -690,8 +723,9 @@ export default function AiConfigPage() {
                   {checked && <CheckCircle size={16} style={{ color: '#f59e0b', flexShrink: 0, marginTop: 2 }} />}
                 </label>
               );
-            })}
-          </div>
+            })
+            )}
+          </AdminCollapsibleSection>
         )}
 
         <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
