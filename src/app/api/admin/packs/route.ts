@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
 import { ConversationPack, User } from '@/lib/db/models';
+import { CONVERSATION_PACKS } from '@/lib/plan-catalog';
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get('afhub_session')?.value;
@@ -49,16 +50,12 @@ export async function GET(req: NextRequest) {
     emailMap[String(u._id)] = u.email;
   }
 
-  const PACK_LABELS: Record<string, string> = {
-    pack_s: 'Pack S — 1,000 conv',
-    pack_m: 'Pack M — 5,000 conv',
-    pack_l: 'Pack L — 15,000 conv',
-  };
-  const PACK_PRICES: Record<string, number> = {
-    pack_s: 4,
-    pack_m: 15,
-    pack_l: 39,
-  };
+  const PACK_LABELS = Object.fromEntries(
+    CONVERSATION_PACKS.map((p) => [p.id, `${p.label} — ${p.conversations.toLocaleString('es')} conv`]),
+  ) as Record<string, string>;
+  const PACK_PRICES = Object.fromEntries(
+    CONVERSATION_PACKS.map((p) => [p.id, p.price]),
+  ) as Record<string, number>;
 
   const totalRevenue = packs.reduce((sum, p) => sum + (PACK_PRICES[p.packId] ?? 0), 0);
   const totalConversationsSold = packs.reduce((sum, p) => sum + p.conversations, 0);

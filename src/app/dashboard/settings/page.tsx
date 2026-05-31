@@ -744,7 +744,7 @@ export default function SettingsPage() {
                 const display = PLAN_DISPLAY[planId];
                 const bullets = PLAN_FEATURE_BULLETS[planId];
                 const convLimit = PLAN_CONVERSATION_LIMITS[planId];
-                const isPopular = planId === 'growth';
+                const isPopular = planId === 'plus';
                 const effectivePlan = hasActivePaidPlan ? (subscription?.plan ?? 'free') : 'free';
                 const isCurrent =
                   subscription?.plan === planId &&

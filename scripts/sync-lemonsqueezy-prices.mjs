@@ -19,21 +19,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
 const envPath = path.join(root, '.env');
 
-/** Espejo de plan-catalog.ts — actualizar junto con ese archivo. */
+/** Espejo de plan-catalog.ts — solo planes en venta (+ legacy opcional vía env). */
 const CATALOG = {
   subscriptions: {
     solo:    { usd: 7,   env: 'LEMONSQUEEZY_VARIANT_SOLO',    name: 'Solo' },
-    basic:   { usd: 17,  env: 'LEMONSQUEEZY_VARIANT_BASIC',   name: 'Basic' },
     team:    { usd: 29,  env: 'LEMONSQUEEZY_VARIANT_TEAM',    name: 'Team' },
-    plus:    { usd: 39,  env: 'LEMONSQUEEZY_VARIANT_PLUS',    name: 'Plus' },
-    starter: { usd: 65,  env: 'LEMONSQUEEZY_VARIANT_STARTER', name: 'Starter' },
-    growth:  { usd: 179, env: 'LEMONSQUEEZY_VARIANT_GROWTH',  name: 'Growth' },
+    plus:    { usd: 42,  env: 'LEMONSQUEEZY_VARIANT_PLUS',    name: 'Plus' },
     business:{ usd: 749, env: 'LEMONSQUEEZY_VARIANT_BUSINESS', name: 'Business' },
   },
   packs: {
     pack_s: { usd: 15,  env: 'LEMONSQUEEZY_VARIANT_PACK_S', name: 'Pack S (1k conv)' },
     pack_m: { usd: 60,  env: 'LEMONSQUEEZY_VARIANT_PACK_M', name: 'Pack M (5k conv)' },
-    pack_l: { usd: 145, env: 'LEMONSQUEEZY_VARIANT_PACK_L', name: 'Pack L (15k conv)' },
+    pack_l: { usd: 170, env: 'LEMONSQUEEZY_VARIANT_PACK_L', name: 'Pack L (15k conv)' },
   },
 };
 

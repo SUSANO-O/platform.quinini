@@ -247,7 +247,7 @@ export default function CompliancePage() {
   async function upgradeForWebhook() {
     setBusyUpgrade(true);
     try {
-      const err = await startCheckout('starter');
+      const err = await startCheckout('plus');
       if (err && 'error' in err && err.error) toast.error(err.error);
     } finally {
       setBusyUpgrade(false);
@@ -267,7 +267,7 @@ export default function CompliancePage() {
   async function upgradeForTickets() {
     setBusyTkUpgrade(true);
     try {
-      const err = await startCheckout('growth');
+      const err = await startCheckout('business');
       if (err && 'error' in err && err.error) toast.error(err.error);
     } finally {
       setBusyTkUpgrade(false);

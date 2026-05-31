@@ -18,21 +18,24 @@ import {
   ESCALATION_TICKET_MIN_PLAN,
   CUSTOM_INTEGRATION_MIN_PLAN,
   PLAN_FEATURE_BULLETS,
+  LEGACY_PLAN_FEATURE_BULLETS,
+  PAID_PLAN_IDS,
+  isLegacyPlan,
 } from '../plan-catalog';
 import { buildPlanComparisonRows } from '../plan-economics';
 import { getAgentLimits, TOOL_MAP } from '../agent-plans';
 
 describe('webhook entitlements (plan-catalog)', () => {
   it('defines expected minimum plans', () => {
-    expect(AGENT_WEBHOOK_MIN_PLAN).toBe('basic');
-    expect(OUTBOUND_SAAS_WEBHOOK_MIN_PLAN).toBe('starter');
+    expect(AGENT_WEBHOOK_MIN_PLAN).toBe('team');
+    expect(OUTBOUND_SAAS_WEBHOOK_MIN_PLAN).toBe('plus');
     expect(ESCALATION_SLACK_MIN_PLAN).toBe('team');
     expect(API_ACCESS_MIN_PLAN).toBe('team');
-    expect(ESCALATION_TICKET_MIN_PLAN).toBe('growth');
+    expect(ESCALATION_TICKET_MIN_PLAN).toBe('business');
     expect(CUSTOM_INTEGRATION_MIN_PLAN).toBe('business');
   });
 
-  it('agent webhook: Basic+ only', () => {
+  it('agent webhook: Team+ only (legacy Basic still entitled)', () => {
     expect(canUseAgentWebhookTool('free')).toBe(false);
     expect(canUseAgentWebhookTool('solo')).toBe(false);
     expect(canUseAgentWebhookTool('basic')).toBe(true);
@@ -41,20 +44,20 @@ describe('webhook entitlements (plan-catalog)', () => {
     expect(canUseAgentWebhookTool('starter')).toBe(true);
   });
 
-  it('outbound webhook: Starter+ with active subscription', () => {
+  it('outbound webhook: Plus+ with active subscription', () => {
     expect(canUseOutboundSaasWebhook('free', 'free')).toBe(false);
     expect(canUseOutboundSaasWebhook('solo', 'active')).toBe(false);
-    expect(canUseOutboundSaasWebhook('plus', 'active')).toBe(false);
+    expect(canUseOutboundSaasWebhook('team', 'active')).toBe(false);
+    expect(canUseOutboundSaasWebhook('plus', 'active')).toBe(true);
+    expect(canUseOutboundSaasWebhook('plus', 'trialing')).toBe(true);
     expect(canUseOutboundSaasWebhook('starter', 'active')).toBe(true);
-    expect(canUseOutboundSaasWebhook('starter', 'trialing')).toBe(true);
-    expect(canUseOutboundSaasWebhook('starter', 'past_due')).toBe(true);
     expect(canUseOutboundSaasWebhook('growth', 'active')).toBe(true);
   });
 
   it('outbound webhook blocked when subscription inactive', () => {
+    expect(canUseOutboundSaasWebhook('plus', 'canceled')).toBe(false);
     expect(canUseOutboundSaasWebhook('starter', 'canceled')).toBe(false);
-    expect(canUseOutboundSaasWebhook('growth', 'free')).toBe(false);
-    expect(effectiveProductPlan('starter', 'canceled')).toBe('free');
+    expect(effectiveProductPlan('plus', 'canceled')).toBe('free');
   });
 
   it('escalation Slack: Team+ with active subscription', () => {
@@ -64,44 +67,35 @@ describe('webhook entitlements (plan-catalog)', () => {
     expect(canUseEscalationSlack('team', 'active')).toBe(true);
     expect(canUseEscalationSlack('plus', 'active')).toBe(true);
     expect(canUseEscalationSlack('starter', 'active')).toBe(true);
-    expect(canUseEscalationSlack('team', 'trialing')).toBe(true);
-    expect(canUseEscalationSlack('team', 'past_due')).toBe(true);
-    expect(canUseEscalationSlack('growth', 'active')).toBe(true);
-  });
-
-  it('escalation Slack blocked when subscription inactive', () => {
-    expect(canUseEscalationSlack('team', 'canceled')).toBe(false);
   });
 
   it('feature flags for pricing table', () => {
     expect(planHasAgentWebhookFeature('free')).toBe(false);
-    expect(planHasAgentWebhookFeature('solo')).toBe(false);
-    expect(planHasOutboundWebhookFeature('plus')).toBe(false);
+    expect(planHasOutboundWebhookFeature('team')).toBe(false);
+    expect(planHasOutboundWebhookFeature('plus')).toBe(true);
     expect(planHasOutboundWebhookFeature('starter')).toBe(true);
     expect(planHasEscalationSlackFeature('basic')).toBe(false);
     expect(planHasEscalationSlackFeature('team')).toBe(true);
-    expect(planHasEscalationSlackFeature('plus')).toBe(true);
-    expect(planHasEscalationSlackFeature('starter')).toBe(true);
-    expect(planHasApiAccessFeature('basic')).toBe(false);
     expect(planHasApiAccessFeature('team')).toBe(true);
-    expect(planHasApiAccessFeature('plus')).toBe(true);
-    expect(planHasApiAccessFeature('starter')).toBe(true);
-    expect(planHasEscalationTicketFeature('starter')).toBe(false);
-    expect(planHasEscalationTicketFeature('growth')).toBe(true);
-    expect(planHasCustomIntegrationFeature('growth')).toBe(false);
+    expect(planHasEscalationTicketFeature('growth')).toBe(false);
+    expect(planHasEscalationTicketFeature('business')).toBe(true);
     expect(planHasCustomIntegrationFeature('business')).toBe(true);
     expect(formatConversationAnalyticsFeature('plus')).toBe('Básico');
-    expect(formatConversationAnalyticsFeature('growth')).toBe('Avanzado');
     expect(formatConversationAnalyticsFeature('business')).toBe('Completo');
     expect(formatConversationAnalyticsFeature('basic')).toBe('—');
   });
 
+  it('sellable paid plans exclude legacy tiers', () => {
+    expect(PAID_PLAN_IDS).toEqual(['solo', 'team', 'plus', 'business']);
+    expect(isLegacyPlan('basic')).toBe(true);
+    expect(isLegacyPlan('plus')).toBe(false);
+  });
+
   it('plan bullets mention webhooks on paid tiers', () => {
     expect(PLAN_FEATURE_BULLETS.solo.some((b) => /webhook/i.test(b))).toBe(false);
-    expect(PLAN_FEATURE_BULLETS.solo.some((b) => /solo chat|chat básico/i.test(b))).toBe(true);
-    expect(PLAN_FEATURE_BULLETS.basic.some((b) => /webhook/i.test(b))).toBe(true);
-    expect(PLAN_FEATURE_BULLETS.team.some((b) => /Almacenamiento/i.test(b))).toBe(true);
-    expect(PLAN_FEATURE_BULLETS.starter.some((b) => /saliente|HMAC/i.test(b))).toBe(true);
+    expect(PLAN_FEATURE_BULLETS.team.some((b) => /webhook/i.test(b))).toBe(true);
+    expect(PLAN_FEATURE_BULLETS.plus.some((b) => /saliente|HMAC/i.test(b))).toBe(true);
+    expect(LEGACY_PLAN_FEATURE_BULLETS.basic.some((b) => /webhook/i.test(b))).toBe(true);
   });
 });
 
@@ -119,40 +113,21 @@ describe('agent tool limits (agent-plans)', () => {
     expect(limits.agents).toBe(3);
   });
 
-  it('webhook tool minPlan matches Basic gate', () => {
-    expect(TOOL_MAP.webhook?.minPlan).toBe('basic');
+  it('webhook tool minPlan matches Team gate', () => {
+    expect(TOOL_MAP.webhook?.minPlan).toBe('team');
   });
 });
 
 describe('pricing comparison rows', () => {
-  it('includes webhook and platform feature columns for all plans', () => {
+  it('includes webhook and platform feature columns for sellable plans', () => {
     const rows = buildPlanComparisonRows();
-    expect(rows.length).toBeGreaterThan(0);
-    for (const row of rows) {
-      expect(row).toHaveProperty('agentWebhook');
-      expect(row).toHaveProperty('outboundWebhook');
-      expect(row).toHaveProperty('apiAccess');
-      expect(row).toHaveProperty('customIntegration');
-      expect(row).toHaveProperty('escalationTickets');
-      expect(row).toHaveProperty('conversationAnalytics');
-    }
-    const free = rows.find((r) => r.id === 'free');
-    const solo = rows.find((r) => r.id === 'solo');
+    expect(rows.map((r) => r.id)).toEqual(['free', 'solo', 'team', 'plus', 'business']);
     const plus = rows.find((r) => r.id === 'plus');
-    const starter = rows.find((r) => r.id === 'starter');
-    const growth = rows.find((r) => r.id === 'growth');
     const business = rows.find((r) => r.id === 'business');
-    expect(free?.agentWebhook).toBe('—');
-    expect(free?.outboundWebhook).toBe('—');
-    expect(free?.apiAccess).toBe('—');
-    expect(solo?.agentWebhook).toBe('—');
-    expect(solo?.outboundWebhook).toBe('—');
     expect(plus?.conversationAnalytics).toBe('Básico');
+    expect(plus?.outboundWebhook).toBe('Incluido');
     expect(rows.find((r) => r.id === 'team')?.apiAccess).toBe('Próximamente');
-    expect(starter?.apiAccess).toBe('Próximamente');
-    expect(starter?.escalationTickets).toBe('—');
-    expect(growth?.escalationTickets).toBe('Incluido');
-    expect(growth?.conversationAnalytics).toBe('Avanzado');
+    expect(business?.escalationTickets).toBe('Incluido');
     expect(business?.customIntegration).toBe('Incluido');
     expect(business?.conversationAnalytics).toBe('Completo');
   });

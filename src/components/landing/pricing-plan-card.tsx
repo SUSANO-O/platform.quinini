@@ -56,11 +56,9 @@ function planHighlights(planId: string): Highlight[] {
 }
 
 const PLAN_ICONS: Record<string, typeof Crown> = {
-  basic: Sparkles,
+  solo: Sparkles,
   team: Bot,
   plus: Sparkles,
-  starter: Crown,
-  growth: Crown,
   business: Crown,
 };
 

@@ -20,48 +20,64 @@ export const PLAN_ORDER = [
 
 export type PlanId = (typeof PLAN_ORDER)[number];
 
-export type PaidPlanId = 'solo' | 'basic' | 'team' | 'plus' | 'starter' | 'growth' | 'business';
+export type PaidPlanId = 'solo' | 'team' | 'plus' | 'business';
 
-/** Planes de pago ordenados para upgrades/downgrades. */
+/** Planes retirados de venta (usuarios existentes conservan límites y rank). */
+export const LEGACY_PLAN_IDS = ['basic', 'starter', 'growth'] as const;
+export type LegacyPlanId = (typeof LEGACY_PLAN_IDS)[number];
+
+/** Planes de pago disponibles para checkout y pricing público. */
 export const PAID_PLAN_IDS: PaidPlanId[] = [
   'solo',
-  'basic',
   'team',
   'plus',
-  'starter',
-  'growth',
   'business',
 ];
 
-/** Planes visibles en la landing (solo los más convenientes para conversión). */
-export const LANDING_PLAN_IDS: PaidPlanId[] = ['plus', 'starter', 'growth'];
+/** Planes visibles en la landing (conversión). */
+export const LANDING_PLAN_IDS: PaidPlanId[] = ['team', 'plus', 'business'];
 
-/** Grid principal en /pricing (incluye Basic y Business). */
+/** Grid principal en /pricing. */
 export const PRICING_GRID_PLAN_IDS: PaidPlanId[] = [
-  'basic',
+  'solo',
   'team',
   'plus',
-  'starter',
-  'growth',
   'business',
 ];
 
 /**
- * Planes que se ofrecen en el modal/sidebar de trial expirado y en los botones de upgrade.
- * Deben coincidir con los variantes configurados en LemonSqueezy (.env LEMONSQUEEZY_VARIANT_*).
+ * Planes en modal de trial expirado y botones de upgrade.
+ * Deben coincidir con LEMONSQUEEZY_VARIANT_* en .env.
  */
-export const CHECKOUT_UPGRADE_PLAN_IDS: PaidPlanId[] = ['starter', 'growth', 'business'];
+export const CHECKOUT_UPGRADE_PLAN_IDS: PaidPlanId[] = ['plus', 'business'];
 
-/** Precios revisados may 2026 — LLM + RAG + infra externa mínima (Atlas M10, Pinecone pago, storage). */
+/** Precios revisados may 2026 — LLM + RAG + infra externa mínima. */
 export const PLAN_PRICES_USD: Record<PaidPlanId, number> = {
   solo: 7,
-  basic: 17,
   team: 29,
-  plus: 42,    // +3 — incluye Tareas Programadas (acceso por defecto desde Plus)
-  starter: 69, // +4
-  growth: 189, // +10
+  plus: 42,
   business: 749,
 };
+
+/** Referencia histórica (solo admin / usuarios legacy). */
+export const LEGACY_PLAN_PRICES_USD: Record<LegacyPlanId, number> = {
+  basic: 17,
+  starter: 69,
+  growth: 189,
+};
+
+export function isLegacyPlan(plan: string): plan is LegacyPlanId {
+  return (LEGACY_PLAN_IDS as readonly string[]).includes(plan);
+}
+
+export function isSellablePaidPlan(plan: string): plan is PaidPlanId {
+  return (PAID_PLAN_IDS as readonly string[]).includes(plan);
+}
+
+/** Cualquier plan de producto con facturación (incluye legacy y enterprise). */
+export function isPaidProductPlan(plan: string): boolean {
+  return plan !== 'free' && (PLAN_ORDER as readonly string[]).includes(plan);
+}
 
 const PLAN_LABELS: Record<PlanId, string> = {
   free: 'Free',
@@ -96,9 +112,11 @@ export const PLAN_DISPLAY: Record<
     const priceUsd =
       id in PLAN_PRICES_USD
         ? PLAN_PRICES_USD[id as PaidPlanId]
-        : id === 'free'
-          ? 0
-          : -1;
+        : isLegacyPlan(id)
+          ? LEGACY_PLAN_PRICES_USD[id]
+          : id === 'free'
+            ? 0
+            : -1;
     return [
       id,
       {
@@ -301,7 +319,7 @@ export const CONVERSATION_PACKS = PACK_SPECS.map((p) => ({
 }));
 
 /** Solo suscriptores de pago pueden comprar packs (free no). */
-export const PACK_ELIGIBLE_PLANS = new Set<string>(PAID_PLAN_IDS);
+export const PACK_ELIGIBLE_PLANS = new Set<string>([...PAID_PLAN_IDS, ...LEGACY_PLAN_IDS]);
 
 export function canPurchaseConversationPacks(plan: string, status: string): boolean {
   const effective = ['active', 'trialing'].includes(status) ? plan : 'free';
@@ -309,10 +327,10 @@ export function canPurchaseConversationPacks(plan: string, status: string): bool
 }
 
 /** Plan mínimo para herramienta Webhook en el agente (llamadas salientes del chat). */
-export const AGENT_WEBHOOK_MIN_PLAN: PlanId = 'basic';
+export const AGENT_WEBHOOK_MIN_PLAN: PlanId = 'team';
 
 /** Plan mínimo para webhook SaaS saliente (eventos firmados a tu backend). */
-export const OUTBOUND_SAAS_WEBHOOK_MIN_PLAN: PlanId = 'starter';
+export const OUTBOUND_SAAS_WEBHOOK_MIN_PLAN: PlanId = 'plus';
 
 /** Plan mínimo para avisar en Slack al escalar (Incoming Webhook en Cumplimiento). */
 export const ESCALATION_SLACK_MIN_PLAN: PlanId = 'team';
@@ -327,13 +345,28 @@ export const API_REST_COMING_SOON_LABEL = 'Próximamente';
 export const CONVERSATION_ANALYTICS_MIN_PLAN: PlanId = 'plus';
 
 /** Plan mínimo para analytics avanzado (export, histórico extendido). */
-export const CONVERSATION_ANALYTICS_ADVANCED_MIN_PLAN: PlanId = 'growth';
+export const CONVERSATION_ANALYTICS_ADVANCED_MIN_PLAN: PlanId = 'business';
 
 /** Plan mínimo para creación de tickets al escalar (handoff + integraciones). */
-export const ESCALATION_TICKET_MIN_PLAN: PlanId = 'growth';
+export const ESCALATION_TICKET_MIN_PLAN: PlanId = 'business';
 
 /** Plan mínimo para integraciones custom (MCP completo, a medida). */
 export const CUSTOM_INTEGRATION_MIN_PLAN: PlanId = 'business';
+
+/** Mínimos históricos — usuarios legacy conservan acceso aunque el mínimo de venta suba. */
+const LEGACY_AGENT_WEBHOOK_MIN_PLAN: PlanId = 'basic';
+const LEGACY_OUTBOUND_SAAS_WEBHOOK_MIN_PLAN: PlanId = 'starter';
+const LEGACY_ESCALATION_TICKET_MIN_PLAN: PlanId = 'growth';
+const LEGACY_CONVERSATION_ANALYTICS_ADVANCED_MIN_PLAN: PlanId = 'growth';
+
+function meetsProductMinimum(
+  plan: string,
+  sellableMin: PlanId,
+  legacyMin: PlanId,
+): boolean {
+  const required = isLegacyPlan(plan) ? legacyMin : sellableMin;
+  return planRank(plan) >= planRank(required);
+}
 
 const PAID_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing', 'past_due']);
 
@@ -343,12 +376,16 @@ export function effectiveProductPlan(plan: string, status: string): string {
 }
 
 export function canUseAgentWebhookTool(plan: string): boolean {
-  return planRank(plan) >= planRank(AGENT_WEBHOOK_MIN_PLAN);
+  return meetsProductMinimum(plan, AGENT_WEBHOOK_MIN_PLAN, LEGACY_AGENT_WEBHOOK_MIN_PLAN);
 }
 
 export function canUseOutboundSaasWebhook(plan: string, status: string): boolean {
   const effective = effectiveProductPlan(plan, status);
-  return planRank(effective) >= planRank(OUTBOUND_SAAS_WEBHOOK_MIN_PLAN);
+  return meetsProductMinimum(
+    effective,
+    OUTBOUND_SAAS_WEBHOOK_MIN_PLAN,
+    LEGACY_OUTBOUND_SAAS_WEBHOOK_MIN_PLAN,
+  );
 }
 
 export function planHasAgentWebhookFeature(planId: PlanId): boolean {
@@ -376,7 +413,17 @@ export function canUseApiAccess(plan: string, status: string): boolean {
 /** Notificaciones Slack al escalar con suscripción activa (Team+). */
 export function canUseEscalationSlack(plan: string, status: string): boolean {
   const effective = effectiveProductPlan(plan, status);
-  return planRank(effective) >= planRank(ESCALATION_SLACK_MIN_PLAN);
+  return meetsProductMinimum(effective, ESCALATION_SLACK_MIN_PLAN, ESCALATION_SLACK_MIN_PLAN);
+}
+
+/** Tickets al escalar — Business+ en venta; Growth legacy conserva acceso. */
+export function canUseEscalationTickets(plan: string, status: string): boolean {
+  const effective = effectiveProductPlan(plan, status);
+  return meetsProductMinimum(
+    effective,
+    ESCALATION_TICKET_MIN_PLAN,
+    LEGACY_ESCALATION_TICKET_MIN_PLAN,
+  );
 }
 
 export function apiAccessUpgradeLabel(): string {
@@ -400,7 +447,7 @@ export function planHasCustomIntegrationFeature(planId: PlanId): boolean {
 }
 
 export function outboundWebhookUpgradeLabel(): string {
-  return PLAN_DISPLAY[OUTBOUND_SAAS_WEBHOOK_MIN_PLAN]?.label ?? 'Starter';
+  return PLAN_DISPLAY[OUTBOUND_SAAS_WEBHOOK_MIN_PLAN]?.label ?? 'Plus';
 }
 
 export function escalationSlackUpgradeLabel(): string {
@@ -408,7 +455,7 @@ export function escalationSlackUpgradeLabel(): string {
 }
 
 export function escalationTicketUpgradeLabel(): string {
-  return PLAN_DISPLAY[ESCALATION_TICKET_MIN_PLAN]?.label ?? 'Growth';
+  return PLAN_DISPLAY[ESCALATION_TICKET_MIN_PLAN]?.label ?? 'Business';
 }
 
 export function planRank(plan: string): number {
@@ -432,7 +479,7 @@ export function isSoloChatOnlyPlan(plan: string): boolean {
   return plan === 'solo';
 }
 
-/** Bullets para modales de cambio de plan y checkout. */
+/** Bullets para modales de cambio de plan y checkout (solo planes en venta). */
 export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
   solo: [
     '300 conversaciones al mes (~10/día)',
@@ -440,13 +487,6 @@ export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
     'Widgets básicos · historial 30 días',
     'Autoguiado: documentación y videos en YouTube',
     'Soporte por email (72 h, sin onboarding dedicado)',
-  ],
-  basic: [
-    '1.500 conversaciones al mes (~50/día)',
-    '3 agentes · 2 sub-agentes · Webhook incluido',
-    'Gmail y Slack · widgets ilimitados',
-    'Historial: 30 días',
-    'Capacitación grupal incluida · soporte email (72 h)',
   ],
   team: [
     '2.000 conversaciones al mes (~65/día)',
@@ -459,22 +499,8 @@ export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
     '3.000 conversaciones al mes (~100/día)',
     '10 agentes · 5 sub-agentes · Webhook incluido',
     'Almacenamiento: 256 MB · 20 fuentes · búsqueda vectorial',
-    'Analytics de conversaciones (básico) · historial 60 días',
-    'Capacitación grupal · soporte email (48 h)',
-  ],
-  starter: [
-    '6.000 conversaciones al mes (~200/día)',
-    '25 agentes · 10 sub-agentes · Webhook del agente',
-    'Acceso API REST (próximamente) · webhook saliente (HMAC) · HubSpot, Notion',
-    'Almacenamiento: 1 GB · 60 fuentes · analytics básico',
-    'Capacitación incluida · soporte email (48 h)',
-  ],
-  growth: [
-    '16.000 conversaciones al mes (~530/día)',
-    '50 agentes · API REST (próximamente) · webhook agente + saliente',
-    'Almacenamiento: 10 GB · 300 fuentes',
-    'Creación de tickets al escalar · analytics avanzado',
-    'Historial: 1 año · modelos Pro · soporte chat (24 h)',
+    'Webhook saliente (HMAC) · analytics de conversaciones (básico)',
+    'Tareas programadas · historial 60 días · soporte email (48 h)',
   ],
   business: [
     '45.000 conversaciones al mes (~1.500/día)',
@@ -482,6 +508,26 @@ export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
     'API REST (próximamente) · webhooks · Almacenamiento: 100 GB',
     'Tickets al escalar · analytics completo (multi-agente)',
     'Historial ilimitado · todos los modelos · SLA 99,9 %',
+  ],
+};
+
+/** Bullets legacy (admin / usuarios existentes). */
+export const LEGACY_PLAN_FEATURE_BULLETS: Record<LegacyPlanId, string[]> = {
+  basic: [
+    '1.500 conversaciones al mes (~50/día)',
+    '3 agentes · 2 sub-agentes · Webhook incluido',
+    'Gmail y Slack · widgets ilimitados',
+    'Plan retirado — migrar a Team o Plus',
+  ],
+  starter: [
+    '6.000 conversaciones al mes (~200/día)',
+    '25 agentes · HubSpot, Notion · webhook saliente',
+    'Almacenamiento: 1 GB · plan retirado — migrar a Plus o Business',
+  ],
+  growth: [
+    '16.000 conversaciones al mes (~530/día)',
+    '50 agentes · tickets al escalar · analytics avanzado',
+    'Plan retirado — migrar a Business',
   ],
 };
 
@@ -494,11 +540,11 @@ export const PLAN_PRICING_FEATURES: Record<PlanId, string[]> = {
     'Comunidad y documentación',
   ],
   solo: PLAN_FEATURE_BULLETS.solo,
-  basic: PLAN_FEATURE_BULLETS.basic,
+  basic: LEGACY_PLAN_FEATURE_BULLETS.basic,
   team: PLAN_FEATURE_BULLETS.team,
   plus: PLAN_FEATURE_BULLETS.plus,
-  starter: PLAN_FEATURE_BULLETS.starter,
-  growth: PLAN_FEATURE_BULLETS.growth,
+  starter: LEGACY_PLAN_FEATURE_BULLETS.starter,
+  growth: LEGACY_PLAN_FEATURE_BULLETS.growth,
   business: PLAN_FEATURE_BULLETS.business,
   enterprise: [
     'Conversaciones sin límite',
@@ -526,7 +572,7 @@ function fmtPrice(usd: number): string {
 
 /** Lista completa para tablas comparativas (/pricing). */
 export function buildAllPricingPlans(): PlanInfo[] {
-  const paidHighlighted: PaidPlanId = 'growth';
+  const paidHighlighted: PaidPlanId = 'plus';
   const entries: PlanInfo[] = [
     {
       id: 'free',

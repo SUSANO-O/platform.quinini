@@ -8,7 +8,24 @@
 
 export type ModelTier = 'flash' | 'default' | 'premium';
 
-export type TokenRatesUsdPer1M = { input: number; output: number };
+export type TokenRatesUsdPer1M = { input: number; output: number; inputCacheHit?: number };
+
+/**
+ * DeepSeek V4 — USD / 1M tokens (cache miss salvo inputCacheHit).
+ * Promo Pro −75% hasta 2026-05-31; después input $1.74 / output $3.48 por 1M.
+ * @see https://api-docs.deepseek.com/quick_start/pricing
+ */
+export const DEEPSEEK_API_USD_PER_1M: Record<string, TokenRatesUsdPer1M> = {
+  'deepseek-v4-flash': { input: 0.14, output: 0.28, inputCacheHit: 0.0028 },
+  'deepseek-v4-pro':   { input: 0.435, output: 0.87, inputCacheHit: 0.003625 },
+};
+
+/** Tarifas Pro tras fin de promo (2026-05-31 15:59 UTC). */
+export const DEEPSEEK_V4_PRO_POST_PROMO_USD_PER_1M: TokenRatesUsdPer1M = {
+  input: 1.74,
+  output: 3.48,
+  inputCacheHit: 0.0145,
+};
 
 /** USD por 1M tokens — referencia Google AI / Vertex (may 2026). */
 export const GEMINI_API_USD_PER_1M: Record<string, TokenRatesUsdPer1M> = {
@@ -21,6 +38,7 @@ export const GEMINI_API_USD_PER_1M: Record<string, TokenRatesUsdPer1M> = {
   'gemini-2.5-pro':        { input: 1.25, output: 10.00 },
   'gemini-3-pro':          { input: 1.25, output: 10.00 },
   'gemini-3.1-pro':        { input: 1.25, output: 10.00 },
+  ...DEEPSEEK_API_USD_PER_1M,
 };
 
 /** Blend factura GCP cuando el modelo no está en la tabla. */
@@ -71,7 +89,8 @@ export function classifyModelTier(modelId: string): ModelTier {
     m.includes('sonnet') ||
     m.includes('opus') ||
     m.includes('72b') ||
-    m.includes('70b')
+    m.includes('70b') ||
+    m.includes('deepseek-v4-pro')
   ) return 'premium';
   if (
     m.includes('flash-lite') ||
@@ -80,7 +99,8 @@ export function classifyModelTier(modelId: string): ModelTier {
     m.includes('mini') ||
     m.includes('nano') ||
     m.includes('small') ||
-    m.includes('lite')
+    m.includes('lite') ||
+    m.includes('deepseek-v4-flash')
   ) return 'flash';
   if (m.includes('flash')) return 'default';
   return 'default';

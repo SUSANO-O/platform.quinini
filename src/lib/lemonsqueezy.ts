@@ -6,13 +6,17 @@
  *   LEMONSQUEEZY_API_KEY
  *   LEMONSQUEEZY_STORE_ID
  *   LEMONSQUEEZY_WEBHOOK_SECRET
- *   LEMONSQUEEZY_VARIANT_SOLO | BASIC | TEAM | PLUS | STARTER | GROWTH | BUSINESS
+ *   LEMONSQUEEZY_VARIANT_SOLO | TEAM | PLUS | BUSINESS
+ *   (LEGACY: BASIC | STARTER | GROWTH — solo webhooks de suscripciones existentes)
  *   LEMONSQUEEZY_VARIANT_PACK_S | PACK_M | PACK_L
  */
 
 import { lemonSqueezySetup } from '@lemonsqueezy/lemonsqueezy.js';
 import {
   PAID_PLAN_IDS,
+  LEGACY_PLAN_IDS,
+  LEGACY_PLAN_PRICES_USD,
+  type LegacyPlanId,
   PLAN_CONVERSATION_LIMITS,
   PLAN_DISPLAY,
   PLAN_FEATURE_BULLETS,
@@ -30,13 +34,16 @@ export function ensureLSSetup() {
 export const LS_STORE_ID = parseInt(process.env.LEMONSQUEEZY_STORE_ID || '0', 10);
 
 const VARIANT_ENV: Record<PaidPlanId, string> = {
-  solo:    process.env.LEMONSQUEEZY_VARIANT_SOLO    || '',
+  solo:     process.env.LEMONSQUEEZY_VARIANT_SOLO     || '',
+  team:     process.env.LEMONSQUEEZY_VARIANT_TEAM     || '',
+  plus:     process.env.LEMONSQUEEZY_VARIANT_PLUS     || '',
+  business: process.env.LEMONSQUEEZY_VARIANT_BUSINESS || '',
+};
+
+const LEGACY_VARIANT_ENV: Record<LegacyPlanId, string> = {
   basic:   process.env.LEMONSQUEEZY_VARIANT_BASIC   || '',
-  team:    process.env.LEMONSQUEEZY_VARIANT_TEAM    || '',
-  plus:    process.env.LEMONSQUEEZY_VARIANT_PLUS    || '',
   starter: process.env.LEMONSQUEEZY_VARIANT_STARTER || '',
   growth:  process.env.LEMONSQUEEZY_VARIANT_GROWTH  || '',
-  business: process.env.LEMONSQUEEZY_VARIANT_BUSINESS || '',
 };
 
 function convLabel(planId: PaidPlanId): string {
@@ -73,6 +80,9 @@ export function planFromLSVariantId(variantId: string | number | undefined): str
   const v = String(variantId);
   for (const [key, plan] of Object.entries(PLANS)) {
     if (plan.priceId === v) return key;
+  }
+  for (const [key, variantId] of Object.entries(LEGACY_VARIANT_ENV)) {
+    if (variantId === v) return key;
   }
   return null;
 }

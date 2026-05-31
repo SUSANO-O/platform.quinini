@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { BRAND_TEXT_COLOR, UI_SURFACE_SECONDARY } from '@/lib/brand';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 import { InboxChatModal } from '@/components/dashboard/inbox-chat-modal';
 import { notifyInboxChanged } from '@/hooks/use-inbox-open-count';
 
@@ -384,9 +385,11 @@ export default function InboxPage() {
       </div>
 
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
-          <Loader2 size={28} className="animate-spin" style={{ color: BRAND_TEXT_COLOR }} />
-        </div>
+        <AiLoadingInline
+          label="Cargando inbox…"
+          hint="Recuperando solicitudes de atención humana"
+          style={{ padding: '48px 0' }}
+        />
       ) : items.length === 0 ? (
         <div style={{ ...UI_SURFACE_SECONDARY, borderRadius: 16, padding: '40px 24px', textAlign: 'center' }}>
           <Inbox size={36} style={{ color: 'var(--muted-foreground)', margin: '0 auto 12px' }} />

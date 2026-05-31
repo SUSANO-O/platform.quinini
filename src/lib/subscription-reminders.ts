@@ -1,11 +1,14 @@
 import { connectDB } from '@/lib/db/connection';
 import { Subscription, User } from '@/lib/db/models';
 import { sendSubscriptionReminderEmail } from '@/lib/email';
+import { PLAN_ORDER, type PlanId } from '@/lib/plan-catalog';
 
 const REMINDER_DAYS = [15, 7, 3, 1, 0] as const;
 
 type ReminderKind = 'trial' | 'renewal';
-type ReminderPlan = 'free' | 'starter' | 'growth' | 'business' | 'enterprise';
+type ReminderPlan = PlanId;
+
+const DEFAULT_REMINDER_PLANS = PLAN_ORDER.filter((p) => p !== 'enterprise') as ReminderPlan[];
 
 type SubDoc = {
   _id: { toString(): string };
@@ -67,7 +70,7 @@ export async function runSubscriptionReminders(
   const kinds = (options.kinds && options.kinds.length ? options.kinds : ['trial', 'renewal']) as ReminderKind[];
   const plans = (options.plans && options.plans.length
     ? options.plans
-    : ['free', 'starter', 'growth', 'business', 'enterprise']) as ReminderPlan[];
+    : DEFAULT_REMINDER_PLANS) as ReminderPlan[];
   const limit = Math.max(1, Math.min(options.limit ?? 500, 5000));
 
   await connectDB();
