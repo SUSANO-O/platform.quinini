@@ -22,6 +22,7 @@ function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [errorCode, setErrorCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [cfToken, setCfToken] = useState('');
   const turnstileRef = useRef<TurnstileInstance>(null);
@@ -34,6 +35,7 @@ function LoginForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    setErrorCode('');
 
     if (CAPTCHA_ENABLED && !cfToken) {
       setError('Completa la verificación de seguridad antes de continuar.');
@@ -46,6 +48,7 @@ function LoginForm() {
 
     if (result.error) {
       setError(result.error);
+      setErrorCode(result.code || '');
       turnstileRef.current?.reset();
       setCfToken('');
     } else if (result.requires2FA && result.tempToken) {
@@ -204,9 +207,16 @@ function LoginForm() {
             />
 
             {error && (
-              <p className="text-[13px] text-red-600 bg-red-500/10 px-3.5 py-2.5 rounded-lg border border-red-500/20">
-                {error}
-              </p>
+              <div className="text-[13px] text-red-600 bg-red-500/10 px-3.5 py-2.5 rounded-lg border border-red-500/20">
+                <p className="m-0">{error}</p>
+                {errorCode === 'USER_NOT_REGISTERED' && (
+                  <p className="m-0 mt-2">
+                    <Link href="/register" className="landing-link-accent font-semibold">
+                      Crear una cuenta →
+                    </Link>
+                  </p>
+                )}
+              </div>
             )}
 
             <button type="submit" disabled={loading} className="landing-btn-primary">

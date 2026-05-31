@@ -321,9 +321,11 @@ export default function ModelStatsPage() {
   const totalRequests    = rows.reduce((s, r) => s + r.totalRequests, 0);
   const totalAgents      = rows.reduce((s, r) => s + r.primaryCount,  0);
   const activeModels     = rows.filter((r) => r.totalRequests > 0).length;
-  const totalEstTokens   = rows.reduce((s, r) => s + r.estimatedTokens, 0);
-  const totalUsd         = rows.reduce((s, r) => s + r.estimatedUsd,    0);
-  const totalRealTokens  = rows.reduce((s, r) => s + r.realTotalTokens, 0);
+  const totalTokens      = rows.reduce(
+    (s, r) => s + (r.hasRealTokens ? r.realTotalTokens : r.estimatedTokens),
+    0,
+  );
+  const totalUsd         = rows.reduce((s, r) => s + r.estimatedUsd, 0);
   const hasAnyRealTokens = rows.some((r) => r.hasRealTokens);
 
   // Active filter chips (exclude date — those are always shown)
@@ -533,8 +535,8 @@ export default function ModelStatsPage() {
             { label: 'Con peticiones',        value: activeModels,                                                   icon: <TrendingUp size={14} />, color: '#10b981' },
             { label: 'Agentes configurados',  value: totalAgents,                                                    icon: <Cpu size={14} />,        color: '#f59e0b' },
             { label: 'Peticiones período',    value: totalRequests.toLocaleString('es'),                             icon: <Clock size={14} />,      color: '#0284c7' },
-            { label: hasAnyRealTokens ? 'Tokens reales' : 'Tokens estimados', value: fmtTokens(hasAnyRealTokens ? totalRealTokens : totalEstTokens), icon: <Zap size={14} />, color: '#8b5cf6' },
-            { label: 'Coste estimado (USD)', value: `$${totalUsd.toFixed(2)}`,                                       icon: <DollarSign size={14} />, color: '#ef4444' },
+            { label: hasAnyRealTokens ? 'Tokens (reales)' : 'Tokens estimados', value: fmtTokens(totalTokens), icon: <Zap size={14} />, color: '#8b5cf6' },
+            { label: 'Coste API (USD)', value: totalUsd >= 10 ? `$${totalUsd.toFixed(2)}` : `$${totalUsd.toFixed(3)}`, icon: <DollarSign size={14} />, color: '#ef4444' },
           ].map((s) => (
             <div key={s.label} style={{ ...card, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
               <div style={{ color: s.color }}>{s.icon}</div>
@@ -543,6 +545,13 @@ export default function ModelStatsPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {!loading && !error && rows.length > 0 && (
+        <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '-12px 0 20px', lineHeight: 1.5 }}>
+          Coste calculado con tarifas API Gemini (may 2026) y tokens reales cuando existen; si no, estimación por modelo
+          (~$3,51/1M tokens observado en factura GCP). No incluye créditos Google.
+        </p>
       )}
 
       {/* ── Error ── */}

@@ -10,30 +10,14 @@ import {
   estimatedUsdPerMessageWithRag,
   financeRateConfig,
 } from '@/lib/finance-rates';
+import { classifyModelTier, type ModelTier } from '@/lib/llm-cost';
 
 export { estimatedUsdPerMessage, financeRateConfig } from '@/lib/finance-rates';
 
-type ModelClass = 'default' | 'flash' | 'premium';
+type ModelClass = ModelTier;
 
 function classifyModelClass(model: string): ModelClass {
-  const m = model.toLowerCase();
-  if (!m) return 'default';
-  if (
-    m.includes('flash') ||
-    m.includes('mini') ||
-    m.includes('nano') ||
-    m.includes('small')
-  ) return 'flash';
-  if (
-    m.includes('pro') ||
-    m.includes('ultra') ||
-    m.includes('claude') ||
-    m.includes('gpt-4') ||
-    m.includes('gpt-5') ||
-    m.includes('sonnet') ||
-    m.includes('opus')
-  ) return 'premium';
-  return 'default';
+  return classifyModelTier(model);
 }
 
 function modelRate(modelClass: ModelClass, ragEnabled: boolean): number {

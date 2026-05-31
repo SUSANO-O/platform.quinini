@@ -9,24 +9,24 @@ export interface AuthUser {
   displayName: string | null;
   avatarUrl?: string | null;
   role: 'user' | 'admin';
-  /** Si false, el usuario debe abrir el enlace del correo de verificación antes de facturación / ciertos cambios. */
+  /** Si false, el usuario debe abrir el enlace del correo de verificaci?n antes de facturaci?n / ciertos cambios. */
   emailVerified?: boolean;
-  /** Email pendiente de confirmación por código (cambio de correo). */
+  /** Email pendiente de confirmaci?n por c?digo (cambio de correo). */
   pendingEmail?: string | null;
-  /** Sesión de admin viendo la cuenta de un cliente (suplantación). */
+  /** Sesi?n de admin viendo la cuenta de un cliente (suplantaci?n). */
   impersonation?: { adminEmail: string; adminUid: string };
 }
 
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
-  login: (email: string, password: string, cfToken?: string) => Promise<{ error?: string; user?: AuthUser; requires2FA?: boolean; tempToken?: string }>;
+  login: (email: string, password: string, cfToken?: string) => Promise<{ error?: string; code?: string; user?: AuthUser; requires2FA?: boolean; tempToken?: string }>;
   complete2FA: (tempToken: string, code: string) => Promise<{ error?: string; user?: AuthUser }>;
   register: (email: string, password: string, displayName?: string, registrationCode?: string, cfToken?: string) => Promise<{ error?: string; user?: AuthUser }>;
   logout: () => Promise<void>;
-  /** Recarga usuario desde la sesión (tras cambiar email o nombre en Ajustes). */
+  /** Recarga usuario desde la sesi?n (tras cambiar email o nombre en Ajustes). */
   refreshUser: () => Promise<void>;
-  /** Termina suplantación y restaura sesión de admin (solo con impersonation activa). */
+  /** Termina suplantaci?n y restaura sesi?n de admin (solo con impersonation activa). */
   stopImpersonating: () => Promise<{ ok: boolean }>;
 }
 
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
-  // Revalidar sesión al volver a la pestaña (cookie expira a las 12 h)
+  // Revalidar sesi?n al volver a la pesta?a (cookie expira a las 12 h)
   useEffect(() => {
     const onVis = () => {
       if (document.visibilityState === 'visible') void refreshUser();
@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ action: 'login', email, password, cfToken }),
     });
     const data = await res.json();
-    if (!res.ok) return { error: data.error || 'Error al iniciar sesión.' };
+    if (!res.ok) return { error: data.error || 'Error al iniciar sesi?n.', code: data.code as string | undefined };
     if (data.requires2FA) return { requires2FA: true, tempToken: data.tempToken as string };
     setUser(data.user);
     return { user: data.user as AuthUser };
@@ -95,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ tempToken, code }),
     });
     const data = await res.json();
-    if (!res.ok) return { error: data.error || 'Código incorrecto.' };
+    if (!res.ok) return { error: data.error || 'C?digo incorrecto.' };
     setUser(data.user);
     return { user: data.user as AuthUser };
   }, []);

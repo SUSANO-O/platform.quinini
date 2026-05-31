@@ -283,13 +283,22 @@ export async function POST(req: NextRequest) {
       const user = await User.findOne({ email: normalizedEmail });
       if (!user) {
         await recordAudit({ userId: normalizedEmail, action: 'auth.login.failed', resource: 'session', ip, meta: { reason: 'user_not_found' } });
-        return noCache(NextResponse.json({ error: 'Credenciales inválidas.' }, { status: 401 }));
+        return noCache(NextResponse.json(
+          {
+            error: 'No hay ninguna cuenta registrada con este email.',
+            code: 'USER_NOT_REGISTERED',
+          },
+          { status: 404 },
+        ));
       }
 
       const { valid, needsUpgrade } = await verifyPassword(password, user.passwordHash, user.hashVersion);
       if (!valid) {
         await recordAudit({ userId: user._id.toString(), action: 'auth.login.failed', resource: 'session', ip, meta: { reason: 'wrong_password' } });
-        return noCache(NextResponse.json({ error: 'Credenciales inválidas.' }, { status: 401 }));
+        return noCache(NextResponse.json(
+          { error: 'Contraseña incorrecta.', code: 'WRONG_PASSWORD' },
+          { status: 401 },
+        ));
       }
 
       // Upgrade SHA256 → bcrypt transparently on successful login

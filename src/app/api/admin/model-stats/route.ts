@@ -19,7 +19,12 @@ import type { PipelineStage } from 'mongoose';
 import { connectDB } from '@/lib/db/connection';
 import { User, ClientAgent, RequestLog } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
-import { financeRateConfig } from '@/lib/finance-aggregate';
+import {
+  classifyModelTier,
+  estimateRequestCostUsd,
+  estimatedTokensForRequests,
+  type ModelTier,
+} from '@/lib/llm-cost';
 
 async function requireAdmin(req: NextRequest) {
   const token = req.cookies.get('afhub_session')?.value;
@@ -66,7 +71,7 @@ export type ModelStatRow = {
   realOutputTokens: number;
   realTotalTokens: number;
   hasRealTokens: boolean;
-  modelClass: 'flash' | 'default' | 'premium';
+  modelClass: ModelTier;
   lastUsedMonth: string | null;
   lastUsedAt: string | null;
   lastWidgetId: string | null;
@@ -77,20 +82,7 @@ export type ModelStatRow = {
 
 // ── Helpers compartidos ──────────────────────────────────────────────────────
 
-type ModelClass = 'flash' | 'default' | 'premium';
-
-function classifyModel(modelId: string): ModelClass {
-  const m = modelId.toLowerCase();
-  if (m.includes('flash') || m.includes('mini') || m.includes('nano') || m.includes('small')) return 'flash';
-  if (m.includes('pro') || m.includes('ultra') || m.includes('claude') || m.includes('gpt-4') || m.includes('gpt-5') || m.includes('sonnet') || m.includes('opus')) return 'premium';
-  return 'default';
-}
-
-const TOKEN_EST: Record<ModelClass, { input: number; output: number }> = {
-  flash:   { input: 350, output: 100 },
-  default: { input: 550, output: 150 },
-  premium: { input: 750, output: 200 },
-};
+type ModelClass = ModelTier;
 
 // ── Raw aggregation result shape ─────────────────────────────────────────────
 
@@ -131,12 +123,6 @@ export async function GET(req: NextRequest) {
   const filterAgent  = searchParams.get('agentId')  ?? null;
   const filterUser   = searchParams.get('userId')   ?? null;
   const filterModel  = searchParams.get('model')    ?? null;
-
-  const rates = financeRateConfig();
-  function usdFor(modelClass: ModelClass, n: number) {
-    const base = modelClass === 'flash' ? rates.flashRate : modelClass === 'premium' ? rates.premiumRate : rates.defaultRate;
-    return Math.round(n * base * 10000) / 10000;
-  }
 
   // ── 1. Aggregation pipeline (filtros en MongoDB, con índices) ───────────────
 
@@ -283,27 +269,31 @@ export async function GET(req: NextRequest) {
     const modelId   = agg._id ?? 'unknown';
     seenModels.add(modelId);
     const cfg       = configMap.get(modelId) ?? { primaryCount: 0, fallbackCount: 0, lastAgentUpdatedAt: null };
-    const mc        = classifyModel(modelId);
-    const tokEst    = TOKEN_EST[mc];
+    const mc        = classifyModelTier(modelId);
     const hasReal   = agg.realInputTokens + agg.realOutputTokens > 0;
+    const tokenEst  = estimatedTokensForRequests(modelId, agg.totalRequests);
 
     // Ordenar y enriquecer widgets
     const sortedWidgets: WidgetBreakdownRow[] = (agg.widgets ?? [])
       .sort((a, b) => b.requests - a.requests)
       .slice(0, 200)
-      .map((w) => ({
-        widgetId:         w.widgetId,
-        widgetName:       w.widgetName ?? null,
-        agentId:          w.agentId ?? null,
-        requests:         w.requests,
-        realInputTokens:  w.realInputTokens,
-        realOutputTokens: w.realOutputTokens,
-        realTotalTokens:  w.realInputTokens + w.realOutputTokens,
-        estimatedTokens:  Math.round(w.requests * (tokEst.input + tokEst.output)),
-        estimatedUsd:     usdFor(mc, w.requests),
-        hasRealTokens:    w.realInputTokens + w.realOutputTokens > 0,
-        lastMonth:        w.lastMonth,
-      }));
+      .map((w) => {
+        const wHasReal = w.realInputTokens + w.realOutputTokens > 0;
+        const wTokEst = estimatedTokensForRequests(modelId, w.requests);
+        return {
+          widgetId:         w.widgetId,
+          widgetName:       w.widgetName ?? null,
+          agentId:          w.agentId ?? null,
+          requests:         w.requests,
+          realInputTokens:  w.realInputTokens,
+          realOutputTokens: w.realOutputTokens,
+          realTotalTokens:  w.realInputTokens + w.realOutputTokens,
+          estimatedTokens:  wHasReal ? w.realInputTokens + w.realOutputTokens : wTokEst.total,
+          estimatedUsd:     estimateRequestCostUsd(modelId, w.requests, w.realInputTokens, w.realOutputTokens),
+          hasRealTokens:    wHasReal,
+          lastMonth:        w.lastMonth,
+        };
+      });
 
     const topWidget = sortedWidgets[0] ?? null;
 
@@ -312,10 +302,15 @@ export async function GET(req: NextRequest) {
       primaryCount:          cfg.primaryCount,
       fallbackCount:         cfg.fallbackCount,
       totalRequests:         agg.totalRequests,
-      estimatedTokens:       Math.round(agg.totalRequests * (tokEst.input + tokEst.output)),
-      estimatedInputTokens:  Math.round(agg.totalRequests * tokEst.input),
-      estimatedOutputTokens: Math.round(agg.totalRequests * tokEst.output),
-      estimatedUsd:          usdFor(mc, agg.totalRequests),
+      estimatedTokens:       hasReal ? agg.realInputTokens + agg.realOutputTokens : tokenEst.total,
+      estimatedInputTokens:  hasReal ? agg.realInputTokens : tokenEst.input,
+      estimatedOutputTokens: hasReal ? agg.realOutputTokens : tokenEst.output,
+      estimatedUsd:          estimateRequestCostUsd(
+        modelId,
+        agg.totalRequests,
+        agg.realInputTokens,
+        agg.realOutputTokens,
+      ),
       realInputTokens:       agg.realInputTokens,
       realOutputTokens:      agg.realOutputTokens,
       realTotalTokens:       agg.realInputTokens + agg.realOutputTokens,
@@ -335,7 +330,7 @@ export async function GET(req: NextRequest) {
   if (!isFiltered) {
     for (const [modelId, cfg] of configMap) {
       if (seenModels.has(modelId)) continue;
-      const mc = classifyModel(modelId);
+      const mc = classifyModelTier(modelId);
       rows.push({
         modelId,
         primaryCount:          cfg.primaryCount,

@@ -7,7 +7,7 @@
 export function estimatedUsdPerMessage(): number {
   const raw = process.env.FINANCE_EST_USD_PER_MESSAGE;
   const n = raw ? Number(raw) : NaN;
-  return Number.isFinite(n) && n >= 0 ? n : 0.003;
+  return Number.isFinite(n) && n >= 0 ? n : 0.006;
 }
 
 function envNumber(name: string, fallback: number): number {
@@ -20,8 +20,8 @@ export function financeRateConfig() {
   const defaultRate = estimatedUsdPerMessage();
   return {
     defaultRate,
-    flashRate: envNumber('FINANCE_EST_USD_PER_MESSAGE_FLASH', 0.0005),
-    premiumRate: envNumber('FINANCE_EST_USD_PER_MESSAGE_PREMIUM', 0.004),
+    flashRate: envNumber('FINANCE_EST_USD_PER_MESSAGE_FLASH', 0.001),
+    premiumRate: envNumber('FINANCE_EST_USD_PER_MESSAGE_PREMIUM', 0.017),
     /** Contexto RAG más largo en el LLM (chunks recuperados). */
     ragMultiplier: envNumber('FINANCE_EST_RAG_MULTIPLIER', 2.0),
     /**
