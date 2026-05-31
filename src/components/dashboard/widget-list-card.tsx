@@ -78,28 +78,19 @@ export function WidgetListCard({
     return () => document.removeEventListener('mousedown', close);
   }, [menuOpen]);
 
-  const menuItemStyle: CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    width: '100%',
-    padding: '9px 12px',
-    border: 'none',
-    background: 'transparent',
-    cursor: 'pointer',
-    fontSize: 12,
-    fontWeight: 600,
-    color: 'var(--foreground)',
-    textAlign: 'left',
-  };
+  const menuItemClass =
+    'flex items-center gap-2 w-full px-3 py-2.5 border-0 bg-transparent cursor-pointer text-xs font-semibold text-left text-[var(--foreground)] transition-colors hover:bg-[var(--muted)]';
 
   return (
     <div
-      className="card-hover rounded-2xl overflow-hidden border"
+      className="rounded-2xl border"
       style={{
         borderColor: isActive ? 'var(--border)' : 'rgba(239,68,68,0.35)',
         background: 'var(--card)',
         opacity: isActive ? 1 : 0.92,
+        position: 'relative',
+        zIndex: menuOpen ? 40 : 'auto',
+        boxShadow: 'var(--shadow-surface-sm)',
       }}
     >
       <div style={{ height: 3, background: isActive ? w.color : '#94a3b8' }} />
@@ -153,7 +144,7 @@ export function WidgetListCard({
         <div className="flex items-center gap-2 mt-4 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
           <Link
             href={`/dashboard/widget-builder?edit=${w._id}`}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold no-underline transition-opacity hover:opacity-90 flex-1 sm:flex-none"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold no-underline flex-1 sm:flex-none transition-all duration-150 hover:brightness-110 hover:-translate-y-px hover:shadow-md active:translate-y-0"
             style={{
               background: 'var(--primary)',
               color: '#fff',
@@ -167,7 +158,7 @@ export function WidgetListCard({
           <Link
             href={`/dashboard/widget-preview?id=${w._id}`}
             title="Probar el chat"
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold no-underline transition-opacity hover:opacity-90 flex-1 sm:flex-none"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold no-underline flex-1 sm:flex-none transition-all duration-150 hover:brightness-[0.96] hover:-translate-y-px hover:shadow-md active:translate-y-0"
             style={BTN_SECONDARY}
           >
             <Play size={13} />
@@ -178,7 +169,7 @@ export function WidgetListCard({
             <button
               type="button"
               onClick={() => setMenuOpen((v) => !v)}
-              className="inline-flex items-center justify-center w-9 h-9 rounded-xl border cursor-pointer transition-colors hover:opacity-90"
+              className={`inline-flex items-center justify-center w-9 h-9 rounded-xl border cursor-pointer transition-all duration-150 hover:brightness-[0.96] hover:-translate-y-px hover:shadow-md active:translate-y-0 ${menuOpen ? 'ring-2 ring-[var(--primary)] ring-offset-1' : ''}`}
               style={{ ...BTN_SECONDARY, padding: 0 }}
               aria-label="Más acciones"
               aria-expanded={menuOpen}
@@ -188,16 +179,17 @@ export function WidgetListCard({
 
             {menuOpen && (
               <div
-                className="absolute right-0 top-full mt-1.5 z-20 min-w-[190px] rounded-xl border py-1 shadow-lg"
+                className="absolute right-0 bottom-full mb-1.5 min-w-[190px] rounded-xl border py-1 shadow-lg"
                 style={{
+                  zIndex: 50,
                   borderColor: 'var(--border)',
                   background: 'var(--card)',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.16)',
                 }}
               >
                 <button
                   type="button"
-                  style={menuItemStyle}
+                  className={menuItemClass}
                   disabled={toggling}
                   onClick={() => { setMenuOpen(false); onToggleActive(); }}
                 >
@@ -206,7 +198,7 @@ export function WidgetListCard({
                 </button>
                 <button
                   type="button"
-                  style={menuItemStyle}
+                  className={menuItemClass}
                   onClick={() => { setMenuOpen(false); onToggleCode(); }}
                 >
                   <Code2 size={14} />
@@ -214,7 +206,7 @@ export function WidgetListCard({
                 </button>
                 <Link
                   href={`/dashboard/widgets/${w._id}/shares`}
-                  style={{ ...menuItemStyle, textDecoration: 'none' }}
+                  className={`${menuItemClass} no-underline`}
                   onClick={() => setMenuOpen(false)}
                 >
                   <Share2 size={14} style={{ color: '#6366f1' }} />
@@ -222,7 +214,7 @@ export function WidgetListCard({
                 </Link>
                 <button
                   type="button"
-                  style={menuItemStyle}
+                  className={menuItemClass}
                   onClick={() => { setMenuOpen(false); onExportHistory(); }}
                 >
                   <Download size={14} />
@@ -231,7 +223,7 @@ export function WidgetListCard({
                 <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
                 <button
                   type="button"
-                  style={{ ...menuItemStyle, color: '#ef4444' }}
+                  className={`${menuItemClass} text-[#ef4444] hover:bg-[rgba(239,68,68,0.08)]`}
                   onClick={() => { setMenuOpen(false); onDelete(); }}
                 >
                   <Trash2 size={14} />
@@ -244,7 +236,7 @@ export function WidgetListCard({
       </div>
 
       {expanded && (
-        <div className="border-t overflow-hidden" style={{ borderColor: 'var(--border)', background: '#0d1117' }}>
+        <div className="border-t overflow-hidden rounded-b-2xl" style={{ borderColor: 'var(--border)', background: '#0d1117' }}>
           <div
             className="flex items-center justify-between gap-3 px-4 py-3 border-b"
             style={{ borderColor: 'rgba(255,255,255,0.06)', background: '#161b22' }}
