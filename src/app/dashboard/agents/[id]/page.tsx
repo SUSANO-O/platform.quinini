@@ -1505,6 +1505,9 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               fallbackIds={fallbackModels}
               models={summaryModels}
               accentColor={R}
+              fallbackCatalog={hfFallbackCatalog}
+              onAddFallback={(id) => setFallbackModels((prev) => [...prev, id])}
+              readOnly={readOnly}
             />
             {modelsHubError && (
               <p style={{ fontSize: '12px', color: '#d97706', marginBottom: '10px', lineHeight: 1.45 }}>
