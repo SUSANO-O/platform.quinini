@@ -164,9 +164,7 @@ function SidebarExpiryBadge() {
               fontWeight: 700,
               color: '#fff',
               cursor: 'pointer',
-              background: planId === 'growth'
-                ? 'var(--brand-primary)'
-                : 'var(--brand-primary)',
+              background: 'var(--brand-primary)',
             }}
           >
             {plan.label} · {plan.priceLabel}
