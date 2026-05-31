@@ -14,7 +14,7 @@ describe('resolveInternalAssistBoot', () => {
     const cfg = resolveInternalAssistBoot('marketing', 'https://app.example.com');
     expect(cfg.agentId).toBe('math');
     expect(cfg.host).toBe('https://app.example.com');
-    expect(cfg.fabHint).toBe('preguntame lo que necesites');
+    expect(cfg.fabHint).toBe('Hola! Como puedo ayudarte hoy?');
     expect(cfg.avatar).toContain('freepik');
   });
 
