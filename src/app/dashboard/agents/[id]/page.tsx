@@ -39,6 +39,8 @@ import { ModelSelectionSummary } from '@/components/dashboard/model-selection-su
 import { ModelCatalogPicker } from '@/components/dashboard/model-catalog-picker';
 import { AgentFallbackPicker } from '@/components/dashboard/agent-fallback-picker';
 import { useFallbackModelOptions } from '@/hooks/use-fallback-model-options';
+import { AgentDetailHeader } from '@/components/dashboard/agent-detail-header';
+import { AgentDetailTabs, type AgentDetailTabId } from '@/components/dashboard/agent-detail-tabs';
 
 import { R, O, B } from '@/lib/brand-colors';
 const RUNTIME_SKILL_TEMPLATES = [
@@ -98,7 +100,7 @@ const RAG_EXAMPLE_DOWNLOADS = [
 const RAG_MAX_EXTRACTED_CHARS = 120_000;
 const RAG_MAX_FILE_MB = 10;
 
-type Tab = 'general' | 'rules' | 'faqs' | 'tools' | 'rag' | 'subagents' | 'scheduled-tasks';
+type Tab = AgentDetailTabId;
 
 interface McpServerGroup {
   integrationKey: string;
@@ -1257,18 +1259,14 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     return { label: 'Sync pendiente', bg: 'rgba(217,119,6,0.12)', color: '#d97706' };
   })();
 
-  const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
-    { id: 'general', label: 'General', icon: <Settings size={13} /> },
-    { id: 'rules', label: `Reglas (${behaviorRules.length})`, icon: <Sparkles size={13} /> },
-    {
-      id: 'faqs',
-      label: `FAQ (${agentFaqs.length})`,
-      icon: <HelpCircle size={13} />,
-    },
-    { id: 'tools',   label: `Herramientas (${tools.length + mcpToolIds.length})`, icon: <Wrench size={13} /> },
-    { id: 'rag',     label: `Almacenamiento (${ragN})`, icon: <Zap size={13} /> },
-    { id: 'subagents', label: `Sub-agentes (${subAgents.length})`, icon: <Network size={13} /> },
-    { id: 'scheduled-tasks', label: 'Tareas Programadas', icon: <Clock size={13} /> },
+  const TABS = [
+    { id: 'general' as const, label: 'General', icon: <Settings size={14} /> },
+    { id: 'rules' as const, label: 'Reglas', icon: <Sparkles size={14} />, count: behaviorRules.length },
+    { id: 'faqs' as const, label: 'FAQ', icon: <HelpCircle size={14} />, count: agentFaqs.length },
+    { id: 'tools' as const, label: 'Herramientas', icon: <Wrench size={14} />, count: tools.length + mcpToolIds.length },
+    { id: 'rag' as const, label: 'Almacén', icon: <Zap size={14} />, count: ragN },
+    { id: 'subagents' as const, label: 'Sub-agentes', icon: <Network size={14} />, count: subAgents.length },
+    { id: 'scheduled-tasks' as const, label: 'Tareas', icon: <Clock size={14} /> },
   ];
   const visibleTabs = soloChatOnly ? TABS.filter((t) => t.id === 'general') : TABS;
 
@@ -1292,7 +1290,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       <div className="hero-glow pointer-events-none" style={{ background: R, top: '-200px', right: '-60px' }} />
       <div className="hero-glow pointer-events-none" style={{ background: B, top: '120px', left: '-120px' }} />
 
-      <div className="relative px-6 py-10 max-w-3xl mx-auto">
+      <div className="relative px-4 sm:px-6 py-8 md:py-10 max-w-4xl mx-auto">
       {agent && (
         <>
           <AgentMcpOpenFromQuery
@@ -1310,108 +1308,20 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         </>
       )}
 
-      {/* Back */}
-      <Link href="/dashboard/agents" className="landing-link-accent inline-flex items-center gap-1 text-xs no-underline mb-4 font-semibold">
-        <ChevronLeft size={14} /> Mis agentes
-      </Link>
-      <div className="badge-primary mb-4 w-fit">
-        <Sparkles size={13} />
-        Detalle del agente
-      </div>
+      <AgentDetailHeader
+        name={agent.name}
+        model={model || agent.model}
+        isDisabled={isDisabled}
+        hubSynced={agent.syncStatus === 'synced'}
+        ragSummary={soloChatOnly ? null : ragSummary}
+        readOnly={readOnly}
+        deleting={deleting}
+        saving={saving}
+        onToggleStatus={toggleStatus}
+        onDelete={() => setShowDeleteConfirm(true)}
+      />
 
-      {/* Header */}
-      <div className="flex flex-wrap items-center gap-3 mb-8">
-        <div
-          className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border"
-          style={{
-            background: isDisabled ? 'var(--border)' : `${R}14`,
-            borderColor: isDisabled ? 'var(--border)' : `${R}33`,
-          }}
-        >
-          <Bot size={20} style={{ color: isDisabled ? 'var(--muted-foreground)' : R }} strokeWidth={1.75} />
-        </div>
-        <div className="flex-1 min-w-[200px]">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-lg md:text-xl font-bold tracking-tight">
-            <span className="gradient-text">{agent.name}</span>
-          </span>
-            <span style={{
-              fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-              background: isDisabled ? 'rgba(107,114,128,0.15)' : 'rgba(34,197,94,0.12)',
-              color: isDisabled ? '#6b7280' : '#22c55e',
-            }}>
-              {isDisabled ? 'Desactivado' : 'Activo'}
-            </span>
-            {agent.syncStatus === 'synced' && (
-              <span className="text-[10px] font-semibold" style={{ color: B }}>✓ Hub sync</span>
-            )}
-            {ragSummary && !soloChatOnly && (
-              <span style={{
-                fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-                background: ragLoaded ? 'rgba(var(--brand-primary-rgb),0.12)' : agent.ragEnabled ? 'rgba(217,119,6,0.12)' : 'rgba(107,114,128,0.12)',
-                color: ragLoaded ? B : agent.ragEnabled ? '#d97706' : 'var(--muted-foreground)',
-              }} title="Estado del almacenamiento de catálogo (texto, URL, archivos)">
-                {ragSummary}
-              </span>
-            )}
-          </div>
-          <p className="m-0 text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>{agent.description || agent.model}</p>
-        </div>
-        {!readOnly && (
-        <>
-        <button
-          onClick={toggleStatus}
-          disabled={deleting}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-semibold cursor-pointer transition-colors card-hover"
-          style={{
-            borderColor: 'var(--border)',
-            background: 'transparent',
-            color: isDisabled ? '#22c55e' : '#ef4444',
-          }}
-        >
-          <CircleOff size={13} />
-          {isDisabled ? 'Activar' : 'Desactivar'}
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowDeleteConfirm(true)}
-          disabled={deleting || saving}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-semibold cursor-pointer transition-colors"
-          style={{
-            borderColor: 'rgba(239,68,68,0.35)',
-            background: 'rgba(239,68,68,0.06)',
-            color: '#ef4444',
-            opacity: deleting ? 0.6 : 1,
-          }}
-        >
-          {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-          {deleting ? 'Eliminando…' : 'Eliminar'}
-        </button>
-        </>
-        )}
-      </div>
-
-      {/* Tabs */}
-      {visibleTabs.length > 1 && (
-      <div className="flex gap-1 mb-6 p-1 rounded-2xl border card-texture" style={{ borderColor: 'var(--border)' }}>
-        {visibleTabs.map(({ id: tabId, label, icon }) => (
-          <button
-            key={tabId}
-            onClick={() => setTab(tabId)}
-            type="button"
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl border-0 cursor-pointer text-xs transition-all whitespace-nowrap min-w-0"
-            style={{
-              fontWeight: tab === tabId ? 700 : 500,
-              background: tab === tabId ? 'var(--background)' : 'transparent',
-              color: tab === tabId ? R : 'var(--muted-foreground)',
-              boxShadow: tab === tabId ? `0 0 0 1px ${R}22` : 'none',
-            }}
-          >
-            {icon} <span className="truncate">{label}</span>
-          </button>
-        ))}
-      </div>
-      )}
+      <AgentDetailTabs tabs={visibleTabs} active={tab} onChange={setTab} />
       {soloChatOnly && (
         <p className="text-xs mb-4 m-0 px-3 py-2 rounded-xl border" style={{ color: 'var(--muted-foreground)', borderColor: 'var(--border)', background: 'var(--muted)' }}>
           Plan <strong>Solo</strong>: chat básico. Actualiza a Basic o superior para reglas, FAQ, herramientas, almacenamiento y sub-agentes.
@@ -1442,7 +1352,15 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '5px' }}>Descripción</label>
-                <input className="landing-input" style={inp} value={description} onChange={(e) => setDescription(e.target.value)} disabled={readOnly} />
+                <textarea
+                  className="landing-input"
+                  style={{ ...inp, minHeight: 72, resize: 'vertical', fontFamily: 'inherit' }}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  disabled={readOnly}
+                  rows={3}
+                  placeholder="Breve resumen del rol del agente"
+                />
               </div>
             </div>
           </SectionCard>
