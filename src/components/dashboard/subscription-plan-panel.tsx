@@ -116,7 +116,7 @@ export function SubscriptionPlanPanel({ checkoutDisabled = false }: { checkoutDi
         open={modalPlan !== null}
         onClose={() => !busy && setModalPlan(null)}
         fromPlanId={effectivePlan}
-        targetPlanId={modalPlan ?? 'starter'}
+        targetPlanId={modalPlan ?? 'plus'}
         isExistingPaidSubscription={Boolean(hasPaidSubscriptionUi)}
         onConfirm={executePlanChange}
         isBusy={Boolean(busy)}
