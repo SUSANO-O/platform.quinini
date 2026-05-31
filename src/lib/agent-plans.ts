@@ -23,7 +23,7 @@ export const TOOLS: ToolDef[] = [
     name: 'Webhook',
     icon: '🔗',
     description: 'Llama a cualquier endpoint HTTP externo.',
-    minPlan: 'basic',
+    minPlan: 'team',
     configFields: [
       { key: 'url', label: 'URL del Webhook', placeholder: 'https://mi-api.com/hook', required: true },
       { key: 'secret', label: 'Secret (opcional)', placeholder: 'Bearer token o HMAC secret', required: false },
@@ -34,7 +34,7 @@ export const TOOLS: ToolDef[] = [
     name: 'File Upload',
     icon: '📎',
     description: 'Permite al usuario subir archivos para que el agente los procese.',
-    minPlan: 'growth',
+    minPlan: 'plus',
     configFields: [],
   },
   {
@@ -42,7 +42,7 @@ export const TOOLS: ToolDef[] = [
     name: 'Gmail',
     icon: '📧',
     description: 'Envía y lee correos desde una cuenta de Gmail.',
-    minPlan: 'basic',
+    minPlan: 'team',
     configFields: [
       { key: 'accountEmail', label: 'Cuenta Gmail', placeholder: 'tu@gmail.com', required: true },
     ],
@@ -52,7 +52,7 @@ export const TOOLS: ToolDef[] = [
     name: 'Slack',
     icon: '💬',
     description: 'Envía mensajes a canales y usuarios de Slack.',
-    minPlan: 'basic',
+    minPlan: 'team',
     configFields: [
       { key: 'webhookUrl', label: 'Incoming Webhook URL', placeholder: 'https://hooks.slack.com/...', required: true },
       { key: 'defaultChannel', label: 'Canal por defecto', placeholder: '#general', required: false },
@@ -63,7 +63,7 @@ export const TOOLS: ToolDef[] = [
     name: 'Google Calendar',
     icon: '📅',
     description: 'Crea eventos, verifica disponibilidad y agenda reuniones.',
-    minPlan: 'growth',
+    minPlan: 'plus',
     configFields: [
       { key: 'calendarId', label: 'Calendar ID', placeholder: 'primary o calendar@group.calendar.google.com', required: true },
     ],
@@ -73,7 +73,7 @@ export const TOOLS: ToolDef[] = [
     name: 'HubSpot CRM',
     icon: '🏢',
     description: 'Gestiona contactos, deals y empresas en HubSpot.',
-    minPlan: 'growth',
+    minPlan: 'plus',
     configFields: [
       { key: 'apiKey', label: 'HubSpot API Key', placeholder: 'pat-na1-...', required: true },
     ],
@@ -83,7 +83,7 @@ export const TOOLS: ToolDef[] = [
     name: 'WhatsApp Business',
     icon: '📱',
     description: 'Envía mensajes via WhatsApp Business API.',
-    minPlan: 'growth',
+    minPlan: 'plus',
     configFields: [
       { key: 'phoneNumberId', label: 'Phone Number ID', placeholder: '1234567890', required: true },
       { key: 'token', label: 'Access Token', placeholder: 'EAAx...', required: true },
@@ -94,7 +94,7 @@ export const TOOLS: ToolDef[] = [
     name: 'Notion',
     icon: '📝',
     description: 'Lee y escribe en páginas y databases de Notion.',
-    minPlan: 'growth',
+    minPlan: 'plus',
     configFields: [
       { key: 'integrationToken', label: 'Integration Token', placeholder: 'secret_...', required: true },
       { key: 'databaseId', label: 'Database ID (opcional)', placeholder: 'xxxxxxxx-xxxx-...', required: false },
@@ -105,7 +105,7 @@ export const TOOLS: ToolDef[] = [
     name: 'MongoDB (cliente)',
     icon: '🍃',
     description: 'Consulta datos en un clúster MongoDB del cliente vía MCP en AIBackHub (política por conexión).',
-    minPlan: 'growth',
+    minPlan: 'plus',
     configFields: [
       { key: 'connectionUri', label: 'Connection URI', placeholder: 'mongodb+srv://…', required: true },
       { key: 'accessMode', label: 'Modo (read_only / read_write)', placeholder: 'read_only', required: false },
@@ -116,7 +116,7 @@ export const TOOLS: ToolDef[] = [
     name: 'PostgreSQL (cliente)',
     icon: '🐘',
     description: 'Consulta datos en PostgreSQL del cliente vía MCP en AIBackHub (solo lectura por defecto).',
-    minPlan: 'growth',
+    minPlan: 'plus',
     configFields: [
       { key: 'connectionUri', label: 'Connection URI', placeholder: 'postgresql://…', required: true },
       { key: 'accessMode', label: 'Modo (read_only / read_write)', placeholder: 'read_only', required: false },

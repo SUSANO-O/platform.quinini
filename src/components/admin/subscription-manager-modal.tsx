@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { X, Loader2, Trash2, Save, RefreshCw } from 'lucide-react';
+import { PLAN_ORDER, type PlanId } from '@/lib/plan-catalog';
 
-const PLANS   = ['free', 'starter', 'growth', 'business', 'enterprise', 'solo', 'basic', 'team', 'plus'] as const;
+const PLANS = [...PLAN_ORDER] as const;
 const STATUSES = ['trialing', 'active', 'canceled', 'past_due', 'incomplete'] as const;
 
-type Plan   = typeof PLANS[number];
+type Plan   = PlanId;
 type Status = typeof STATUSES[number];
 
 interface SubForm {
@@ -28,7 +29,7 @@ interface SubForm {
 const SCHEDULED_TASKS_FEATURE = 'scheduled_tasks';
 
 const EMPTY_FORM: SubForm = {
-  plan: 'starter',
+  plan: 'team',
   status: 'trialing',
   trialStartedAt: '',
   trialEndsAt: '',

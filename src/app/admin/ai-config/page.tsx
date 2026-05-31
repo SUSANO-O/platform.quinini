@@ -61,7 +61,7 @@ const PROVIDERS = [
   { key: 'vertex',      label: 'Vertex AI',   sub: 'Gemini (Google Cloud)' },
   { key: 'google-ai',   label: 'Google AI',   sub: 'Gemini API' },
   { key: 'anthropic',   label: 'Anthropic',   sub: 'Claude' },
-  { key: 'deepseek',    label: 'DeepSeek',    sub: 'DeepSeek Chat' },
+  { key: 'deepseek',    label: 'DeepSeek',    sub: 'V4 Flash · V4 Pro' },
   { key: 'huggingface', label: 'HuggingFace', sub: 'Inference API' },
 ];
 

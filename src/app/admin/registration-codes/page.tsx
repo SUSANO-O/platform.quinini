@@ -4,7 +4,10 @@ import { useEffect, useState, useCallback } from 'react';
 import { Plus, RefreshCw, Trash2, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { PLAN_ORDER } from '@/lib/plan-catalog';
+import {
+  PAID_PLAN_IDS,
+  PLAN_ORDER,
+} from '@/lib/plan-catalog';
 
 interface UseEntry {
   userId: string;
@@ -26,7 +29,7 @@ interface CodeRow {
   uses: UseEntry[];
 }
 
-const PLANS = [...PLAN_ORDER];
+const SELLABLE_PLANS = [...PAID_PLAN_IDS];
 
 const PLAN_COLORS: Record<string, { color: string; bg: string }> = {
   free:     { color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
@@ -48,7 +51,7 @@ export default function RegistrationCodesPage() {
   // Create form
   const [showForm, setShowForm] = useState(false);
   const [formCode, setFormCode] = useState('');
-  const [formPlan, setFormPlan] = useState('basic');
+  const [formPlan, setFormPlan] = useState('team');
   const [formMaxUses, setFormMaxUses] = useState(1);
   const [formTrialDays, setFormTrialDays] = useState(7);
   const [formNote, setFormNote] = useState('');
@@ -114,7 +117,7 @@ export default function RegistrationCodesPage() {
     } else if (data.code) {
       setCodes((prev) => [data.code as CodeRow, ...prev]);
       setShowForm(false);
-      setFormCode(''); setFormPlan('basic'); setFormMaxUses(1); setFormTrialDays(7); setFormNote(''); setFormExpiry('');
+      setFormCode(''); setFormPlan('team'); setFormMaxUses(1); setFormTrialDays(7); setFormNote(''); setFormExpiry('');
       toast.success('Código creado');
     }
     setCreating(false);
@@ -189,7 +192,7 @@ export default function RegistrationCodesPage() {
                 Plan asignado
               </label>
               <select value={formPlan} onChange={(e) => setFormPlan(e.target.value)} style={{ ...inputStyle, textTransform: 'capitalize' }}>
-                {PLANS.map((p) => <option key={p} value={p}>{p}</option>)}
+                {SELLABLE_PLANS.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
             <div>

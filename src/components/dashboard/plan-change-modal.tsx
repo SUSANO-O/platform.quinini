@@ -6,10 +6,11 @@ import {
   PLAN_FEATURE_BULLETS,
   planChangeDirection,
   planRank,
+  type PaidPlanId,
 } from '@/lib/plan-catalog';
 import { AlertTriangle, CheckCircle2, X } from 'lucide-react';
 
-export type PaidPlanId = 'solo' | 'basic' | 'team' | 'plus' | 'starter' | 'growth' | 'business';
+export type { PaidPlanId } from '@/lib/plan-catalog';
 
 type PlanChangeModalProps = {
   open: boolean;

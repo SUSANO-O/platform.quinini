@@ -162,9 +162,7 @@ const SUPPORT_BY_PLAN: Record<PlanId, string> = {
 };
 
 export function buildPlanComparisonRows(): PlanComparisonRow[] {
-  const ids: PlanId[] = [
-    'free', 'solo', 'basic', 'team', 'plus', 'starter', 'growth', 'business',
-  ];
+  const ids: PlanId[] = ['free', 'solo', 'team', 'plus', 'business'];
   return ids.map((id) => {
     const rag = PLAN_RAG_LIMITS[id];
     return {
@@ -182,7 +180,7 @@ export function buildPlanComparisonRows(): PlanComparisonRow[] {
       customIntegration: planHasCustomIntegrationFeature(id) ? 'Incluido' : '—',
       escalationTickets: planHasEscalationTicketFeature(id) ? 'Incluido' : '—',
       conversationAnalytics: formatConversationAnalyticsFeature(id),
-      highlighted: id === 'growth',
+      highlighted: id === 'plus',
     };
   });
 }
@@ -319,7 +317,7 @@ export function packEconomicsVsPlans() {
       conversations: pack.conversations,
       perConv,
       cheaperThanCheapestPlan: perConv < cheapestPlanPerConv,
-      premiumVsStarter: perConv / (PLAN_PRICES_USD.starter / PLAN_CONVERSATION_LIMITS.starter),
+      premiumVsPlus: perConv / (PLAN_PRICES_USD.plus / PLAN_CONVERSATION_LIMITS.plus),
     };
   });
 }

@@ -33,17 +33,14 @@ const SYNC_ENV_ONLY = process.argv.includes('--sync-env');
 const PLANS = {
   subscriptions: [
     { key: 'solo',     name: 'BotIvA Solo',     usd: 7,   interval: 'month', aliases: ['solo'] },
-    { key: 'basic',    name: 'BotIvA Basic',    usd: 17,  interval: 'month', aliases: ['basic'] },
     { key: 'team',     name: 'BotIvA Team',     usd: 29,  interval: 'month', aliases: ['team'] },
-    { key: 'plus',     name: 'BotIvA Plus',     usd: 39,  interval: 'month', aliases: ['plus'] },
-    { key: 'starter',  name: 'BotIvA Starter',  usd: 65,  interval: 'month', aliases: ['starter'] },
-    { key: 'growth',   name: 'BotIvA Growth',   usd: 179, interval: 'month', aliases: ['growth'] },
+    { key: 'plus',     name: 'BotIvA Plus',     usd: 42,  interval: 'month', aliases: ['plus'] },
     { key: 'business', name: 'BotIvA Business', usd: 749, interval: 'month', aliases: ['business'] },
   ],
   packs: [
     { key: 'pack_s', name: 'Pack Conversaciones S (1.000)',  usd: 15,  interval: null, aliases: ['pack conversaciones s', 'pack s', 'pack 1000', 'pack 1.000'] },
     { key: 'pack_m', name: 'Pack Conversaciones M (5.000)',  usd: 60,  interval: null, aliases: ['pack conversaciones m', 'pack m', 'pack 5000', 'pack 5.000'] },
-    { key: 'pack_l', name: 'Pack Conversaciones L (15.000)', usd: 145, interval: null, aliases: ['pack conversaciones l', 'pack l', 'pack 15000', 'pack 15.000'] },
+    { key: 'pack_l', name: 'Pack Conversaciones L (15.000)', usd: 170, interval: null, aliases: ['pack conversaciones l', 'pack l', 'pack 15000', 'pack 15.000'] },
   ],
 };
 

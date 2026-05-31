@@ -39,7 +39,7 @@ function parsePlanCatalog(text) {
 
 function parsePricingAudit(text) {
   const plans = [];
-  for (const m of text.matchAll(/\{\s*id:\s*'(solo|basic|team|plus|starter|growth|business)',\s*price:\s*([\d_]+),\s*conv:\s*([\d_]+)/g)) {
+  for (const m of text.matchAll(/\{\s*id:\s*'(solo|team|plus|business)',\s*price:\s*([\d_]+),\s*conv:\s*([\d_]+)/g)) {
     plans.push({ id: m[1], price: Number(m[2].replace(/_/g, '')), conv: Number(m[3].replace(/_/g, '')) });
   }
   const packs = [];
@@ -52,7 +52,7 @@ function parsePricingAudit(text) {
 function parseLsCatalog(text) {
   const subs = {};
   for (const m of text.matchAll(/(\w+):\s*\{\s*usd:\s*([\d_]+)/g)) {
-    if (['solo', 'basic', 'team', 'plus', 'starter', 'growth', 'business', 'pack_s', 'pack_m', 'pack_l'].includes(m[1])) {
+    if (['solo', 'team', 'plus', 'business', 'pack_s', 'pack_m', 'pack_l'].includes(m[1])) {
       subs[m[1]] = Number(m[2].replace(/_/g, ''));
     }
   }

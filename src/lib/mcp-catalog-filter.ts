@@ -5,13 +5,11 @@ import { planRank, PLAN_DISPLAY, type PlanId } from '@/lib/plan-catalog';
  * Claves deben coincidir con AIBackHub MCP_INTEGRATION_CATALOG.
  */
 export const MCP_INTEGRATION_MIN_PLAN: Record<string, PlanId> = {
-  gmail: 'starter',
-  /** Mismo mínimo que Gmail para conectar CRM en la misma franja de plan. */
-  hubspot: 'starter',
-  google_calendar: 'growth',
-  /** Fuentes de datos del cliente: requiere plan Growth+ (riesgo / valor). */
-  mongodb: 'growth',
-  postgres: 'growth',
+  gmail: 'plus',
+  hubspot: 'plus',
+  google_calendar: 'plus',
+  mongodb: 'business',
+  postgres: 'business',
 };
 
 export function minPlanForMcpIntegration(key: string): PlanId {

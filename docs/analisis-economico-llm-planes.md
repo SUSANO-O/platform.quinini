@@ -45,32 +45,36 @@ Fuentes de verdad en código:
 
 ### 3.1 Precios y cuotas actuales (may 2026)
 
-| Plan | Precio/mes | Conversaciones/mes |
-|------|------------|-------------------|
-| Solo | $7 | 300 |
-| Basic | $17 | 1.500 |
-| Team | $29 | 2.000 |
-| Plus | $42 | 3.000 |
-| Starter | $69 | 6.000 |
-| Growth | $189 | — |
-| Business | $749 | — |
+**Planes en venta:** Solo, Team, Plus, Business.  
+**Retirados de venta (legacy):** Basic, Starter, Growth — usuarios existentes conservan cuota; no abrir checkout nuevo.
+
+| Plan | Precio/mes | Conversaciones/mes | Estado |
+|------|------------|-------------------|--------|
+| Solo | $7 | 300 | Venta |
+| Team | $29 | 2.000 | Venta |
+| Plus | $42 | 3.000 | Venta (destacado) |
+| Business | $749 | 45.000 | Venta |
+| ~~Basic~~ | ~~$17~~ | ~~1.500~~ | Legacy |
+| ~~Starter~~ | ~~$69~~ | ~~6.000~~ | Legacy |
+| ~~Growth~~ | ~~$189~~ | ~~16.000~~ | Legacy |
 
 ### 3.2 Márgenes estimados (escenario 100% cuota)
 
 | Plan | Situación | Notas |
 |------|-----------|-------|
 | **Solo** | Pérdida leve aceptable | OK como plan de entrada; forzar Flash |
-| **Basic / Team** | Apretado o en pérdida | Si 100% cuota + Pro + RAG → rojo |
+| **Team** | Apretado | Si 100% cuota + Pro + RAG → vigilar |
 | **Plus** | Margen más sano | Sweet spot comercial |
-| **Starter** | Riesgo alto con Pro | 6.000 × $0,017 ≈ **$102** LLM vs $69 ingreso |
-| **Growth / Business** | Sanos | Pro + RAG completo justificado aquí |
+| **Business** | Sano | Pro + RAG completo justificado |
+| **Basic / Starter / Growth** | ~~Retirados~~ | Pérdidas recurrentes en análisis LLM — solo legacy |
 
-### 3.3 Ejemplo numérico — Starter con Pro
+### 3.3 Ejemplo numérico — Starter (legacy, retirado)
 
 ```
 6.000 conv × $0,017/conv ≈ $102/mes solo LLM
 Ingreso plan Starter = $69/mes
 → Pérdida LLM ≈ $33/mes (sin contar infra)
+→ Motivo de retiro de venta (may 2026)
 ```
 
 ---
@@ -79,7 +83,7 @@ Ingreso plan Starter = $69/mes
 
 | Concepto | Valor admin (default) | Valor real observado |
 |----------|----------------------|----------------------|
-| `FINANCE_EST_USD_PER_MESSAGE` | **$0,003** | ~**$0,017** (mix actual) |
+| `FINANCE_EST_USD_PER_MESSAGE` | **$+/32| ~**$0,017** (mix actual) |
 | Tier Flash (2.5 Flash) | ~$0,0005/msg | Coherente |
 | Tier Premium (Pro) | ~$0,004/msg | Subestimado (~$0,012–0,018) |
 | Gemini 3 Flash | Clasificado como `flash` | Cuesta ~6× más que 2.5 Flash → debería ser `default` |

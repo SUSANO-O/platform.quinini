@@ -1,6 +1,6 @@
 /**
  * Lee .env, consulta Stripe (precios recurrentes activos) y escribe STRIPE_PRICE_* coherentes
- * con plan-catalog.ts (7 / 17 / 39 / 65 / 179 / 749 USD).
+ * con plan-catalog.ts (7 / 29 / 42 / 749 USD en venta; legacy opcional).
  * Uso: node scripts/sync-stripe-prices.mjs
  */
 import fs from 'fs';
@@ -43,7 +43,7 @@ const PLANS = [
   { key: 'STRIPE_PRICE_SOLO',     cents: 700,   hints: ['solo', 'BotIvA solo'] },
   { key: 'STRIPE_PRICE_BASIC',    cents: 1700,  hints: ['basic', 'BotIvA basic'] },
   { key: 'STRIPE_PRICE_TEAM',     cents: 2900,  hints: ['team', 'BotIvA team'] },
-  { key: 'STRIPE_PRICE_PLUS',     cents: 3900,  hints: ['plus', 'BotIvA plus'] },
+  { key: 'STRIPE_PRICE_PLUS',     cents: 4200,  hints: ['plus', 'BotIvA plus'] },
   { key: 'STRIPE_PRICE_STARTER',  cents: 6500,  hints: ['starter', 'BotIvA starter'] },
   { key: 'STRIPE_PRICE_GROWTH',   cents: 17900, hints: ['growth', 'BotIvA growth'] },
   { key: 'STRIPE_PRICE_BUSINESS', cents: 74900, hints: ['business', 'BotIvA business'] },

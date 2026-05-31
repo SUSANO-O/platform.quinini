@@ -58,7 +58,7 @@ export async function postSubscribePlan(req: NextRequest): Promise<NextResponse>
   if (!userId) return NextResponse.json({ error: 'Sesión inválida.' }, { status: 401 });
 
   try {
-    const { plan = 'starter' } = await req.json();
+    const { plan = 'plus' } = await req.json();
     if (!planKey(plan)) return NextResponse.json({ error: 'Plan no válido.' }, { status: 400 });
 
     const planConfig = PLANS[plan];

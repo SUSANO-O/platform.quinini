@@ -10,6 +10,7 @@ import {
   planFromLSVariantId,
   ensureLSSetup,
 } from './lemonsqueezy';
+import { isPaidProductPlan } from './plan-catalog';
 import { getSubscription as getLSSubscription } from '@lemonsqueezy/lemonsqueezy.js';
 import {
   readLSCancelAtPeriodEnd,
@@ -140,9 +141,8 @@ export async function getSubscriptionStatus(userId: string) {
   const periodOk = doc.currentPeriodEnd > nowSec;
   const statusOk =
     paidStatuses.includes(doc.status) ||
-    (doc.status === 'incomplete' &&
-      ['starter', 'growth', 'business', 'enterprise'].includes(doc.plan));
-  const paidPlan = ['starter', 'growth', 'business', 'enterprise'].includes(doc.plan);
+    (doc.status === 'incomplete' && isPaidProductPlan(doc.plan));
+  const paidPlan = isPaidProductPlan(doc.plan);
   const periodMissingButPaid =
     doc.currentPeriodEnd <= 0 &&
     paidPlan &&
