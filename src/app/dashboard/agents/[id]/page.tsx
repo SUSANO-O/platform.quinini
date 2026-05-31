@@ -36,6 +36,7 @@ import { AgentHubspotOauthReturn } from '@/components/mcp/agent-hubspot-oauth-re
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ModelPickerCard } from '@/components/dashboard/model-picker-card';
+import { ModelSelectionSummary } from '@/components/dashboard/model-selection-summary';
 
 import { R, O, B } from '@/lib/brand-colors';
 const RUNTIME_SKILL_TEMPLATES = [
@@ -184,6 +185,7 @@ interface RagSource {
 interface ClientAgent {
   _id: string; name: string; description: string; systemPrompt: string;
   model: string;
+  fallbackModels?: string[];
   inferenceTemperature?: number | null;
   inferenceMaxTokens?: number | null;
   type: 'agent' | 'sub-agent'; status: 'active' | 'disabled';
@@ -344,6 +346,9 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [inferenceMaxTokens, setInferenceMaxTokens] = useState('');
   const [modelQuery, setModelQuery] = useState('');
   const [showAllModels, setShowAllModels] = useState(false);
+  const [fallbackModels, setFallbackModels] = useState<string[]>([]);
+  const [fallbackQuery, setFallbackQuery] = useState('');
+  const [showFallbackPanel, setShowFallbackPanel] = useState(false);
   const [skills, setSkills] = useState<string[]>([]);
   const [skillsConfig, setSkillsConfig] = useState<NonNullable<ClientAgent['skillsConfig']>>([]);
   const [behaviorRules, setBehaviorRules] = useState<BehaviorRule[]>([]);
@@ -391,12 +396,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
   const { models: clientModels, hubError: modelsHubError } = useClientModels(plan);
   const displayModels = useMemo(
-    () => mergeSavedModelOptions(clientModels, model, subModel),
-    [clientModels, model, subModel],
+    () => mergeSavedModelOptions(clientModels, model, subModel, ...fallbackModels),
+    [clientModels, model, subModel, fallbackModels],
   );
   const mainModelUnknown = useMemo(
-    () => Boolean(model.trim()) && !clientModels.some((x) => x.id === model),
-    [clientModels, model],
+    () => Boolean(model.trim()) && !displayModels.some((x) => x.id === model),
+    [displayModels, model],
   );
   const filteredModels = useMemo(() => {
     const q = modelQuery.trim().toLowerCase();
@@ -490,6 +495,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         setSubAgents(sa ?? []);
         setName(a.name); setDescription(a.description);
         setSystemPrompt(a.systemPrompt); setModel(a.model);
+        setFallbackModels(Array.isArray(a.fallbackModels) ? a.fallbackModels.filter(Boolean) : []);
         setTools(normalizeTools(a.tools));
         setRagEnabled(a.ragEnabled);
         setRagSources(a.ragSources ?? []);
@@ -714,6 +720,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       description,
       systemPrompt: mergedPrompt,
       model,
+      fallbackModels,
       widgetPublicToken: widgetPublicToken.trim() ? widgetPublicToken.trim().slice(0, 512) : null,
       persistConversationHistory,
       strictPurposeOnly,
@@ -1581,6 +1588,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           <SectionCard>
             <p style={sectionTitle}>Modelo de IA</p>
             <div data-tour="agent-edit-model">
+            <ModelSelectionSummary
+              primaryId={model}
+              fallbackIds={fallbackModels}
+              models={displayModels}
+              accentColor={R}
+            />
             {modelsHubError && (
               <p style={{ fontSize: '12px', color: '#d97706', marginBottom: '10px', lineHeight: 1.45 }}>
                 {modelsHubError} Se muestran modelos de respaldo.
@@ -1622,6 +1635,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   disabled={readOnly}
                   accentColor={R}
                   showTier={false}
+                  selectionBadge="Principal"
                 />
               ))}
             </div>
@@ -1673,6 +1687,105 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   inputMode="numeric"
                 />
               </div>
+            </div>
+            )}
+            {!soloChatOnly && (
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: '12px', fontWeight: 700, color: 'var(--foreground)' }}>
+                    Editar modelos de respaldo
+                  </p>
+                  <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                    Orden de uso si el principal falla. Máx. 3
+                  </p>
+                </div>
+                {!readOnly && fallbackModels.length < 3 && (
+                  <button
+                    type="button"
+                    onClick={() => { setShowFallbackPanel((v) => !v); setFallbackQuery(''); }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                      border: `1px solid ${showFallbackPanel ? R : 'var(--border)'}`,
+                      background: showFallbackPanel ? `rgba(var(--brand-primary-rgb),0.08)` : 'var(--background)',
+                      color: showFallbackPanel ? R : 'var(--foreground)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Plus size={13} />
+                    Agregar
+                  </button>
+                )}
+              </div>
+
+              {fallbackModels.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: showFallbackPanel ? 12 : 0 }}>
+                  {fallbackModels.map((mid, idx) => {
+                    const info = displayModels.find((m) => m.id === mid);
+                    return (
+                      <div key={mid} style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                        border: '1px solid var(--border)', background: 'var(--muted)', color: 'var(--foreground)',
+                      }}>
+                        <span style={{ fontSize: 10, color: 'var(--muted-foreground)', marginRight: 2 }}>#{idx + 1}</span>
+                        {info?.name ?? mid}
+                        {!readOnly && (
+                          <button
+                            type="button"
+                            onClick={() => setFallbackModels((p) => p.filter((x) => x !== mid))}
+                            style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444', padding: 0, display: 'flex', lineHeight: 1 }}
+                          >
+                            <X size={11} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {showFallbackPanel && !readOnly && (
+                <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 12, background: 'var(--muted)' }}>
+                  <input
+                    className="landing-input"
+                    style={{ ...inp, marginBottom: 10 }}
+                    placeholder="Buscar modelo de respaldo..."
+                    value={fallbackQuery}
+                    onChange={(e) => setFallbackQuery(e.target.value)}
+                  />
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-2 max-h-[260px] overflow-y-auto">
+                    {displayModels
+                      .filter((m) => {
+                        if (m.id === model) return false;
+                        if (fallbackModels.includes(m.id)) return false;
+                        const q = fallbackQuery.trim().toLowerCase();
+                        if (!q) return true;
+                        return m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q) || (m.category ?? '').toLowerCase().includes(q);
+                      })
+                      .map((m) => (
+                        <ModelPickerCard
+                          key={`fb-${m.id}`}
+                          model={m}
+                          selected={false}
+                          compact
+                          showTier={false}
+                          accentColor={R}
+                          selectionBadge="Respaldo"
+                          onSelect={() => {
+                            if (fallbackModels.length >= 3) return;
+                            setFallbackModels((p) => [...p, m.id]);
+                            if (fallbackModels.length + 1 >= 3) setShowFallbackPanel(false);
+                          }}
+                        />
+                      ))}
+                  </div>
+                  {fallbackModels.length >= 3 && (
+                    <p style={{ fontSize: 11, color: '#d97706', margin: '8px 0 0' }}>Máximo 3 modelos de respaldo alcanzado.</p>
+                  )}
+                </div>
+              )}
             </div>
             )}
             </div>

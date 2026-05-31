@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Sparkles, KeyRound } from 'lucide-react';
+import { KeyRound, Eye, EyeOff, Check } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 import { TurnstileWidget } from '@/components/ui/turnstile-widget';
@@ -12,17 +12,58 @@ import type { TurnstileInstance } from '@marsidev/react-turnstile';
 
 const CAPTCHA_ENABLED = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
+function validatePasswordClient(password: string): string | null {
+  if (password.length < 8) return 'La contraseña debe tener al menos 8 caracteres.';
+  if (!/[a-z]/.test(password)) return 'La contraseña debe contener al menos una letra minúscula.';
+  if (!/[A-Z]/.test(password)) return 'La contraseña debe contener al menos una letra mayúscula.';
+  if (!/[0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)) {
+    return 'La contraseña debe contener al menos un número o carácter especial.';
+  }
+  return null;
+}
+
+const PASSWORD_RULES = [
+  { id: 'len', label: 'Mínimo 8 caracteres', test: (p: string) => p.length >= 8 },
+  { id: 'lower', label: 'Una minúscula', test: (p: string) => /[a-z]/.test(p) },
+  { id: 'upper', label: 'Una mayúscula', test: (p: string) => /[A-Z]/.test(p) },
+  { id: 'special', label: 'Un número o símbolo', test: (p: string) => /[0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(p) },
+] as const;
+
+function PasswordToggle({
+  show,
+  onToggle,
+}: {
+  show: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-0 cursor-pointer p-0"
+      style={{ color: 'var(--muted-foreground)' }}
+      aria-label={show ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+    >
+      {show ? <EyeOff size={15} /> : <Eye size={15} />}
+    </button>
+  );
+}
+
 export default function RegisterPage() {
   const { register } = useAuth();
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [registrationCode, setRegistrationCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [cfToken, setCfToken] = useState('');
   const turnstileRef = useRef<TurnstileInstance>(null);
+
+  const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -31,20 +72,17 @@ export default function RegisterPage() {
       setError('El código de autorización es requerido.');
       return;
     }
-    if (password.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres.');
+    if (!name.trim()) {
+      setError('Indica tu nombre para personalizar tu cuenta.');
       return;
     }
-    if (!/[a-z]/.test(password)) {
-      setError('La contraseña debe contener al menos una letra minúscula.');
+    const pwError = validatePasswordClient(password);
+    if (pwError) {
+      setError(pwError);
       return;
     }
-    if (!/[A-Z]/.test(password)) {
-      setError('La contraseña debe contener al menos una letra mayúscula.');
-      return;
-    }
-    if (!/[0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)) {
-      setError('La contraseña debe contener al menos un número o carácter especial.');
+    if (password !== confirmPassword) {
+      setError('Las contraseñas no coinciden.');
       return;
     }
     if (CAPTCHA_ENABLED && !cfToken) {
@@ -52,7 +90,13 @@ export default function RegisterPage() {
       return;
     }
     setLoading(true);
-    const result = await register(email, password, name || undefined, registrationCode.trim(), cfToken || undefined);
+    const result = await register(
+      email,
+      password,
+      name.trim(),
+      registrationCode.trim(),
+      cfToken || undefined,
+    );
     setLoading(false);
     if (result.error) {
       setError(result.error);
@@ -119,12 +163,15 @@ export default function RegisterPage() {
               />
             </div>
             <div>
-              <label htmlFor="register-name" className="block text-[13px] font-semibold mb-1.5">Nombre</label>
+              <label htmlFor="register-name" className="block text-[13px] font-semibold mb-1.5">
+                Nombre <span style={{ color: 'var(--muted-foreground)', fontWeight: 500 }}>(obligatorio)</span>
+              </label>
               <input
                 id="register-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                required
                 placeholder="Tu nombre"
                 className="landing-input"
                 autoComplete="name"
@@ -145,16 +192,58 @@ export default function RegisterPage() {
             </div>
             <div>
               <label htmlFor="register-password" className="block text-[13px] font-semibold mb-1.5">Contraseña</label>
-              <input
-                id="register-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="Mínimo 8 caracteres"
-                className="landing-input"
-                autoComplete="new-password"
-              />
+              <div className="relative">
+                <input
+                  id="register-password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="Crea una contraseña segura"
+                  className="landing-input pr-10"
+                  autoComplete="new-password"
+                />
+                <PasswordToggle show={showPassword} onToggle={() => setShowPassword((v) => !v)} />
+              </div>
+              {password.length > 0 && (
+                <ul className="mt-2 flex flex-col gap-1 m-0 p-0 list-none">
+                  {PASSWORD_RULES.map((rule) => {
+                    const ok = rule.test(password);
+                    return (
+                      <li
+                        key={rule.id}
+                        className="flex items-center gap-1.5 text-[11px]"
+                        style={{ color: ok ? '#16a34a' : 'var(--muted-foreground)' }}
+                      >
+                        <Check size={12} strokeWidth={ok ? 2.5 : 2} style={{ opacity: ok ? 1 : 0.35 }} />
+                        {rule.label}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+            <div>
+              <label htmlFor="register-password-confirm" className="block text-[13px] font-semibold mb-1.5">
+                Confirmar contraseña
+              </label>
+              <div className="relative">
+                <input
+                  id="register-password-confirm"
+                  type={showPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  placeholder="Repite la contraseña"
+                  className="landing-input pr-10"
+                  autoComplete="new-password"
+                  aria-invalid={confirmPassword.length > 0 && !passwordsMatch}
+                />
+                <PasswordToggle show={showPassword} onToggle={() => setShowPassword((v) => !v)} />
+              </div>
+              {confirmPassword.length > 0 && !passwordsMatch && (
+                <p className="text-[11px] text-red-600 mt-1.5 mb-0">Las contraseñas no coinciden.</p>
+              )}
             </div>
 
             <TurnstileWidget

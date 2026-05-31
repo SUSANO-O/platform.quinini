@@ -38,6 +38,8 @@ export type ModelPickerCardProps = {
   tierColor?: string;
   showTier?: boolean;
   compact?: boolean;
+  /** Etiqueta visible cuando `selected` (p. ej. Principal, Respaldo). */
+  selectionBadge?: string;
 };
 
 export function ModelPickerCard({
@@ -49,6 +51,7 @@ export function ModelPickerCard({
   tierColor,
   showTier = true,
   compact = false,
+  selectionBadge = 'Principal',
 }: ModelPickerCardProps) {
   const tier = model.tier ?? 'stable';
   const badgeColor = tierColor ?? DEFAULT_TIER_COLOR[tier] ?? 'var(--muted-foreground)';
@@ -87,7 +90,17 @@ export function ModelPickerCard({
           >
             {modelInitials(model.name)}
           </div>
-          {showTier ? (
+          {selected ? (
+            <span
+              className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 uppercase tracking-wide"
+              style={{
+                background: `color-mix(in srgb, ${accentColor} 18%, transparent)`,
+                color: accentColor,
+              }}
+            >
+              {selectionBadge}
+            </span>
+          ) : showTier ? (
             <span
               className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 uppercase tracking-wide"
               style={{
