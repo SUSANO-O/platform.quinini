@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   Inbox,
@@ -11,18 +11,11 @@ import {
   CheckCircle2,
   RotateCcw,
   Loader2,
-  ChevronDown,
-  ChevronUp,
-  Send,
-  UserCheck,
-  Paperclip,
-  X,
-  FileText,
-  Download,
   Trash2,
 } from 'lucide-react';
 import { BRAND_TEXT_COLOR, UI_SURFACE_SECONDARY } from '@/lib/brand';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { InboxChatModal } from '@/components/dashboard/inbox-chat-modal';
 import { notifyInboxChanged } from '@/hooks/use-inbox-open-count';
 
 type InboxItem = {
@@ -62,21 +55,6 @@ type TranscriptMessage = {
   attachments?: Attachment[];
 };
 
-function formatBytes(n?: number): string {
-  if (!n || n <= 0) return '';
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-/** Inserta fl_attachment en URLs de Cloudinary para forzar descarga. */
-function cloudinaryDownloadUrl(url: string): string {
-  if (/res\.cloudinary\.com/.test(url) && url.includes('/upload/')) {
-    return url.replace('/upload/', '/upload/fl_attachment/');
-  }
-  return url;
-}
-
 export default function InboxPage() {
   const [tab, setTab] = useState<'open' | 'resolved'>('open');
   const [items, setItems] = useState<InboxItem[]>([]);
@@ -93,8 +71,7 @@ export default function InboxPage() {
   // Adjuntos pendientes de envío (ya subidos a Cloudinary) por sesión.
   const [pendingAttachments, setPendingAttachments] = useState<Record<string, Attachment[]>>({});
   const [uploadingAttachment, setUploadingAttachment] = useState<string | null>(null);
-  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
-  // Polling del hilo mientras una sesión está expandida y abierta.
+  // Polling del hilo mientras el modal de chat está abierto en una sesión activa.
   const [livePolling, setLivePolling] = useState<string | null>(null);
 
   const load = useCallback(async (silent = false) => {
@@ -229,14 +206,13 @@ export default function InboxPage() {
     }
   }
 
-  async function toggleTranscript(sessionId: string, isOpen: boolean) {
-    if (expanded === sessionId) {
-      setExpanded(null);
-      setLivePolling(null);
-      return;
-    }
+  function closeChat() {
+    setExpanded(null);
+    setLivePolling(null);
+  }
+
+  async function openChat(sessionId: string, isOpen: boolean) {
     setExpanded(sessionId);
-    // Activar polling en vivo solo para sesiones abiertas.
     setLivePolling(isOpen ? sessionId : null);
     setLoadingTranscript(sessionId);
     try {
@@ -249,6 +225,8 @@ export default function InboxPage() {
       setLoadingTranscript(null);
     }
   }
+
+  const activeChatItem = expanded ? items.find((i) => i.sessionId === expanded) : undefined;
 
   async function confirmDeleteSession() {
     if (!deleteTarget) return;
@@ -339,6 +317,27 @@ export default function InboxPage() {
         onConfirm={() => void confirmDeleteSession()}
         onCancel={() => { if (!deletingSession) setDeleteTarget(null); }}
       />
+      {activeChatItem && expanded && (
+        <InboxChatModal
+          open
+          onClose={closeChat}
+          contactName={activeChatItem.contact.name ?? ''}
+          widgetName={activeChatItem.widgetName}
+          handoffAt={activeChatItem.handoffAt}
+          inboxStatus={activeChatItem.inboxStatus}
+          loading={loadingTranscript === expanded}
+          messages={transcripts[expanded]}
+          replyDraft={replyDraft[expanded] ?? ''}
+          onReplyDraftChange={(value) => setReplyDraft((p) => ({ ...p, [expanded]: value }))}
+          pendingAttachments={pendingAttachments[expanded] ?? []}
+          onRemoveAttachment={(index) => removePendingAttachment(expanded, index)}
+          onUploadAttachment={(file) => void uploadAttachment(expanded, file)}
+          uploadingAttachment={uploadingAttachment === expanded}
+          sendingReply={sendingReply === expanded}
+          onSendReply={() => void sendReply(expanded)}
+          onDeleteMessage={(messageId) => void deleteMessage(expanded, messageId)}
+        />
+      )}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
@@ -401,8 +400,7 @@ export default function InboxPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {items.map((item) => {
-            const isExpanded = expanded === item.sessionId;
-            const msgs = transcripts[item.sessionId];
+            const chatOpen = expanded === item.sessionId;
             return (
               <div
                 key={item.sessionId}
@@ -564,23 +562,46 @@ export default function InboxPage() {
                     )}
                     <button
                       type="button"
-                      onClick={() => toggleTranscript(item.sessionId, item.inboxStatus !== 'resolved')}
+                      onClick={() => void openChat(item.sessionId, item.inboxStatus !== 'resolved')}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: 4,
-                        padding: '6px 10px',
-                        borderRadius: 8,
-                        border: 'none',
-                        background: 'transparent',
-                        color: BRAND_TEXT_COLOR,
+                        gap: 6,
+                        padding: '7px 12px',
+                        borderRadius: 10,
+                        border: chatOpen
+                          ? '1px solid rgba(var(--brand-primary-rgb),0.45)'
+                          : '1px solid rgba(var(--brand-primary-rgb),0.22)',
+                        background: chatOpen
+                          ? 'rgba(var(--brand-primary-rgb),0.14)'
+                          : 'rgba(var(--brand-primary-rgb),0.07)',
+                        color: 'var(--brand-primary)',
                         fontSize: 12,
                         fontWeight: 600,
                         cursor: 'pointer',
                       }}
                     >
-                      Transcript ({item.messageCount})
-                      {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      <MessageSquare size={14} />
+                      Chat
+                      {item.messageCount > 0 && (
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            minWidth: 18,
+                            height: 18,
+                            padding: '0 5px',
+                            borderRadius: 999,
+                            background: 'var(--brand-primary)',
+                            color: '#fff',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          {item.messageCount}
+                        </span>
+                      )}
                     </button>
                     <button
                       type="button"
@@ -611,290 +632,11 @@ export default function InboxPage() {
                     </button>
                   </div>
                 </div>
-
-                {isExpanded && (
-                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
-                    {/* Badge "EN VIVO" — modo humano activo */}
-                    {item.inboxStatus !== 'resolved' && (
-                      <div
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '7px 12px',
-                          borderRadius: 10, background: 'rgba(var(--brand-primary-rgb),0.08)',
-                          border: '1px solid rgba(var(--brand-primary-rgb),0.18)',
-                        }}
-                      >
-                        <span style={{ position: 'relative', display: 'flex', width: 8, height: 8 }}>
-                          <span className="animate-ping" style={{ position: 'absolute', inset: 0, borderRadius: 9999, background: '#22c55e', opacity: 0.6 }} />
-                          <span style={{ position: 'relative', width: 8, height: 8, borderRadius: 9999, background: '#22c55e' }} />
-                        </span>
-                        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.04em', color: '#16a34a' }}>EN VIVO</span>
-                        <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>
-                          Tus respuestas llegan al chat del visitante al instante.
-                        </span>
-                      </div>
-                    )}
-
-                    {loadingTranscript === item.sessionId ? (
-                      <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--brand-primary)' }}>
-                        <Loader2 size={16} className="animate-spin" /> Cargando conversación…
-                      </div>
-                    ) : msgs?.length ? (
-                      <ConversationThread
-                        messages={msgs}
-                        canDelete={item.inboxStatus !== 'resolved'}
-                        onDelete={(messageId) => void deleteMessage(item.sessionId, messageId)}
-                      />
-                    ) : (
-                      <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0 }}>
-                        Sin mensajes guardados para esta sesión.
-                      </p>
-                    )}
-
-                    {/* Caja de respuesta — solo sesiones abiertas */}
-                    {item.inboxStatus !== 'resolved' && (() => {
-                      const draft = replyDraft[item.sessionId]?.trim() || '';
-                      const atts = pendingAttachments[item.sessionId] || [];
-                      const isUploading = uploadingAttachment === item.sessionId;
-                      const isSending = sendingReply === item.sessionId;
-                      const canSend = (draft.length > 0 || atts.length > 0) && !isSending && !isUploading;
-                      return (
-                      <div style={{ marginTop: 12 }}>
-                        {/* Previews de adjuntos pendientes */}
-                        {atts.length > 0 && (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                            {atts.map((att, ai) => (
-                              <div
-                                key={ai}
-                                style={{
-                                  position: 'relative', display: 'flex', alignItems: 'center', gap: 6,
-                                  padding: att.type === 'image' ? 0 : '6px 10px 6px 8px',
-                                  borderRadius: 10, border: '1px solid var(--border)', background: 'var(--card)',
-                                  maxWidth: 220,
-                                }}
-                              >
-                                {att.type === 'image' ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img src={att.url} alt={att.name || 'imagen'} style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 10 }} />
-                                ) : att.type === 'video' ? (
-                                  <><MessageSquare size={16} style={{ color: 'var(--brand-primary)', flexShrink: 0 }} /><span style={{ fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.name || 'video'}</span></>
-                                ) : (
-                                  <><FileText size={16} style={{ color: 'var(--brand-primary)', flexShrink: 0 }} /><span style={{ fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.name || 'archivo'}</span></>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={() => removePendingAttachment(item.sessionId, ai)}
-                                  title="Quitar"
-                                  style={{
-                                    position: 'absolute', top: -7, right: -7, width: 20, height: 20, borderRadius: 999,
-                                    border: 'none', background: '#ef4444', color: '#fff', cursor: 'pointer',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 4px rgba(0,0,0,.2)',
-                                  }}
-                                >
-                                  <X size={12} />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-                          <input
-                            ref={(el) => { fileInputRefs.current[item.sessionId] = el; }}
-                            type="file"
-                            accept="image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
-                            style={{ display: 'none' }}
-                            onChange={(e) => {
-                              const f = e.target.files?.[0];
-                              if (f) void uploadAttachment(item.sessionId, f);
-                              e.target.value = '';
-                            }}
-                          />
-                          <button
-                            type="button"
-                            disabled={isUploading || isSending}
-                            onClick={() => fileInputRefs.current[item.sessionId]?.click()}
-                            title="Adjuntar imagen, video o archivo"
-                            style={{
-                              width: 44, height: 44, flexShrink: 0, borderRadius: 12,
-                              border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--muted-foreground)',
-                              cursor: isUploading || isSending ? 'not-allowed' : 'pointer',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            }}
-                          >
-                            {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={16} />}
-                          </button>
-                          <textarea
-                            rows={2}
-                            placeholder="Escribe tu respuesta al visitante…"
-                            className="landing-input"
-                            style={{ flex: 1, resize: 'none', fontSize: 13, lineHeight: 1.5, borderRadius: 12, padding: '10px 12px' }}
-                            value={replyDraft[item.sessionId] ?? ''}
-                            onChange={(e) => setReplyDraft((p) => ({ ...p, [item.sessionId]: e.target.value }))}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && canSend) void sendReply(item.sessionId);
-                            }}
-                          />
-                          <button
-                            type="button"
-                            disabled={!canSend}
-                            onClick={() => void sendReply(item.sessionId)}
-                            title="Enviar (Ctrl/⌘ + Enter)"
-                            style={{
-                              width: 44, height: 44, flexShrink: 0,
-                              borderRadius: 12, border: 'none',
-                              background: 'var(--brand-primary)', color: '#fff',
-                              cursor: !canSend ? 'not-allowed' : 'pointer',
-                              opacity: !canSend ? 0.45 : 1,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              transition: 'opacity .15s',
-                            }}
-                          >
-                            {isSending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                          </button>
-                        </div>
-                        <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: '5px 2px 0' }}>
-                          <kbd style={{ fontFamily: 'inherit', fontWeight: 700 }}>Ctrl</kbd> + <kbd style={{ fontFamily: 'inherit', fontWeight: 700 }}>Enter</kbd> para enviar · 📎 imágenes, video y archivos
-                        </p>
-                      </div>
-                      );
-                    })()}
-                  </div>
-                )}
               </div>
             );
           })}
         </div>
       )}
     </div>
-  );
-}
-
-function fmtTime(iso: string) {
-  try {
-    return new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-  } catch {
-    return '';
-  }
-}
-
-/** Hilo de conversación estilo chat, con auto-scroll al último mensaje. */
-function ConversationThread({
-  messages,
-  canDelete,
-  onDelete,
-}: {
-  messages: TranscriptMessage[];
-  canDelete?: boolean;
-  onDelete?: (messageId: string) => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
-  }, [messages]);
-
-  return (
-    <div
-      ref={ref}
-      style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 320, overflowY: 'auto', padding: '4px 2px' }}
-    >
-      {messages.map((m, i) => {
-        const isUser = m.role === 'user';
-        const isHuman = m.sentBy === 'human';
-        // Visitante → izquierda. Bot y Agente (lado del negocio) → derecha.
-        const right = !isUser;
-        const label = isUser ? 'Visitante' : isHuman ? 'Tú · Agente' : 'Bot';
-        const onDark = isHuman; // burbuja de marca = texto claro
-        const bubble: React.CSSProperties = isUser
-          ? { background: '#f1f5f9', color: 'var(--foreground)' }
-          : isHuman
-            ? { background: 'var(--brand-primary)', color: '#fff' }
-            : { background: 'rgba(15,23,42,0.05)', color: 'var(--foreground)' };
-        const showDelete = canDelete && isHuman && m.id && onDelete;
-        return (
-          <div key={m.id || i} style={{ display: 'flex', flexDirection: 'column', alignItems: right ? 'flex-end' : 'flex-start' }}>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3, padding: '0 4px' }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: isHuman ? 'var(--brand-primary)' : 'var(--muted-foreground)' }}>{label}</span>
-              <span style={{ fontSize: 10, color: 'var(--muted-foreground)', opacity: 0.75 }}>{fmtTime(m.createdAt)}</span>
-              {showDelete && (
-                <button
-                  type="button"
-                  onClick={() => onDelete!(m.id!)}
-                  title="Retirar mensaje (lo elimina también del chat del visitante)"
-                  style={{
-                    border: 'none', background: 'transparent', color: 'var(--muted-foreground)',
-                    cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', opacity: 0.7,
-                  }}
-                >
-                  <Trash2 size={12} />
-                </button>
-              )}
-            </div>
-            <div
-              style={{
-                maxWidth: '85%', padding: '9px 13px', borderRadius: 14, fontSize: 13, lineHeight: 1.5,
-                whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                borderBottomRightRadius: right ? 4 : 14,
-                borderBottomLeftRadius: right ? 14 : 4,
-                ...bubble,
-              }}
-            >
-              {m.content}
-              {m.attachments?.map((att, ai) =>
-                att.url ? <AttachmentView key={ai} att={att} onDark={onDark} /> : null,
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/** Render de un adjunto en el hilo del inbox según su tipo. */
-function AttachmentView({ att, onDark }: { att: Attachment; onDark: boolean }) {
-  const top = att.url; // ya validado
-  if (att.type === 'image') {
-    return (
-      <div style={{ marginTop: 8 }}>
-        <a href={top} target="_blank" rel="noopener noreferrer">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={top} alt={att.name || 'imagen'} style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)', display: 'block' }} />
-        </a>
-        {att.ocrText ? (
-          <p style={{ fontSize: 11, opacity: 0.8, margin: '6px 0 0', whiteSpace: 'pre-wrap' }}>
-            {att.ocrText.slice(0, 500)}{att.ocrText.length > 500 ? '…' : ''}
-          </p>
-        ) : null}
-      </div>
-    );
-  }
-  if (att.type === 'video') {
-    return (
-      <div style={{ marginTop: 8 }}>
-        <video src={top} controls style={{ maxWidth: '100%', borderRadius: 8, display: 'block' }} />
-      </div>
-    );
-  }
-  // file (raw): tarjeta descargable
-  const fg = onDark ? 'rgba(255,255,255,0.95)' : 'var(--foreground)';
-  const sub = onDark ? 'rgba(255,255,255,0.7)' : 'var(--muted-foreground)';
-  const bg = onDark ? 'rgba(255,255,255,0.15)' : 'rgba(15,23,42,0.05)';
-  return (
-    <a
-      href={cloudinaryDownloadUrl(top)}
-      target="_blank"
-      rel="noopener noreferrer"
-      download={att.name || undefined}
-      style={{
-        marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none',
-        padding: '8px 10px', borderRadius: 10, background: bg, color: fg, maxWidth: 260,
-      }}
-    >
-      <FileText size={20} style={{ flexShrink: 0 }} />
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.name || 'archivo'}</span>
-        {att.bytes ? <span style={{ display: 'block', fontSize: 10, color: sub }}>{formatBytes(att.bytes)}</span> : null}
-      </span>
-      <Download size={16} style={{ flexShrink: 0, opacity: 0.8 }} />
-    </a>
   );
 }

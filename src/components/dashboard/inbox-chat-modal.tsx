@@ -1,0 +1,509 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
+import {
+  FileText, Loader2, MessageSquare, Paperclip, Send, Trash2, User, X, Download,
+} from 'lucide-react';
+
+export type ChatAttachment = {
+  type: string;
+  url: string;
+  publicId?: string;
+  resourceType?: string;
+  name?: string;
+  mime?: string;
+  bytes?: number;
+  width?: number;
+  height?: number;
+  ocrText?: string;
+};
+
+export type ChatMessage = {
+  id?: string;
+  role: string;
+  sentBy?: string;
+  content: string;
+  createdAt: string;
+  attachments?: ChatAttachment[];
+};
+
+type InboxChatModalProps = {
+  open: boolean;
+  onClose: () => void;
+  contactName: string;
+  widgetName: string;
+  handoffAt: string;
+  inboxStatus: string;
+  loading: boolean;
+  messages: ChatMessage[] | undefined;
+  replyDraft: string;
+  onReplyDraftChange: (value: string) => void;
+  pendingAttachments: ChatAttachment[];
+  onRemoveAttachment: (index: number) => void;
+  onUploadAttachment: (file: File) => void;
+  uploadingAttachment: boolean;
+  sendingReply: boolean;
+  onSendReply: () => void;
+  onDeleteMessage: (messageId: string) => void;
+};
+
+function formatBytes(n?: number): string {
+  if (!n || n <= 0) return '';
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function cloudinaryDownloadUrl(url: string): string {
+  if (/res\.cloudinary\.com/.test(url) && url.includes('/upload/')) {
+    return url.replace('/upload/', '/upload/fl_attachment/');
+  }
+  return url;
+}
+
+function fmtTime(iso: string) {
+  try {
+    return new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '';
+  }
+}
+
+function fmtDate(iso: string) {
+  try {
+    return new Date(iso).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' });
+  } catch {
+    return iso;
+  }
+}
+
+function contactInitial(name: string) {
+  const t = name.trim();
+  return t ? t.charAt(0).toUpperCase() : '?';
+}
+
+function ConversationThread({
+  messages,
+  canDelete,
+  onDelete,
+}: {
+  messages: ChatMessage[];
+  canDelete?: boolean;
+  onDelete?: (messageId: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
+  }, [messages]);
+
+  return (
+    <div ref={ref} className="flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto px-1 py-1">
+      {messages.map((m, i) => {
+        const isUser = m.role === 'user';
+        const isHuman = m.sentBy === 'human';
+        const right = !isUser;
+        const label = isUser ? 'Visitante' : isHuman ? 'Tú · Agente' : 'Bot';
+        const onDark = isHuman;
+        const bubble: React.CSSProperties = isUser
+          ? { background: '#fff', color: 'var(--foreground)', boxShadow: '0 1px 3px rgba(15,23,42,0.06)' }
+          : isHuman
+            ? { background: 'var(--brand-primary)', color: '#fff' }
+            : { background: 'rgba(255,255,255,0.85)', color: 'var(--foreground)', boxShadow: '0 1px 3px rgba(15,23,42,0.05)' };
+        const showDelete = canDelete && isHuman && m.id && onDelete;
+
+        return (
+          <div
+            key={m.id || i}
+            className={`flex flex-col ${right ? 'items-end' : 'items-start'}`}
+          >
+            <div className="flex gap-1.5 items-center mb-1 px-1">
+              <span
+                className="text-[10px] font-bold"
+                style={{ color: isHuman ? 'var(--brand-primary)' : 'var(--muted-foreground)' }}
+              >
+                {label}
+              </span>
+              <span className="text-[10px] opacity-60" style={{ color: 'var(--muted-foreground)' }}>
+                {fmtTime(m.createdAt)}
+              </span>
+              {showDelete && (
+                <button
+                  type="button"
+                  onClick={() => onDelete!(m.id!)}
+                  title="Retirar mensaje"
+                  className="border-0 bg-transparent p-0 inline-flex items-center opacity-60 hover:opacity-100 cursor-pointer"
+                  style={{ color: 'var(--muted-foreground)' }}
+                >
+                  <Trash2 size={11} />
+                </button>
+              )}
+            </div>
+            <div
+              className="max-w-[88%] px-3.5 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap break-words"
+              style={{
+                borderRadius: 16,
+                borderBottomRightRadius: right ? 5 : 16,
+                borderBottomLeftRadius: right ? 16 : 5,
+                ...bubble,
+              }}
+            >
+              {m.content}
+              {m.attachments?.map((att, ai) =>
+                att.url ? <AttachmentView key={ai} att={att} onDark={onDark} /> : null,
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AttachmentView({ att, onDark }: { att: ChatAttachment; onDark: boolean }) {
+  const top = att.url;
+  if (att.type === 'image') {
+    return (
+      <div className="mt-2">
+        <a href={top} target="_blank" rel="noopener noreferrer">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={top}
+            alt={att.name || 'imagen'}
+            className="max-w-full rounded-lg block"
+            style={{ border: '1px solid rgba(15,23,42,0.08)' }}
+          />
+        </a>
+        {att.ocrText ? (
+          <p className="text-[11px] opacity-80 mt-1.5 mb-0 whitespace-pre-wrap">
+            {att.ocrText.slice(0, 500)}{att.ocrText.length > 500 ? '…' : ''}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+  if (att.type === 'video') {
+    return (
+      <div className="mt-2">
+        <video src={top} controls className="max-w-full rounded-lg block" />
+      </div>
+    );
+  }
+  const fg = onDark ? 'rgba(255,255,255,0.95)' : 'var(--foreground)';
+  const sub = onDark ? 'rgba(255,255,255,0.7)' : 'var(--muted-foreground)';
+  const bg = onDark ? 'rgba(255,255,255,0.15)' : 'rgba(15,23,42,0.05)';
+  return (
+    <a
+      href={cloudinaryDownloadUrl(top)}
+      target="_blank"
+      rel="noopener noreferrer"
+      download={att.name || undefined}
+      className="mt-2 flex items-center gap-2 no-underline rounded-xl max-w-[260px]"
+      style={{ padding: '8px 10px', background: bg, color: fg }}
+    >
+      <FileText size={18} className="shrink-0" />
+      <span className="flex-1 min-w-0">
+        <span className="block text-xs font-semibold truncate">{att.name || 'archivo'}</span>
+        {att.bytes ? (
+          <span className="block text-[10px]" style={{ color: sub }}>{formatBytes(att.bytes)}</span>
+        ) : null}
+      </span>
+      <Download size={14} className="shrink-0 opacity-80" />
+    </a>
+  );
+}
+
+export function InboxChatModal({
+  open,
+  onClose,
+  contactName,
+  widgetName,
+  handoffAt,
+  inboxStatus,
+  loading,
+  messages,
+  replyDraft,
+  onReplyDraftChange,
+  pendingAttachments,
+  onRemoveAttachment,
+  onUploadAttachment,
+  uploadingAttachment,
+  sendingReply,
+  onSendReply,
+  onDeleteMessage,
+}: InboxChatModalProps) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const isResolved = inboxStatus === 'resolved';
+  const displayName = contactName.trim() || 'Visitante sin nombre';
+  const draft = replyDraft.trim();
+  const canSend = (draft.length > 0 || pendingAttachments.length > 0) && !sendingReply && !uploadingAttachment;
+
+  useEffect(() => {
+    if (!open) return;
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  useEffect(() => {
+    if (open) document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="inbox-chat-title"
+      onClick={onClose}
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{ background: 'rgba(15,23,42,0.42)', backdropFilter: 'blur(6px)' }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="flex flex-col w-full sm:max-w-[520px] overflow-hidden"
+        style={{
+          height: 'min(680px, 100dvh)',
+          maxHeight: '100dvh',
+          borderRadius: 'clamp(16px, 3vw, 22px)',
+          background: 'var(--card)',
+          boxShadow: '0 24px 64px rgba(15,23,42,0.18), 0 4px 16px rgba(15,23,42,0.08)',
+          border: '1px solid rgba(15,23,42,0.06)',
+        }}
+      >
+        {/* Header corporativo, tono relajado */}
+        <div
+          className="shrink-0 px-4 py-3.5 sm:px-5"
+          style={{
+            background: 'linear-gradient(135deg, rgba(var(--brand-primary-rgb),0.07) 0%, rgba(var(--brand-warm-rgb,234,179,8),0.04) 100%)',
+            borderBottom: '1px solid rgba(15,23,42,0.06)',
+          }}
+        >
+          <div className="flex items-start gap-3">
+            <div
+              className="shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center text-sm font-bold"
+              style={{
+                background: 'rgba(var(--brand-primary-rgb),0.12)',
+                color: 'var(--brand-primary)',
+                boxShadow: 'inset 0 0 0 1px rgba(var(--brand-primary-rgb),0.15)',
+              }}
+            >
+              {contactInitial(displayName)}
+            </div>
+            <div className="flex-1 min-w-0 pt-0.5">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 id="inbox-chat-title" className="m-0 text-[15px] font-bold truncate">
+                  {displayName}
+                </h2>
+                <span
+                  className="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0"
+                  style={
+                    isResolved
+                      ? { background: 'rgba(100,116,139,0.12)', color: 'var(--muted-foreground)' }
+                      : { background: 'rgba(34,197,94,0.12)', color: '#16a34a' }
+                  }
+                >
+                  {isResolved ? 'Resuelto' : 'En curso'}
+                </span>
+              </div>
+              <p className="text-xs m-0 mt-0.5 truncate" style={{ color: 'var(--muted-foreground)' }}>
+                {widgetName} · {fmtDate(handoffAt)}
+              </p>
+            </div>
+            <button
+              ref={closeRef}
+              type="button"
+              onClick={onClose}
+              aria-label="Cerrar chat"
+              className="shrink-0 w-9 h-9 rounded-xl border-0 cursor-pointer inline-flex items-center justify-center transition-all hover:bg-black/5"
+              style={{ background: 'rgba(255,255,255,0.6)', color: 'var(--foreground)' }}
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* Área de mensajes */}
+        <div
+          className="flex flex-col flex-1 min-h-0 px-4 py-3 sm:px-5"
+          style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)' }}
+        >
+          {!isResolved && (
+            <div
+              className="shrink-0 flex items-center gap-2 mb-3 px-3 py-2 rounded-xl"
+              style={{
+                background: 'rgba(var(--brand-primary-rgb),0.06)',
+                border: '1px solid rgba(var(--brand-primary-rgb),0.12)',
+              }}
+            >
+              <span className="relative flex w-2 h-2 shrink-0">
+                <span className="animate-ping absolute inset-0 rounded-full bg-emerald-500 opacity-60" />
+                <span className="relative w-2 h-2 rounded-full bg-emerald-500" />
+              </span>
+              <span className="text-[11px] font-semibold" style={{ color: 'var(--foreground)' }}>
+                Conversación en vivo — tus respuestas llegan al visitante al instante.
+              </span>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex flex-1 items-center justify-center gap-2 text-sm" style={{ color: 'var(--brand-primary)' }}>
+              <Loader2 size={18} className="animate-spin" />
+              Cargando conversación…
+            </div>
+          ) : messages?.length ? (
+            <ConversationThread
+              messages={messages}
+              canDelete={!isResolved}
+              onDelete={onDeleteMessage}
+            />
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center px-6">
+              <div
+                className="w-12 h-12 rounded-2xl flex items-center justify-center"
+                style={{ background: 'rgba(var(--brand-primary-rgb),0.08)' }}
+              >
+                <MessageSquare size={22} style={{ color: 'var(--brand-primary)' }} />
+              </div>
+              <p className="text-sm font-semibold m-0" style={{ color: 'var(--foreground)' }}>
+                Sin mensajes aún
+              </p>
+              <p className="text-xs m-0" style={{ color: 'var(--muted-foreground)' }}>
+                Cuando el visitante escriba, verás el hilo aquí.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Composer — solo sesiones abiertas */}
+        {!isResolved && (
+          <div
+            className="shrink-0 px-4 py-3 sm:px-5 sm:py-4"
+            style={{
+              borderTop: '1px solid rgba(15,23,42,0.06)',
+              background: 'var(--card)',
+            }}
+          >
+            {pendingAttachments.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2.5">
+                {pendingAttachments.map((att, ai) => (
+                  <div
+                    key={ai}
+                    className="relative flex items-center gap-1.5 rounded-xl max-w-[220px]"
+                    style={{
+                      padding: att.type === 'image' ? 0 : '6px 10px 6px 8px',
+                      border: '1px solid var(--border)',
+                      background: 'var(--muted)',
+                    }}
+                  >
+                    {att.type === 'image' ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={att.url}
+                        alt={att.name || 'imagen'}
+                        className="w-16 h-16 object-cover rounded-xl"
+                      />
+                    ) : att.type === 'video' ? (
+                      <>
+                        <MessageSquare size={15} style={{ color: 'var(--brand-primary)' }} />
+                        <span className="text-[11px] truncate">{att.name || 'video'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileText size={15} style={{ color: 'var(--brand-primary)' }} />
+                        <span className="text-[11px] truncate">{att.name || 'archivo'}</span>
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => onRemoveAttachment(ai)}
+                      title="Quitar"
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full border-0 text-white cursor-pointer flex items-center justify-center"
+                      style={{ background: '#ef4444', boxShadow: '0 1px 4px rgba(0,0,0,.2)' }}
+                    >
+                      <X size={11} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2 items-end">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) onUploadAttachment(f);
+                  e.target.value = '';
+                }}
+              />
+              <button
+                type="button"
+                disabled={uploadingAttachment || sendingReply}
+                onClick={() => fileInputRef.current?.click()}
+                title="Adjuntar archivo"
+                className="shrink-0 w-11 h-11 rounded-xl border cursor-pointer inline-flex items-center justify-center transition-all hover:brightness-95 disabled:opacity-50"
+                style={{
+                  borderColor: 'var(--border)',
+                  background: 'var(--muted)',
+                  color: 'var(--muted-foreground)',
+                }}
+              >
+                {uploadingAttachment ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={16} />}
+              </button>
+              <textarea
+                rows={2}
+                placeholder="Escribe tu respuesta…"
+                className="landing-input flex-1 resize-none text-[13px] leading-relaxed rounded-xl"
+                style={{ padding: '10px 14px', minHeight: 44 }}
+                value={replyDraft}
+                onChange={(e) => onReplyDraftChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && canSend) onSendReply();
+                }}
+              />
+              <button
+                type="button"
+                disabled={!canSend}
+                onClick={onSendReply}
+                title="Enviar (Ctrl/⌘ + Enter)"
+                className="shrink-0 w-11 h-11 rounded-xl border-0 text-white cursor-pointer inline-flex items-center justify-center transition-all hover:brightness-110 disabled:opacity-45 disabled:cursor-not-allowed"
+                style={{ background: 'var(--brand-primary)' }}
+              >
+                {sendingReply ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              </button>
+            </div>
+            <p className="text-[10px] m-0 mt-2" style={{ color: 'var(--muted-foreground)' }}>
+              <kbd className="font-bold" style={{ fontFamily: 'inherit' }}>Ctrl</kbd>
+              {' + '}
+              <kbd className="font-bold" style={{ fontFamily: 'inherit' }}>Enter</kbd>
+              {' para enviar'}
+            </p>
+          </div>
+        )}
+
+        {isResolved && (
+          <div
+            className="shrink-0 px-5 py-3 text-center text-xs"
+            style={{
+              borderTop: '1px solid rgba(15,23,42,0.06)',
+              background: 'var(--card)',
+              color: 'var(--muted-foreground)',
+            }}
+          >
+            <User size={12} className="inline mr-1 align-text-bottom" />
+            Conversación cerrada — solo lectura
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
