@@ -1,7 +1,24 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Bot, CheckCircle, AlertTriangle, ChevronRight, Loader2, Save, RefreshCw } from 'lucide-react';
+import { Bot, CheckCircle, AlertTriangle, ChevronRight, Loader2, Save, RefreshCw, ShieldAlert } from 'lucide-react';
+
+// ── Plan model tiers ──────────────────────────────────────────────────────────
+type ModelTier = 'lite' | 'flash' | 'default' | 'premium';
+
+const TIER_OPTIONS: { value: ModelTier; label: string; color: string; bg: string; desc: string }[] = [
+  { value: 'lite',    label: 'Flash Lite',  color: '#22c55e', bg: 'rgba(34,197,94,0.1)',   desc: '~$0.30/M tokens' },
+  { value: 'flash',   label: 'Flash',       color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  desc: '~$0.70–3/M tokens' },
+  { value: 'default', label: 'Estándar',    color: '#6366f1', bg: 'rgba(99,102,241,0.1)',  desc: '~$3–5/M tokens' },
+  { value: 'premium', label: 'Pro / Todos', color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   desc: '>$5/M tokens' },
+];
+
+const PLANS_ORDER = ['free','solo','basic','team','plus','starter','growth','business','enterprise'];
+
+const PLAN_LABELS: Record<string, string> = {
+  free: 'Free', solo: 'Solo', basic: 'Basic', team: 'Team', plus: 'Plus',
+  starter: 'Starter', growth: 'Growth', business: 'Business', enterprise: 'Enterprise',
+};
 
 interface AiModelOption {
   modelId: string;
@@ -42,6 +59,14 @@ export default function AiConfigPage() {
   const [savedOk, setSavedOk] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ── Plan model tiers state ──────────────────────────────────────────────────
+  const [planTiers, setPlanTiers] = useState<Record<string, ModelTier>>({});
+  const [tierDraft, setTierDraft] = useState<Record<string, ModelTier>>({});
+  const [loadingTiers, setLoadingTiers] = useState(true);
+  const [savingTiers, setSavingTiers] = useState(false);
+  const [tierSavedOk, setTierSavedOk] = useState(false);
+  const [tierError, setTierError] = useState<string | null>(null);
+
   // Carga la config guardada
   useEffect(() => {
     fetch('/api/admin/ai-config')
@@ -57,6 +82,48 @@ export default function AiConfigPage() {
       .catch(() => setError('Error al cargar la configuración.'))
       .finally(() => setLoadingConfig(false));
   }, []);
+
+  // Carga tiers por plan
+  useEffect(() => {
+    setLoadingTiers(true);
+    fetch('/api/admin/plan-model-tiers')
+      .then(r => r.json())
+      .then(json => {
+        const t = (json?.tiers ?? {}) as Record<string, ModelTier>;
+        setPlanTiers(t);
+        setTierDraft(t);
+      })
+      .catch(() => setTierError('Error al cargar los tiers de modelos.'))
+      .finally(() => setLoadingTiers(false));
+  }, []);
+
+  const handleTierChange = (plan: string, tier: ModelTier) => {
+    setTierDraft(prev => ({ ...prev, [plan]: tier }));
+  };
+
+  const saveTiers = async () => {
+    setSavingTiers(true);
+    setTierError(null);
+    setTierSavedOk(false);
+    try {
+      const res = await fetch('/api/admin/plan-model-tiers', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tiers: tierDraft }),
+      });
+      const json = (await res.json()) as { tiers?: Record<string, ModelTier>; error?: string };
+      if (!res.ok) throw new Error(json.error || 'Error al guardar.');
+      if (json.tiers) { setPlanTiers(json.tiers); setTierDraft(json.tiers); }
+      setTierSavedOk(true);
+      setTimeout(() => setTierSavedOk(false), 3000);
+    } catch (e) {
+      setTierError(e instanceof Error ? e.message : 'Error al guardar.');
+    } finally {
+      setSavingTiers(false);
+    }
+  };
+
+  const tierDraftChanged = JSON.stringify(tierDraft) !== JSON.stringify(planTiers);
 
   // Carga modelos cuando cambia el provider
   const loadModels = useCallback((provider: string) => {
@@ -323,6 +390,105 @@ export default function AiConfigPage() {
             <CheckCircle size={15} /> Guardado correctamente
           </div>
         )}
+      </div>
+
+      {/* ── Tiers de modelos por plan ────────────────────────────────────────── */}
+      <div style={{ marginTop: 48, borderTop: '1px solid var(--border)', paddingTop: 36 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(239,68,68,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ShieldAlert size={20} style={{ color: '#ef4444' }} />
+          </div>
+          <div>
+            <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Modelos por plan</h2>
+            <p style={{ fontSize: 13, color: 'var(--muted-foreground)', margin: 0 }}>
+              Controla el tier máximo de modelo que puede usar cada plan. Impacto directo en costos Vertex AI.
+            </p>
+          </div>
+        </div>
+
+        {/* Tier legend */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, margin: '16px 0' }}>
+          {TIER_OPTIONS.map(t => (
+            <div key={t.value} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 8, background: t.bg, border: `1px solid ${t.color}33` }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: t.color }}>{t.label}</span>
+              <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>{t.desc}</span>
+            </div>
+          ))}
+        </div>
+
+        {tierError && (
+          <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <AlertTriangle size={14} style={{ color: '#ef4444' }} />
+            <span style={{ fontSize: 12, color: '#ef4444' }}>{tierError}</span>
+          </div>
+        )}
+
+        {loadingTiers ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 20, color: 'var(--muted-foreground)', fontSize: 13 }}>
+            <Loader2 size={15} style={{ animation: 'spin 0.8s linear infinite' }} /> Cargando...
+          </div>
+        ) : (
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
+            {PLANS_ORDER.map((planId, i) => {
+              const currentTier = tierDraft[planId] ?? 'lite';
+              const opt = TIER_OPTIONS.find(t => t.value === currentTier) ?? TIER_OPTIONS[0];
+              return (
+                <div key={planId} style={{
+                  display: 'grid', gridTemplateColumns: '100px 1fr', gap: 16,
+                  padding: '14px 20px', alignItems: 'center',
+                  borderTop: i > 0 ? '1px solid var(--border)' : undefined,
+                }}>
+                  <div>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>{PLAN_LABELS[planId] ?? planId}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {TIER_OPTIONS.map(t => {
+                      const active = currentTier === t.value;
+                      return (
+                        <button
+                          key={t.value}
+                          onClick={() => handleTierChange(planId, t.value)}
+                          style={{
+                            padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: active ? 700 : 500,
+                            border: active ? `2px solid ${t.color}` : '1.5px solid var(--border)',
+                            background: active ? t.bg : 'var(--background)',
+                            color: active ? t.color : 'var(--muted-foreground)',
+                            cursor: 'pointer', transition: 'all 0.1s',
+                          }}
+                        >
+                          {t.label}
+                        </button>
+                      );
+                    })}
+                    <span style={{ fontSize: 11, color: opt.color, alignSelf: 'center', marginLeft: 4 }}>← actual</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button
+            onClick={saveTiers}
+            disabled={!tierDraftChanged || savingTiers}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '10px 24px', borderRadius: 10,
+              border: 'none',
+              background: tierDraftChanged && !savingTiers ? '#ef4444' : 'var(--border)',
+              color: tierDraftChanged && !savingTiers ? '#fff' : 'var(--muted-foreground)',
+              fontSize: 14, fontWeight: 600, cursor: tierDraftChanged && !savingTiers ? 'pointer' : 'not-allowed',
+            }}
+          >
+            {savingTiers ? <Loader2 size={15} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Save size={15} />}
+            {savingTiers ? 'Guardando...' : 'Guardar tiers'}
+          </button>
+          {tierSavedOk && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#22c55e', fontSize: 13, fontWeight: 600 }}>
+              <CheckCircle size={15} /> Tiers guardados
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
