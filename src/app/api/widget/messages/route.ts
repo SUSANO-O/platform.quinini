@@ -9,6 +9,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { Widget, WidgetMessage, ConversationSession } from '@/lib/db/models';
+import { withCors, handlePreflight } from '@/lib/cors';
+
+/** Preflight CORS — el widget embebido en sitios externos consulta este endpoint. */
+export async function OPTIONS(req: NextRequest) {
+  return handlePreflight(req) ?? new NextResponse(null, { status: 204 });
+}
 
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token') || req.headers.get('x-widget-token') || '';
@@ -16,7 +22,7 @@ export async function GET(req: NextRequest) {
   const since = req.nextUrl.searchParams.get('since') || '';
 
   if (!token || !sessionId) {
-    return NextResponse.json({ error: 'Faltan parámetros.' }, { status: 400 });
+    return withCors(req, NextResponse.json({ error: 'Faltan parámetros.' }, { status: 400 }));
   }
 
   await connectDB();
@@ -27,7 +33,7 @@ export async function GET(req: NextRequest) {
     active?: boolean;
   } | null;
   if (!widget || widget.active === false) {
-    return NextResponse.json({ error: 'Token inválido.' }, { status: 401 });
+    return withCors(req, NextResponse.json({ error: 'Token inválido.' }, { status: 401 }));
   }
   const widgetId = String(widget._id);
 
@@ -64,7 +70,7 @@ export async function GET(req: NextRequest) {
     .select({ _id: 1 })
     .lean() as Array<{ _id: unknown }>;
 
-  return NextResponse.json({
+  return withCors(req, NextResponse.json({
     messages: messages.map((m) => ({
       id: String(m._id),
       content: m.content || '',
@@ -78,5 +84,5 @@ export async function GET(req: NextRequest) {
     // Hora del servidor: el cliente la usa como cursor del siguiente poll
     // para evitar drift de reloj del navegador.
     now: new Date().toISOString(),
-  });
+  }));
 }
