@@ -1150,6 +1150,10 @@
     settingsMenu.style.display = 'none';
     settingsMenu.innerHTML = settingsMenuHtml;
 
+    // "Nueva conversación" ahora vive en el menú de ajustes (no en el header).
+    // Conservamos esta referencia para poder deshabilitarla mientras el bot responde.
+    var newChatBtn = settingsMenu.querySelector('.afhub-settings-new-chat');
+
     settingsWrap.appendChild(settingsBtn);
     settingsWrap.appendChild(settingsMenu);
 
