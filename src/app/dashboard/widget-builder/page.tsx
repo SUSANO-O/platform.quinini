@@ -424,43 +424,33 @@ function MockPreview({ cfg, shortcuts = [] }: { cfg: WidgetConfig; shortcuts?: W
               );
             })()}
             {shortcuts.filter((s) => s.enabled !== false).length > 0 && (
-              <div style={{ borderTop: `1px solid ${cfg.color}18`, marginTop: 4 }}>
-                <div style={{ padding: '4px 6px 2px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 7, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: cfg.color }}>Accesos rápidos</span>
-                  <span style={{ fontSize: 11, color: cfg.color, lineHeight: 1 }}>‹</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '0 6px 6px' }}>
-                  {shortcuts.filter((s) => s.enabled !== false).slice(0, 3).map((sc) => (
-                    <div
-                      key={sc.id}
-                      style={{
-                        display: 'flex', alignItems: 'flex-start', gap: 5,
-                        padding: '5px 8px', borderRadius: 7,
-                        border: `1px solid ${cfg.color}28`,
-                        background: `${cfg.color}0a`,
-                        fontSize: 8, fontWeight: 500,
-                        color: cfg.theme === 'dark' ? '#e2e8f0' : '#1e293b',
-                      }}
-                    >
-                      <span style={{ fontSize: 9, flexShrink: 0, width: 14, textAlign: 'center' }}>{sc.emoji || '💬'}</span>
-                      <span style={{ flex: 1, lineHeight: 1.35, whiteSpace: 'normal', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                        {sc.message || sc.label}
-                      </span>
-                      <span style={{ fontSize: 11, color: cfg.color, flexShrink: 0 }}>›</span>
-                    </div>
-                  ))}
-                  {shortcuts.filter((s) => s.enabled !== false).length > 3 && (
-                    <div style={{ textAlign: 'center', fontSize: 7, color: cfg.color, opacity: 0.7 }}>
-                      +{shortcuts.filter((s) => s.enabled !== false).length - 3} más
-                    </div>
-                  )}
-                </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '4px 0 2px' }}>
+                {shortcuts.filter((s) => s.enabled !== false).slice(0, 4).map((sc) => (
+                  <span
+                    key={sc.id}
+                    style={{
+                      padding: '5px 10px',
+                      borderRadius: 999,
+                      background: `${cfg.color}18`,
+                      color: cfg.color,
+                      fontSize: 8,
+                      fontWeight: 600,
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {sc.label || sc.message}
+                  </span>
+                ))}
               </div>
             )}
             <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
               <div style={{ flex: 1, height: 26, background: cfg.theme === 'dark' ? '#2d2d4e' : '#f1f5f9', borderRadius: 8 }} />
               <div style={{ width: 26, height: 26, background: cfg.color, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>➤</div>
             </div>
+            <p style={{ margin: '6px 0 0', fontSize: 7, lineHeight: 1.4, color: cfg.theme === 'dark' ? '#94a3b8' : '#6b7280' }}>
+              Los registros del chat se conservan de acuerdo con nuestra{' '}
+              <span style={{ color: cfg.color, fontWeight: 600, textDecoration: 'underline' }}>Política de Privacidad</span>.
+            </p>
           </div>
         </div>
       )}
