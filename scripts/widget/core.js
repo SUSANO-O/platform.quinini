@@ -1312,8 +1312,8 @@
     handoffOverlay.className = 'afhub-handoff-overlay';
     handoffOverlay.innerHTML =
       '<div class="afhub-handoff-modal" role="dialog" aria-labelledby="afhub-handoff-title">' +
-      '<h4 id="afhub-handoff-title">Atención humana</h4>' +
-      '<p class="afhub-handoff-desc">Déjanos tus datos y alguien del equipo te contactará.</p>' +
+      '<h4 id="afhub-handoff-title">Atención personalizada</h4>' +
+      '<p class="afhub-handoff-desc">Déjanos tus datos y te contactaremos lo antes posible.</p>' +
       '<label>Nombre<input class="afhub-handoff-input" name="name" type="text" placeholder="Tu nombre" autocomplete="name"></label>' +
       '<label>Email<input class="afhub-handoff-input" name="email" type="email" placeholder="correo@ejemplo.com" autocomplete="email"></label>' +
       '<label>Teléfono<input class="afhub-handoff-input" name="phone" type="tel" placeholder="+34 600 000 000" autocomplete="tel"></label>' +
