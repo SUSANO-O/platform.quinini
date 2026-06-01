@@ -9,7 +9,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
-import { Widget, WidgetMessage } from '@/lib/db/models';
+import { Widget, WidgetMessage, ConversationSession } from '@/lib/db/models';
 import { withCors, handlePreflight } from '@/lib/cors';
 
 /** Preflight CORS — el widget embebido en sitios externos hace POST aquí en modo humano. */
@@ -66,6 +66,12 @@ export async function POST(req: NextRequest) {
     attachments,
     traceId: `human-mode:${Date.now()}`,
   });
+
+  // Hay actividad nueva del visitante → el inbox debe marcarla como "sin ver".
+  ConversationSession.updateOne(
+    { chatSessionId: sessionId },
+    { $set: { lastVisitorMessageAt: new Date() } },
+  ).catch(() => {});
 
   return withCors(req, NextResponse.json({ ok: true }));
 }

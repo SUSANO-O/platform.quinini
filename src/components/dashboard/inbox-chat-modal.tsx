@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import {
-  FileText, Loader2, MessageSquare, Paperclip, Send, Trash2, User, X, Download,
+  FileText, Loader2, MessageSquare, Paperclip, Send, Trash2, User, X, Download, Check, CheckCheck,
 } from 'lucide-react';
 
 export type ChatAttachment = {
@@ -25,7 +25,26 @@ export type ChatMessage = {
   content: string;
   createdAt: string;
   attachments?: ChatAttachment[];
+  deliveredAt?: string | null;
+  readAt?: string | null;
 };
+
+/** Acuse de recibo estilo WhatsApp para mensajes del agente humano. */
+function ReadReceipt({ m }: { m: ChatMessage }) {
+  const read = !!m.readAt;
+  const delivered = !!m.deliveredAt;
+  const label = read ? 'Visto' : delivered ? 'Recibido' : 'Enviado';
+  return (
+    <div
+      className="flex items-center gap-1 mt-1 px-1 text-[10px]"
+      style={{ color: read ? '#16a34a' : 'var(--muted-foreground)' }}
+      title={label}
+    >
+      {read || delivered ? <CheckCheck size={13} /> : <Check size={13} />}
+      <span>{label}</span>
+    </div>
+  );
+}
 
 type InboxChatModalProps = {
   open: boolean;
@@ -152,6 +171,7 @@ function ConversationThread({
                 att.url ? <AttachmentView key={ai} att={att} onDark={onDark} /> : null,
               )}
             </div>
+            {isHuman && <ReadReceipt m={m} />}
           </div>
         );
       })}

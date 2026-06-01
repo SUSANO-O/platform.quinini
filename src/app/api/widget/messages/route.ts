@@ -16,6 +16,39 @@ export async function OPTIONS(req: NextRequest) {
   return handlePreflight(req) ?? new NextResponse(null, { status: 204 });
 }
 
+/**
+ * POST /api/widget/messages — el widget acusa "visto" de mensajes humanos.
+ * Body: { token, sessionId, ids: [messageId,...] }
+ */
+export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => null);
+  const token = (body?.token || req.headers.get('x-widget-token') || '').toString().trim();
+  const sessionId = typeof body?.sessionId === 'string' ? body.sessionId.trim() : '';
+  const ids = Array.isArray(body?.ids)
+    ? (body.ids as unknown[]).filter((x) => typeof x === 'string' && /^[a-f0-9]{24}$/i.test(x)).slice(0, 50)
+    : [];
+
+  if (!token.startsWith('wt_') || !sessionId || !ids.length) {
+    return withCors(req, NextResponse.json({ ok: false }, { status: 400 }));
+  }
+
+  await connectDB();
+  const widget = await Widget.findOne({ afhubToken: token }).select({ _id: 1, active: 1 }).lean() as {
+    _id: unknown; active?: boolean;
+  } | null;
+  if (!widget || widget.active === false) {
+    return withCors(req, NextResponse.json({ ok: false }, { status: 401 }));
+  }
+
+  const now = new Date();
+  await WidgetMessage.updateMany(
+    { _id: { $in: ids }, widgetId: String(widget._id), sessionId, sentBy: 'human' },
+    [{ $set: { readAt: { $ifNull: ['$readAt', now] }, deliveredAt: { $ifNull: ['$deliveredAt', now] } } }],
+  ).catch(() => {});
+
+  return withCors(req, NextResponse.json({ ok: true }));
+}
+
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token') || req.headers.get('x-widget-token') || '';
   const sessionId = req.nextUrl.searchParams.get('sessionId') || '';
@@ -57,6 +90,14 @@ export async function GET(req: NextRequest) {
     .limit(50)
     .select({ content: 1, sentBy: 1, createdAt: 1, attachments: 1 })
     .lean() as Array<{ _id: unknown; content?: string; createdAt?: Date; attachments?: unknown[] }>;
+
+  // Acuse de "recibido": el widget acaba de descargar estos mensajes humanos.
+  if (messages.length) {
+    WidgetMessage.updateMany(
+      { _id: { $in: messages.map((m) => m._id) }, deliveredAt: null },
+      { $set: { deliveredAt: new Date() } },
+    ).catch(() => {});
+  }
 
   // IDs de mensajes retirados recientemente (updatedAt > since) para que el widget
   // los elimine de la vista del cliente.

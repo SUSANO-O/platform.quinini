@@ -2324,6 +2324,41 @@
       }
       container.appendChild(box);
     }
+    // ── Acuses de "visto": el widget avisa al servidor cuando muestra mensajes humanos ──
+    var humanReadAcked = {};
+    var humanReadPending = {};
+    var humanReadTimer = null;
+    function ackHumanRead(mid) {
+      if (!mid || humanReadAcked[mid]) return;
+      // "Visto" = el chat está abierto y visible mostrando el mensaje.
+      if (typeof document !== 'undefined' && document.visibilityState && document.visibilityState !== 'visible') return;
+      humanReadPending[mid] = true;
+      if (humanReadTimer) return;
+      humanReadTimer = setTimeout(flushHumanRead, 600);
+    }
+    function flushHumanRead() {
+      humanReadTimer = null;
+      var ids = Object.keys(humanReadPending);
+      humanReadPending = {};
+      if (!ids.length || !chatSessionId || !cfg.token) return;
+      ids.forEach(function (id) { humanReadAcked[id] = true; });
+      try {
+        fetch(cfg.host.replace(/\/$/, '') + '/api/widget/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: String(cfg.token).trim(), sessionId: chatSessionId, ids: ids }),
+          keepalive: true,
+        }).catch(function () {});
+      } catch (e) { /* */ }
+    }
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') {
+          Object.keys(humanShownIds).forEach(function (id) { ackHumanRead(id); });
+        }
+      });
+    }
+
     function addHumanMessage(m, opts) {
       opts = opts || {};
       // Compatibilidad: acepta string (texto) u objeto { id, content, attachments }.
@@ -2362,6 +2397,7 @@
 
       messages.appendChild(wrap);
       messages.scrollTop = messages.scrollHeight;
+      if (mid) ackHumanRead(mid); // visto si el chat está visible
       if (!opts.silent) onHumanMessageArrived();
     }
 

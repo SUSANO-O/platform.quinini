@@ -16,9 +16,19 @@ export async function GET(req: NextRequest) {
 
   await connectDB();
 
-  const openCount = await ConversationSession.countDocuments(
-    inboxSessionFilter(userId, 'open'),
-  );
+  // Solo "nuevas sin ver": nunca abiertas por el agente, o con un mensaje del
+  // visitante más reciente que la última vez que el agente abrió la conversación.
+  const openCount = await ConversationSession.countDocuments({
+    $and: [
+      inboxSessionFilter(userId, 'open'),
+      {
+        $or: [
+          { agentLastSeenAt: null },
+          { $expr: { $gt: ['$lastVisitorMessageAt', '$agentLastSeenAt'] } },
+        ],
+      },
+    ],
+  });
 
   return NextResponse.json({ openCount });
 }

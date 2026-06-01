@@ -36,9 +36,12 @@ export async function GET(req: NextRequest, { params }: Params) {
   const transcriptSessionId = inboxTranscriptSessionId(session);
   const messages = await WidgetMessage.find({ sessionId: transcriptSessionId, userId, deleted: { $ne: true } })
     .sort({ createdAt: 1 })
-    .select({ role: 1, sentBy: 1, content: 1, createdAt: 1, attachments: 1 })
+    .select({ role: 1, sentBy: 1, content: 1, createdAt: 1, attachments: 1, deliveredAt: 1, readAt: 1 })
     .limit(200)
     .lean();
+
+  // El agente abrió esta conversación → ya la vio (resetea "nuevos sin ver").
+  ConversationSession.updateOne({ sessionId }, { $set: { agentLastSeenAt: new Date() } }).catch(() => {});
 
   const handoffMessage = typeof session.handoffMessage === 'string' ? session.handoffMessage.trim() : '';
   const transcript =
@@ -72,6 +75,8 @@ export async function GET(req: NextRequest, { params }: Params) {
       sentBy: (m as { sentBy?: string }).sentBy || 'ai',
       content: m.content,
       createdAt: m.createdAt,
+      deliveredAt: (m as { deliveredAt?: Date | null }).deliveredAt ?? null,
+      readAt: (m as { readAt?: Date | null }).readAt ?? null,
       attachments: Array.isArray(m.attachments)
         ? m.attachments.map((a: { type?: string; url?: string; name?: string; mime?: string; bytes?: number; width?: number; height?: number; ocrText?: string }) => ({
             type: a.type || 'image',
