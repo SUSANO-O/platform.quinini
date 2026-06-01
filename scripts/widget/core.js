@@ -4042,6 +4042,15 @@
           '#' + rootId + ' .afhub-unread-hint { background:#252530; color:#ececf1; border-color:rgba(255,255,255,.08); }' +
           '#' + rootId + ' .afhub-unread-hint::after { border-top-color:#252530 !important; }' +
           '#' + rootId + ' .afhub-human-hide { color:#94a3b8; }' +
+          '#' + rootId + ' .afhub-handoff-modal { background:#1e1e28; color:#ececf1; }' +
+          '#' + rootId + ' .afhub-handoff-modal h4 { color:#f1f5f9; }' +
+          '#' + rootId + ' .afhub-handoff-desc { color:#94a3b8; }' +
+          '#' + rootId + ' .afhub-handoff-modal label { color:#cbd5e1; }' +
+          '#' + rootId + ' .afhub-handoff-input { background:#13131a !important; color:#f1f5f9 !important; -webkit-text-fill-color:#f1f5f9; border-color:#3d3d4a !important; }' +
+          '#' + rootId + ' .afhub-handoff-input::placeholder { color:#64748b; }' +
+          '#' + rootId + ' .afhub-handoff-cancel { background:#252530 !important; color:#e2e8f0 !important; border-color:#3d3d4a !important; }' +
+          '#' + rootId + ' .afhub-handoff-cancel:hover { background:#2f2f3a !important; color:#fff !important; }' +
+          '#' + rootId + ' .afhub-action-bar { background:#16161d; border-top-color:#2a2a34; }' +
           '#' + rootId + ' .afhub-tool-tag { background:rgba(255,255,255,.08); color:#a8a8b8; border-color:rgba(255,255,255,.12); }' +
           '#' + rootId + ' .afhub-mcp-source-tag { background:rgba(255,255,255,.08); color:#c8c8d8; border-color:rgba(255,255,255,.12); }' +
           '#' + rootId + ' .afhub-fallback-tag { color:rgba(255,255,255,.28) !important; border-color:rgba(255,255,255,.1) !important; background:rgba(255,255,255,.04) !important; }' +
@@ -4232,8 +4241,8 @@
       '#' + rootId + ' .afhub-handoff-btn:disabled { cursor:not-allowed; opacity:.6; }' +
       // Barra de acciones compacta (chips) — "Hablar con una persona"
       '#' + rootId + ' .afhub-action-bar { flex-shrink:0; display:flex; gap:6px; padding:4px 10px 6px; border-top:1px solid #eef0f2; background:#f8fafc; }' +
-      '#' + rootId + ' .afhub-action-btn { flex:1; min-width:0; padding:5px 8px; border-radius:999px; border:1px solid ' + cfg.color + '33; background:transparent; color:' + cfg.color + '; font-size:11px; font-weight:600; cursor:pointer; font-family:inherit; transition:background .15s,border-color .15s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }' +
-      '#' + rootId + ' .afhub-action-btn:hover { background:' + cfg.color + '12; }' +
+      '#' + rootId + ' .afhub-action-btn { flex:1; min-width:0; padding:5px 8px; border-radius:999px; border:1px solid ' + cfg.color + '33 !important; background:transparent !important; color:' + cfg.color + ' !important; font-size:11px; font-weight:600; cursor:pointer; font-family:inherit; transition:background .15s,border-color .15s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; appearance:none; -webkit-appearance:none; }' +
+      '#' + rootId + ' .afhub-action-btn:hover { background:' + cfg.color + '12 !important; }' +
       '#' + rootId + ' .afhub-action-btn--ghost { border-color:#e2e4e8; color:#80868b; }' +
       '#' + rootId + ' .afhub-action-btn--ghost:hover { background:#f5f6f7; color:#5f6368; }' +
       '#' + rootId + ' .afhub-action-btn--disabled { cursor:not-allowed; opacity:.5; pointer-events:none; }' +
@@ -4244,16 +4253,19 @@
       '#' + rootId + ' .afhub-fb-check { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:999px; background:#22c55e; color:#fff; font-size:12px; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-handoff-overlay { display:none; position:absolute; inset:0; z-index:30; background:rgba(0,0,0,.45); align-items:center; justify-content:center; padding:16px; box-sizing:border-box; }' +
       '#' + rootId + ' .afhub-handoff-overlay.visible { display:flex; }' +
-      '#' + rootId + ' .afhub-handoff-modal { width:100%; max-width:320px; background:#fff; border-radius:14px; padding:18px 16px; box-shadow:0 12px 40px rgba(0,0,0,.18); font-family:inherit; }' +
+      '#' + rootId + ' .afhub-handoff-modal { width:100%; max-width:320px; background:#fff; border-radius:14px; padding:18px 16px; box-shadow:0 12px 40px rgba(0,0,0,.18); font-family:inherit; color:#111827; }' +
       '#' + rootId + ' .afhub-handoff-modal h4 { margin:0 0 6px; font-size:15px; font-weight:800; color:#111827; }' +
       '#' + rootId + ' .afhub-handoff-desc { margin:0 0 12px; font-size:12px; color:#6b7280; line-height:1.4; }' +
       '#' + rootId + ' .afhub-handoff-modal label { display:block; margin-bottom:8px; font-size:11px; font-weight:600; color:#374151; }' +
-      '#' + rootId + ' .afhub-handoff-input { display:block; width:100%; margin-top:4px; padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:13px; font-family:inherit; box-sizing:border-box; }' +
+      '#' + rootId + ' .afhub-handoff-input { display:block; width:100%; margin-top:4px; padding:8px 10px; border:1px solid #d1d5db; border-radius:8px; font-size:13px; font-family:inherit; box-sizing:border-box; color:#111827 !important; background:#fff !important; -webkit-text-fill-color:#111827; caret-color:' + cfg.color + '; }' +
+      '#' + rootId + ' .afhub-handoff-input::placeholder { color:#9ca3af; opacity:1; }' +
       '#' + rootId + ' .afhub-handoff-textarea { resize:vertical; min-height:52px; }' +
       '#' + rootId + ' .afhub-handoff-error { margin:0 0 8px; font-size:11px; color:#dc2626; font-weight:600; }' +
       '#' + rootId + ' .afhub-handoff-actions { display:flex; gap:8px; margin-top:4px; }' +
-      '#' + rootId + ' .afhub-handoff-cancel { flex:1; padding:9px; border-radius:8px; border:1px solid #ddd; background:#fff; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; }' +
-      '#' + rootId + ' .afhub-handoff-submit { flex:1; padding:9px; border-radius:8px; border:none; background:' + cfg.color + '; color:#fff; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; }' +
+      '#' + rootId + ' .afhub-handoff-cancel { flex:1; padding:9px; border-radius:8px; border:1px solid #d1d5db !important; background:#fff !important; color:#374151 !important; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; appearance:none; -webkit-appearance:none; }' +
+      '#' + rootId + ' .afhub-handoff-cancel:hover { background:#f3f4f6 !important; color:#111827 !important; border-color:#9ca3af !important; }' +
+      '#' + rootId + ' .afhub-handoff-submit { flex:1; padding:9px; border-radius:8px; border:none !important; background:' + cfg.color + ' !important; color:#fff !important; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; appearance:none; -webkit-appearance:none; }' +
+      '#' + rootId + ' .afhub-handoff-submit:hover { filter:brightness(0.95); }' +
       '#' + rootId + ' .afhub-handoff-submit:disabled { opacity:.6; cursor:wait; }' +
       '#' + rootId + ' .afhub-shortcuts-wrap { flex-shrink:0; border-top:1px solid #e8eaed; }' +
       '#' + rootId + ' .afhub-shortcuts-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; padding:7px 14px; background:transparent; border:none; cursor:pointer; font-family:inherit; flex-shrink:0; }' +
