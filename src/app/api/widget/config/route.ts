@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   await connectDB();
 
   const widget = await Widget.findOne({ afhubToken: token })
-    .select('_id agentId color title subtitle welcome fabHint avatar position theme borderRadius autoOpen fabDismissible voiceEnabled humanSupportPhone humanSupportEnabled handoffEnabled handoffNotifyMode handoffTimeout shortcuts multiAgentEnabled multiAgentMode active feedbackEnabled feedbackTitle feedbackThanks feedbackQuestions conversationIdleTimeout')
+    .select('_id agentId color title subtitle welcome fabHint avatar position theme borderRadius autoOpen fabDismissible voiceEnabled humanSupportPhone humanSupportEnabled handoffEnabled handoffNotifyMode handoffTimeout shortcuts multiAgentEnabled multiAgentMode active feedbackEnabled feedbackTitle feedbackThanks feedbackQuestions conversationIdleTimeout policyEnabled policyText policyLinkLabel policyUrl')
     .lean() as Record<string, unknown> | null;
 
   if (!widget) {
@@ -95,6 +95,10 @@ export async function GET(req: NextRequest) {
         multiAgentEnabled: widget.multiAgentEnabled === true,
         multiAgentMode: validateMultiAgentMode(widget.multiAgentMode),
         active: widget.active !== false,
+        policyEnabled:   widget.policyEnabled !== false,
+        policyText:      typeof widget.policyText === 'string' ? widget.policyText : '',
+        policyLinkLabel: typeof widget.policyLinkLabel === 'string' ? widget.policyLinkLabel : '',
+        policyUrl:       typeof widget.policyUrl === 'string' ? widget.policyUrl : '',
       },
       {
         headers: {
