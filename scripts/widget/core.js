@@ -2342,21 +2342,11 @@
       head.className = 'afhub-human-meta';
       var badge = document.createElement('span');
       badge.className = 'afhub-human-badge';
-      badge.textContent = 'Agente';
+      // Icono de persona + etiqueta: deja claro que responde un humano real.
+      badge.innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' +
+        '<span>Agente</span>';
       head.appendChild(badge);
-      if (mid) {
-        var hide = document.createElement('button');
-        hide.type = 'button';
-        hide.className = 'afhub-human-hide';
-        hide.textContent = '✕';
-        hide.title = 'Ocultar de mi vista';
-        hide.setAttribute('aria-label', 'Ocultar mensaje');
-        hide.addEventListener('click', function () {
-          try { sessionStorage.setItem('biv-hide-msg:' + mid, '1'); } catch (e) { /* */ }
-          removeHumanMessageById(mid);
-        });
-        head.appendChild(hide);
-      }
       wrap.appendChild(head);
 
       var bubble = document.createElement('div');
@@ -4101,7 +4091,7 @@
           '#' + rootId + ' .afhub-fab-hint::after { border-top-color:#252530 !important; }' +
           '#' + rootId + ' .afhub-unread-hint { background:#252530; color:#ececf1; border-color:rgba(255,255,255,.08); }' +
           '#' + rootId + ' .afhub-unread-hint::after { border-top-color:#252530 !important; }' +
-          '#' + rootId + ' .afhub-human-hide { color:#94a3b8; }' +
+          '#' + rootId + ' .afhub-human-bubble { background:linear-gradient(180deg,' + cfg.color + '26,' + cfg.color + '14) !important; border-color:' + cfg.color + '4d !important; border-left:3px solid ' + cfg.color + ' !important; color:#ececf1 !important; }' +
           '#' + rootId + ' .afhub-handoff-modal { background:#1e1e28; color:#ececf1; }' +
           '#' + rootId + ' .afhub-handoff-modal h4 { color:#f1f5f9; }' +
           '#' + rootId + ' .afhub-handoff-desc { color:#94a3b8; }' +
@@ -4235,10 +4225,9 @@
       '#' + rootId + ' .afhub-msg.bot { background:linear-gradient(180deg,#fff,#f0f2f5); color:#141428; align-self:flex-start; border-bottom-left-radius:5px; border:1px solid rgba(0,0,0,.06); box-shadow:0 1px 2px rgba(0,0,0,.04); }' +
       '#' + rootId + ' .afhub-human-wrap { align-self:flex-start; max-width:88%; width:100%; display:flex; flex-direction:column; gap:4px; }' +
       '#' + rootId + ' .afhub-human-meta { display:flex; align-items:center; gap:6px; padding:0 2px; }' +
-      '#' + rootId + ' .afhub-human-badge { font-size:10px; font-weight:700; color:' + cfg.color + '; opacity:0.85; letter-spacing:.02em; }' +
-      '#' + rootId + ' .afhub-human-hide { border:none; background:none; color:#9aa0a6; font-size:11px; line-height:1; cursor:pointer; padding:0 2px; opacity:0.65; }' +
-      '#' + rootId + ' .afhub-human-hide:hover { opacity:1; }' +
-      '#' + rootId + ' .afhub-human-bubble { width:100%; max-width:100%; box-sizing:border-box; white-space:pre-wrap; }' +
+      '#' + rootId + ' .afhub-human-badge { display:inline-flex; align-items:center; gap:5px; padding:2px 9px 2px 7px; border-radius:999px; background:' + cfg.color + '14; color:' + cfg.color + '; font-size:10px; font-weight:700; letter-spacing:.02em; }' +
+      '#' + rootId + ' .afhub-human-badge svg { width:11px; height:11px; flex-shrink:0; }' +
+      '#' + rootId + ' .afhub-human-bubble { width:100%; max-width:100%; box-sizing:border-box; white-space:pre-wrap; background:linear-gradient(180deg,' + cfg.color + '0f,' + cfg.color + '08) !important; border:1px solid ' + cfg.color + '2b !important; border-left:3px solid ' + cfg.color + ' !important; color:#141428 !important; }' +
       '#' + rootId + ' .afhub-unread-hint-wrap { display:none; cursor:pointer; animation:afhub-unread-pop .35s cubic-bezier(.34,1.2,.64,1); }' +
       '#' + rootId + ' .afhub-unread-hint { position:relative; font-size:12px; line-height:1.35; font-weight:600; padding:9px 13px; border-radius:14px; background:#fff; color:#141428; max-width:220px; text-align:left; border:1px solid rgba(0,0,0,.06); box-shadow:0 4px 18px rgba(0,0,0,.12); }' +
       '#' + rootId + ' .afhub-unread-hint::after { content:""; position:absolute; bottom:-6px; width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-top:7px solid #fff; }' +
