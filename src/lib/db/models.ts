@@ -198,8 +198,8 @@ const WidgetSchema = new Schema({
   // ── Aviso de privacidad / política (footer del chat, siempre visible) ─────────
   /** Muestra el aviso de privacidad en el pie del chat. */
   policyEnabled:   { type: Boolean, default: true },
-  /** Texto introductorio del aviso (lo que precede al enlace). */
-  policyText:      { type: String, default: 'Las conversaciones pueden registrarse de acuerdo con nuestra' },
+  /** Texto introductorio opcional del aviso (lo que precede al enlace). Vacío = solo el enlace. */
+  policyText:      { type: String, default: '' },
   /** Etiqueta del enlace (p. ej. «Política de Privacidad»). */
   policyLinkLabel: { type: String, default: 'Política de Privacidad' },
   /** URL de la política de privacidad del cliente. Vacío = se muestra como texto sin enlace. */

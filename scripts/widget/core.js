@@ -124,7 +124,7 @@
     conversationIdleTimeout: 15,
     /** Aviso de privacidad en el pie del chat (configurable por widget). */
     policyEnabled: true,
-    policyText: 'Las conversaciones pueden registrarse de acuerdo con nuestra',
+    policyText: '', // texto opcional antes del enlace; vacío = solo el enlace
     policyLinkLabel: 'Política de Privacidad',
     policyUrl: '',
     /** Si true: chips MCP / tools y notas técnicas de HubSpot en burbujas (vista previa o data-show-mcp-ui). Producción: false. */
