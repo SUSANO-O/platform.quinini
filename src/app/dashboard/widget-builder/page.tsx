@@ -221,6 +221,11 @@ interface WidgetConfig {
   feedbackThanks: string;
   /** Minutos de inactividad para dar la conversación por finalizada. 0 = off. */
   conversationIdleTimeout: number;
+  /** Aviso de privacidad en el pie del chat (siempre visible si está activo). */
+  policyEnabled: boolean;
+  policyText: string;
+  policyLinkLabel: string;
+  policyUrl: string;
   avatar: string;
   position: string;
   theme: 'light' | 'dark';
@@ -267,6 +272,10 @@ const DEFAULT: WidgetConfig = {
   feedbackTitle: '¿Cómo fue tu experiencia?',
   feedbackThanks: '¡Gracias por tu feedback!',
   conversationIdleTimeout: 15,
+  policyEnabled: true,
+  policyText: 'Las conversaciones pueden registrarse de acuerdo con nuestra',
+  policyLinkLabel: 'Política de Privacidad',
+  policyUrl: '',
   multiAgentEnabled: false,
   multiAgentMode: 'triage',
   agentIds: [],
@@ -833,6 +842,10 @@ export default function WidgetBuilderPage() {
               feedbackTitle: String((widget as { feedbackTitle?: string }).feedbackTitle ?? '¿Cómo fue tu experiencia?'),
               feedbackThanks: String((widget as { feedbackThanks?: string }).feedbackThanks ?? '¡Gracias por tu feedback!'),
               conversationIdleTimeout: typeof (widget as { conversationIdleTimeout?: number }).conversationIdleTimeout === 'number' ? (widget as { conversationIdleTimeout?: number }).conversationIdleTimeout! : 15,
+              policyEnabled: (widget as { policyEnabled?: boolean }).policyEnabled !== false,
+              policyText: String((widget as { policyText?: string }).policyText ?? DEFAULT.policyText),
+              policyLinkLabel: String((widget as { policyLinkLabel?: string }).policyLinkLabel ?? DEFAULT.policyLinkLabel),
+              policyUrl: String((widget as { policyUrl?: string }).policyUrl ?? ''),
               avatar: String(widget.avatar ?? ''),
               position: String(widget.position ?? 'bottom-right'),
               theme: th,
@@ -1667,6 +1680,42 @@ export default function WidgetBuilderPage() {
             <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.45 }}>
               Desactivado: el visitante no verá el botón de escalación en el chat.
             </p>
+          )}
+        </div>
+
+        {/* ── Aviso de privacidad / política ───────────────────────────────── */}
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: cfg.policyEnabled ? 12 : 0 }}>
+            <input
+              type="checkbox"
+              id="policyEnabled"
+              checked={cfg.policyEnabled}
+              onChange={(e) => update({ policyEnabled: e.target.checked })}
+              style={{ width: 16, height: 16, cursor: 'pointer' }}
+            />
+            <label htmlFor="policyEnabled" style={{ fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+              Mostrar aviso de privacidad en el pie del chat
+            </label>
+          </div>
+
+          {cfg.policyEnabled && (
+            <>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Texto del aviso</label>
+                <input style={inputStyle} value={cfg.policyText} maxLength={200} onChange={(e) => update({ policyText: e.target.value })} placeholder="Las conversaciones pueden registrarse de acuerdo con nuestra" />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Texto del enlace</label>
+                <input style={inputStyle} value={cfg.policyLinkLabel} maxLength={60} onChange={(e) => update({ policyLinkLabel: e.target.value })} placeholder="Política de Privacidad" />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>URL de tu política de privacidad</label>
+                <input style={inputStyle} type="url" value={cfg.policyUrl} onChange={(e) => update({ policyUrl: e.target.value })} placeholder="https://tusitio.com/privacidad" />
+                <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 4, marginBottom: 0, lineHeight: 1.45 }}>
+                  Debe empezar por <strong>https://</strong>. Si lo dejas vacío, el texto del enlace se muestra sin enlace.
+                </p>
+              </div>
+            </>
           )}
         </div>
 

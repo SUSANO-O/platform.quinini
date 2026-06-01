@@ -1,0 +1,79 @@
+{
+  "name": "Noticias mundiales (webhook → RSS gratis → webhook)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "noticias-mundiales",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "n1-webhook-in",
+      "name": "Webhook entrada",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [380, 300],
+      "webhookId": "noticias-mundiales-in"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Entrada compatible con AgentFlow / BotIvA: body.payload o body plano\nconst body = $input.first().json.body || $input.first().json;\nconst payload = body.payload || body;\n\nconst limit = Math.min(Math.max(Number(payload.limit) || 8, 1), 25);\nconst topic = String(payload.topic || payload.categoria || 'world').toLowerCase();\nconst lang = String(payload.lang || payload.idioma || 'es').toLowerCase();\nconst source = String(payload.source || 'google').toLowerCase();\n\nconst GOOGLE_TOPICS = {\n  world: 'WORLD',\n  mundo: 'WORLD',\n  business: 'BUSINESS',\n  negocios: 'BUSINESS',\n  technology: 'TECHNOLOGY',\n  tech: 'TECHNOLOGY',\n  science: 'SCIENCE',\n  ciencia: 'SCIENCE',\n  health: 'HEALTH',\n  salud: 'HEALTH',\n};\n\nconst hl = lang === 'en' ? 'en-US' : 'es-419';\nconst gl = lang === 'en' ? 'US' : 'MX';\nconst ceid = lang === 'en' ? 'US:en' : 'MX:es-419';\nconst gTopic = GOOGLE_TOPICS[topic] || 'WORLD';\n\nconst feeds = {\n  google: `https://news.google.com/rss/headlines/section/topic/${gTopic}?hl=${hl}&gl=${gl}&ceid=${ceid}`,\n  bbc_world: 'http://feeds.bbci.co.uk/news/world/rss.xml',\n  bbc_latam: 'http://feeds.bbci.co.uk/news/world/latin_america/rss.xml',\n  bbc_business: 'http://feeds.bbci.co.uk/news/business/rss.xml',\n  bbc_tech: 'http://feeds.bbci.co.uk/news/technology/rss.xml',\n};\n\nlet feedUrl = feeds.google;\nif (source === 'bbc' || source === 'bbc_world') feedUrl = feeds.bbc_world;\nelse if (source === 'bbc_latam' || source === 'latam') feedUrl = feeds.bbc_latam;\nelse if (source === 'bbc_business') feedUrl = feeds.bbc_business;\nelse if (source === 'bbc_tech') feedUrl = feeds.bbc_tech;\n\nreturn [{\n  json: {\n    limit,\n    topic,\n    lang,\n    source,\n    feedUrl,\n    queriedAt: new Date().toISOString(),\n  },\n}];"
+      },
+      "id": "n2-parse-params",
+      "name": "Parámetros consulta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.feedUrl }}"
+      },
+      "id": "n3-rss-read",
+      "name": "RSS noticias (gratis)",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [820, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const config = $('Parámetros consulta').first().json;\nconst limit = config.limit || 8;\n\nconst items = $input.all().map((i) => i.json);\n\nconst noticias = items.slice(0, limit).map((item, idx) => {\n  const title = item.title || item.json?.title || 'Sin título';\n  const link = item.link || item.json?.link || '';\n  const pubDate = item.pubDate || item.isoDate || item.published || '';\n  const snippet = (item.contentSnippet || item.content || item.summary || '')\n    .replace(/<[^>]+>/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim()\n    .slice(0, 280);\n  const sourceName = item.creator || item['dc:creator'] || config.source;\n\n  return {\n    rank: idx + 1,\n    titulo: title,\n    enlace: link,\n    fecha: pubDate,\n    resumen: snippet || null,\n    fuente: sourceName,\n  };\n});\n\nconst resumenTexto = noticias.length\n  ? noticias.map((n) => `${n.rank}. ${n.titulo} (${n.fecha || 'sin fecha'})`).join('\\n')\n  : 'No se encontraron titulares en el feed RSS.';\n\nreturn [{\n  json: {\n    ok: true,\n    action: 'noticias_mundiales',\n    total: noticias.length,\n    topic: config.topic,\n    lang: config.lang,\n    source: config.source,\n    feedUrl: config.feedUrl,\n    queriedAt: config.queriedAt,\n    summary: `Top ${noticias.length} noticias (${config.topic}, ${config.lang}, fuente ${config.source}).`,\n    resumenTexto,\n    noticias,\n    note: 'RSS gratuito (Google News / BBC). Parámetros opcionales en payload: limit, topic, lang, source.',\n  },\n}];"
+      },
+      "id": "n4-format-response",
+      "name": "Formatear respuesta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1040, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "n5-webhook-out",
+      "name": "Webhook salida",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1260, 300]
+    }
+  ],
+  "connections": {
+    "Webhook entrada": {
+      "main": [[{ "node": "Parámetros consulta", "type": "main", "index": 0 }]]
+    },
+    "Parámetros consulta": {
+      "main": [[{ "node": "RSS noticias (gratis)", "type": "main", "index": 0 }]]
+    },
+    "RSS noticias (gratis)": {
+      "main": [[{ "node": "Formatear respuesta", "type": "main", "index": 0 }]]
+    },
+    "Formatear respuesta": {
+      "main": [[{ "node": "Webhook salida", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "meta": { "templateCredsSetupCompleted": true },
+  "tags": ["noticias", "rss", "agentflow"]
+}

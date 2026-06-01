@@ -45,6 +45,10 @@ const PATCHABLE = [
   'feedbackTitle',
   'feedbackThanks',
   'conversationIdleTimeout',
+  'policyEnabled',
+  'policyText',
+  'policyLinkLabel',
+  'policyUrl',
 ] as const;
 
 type PatchableKey = (typeof PATCHABLE)[number];
@@ -106,7 +110,7 @@ export async function PATCH(
   for (const key of PATCHABLE) {
     if (!(key in raw)) continue;
     const v = raw[key];
-    if (key === 'autoOpen' || key === 'fabDismissible' || key === 'voiceEnabled' || key === 'active' || key === 'handoffEnabled' || key === 'humanSupportEnabled' || key === 'feedbackEnabled') {
+    if (key === 'autoOpen' || key === 'fabDismissible' || key === 'voiceEnabled' || key === 'active' || key === 'handoffEnabled' || key === 'humanSupportEnabled' || key === 'feedbackEnabled' || key === 'policyEnabled') {
       $set[key] = Boolean(v);
       continue;
     }
@@ -135,6 +139,14 @@ export async function PATCH(
         $set[key] = s;
       } else if (key === 'humanSupportPhone') {
         $set.humanSupportPhone = v.trim().slice(0, 48);
+      } else if (key === 'policyUrl') {
+        // Solo http(s) — evita esquemas peligrosos (javascript:, data:, etc.).
+        const s = v.trim().slice(0, 300);
+        $set.policyUrl = /^https?:\/\//i.test(s) ? s : '';
+      } else if (key === 'policyText') {
+        $set.policyText = v.slice(0, 200);
+      } else if (key === 'policyLinkLabel') {
+        $set.policyLinkLabel = v.slice(0, 60);
       } else {
         $set[key] = v;
       }
