@@ -233,20 +233,27 @@ export function InboxChatModal({
 }: InboxChatModalProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Ref a onClose para que el handler de Escape use siempre la última versión
+  // sin que el effect dependa de su identidad (que cambia en cada render del padre).
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const isResolved = inboxStatus === 'resolved';
   const displayName = contactName.trim() || 'Visitante sin nombre';
   const draft = replyDraft.trim();
   const canSend = (draft.length > 0 || pendingAttachments.length > 0) && !sendingReply && !uploadingAttachment;
 
+  // Enfocar SOLO al abrir (cuando `open` pasa a true), nunca en cada render.
+  // Si dependiera de `onClose`, cada tecla y cada poll robaría el foco hacia la X.
   useEffect(() => {
     if (!open) return;
-    closeRef.current?.focus();
+    (textareaRef.current ?? closeRef.current)?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onCloseRef.current();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open]);
 
   useEffect(() => {
     if (open) document.body.style.overflow = 'hidden';
@@ -460,6 +467,7 @@ export function InboxChatModal({
                 {uploadingAttachment ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={16} />}
               </button>
               <textarea
+                ref={textareaRef}
                 rows={2}
                 placeholder="Escribe tu respuesta…"
                 className="landing-input flex-1 resize-none text-[13px] leading-relaxed rounded-xl"
