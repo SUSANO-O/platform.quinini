@@ -2345,7 +2345,7 @@
       // Icono de persona + etiqueta: deja claro que responde un humano real.
       badge.innerHTML =
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' +
-        '<span>Agente</span>';
+        '<span>Atención personal</span>';
       head.appendChild(badge);
       wrap.appendChild(head);
 
@@ -4218,8 +4218,8 @@
       '#' + rootId + ' .afhub-settings-speaker--active:hover { background:rgba(5,150,105,.08); }' +
       '#' + rootId + ' .afhub-close-btn { flex-shrink:0; margin-left:0; background:rgba(255,255,255,.14); border:none; color:#fff; cursor:pointer; padding:6px; border-radius:8px; opacity:.92; display:inline-flex; align-items:center; justify-content:center; line-height:0; }' +
       '#' + rootId + ' .afhub-close-btn:hover { opacity:1; background:rgba(255,255,255,.26); }' +
-      '#' + rootId + ' .afhub-messages { flex:1 1 0; min-height:0; overflow-y:auto; padding:18px 16px; display:flex; flex-direction:column; gap:12px; scroll-behavior:smooth; background:linear-gradient(180deg,#fafbfc 0%,#f4f6f8 100%); font-size:14px; line-height:1.55; scrollbar-width:thin; }' +
-      '#' + rootId + ' .afhub-msg { max-width:88%; padding:11px 15px; border-radius:16px; font-size:14px; line-height:1.55; word-wrap:break-word; }' +
+      '#' + rootId + ' .afhub-messages { flex:1 1 0; min-height:0; overflow-y:auto; padding:12px 14px; display:flex; flex-direction:column; gap:8px; scroll-behavior:smooth; background:linear-gradient(180deg,#fafbfc 0%,#f4f6f8 100%); font-size:14px; line-height:1.45; scrollbar-width:thin; }' +
+      '#' + rootId + ' .afhub-msg { max-width:88%; padding:9px 13px; border-radius:16px; font-size:14px; line-height:1.45; word-wrap:break-word; }' +
       '#' + rootId + ' .afhub-msg.user { white-space:pre-wrap; background:' + cfg.color + '; color:#fff; align-self:flex-end; border-bottom-right-radius:5px; box-shadow:0 2px 10px rgba(0,0,0,.14); }' +
       '#' + rootId + ' .afhub-msg-rich { white-space:normal; }' +
       '#' + rootId + ' .afhub-msg.bot { background:linear-gradient(180deg,#fff,#f0f2f5); color:#141428; align-self:flex-start; border-bottom-left-radius:5px; border:1px solid rgba(0,0,0,.06); box-shadow:0 1px 2px rgba(0,0,0,.04); }' +
@@ -4335,7 +4335,7 @@
       '#' + rootId + ' .afhub-policy-link { color:' + cfg.color + '; text-decoration:underline; }' +
       '#' + rootId + ' a.afhub-policy-link { cursor:pointer; }' +
       '#' + rootId + ' a.afhub-policy-link:hover { filter:brightness(0.9); }' +
-      '#' + rootId + ' .afhub-input-area { padding:8px 10px; border-top:1px solid #eef0f2; display:flex; gap:6px; flex-shrink:0; background:#f8fafc; align-items:center; }' +
+      '#' + rootId + ' .afhub-input-area { padding:5px 10px; border-top:1px solid #eef0f2; display:flex; gap:6px; flex-shrink:0; background:#f8fafc; align-items:center; }' +
       '#' + rootId + ' .afhub-attach-input { position:absolute; width:0; height:0; opacity:0; pointer-events:none; overflow:hidden; }' +
       '#' + rootId + ' .afhub-attach { width:32px; height:32px; border-radius:10px; border:none; cursor:pointer; background:transparent; color:#64748b; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background .18s,color .18s; padding:0; }' +
       '#' + rootId + ' .afhub-attach:hover { background:rgba(15,23,42,.06); color:' + cfg.color + '; }' +
@@ -4346,7 +4346,7 @@
       '#' + rootId + ' .afhub-attach-preview-label { flex:1; font-size:12px; color:#64748b; font-weight:500; }' +
       '#' + rootId + ' .afhub-attach-preview-remove { width:26px; height:26px; border-radius:50%; border:none; background:#fee2e2; color:#dc2626; font-size:18px; line-height:1; cursor:pointer; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-img-wrap--user { margin-top:8px; }' +
-      '#' + rootId + ' .afhub-input { flex:1; min-width:0; border:none; border-radius:18px; padding:9px 14px; font-size:15px; font-weight:400; outline:none; resize:none; min-height:38px; max-height:88px; line-height:1.35; letter-spacing:-0.01em; font-family:inherit !important; color:#0f172a !important; -webkit-text-fill-color:#0f172a; caret-color:' + cfg.color + '; background:#fff; box-shadow:inset 0 0 0 1px #dbe1ea; overflow-y:hidden; scrollbar-width:none; transition:box-shadow .15s ease; }' +
+      '#' + rootId + ' .afhub-input { flex:1; min-width:0; border:none; border-radius:18px; padding:7px 14px; font-size:15px; font-weight:400; outline:none; resize:none; min-height:34px; max-height:88px; line-height:1.3; letter-spacing:-0.01em; font-family:inherit !important; color:#0f172a !important; -webkit-text-fill-color:#0f172a; caret-color:' + cfg.color + '; background:#fff; box-shadow:inset 0 0 0 1px #dbe1ea; overflow-y:hidden; scrollbar-width:none; transition:box-shadow .15s ease; }' +
       '#' + rootId + ' .afhub-input::-webkit-scrollbar { display:none; width:0; height:0; }' +
       '#' + rootId + ' .afhub-input::placeholder { color:#94a3b8; opacity:1; font-weight:400; }' +
       '#' + rootId + ' .afhub-input:focus { box-shadow:inset 0 0 0 2px ' + cfg.color + '66, 0 0 0 3px ' + cfg.color + '1a; }' +
