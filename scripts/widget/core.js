@@ -2139,14 +2139,88 @@
     var humanPollCount = 0;
     var HUMAN_POLL_MAX = 1200; // ~1h a 3s/poll: tope de seguridad.
 
+    // IDs de mensajes del agente ya mostrados (evita duplicados en polling).
+    var humanShownIds = {};
     // IDs de mensajes del agente ocultados por el cliente en su propia vista.
+    function playInboxBell() {
+      try {
+        var Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        var ctx = new Ctx();
+        var t = ctx.currentTime;
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, t);
+        osc.frequency.exponentialRampToValueAtTime(660, t + 0.07);
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.exponentialRampToValueAtTime(0.1, t + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.18);
+        window.setTimeout(function () {
+          try { ctx.close(); } catch (_e) { /* noop */ }
+        }, 280);
+      } catch (_bell) { /* noop */ }
+    }
+
+    var unreadHintWrap = null;
+    var unreadFabBadge = null;
+
+    function ensureUnreadNoticeUi() {
+      if (!unreadHintWrap) {
+        unreadHintWrap = document.createElement('div');
+        unreadHintWrap.className = 'afhub-unread-hint-wrap';
+        var unreadHint = document.createElement('div');
+        unreadHint.className = 'afhub-unread-hint';
+        unreadHint.setAttribute('role', 'status');
+        unreadHint.textContent = 'Tienes un mensaje';
+        unreadHintWrap.appendChild(unreadHint);
+        unreadHintWrap.addEventListener('click', function () {
+          clearUnreadHumanNotice();
+          open();
+        });
+        launcher.insertBefore(unreadHintWrap, fabWrap);
+        unreadHintWrap.style.display = 'none';
+      }
+      if (!unreadFabBadge) {
+        unreadFabBadge = document.createElement('span');
+        unreadFabBadge.className = 'afhub-unread-badge';
+        unreadFabBadge.setAttribute('aria-hidden', 'true');
+        fabWrap.appendChild(unreadFabBadge);
+        unreadFabBadge.style.display = 'none';
+      }
+    }
+
+    function showUnreadHumanNotice() {
+      ensureUnreadNoticeUi();
+      unreadHintWrap.style.display = '';
+      unreadFabBadge.style.display = 'block';
+    }
+
+    function clearUnreadHumanNotice() {
+      if (unreadHintWrap) unreadHintWrap.style.display = 'none';
+      if (unreadFabBadge) unreadFabBadge.style.display = 'none';
+    }
+
+    function onHumanMessageArrived() {
+      if (isOpen) {
+        playInboxBell();
+      } else {
+        showUnreadHumanNotice();
+      }
+    }
+
     function isHumanMsgHidden(id) {
       if (!id) return false;
       try { return sessionStorage.getItem('biv-hide-msg:' + id) === '1'; } catch (e) { return false; }
     }
     function removeHumanMessageById(id) {
       if (!id) return;
-      var node = chat.querySelector('[data-mid="' + id + '"]');
+      delete humanShownIds[id];
+      var node = messages.querySelector('[data-mid="' + id + '"]');
       if (node && node.parentNode) node.parentNode.removeChild(node);
     }
     function humanBytesLabel(n) {
@@ -2208,47 +2282,55 @@
       }
       container.appendChild(box);
     }
-    function addHumanMessage(m) {
+    function addHumanMessage(m, opts) {
+      opts = opts || {};
       // Compatibilidad: acepta string (texto) u objeto { id, content, attachments }.
       var text = (m && typeof m === 'object') ? (m.content || '') : String(m || '');
       var mid = (m && typeof m === 'object' && m.id) ? String(m.id) : '';
       var atts = (m && typeof m === 'object' && Array.isArray(m.attachments)) ? m.attachments : [];
-      if (mid && isHumanMsgHidden(mid)) return;
+      if (mid && (humanShownIds[mid] || isHumanMsgHidden(mid))) return;
+      if (!text && (!atts || !atts.length)) return;
+      if (mid) humanShownIds[mid] = true;
+
       var wrap = document.createElement('div');
+      wrap.className = 'afhub-human-wrap';
       if (mid) wrap.setAttribute('data-mid', mid);
-      wrap.style.cssText = 'display:flex;flex-direction:column;align-items:flex-start;margin-bottom:8px;';
+
       var head = document.createElement('div');
-      head.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:2px;';
+      head.className = 'afhub-human-meta';
       var badge = document.createElement('span');
+      badge.className = 'afhub-human-badge';
       badge.textContent = 'Agente';
-      badge.style.cssText = 'font-size:10px;font-weight:700;color:' + cfg.color + ';opacity:0.8;';
       head.appendChild(badge);
-      // Botón "ocultar" para el cliente (solo en su vista local).
       if (mid) {
         var hide = document.createElement('button');
         hide.type = 'button';
+        hide.className = 'afhub-human-hide';
         hide.textContent = '✕';
         hide.title = 'Ocultar de mi vista';
-        hide.style.cssText = 'border:none;background:none;color:#9aa0a6;font-size:11px;line-height:1;cursor:pointer;padding:0;opacity:0.6;';
+        hide.setAttribute('aria-label', 'Ocultar mensaje');
         hide.addEventListener('click', function () {
           try { sessionStorage.setItem('biv-hide-msg:' + mid, '1'); } catch (e) { /* */ }
           removeHumanMessageById(mid);
         });
         head.appendChild(hide);
       }
+      wrap.appendChild(head);
+
       var bubble = document.createElement('div');
-      bubble.style.cssText = 'max-width:85%;padding:8px 12px;border-radius:10px;font-size:13px;line-height:1.5;background:rgba(0,0,0,0.05);border:1px solid rgba(0,0,0,0.08);';
+      bubble.className = 'afhub-msg bot afhub-human-bubble';
       if (text) {
         var tx = document.createElement('div');
+        tx.className = 'afhub-msg-text';
         tx.textContent = text;
         bubble.appendChild(tx);
       }
       for (var i = 0; i < atts.length; i++) appendHumanAttachment(bubble, atts[i]);
-      wrap.appendChild(head);
       wrap.appendChild(bubble);
-      var msgList = chat.querySelector('.afhub-messages') || chat;
-      msgList.appendChild(wrap);
-      wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+      messages.appendChild(wrap);
+      messages.scrollTop = messages.scrollHeight;
+      if (!opts.silent) onHumanMessageArrived();
     }
 
     function deactivateHumanMode(msg) {
@@ -2309,8 +2391,9 @@
         .catch(function () { /* silencioso: reintenta en el próximo tick */ });
     }
 
-    // Verifica al abrir el widget si la sesión sigue en modo humano (sobrevive recargas).
-    function checkHumanModeOnOpen() {
+    // Verifica al abrir el widget (o al cargar) si la sesión sigue en modo humano.
+    function checkHumanModeOnOpen(opts) {
+      opts = opts || {};
       if (humanModeActive || !chatSessionId || !cfg.token) return;
       var url = cfg.host.replace(/\/$/, '') + '/api/widget/messages'
         + '?sessionId=' + encodeURIComponent(chatSessionId)
@@ -2320,9 +2403,15 @@
         .then(function (r) { return r.json(); })
         .then(function (data) {
           if (data && data.humanMode === true && data.resolved !== true) {
-            // Reactivar con cursor = hora del servidor (no re-mostrar mensajes ya en el historial).
+            var pending = Array.isArray(data.messages) ? data.messages : [];
             activateHumanMode(data.now);
-            addMessage('bot', 'Sigues conectado con un agente. Escríbele aquí y te responderá en este chat.');
+            if (pending.length) {
+              pending.forEach(function (m) { addHumanMessage(m, { silent: true }); });
+              if (!isOpen) showUnreadHumanNotice();
+            }
+            if (!opts.skipReconnectBanner) {
+              addMessage('bot', 'Sigues conectado con un agente. Escríbele aquí y te responderá en este chat.');
+            }
           }
         })
         .catch(function () { /* silencioso */ });
@@ -2570,6 +2659,7 @@
     function open() {
       if (isOpen) return;
       isOpen = true;
+      clearUnreadHumanNotice();
       root.classList.add('afhub-open');
       chat.classList.add('visible');
       fab.classList.add('open');
@@ -3637,6 +3727,7 @@
     });
 
     if (cfg.autoOpen) setTimeout(open, 80);
+    else setTimeout(function () { checkHumanModeOnOpen({ skipReconnectBanner: true }); }, 400);
     emitEvent('widget_loaded');
 
     var api = {
@@ -3948,6 +4039,9 @@
           '#' + rootId + ' .afhub-dot { background:#777; }' +
           '#' + rootId + ' .afhub-fab-hint { background:#252530; color:#ececf1; border-color:rgba(255,255,255,.06); }' +
           '#' + rootId + ' .afhub-fab-hint::after { border-top-color:#252530 !important; }' +
+          '#' + rootId + ' .afhub-unread-hint { background:#252530; color:#ececf1; border-color:rgba(255,255,255,.08); }' +
+          '#' + rootId + ' .afhub-unread-hint::after { border-top-color:#252530 !important; }' +
+          '#' + rootId + ' .afhub-human-hide { color:#94a3b8; }' +
           '#' + rootId + ' .afhub-tool-tag { background:rgba(255,255,255,.08); color:#a8a8b8; border-color:rgba(255,255,255,.12); }' +
           '#' + rootId + ' .afhub-mcp-source-tag { background:rgba(255,255,255,.08); color:#c8c8d8; border-color:rgba(255,255,255,.12); }' +
           '#' + rootId + ' .afhub-fallback-tag { color:rgba(255,255,255,.28) !important; border-color:rgba(255,255,255,.1) !important; background:rgba(255,255,255,.04) !important; }' +
@@ -4068,6 +4162,21 @@
       '#' + rootId + ' .afhub-msg.user { white-space:pre-wrap; background:' + cfg.color + '; color:#fff; align-self:flex-end; border-bottom-right-radius:5px; box-shadow:0 2px 10px rgba(0,0,0,.14); }' +
       '#' + rootId + ' .afhub-msg-rich { white-space:normal; }' +
       '#' + rootId + ' .afhub-msg.bot { background:linear-gradient(180deg,#fff,#f0f2f5); color:#141428; align-self:flex-start; border-bottom-left-radius:5px; border:1px solid rgba(0,0,0,.06); box-shadow:0 1px 2px rgba(0,0,0,.04); }' +
+      '#' + rootId + ' .afhub-human-wrap { align-self:flex-start; max-width:88%; width:100%; display:flex; flex-direction:column; gap:4px; }' +
+      '#' + rootId + ' .afhub-human-meta { display:flex; align-items:center; gap:6px; padding:0 2px; }' +
+      '#' + rootId + ' .afhub-human-badge { font-size:10px; font-weight:700; color:' + cfg.color + '; opacity:0.85; letter-spacing:.02em; }' +
+      '#' + rootId + ' .afhub-human-hide { border:none; background:none; color:#9aa0a6; font-size:11px; line-height:1; cursor:pointer; padding:0 2px; opacity:0.65; }' +
+      '#' + rootId + ' .afhub-human-hide:hover { opacity:1; }' +
+      '#' + rootId + ' .afhub-human-bubble { width:100%; max-width:100%; box-sizing:border-box; white-space:pre-wrap; }' +
+      '#' + rootId + ' .afhub-unread-hint-wrap { display:none; cursor:pointer; animation:afhub-unread-pop .35s cubic-bezier(.34,1.2,.64,1); }' +
+      '#' + rootId + ' .afhub-unread-hint { position:relative; font-size:12px; line-height:1.35; font-weight:600; padding:9px 13px; border-radius:14px; background:#fff; color:#141428; max-width:220px; text-align:left; border:1px solid rgba(0,0,0,.06); box-shadow:0 4px 18px rgba(0,0,0,.12); }' +
+      '#' + rootId + ' .afhub-unread-hint::after { content:""; position:absolute; bottom:-6px; width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-top:7px solid #fff; }' +
+      '#' + rootId + '[data-afhub-h="right"] .afhub-unread-hint::after { right:18px; left:auto; }' +
+      '#' + rootId + '[data-afhub-h="left"] .afhub-unread-hint::after { left:18px; right:auto; }' +
+      '#' + rootId + '[data-afhub-h="center"] .afhub-unread-hint::after { left:50%; margin-left:-6px; }' +
+      '#' + rootId + ' .afhub-unread-badge { position:absolute; top:0; right:0; width:10px; height:10px; border-radius:50%; background:#ef4444; border:2px solid #fff; display:none; z-index:6; pointer-events:none; box-shadow:0 1px 4px rgba(0,0,0,.2); }' +
+      '#' + rootId + '.afhub-open .afhub-unread-hint-wrap { display:none !important; }' +
+      '@keyframes afhub-unread-pop { from { opacity:0; transform:translateY(8px) scale(.94); } to { opacity:1; transform:translateY(0) scale(1); } }' +
       '#' + rootId + ' .afhub-msg-rich .afhub-p { margin:0 0 .55em; }' +
       '#' + rootId + ' .afhub-msg-rich .afhub-p:last-child { margin-bottom:0; }' +
       '#' + rootId + ' .afhub-msg-rich .afhub-ul { margin:.35em 0 .55em; padding-left:1.15em; }' +
