@@ -927,7 +927,6 @@
     var pendingAttachment = null;
     var pendingHumanAttachments = []; // adjuntos del visitante para el agente (modo humano)
     var lastSessionImageUrls = [];
-    var welcomeShortcutsEl = null; // chips de accesos rápidos bajo el saludo (se quitan al enviar)
 
     function saveChatToSession() {
       persistChatState(cfg, chatSessionId, history, lastGeneratedImageDataUrl);
@@ -943,7 +942,6 @@
       }
       if (!history.length) {
         addMessage('bot', cfg.welcome);
-        addWelcomeShortcuts();
         return;
       }
       for (var hi = 0; hi < history.length; hi++) {
@@ -951,41 +949,6 @@
         if (entry.role === 'user') addMessage('user', entry.content);
         else if (entry.role === 'model') addMessage('bot', entry.content);
       }
-    }
-
-    /** Quita los chips de accesos rápidos del saludo (al enviar o reiniciar). */
-    function removeWelcomeShortcuts() {
-      if (welcomeShortcutsEl && welcomeShortcutsEl.parentNode) {
-        welcomeShortcutsEl.parentNode.removeChild(welcomeShortcutsEl);
-      }
-      welcomeShortcutsEl = null;
-    }
-
-    /** Muestra los accesos rápidos como chips bajo el saludo (estilo GitLab). */
-    function addWelcomeShortcuts() {
-      removeWelcomeShortcuts();
-      if (widgetDisabled) return;
-      var list = (cfg.shortcuts || []).filter(function (s) { return s && s.enabled !== false; });
-      if (!list.length) return;
-      var wrap = document.createElement('div');
-      wrap.className = 'afhub-welcome-chips';
-      list.slice(0, 6).forEach(function (sc) {
-        var chip = document.createElement('button');
-        chip.type = 'button';
-        chip.className = 'afhub-welcome-chip';
-        var txt = shortcutDisplayText(sc);
-        chip.textContent = txt;
-        chip.title = txt;
-        chip.addEventListener('click', function () {
-          if (widgetDisabled) return;
-          input.value = sc.message || sc.label || '';
-          input.dispatchEvent(new Event('input'));
-          send();
-        });
-        wrap.appendChild(chip);
-      });
-      messages.appendChild(wrap);
-      welcomeShortcutsEl = wrap;
     }
 
     var root = document.createElement('div');
@@ -2800,7 +2763,6 @@
       input.style.height = 'auto';
       sendBtn.disabled = true;
       addMessage('bot', cfg.welcome);
-      addWelcomeShortcuts();
       historyDomReady = true;
       saveChatToSession();
       emitEvent('widget_opened');
@@ -3061,7 +3023,6 @@
       var hasAttach = !!(pendingAttachment && pendingAttachment.dataUrl);
       var hasHumanAttach = humanActive && pendingHumanAttachments.length > 0;
       if ((!text && !hasAttach && !hasHumanAttach) || isLoading) return;
-      removeWelcomeShortcuts(); // la conversación empezó: ocultar chips del saludo
       if (!cfg.agentId) {
         var errNoAgent = { message: 'Configura agentId para usar el widget.', code: 'MISSING_AGENT_ID' };
         notify('onError', errNoAgent);
@@ -4130,8 +4091,6 @@
           '#' + rootId + ' .afhub-handoff-cancel:hover { background:#2f2f3a !important; color:#fff !important; }' +
           '#' + rootId + ' .afhub-action-bar { background:#16161d; border-top-color:#2a2a34; }' +
           '#' + rootId + ' .afhub-policy { color:#7a7a86; }' +
-          '#' + rootId + ' .afhub-welcome-chip { background:' + cfg.color + '26; border-color:' + cfg.color + '4d; color:#e8e8f2; }' +
-          '#' + rootId + ' .afhub-welcome-chip:hover { background:' + cfg.color + '3a; border-color:' + cfg.color + '70; }' +
           '#' + rootId + ' .afhub-tool-tag { background:rgba(255,255,255,.08); color:#a8a8b8; border-color:rgba(255,255,255,.12); }' +
           '#' + rootId + ' .afhub-mcp-source-tag { background:rgba(255,255,255,.08); color:#c8c8d8; border-color:rgba(255,255,255,.12); }' +
           '#' + rootId + ' .afhub-fallback-tag { color:rgba(255,255,255,.28) !important; border-color:rgba(255,255,255,.1) !important; background:rgba(255,255,255,.04) !important; }' +
@@ -4360,10 +4319,6 @@
       '#' + rootId + ' .afhub-pill-icon { font-size:15px; flex-shrink:0; width:22px; text-align:center; }' +
       '#' + rootId + ' .afhub-pill-text { flex:1; line-height:1.4; white-space:normal; overflow-wrap:break-word; word-break:break-word; min-width:0; }' +
       '#' + rootId + ' .afhub-pill-arrow { font-size:18px; color:' + cfg.color + '; flex-shrink:0; font-weight:400; line-height:1; }' +
-      // Accesos rápidos como chips bajo el saludo (estilo GitLab) — respetan el color de marca
-      '#' + rootId + ' .afhub-welcome-chips { display:flex; flex-wrap:wrap; gap:8px; margin:2px 2px 6px; align-self:flex-start; max-width:100%; }' +
-      '#' + rootId + ' .afhub-welcome-chip { padding:7px 14px; border-radius:999px; border:1px solid ' + cfg.color + '40; background:' + cfg.color + '0f; color:' + cfg.color + '; font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit; transition:background .15s,border-color .15s; line-height:1.25; max-width:100%; white-space:normal; text-align:left; }' +
-      '#' + rootId + ' .afhub-welcome-chip:hover { background:' + cfg.color + '1f; border-color:' + cfg.color + '66; }' +
       // Aviso de privacidad / política (footer del chat)
       '#' + rootId + ' .afhub-policy { text-align:center; font-size:10px; line-height:1.45; color:#9aa0ac; padding:6px 14px 2px; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-policy-link { color:' + cfg.color + '; text-decoration:underline; }' +
