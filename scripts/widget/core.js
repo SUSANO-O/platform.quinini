@@ -401,6 +401,7 @@
     merged.policyText = String(merged.policyText == null ? '' : merged.policyText).trim().substring(0, 200);
     merged.policyLinkLabel = String(merged.policyLinkLabel == null ? '' : merged.policyLinkLabel).trim().substring(0, 60);
     var policyUrl = String(merged.policyUrl == null ? '' : merged.policyUrl).trim();
+    if (policyUrl && !/^[a-z][a-z0-9+.-]*:/i.test(policyUrl)) policyUrl = 'https://' + policyUrl;
     merged.policyUrl = /^https?:\/\//i.test(policyUrl) ? policyUrl.substring(0, 300) : '';
     return merged;
   }
