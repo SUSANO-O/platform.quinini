@@ -273,7 +273,7 @@ const DEFAULT: WidgetConfig = {
   feedbackThanks: '¡Gracias por tu feedback!',
   conversationIdleTimeout: 15,
   policyEnabled: true,
-  policyText: 'Las conversaciones pueden registrarse de acuerdo con nuestra',
+  policyText: '',
   policyLinkLabel: 'Política de Privacidad',
   policyUrl: '',
   multiAgentEnabled: false,
