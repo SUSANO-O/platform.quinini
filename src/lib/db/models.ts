@@ -409,6 +409,10 @@ const ConversationSessionSchema = new Schema({
   handoffAt:      { type: Date, default: null },
   /** Bandeja de entrada: open | resolved */
   inboxStatus:    { type: String, enum: ['open', 'resolved'], default: null },
+  /** Última vez que el agente abrió esta conversación en el inbox (para "nuevos sin ver"). */
+  agentLastSeenAt:      { type: Date, default: null },
+  /** Último mensaje del visitante (handoff o en modo humano); se compara con agentLastSeenAt. */
+  lastVisitorMessageAt: { type: Date, default: null },
   /** true si la sesión terminó sin respuesta final del bot (abandonó) */
   dropped:      { type: Boolean, default: false },
   /** true si el usuario respondió positivamente (resolved vía feedback) */
@@ -520,6 +524,9 @@ const WidgetMessageSchema = new Schema({
   traceId:   { type: String, default: '' },
   /** Mensaje retirado por el agente: se conserva la fila (auditoría) pero el widget lo elimina. */
   deleted:   { type: Boolean, default: false },
+  /** Acuses de recibo (solo mensajes sentBy:'human' enviados al visitante). */
+  deliveredAt: { type: Date, default: null }, // el widget del cliente lo recibió (poll)
+  readAt:      { type: Date, default: null }, // el widget lo mostró abierto (visto)
   attachments: [{
     type:        { type: String, enum: ['image', 'video', 'file'], default: 'image' },
     url:         { type: String, required: true },

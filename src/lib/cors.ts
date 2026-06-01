@@ -5,32 +5,15 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map((o) => o.trim()).filter(Boolean);
-
-/** Orígenes localhost — pruebas del widget embebido en apps locales (PHP, etc.). */
-function isLocalhostOrigin(origin: string): boolean {
-  if (!origin) return false;
-  try {
-    const h = new URL(origin).hostname;
-    return h === 'localhost' || h === '127.0.0.1' || h === '[::1]';
-  } catch {
-    return false;
-  }
-}
-
 /** Get CORS headers for a given request origin */
 export function getCorsHeaders(req: NextRequest): Record<string, string> {
   const origin = req.headers.get('origin') || '';
 
-  // Dev: cualquier origen. Prod: allowlist, * o localhost (embed en :9090, etc.).
-  const allowOrigin =
-    process.env.NODE_ENV !== 'production' ||
-    ALLOWED_ORIGINS.length === 0 ||
-    ALLOWED_ORIGINS.includes('*') ||
-    ALLOWED_ORIGINS.includes(origin) ||
-    isLocalhostOrigin(origin)
-      ? origin || '*'
-      : '';
+  // Estos endpoints sirven al widget de chat embebible, que vive en sitios de
+  // clientes arbitrarios. La identidad/seguridad la da el token `wt_`, no el
+  // origen, así que reflejamos siempre el origin solicitante (compatible con
+  // Allow-Credentials: true). Sin origin (same-origin/curl) cae a '*'.
+  const allowOrigin = origin || '*';
 
   return {
     'Access-Control-Allow-Origin': allowOrigin,

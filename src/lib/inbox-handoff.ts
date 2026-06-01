@@ -38,6 +38,7 @@ export async function upsertHandoffInboxSession(input: HandoffSessionInput): Pro
       handoffAt: now,
       startedAt: now,
       messageCount: 0,
+      lastVisitorMessageAt: now, // nueva solicitud sin ver por el agente
     });
     return true;
   } catch (err) {

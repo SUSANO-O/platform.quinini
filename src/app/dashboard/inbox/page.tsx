@@ -54,6 +54,8 @@ type TranscriptMessage = {
   content: string;
   createdAt: string;
   attachments?: Attachment[];
+  deliveredAt?: string | null;
+  readAt?: string | null;
 };
 
 export default function InboxPage() {
