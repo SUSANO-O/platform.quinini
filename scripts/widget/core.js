@@ -8,7 +8,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.5.8';
+  var VERSION = '1.5.9';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -1114,14 +1114,7 @@
     expandBtn.setAttribute('aria-label', 'Ampliar barra');
     expandBtn.title = 'Ampliar barra';
 
-    var newChatBtn = document.createElement('button');
-    newChatBtn.className = 'afhub-header-icon-btn afhub-new-chat-btn';
-    newChatBtn.setAttribute('type', 'button');
-    newChatBtn.innerHTML = ICON_NEW_CHAT;
-    newChatBtn.setAttribute('aria-label', 'Nueva conversación');
-    newChatBtn.title = 'Nueva conversación';
-
-    /** Botón de Ajustes (kebab) + dropdown con "Borrar conversación" */
+    /** Botón de Ajustes (kebab) + dropdown */
     var settingsWrap = document.createElement('div');
     settingsWrap.className = 'afhub-settings-wrap';
 
@@ -1132,14 +1125,30 @@
     settingsBtn.setAttribute('aria-label', 'Ajustes');
     settingsBtn.title = 'Ajustes';
 
-    var settingsMenu = document.createElement('div');
-    settingsMenu.className = 'afhub-settings-menu';
-    settingsMenu.style.display = 'none';
-    settingsMenu.innerHTML =
+    var voiceMenuAvailable =
+      cfg.voiceEnabled !== false && typeof window !== 'undefined' && window.speechSynthesis;
+    var settingsMenuHtml =
+      '<button type="button" class="afhub-settings-item afhub-settings-new-chat">' +
+        ICON_NEW_CHAT +
+        '<span>Nueva conversación</span>' +
+      '</button>';
+    if (voiceMenuAvailable) {
+      settingsMenuHtml +=
+        '<button type="button" class="afhub-settings-item afhub-settings-speaker">' +
+          ICON_VOLUME_OFF +
+          '<span>Lectura en voz alta</span>' +
+        '</button>';
+    }
+    settingsMenuHtml +=
       '<button type="button" class="afhub-settings-item afhub-settings-clear">' +
         ICON_TRASH +
         '<span>Borrar conversación</span>' +
       '</button>';
+
+    var settingsMenu = document.createElement('div');
+    settingsMenu.className = 'afhub-settings-menu';
+    settingsMenu.style.display = 'none';
+    settingsMenu.innerHTML = settingsMenuHtml;
 
     settingsWrap.appendChild(settingsBtn);
     settingsWrap.appendChild(settingsMenu);
@@ -1150,19 +1159,12 @@
     closeBtn.setAttribute('aria-label', 'Cerrar chat');
     closeBtn.setAttribute('type', 'button');
 
-    var speakerBtn = null;
-    if (cfg.voiceEnabled !== false && typeof window !== 'undefined' && window.speechSynthesis) {
-      speakerBtn = document.createElement('button');
-      speakerBtn.className = 'afhub-header-icon-btn afhub-speaker-btn';
-      speakerBtn.setAttribute('type', 'button');
-      speakerBtn.innerHTML = ICON_VOLUME_OFF;
-      speakerBtn.setAttribute('aria-label', 'Activar lectura en voz alta');
-      speakerBtn.title = 'Leer respuestas en voz alta';
-      headerActions.appendChild(speakerBtn);
-    }
+    var speakerMenuItem = voiceMenuAvailable
+      ? settingsMenu.querySelector('.afhub-settings-speaker')
+      : null;
+
     headerActions.appendChild(layoutBtn);
     headerActions.appendChild(expandBtn);
-    headerActions.appendChild(newChatBtn);
     headerActions.appendChild(settingsWrap);
     headerActions.appendChild(closeBtn);
     header.appendChild(headerActions);
@@ -3591,13 +3593,21 @@
     }
     addMessage = addMessageWithTTS;
 
-    // Botón speaker: toggle TTS independiente
-    if (speakerBtn) {
-      speakerBtn.addEventListener('click', function() {
+    function syncSpeakerMenuItem() {
+      if (!speakerMenuItem) return;
+      speakerMenuItem.innerHTML =
+        (ttsMode ? ICON_VOLUME_ON : ICON_VOLUME_OFF) +
+        '<span>' +
+        (ttsMode ? 'Desactivar lectura en voz alta' : 'Lectura en voz alta') +
+        '</span>';
+      speakerMenuItem.classList.toggle('afhub-settings-speaker--active', ttsMode);
+    }
+
+    // Menú ⋮ — toggle TTS
+    if (speakerMenuItem) {
+      speakerMenuItem.addEventListener('click', function () {
         ttsMode = !ttsMode;
-        speakerBtn.innerHTML = ttsMode ? ICON_VOLUME_ON : ICON_VOLUME_OFF;
-        speakerBtn.title = ttsMode ? 'Desactivar lectura en voz alta' : 'Leer respuestas en voz alta';
-        speakerBtn.classList.toggle('afhub-speaker-btn--active', ttsMode);
+        syncSpeakerMenuItem();
         if (!ttsMode) ttsStop();
       });
     }
@@ -3719,7 +3729,6 @@
       syncChatPanelLayout();
     });
     closeBtn.addEventListener('click', close);
-    newChatBtn.addEventListener('click', startNewConversation);
 
     /** Menú Ajustes — abrir/cerrar y manejar opciones */
     settingsBtn.addEventListener('click', function (e) {
@@ -3731,6 +3740,13 @@
     document.addEventListener('click', function (e) {
       if (!settingsWrap.contains(e.target)) settingsMenu.style.display = 'none';
     });
+    var newChatMenuItem = settingsMenu.querySelector('.afhub-settings-new-chat');
+    if (newChatMenuItem) {
+      newChatMenuItem.addEventListener('click', function () {
+        settingsMenu.style.display = 'none';
+        startNewConversation();
+      });
+    }
     /** Opción Borrar conversación */
     var clearBtnEl = settingsMenu.querySelector('.afhub-settings-clear');
     if (clearBtnEl) {
@@ -4204,7 +4220,8 @@
       '#' + rootId + ' .afhub-settings-item svg { width:16px; height:16px; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-settings-clear { color:#dc2626; }' +
       '#' + rootId + ' .afhub-settings-clear:hover { background:rgba(220,38,38,.08); }' +
-      '#' + rootId + ' .afhub-speaker-btn--active { background:rgba(255,255,255,.35) !important; opacity:1 !important; box-shadow:0 0 0 2px rgba(255,255,255,.55); }' +
+      '#' + rootId + ' .afhub-settings-speaker--active { color:#059669; font-weight:600; }' +
+      '#' + rootId + ' .afhub-settings-speaker--active:hover { background:rgba(5,150,105,.08); }' +
       '#' + rootId + ' .afhub-close-btn { flex-shrink:0; margin-left:0; background:rgba(255,255,255,.14); border:none; color:#fff; cursor:pointer; padding:6px; border-radius:8px; opacity:.92; display:inline-flex; align-items:center; justify-content:center; line-height:0; }' +
       '#' + rootId + ' .afhub-close-btn:hover { opacity:1; background:rgba(255,255,255,.26); }' +
       '#' + rootId + ' .afhub-messages { flex:1 1 0; min-height:0; overflow-y:auto; padding:18px 16px; display:flex; flex-direction:column; gap:12px; scroll-behavior:smooth; background:linear-gradient(180deg,#fafbfc 0%,#f4f6f8 100%); font-size:14px; line-height:1.55; scrollbar-width:thin; }' +
