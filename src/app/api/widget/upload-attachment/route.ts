@@ -129,8 +129,9 @@ export async function POST(req: NextRequest) {
       }),
     );
   } catch (err) {
-    console.error('[widget/upload-attachment]', err);
-    return withCors(req, NextResponse.json({ error: 'No se pudo subir el archivo.', code: 'UPLOAD_FAILED' }, { status: 502 }));
+    const reason = err instanceof Error ? err.message : String(err);
+    console.error('[widget/upload-attachment]', reason, err);
+    return withCors(req, NextResponse.json({ error: 'No se pudo subir el archivo.', code: 'UPLOAD_FAILED', reason: reason.slice(0, 300) }, { status: 502 }));
   }
 }
 
