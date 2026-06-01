@@ -141,15 +141,7 @@
      * 'sidebar-full'      → barra lateral ancha
      * 'sidebar-fullscreen'→ pantalla completa
      */
-    initialLayout: '',
-    /** Aviso legal bajo el input (estilo GitLab); siempre visible salvo privacyPolicyEnabled: false */
-    privacyPolicyEnabled: true,
-    privacyPolicyUrl: '',
-    privacyPolicyPrefix: 'Los registros del chat se conservan de acuerdo con nuestra ',
-    privacyPolicyLinkLabel: 'Política de Privacidad',
-    privacyPolicySuffix: '.',
-    /** Accesos rápidos (pills); se rellenan desde /api/widget/config */
-    shortcuts: []
+    initialLayout: ''
   };
 
   /** Cuadrícula 9 posiciones (widget builder) → geometría del FAB embebido. */
@@ -399,18 +391,6 @@
     merged.initialLayout = validLayouts.indexOf(String(merged.initialLayout || '')) !== -1
       ? String(merged.initialLayout || '')
       : '';
-    merged.initialLayout = String(merged.initialLayout || '').trim();
-    merged.privacyPolicyEnabled = input && input.privacyPolicyEnabled === false ? false : true;
-    merged.privacyPolicyUrl = String(merged.privacyPolicyUrl == null ? '' : merged.privacyPolicyUrl).trim();
-    merged.privacyPolicyPrefix = String(merged.privacyPolicyPrefix == null ? '' : merged.privacyPolicyPrefix).trim()
-      || 'Los registros del chat se conservan de acuerdo con nuestra ';
-    merged.privacyPolicyLinkLabel = String(merged.privacyPolicyLinkLabel == null ? '' : merged.privacyPolicyLinkLabel).trim()
-      || 'Política de Privacidad';
-    merged.privacyPolicySuffix = String(merged.privacyPolicySuffix == null ? '' : merged.privacyPolicySuffix);
-    if (merged.privacyPolicySuffix === '') merged.privacyPolicySuffix = '.';
-    merged.shortcuts = (input && Array.isArray(input.shortcuts))
-      ? input.shortcuts.filter(function (s) { return s && s.enabled !== false; })
-      : [];
     return merged;
   }
 
@@ -668,39 +648,12 @@
     return '<div class="afhub-msg-text">' + formatBotHtml(raw) + '</div>';
   }
 
-  /** Etiqueta visible del pill (corto); el mensaje completo se envía al pulsar. */
-  function shortcutPillLabel(sc) {
-    var lbl = String(sc && sc.label != null ? sc.label : '').trim();
-    var msg = String(sc && sc.message != null ? sc.message : '').trim();
-    if (lbl) return lbl;
-    if (msg.length > 48) return msg.slice(0, 45) + '…';
-    return msg;
-  }
-
-  /** Texto que se inserta en el input al pulsar un acceso rápido. */
+  /** Texto visible del acceso rápido: mensaje completo (la etiqueta suele estar truncada en BD). */
   function shortcutDisplayText(sc) {
     var msg = String(sc && sc.message != null ? sc.message : '').trim();
     var lbl = String(sc && sc.label != null ? sc.label : '').trim();
     if (msg) return msg;
     return lbl;
-  }
-
-  function buildPrivacyNoticeHtml(cfg) {
-    if (cfg.privacyPolicyEnabled === false) return '';
-    var url = String(cfg.privacyPolicyUrl || '').trim();
-    if (!url) {
-      url = String(cfg.host || window.location.origin || 'https://botiva.space').replace(/\/$/, '') + '/politica-de-privacidad';
-    }
-    var prefix = escapeHtml(String(cfg.privacyPolicyPrefix || 'Los registros del chat se conservan de acuerdo con nuestra '));
-    var link = escapeHtml(String(cfg.privacyPolicyLinkLabel || 'Política de Privacidad'));
-    var suffix = escapeHtml(String(cfg.privacyPolicySuffix || '.'));
-    return (
-      prefix +
-      '<a href="' + escapeAttr(url) + '" target="_blank" rel="noopener noreferrer" class="afhub-privacy-link">' +
-      link +
-      '</a>' +
-      suffix
-    );
   }
 
   /** Clave sessionStorage por widget — misma conversación mientras la pestaña siga abierta. */
@@ -1207,25 +1160,41 @@
     messages.className = 'afhub-messages';
     chat.appendChild(messages);
 
-    // Accesos rápidos (pills horizontales, siempre visibles — encima del input)
-    var shortcutsWrap = null;
+    // Shortcuts collapsible section (above input area)
+    var shortcutsBar = null;
     if (cfg.shortcuts && cfg.shortcuts.length > 0) {
-      shortcutsWrap = document.createElement('div');
+      var shortcutsWrap = document.createElement('div');
       shortcutsWrap.className = 'afhub-shortcuts-wrap';
-      shortcutsWrap.setAttribute('role', 'group');
-      shortcutsWrap.setAttribute('aria-label', 'Accesos rápidos');
 
-      var shortcutsBar = document.createElement('div');
+      var shortcutsToggle = document.createElement('button');
+      shortcutsToggle.className = 'afhub-shortcuts-toggle';
+      shortcutsToggle.type = 'button';
+      shortcutsToggle.innerHTML =
+        '<span class="afhub-shortcuts-toggle-label">Accesos rápidos</span>' +
+        '<span class="afhub-shortcuts-toggle-chevron">‹</span>';
+
+      shortcutsBar = document.createElement('div');
       shortcutsBar.className = 'afhub-shortcuts';
 
-      cfg.shortcuts.forEach(function (sc) {
+      cfg.shortcuts.forEach(function(sc) {
         var pill = document.createElement('button');
         pill.className = 'afhub-shortcut-pill';
         pill.type = 'button';
-        var pillLabel = shortcutPillLabel(sc);
-        pill.textContent = pillLabel;
-        pill.title = shortcutDisplayText(sc) || pillLabel;
-        pill.addEventListener('click', function () {
+        var iconSpan = document.createElement('span');
+        iconSpan.className = 'afhub-pill-icon';
+        iconSpan.textContent = sc.emoji || '💬';
+        var textSpan = document.createElement('span');
+        textSpan.className = 'afhub-pill-text';
+        var scText = shortcutDisplayText(sc);
+        textSpan.textContent = scText;
+        textSpan.title = scText;
+        var arrowSpan = document.createElement('span');
+        arrowSpan.className = 'afhub-pill-arrow';
+        arrowSpan.textContent = '›';
+        pill.appendChild(iconSpan);
+        pill.appendChild(textSpan);
+        pill.appendChild(arrowSpan);
+        pill.addEventListener('click', function() {
           if (widgetDisabled) return;
           input.value = sc.message || sc.label || '';
           input.dispatchEvent(new Event('input'));
@@ -1234,7 +1203,19 @@
         shortcutsBar.appendChild(pill);
       });
 
+      var scOpen = false;
+      shortcutsBar.style.display = 'none';
+      shortcutsToggle.querySelector('.afhub-shortcuts-toggle-chevron').style.transform = 'rotate(90deg)';
+      shortcutsToggle.addEventListener('click', function() {
+        scOpen = !scOpen;
+        shortcutsBar.style.display = scOpen ? 'flex' : 'none';
+        shortcutsToggle.querySelector('.afhub-shortcuts-toggle-chevron').style.transform =
+          scOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+      });
+
+      shortcutsWrap.appendChild(shortcutsToggle);
       shortcutsWrap.appendChild(shortcutsBar);
+      chat.appendChild(shortcutsWrap);
     }
 
     var inputArea = document.createElement('div');
@@ -1302,9 +1283,6 @@
     sendBtn.setAttribute('aria-label', 'Enviar');
     inputArea.appendChild(sendBtn);
     chat.appendChild(attachPreview);
-    if (shortcutsWrap) {
-      chat.insertBefore(shortcutsWrap, inputArea);
-    }
     chat.appendChild(inputArea);
     if (widgetDisabled) {
       input.disabled = true;
@@ -1358,15 +1336,6 @@
     // Añadir la barra de acciones solo si tiene al menos un botón visible.
     if (actionBar.childNodes.length) {
       chat.appendChild(actionBar);
-    }
-
-    var privacyNotice = document.createElement('div');
-    privacyNotice.className = 'afhub-privacy-notice';
-    privacyNotice.setAttribute('role', 'note');
-    var privacyHtml = buildPrivacyNoticeHtml(cfg);
-    if (privacyHtml) {
-      privacyNotice.innerHTML = privacyHtml;
-      chat.appendChild(privacyNotice);
     }
 
     var powered = document.createElement('div');
@@ -4082,8 +4051,6 @@
           '#' + rootId + ' .afhub-handoff-cancel { background:#252530 !important; color:#e2e8f0 !important; border-color:#3d3d4a !important; }' +
           '#' + rootId + ' .afhub-handoff-cancel:hover { background:#2f2f3a !important; color:#fff !important; }' +
           '#' + rootId + ' .afhub-action-bar { background:#16161d; border-top-color:#2a2a34; }' +
-          '#' + rootId + ' .afhub-privacy-notice { background:#13131a; border-top-color:#2a2a34; color:#94a3b8; }' +
-          '#' + rootId + ' .afhub-shortcuts-wrap { background:#13131a; border-top-color:#2a2a34; }' +
           '#' + rootId + ' .afhub-tool-tag { background:rgba(255,255,255,.08); color:#a8a8b8; border-color:rgba(255,255,255,.12); }' +
           '#' + rootId + ' .afhub-mcp-source-tag { background:rgba(255,255,255,.08); color:#c8c8d8; border-color:rgba(255,255,255,.12); }' +
           '#' + rootId + ' .afhub-fallback-tag { color:rgba(255,255,255,.28) !important; border-color:rgba(255,255,255,.1) !important; background:rgba(255,255,255,.04) !important; }' +
@@ -4259,12 +4226,9 @@
       '#' + rootId + ' .afhub-dot { width:8px; height:8px; background:#aaa; border-radius:50%; animation:afhub-bounce .6s infinite alternate; }' +
       '#' + rootId + ' .afhub-dot:nth-child(2) { animation-delay:.2s; }' +
       '#' + rootId + ' .afhub-dot:nth-child(3) { animation-delay:.4s; }' +
-      '#' + rootId + ' .afhub-powered { text-align:center; font-size:8px; letter-spacing:.03em; text-transform:uppercase; color:#ccc; padding:0 0 4px; flex-shrink:0; }' +
+      '#' + rootId + ' .afhub-powered { text-align:center; font-size:8px; letter-spacing:.03em; text-transform:uppercase; color:#ccc; padding:3px 0 3px; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-powered a { color:#888; text-decoration:none; }' +
       '#' + rootId + ' .afhub-powered a:hover { text-decoration:underline; }' +
-      '#' + rootId + ' .afhub-privacy-notice { flex-shrink:0; padding:8px 14px 6px; border-top:1px solid #e8eaed; font-size:11px; line-height:1.45; color:#6b7280; text-align:left; background:#fff; }' +
-      '#' + rootId + ' .afhub-privacy-link { color:' + cfg.color + ' !important; font-weight:600; text-decoration:underline; text-underline-offset:2px; }' +
-      '#' + rootId + ' .afhub-privacy-link:hover { opacity:.85; }' +
       '#' + rootId + ' .afhub-persona-offer { align-self:flex-start; max-width:92%; padding:10px 14px; border-radius:12px; border:1px solid rgba(0,0,0,.08); background:rgba(0,0,0,.03); font-size:13px; line-height:1.45; }' +
       '#' + rootId + ' .afhub-persona-offer-inner { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }' +
       '#' + rootId + ' .afhub-persona-offer-hint { color:#5a5a6e; font-size:13px; }' +
@@ -4303,11 +4267,15 @@
       '#' + rootId + ' .afhub-handoff-submit { flex:1; padding:9px; border-radius:8px; border:none !important; background:' + cfg.color + ' !important; color:#fff !important; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; appearance:none; -webkit-appearance:none; }' +
       '#' + rootId + ' .afhub-handoff-submit:hover { filter:brightness(0.95); }' +
       '#' + rootId + ' .afhub-handoff-submit:disabled { opacity:.6; cursor:wait; }' +
-      '#' + rootId + ' .afhub-shortcuts-wrap { flex-shrink:0; border-top:1px solid #e8eaed; padding:10px 12px 4px; background:#fff; }' +
-      '#' + rootId + ' .afhub-shortcuts { display:flex; flex-direction:row; flex-wrap:wrap; gap:8px; align-items:center; padding:0; flex-shrink:0; max-height:none; overflow:visible; }' +
-      '#' + rootId + ' .afhub-shortcut-pill { display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; width:auto; max-width:100%; padding:8px 14px; border-radius:999px; border:none !important; background:' + cfg.color + '18 !important; color:' + cfg.color + ' !important; font-size:12px; font-weight:600; line-height:1.25; cursor:pointer; font-family:inherit; transition:background .15s,filter .15s; text-align:center; box-sizing:border-box; appearance:none; -webkit-appearance:none; white-space:nowrap; }' +
-      '#' + rootId + ' .afhub-shortcut-pill:hover { background:' + cfg.color + '28 !important; filter:brightness(0.98); }' +
-      '#' + rootId + ' .afhub-shortcut-pill:active { transform:scale(0.98); }' +
+      '#' + rootId + ' .afhub-shortcuts-wrap { flex-shrink:0; border-top:1px solid #e8eaed; }' +
+      '#' + rootId + ' .afhub-shortcuts-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; padding:7px 14px; background:transparent; border:none; cursor:pointer; font-family:inherit; flex-shrink:0; }' +
+      '#' + rootId + ' .afhub-shortcuts-toggle:hover { background:' + cfg.color + '0a; }' +
+      '#' + rootId + ' .afhub-shortcuts-toggle-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:' + cfg.color + '; }' +
+      '#' + rootId + ' .afhub-shortcuts-toggle-chevron { font-size:18px; color:' + cfg.color + '; transition:transform .2s; line-height:1; }' +
+      '#' + rootId + ' .afhub-shortcuts { display:flex; flex-direction:column; gap:6px; padding:0 10px 8px; flex-shrink:0; max-height:112px; overflow-y:auto; scrollbar-width:none; }' +
+      '#' + rootId + ' .afhub-shortcuts::-webkit-scrollbar { display:none; }' +
+      '#' + rootId + ' .afhub-shortcut-pill { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:12px; border:1px solid ' + cfg.color + '28; background:' + cfg.color + '0a; color:var(--afhub-fg,#1e293b); font-size:13px; font-weight:500; cursor:pointer; font-family:inherit; transition:background .15s,border-color .15s; text-align:left; width:100%; box-sizing:border-box; }' +
+      '#' + rootId + ' .afhub-shortcut-pill:hover { background:' + cfg.color + '18; border-color:' + cfg.color + '55; }' +
       '#' + rootId + ' .afhub-pill-icon { font-size:15px; flex-shrink:0; width:22px; text-align:center; }' +
       '#' + rootId + ' .afhub-pill-text { flex:1; line-height:1.4; white-space:normal; overflow-wrap:break-word; word-break:break-word; min-width:0; }' +
       '#' + rootId + ' .afhub-pill-arrow { font-size:18px; color:' + cfg.color + '; flex-shrink:0; font-weight:400; line-height:1; }' +
