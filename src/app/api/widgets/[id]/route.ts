@@ -140,8 +140,10 @@ export async function PATCH(
       } else if (key === 'humanSupportPhone') {
         $set.humanSupportPhone = v.trim().slice(0, 48);
       } else if (key === 'policyUrl') {
-        // Solo http(s) — evita esquemas peligrosos (javascript:, data:, etc.).
-        const s = v.trim().slice(0, 300);
+        // Si falta el esquema (ej. "misitio.com/privacidad") asumimos https://.
+        // Solo se acepta http(s) — evita esquemas peligrosos (javascript:, data:, etc.).
+        let s = v.trim().slice(0, 300);
+        if (s && !/^[a-z][a-z0-9+.-]*:/i.test(s)) s = 'https://' + s;
         $set.policyUrl = /^https?:\/\//i.test(s) ? s : '';
       } else if (key === 'policyText') {
         $set.policyText = v.slice(0, 200);
