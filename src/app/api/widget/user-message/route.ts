@@ -10,6 +10,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { Widget, WidgetMessage } from '@/lib/db/models';
+import { withCors, handlePreflight } from '@/lib/cors';
+
+/** Preflight CORS — el widget embebido en sitios externos hace POST aquí en modo humano. */
+export async function OPTIONS(req: NextRequest) {
+  return handlePreflight(req) ?? new NextResponse(null, { status: 204 });
+}
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -38,7 +44,7 @@ export async function POST(req: NextRequest) {
     : [];
 
   if (!token || !sessionId || (!content && attachments.length === 0)) {
-    return NextResponse.json({ error: 'Faltan parámetros.' }, { status: 400 });
+    return withCors(req, NextResponse.json({ error: 'Faltan parámetros.' }, { status: 400 }));
   }
 
   await connectDB();
@@ -47,7 +53,7 @@ export async function POST(req: NextRequest) {
     .select({ _id: 1, userId: 1, agentId: 1, active: 1 })
     .lean() as { _id: unknown; userId?: unknown; agentId?: unknown; active?: boolean } | null;
   if (!widget || widget.active === false) {
-    return NextResponse.json({ error: 'Token inválido.' }, { status: 401 });
+    return withCors(req, NextResponse.json({ error: 'Token inválido.' }, { status: 401 }));
   }
 
   await WidgetMessage.create({
@@ -61,5 +67,5 @@ export async function POST(req: NextRequest) {
     traceId: `human-mode:${Date.now()}`,
   });
 
-  return NextResponse.json({ ok: true });
+  return withCors(req, NextResponse.json({ ok: true }));
 }
