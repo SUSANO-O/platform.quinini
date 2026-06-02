@@ -95,10 +95,12 @@ export default function ScheduledTasksTab({
   agentId,
   plan,
   readOnly,
+  onTaskCountChange,
 }: {
   agentId: string;
   plan: string;
   readOnly: boolean;
+  onTaskCountChange?: (count: number) => void;
 }) {
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,8 +118,10 @@ export default function ScheduledTasksTab({
       const res = await fetch(`/api/agents/${agentId}/scheduled-tasks`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al cargar tareas');
-      setTasks(data.tasks ?? []);
+      const loadedTasks = data.tasks ?? [];
+      setTasks(loadedTasks);
       setAccess(data.access ?? null);
+      onTaskCountChange?.(loadedTasks.length);
     } catch (e) {
       setError((e as Error).message);
     } finally {

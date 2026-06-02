@@ -14,6 +14,8 @@ import {
 
 import { BRAND, METRIC, STATE, R, O, B } from '@/lib/brand-colors';
 import { countOwnedMainAgents } from '@/lib/agent-plans';
+import { resolveRange, type DateRange } from '@/lib/date-range';
+import { DateRangePicker } from '@/components/dashboard/date-range-picker';
 
 interface UsageData {
   used: number;
@@ -93,6 +95,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { isPremium, isTrialActive, trialDaysRemaining, subscription, loading } = useSubscription();
 
+  const [dateRange, setDateRange] = useState<DateRange>(() => resolveRange('last_30d'));
   const [usage,            setUsage]            = useState<UsageData | null>(null);
   const [conversationsToday, setConversationsToday] = useState<number | null>(null);
   const [agentCount,       setAgentCount]       = useState<number | null>(null);
@@ -118,7 +121,6 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user) return;
     fetch('/api/billing/usage').then(r => r.ok ? r.json() : null).then(d => d && setUsage(d)).catch(() => {});
-    fetch('/api/dashboard/conversations-today').then(r => r.ok ? r.json() : null).then(d => d && typeof d.count === 'number' && setConversationsToday(d.count)).catch(() => {});
     fetch('/api/agents').then(r => r.ok ? r.json() : null).then(d => d && setAgentCount(countOwnedMainAgents(d.agents))).catch(() => {});
     fetch('/api/widgets').then(r => r.ok ? r.json() : null).then(d => {
       if (!d) return;
@@ -128,6 +130,16 @@ export default function DashboardPage() {
       if (list.length > 0) setSelectedWidget(list[0]._id);
     }).catch(() => {});
   }, [user]);
+
+  // Re-fetch conversaciones en rango cada vez que cambia el rango.
+  useEffect(() => {
+    if (!user) return;
+    const qs = `from=${encodeURIComponent(dateRange.from.toISOString())}&to=${encodeURIComponent(dateRange.to.toISOString())}`;
+    fetch(`/api/dashboard/conversations-today?${qs}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d && typeof d.count === 'number' && setConversationsToday(d.count))
+      .catch(() => {});
+  }, [user, dateRange]);
 
   const openFeedbackModal = async () => {
     if (!selectedWidget) return;
@@ -159,12 +171,13 @@ export default function DashboardPage() {
     if (!selectedWidget) return;
     setLoadingAnalytics(true);
     setWidgetAnalytics(null);
-    fetch(`/api/analytics/widget/${selectedWidget}?months=3`)
+    const qs = `from=${encodeURIComponent(dateRange.from.toISOString())}&to=${encodeURIComponent(dateRange.to.toISOString())}`;
+    fetch(`/api/analytics/widget/${selectedWidget}?${qs}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => d && setWidgetAnalytics(d))
       .catch(() => {})
       .finally(() => setLoadingAnalytics(false));
-  }, [selectedWidget]);
+  }, [selectedWidget, dateRange]);
 
   const refreshStatus = async () => {
     setRefreshingStatus(true);
@@ -217,26 +230,31 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* Plan badge */}
-          {loading ? (
-            <Skel w={120} h={28} r={999} />
-          ) : isPremium ? (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
-              style={{ background: `${R}12`, color: R, border: `1px solid ${R}30` }}>
-              <Crown size={12} />{planLabel} — activo
-            </div>
-          ) : isTrialActive ? (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
-              style={{ background: `${O}12`, color: O, border: `1px solid ${O}30` }}>
-              <Clock size={12} />Trial — {trialDaysRemaining} días restantes
-            </div>
-          ) : (
-            <Link href="/dashboard/settings"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold no-underline"
-              style={{ background: `${R}12`, color: R, border: `1px solid ${R}30` }}>
-              <Zap size={12} />Actualizar plan →
-            </Link>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Date range picker — afecta tarjetas con métricas dependientes de tiempo */}
+            <DateRangePicker value={dateRange} onChange={setDateRange} />
+
+            {/* Plan badge */}
+            {loading ? (
+              <Skel w={120} h={28} r={999} />
+            ) : isPremium ? (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
+                style={{ background: `${R}12`, color: R, border: `1px solid ${R}30` }}>
+                <Crown size={12} />{planLabel} — activo
+              </div>
+            ) : isTrialActive ? (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
+                style={{ background: `${O}12`, color: O, border: `1px solid ${O}30` }}>
+                <Clock size={12} />Trial — {trialDaysRemaining} días restantes
+              </div>
+            ) : (
+              <Link href="/dashboard/settings"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold no-underline"
+                style={{ background: `${R}12`, color: R, border: `1px solid ${R}30` }}>
+                <Zap size={12} />Actualizar plan →
+              </Link>
+            )}
+          </div>
         </div>
 
         {/* ── METRICS ROW ──────────────────────────────────────────────────── */}
@@ -255,9 +273,15 @@ export default function DashboardPage() {
           <MetricCard
             accent={`linear-gradient(90deg,${O},${B})`}
             icon={<Clock size={13} style={{ color: O }} />}
-            label="Conversaciones hoy"
+            label={dateRange.preset === 'today' ? 'Conversaciones hoy' : 'Conversaciones en rango'}
             value={conversationsToday === null ? '—' : conversationsToday.toLocaleString('es')}
-            sub={conversationsToday === null ? '—' : conversationsToday === 0 ? 'sin actividad aún' : conversationsToday === 1 ? 'iniciada hoy' : 'iniciadas hoy'}
+            sub={
+              conversationsToday === null
+                ? '—'
+                : dateRange.preset === 'today'
+                  ? (conversationsToday === 0 ? 'sin actividad aún' : conversationsToday === 1 ? 'iniciada hoy' : 'iniciadas hoy')
+                  : dateRange.label.toLowerCase()
+            }
           />
           <MetricCard
             accent={`linear-gradient(90deg,${B},${B}88)`}

@@ -12,6 +12,10 @@ import {
   extractWebhookEntries, generateWebhookId, sanitizeWebhookName,
   type WebhookEntry,
 } from '@/lib/agent-webhooks';
+import {
+  extractSheetEntries, generateSheetId, sanitizeSheetName,
+  type SheetEntry,
+} from '@/lib/agent-sheets';
 import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 import { AGENT_SKILLS } from '@/lib/agent-skills';
 import {
@@ -323,6 +327,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
   const [agent, setAgent] = useState<ClientAgent | null>(null);
   const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
+  const [scheduledTaskCount, setScheduledTaskCount] = useState<number>(0);
   const [tab, setTab] = useState<Tab>('general');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -886,6 +891,41 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     const cur = getWebhookEntries({ toolId, config: tools.find((x) => x.toolId === toolId)?.config ?? {} });
     setWebhookEntries(toolId, cur.filter((w) => w.id !== whId));
   }
+
+  // ── Google Sheets helpers (mismo patrón que webhooks) ─────────────────
+  function getSheetEntries(t: ToolConfig): SheetEntry[] {
+    return extractSheetEntries(t.config, { includeIncomplete: true });
+  }
+  function setSheetEntries(toolId: string, entries: SheetEntry[]) {
+    setTools((prev) => prev.map((t) =>
+      t.toolId === toolId
+        ? { ...t, config: { ...(t.config ?? {}), sheets: entries } }
+        : t,
+    ));
+  }
+  function addSheet(toolId: string) {
+    const cur = getSheetEntries({ toolId, config: tools.find((x) => x.toolId === toolId)?.config ?? {} });
+    setSheetEntries(toolId, [
+      ...cur,
+      { id: generateSheetId(), name: `sheet_${cur.length + 1}`, description: '', url: '' },
+    ]);
+  }
+  function updateSheet(toolId: string, sheetId: string, patch: Partial<SheetEntry>) {
+    const cur = getSheetEntries({ toolId, config: tools.find((x) => x.toolId === toolId)?.config ?? {} });
+    const next = cur.map((s) => s.id === sheetId
+      ? {
+          ...s,
+          ...patch,
+          ...(patch.name !== undefined ? { name: sanitizeSheetName(patch.name) } : {}),
+        }
+      : s,
+    );
+    setSheetEntries(toolId, next);
+  }
+  function removeSheet(toolId: string, sheetId: string) {
+    const cur = getSheetEntries({ toolId, config: tools.find((x) => x.toolId === toolId)?.config ?? {} });
+    setSheetEntries(toolId, cur.filter((s) => s.id !== sheetId));
+  }
   async function testSpecificWebhook(whId: string) {
     setError(''); setSuccess(''); setWebhookTestBusy(true);
     try {
@@ -1266,7 +1306,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     { id: 'tools' as const, label: 'Herramientas', icon: <Wrench size={14} />, count: tools.length + mcpToolIds.length },
     { id: 'rag' as const, label: 'Almacén', icon: <Zap size={14} />, count: ragN },
     { id: 'subagents' as const, label: 'Sub-agentes', icon: <Network size={14} />, count: subAgents.length },
-    { id: 'scheduled-tasks' as const, label: 'Tareas', icon: <Clock size={14} /> },
+    { id: 'scheduled-tasks' as const, label: 'Tareas', icon: <Clock size={14} />, count: scheduledTaskCount },
   ];
   const visibleTabs = soloChatOnly ? TABS.filter((t) => t.id === 'general') : TABS;
 
@@ -2722,6 +2762,127 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               );
             }
 
+            // Google Sheets tool — UI especial multi-sheet
+            if (t.toolId === 'google-sheets') {
+              const entries = getSheetEntries(t);
+              return (
+                <SectionCard key={t.toolId}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <p style={{ ...sectionTitle, margin: 0 }}>📊 Google Sheets del agente</p>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={() => addSheet(t.toolId)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg font-bold text-xs transition-opacity"
+                        style={{ border: `1px solid ${B}`, background: 'rgba(var(--brand-primary-rgb),0.08)', color: B, cursor: 'pointer' }}
+                      >
+                        <Plus size={13} /> Añadir hoja
+                      </button>
+                    )}
+                  </div>
+                  <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '0 0 14px', lineHeight: 1.5 }}>
+                    Configura una o varias hojas de Google Sheets <strong>públicas</strong> (compartidas como "Cualquiera con el link puede ver").
+                    El LLM consulta la hoja, lee los datos y los analiza según la <strong>descripción</strong> que escribas.
+                  </p>
+
+                  {entries.length === 0 ? (
+                    <div style={{ padding: '24px 16px', border: '1px dashed var(--border)', borderRadius: 10, textAlign: 'center', color: 'var(--muted-foreground)', fontSize: 12 }}>
+                      Aún no hay hojas. Pulsa <strong>Añadir hoja</strong> para configurar la primera.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                      {entries.map((s, idx) => (
+                        <div key={s.id} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 14, background: 'var(--muted)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted-foreground)' }}>HOJA #{idx + 1}</span>
+                            {!readOnly && (
+                              <button
+                                type="button"
+                                onClick={() => removeSheet(t.toolId, s.id)}
+                                title="Eliminar esta hoja"
+                                style={{ display: 'inline-flex', alignItems: 'center', padding: '5px 10px', borderRadius: 7, border: '1px solid rgba(239,68,68,0.35)', background: 'rgba(239,68,68,0.06)', color: '#ef4444', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            )}
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            <div>
+                              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+                                Nombre interno <span style={{ color: '#ef4444' }}>*</span>
+                                <span style={{ marginLeft: 6, color: 'var(--muted-foreground)', fontWeight: 400 }}>(snake_case, se usa como id de la herramienta para el LLM)</span>
+                              </label>
+                              <input
+                                className="landing-input"
+                                style={inp}
+                                type="text"
+                                value={s.name}
+                                onChange={(e) => updateSheet(t.toolId, s.id, { name: e.target.value })}
+                                placeholder="lista_clientes"
+                                disabled={readOnly}
+                              />
+                            </div>
+
+                            <div>
+                              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+                                Descripción de los datos <span style={{ color: '#ef4444' }}>*</span>
+                                <span style={{ marginLeft: 6, color: 'var(--muted-foreground)', fontWeight: 400 }}>(el LLM lee esto para decidir cuándo consultarla)</span>
+                              </label>
+                              <textarea
+                                className="landing-input"
+                                style={{ ...inp, minHeight: 60, resize: 'vertical', fontFamily: 'inherit' }}
+                                value={s.description}
+                                onChange={(e) => updateSheet(t.toolId, s.id, { description: e.target.value })}
+                                placeholder="Hoja con clientes activos: columnas RUT, nombre, plan, saldo, ciudad. Úsala cuando el usuario pida buscar/consultar/analizar clientes."
+                                disabled={readOnly}
+                              />
+                            </div>
+
+                            <div>
+                              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+                                URL del Google Sheet <span style={{ color: '#ef4444' }}>*</span>
+                                <span style={{ marginLeft: 6, color: 'var(--muted-foreground)', fontWeight: 400 }}>(debe ser pública — compartir como "Cualquiera con el link")</span>
+                              </label>
+                              <input
+                                className="landing-input"
+                                style={inp}
+                                type="text"
+                                value={s.url}
+                                onChange={(e) => updateSheet(t.toolId, s.id, { url: e.target.value })}
+                                placeholder="https://docs.google.com/spreadsheets/d/.../edit#gid=0"
+                                disabled={readOnly}
+                              />
+                            </div>
+
+                            <div>
+                              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+                                Rango (opcional)
+                                <span style={{ marginLeft: 6, color: 'var(--muted-foreground)', fontWeight: 400 }}>(ej. Sheet1!A1:F500 — vacío = todo el sheet)</span>
+                              </label>
+                              <input
+                                className="landing-input"
+                                style={inp}
+                                type="text"
+                                value={s.range ?? ''}
+                                onChange={(e) => updateSheet(t.toolId, s.id, { range: e.target.value })}
+                                placeholder="Sheet1!A1:F500"
+                                disabled={readOnly}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '14px 0 0', lineHeight: 1.5 }}>
+                    ⚠️ La hoja debe estar compartida como <strong>público con link</strong>. Datos sensibles deberían ir vía Webhook con autenticación.
+                  </p>
+                </SectionCard>
+              );
+            }
+
             // Resto de herramientas — UI genérica con configFields
             if (!def?.configFields?.length) return null;
             return (
@@ -3425,7 +3586,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
       {/* ── SUB-AGENTS TAB ───────────────────────────────────────────────────── */}
       {tab === 'scheduled-tasks' && (
-        <ScheduledTasksTab agentId={String(agent._id)} plan={plan} readOnly={readOnly} />
+        <ScheduledTasksTab agentId={String(agent._id)} plan={plan} readOnly={readOnly} onTaskCountChange={setScheduledTaskCount} />
       )}
 
       {tab === 'subagents' && (
