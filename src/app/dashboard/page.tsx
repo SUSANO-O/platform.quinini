@@ -47,7 +47,7 @@ interface WidgetAnalytics {
     escalationRate: number;
     dropOffRate: number;
   };
-  peakHour: number;
+  peakHour: number | null;
   byMonth: { month: string; sessions: number; conversations: number }[];
   satisfaction?: {
     avgScore: number | null;
@@ -623,9 +623,11 @@ export default function DashboardPage() {
                         <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>Hora pico</span>
                       </div>
                       <p className="text-3xl font-extrabold m-0" style={{ letterSpacing: '-0.03em', color: O }}>
-                        {formatHour(widgetAnalytics.peakHour)}
+                        {widgetAnalytics.peakHour == null ? '—' : formatHour(widgetAnalytics.peakHour)}
                       </p>
-                      <p className="text-[11px] m-0 mt-1" style={{ color: 'var(--muted-foreground)' }}>mayor actividad del widget</p>
+                      <p className="text-[11px] m-0 mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                        {widgetAnalytics.peakHour == null ? 'sin actividad aún' : 'mayor actividad del widget'}
+                      </p>
                     </div>
 
                     <div className="rounded-xl p-4" style={{ background: 'rgba(15,23,42,0.03)', border: '1px solid var(--border)' }}>
