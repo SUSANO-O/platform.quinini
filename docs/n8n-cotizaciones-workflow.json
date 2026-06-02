@@ -1,0 +1,204 @@
+{
+  "name": "Cotizaciones tiempo real (Solana, Nubank, Google)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cotizaciones-bursatiles",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c1-webhook-in",
+      "name": "Webhook entrada",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        300
+      ],
+      "webhookId": "cotizaciones-bursatiles-in"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd&include_24hr_change=true&include_last_updated_at=true",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "c2-coingecko",
+      "name": "CoinGecko SOL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://query1.finance.yahoo.com/v8/finance/chart/GOOGL?interval=1m&range=1d",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "c3-yahoo-googl",
+      "name": "Yahoo GOOGL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://query1.finance.yahoo.com/v8/finance/chart/NU?interval=1m&range=1d",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "c4-yahoo-nu",
+      "name": "Yahoo NU",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        860,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const wh = $('Webhook entrada').first().json;\nconst body = wh.body || wh;\nconst payload = body.payload || body;\nconst currency = String(payload.currency || payload.moneda || 'usd').toLowerCase();\nconst queriedAt = new Date().toISOString();\n\nconst cgRaw = $('CoinGecko SOL').first().json;\nconst googRaw = $('Yahoo GOOGL').first().json;\nconst nuRaw = $('Yahoo NU').first().json;\n\nfunction parseYahoo(data, fallbackSymbol) {\n  const meta = data && data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;\n  if (!meta || meta.regularMarketPrice == null) {\n    throw new Error('Sin cotizacion Yahoo para ' + fallbackSymbol);\n  }\n  const price = meta.regularMarketPrice;\n  const prev = meta.chartPreviousClose != null ? meta.chartPreviousClose : meta.previousClose;\n  const changePct = prev ? ((price - prev) / prev) * 100 : null;\n  return {\n    simbolo: meta.symbol || fallbackSymbol,\n    nombre: meta.shortName || meta.longName || fallbackSymbol,\n    precio: price,\n    moneda: meta.currency || 'USD',\n    cierre_anterior: prev != null ? prev : null,\n    cambio_dia_pct: changePct != null ? Number(changePct.toFixed(2)) : null,\n    mercado: meta.fullExchangeName || meta.exchangeName || null,\n    actualizado: meta.regularMarketTime\n      ? new Date(meta.regularMarketTime * 1000).toISOString()\n      : queriedAt,\n  };\n}\n\nconst activos = [];\nconst errores = [];\n\ntry {\n  const sol = (cgRaw && cgRaw.solana) || {};\n  const chKey = currency + '_24h_change';\n  activos.push({\n    id: 'solana',\n    nombre: 'Solana',\n    tipo: 'crypto',\n    simbolo: 'SOL',\n    precio: sol[currency] != null ? sol[currency] : null,\n    moneda: currency.toUpperCase(),\n    cambio_24h_pct: sol[chKey] != null ? Number(Number(sol[chKey]).toFixed(2)) : null,\n    actualizado: sol.last_updated_at\n      ? new Date(sol.last_updated_at * 1000).toISOString()\n      : queriedAt,\n    fuente: 'CoinGecko',\n  });\n} catch (e) {\n  errores.push({ id: 'solana', simbolo: 'SOL', error: String(e.message || e) });\n}\n\ntry {\n  const p = parseYahoo(googRaw, 'GOOGL');\n  activos.push({\n    id: 'google',\n    nombre: 'Alphabet (Google)',\n    tipo: 'accion',\n    simbolo: p.simbolo,\n    precio: p.precio,\n    moneda: p.moneda,\n    cambio_dia_pct: p.cambio_dia_pct,\n    cierre_anterior: p.cierre_anterior,\n    mercado: p.mercado,\n    actualizado: p.actualizado,\n    fuente: 'Yahoo Finance',\n  });\n} catch (e) {\n  errores.push({ id: 'google', simbolo: 'GOOGL', error: String(e.message || e) });\n}\n\ntry {\n  const p = parseYahoo(nuRaw, 'NU');\n  activos.push({\n    id: 'nubank',\n    nombre: 'Nubank',\n    tipo: 'accion',\n    simbolo: p.simbolo,\n    precio: p.precio,\n    moneda: p.moneda,\n    cambio_dia_pct: p.cambio_dia_pct,\n    cierre_anterior: p.cierre_anterior,\n    mercado: p.mercado,\n    actualizado: p.actualizado,\n    fuente: 'Yahoo Finance',\n  });\n} catch (e) {\n  errores.push({ id: 'nubank', simbolo: 'NU', error: String(e.message || e) });\n}\n\nfunction fmtPrice(a) {\n  if (a.precio == null) return a.nombre + ': N/D';\n  const ch = a.cambio_dia_pct != null ? a.cambio_dia_pct : a.cambio_24h_pct;\n  const chStr = ch != null ? ' (' + (ch >= 0 ? '+' : '') + ch + '%)' : '';\n  const prefix = a.moneda === 'USD' ? '$' : '';\n  return a.nombre + ': ' + prefix + a.precio + chStr;\n}\n\nconst resumenTexto = activos.length\n  ? activos.map(fmtPrice).join('\\n')\n  : 'No se pudieron obtener cotizaciones.';\n\nconst out = {\n  ok: activos.length > 0,\n  action: 'cotizaciones_tiempo_real',\n  queriedAt: queriedAt,\n  currency: currency,\n  summary: resumenTexto.replace(/\\n/g, ' | '),\n  resumenTexto: resumenTexto,\n  activos: activos,\n  note: 'Gratis sin API key. SOL=CoinGecko; GOOGL y NU=Yahoo Finance.',\n};\nif (errores.length) out.errores = errores;\n\nreturn [{ json: out }];"
+      },
+      "id": "c5-merge",
+      "name": "Formatear respuesta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "c6-webhook-out",
+      "name": "Webhook salida",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1300,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook entrada": {
+      "main": [
+        [
+          {
+            "node": "CoinGecko SOL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CoinGecko SOL": {
+      "main": [
+        [
+          {
+            "node": "Yahoo GOOGL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Yahoo GOOGL": {
+      "main": [
+        [
+          {
+            "node": "Yahoo NU",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Yahoo NU": {
+      "main": [
+        [
+          {
+            "node": "Formatear respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatear respuesta": {
+      "main": [
+        [
+          {
+            "node": "Webhook salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}
