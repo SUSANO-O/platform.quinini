@@ -13,11 +13,12 @@ import {
 } from '@/lib/aibackhub-sync';
 import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
 import { agentHasAnyWebhook } from '@/lib/agent-webhooks';
+import { agentHasAnySheet } from '@/lib/agent-sheets';
 
 export function clientAgentHasWebhookUrl(agent: {
   tools?: Array<{ toolId?: string; config?: unknown }>;
 } | null): boolean {
-  return agentHasAnyWebhook(agent);
+  return agentHasAnyWebhook(agent) || agentHasAnySheet(agent);
 }
 
 const HUBSPOT_WIDGET_AUTO_TOOL_IDS = [

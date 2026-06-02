@@ -48,6 +48,7 @@ import { enrichWidgetChatBodyWithImages, type WidgetImageEnrichment } from '@/li
 import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-enrich';
 import { persistWidgetTranscript } from '@/lib/widget-transcript';
 import { agentHasAnyWebhook } from '@/lib/agent-webhooks';
+import { agentHasAnySheet } from '@/lib/agent-sheets';
 import { tryServeWidgetChatViaDirectInference } from '@/lib/widget-chat-direct-inference';
 import { normalizeVisitorId } from '@/lib/widget-visitor';
 
@@ -247,8 +248,8 @@ export async function POST(req: NextRequest) {
           )
             .select({ tools: 1 })
             .lean() as { tools?: Array<{ toolId?: string; config?: unknown }> } | null;
-          if (ca && agentHasAnyWebhook(ca)) {
-            logWidgetFlow('🔀', 'stream:skip', 'agente con webhooks → forzando fallback non-stream', {
+          if (ca && (agentHasAnyWebhook(ca) || agentHasAnySheet(ca))) {
+            logWidgetFlow('🔀', 'stream:skip', 'agente con webhooks/sheets → forzando fallback non-stream', {
               traceId,
               agentId: parsedAgentId,
             });

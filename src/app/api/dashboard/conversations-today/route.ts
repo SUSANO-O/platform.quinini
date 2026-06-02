@@ -23,13 +23,35 @@ export async function GET(req: NextRequest) {
 
   try {
     await connectDB();
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
+    const url = new URL(req.url);
+    const fromParam = url.searchParams.get('from');
+    const toParam = url.searchParams.get('to');
 
-    // Fuente principal: sessionIds únicos en mensajes reales de hoy
+    // Por defecto: hoy en TZ Colombia (UTC-5).
+    let from: Date;
+    let to: Date | null = null;
+    if (fromParam) {
+      from = new Date(fromParam);
+      if (isNaN(from.getTime())) return NextResponse.json({ error: 'from inválido.' }, { status: 400 });
+      if (toParam) {
+        to = new Date(toParam);
+        if (isNaN(to.getTime())) return NextResponse.json({ error: 'to inválido.' }, { status: 400 });
+      }
+    } else {
+      // 00:00 Colombia de hoy
+      const COL = 5 * 60 * 60 * 1000;
+      const nowCo = new Date(Date.now() - COL);
+      const y = nowCo.getUTCFullYear(); const m = nowCo.getUTCMonth(); const d = nowCo.getUTCDate();
+      from = new Date(Date.UTC(y, m, d) + COL);
+    }
+
+    const dateFilter: Record<string, Date> = { $gte: from };
+    if (to) dateFilter.$lte = to;
+
+    // Fuente principal: sessionIds únicos en mensajes reales en el rango
     const sessionIds = await WidgetMessage.distinct('sessionId', {
       userId,
-      createdAt: { $gte: start },
+      createdAt: dateFilter,
     });
 
     const valid = (sessionIds as unknown[]).filter(
@@ -38,9 +60,11 @@ export async function GET(req: NextRequest) {
 
     // Fallback (raro): si no hay mensajes registrados, contar sesiones formales
     if (valid.length === 0) {
+      const sessionDateFilter: Record<string, Date> = { $gte: from };
+      if (to) sessionDateFilter.$lte = to;
       const fallback = await ConversationSession.countDocuments({
         userId,
-        startedAt: { $gte: start },
+        startedAt: sessionDateFilter,
         sessionId: { $not: /^ho_/ },
       });
       return NextResponse.json({ count: fallback });

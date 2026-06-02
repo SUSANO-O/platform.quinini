@@ -56,26 +56,48 @@ export async function GET(
 
   const { id } = await params;
   const url = new URL(req.url);
-  const months = Math.min(12, Math.max(1, Number(url.searchParams.get('months') || '3')));
+  const fromParam = url.searchParams.get('from');
+  const toParam = url.searchParams.get('to');
 
   await connectDB();
 
   const widget = await Widget.findOne({ _id: id, userId }).select({ name: 1 }).lean() as { name?: string } | null;
   if (!widget) return NextResponse.json({ error: 'Widget no encontrado.' }, { status: 404 });
 
-  const monthKeys = pastColombiaMonths(months);
-
-  // Fecha mínima de inicio (inicio del mes más viejo, en TZ Colombia → UTC)
-  const oldest = monthKeys[monthKeys.length - 1] || monthKeys[0];
-  const [oy, om] = oldest.split('-').map(Number);
-  const sinceUTC = new Date(Date.UTC(oy, (om || 1) - 1, 1));
-  sinceUTC.setTime(sinceUTC.getTime() + COLOMBIA_OFFSET_MS); // ajusta a inicio de mes Colombia
+  // Si llega un rango explícito (from/to ISO), se usa. Sino, fallback a últimos 3 meses Colombia.
+  let sinceUTC: Date;
+  let untilUTC: Date;
+  let monthKeys: string[];
+  if (fromParam && toParam) {
+    sinceUTC = new Date(fromParam);
+    untilUTC = new Date(toParam);
+    if (isNaN(sinceUTC.getTime()) || isNaN(untilUTC.getTime())) {
+      return NextResponse.json({ error: 'from/to deben ser ISO 8601 válidos.' }, { status: 400 });
+    }
+    // Lista de meses cubiertos por el rango en TZ Colombia
+    monthKeys = [];
+    const cur = new Date(untilUTC.getTime() - COLOMBIA_OFFSET_MS);
+    const start = new Date(sinceUTC.getTime() - COLOMBIA_OFFSET_MS);
+    let y = cur.getUTCFullYear();
+    let m = cur.getUTCMonth();
+    while (y > start.getUTCFullYear() || (y === start.getUTCFullYear() && m >= start.getUTCMonth())) {
+      monthKeys.push(`${y}-${String(m + 1).padStart(2, '0')}`);
+      m--; if (m < 0) { m = 11; y--; }
+    }
+  } else {
+    const months = Math.min(12, Math.max(1, Number(url.searchParams.get('months') || '3')));
+    monthKeys = pastColombiaMonths(months);
+    const oldest = monthKeys[monthKeys.length - 1] || monthKeys[0];
+    const [oy, om] = oldest.split('-').map(Number);
+    sinceUTC = new Date(Date.UTC(oy, (om || 1) - 1, 1) + COLOMBIA_OFFSET_MS);
+    untilUTC = new Date();
+  }
 
   // ── Sesiones únicas + hora/mes en TZ Colombia desde widgetmessages ──
   const messages = await WidgetMessage.find({
     widgetId: id,
     userId,
-    createdAt: { $gte: sinceUTC },
+    createdAt: { $gte: sinceUTC, $lte: untilUTC },
   }).select({ sessionId: 1, createdAt: 1 }).lean() as Array<{
     sessionId?: string; createdAt?: Date;
   }>;
@@ -174,7 +196,12 @@ export async function GET(
   return NextResponse.json({
     widgetId: id,
     widgetName: widget.name || id,
-    period: { months, monthKeys, timezone: 'America/Bogota' },
+    period: {
+      from: sinceUTC.toISOString(),
+      to: untilUTC.toISOString(),
+      monthKeys,
+      timezone: 'America/Bogota',
+    },
     summary: {
       totalSessions: total,
       avgDurationSec: avgDuration,
