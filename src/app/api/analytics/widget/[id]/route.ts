@@ -1,14 +1,32 @@
 /**
  * GET /api/analytics/widget/[id]?months=3
  *
- * Analytics enriquecido de un widget: duración promedio, tasa de resolución,
- * sentimiento, pico horario, tasa de escalación, drop-off.
+ * Analytics enriquecido del widget. Calcula sessionId únicos, hora pico, mes,
+ * etc. directamente desde `widgetmessages` (fuente real) en lugar de depender
+ * de `conversationsessions` que requiere que el evento widget_opened registre
+ * correctamente.
+ *
+ * Timezone fijo a Colombia (UTC-5) — todos los buckets de hora y mes se
+ * calculan en esa zona horaria.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
-import { Widget, ConversationSession, RequestLog, WidgetFeedback } from '@/lib/db/models';
+import {
+  Widget, ConversationSession, RequestLog, WidgetFeedback, WidgetMessage,
+} from '@/lib/db/models';
+
+// Colombia = UTC-5 (sin DST)
+const COLOMBIA_OFFSET_MS = 5 * 60 * 60 * 1000;
+
+function colombiaHour(d: Date): number {
+  return new Date(d.getTime() - COLOMBIA_OFFSET_MS).getUTCHours();
+}
+function colombiaMonth(d: Date): string {
+  const shifted = new Date(d.getTime() - COLOMBIA_OFFSET_MS);
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, '0')}`;
+}
 
 function auth(req: NextRequest) {
   const token = req.cookies.get('afhub_session')?.value;
@@ -16,12 +34,15 @@ function auth(req: NextRequest) {
   return verifySessionToken(token);
 }
 
-function generatePastMonths(count: number): string[] {
+/** Últimos N meses como ['2026-06', '2026-05', '2026-04'] en TZ Colombia. */
+function pastColombiaMonths(count: number): string[] {
   const months: string[] = [];
-  const now = new Date();
+  const nowCo = new Date(Date.now() - COLOMBIA_OFFSET_MS);
+  const y = nowCo.getUTCFullYear();
+  const m = nowCo.getUTCMonth();
   for (let i = 0; i < count; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    const d = new Date(Date.UTC(y, m - i, 1));
+    months.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`);
   }
   return months;
 }
@@ -42,84 +63,105 @@ export async function GET(
   const widget = await Widget.findOne({ _id: id, userId }).select({ name: 1 }).lean() as { name?: string } | null;
   if (!widget) return NextResponse.json({ error: 'Widget no encontrado.' }, { status: 404 });
 
-  const monthKeys = generatePastMonths(months);
+  const monthKeys = pastColombiaMonths(months);
 
-  const [sessions, requestLogs] = await Promise.all([
-    ConversationSession.find({
-      widgetId: id,
-      userId,
-      month: { $in: monthKeys },
-    }).select({
-      month: 1, durationSec: 1, sentiment: 1, escalated: 1, dropped: 1,
-      resolved: 1, hourOfDay: 1, dayOfWeek: 1, messageCount: 1,
-    }).lean() as Promise<{
-      month: string;
-      durationSec?: number | null;
-      sentiment?: string;
-      escalated?: boolean;
-      dropped?: boolean;
-      resolved?: boolean | null;
-      hourOfDay?: number | null;
-      dayOfWeek?: number | null;
-      messageCount?: number;
-    }[]>,
-    RequestLog.find({
-      widgetId: id,
-      month: { $in: monthKeys },
-    }).select({ month: 1, count: 1 }).lean() as Promise<{ month: string; count?: number }[]>,
-  ]);
+  // Fecha mínima de inicio (inicio del mes más viejo, en TZ Colombia → UTC)
+  const oldest = monthKeys[monthKeys.length - 1] || monthKeys[0];
+  const [oy, om] = oldest.split('-').map(Number);
+  const sinceUTC = new Date(Date.UTC(oy, (om || 1) - 1, 1));
+  sinceUTC.setTime(sinceUTC.getTime() + COLOMBIA_OFFSET_MS); // ajusta a inicio de mes Colombia
 
-  const total = sessions.length;
-  const withDuration = sessions.filter(s => s.durationSec != null);
+  // ── Sesiones únicas + hora/mes en TZ Colombia desde widgetmessages ──
+  const messages = await WidgetMessage.find({
+    widgetId: id,
+    userId,
+    createdAt: { $gte: sinceUTC },
+  }).select({ sessionId: 1, createdAt: 1 }).lean() as Array<{
+    sessionId?: string; createdAt?: Date;
+  }>;
+
+  // Agrupar por sessionId — fecha de inicio = primer mensaje
+  const sessionsBySid = new Map<string, { firstAt: Date; msgCount: number }>();
+  for (const m of messages) {
+    const sid = typeof m.sessionId === 'string' ? m.sessionId : '';
+    if (!sid || sid.startsWith('ho_')) continue;
+    const at = m.createdAt instanceof Date ? m.createdAt : new Date(m.createdAt as unknown as string);
+    const existing = sessionsBySid.get(sid);
+    if (existing) {
+      existing.msgCount++;
+      if (at < existing.firstAt) existing.firstAt = at;
+    } else {
+      sessionsBySid.set(sid, { firstAt: at, msgCount: 1 });
+    }
+  }
+
+  const total = sessionsBySid.size;
+
+  // Hora pico (0-23) en Colombia
+  const hourBuckets = new Array(24).fill(0) as number[];
+  // Sesiones por mes
+  const byMonthSessions = new Map<string, number>();
+  for (const m of monthKeys) byMonthSessions.set(m, 0);
+
+  for (const s of sessionsBySid.values()) {
+    hourBuckets[colombiaHour(s.firstAt)]++;
+    const mk = colombiaMonth(s.firstAt);
+    if (byMonthSessions.has(mk)) byMonthSessions.set(mk, (byMonthSessions.get(mk) || 0) + 1);
+  }
+
+  // Si no hubo sesiones, peakHour devuelve null (no engañar con 0/12AM)
+  const maxCount = Math.max(...hourBuckets);
+  const peakHour = total > 0 && maxCount > 0 ? hourBuckets.indexOf(maxCount) : null;
+
+  const avgMsgsPerSession = total
+    ? Math.round(Array.from(sessionsBySid.values()).reduce((s, r) => s + r.msgCount, 0) / total)
+    : 0;
+
+  // ── Métricas avanzadas: handoffs + sentiment + duración desde ConversationSession ──
+  // Estos sí dependen de eventos formales. Devolvemos lo que haya, sin bloquear el resto.
+  const formalSessions = await ConversationSession.find({
+    widgetId: id,
+    userId,
+    month: { $in: monthKeys },
+  }).select({
+    month: 1, durationSec: 1, sentiment: 1, escalated: 1, dropped: 1, resolved: 1,
+  }).lean() as Array<{
+    month?: string; durationSec?: number | null; sentiment?: string;
+    escalated?: boolean; dropped?: boolean; resolved?: boolean | null;
+  }>;
+
+  const withDuration = formalSessions.filter(s => s.durationSec != null);
   const avgDuration = withDuration.length
     ? Math.round(withDuration.reduce((s, r) => s + (r.durationSec ?? 0), 0) / withDuration.length)
     : null;
-
-  const escalatedCount = sessions.filter(s => s.escalated).length;
-  const droppedCount = sessions.filter(s => s.dropped).length;
-  const resolvedCount = sessions.filter(s => s.resolved === true).length;
+  const escalatedCount = formalSessions.filter(s => s.escalated).length;
+  const droppedCount = formalSessions.filter(s => s.dropped).length;
+  const resolvedCount = formalSessions.filter(s => s.resolved === true).length;
+  const formalTotal = formalSessions.length || total; // si no hay metadata, usa total real
 
   const sentimentCounts = { positive: 0, neutral: 0, negative: 0 };
-  for (const s of sessions) {
+  for (const s of formalSessions) {
     const key = (s.sentiment || 'neutral') as keyof typeof sentimentCounts;
     if (key in sentimentCounts) sentimentCounts[key]++;
   }
 
-  // Peak hours (0-23)
-  const hourBuckets = new Array(24).fill(0) as number[];
-  for (const s of sessions) {
-    if (s.hourOfDay != null) hourBuckets[s.hourOfDay]++;
-  }
-  const peakHour = hourBuckets.indexOf(Math.max(...hourBuckets));
-
-  // By month
-  const byMonthMap = new Map<string, { sessions: number; conversations: number }>();
-  for (const m of monthKeys) byMonthMap.set(m, { sessions: 0, conversations: 0 });
-  for (const s of sessions) {
-    const entry = byMonthMap.get(s.month);
-    if (entry) entry.sessions++;
-  }
-  for (const r of requestLogs) {
-    const entry = byMonthMap.get(r.month);
-    if (entry) entry.conversations += r.count ?? 0;
-  }
+  // RequestLog conversaciones por mes (legacy/back compat)
+  const requestLogs = await RequestLog.find({
+    widgetId: id,
+    month: { $in: monthKeys },
+  }).select({ month: 1, count: 1 }).lean() as Array<{ month: string; count?: number }>;
 
   const byMonth = monthKeys.map(m => ({
     month: m,
-    ...byMonthMap.get(m)!,
+    sessions: byMonthSessions.get(m) || 0,
+    conversations: requestLogs.find(r => r.month === m)?.count ?? 0,
   }));
 
-  const avgMsgsPerSession = total
-    ? Math.round(sessions.reduce((s, r) => s + (r.messageCount ?? 0), 0) / total)
-    : 0;
-
-  // ── Satisfacción (encuesta final) ────────────────────────────────────────
-  const oldest = monthKeys[monthKeys.length - 1] || monthKeys[0];
-  const [oy, om] = oldest.split('-').map(Number);
-  const sinceDate = new Date(oy, (om || 1) - 1, 1);
-  const feedbacks = await WidgetFeedback.find({ widgetId: id, userId, createdAt: { $gte: sinceDate } })
-    .select({ score: 1 }).lean() as { score?: number | null }[];
-  const fbScored = feedbacks.filter((f) => typeof f.score === 'number') as { score: number }[];
+  // ── Satisfacción ──
+  const feedbacks = await WidgetFeedback.find({
+    widgetId: id, userId, createdAt: { $gte: sinceUTC },
+  }).select({ score: 1 }).lean() as { score?: number | null }[];
+  const fbScored = feedbacks.filter(f => typeof f.score === 'number') as { score: number }[];
   const fbAvg = fbScored.length
     ? Math.round((fbScored.reduce((s, f) => s + f.score, 0) / fbScored.length) * 10) / 10
     : null;
@@ -132,14 +174,14 @@ export async function GET(
   return NextResponse.json({
     widgetId: id,
     widgetName: widget.name || id,
-    period: { months, monthKeys },
+    period: { months, monthKeys, timezone: 'America/Bogota' },
     summary: {
       totalSessions: total,
       avgDurationSec: avgDuration,
       avgMessagesPerSession: avgMsgsPerSession,
-      escalationRate: total ? Math.round((escalatedCount / total) * 100) : 0,
-      dropOffRate: total ? Math.round((droppedCount / total) * 100) : 0,
-      resolutionRate: total ? Math.round((resolvedCount / total) * 100) : 0,
+      escalationRate: formalTotal ? Math.round((escalatedCount / formalTotal) * 100) : 0,
+      dropOffRate: formalTotal ? Math.round((droppedCount / formalTotal) * 100) : 0,
+      resolutionRate: formalTotal ? Math.round((resolvedCount / formalTotal) * 100) : 0,
     },
     sentiment: sentimentCounts,
     peakHour,
