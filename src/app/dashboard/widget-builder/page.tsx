@@ -1077,6 +1077,38 @@ export default function WidgetBuilderPage() {
   const labelStyle: React.CSSProperties = { display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '5px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' };
   const fieldStyle: React.CSSProperties = { marginBottom: '14px' };
 
+  /** Card para agrupar una subsección (WhatsApp, Escalación, Privacidad, etc.) */
+  const subSectionCard: React.CSSProperties = {
+    background: 'var(--muted)',
+    border: '1px solid var(--border)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  };
+  /** Subsección activa — borde más vivo con color brand */
+  const subSectionCardActive: React.CSSProperties = {
+    ...subSectionCard,
+    background: 'var(--card)',
+    borderColor: 'var(--primary)',
+    boxShadow: '0 1px 6px rgba(0,0,0,0.04)',
+  };
+  /** Header de subsección: icono + título grande + descripción */
+  const subSectionHeader: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingBottom: 12,
+    marginBottom: 12,
+    borderBottom: '1px solid var(--border)',
+  };
+  const subSectionHeaderNoBorder: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 12,
+  };
+  const subSectionTitle: React.CSSProperties = { margin: 0, fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em' };
+  const subSectionDesc: React.CSSProperties = { margin: '2px 0 0', fontSize: 11, color: 'var(--muted-foreground)', lineHeight: 1.45 };
+
   return (
     <div className="relative overflow-hidden min-h-full">
       <div className="hero-glow pointer-events-none" style={{ background: BRAND_R, top: '-200px', right: '-80px' }} />
@@ -1576,15 +1608,16 @@ export default function WidgetBuilderPage() {
           </p>
         ) : (
         <>
-        <div style={fieldStyle} data-tour="widget-builder-support">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: cfg.humanSupportEnabled ? 10 : 0 }}>
+        {/* ── 1) Atención humana por WhatsApp ──────────────────────────────── */}
+        <div style={cfg.humanSupportEnabled ? subSectionCardActive : subSectionCard} data-tour="widget-builder-support">
+          <div style={cfg.humanSupportEnabled ? subSectionHeader : subSectionHeaderNoBorder}>
             <button
               type="button"
               role="switch"
               aria-checked={cfg.humanSupportEnabled}
               onClick={() => update({ humanSupportEnabled: !cfg.humanSupportEnabled })}
               style={{
-                position: 'relative', flexShrink: 0,
+                position: 'relative', flexShrink: 0, marginTop: 2,
                 width: 36, height: 20, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 0,
                 background: cfg.humanSupportEnabled ? cfg.color : 'var(--border)',
                 transition: 'background 0.2s',
@@ -1596,15 +1629,18 @@ export default function WidgetBuilderPage() {
                 transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
               }} />
             </button>
-            <label
-              style={{ fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}
-              onClick={() => update({ humanSupportEnabled: !cfg.humanSupportEnabled })}
-            >
-              WhatsApp — atención humana
-            </label>
+            <div style={{ flex: 1, minWidth: 0 }} onClick={() => update({ humanSupportEnabled: !cfg.humanSupportEnabled })}>
+              <p style={{ ...subSectionTitle, cursor: 'pointer' }}>📱 WhatsApp para atención humana</p>
+              <p style={subSectionDesc}>
+                {cfg.humanSupportEnabled
+                  ? 'El widget ofrece un enlace a WhatsApp cuando el visitante pide hablar con una persona.'
+                  : 'Desactivado: no se mostrarán enlaces a WhatsApp.'}
+              </p>
+            </div>
           </div>
           {cfg.humanSupportEnabled && (
             <>
+              <label style={labelStyle}>Número de WhatsApp</label>
               <input
                 style={inputStyle}
                 value={cfg.humanSupportPhone ?? ''}
@@ -1612,25 +1648,21 @@ export default function WidgetBuilderPage() {
                 placeholder="+52 55 1234 5678 (con código de país)"
               />
               <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 6, marginBottom: 0, lineHeight: 1.45 }}>
-                Si el visitante escribe palabras como «persona», «humano» o «atención humana», aparece en el chat un acceso a WhatsApp (con número válido). Opcional.
+                Se activa cuando el visitante escribe «persona», «humano», «atención humana» o similar.
               </p>
             </>
           )}
-          {!cfg.humanSupportEnabled && (
-            <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.45 }}>
-              Desactivado: no se mostrarán enlaces a WhatsApp aunque el visitante pida atención humana.
-            </p>
-          )}
         </div>
-        <div style={fieldStyle}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: cfg.handoffEnabled ? 10 : 0 }}>
+        {/* ── 2) Escalación a un humano (Inbox + opcionales) ──────────────── */}
+        <div style={cfg.handoffEnabled ? subSectionCardActive : subSectionCard}>
+          <div style={cfg.handoffEnabled ? subSectionHeader : subSectionHeaderNoBorder}>
             <button
               type="button"
               role="switch"
               aria-checked={cfg.handoffEnabled}
               onClick={() => update({ handoffEnabled: !cfg.handoffEnabled })}
               style={{
-                position: 'relative', flexShrink: 0,
+                position: 'relative', flexShrink: 0, marginTop: 2,
                 width: 36, height: 20, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 0,
                 background: cfg.handoffEnabled ? cfg.color : 'var(--border)',
                 transition: 'background 0.2s',
@@ -1642,105 +1674,116 @@ export default function WidgetBuilderPage() {
                 transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
               }} />
             </button>
-            <label
-              style={{ fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}
-              onClick={() => update({ handoffEnabled: !cfg.handoffEnabled })}
-            >
-              Botón «Hablar con una persona»
-            </label>
+            <div style={{ flex: 1, minWidth: 0 }} onClick={() => update({ handoffEnabled: !cfg.handoffEnabled })}>
+              <p style={{ ...subSectionTitle, cursor: 'pointer' }}>🙋 Botón «Hablar con una persona»</p>
+              <p style={subSectionDesc}>
+                {cfg.handoffEnabled
+                  ? 'El visitante puede solicitar atención humana. La solicitud entra al Inbox.'
+                  : 'Desactivado: el visitante no verá el botón de escalación.'}
+              </p>
+            </div>
           </div>
           {cfg.handoffEnabled && (
-            <>
-              <label style={labelStyle}>Destino al escalar</label>
-              <select
-                style={{ ...inputStyle, cursor: 'pointer' }}
-                value={cfg.handoffNotifyMode}
-                onChange={(e) => update({ handoffNotifyMode: e.target.value as HandoffNotifyMode })}
-              >
-                {(Object.keys(HANDOFF_NOTIFY_MODE_LABELS) as HandoffNotifyMode[]).map((mode) => (
-                  <option key={mode} value={mode}>
-                    {HANDOFF_NOTIFY_MODE_LABELS[mode]}
-                  </option>
-                ))}
-              </select>
-              <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 6, marginBottom: 0, lineHeight: 1.45 }}>
-                El <strong>Inbox</strong> del panel siempre recibe la solicitud. Elige si además notificar por{' '}
-                <Link href="/dashboard/compliance" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>
-                  webhook saliente
-                </Link>{' '}
-                y/o Slack (configúralos en Cumplimiento).
-              </p>
-              <label style={{ ...labelStyle, marginTop: 10 }}>
-                Tiempo de espera antes de ofrecer WhatsApp (minutos)
-              </label>
-              <input
-                type="number"
-                min={0}
-                max={60}
-                style={inputStyle}
-                value={cfg.handoffTimeout}
-                onChange={(e) => update({ handoffTimeout: Math.max(0, parseInt(e.target.value, 10) || 0) })}
-              />
-              <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 4, marginBottom: 0, lineHeight: 1.45 }}>
-                Si el agente no responde en ese tiempo, el widget ofrece continuar por WhatsApp. <strong>0</strong> = sin límite de espera.
-              </p>
-            </>
-          )}
-          {!cfg.handoffEnabled && (
-            <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.45 }}>
-              Desactivado: el visitante no verá el botón de escalación en el chat.
-            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div>
+                <label style={labelStyle}>Destino al escalar</label>
+                <select
+                  style={{ ...inputStyle, cursor: 'pointer' }}
+                  value={cfg.handoffNotifyMode}
+                  onChange={(e) => update({ handoffNotifyMode: e.target.value as HandoffNotifyMode })}
+                >
+                  {(Object.keys(HANDOFF_NOTIFY_MODE_LABELS) as HandoffNotifyMode[]).map((mode) => (
+                    <option key={mode} value={mode}>
+                      {HANDOFF_NOTIFY_MODE_LABELS[mode]}
+                    </option>
+                  ))}
+                </select>
+                <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 6, marginBottom: 0, lineHeight: 1.45 }}>
+                  El <strong>Inbox</strong> siempre recibe la solicitud.{' '}
+                  <Link href="/dashboard/compliance" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>
+                    Configurar webhook/Slack
+                  </Link>
+                  .
+                </p>
+              </div>
+              <div>
+                <label style={labelStyle}>Espera antes de ofrecer WhatsApp (min)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={60}
+                  style={inputStyle}
+                  value={cfg.handoffTimeout}
+                  onChange={(e) => update({ handoffTimeout: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                />
+                <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 6, marginBottom: 0, lineHeight: 1.45 }}>
+                  <strong>0</strong> = sin límite. Si el agente no responde en ese tiempo, se ofrece WhatsApp.
+                </p>
+              </div>
+            </div>
           )}
         </div>
 
-        {/* ── Aviso de privacidad / política ───────────────────────────────── */}
-        <div style={{ marginBottom: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: cfg.policyEnabled ? 12 : 0 }}>
+        {/* ── 3) Aviso de privacidad / política ────────────────────────────── */}
+        <div style={cfg.policyEnabled ? subSectionCardActive : subSectionCard}>
+          <div style={cfg.policyEnabled ? subSectionHeader : subSectionHeaderNoBorder}>
             <input
               type="checkbox"
               id="policyEnabled"
               checked={cfg.policyEnabled}
               onChange={(e) => update({ policyEnabled: e.target.checked })}
-              style={{ width: 16, height: 16, cursor: 'pointer' }}
+              style={{ width: 18, height: 18, cursor: 'pointer', marginTop: 1, accentColor: cfg.color }}
             />
-            <label htmlFor="policyEnabled" style={{ fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-              Mostrar aviso de privacidad en el pie del chat
+            <label htmlFor="policyEnabled" style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}>
+              <p style={subSectionTitle}>📄 Aviso de privacidad en el pie del chat</p>
+              <p style={subSectionDesc}>
+                {cfg.policyEnabled
+                  ? 'Texto + enlace opcional a tu política, visible bajo cada conversación.'
+                  : 'Desactivado: no se muestra ningún aviso en el chat.'}
+              </p>
             </label>
           </div>
 
           {cfg.policyEnabled && (
-            <>
-              <div style={fieldStyle}>
-                <label style={labelStyle}>Texto del aviso</label>
-                <input style={inputStyle} value={cfg.policyText} maxLength={200} onChange={(e) => update({ policyText: e.target.value })} placeholder="Las conversaciones pueden registrarse de acuerdo con nuestra" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Texto del aviso</label>
+                  <input style={inputStyle} value={cfg.policyText} maxLength={200} onChange={(e) => update({ policyText: e.target.value })} placeholder="Las conversaciones pueden registrarse de acuerdo con nuestra" />
+                </div>
+                <div>
+                  <label style={labelStyle}>Texto del enlace</label>
+                  <input style={inputStyle} value={cfg.policyLinkLabel} maxLength={60} onChange={(e) => update({ policyLinkLabel: e.target.value })} placeholder="Política de Privacidad" />
+                </div>
               </div>
-              <div style={fieldStyle}>
-                <label style={labelStyle}>Texto del enlace</label>
-                <input style={inputStyle} value={cfg.policyLinkLabel} maxLength={60} onChange={(e) => update({ policyLinkLabel: e.target.value })} placeholder="Política de Privacidad" />
-              </div>
-              <div style={fieldStyle}>
-                <label style={labelStyle}>URL de tu política de privacidad</label>
+              <div>
+                <label style={labelStyle}>URL de tu política</label>
                 <input style={inputStyle} type="url" value={cfg.policyUrl} onChange={(e) => update({ policyUrl: e.target.value })} placeholder="https://tusitio.com/privacidad" />
-                <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 4, marginBottom: 0, lineHeight: 1.45 }}>
+                <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 6, marginBottom: 0, lineHeight: 1.45 }}>
                   Debe empezar por <strong>https://</strong>. Si lo dejas vacío, el texto del enlace se muestra sin enlace.
                 </p>
               </div>
-            </>
+            </div>
           )}
         </div>
 
-        {/* ── Encuesta de satisfacción ─────────────────────────────────────── */}
-        <div style={{ marginBottom: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: cfg.feedbackEnabled ? 12 : 0 }}>
+        {/* ── 4) Encuesta de satisfacción ─────────────────────────────────── */}
+        <div style={cfg.feedbackEnabled ? subSectionCardActive : subSectionCard}>
+          <div style={cfg.feedbackEnabled ? subSectionHeader : subSectionHeaderNoBorder}>
             <input
               type="checkbox"
               id="feedbackEnabled"
               checked={cfg.feedbackEnabled}
               onChange={(e) => update({ feedbackEnabled: e.target.checked })}
-              style={{ width: 16, height: 16, cursor: 'pointer' }}
+              style={{ width: 18, height: 18, cursor: 'pointer', marginTop: 1, accentColor: cfg.color }}
             />
-            <label htmlFor="feedbackEnabled" style={{ fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-              Encuesta de satisfacción al final de la conversación
+            <label htmlFor="feedbackEnabled" style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}>
+              <p style={subSectionTitle}>⭐ Encuesta de satisfacción al cerrar el chat</p>
+              <p style={subSectionDesc}>
+                {cfg.feedbackEnabled
+                  ? 'Al final de cada conversación se muestra un breve formulario con tus preguntas.'
+                  : 'Desactivado: no se pide feedback al visitante.'}
+              </p>
             </label>
           </div>
 
