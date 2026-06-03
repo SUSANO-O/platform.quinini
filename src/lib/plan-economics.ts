@@ -150,7 +150,7 @@ const SUPPORT_BY_PLAN: Record<PlanId, string> = {
   free:       'Comunidad',
   solo:       'Email 72 h',
   team:       'Email 48 h',
-  plus:       'Email 48 h',
+  plus:       'Email 90 h',
   business:   'Dedicado + SLA',
   enterprise: '24/7',
 };
