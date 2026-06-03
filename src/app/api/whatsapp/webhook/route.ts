@@ -23,7 +23,8 @@ import {
 import { tryServeWidgetChatViaHubMcp } from '@/lib/widget-chat-direct-mcp';
 import { persistWidgetTranscript } from '@/lib/widget-transcript';
 import { getAgentflowhubBaseUrl } from '@/lib/aibackhub-sync';
-import { ConversationSession } from '@/lib/db/models';
+import { ConversationSession, WidgetMessage, User } from '@/lib/db/models';
+import { normalizePhoneDigits } from '@/lib/whatsapp';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -113,6 +114,56 @@ async function processIncomingMessages(rawBody: string, signatureHeader: string 
       const messages = value.messages || [];
       if (!phoneNumberId || messages.length === 0) continue;
 
+      // ── Detectar si el mensaje viene del dueño respondiendo una alerta de handoff ──
+      const handledByOwner = new Set<string>();
+      for (const msg of messages) {
+        if (msg.type !== 'text' || !msg.text?.body?.trim()) continue;
+        const senderDigits = normalizePhoneDigits(msg.from || '');
+
+        const ownerUser = await User.findOne({
+          escalationWhatsAppPhone: { $exists: true, $ne: null },
+        }).select({ _id: 1, escalationWhatsAppPhone: 1 }).lean() as
+          | { _id: unknown; escalationWhatsAppPhone?: string } | null;
+
+        if (!ownerUser || normalizePhoneDigits(ownerUser.escalationWhatsAppPhone || '') !== senderDigits) continue;
+
+        // Es el dueño — marcar como manejado para no procesarlo como cliente
+        handledByOwner.add(msg.id);
+
+        const contextId = (msg as unknown as { context?: { id?: string } }).context?.id;
+        let session: { sessionId: string; chatSessionId?: string; widgetId?: string; userId?: string } | null = null;
+
+        if (contextId) {
+          session = await ConversationSession.findOne({ handoffWaNotifMsgId: contextId })
+            .select({ sessionId: 1, chatSessionId: 1, widgetId: 1, userId: 1 }).lean() as typeof session;
+        }
+        if (!session) {
+          session = await ConversationSession.findOne({
+            userId: String(ownerUser._id),
+            escalated: true,
+            inboxStatus: { $ne: 'resolved' },
+          }).sort({ handoffAt: -1 }).select({ sessionId: 1, chatSessionId: 1, widgetId: 1, userId: 1 }).lean() as typeof session;
+        }
+
+        if (session) {
+          const targetSessionId = session.chatSessionId || session.sessionId;
+          await WidgetMessage.create({
+            widgetId: session.widgetId || '',
+            userId: String(ownerUser._id),
+            agentId: '',
+            sessionId: targetSessionId,
+            role: 'assistant',
+            sentBy: 'human',
+            content: msg.text!.body.trim(),
+            traceId: `wa-owner:${Date.now()}`,
+          });
+          await ConversationSession.updateOne(
+            { sessionId: session.sessionId },
+            { $set: { lastHumanMessageAt: new Date(), humanMode: true } },
+          );
+        }
+      }
+
       // Buscar agente que reciba en este número
       const agentDoc = await ClientAgent.findOne({
         'whatsapp.phoneNumberId': phoneNumberId,
@@ -140,6 +191,7 @@ async function processIncomingMessages(rawBody: string, signatureHeader: string 
       const ownerUserId = String(agentDoc.userId);
 
       for (const msg of messages) {
+        if (handledByOwner.has(msg.id)) continue; // ya ruteado como respuesta del dueño
         if (msg.type !== 'text' || !msg.text?.body?.trim()) continue;
         const from = msg.from.trim();
         const text = msg.text.body.trim();

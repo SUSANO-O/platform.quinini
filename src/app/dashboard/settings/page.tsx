@@ -63,6 +63,8 @@ export default function SettingsPage() {
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
 
   const [displayNameDraft, setDisplayNameDraft] = useState('');
+  const [waPhoneDraft, setWaPhoneDraft] = useState('');
+  const [busyWaPhone, setBusyWaPhone] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [emailCode, setEmailCode] = useState('');
   const [busyProfile, setBusyProfile] = useState(false);
@@ -78,7 +80,28 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!user) return;
     setDisplayNameDraft(user.displayName ?? '');
+    setWaPhoneDraft((user as { escalationWhatsAppPhone?: string | null }).escalationWhatsAppPhone ?? '');
   }, [user?.uid, user?.displayName]);
+
+  async function saveWaPhone() {
+    setBusyWaPhone(true);
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ escalationWhatsAppPhone: waPhoneDraft.trim() || null }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        toast.error(d.error || 'Error al guardar.');
+      } else {
+        toast.success('Número de WhatsApp guardado.');
+        await refreshUser();
+      }
+    } finally {
+      setBusyWaPhone(false);
+    }
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -720,6 +743,54 @@ export default function SettingsPage() {
 
       {/* Security / 2FA */}
       <TwoFactorSection />
+
+      {/* Notificaciones — WhatsApp personal */}
+      <div id="settings-notifications" className="scroll-mt-24 rounded-2xl overflow-hidden border card-texture" style={{ borderColor: 'var(--border)' }}>
+        <div style={{ height: 3, background: `linear-gradient(90deg, #25D366, #128C7E)` }} />
+        <div className="p-6">
+          <h2 className="text-[15px] font-bold m-0 mb-1">Notificaciones de WhatsApp</h2>
+          <p className="text-[13px] m-0 mb-5" style={{ color: 'var(--muted-foreground)', lineHeight: 1.5 }}>
+            Cuando un visitante del widget pide hablar con una persona, recibirás un mensaje en tu WhatsApp personal
+            y podrás responderle directamente desde ahí.
+          </p>
+          <label className="block text-[12px] font-semibold mb-1.5" style={{ color: 'var(--muted-foreground)' }}>
+            Tu número de WhatsApp personal
+          </label>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <input
+              type="tel"
+              value={waPhoneDraft}
+              onChange={(e) => setWaPhoneDraft(e.target.value)}
+              placeholder="+57 313 3174629"
+              style={{
+                flex: '1 1 200px',
+                padding: '10px 12px',
+                borderRadius: '10px',
+                border: '1px solid var(--border)',
+                background: 'var(--background)',
+                fontSize: '14px',
+              }}
+            />
+            <button
+              type="button"
+              disabled={busyWaPhone}
+              onClick={() => void saveWaPhone()}
+              className="px-4 py-2.5 rounded-xl font-bold text-[13px] border transition-opacity"
+              style={{
+                background: '#25D36614',
+                color: '#128C7E',
+                borderColor: '#25D36635',
+                cursor: busyWaPhone ? 'wait' : 'pointer',
+              }}
+            >
+              {busyWaPhone ? 'Guardando…' : 'Guardar'}
+            </button>
+          </div>
+          <p className="text-[12px] mt-2 m-0" style={{ color: 'var(--muted-foreground)', lineHeight: 1.45 }}>
+            Incluye el código de país. Para responder al visitante, usa <strong>Responder (Reply)</strong> al mensaje de alerta en WhatsApp.
+          </p>
+        </div>
+      </div>
 
       {/* Subscription info */}
       <div id="settings-billing" className="scroll-mt-24 rounded-2xl overflow-hidden border card-texture" style={{ borderColor: 'var(--border)' }} data-tour="settings-billing">

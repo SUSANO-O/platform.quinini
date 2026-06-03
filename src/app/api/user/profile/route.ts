@@ -24,7 +24,7 @@ export async function PATCH(req: NextRequest) {
   const userId = verifySessionToken(token);
   if (!userId) return NextResponse.json({ error: 'Sesión inválida.' }, { status: 401 });
 
-  let body: { displayName?: unknown; avatarUrl?: unknown };
+  let body: { displayName?: unknown; avatarUrl?: unknown; escalationWhatsAppPhone?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -51,6 +51,15 @@ export async function PATCH(req: NextRequest) {
         { status: 400 },
       );
     }
+  }
+
+  if ('escalationWhatsAppPhone' in body) {
+    const raw = typeof body.escalationWhatsAppPhone === 'string'
+      ? body.escalationWhatsAppPhone.trim()
+      : '';
+    // Solo dígitos y + permitidos; máx 20 chars
+    const cleaned = raw.replace(/[^\d+\s\-()]/g, '').trim();
+    (update as Record<string, string | null>).escalationWhatsAppPhone = cleaned.length > 0 ? cleaned.slice(0, 20) : null;
   }
 
   if (Object.keys(update).length === 0) {

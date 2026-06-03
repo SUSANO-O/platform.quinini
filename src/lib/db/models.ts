@@ -34,6 +34,8 @@ const UserSchema = new Schema({
   escalationTicketIntegration: { type: Schema.Types.Mixed, default: null },
   /** Incoming Webhook URL de Slack para avisos al escalar (plan Team+). */
   escalationSlackWebhookUrl: { type: String, default: null },
+  /** Número WhatsApp personal del dueño para recibir alertas de handoff y responder desde WA. */
+  escalationWhatsAppPhone: { type: String, default: null },
   // Two-Factor Authentication (TOTP)
   twoFactorEnabled: { type: Boolean, default: false },
   twoFactorSecret:  { type: String, default: null },
@@ -435,6 +437,8 @@ const ConversationSessionSchema = new Schema({
   humanModeAt:        { type: Date, default: null },
   /** Timestamp del último mensaje enviado por el agente humano. */
   lastHumanMessageAt: { type: Date, default: null },
+  /** ID del mensaje WA enviado al dueño como alerta de handoff (para rutear su respuesta). */
+  handoffWaNotifMsgId: { type: String, default: null },
 }, { timestamps: true });
 
 ConversationSessionSchema.index({ widgetId: 1, month: -1 });
