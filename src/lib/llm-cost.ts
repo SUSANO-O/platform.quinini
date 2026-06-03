@@ -148,22 +148,65 @@ export function estimatedTokensForRequests(modelId: string, requests: number): {
   };
 }
 
+export type CostMode = 'api' | 'invoice' | 'realistic';
+
+/** Multiplicador de calibración para corregir desviación vs factura real. ENV opcional. */
+export function costCalibrationFactor(): number {
+  return envNumber('FINANCE_COST_CALIBRATION', 1.0);
+}
+
+/**
+ * Coste vía factura GCP observada (blend $3.51/M por defecto).
+ * Más conservador y suele matchear mejor la factura real.
+ */
+export function usdFromInvoiceBlend(totalTokens: number): number {
+  const blend = invoiceBlendUsdPer1M();
+  return Math.round((totalTokens / 1_000_000) * blend * 10000) / 10000;
+}
+
 /**
  * Coste USD para N peticiones.
- * Con tokens reales → tarifa API del modelo; sin ellos → tokens estimados × tarifa API.
+ *
+ * Modos:
+ *   - 'api'       → tarifas API del modelo (optimista, ignora markup factura)
+ *   - 'invoice'   → blend observado en factura GCP ($3.51/M por defecto)
+ *   - 'realistic' → max(api, invoice) × calibración. **Default.** Nunca por debajo
+ *                   del blend factura, y aplica multiplicador de calibración si se
+ *                   configuró FINANCE_COST_CALIBRATION en el .env.
  */
 export function estimateRequestCostUsd(
   modelId: string,
   requests: number,
   realInputTokens = 0,
   realOutputTokens = 0,
+  mode: CostMode = 'realistic',
 ): number {
-  if (realInputTokens + realOutputTokens > 0) {
-    return usdFromTokenCounts(modelId, realInputTokens, realOutputTokens);
-  }
-  if (requests <= 0) return 0;
-  const est = estimatedTokensForRequests(modelId, requests);
-  return usdFromTokenCounts(modelId, est.input, est.output);
+  const hasReal = realInputTokens + realOutputTokens > 0;
+  const totalTokens = hasReal
+    ? realInputTokens + realOutputTokens
+    : (() => {
+        const e = estimatedTokensForRequests(modelId, requests);
+        return e.total;
+      })();
+
+  // 1) Cálculo por tarifa API del modelo (lo que tarifa Google al cobrar)
+  const apiCost = hasReal
+    ? usdFromTokenCounts(modelId, realInputTokens, realOutputTokens)
+    : (() => {
+        const e = estimatedTokensForRequests(modelId, requests);
+        return usdFromTokenCounts(modelId, e.input, e.output);
+      })();
+
+  // 2) Cálculo por blend observado en factura GCP (más conservador)
+  const invoiceCost = usdFromInvoiceBlend(totalTokens);
+
+  let base: number;
+  if (mode === 'api') base = apiCost;
+  else if (mode === 'invoice') base = invoiceCost;
+  else base = Math.max(apiCost, invoiceCost);
+
+  const calibrated = base * costCalibrationFactor();
+  return Math.round(calibrated * 10000) / 10000;
 }
 
 /** Alias histórico usado en plan-economics. */

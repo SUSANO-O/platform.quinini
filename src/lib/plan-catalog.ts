@@ -9,11 +9,8 @@
 export const PLAN_ORDER = [
   'free',
   'solo',
-  'basic',
   'team',
   'plus',
-  'starter',
-  'growth',
   'business',
   'enterprise',
 ] as const;
@@ -22,9 +19,13 @@ export type PlanId = (typeof PLAN_ORDER)[number];
 
 export type PaidPlanId = 'solo' | 'team' | 'plus' | 'business';
 
-/** Planes retirados de venta (usuarios existentes conservan límites y rank). */
-export const LEGACY_PLAN_IDS = ['basic', 'starter', 'growth'] as const;
-export type LegacyPlanId = (typeof LEGACY_PLAN_IDS)[number];
+/**
+ * Planes retirados — vacío. Los planes 'basic', 'starter', 'growth' fueron
+ * eliminados por margen insuficiente. Los usuarios existentes fueron migrados
+ * a 'plus'. Se mantiene este export vacío por compat con código que aún lo importe.
+ */
+export const LEGACY_PLAN_IDS = [] as const;
+export type LegacyPlanId = never;
 
 /** Planes de pago disponibles para checkout y pricing público. */
 export const PAID_PLAN_IDS: PaidPlanId[] = [
@@ -59,15 +60,11 @@ export const PLAN_PRICES_USD: Record<PaidPlanId, number> = {
   business: 749,
 };
 
-/** Referencia histórica (solo admin / usuarios legacy). */
-export const LEGACY_PLAN_PRICES_USD: Record<LegacyPlanId, number> = {
-  basic: 17,
-  starter: 69,
-  growth: 189,
-};
+/** Precios legacy — vacío. Planes eliminados, usuarios migrados a Plus. */
+export const LEGACY_PLAN_PRICES_USD: Record<string, number> = {};
 
-export function isLegacyPlan(plan: string): plan is LegacyPlanId {
-  return (LEGACY_PLAN_IDS as readonly string[]).includes(plan);
+export function isLegacyPlan(_plan: string): _plan is never {
+  return false;
 }
 
 export function isSellablePaidPlan(plan: string): plan is PaidPlanId {
@@ -82,11 +79,8 @@ export function isPaidProductPlan(plan: string): boolean {
 const PLAN_LABELS: Record<PlanId, string> = {
   free: 'Free',
   solo: 'Solo',
-  basic: 'Basic',
   team: 'Team',
   plus: 'Plus',
-  starter: 'Starter',
-  growth: 'Growth',
   business: 'Business',
   enterprise: 'Enterprise',
 };
@@ -132,11 +126,8 @@ export const PLAN_DISPLAY: Record<
 export const PLAN_CONVERSATION_LIMITS: Record<string, number> = {
   free:       50,
   solo:       300,
-  basic:      1_500,
   team:       2_000,
   plus:       3_000,
-  starter:    6_000,
-  growth:     16_000,
   business:   45_000,
   enterprise: -1,
 };
@@ -145,11 +136,8 @@ export const PLAN_CONVERSATION_LIMITS: Record<string, number> = {
 export const PLAN_AGENT_LIMITS: Record<string, number> = {
   free:       1,
   solo:       3,
-  basic:      3,
   team:       5,
   plus:       10,
-  starter:    25,
-  growth:     50,
   business:   -1,
   enterprise: 999,
 };
@@ -167,11 +155,8 @@ export function isAgentLimitReached(used: number, limit: number): boolean {
 export const PLAN_SUBAGENT_LIMITS: Record<string, number> = {
   free:       0,
   solo:       0,
-  basic:      2,
   team:       2,
   plus:       5,
-  starter:    10,
-  growth:     25,
   business:   50,
   enterprise: 999,
 };
@@ -179,11 +164,8 @@ export const PLAN_SUBAGENT_LIMITS: Record<string, number> = {
 export const PLAN_TOOLS_LIMITS: Record<string, number> = {
   free:       2,
   solo:       0,
-  basic:      5,
   team:       6,
   plus:       8,
-  starter:    15,
-  growth:     50,
   business:   999,
   enterprise: 999,
 };
@@ -199,11 +181,8 @@ export const SCHEDULED_TASKS_FEATURE = 'scheduled_tasks';
 export const PLAN_SCHEDULED_TASK_LIMITS: Record<string, number> = {
   free:       0,
   solo:       0,
-  basic:      0,
   team:       3,
   plus:       5,
-  starter:    15,
-  growth:     40,
   business:   100,
   enterprise: -1,
 };
@@ -212,11 +191,8 @@ export const PLAN_SCHEDULED_TASK_LIMITS: Record<string, number> = {
 export const PLAN_SCHEDULED_TASK_MIN_INTERVAL_MIN: Record<string, number> = {
   free:       60,
   solo:       60,
-  basic:      60,
   team:       60,
   plus:       30,
-  starter:    15,
-  growth:     5,
   business:   1,
   enterprise: 1,
 };
@@ -266,11 +242,8 @@ export function getScheduledTaskMinIntervalMin(plan: string): number {
 export const PLAN_RATE_LIMITS_PER_MIN: Record<string, number> = {
   free:       10,
   solo:       20,
-  basic:      30,
   team:       35,
   plus:       40,
-  starter:    60,
-  growth:     120,
   business:   300,
   enterprise: 600,
 };
@@ -279,11 +252,8 @@ export const PLAN_RATE_LIMITS_PER_MIN: Record<string, number> = {
 export const PLAN_HISTORY_RETENTION_DAYS: Record<string, number> = {
   free:       7,
   solo:       30,
-  basic:      30,
   team:       45,
   plus:       60,
-  starter:    90,
-  growth:     365,
   business:   -1,
   enterprise: -1,
 };
@@ -292,11 +262,8 @@ export const PLAN_HISTORY_RETENTION_DAYS: Record<string, number> = {
 export const PLAN_RAG_LIMITS: Record<string, { mb: number; sources: number } | null> = {
   free:       null,
   solo:       null,
-  basic:      null,
   team:       { mb: 128,     sources: 15   },
   plus:       { mb: 256,     sources: 20   },
-  starter:    { mb: 1_024,   sources: 60   },
-  growth:     { mb: 10_240,  sources: 300  },
   business:   { mb: 102_400, sources: 2_000 },
   enterprise: { mb: 999_999, sources: 9_999 },
 };
@@ -353,11 +320,11 @@ export const ESCALATION_TICKET_MIN_PLAN: PlanId = 'business';
 /** Plan mínimo para integraciones custom (MCP completo, a medida). */
 export const CUSTOM_INTEGRATION_MIN_PLAN: PlanId = 'business';
 
-/** Mínimos históricos — usuarios legacy conservan acceso aunque el mínimo de venta suba. */
-const LEGACY_AGENT_WEBHOOK_MIN_PLAN: PlanId = 'basic';
-const LEGACY_OUTBOUND_SAAS_WEBHOOK_MIN_PLAN: PlanId = 'starter';
-const LEGACY_ESCALATION_TICKET_MIN_PLAN: PlanId = 'growth';
-const LEGACY_CONVERSATION_ANALYTICS_ADVANCED_MIN_PLAN: PlanId = 'growth';
+/** Mínimos históricos — sin uso (planes legacy eliminados, usuarios migrados a Plus). */
+const LEGACY_AGENT_WEBHOOK_MIN_PLAN: PlanId = 'team';
+const LEGACY_OUTBOUND_SAAS_WEBHOOK_MIN_PLAN: PlanId = 'plus';
+const LEGACY_ESCALATION_TICKET_MIN_PLAN: PlanId = 'plus';
+const LEGACY_CONVERSATION_ANALYTICS_ADVANCED_MIN_PLAN: PlanId = 'plus';
 
 function meetsProductMinimum(
   plan: string,
@@ -511,25 +478,8 @@ export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
   ],
 };
 
-/** Bullets legacy (admin / usuarios existentes). */
-export const LEGACY_PLAN_FEATURE_BULLETS: Record<LegacyPlanId, string[]> = {
-  basic: [
-    '1.500 conversaciones al mes (~50/día)',
-    '3 agentes · 2 sub-agentes · Webhook incluido',
-    'Gmail y Slack · widgets ilimitados',
-    'Plan retirado — migrar a Team o Plus',
-  ],
-  starter: [
-    '6.000 conversaciones al mes (~200/día)',
-    '25 agentes · HubSpot, Notion · webhook saliente',
-    'Almacenamiento: 1 GB · plan retirado — migrar a Plus o Business',
-  ],
-  growth: [
-    '16.000 conversaciones al mes (~530/día)',
-    '50 agentes · tickets al escalar · analytics avanzado',
-    'Plan retirado — migrar a Business',
-  ],
-};
+/** Bullets legacy — vacío. Planes retirados, sin usuarios activos. */
+export const LEGACY_PLAN_FEATURE_BULLETS: Record<string, string[]> = {};
 
 /** Features cortas para tarjetas de pricing (español). */
 export const PLAN_PRICING_FEATURES: Record<PlanId, string[]> = {
@@ -540,11 +490,8 @@ export const PLAN_PRICING_FEATURES: Record<PlanId, string[]> = {
     'Comunidad y documentación',
   ],
   solo: PLAN_FEATURE_BULLETS.solo,
-  basic: LEGACY_PLAN_FEATURE_BULLETS.basic,
   team: PLAN_FEATURE_BULLETS.team,
   plus: PLAN_FEATURE_BULLETS.plus,
-  starter: LEGACY_PLAN_FEATURE_BULLETS.starter,
-  growth: LEGACY_PLAN_FEATURE_BULLETS.growth,
   business: PLAN_FEATURE_BULLETS.business,
   enterprise: [
     'Conversaciones sin límite',

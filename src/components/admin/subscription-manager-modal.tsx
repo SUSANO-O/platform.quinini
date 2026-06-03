@@ -79,7 +79,7 @@ export function SubscriptionManagerModal({ userId, userEmail, onClose, onSaved }
         if (s) {
           setHasSub(true);
           setForm({
-            plan:               s.plan            || 'starter',
+            plan:               s.plan            || 'plus',
             status:             s.status          || 'trialing',
             trialStartedAt:     toDateInput(s.trialStartedAt),
             trialEndsAt:        toDateInput(s.trialEndsAt),

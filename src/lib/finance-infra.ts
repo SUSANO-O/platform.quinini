@@ -47,8 +47,6 @@ export function infraRateConfig() {
 const INFRA_AGENT_CAP: Partial<Record<PlanId, number>> = {
   team: 5,
   plus: 5,
-  starter: 8,
-  growth: 12,
   business: 10,
   enterprise: 15,
 };

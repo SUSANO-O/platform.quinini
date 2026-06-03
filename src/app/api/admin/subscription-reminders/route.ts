@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({})) as {
     dryRun?: boolean;
     kinds?: Array<'trial' | 'renewal'>;
-    plans?: Array<'free' | 'starter' | 'growth' | 'business' | 'enterprise'>;
+    plans?: Array<'free' | 'solo' | 'team' | 'plus' | 'business' | 'enterprise'>;
     limit?: number;
   };
 

@@ -39,11 +39,8 @@ export { GEMINI_API_USD_PER_1M, TOKENS_PER_MESSAGE, geminiCostPerMessage };
 export const PLAN_ASSUMED_MODEL_TIER: Record<PlanId, ModelTier> = {
   free:       'flash',
   solo:       'flash',
-  basic:      'flash',
   team:       'default',
   plus:       'default',
-  starter:    'default',
-  growth:     'default',
   business:   'premium',
   enterprise: 'premium',
 };
@@ -152,11 +149,8 @@ export function formatHistoryDays(days: number): string {
 const SUPPORT_BY_PLAN: Record<PlanId, string> = {
   free:       'Comunidad',
   solo:       'Email 72 h',
-  basic:      'Email 72 h',
   team:       'Email 48 h',
   plus:       'Email 48 h',
-  starter:    'Email 48 h',
-  growth:     'Chat 24 h',
   business:   'Dedicado + SLA',
   enterprise: '24/7',
 };

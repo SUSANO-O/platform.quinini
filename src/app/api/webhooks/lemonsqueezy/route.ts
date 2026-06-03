@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
           break;
         }
 
-        const plan = customData.plan || planFromLSVariantId(attr.variant_id) || 'starter';
+        const plan = customData.plan || planFromLSVariantId(attr.variant_id) || 'plus';
         const status = mapLSStatusToDb(attr.status);
         const currentPeriodEnd = periodEnd(attr);
         const created = isoToEpoch((attr as LSSubscriptionAttributes).created_at);
