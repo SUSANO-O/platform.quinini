@@ -5,7 +5,7 @@ export interface ToolDef {
   name: string;
   icon: string;
   description: string;
-  minPlan: 'free' | 'solo' | 'basic' | 'team' | 'plus' | 'starter' | 'growth' | 'business';
+  minPlan: 'free' | 'solo' | 'team' | 'plus' | 'business';
   configFields: { key: string; label: string; placeholder: string; required: boolean }[];
 }
 
@@ -34,7 +34,7 @@ export const TOOLS: ToolDef[] = [
     name: 'Google Sheets',
     icon: '📊',
     description: 'Lee datos de hojas de Google Sheets públicas y los expone al LLM para que analice y responda.',
-    minPlan: 'basic',
+    minPlan: 'solo',
     configFields: [],
   },
   {
@@ -183,12 +183,9 @@ const ALL_TOOL_IDS = TOOLS.map((t) => t.id);
 
 const TOOLS_BY_PLAN: Record<string, string[]> = {
   free: ['web-search'],
-  solo: [],
-  basic: ['web-search', 'webhook', 'gmail', 'slack', 'google-sheets'],
+  solo: ['web-search', 'google-sheets'],
   team: ['web-search', 'webhook', 'gmail', 'slack', 'google-sheets'],
-  plus: ['web-search', 'webhook', 'gmail', 'slack', 'google-sheets'],
-  starter: ['web-search', 'webhook', 'gmail', 'slack', 'google-sheets', 'file-upload', 'google-calendar', 'hubspot', 'notion'],
-  growth: ALL_TOOL_IDS.filter((id) => id !== 'zapier'),
+  plus: ['web-search', 'webhook', 'gmail', 'slack', 'google-sheets', 'file-upload', 'google-calendar', 'hubspot', 'notion'],
   business: ALL_TOOL_IDS,
   enterprise: ALL_TOOL_IDS,
 };
@@ -209,11 +206,8 @@ function buildAgentLimits(planId: string): AgentPlanLimits {
 export const AGENT_PLAN_LIMITS: Record<string, AgentPlanLimits> = {
   free: buildAgentLimits('free'),
   solo: buildAgentLimits('solo'),
-  basic: buildAgentLimits('basic'),
   team: buildAgentLimits('team'),
   plus: buildAgentLimits('plus'),
-  starter: buildAgentLimits('starter'),
-  growth: buildAgentLimits('growth'),
   business: buildAgentLimits('business'),
   enterprise: buildAgentLimits('enterprise'),
 };
@@ -228,13 +222,10 @@ export { formatAgentLimit, isAgentLimitReached } from '@/lib/plan-catalog';
 const PLAN_RANK: Record<string, number> = {
   free: 0,
   solo: 1,
-  basic: 2,
-  team: 3,
-  plus: 4,
-  starter: 5,
-  growth: 6,
-  business: 7,
-  enterprise: 8,
+  team: 2,
+  plus: 3,
+  business: 4,
+  enterprise: 5,
 };
 
 /** True si el plan del usuario cumple el mínimo exigido por el modelo. */

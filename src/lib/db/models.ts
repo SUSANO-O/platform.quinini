@@ -81,7 +81,7 @@ const SubscriptionSchema = new Schema({
   },
   plan: {
     type: String,
-    enum: ['free', 'solo', 'basic', 'team', 'plus', 'starter', 'growth', 'business', 'enterprise'],
+    enum: ['free', 'solo', 'team', 'plus', 'business', 'enterprise'],
     default: 'free',
   },
   currentPeriodEnd: { type: Number, default: 0 },
@@ -482,7 +482,7 @@ RagBulkJobSchema.index({ userId: 1, agentId: 1, createdAt: -1 });
 
 const RegistrationCodeSchema = new Schema({
   code:       { type: String, required: true, unique: true, uppercase: true, trim: true },
-  plan:       { type: String, enum: ['free', 'solo', 'basic', 'team', 'plus', 'starter', 'growth', 'business', 'enterprise'], required: true },
+  plan:       { type: String, enum: ['free', 'solo', 'team', 'plus', 'business', 'enterprise'], required: true },
   /** Máximo de registros permitidos con este código. 1 = un solo uso. */
   maxUses:    { type: Number, default: 1, min: 1 },
   /** Contador de veces que se ha usado. */

@@ -224,6 +224,8 @@ export default function ModelStatsPage() {
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [expandedModel, setExpandedModel] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced]   = useState(false);
+  const [costMode, setCostMode]   = useState<'realistic' | 'api' | 'invoice'>('realistic');
+  const [costInfo, setCostInfo]   = useState<{ mode: string; invoiceBlendUsdPer1M: number; calibrationFactor: number } | null>(null);
 
   // Filters
   const [filters, setFilters] = useState<Filters>({
@@ -265,10 +267,12 @@ export default function ModelStatsPage() {
       if (f.agentId)  p.set('agentId',  f.agentId);
       if (f.userId)   p.set('userId',   f.userId);
       if (f.model)    p.set('model',    f.model);
+      p.set('mode', costMode);
       const res  = await fetch(`/api/admin/model-stats?${p.toString()}`);
-      const data = await res.json() as { ok?: boolean; models?: ModelStatRow[]; error?: string };
+      const data = await res.json() as { ok?: boolean; models?: ModelStatRow[]; error?: string; costing?: { mode: string; invoiceBlendUsdPer1M: number; calibrationFactor: number } };
       if (!res.ok || !data.ok) throw new Error(data.error ?? 'Error al cargar');
       setRows(data.models ?? []);
+      setCostInfo(data.costing ?? null);
       setLastRefresh(new Date());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error');
@@ -316,6 +320,8 @@ export default function ModelStatsPage() {
   }
 
   useEffect(() => { void load(filters); }, []);
+  // Recarga cuando cambia el modo de cálculo
+  useEffect(() => { if (lastRefresh) void load(filters); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [costMode]);
 
   // ── Summary stats ──────────────────────────────────────────────────────────
   const totalRequests    = rows.reduce((s, r) => s + r.totalRequests, 0);
@@ -548,10 +554,56 @@ export default function ModelStatsPage() {
       )}
 
       {!loading && !error && rows.length > 0 && (
-        <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '-12px 0 20px', lineHeight: 1.5 }}>
-          Coste calculado con tarifas API Gemini (may 2026) y tokens reales cuando existen; si no, estimación por modelo
-          (~$3,51/1M tokens observado en factura GCP). No incluye créditos Google.
-        </p>
+        <div style={{ margin: '-12px 0 20px' }}>
+          {/* Selector de modo de cálculo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Modo de coste:</span>
+            {([
+              { k: 'realistic', label: 'Realista (default)', tip: 'Max(tarifa API, blend factura GCP) × calibración. Más cercano a tu factura real sin créditos.' },
+              { k: 'invoice',   label: 'Solo blend factura', tip: `Aplica blend $${costInfo?.invoiceBlendUsdPer1M ?? 3.51}/1M tokens a TODO. Si tu factura real / token observado es X, usa este modo.` },
+              { k: 'api',       label: 'Solo tarifa API',    tip: 'Tarifa pública Gemini por modelo. Optimista (no incluye markup Vertex AI).' },
+            ] as const).map(({ k, label, tip }) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setCostMode(k)}
+                title={tip}
+                style={{
+                  padding: '5px 10px',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  borderRadius: 7,
+                  border: `1px solid ${costMode === k ? '#ef4444' : 'var(--border)'}`,
+                  background: costMode === k ? 'rgba(239,68,68,0.08)' : 'var(--card)',
+                  color: costMode === k ? '#ef4444' : 'var(--foreground)',
+                  cursor: 'pointer',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
+            {costMode === 'realistic' && (
+              <>
+                Coste <strong>realista sin créditos</strong>: el mayor entre tarifa API del modelo y blend factura GCP
+                (${costInfo?.invoiceBlendUsdPer1M ?? 3.51}/1M tokens){costInfo && costInfo.calibrationFactor !== 1 ? `, × calibración ${costInfo.calibrationFactor}x` : ''}.
+                Aproxima lo que GCP cobraría sin los créditos promocionales.
+              </>
+            )}
+            {costMode === 'invoice' && (
+              <>
+                Blend factura GCP: ${costInfo?.invoiceBlendUsdPer1M ?? 3.51}/1M tokens aplicado uniformemente.
+                Ajusta con env <code>FINANCE_INVOICE_USD_PER_1M</code>.
+              </>
+            )}
+            {costMode === 'api' && (
+              <>
+                Tarifa pública Gemini API (may 2026) por modelo. Optimista — no refleja markup Vertex AI ni overheads de Google Cloud.
+              </>
+            )}
+          </p>
+        </div>
       )}
 
       {/* ── Error ── */}

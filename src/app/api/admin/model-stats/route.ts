@@ -23,6 +23,8 @@ import {
   classifyModelTier,
   estimateRequestCostUsd,
   estimatedTokensForRequests,
+  costCalibrationFactor,
+  invoiceBlendUsdPer1M,
   type ModelTier,
 } from '@/lib/llm-cost';
 
@@ -123,6 +125,9 @@ export async function GET(req: NextRequest) {
   const filterAgent  = searchParams.get('agentId')  ?? null;
   const filterUser   = searchParams.get('userId')   ?? null;
   const filterModel  = searchParams.get('model')    ?? null;
+  const rawMode      = searchParams.get('mode')     ?? 'realistic';
+  const costMode: 'api' | 'invoice' | 'realistic' =
+    rawMode === 'api' || rawMode === 'invoice' ? rawMode : 'realistic';
 
   // ── 1. Aggregation pipeline (filtros en MongoDB, con índices) ───────────────
 
@@ -289,7 +294,7 @@ export async function GET(req: NextRequest) {
           realOutputTokens: w.realOutputTokens,
           realTotalTokens:  w.realInputTokens + w.realOutputTokens,
           estimatedTokens:  wHasReal ? w.realInputTokens + w.realOutputTokens : wTokEst.total,
-          estimatedUsd:     estimateRequestCostUsd(modelId, w.requests, w.realInputTokens, w.realOutputTokens),
+          estimatedUsd:     estimateRequestCostUsd(modelId, w.requests, w.realInputTokens, w.realOutputTokens, costMode),
           hasRealTokens:    wHasReal,
           lastMonth:        w.lastMonth,
         };
@@ -310,6 +315,7 @@ export async function GET(req: NextRequest) {
         agg.totalRequests,
         agg.realInputTokens,
         agg.realOutputTokens,
+        costMode,
       ),
       realInputTokens:       agg.realInputTokens,
       realOutputTokens:      agg.realOutputTokens,
@@ -366,5 +372,10 @@ export async function GET(req: NextRequest) {
     models: rows,
     total: rows.length,
     filter: { from: fromMonth, to: toMonth, widgetId: filterWidget, agentId: filterAgent, userId: filterUser, model: filterModel },
+    costing: {
+      mode: costMode,
+      invoiceBlendUsdPer1M: invoiceBlendUsdPer1M(),
+      calibrationFactor:    costCalibrationFactor(),
+    },
   });
 }

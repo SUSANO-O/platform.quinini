@@ -22,6 +22,7 @@ import {
 } from '@/lib/whatsapp';
 import { tryServeWidgetChatViaHubMcp } from '@/lib/widget-chat-direct-mcp';
 import { persistWidgetTranscript } from '@/lib/widget-transcript';
+import { getAgentflowhubBaseUrl } from '@/lib/aibackhub-sync';
 
 export const dynamic = 'force-dynamic';
 
@@ -162,7 +163,6 @@ async function handleSingleMessage(params: {
   text: string;
   sessionId: string;
 }): Promise<void> {
-  // Llamar al chat MCP directamente (mismo path que el widget)
   const chatBody = JSON.stringify({
     message: params.text,
     agentId: params.agentIdForChat,
@@ -172,9 +172,11 @@ async function handleSingleMessage(params: {
 
   let replyText = '';
   let toolsUsed: string[] | undefined;
+
+  // Camino 1: MCP directo (agentes con webhook tool o HubSpot auto-capture configurados)
   try {
     const direct = await tryServeWidgetChatViaHubMcp({
-      widgetTokenStartsWithWt: true, // bypass — llamada server-side
+      widgetTokenStartsWithWt: true,
       parsedAgentId: params.agentIdForChat,
       rawBody: chatBody,
       ownerUserId: params.ownerUserId,
@@ -185,6 +187,33 @@ async function handleSingleMessage(params: {
     }
   } catch (e) {
     console.error('[whatsapp/webhook] MCP chat failed:', e);
+  }
+
+  // Camino 2: AgentFlowhub widget chat (agentes de conversación regulares sin webhook tool)
+  if (!replyText) {
+    try {
+      const hubBase = getAgentflowhubBaseUrl();
+      const hubUrl = `${hubBase.replace(/\/$/, '')}/api/widget/chat`;
+      const hubRes = await fetch(hubUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: chatBody,
+        signal: AbortSignal.timeout(60_000),
+      });
+      if (hubRes.ok) {
+        const hubData = await hubRes.json() as {
+          reply?: string; response?: string; text?: string; toolsUsed?: string[];
+        };
+        replyText = hubData.reply || hubData.response || hubData.text || '';
+        if (Array.isArray(hubData.toolsUsed) && hubData.toolsUsed.length) {
+          toolsUsed = hubData.toolsUsed;
+        }
+      } else {
+        console.warn('[whatsapp/webhook] hub fallback HTTP', hubRes.status);
+      }
+    } catch (e) {
+      console.error('[whatsapp/webhook] hub fallback error:', e);
+    }
   }
 
   if (!replyText) {

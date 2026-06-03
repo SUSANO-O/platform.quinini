@@ -73,21 +73,18 @@ describe('webhook entitlements (plan-catalog)', () => {
     expect(planHasAgentWebhookFeature('free')).toBe(false);
     expect(planHasOutboundWebhookFeature('team')).toBe(false);
     expect(planHasOutboundWebhookFeature('plus')).toBe(true);
-    expect(planHasOutboundWebhookFeature('starter')).toBe(true);
-    expect(planHasEscalationSlackFeature('basic')).toBe(false);
     expect(planHasEscalationSlackFeature('team')).toBe(true);
     expect(planHasApiAccessFeature('team')).toBe(true);
-    expect(planHasEscalationTicketFeature('growth')).toBe(false);
     expect(planHasEscalationTicketFeature('business')).toBe(true);
     expect(planHasCustomIntegrationFeature('business')).toBe(true);
     expect(formatConversationAnalyticsFeature('plus')).toBe('Básico');
     expect(formatConversationAnalyticsFeature('business')).toBe('Completo');
-    expect(formatConversationAnalyticsFeature('basic')).toBe('—');
   });
 
   it('sellable paid plans exclude legacy tiers', () => {
     expect(PAID_PLAN_IDS).toEqual(['solo', 'team', 'plus', 'business']);
-    expect(isLegacyPlan('basic')).toBe(true);
+    // Legacy plans fully removed — isLegacyPlan always returns false
+    expect(isLegacyPlan('basic')).toBe(false);
     expect(isLegacyPlan('plus')).toBe(false);
   });
 
@@ -95,7 +92,8 @@ describe('webhook entitlements (plan-catalog)', () => {
     expect(PLAN_FEATURE_BULLETS.solo.some((b) => /webhook/i.test(b))).toBe(false);
     expect(PLAN_FEATURE_BULLETS.team.some((b) => /webhook/i.test(b))).toBe(true);
     expect(PLAN_FEATURE_BULLETS.plus.some((b) => /saliente|HMAC/i.test(b))).toBe(true);
-    expect(LEGACY_PLAN_FEATURE_BULLETS.basic.some((b) => /webhook/i.test(b))).toBe(true);
+    // LEGACY_PLAN_FEATURE_BULLETS is now empty
+    expect(Object.keys(LEGACY_PLAN_FEATURE_BULLETS)).toHaveLength(0);
   });
 });
 

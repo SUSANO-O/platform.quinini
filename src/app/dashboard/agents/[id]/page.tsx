@@ -3096,11 +3096,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       {' '}
                       <Link href="/docs" className="landing-link-accent no-underline font-semibold">Guía breve en Docs →</Link>
                     </p>
-                    {plan === 'starter' && (
-                      <p style={{ fontSize: '11px', color: '#d97706', margin: '0 0 12px', padding: '8px 10px', borderRadius: '8px', background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.25)' }}>
-                        Plan Starter: prioriza pocas fuentes bien estructuradas antes de subir muchos archivos pequeños duplicados.
-                      </p>
-                    )}
 
                     {/* Drag-and-drop zone */}
                     <div

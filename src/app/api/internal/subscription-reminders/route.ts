@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   const result = await runSubscriptionReminders({
     dryRun: false,
     kinds: ['trial', 'renewal'],
-    plans: ['free', 'starter', 'growth', 'business', 'enterprise'],
+    plans: ['free', 'solo', 'team', 'plus', 'business', 'enterprise'],
     limit: 5000,
   });
 

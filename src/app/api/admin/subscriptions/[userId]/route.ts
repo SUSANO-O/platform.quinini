@@ -11,7 +11,7 @@ import { verifySessionToken } from '@/lib/auth';
 import { recordAudit } from '@/lib/audit-log';
 import { SCHEDULED_TASKS_FEATURE } from '@/lib/plan-catalog';
 
-const VALID_PLANS   = ['free', 'solo', 'basic', 'team', 'plus', 'starter', 'growth', 'business', 'enterprise'] as const;
+const VALID_PLANS   = ['free', 'solo', 'team', 'plus', 'business', 'enterprise'] as const;
 const VALID_STATUSES = ['trialing', 'active', 'canceled', 'past_due', 'incomplete'] as const;
 /** Overrides de feature que un admin puede activar manualmente en una suscripción. */
 const VALID_FEATURES = [SCHEDULED_TASKS_FEATURE] as const;

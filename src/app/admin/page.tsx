@@ -59,7 +59,7 @@ interface ReminderResult {
   remindersSent: number;
   filters?: {
     kinds: Array<'trial' | 'renewal'>;
-    plans: Array<'free' | 'starter' | 'growth' | 'business' | 'enterprise'>;
+    plans: Array<'free' | 'solo' | 'team' | 'plus' | 'business' | 'enterprise'>;
     limit: number;
   };
   report?: Array<{ email: string; kind: 'trial' | 'renewal'; daysLeft: number }>;
@@ -149,7 +149,7 @@ export default function AdminPage() {
   const [sendingReminders, setSendingReminders] = useState(false);
   const [reminderResult, setReminderResult] = useState<ReminderResult | null>(null);
   const [reminderKinds, setReminderKinds] = useState<Array<'trial' | 'renewal'>>(['trial', 'renewal']);
-  const [reminderPlans, setReminderPlans] = useState<Array<'free' | 'starter' | 'growth' | 'business' | 'enterprise'>>(['free', 'starter', 'growth', 'business', 'enterprise']);
+  const [reminderPlans, setReminderPlans] = useState<Array<'free' | 'solo' | 'team' | 'plus' | 'business' | 'enterprise'>>(['free', 'solo', 'team', 'plus', 'business', 'enterprise']);
   const [reminderLimit, setReminderLimit] = useState(500);
   const [widgetAnalytics, setWidgetAnalytics] = useState<WidgetAnalyticsPayload | null>(null);
   const [sysStatus, setSysStatus] = useState<SystemStatus | null>(null);
@@ -262,8 +262,8 @@ export default function AdminPage() {
           <select
             value={reminderPlans.length === 5 ? 'all' : reminderPlans[0]}
             onChange={(e) => {
-              const v = e.target.value as 'all' | 'free' | 'starter' | 'growth' | 'business' | 'enterprise';
-              if (v === 'all') setReminderPlans(['free', 'starter', 'growth', 'business', 'enterprise']);
+              const v = e.target.value as 'all' | 'free' | 'solo' | 'team' | 'plus' | 'business' | 'enterprise';
+              if (v === 'all') setReminderPlans(['free', 'solo', 'team', 'plus', 'business', 'enterprise']);
               else setReminderPlans([v]);
             }}
             style={{ padding: '7px 10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px', background: 'var(--muted)', color: 'var(--foreground)' }}

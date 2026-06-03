@@ -14,11 +14,11 @@ const TIER_OPTIONS: { value: ModelTier; label: string; color: string; bg: string
   { value: 'premium', label: 'Pro / Todos', color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   desc: '>$5/M tokens' },
 ];
 
-const PLANS_ORDER = ['free','solo','basic','team','plus','starter','growth','business','enterprise'];
+const PLANS_ORDER = ['free','solo','team','plus','business','enterprise'];
 
 const PLAN_LABELS: Record<string, string> = {
-  free: 'Free', solo: 'Solo', basic: 'Basic', team: 'Team', plus: 'Plus',
-  starter: 'Starter', growth: 'Growth', business: 'Business', enterprise: 'Enterprise',
+  free: 'Free', solo: 'Solo', team: 'Team', plus: 'Plus',
+  business: 'Business', enterprise: 'Enterprise',
 };
 
 interface AiModelOption {
