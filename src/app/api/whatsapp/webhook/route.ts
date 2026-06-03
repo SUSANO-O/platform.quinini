@@ -120,12 +120,24 @@ async function processIncomingMessages(rawBody: string, signatureHeader: string 
         if (msg.type !== 'text' || !msg.text?.body?.trim()) continue;
         const senderDigits = normalizePhoneDigits(msg.from || '');
 
-        const ownerUser = await User.findOne({
-          escalationWhatsAppPhone: { $exists: true, $ne: null },
-        }).select({ _id: 1, escalationWhatsAppPhone: 1 }).lean() as
-          | { _id: unknown; escalationWhatsAppPhone?: string } | null;
+        // Buscar widget cuyo humanSupportPhone coincida con el remitente
+        const { Widget } = await import('@/lib/db/models');
+        const ownerWidget = await Widget.findOne({
+          humanSupportPhone: { $exists: true, $ne: '' },
+        }).select({ userId: 1, humanSupportPhone: 1 }).lean() as
+          | { userId?: unknown; humanSupportPhone?: string } | null;
 
-        if (!ownerUser || normalizePhoneDigits(ownerUser.escalationWhatsAppPhone || '') !== senderDigits) continue;
+        const ownerUser = ownerWidget
+          ? await User.findById(ownerWidget.userId).select({ _id: 1, escalationWhatsAppPhone: 1 }).lean() as
+              | { _id: unknown; escalationWhatsAppPhone?: string } | null
+          : await User.findOne({
+              escalationWhatsAppPhone: { $exists: true, $ne: null },
+            }).select({ _id: 1, escalationWhatsAppPhone: 1 }).lean() as
+              | { _id: unknown; escalationWhatsAppPhone?: string } | null;
+
+        const ownerPhone = ownerWidget?.humanSupportPhone || (ownerUser as { escalationWhatsAppPhone?: string } | null)?.escalationWhatsAppPhone || '';
+
+        if (!ownerUser || normalizePhoneDigits(ownerPhone) !== senderDigits) continue;
 
         // Es el dueño — marcar como manejado para no procesarlo como cliente
         handledByOwner.add(msg.id);
