@@ -23,9 +23,11 @@ import {
   Zap, Wrench, Settings, Lock, CircleOff, Upload, FileText,
   Image as ImageIcon, File, Link2, AlignLeft, CheckCircle2,
   AlertCircle, X, KeyRound, RefreshCw, Sparkles, HelpCircle,
+  Phone, MessageCircle, Check,
   Copy, Eye, Search, Clock,
 } from 'lucide-react';
 import ScheduledTasksTab from '@/components/agents/ScheduledTasksTab';
+import WhatsAppTab from '@/components/agents/WhatsAppTab';
 import {
   stripManagedFaqPrompt,
   buildFaqPromptBlock,
@@ -1307,6 +1309,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     { id: 'rag' as const, label: 'Almacén', icon: <Zap size={14} />, count: ragN },
     { id: 'subagents' as const, label: 'Sub-agentes', icon: <Network size={14} />, count: subAgents.length },
     { id: 'scheduled-tasks' as const, label: 'Tareas', icon: <Clock size={14} />, count: scheduledTaskCount },
+    { id: 'whatsapp' as const, label: 'WhatsApp', icon: <MessageCircle size={14} /> },
   ];
   const visibleTabs = soloChatOnly ? TABS.filter((t) => t.id === 'general') : TABS;
 
@@ -3587,6 +3590,10 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       {/* ── SUB-AGENTS TAB ───────────────────────────────────────────────────── */}
       {tab === 'scheduled-tasks' && (
         <ScheduledTasksTab agentId={String(agent._id)} plan={plan} readOnly={readOnly} onTaskCountChange={setScheduledTaskCount} />
+      )}
+
+      {tab === 'whatsapp' && (
+        <WhatsAppTab agentId={String(agent._id)} readOnly={readOnly} />
       )}
 
       {tab === 'subagents' && (
