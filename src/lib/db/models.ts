@@ -782,3 +782,46 @@ WidgetShareSchema.index({ widgetId: 1, userId: 1 });
 WidgetShareSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export const WidgetShare = mongoose.models.WidgetShare || mongoose.model('WidgetShare', WidgetShareSchema);
+
+// ── INFERENCE METRICS ────────────────────────────────────────────────────────
+// Una fila por request LLM. Sirve para medir costo real, distribución de
+// tokens entre componentes (system/history/tools/RAG), y decidir dónde
+// optimizar primero. NO se usa para reconstruir el chat — para eso está
+// widgetmessages. TTL automático 90 días (se borran solas).
+
+const InferenceMetricSchema = new Schema({
+  userId:           { type: String, required: true, index: true },
+  agentId:          { type: String, required: true, index: true },
+  widgetId:         { type: String, default: null, index: true },
+  sessionId:        { type: String, default: null },
+  traceId:          { type: String, default: null },
+  model:            { type: String, default: '' },        // ej. 'vx/gemini-2.5-pro'
+  provider:         { type: String, default: '' },        // 'google-ai' | 'anthropic' | 'huggingface' | ...
+  // Tokens (si el provider los devuelve)
+  inputTokens:      { type: Number, default: null },
+  outputTokens:     { type: Number, default: null },
+  totalTokens:      { type: Number, default: null },
+  // Composición del prompt (chars son cheap proxies cuando no tenemos tokens reales)
+  systemChars:      { type: Number, default: 0 },
+  toolDefsChars:    { type: Number, default: 0 },
+  historyTurns:     { type: Number, default: 0 },
+  ragChars:         { type: Number, default: 0 },
+  // Tools y resultados
+  toolRounds:       { type: Number, default: 0 },
+  toolsUsed:        { type: [String], default: [] },
+  // Costo (en USD, si el provider/wrapper lo informa)
+  costUsd:          { type: Number, default: null },
+  // Performance
+  latencyMs:        { type: Number, default: 0 },
+  // Estado
+  ok:               { type: Boolean, default: true },
+  errorCode:        { type: String, default: null },
+  // Path: 'direct-mcp' | 'stream-proxy' | 'non-stream-proxy' | 'inference-direct'
+  path:             { type: String, default: '' },
+  createdAt:        { type: Date, default: Date.now, expires: 90 * 24 * 60 * 60 }, // TTL 90 días
+}, { timestamps: false });
+
+InferenceMetricSchema.index({ userId: 1, createdAt: -1 });
+InferenceMetricSchema.index({ agentId: 1, createdAt: -1 });
+
+export const InferenceMetric = mongoose.models.InferenceMetric || mongoose.model('InferenceMetric', InferenceMetricSchema);
