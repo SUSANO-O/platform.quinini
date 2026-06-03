@@ -37,6 +37,7 @@ import {
 import { enrichWidgetChatBodyWithImages, type WidgetImageEnrichment } from '@/lib/widget-chat-images';
 import { persistWidgetTranscript } from '@/lib/widget-transcript';
 import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-enrich';
+import { logInferenceMetric, estimateTokens } from '@/lib/inference-metrics';
 import { normalizeVisitorId } from '@/lib/widget-visitor';
 
 /** Max body size accepted from widget SDK (512 KB — allows image-to-image thumbnail). */
@@ -642,6 +643,7 @@ export async function POST(req: NextRequest) {
             traceId,
             agentId: parsedAgentId,
           });
+          const directStartedAt = Date.now();
           const direct = await tryServeWidgetChatViaHubMcp({
             widgetTokenStartsWithWt: true,
             parsedAgentId,
@@ -677,6 +679,21 @@ export async function POST(req: NextRequest) {
               agentResponse: direct.reply,
               routingMeta: multiAgentMeta,
             });
+            // Métricas del request (best-effort, fire-and-forget)
+            logInferenceMetric({
+              userId: w.userId,
+              agentId: parsedAgentId,
+              widgetId: resolvedWidgetId || w.id,
+              sessionId: parsedSessionId || traceId,
+              traceId,
+              path: 'direct-mcp',
+              latencyMs: Date.now() - directStartedAt,
+              toolRounds: direct.toolRounds ?? 0,
+              toolsUsed: direct.toolsUsed ?? [],
+              outputTokens: estimateTokens(direct.reply || ''),
+              inputTokens: estimateTokens(parsedMessage || ''),
+              ok: true,
+            });
             return NextResponse.json(
               {
                 reply: direct.reply,
@@ -693,6 +710,16 @@ export async function POST(req: NextRequest) {
             err: directErr instanceof Error ? directErr.message : String(directErr),
           });
           console.error('[widget/chat] direct MCP path error:', directErr);
+          logInferenceMetric({
+            userId: w.userId,
+            agentId: parsedAgentId,
+            widgetId: resolvedWidgetId || w.id,
+            sessionId: parsedSessionId || traceId,
+            traceId,
+            path: 'direct-mcp',
+            ok: false,
+            errorCode: directErr instanceof Error ? directErr.message.slice(0, 80) : 'unknown',
+          });
         }
 
         /** Inferencia directa /api/models con modelo explícito del agente (evita orquestador obsoleto). */

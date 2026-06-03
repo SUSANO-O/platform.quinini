@@ -6,10 +6,11 @@ import { useAuth } from '@/hooks/use-auth';
 import { useAuthSplashLoading } from '@/hooks/use-auth-splash-loading';
 import { useEffect, useState } from 'react';
 import { AiLoadingScreen } from '@/components/ui/ai-loading-screen';
-import { LayoutDashboard, Users, LogOut, Shield, UserPlus, BarChart3, Wallet, Box, Network, Bot, Cpu, Menu, X, KeyRound, Activity, FileText } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Shield, UserPlus, BarChart3, Wallet, Box, Network, Bot, Cpu, Menu, X, KeyRound, Activity, FileText, Zap } from 'lucide-react';
 
-const NAV = [
+const NAV: Array<{ href: string; label: string; icon: typeof LayoutDashboard; highlight?: boolean }> = [
   { href: '/admin', label: 'Resumen', icon: LayoutDashboard },
+  { href: '/admin/inference-metrics', label: 'Tokens & Costo LLM', icon: Zap, highlight: true },
   { href: '/admin/widget-analytics', label: 'Widgets / uso', icon: BarChart3 },
   { href: '/admin/model-stats', label: 'Modelos', icon: Cpu },
   { href: '/admin/sub-agents', label: 'Sub-agentes', icon: Network },
@@ -44,15 +45,22 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   const navLinks = (
     <>
-      {NAV.map(({ href, label, icon: Icon }) => {
+      {NAV.map(({ href, label, icon: Icon, highlight }) => {
         const active = pathname === href || (href !== '/admin' && pathname.startsWith(href));
+        // Color destacado para items 'highlight' (ej. Tokens & Costo) — naranja brand
+        const HL = '#f97316'; // tailwind orange-500
         return (
           <Link key={href} href={href} onClick={() => setMobileOpen(false)} style={{
             display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px',
             borderRadius: '10px', textDecoration: 'none', fontSize: '13px',
-            fontWeight: active ? 700 : 500,
-            background: active ? 'rgba(99,102,241,0.12)' : 'transparent',
-            color: active ? '#6366f1' : 'var(--foreground)',
+            fontWeight: highlight || active ? 700 : 500,
+            background: active
+              ? (highlight ? `${HL}1f` : 'rgba(99,102,241,0.12)')
+              : (highlight ? `${HL}14` : 'transparent'),
+            color: active
+              ? (highlight ? HL : '#6366f1')
+              : (highlight ? HL : 'var(--foreground)'),
+            border: highlight ? `1px solid ${HL}40` : '1px solid transparent',
           }}>
             <Icon size={15} />
             {label}
