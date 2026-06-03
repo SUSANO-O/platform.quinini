@@ -130,19 +130,20 @@ async function processIncomingMessages(rawBody: string, signatureHeader: string 
         // Es el dueño — marcar como manejado para no procesarlo como cliente
         handledByOwner.add(msg.id);
 
+        type WaSession = { sessionId: string; chatSessionId?: string | null; widgetId?: string; userId?: string };
         const contextId = (msg as unknown as { context?: { id?: string } }).context?.id;
-        let session: { sessionId: string; chatSessionId?: string; widgetId?: string; userId?: string } | null = null;
+        let session: WaSession | null = null;
 
         if (contextId) {
           session = await ConversationSession.findOne({ handoffWaNotifMsgId: contextId })
-            .select({ sessionId: 1, chatSessionId: 1, widgetId: 1, userId: 1 }).lean() as typeof session;
+            .select({ sessionId: 1, chatSessionId: 1, widgetId: 1, userId: 1 }).lean() as WaSession | null;
         }
         if (!session) {
           session = await ConversationSession.findOne({
             userId: String(ownerUser._id),
             escalated: true,
             inboxStatus: { $ne: 'resolved' },
-          }).sort({ handoffAt: -1 }).select({ sessionId: 1, chatSessionId: 1, widgetId: 1, userId: 1 }).lean() as typeof session;
+          }).sort({ handoffAt: -1 }).select({ sessionId: 1, chatSessionId: 1, widgetId: 1, userId: 1 }).lean() as WaSession | null;
         }
 
         if (session) {
