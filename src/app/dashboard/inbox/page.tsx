@@ -76,6 +76,8 @@ export default function InboxPage() {
   const [uploadingAttachment, setUploadingAttachment] = useState<string | null>(null);
   // Polling del hilo mientras el modal de chat está abierto en una sesión activa.
   const [livePolling, setLivePolling] = useState<string | null>(null);
+  const [humanModeBySession, setHumanModeBySession] = useState<Record<string, boolean>>({});
+  const [reactivatingBot, setReactivatingBot] = useState<string | null>(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -124,6 +126,29 @@ export default function InboxPage() {
     const td = await tr.json();
     if (tr.ok && Array.isArray(td.messages)) {
       setTranscripts((prev) => ({ ...prev, [sessionId]: td.messages }));
+      if (typeof td.session?.humanMode === 'boolean') {
+        setHumanModeBySession((prev) => ({ ...prev, [sessionId]: td.session.humanMode }));
+      }
+    }
+  }
+
+  async function reactivateBot(sessionId: string) {
+    setReactivatingBot(sessionId);
+    try {
+      const res = await fetch(`/api/inbox/${encodeURIComponent(sessionId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ humanMode: false }),
+      });
+      if (res.ok) {
+        setHumanModeBySession((prev) => ({ ...prev, [sessionId]: false }));
+        toast.success('Bot reactivado — el agente retoma la conversación.');
+      } else {
+        const d = await res.json();
+        toast.error(d.error || 'No se pudo reactivar el bot.');
+      }
+    } finally {
+      setReactivatingBot(null);
     }
   }
 
@@ -339,6 +364,9 @@ export default function InboxPage() {
           sendingReply={sendingReply === expanded}
           onSendReply={() => void sendReply(expanded)}
           onDeleteMessage={(messageId) => void deleteMessage(expanded, messageId)}
+          humanMode={humanModeBySession[expanded] ?? false}
+          onReactivateBot={() => void reactivateBot(expanded)}
+          reactivatingBot={reactivatingBot === expanded}
         />
       )}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
