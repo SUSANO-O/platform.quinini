@@ -46,7 +46,8 @@ import { ModelCatalogPicker } from '@/components/dashboard/model-catalog-picker'
 import { AgentFallbackPicker } from '@/components/dashboard/agent-fallback-picker';
 import { useFallbackModelOptions } from '@/hooks/use-fallback-model-options';
 import { AgentDetailHeader } from '@/components/dashboard/agent-detail-header';
-import { AgentDetailTabs, type AgentDetailTabId } from '@/components/dashboard/agent-detail-tabs';
+import { type AgentDetailTabId } from '@/components/dashboard/agent-detail-tabs';
+import { BuilderRail } from '@/components/dashboard/builder-rail';
 
 import { R, O, B } from '@/lib/brand-colors';
 const RUNTIME_SKILL_TEMPLATES = [
@@ -1333,7 +1334,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       <div className="hero-glow pointer-events-none" style={{ background: R, top: '-200px', right: '-60px' }} />
       <div className="hero-glow pointer-events-none" style={{ background: B, top: '120px', left: '-120px' }} />
 
-      <div className="relative px-4 sm:px-6 py-8 md:py-10 max-w-4xl mx-auto">
+      <div className="relative px-4 sm:px-6 py-8 md:py-10 max-w-5xl mx-auto">
       {agent && (
         <>
           <AgentMcpOpenFromQuery
@@ -1364,7 +1365,15 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         onDelete={() => setShowDeleteConfirm(true)}
       />
 
-      <AgentDetailTabs tabs={visibleTabs} active={tab} onChange={setTab} />
+      <div className="flex flex-col md:flex-row gap-5 md:gap-6 mt-5">
+      <BuilderRail
+        mode="tabs"
+        ariaLabel="Secciones del agente"
+        items={visibleTabs.map((t) => ({ id: t.id, label: t.label, icon: t.icon, count: t.count }))}
+        activeId={tab}
+        onSelect={(id) => setTab(id as AgentDetailTabId)}
+      />
+      <div className="flex-1 min-w-0">
       {soloChatOnly && (
         <p className="text-xs mb-4 m-0 px-3 py-2 rounded-xl border" style={{ color: 'var(--muted-foreground)', borderColor: 'var(--border)', background: 'var(--muted)' }}>
           Plan <strong>Solo</strong>: chat básico. Actualiza a Basic o superior para reglas, FAQ, herramientas, almacenamiento y sub-agentes.
@@ -3754,6 +3763,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           )}
         </>
       )}
+      </div>
+      </div>
       </div>
     </div>
   );

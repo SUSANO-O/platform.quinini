@@ -6,7 +6,7 @@ import { Copy, Check, Save, ExternalLink, Plus, Trash2, Sparkles, Loader2 } from
 import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/use-subscription';
 import { AvatarEditor } from '@/components/ui/AvatarEditor';
-import { WizardSteps } from '@/components/ui/wizard-steps';
+import { BuilderRail } from '@/components/dashboard/builder-rail';
 import {
   createDefaultPipelineConfig,
   isContentCapableAgent,
@@ -1083,6 +1083,22 @@ export default function WidgetBuilderPage() {
       <div className="hero-glow pointer-events-none" style={{ background: BRAND_B, top: '120px', left: '-100px' }} />
 
       <div className="relative flex flex-col xl:flex-row gap-4 max-w-[1440px] mx-auto px-2 py-2 xl:items-start">
+        {/* Sub-sidebar de pasos — vertical en escritorio, horizontal en móvil */}
+        <BuilderRail
+          mode="steps"
+          ariaLabel="Pasos del widget"
+          items={WIDGET_WIZARD_STEPS.map((s, i) => ({
+            id: s.id,
+            label: s.label,
+            state: i < wizardStep ? 'done' : i === wizardStep ? 'active' : 'pending',
+          }))}
+          activeId={WIDGET_WIZARD_STEPS[wizardStep].id}
+          onSelect={(id) => {
+            const idx = WIDGET_WIZARD_STEPS.findIndex((s) => s.id === id);
+            if (idx >= 0) setWizardStep(idx);
+          }}
+        />
+
         {/* Formulario — columna principal */}
         <div className="w-full xl:flex-[1.45] xl:min-w-[min(100%,480px)] shrink-0 xl:max-h-[calc(100vh-5rem)] overflow-y-auto">
           <div className="card-texture rounded-2xl border p-4 sm:p-5" style={{ borderColor: 'var(--border)' }}>
@@ -1110,12 +1126,6 @@ export default function WidgetBuilderPage() {
                 </Link>
               </p>
             )}
-
-        <WizardSteps
-          steps={[...WIDGET_WIZARD_STEPS]}
-          current={wizardStep}
-          onStepClick={setWizardStep}
-        />
 
         {wizardStep === 0 && (
         <>
