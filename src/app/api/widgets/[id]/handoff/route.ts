@@ -150,9 +150,11 @@ export async function POST(
     }).catch(() => {});
   }
 
-  // ── Notificación WhatsApp personal del dueño ────────────────────────────────
-  if (user?.escalationWhatsAppPhone && body.sessionId?.trim()) {
-    // Buscar un agente activo con WhatsApp configurado para usar su token/phoneNumberId
+  // ── Notificación WhatsApp al dueño usando humanSupportPhone del widget ────────
+  // El número ya está en el widget (campo "WhatsApp para atención humana").
+  // Si no hay número en el widget, cae al escalationWhatsAppPhone del usuario.
+  const notifyPhone = widget.humanSupportPhone?.trim() || user?.escalationWhatsAppPhone?.trim() || '';
+  if (notifyPhone && body.sessionId?.trim()) {
     void (async () => {
       try {
         const waAgent = await ClientAgent.findOne({
@@ -165,14 +167,13 @@ export async function POST(
 
         const notifResult = await sendHandoffNotification({
           waConfig: waAgent.whatsapp,
-          ownerPhone: user.escalationWhatsAppPhone!,
+          ownerPhone: notifyPhone,
           visitorName: contactInfo.name || undefined,
           userMessage: body.userMessage,
           widgetName: widget.name || id,
           sessionId: body.sessionId!.trim(),
         });
 
-        // Guardar el messageId en la ConversationSession para rutear la respuesta del dueño
         if (notifResult.ok && notifResult.messageId) {
           const { ConversationSession } = await import('@/lib/db/models');
           await ConversationSession.updateOne(
