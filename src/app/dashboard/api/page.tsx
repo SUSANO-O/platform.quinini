@@ -1,7 +1,8 @@
 'use client';
 
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ExternalLink, Lock, Code2 } from 'lucide-react';
+import { ExternalLink, Lock, Code2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useSubscription } from '@/hooks/use-subscription';
 import {
   apiAccessUpgradeLabel,
@@ -18,6 +19,79 @@ export default function DashboardApiPage() {
   const hasAccess = canUseApiAccess(plan, status);
   const docsUrl = getAgentflowApiDocsUrl();
   const apiBase = getAgentflowApiUrl();
+
+  // Comprueba si el servicio API responde antes de embeber el iframe: si está
+  // caído mostramos un aviso claro en vez del icono de «documento roto».
+  // Reintenta varias veces porque el primer acceso a Nuxt compila la ruta en
+  // frío y puede tardar más que el timeout inicial.
+  const [apiStatus, setApiStatus] = useState<'checking' | 'up' | 'down'>('checking');
+  const [iframeSrc, setIframeSrc] = useState<string | null>(null);
+
+  const checkHealth = useCallback(async (): Promise<boolean> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    try {
+      const res = await fetch(`${apiBase}/api/v1/health`, {
+        signal: controller.signal,
+        cache: 'no-store',
+      });
+      return res.ok;
+    } catch {
+      return false;
+    } finally {
+      clearTimeout(timer);
+    }
+  }, [apiBase]);
+
+  useEffect(() => {
+    if (!hasAccess) return;
+    let cancelled = false;
+    setApiStatus('checking');
+    (async () => {
+      for (let attempt = 0; attempt < 3 && !cancelled; attempt++) {
+        if (await checkHealth()) {
+          if (!cancelled) setApiStatus('up');
+          return;
+        }
+        if (attempt < 2 && !cancelled) await new Promise((r) => setTimeout(r, 2000));
+      }
+      if (!cancelled) setApiStatus('down');
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasAccess, checkHealth]);
+
+  useEffect(() => {
+    if (!hasAccess || apiStatus !== 'up') {
+      setIframeSrc(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/docs-bridge', { credentials: 'include', cache: 'no-store' });
+        const data = (await res.json()) as { token?: string };
+        if (cancelled) return;
+        if (res.ok && data.token) {
+          const sep = docsUrl.includes('?') ? '&' : '?';
+          setIframeSrc(`${docsUrl}${sep}session=${encodeURIComponent(data.token)}`);
+        } else {
+          setIframeSrc(docsUrl);
+        }
+      } catch {
+        if (!cancelled) setIframeSrc(docsUrl);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasAccess, apiStatus, docsUrl]);
+
+  const retryHealth = useCallback(async () => {
+    setApiStatus('checking');
+    setApiStatus((await checkHealth()) ? 'up' : 'down');
+  }, [checkHealth]);
 
   if (loading) {
     return (
@@ -94,12 +168,69 @@ export default function DashboardApiPage() {
             <ExternalLink size={14} />
           </a>
         </div>
-        <iframe
-          title="Documentación API BotIvA"
-          src={docsUrl}
-          className="w-full border-0"
-          style={{ height: 'min(72vh, 720px)', background: '#fff' }}
-        />
+        {apiStatus === 'up' && iframeSrc ? (
+          <iframe
+            title="Documentación API BotIvA"
+            src={iframeSrc}
+            className="w-full border-0"
+            style={{ height: 'min(72vh, 720px)', background: '#fff' }}
+          />
+        ) : apiStatus === 'up' ? (
+          <div
+            className="flex items-center justify-center px-6 py-16"
+            style={{ height: 'min(72vh, 720px)' }}
+          >
+            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+              Preparando sesión de documentación…
+            </p>
+          </div>
+        ) : (
+          <div
+            className="flex flex-col items-center justify-center gap-3 text-center px-6 py-16"
+            style={{ height: 'min(72vh, 720px)' }}
+          >
+            {apiStatus === 'checking' ? (
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                Conectando con el servicio de documentación…
+              </p>
+            ) : (
+              <>
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center"
+                  style={{ background: 'rgba(245,158,11,0.12)' }}
+                >
+                  <AlertTriangle size={22} style={{ color: '#f59e0b' }} />
+                </div>
+                <p className="text-sm font-semibold m-0">No se pudo cargar la documentación</p>
+                <p className="text-sm max-w-md m-0" style={{ color: 'var(--muted-foreground)' }}>
+                  El servicio de API (<code className="text-xs">{apiBase}</code>) no está respondiendo.
+                  Verifica que esté en marcha o ábrela directamente en una pestaña nueva.
+                </p>
+                <div className="flex items-center gap-4 mt-1">
+                  <button
+                    type="button"
+                    onClick={retryHealth}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold"
+                    style={{ color: 'var(--primary)' }}
+                  >
+                    <RefreshCw size={14} />
+                    Reintentar
+                  </button>
+                  <a
+                    href={docsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold"
+                    style={{ color: 'var(--primary)' }}
+                  >
+                    Abrir documentación
+                    <ExternalLink size={14} />
+                  </a>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       <div
