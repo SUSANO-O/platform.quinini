@@ -11,6 +11,11 @@ import { decryptSecret } from '@/lib/secret-crypto';
 
 const GRAPH = 'https://graph.facebook.com';
 
+/** Normaliza un número de teléfono a solo dígitos (sin + ni espacios). */
+export function normalizePhoneDigits(phone: string): string {
+  return phone.replace(/[^\d]/g, '');
+}
+
 export type WhatsAppAgentConfig = {
   enabled?: boolean;
   phoneNumberId?: string;
@@ -107,4 +112,32 @@ export async function sendWhatsAppText(
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Error de red' };
   }
+}
+
+/**
+ * Envía una alerta de handoff al número personal del dueño.
+ * Devuelve el messageId del WA enviado (para mapear su respuesta a la sesión).
+ */
+export async function sendHandoffNotification(params: {
+  waConfig: WhatsAppAgentConfig;
+  ownerPhone: string;           // número personal del dueño: +57 313 3174629
+  visitorName?: string;
+  userMessage?: string;
+  widgetName?: string;
+  sessionId: string;            // ho_* del inbox para rutear la respuesta
+}): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+  const visitorLabel = params.visitorName?.trim() || 'Visitante anónimo';
+  const msgPreview = params.userMessage?.trim().slice(0, 120) || '';
+  const widgetLabel = params.widgetName?.trim() || 'widget';
+
+  const body = [
+    `🔔 *Nueva solicitud de atención humana*`,
+    `👤 ${visitorLabel} — ${widgetLabel}`,
+    ...(msgPreview ? [`💬 "${msgPreview}"`] : []),
+    ``,
+    `↩️ *Responde ESTE mensaje* (usa Reply/Responder en WhatsApp) para contestar al visitante en tiempo real.`,
+  ].join('\n');
+
+  const result = await sendWhatsAppText(params.waConfig, normalizePhoneDigits(params.ownerPhone), body);
+  return result;
 }

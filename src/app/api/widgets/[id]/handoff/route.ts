@@ -17,6 +17,8 @@ import { createEscalationTicket } from '@/lib/escalation-tickets';
 import { notifySlackOnEscalation } from '@/lib/escalation-slack';
 import { upsertHandoffInboxSession } from '@/lib/inbox-handoff';
 import { getCorsHeaders, handlePreflight, withCors } from '@/lib/cors';
+import { sendHandoffNotification } from '@/lib/whatsapp';
+import { ClientAgent } from '@/lib/db/models';
 import {
   normalizeHandoffNotifyMode,
   shouldDispatchHandoffSlack,
@@ -133,8 +135,8 @@ export async function POST(
   }
 
   const user = await User.findById(uid)
-    .select({ email: 1, pushSubscription: 1 })
-    .lean() as { email?: string; pushSubscription?: unknown } | null;
+    .select({ email: 1, pushSubscription: 1, escalationWhatsAppPhone: 1 })
+    .lean() as { email?: string; pushSubscription?: unknown; escalationWhatsAppPhone?: string | null } | null;
 
   const notifTitle = 'Nueva solicitud de atención humana';
   const notifBody = `Widget "${widget.name || id}"${contactInfo.name ? ` — ${contactInfo.name}` : ''}${body.userMessage ? `: "${body.userMessage.slice(0, 60)}"` : ''}`;
@@ -146,6 +148,42 @@ export async function POST(
       url: '/dashboard/inbox',
       tag: `handoff-${id}`,
     }).catch(() => {});
+  }
+
+  // ── Notificación WhatsApp personal del dueño ────────────────────────────────
+  if (user?.escalationWhatsAppPhone && body.sessionId?.trim()) {
+    // Buscar un agente activo con WhatsApp configurado para usar su token/phoneNumberId
+    void (async () => {
+      try {
+        const waAgent = await ClientAgent.findOne({
+          userId: uid,
+          'whatsapp.enabled': true,
+          'whatsapp.accessTokenEnc': { $exists: true, $ne: '' },
+        }).select({ whatsapp: 1 }).lean() as { whatsapp?: import('@/lib/whatsapp').WhatsAppAgentConfig } | null;
+
+        if (!waAgent?.whatsapp) return;
+
+        const notifResult = await sendHandoffNotification({
+          waConfig: waAgent.whatsapp,
+          ownerPhone: user.escalationWhatsAppPhone!,
+          visitorName: contactInfo.name || undefined,
+          userMessage: body.userMessage,
+          widgetName: widget.name || id,
+          sessionId: body.sessionId!.trim(),
+        });
+
+        // Guardar el messageId en la ConversationSession para rutear la respuesta del dueño
+        if (notifResult.ok && notifResult.messageId) {
+          const { ConversationSession } = await import('@/lib/db/models');
+          await ConversationSession.updateOne(
+            { chatSessionId: body.sessionId!.trim() },
+            { $set: { handoffWaNotifMsgId: notifResult.messageId } },
+          ).catch(() => {});
+        }
+      } catch (e) {
+        console.error('[handoff] WA notification failed:', e);
+      }
+    })();
   }
 
   const webhookPayload = {
