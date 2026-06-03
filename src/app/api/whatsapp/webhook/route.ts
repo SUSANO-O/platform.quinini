@@ -11,7 +11,7 @@
  *        chat del agente (MCP), y envía la respuesta de vuelta por WhatsApp.
  */
 
-import { NextRequest } from 'next/server';
+import { NextRequest, after } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent } from '@/lib/db/models';
 import {
@@ -25,6 +25,7 @@ import { persistWidgetTranscript } from '@/lib/widget-transcript';
 import { getAgentflowhubBaseUrl } from '@/lib/aibackhub-sync';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 // ── GET: verificación inicial de Meta ────────────────────────────────────────
 export async function GET(req: NextRequest) {
@@ -65,9 +66,12 @@ export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signatureHeader = req.headers.get('x-hub-signature-256');
 
-  // Procesamiento en background — no bloqueamos la respuesta a Meta
-  void processIncomingMessages(rawBody, signatureHeader).catch((e) => {
-    console.error('[whatsapp/webhook] processing failed:', e);
+  // after() garantiza que el procesamiento corre DESPUÉS de enviar el 200 a Meta.
+  // Con void, Vercel mataba la función antes de terminar las llamadas HTTP.
+  after(async () => {
+    await processIncomingMessages(rawBody, signatureHeader).catch((e) => {
+      console.error('[whatsapp/webhook] processing failed:', e);
+    });
   });
 
   return new Response('OK', { status: 200 });
