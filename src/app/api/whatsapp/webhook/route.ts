@@ -23,6 +23,7 @@ import {
 import { tryServeWidgetChatViaHubMcp } from '@/lib/widget-chat-direct-mcp';
 import { persistWidgetTranscript } from '@/lib/widget-transcript';
 import { getAgentflowhubBaseUrl } from '@/lib/aibackhub-sync';
+import { ConversationSession } from '@/lib/db/models';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -229,6 +230,31 @@ async function handleSingleMessage(params: {
   if (!sendResult.ok) {
     console.error('[whatsapp/webhook] send failed:', sendResult.error);
   }
+
+  // Upsert ConversationSession para que la conversación aparezca en el Inbox del dashboard.
+  // escalated: true + handoffAt hace que inboxSessionFilter la incluya sin cambios.
+  const now = new Date();
+  void ConversationSession.findOneAndUpdate(
+    { sessionId: params.sessionId },
+    {
+      $setOnInsert: {
+        sessionId: params.sessionId,
+        chatSessionId: params.sessionId,
+        userId: params.ownerUserId,
+        widgetId: params.widgetIdEquivalent,
+        agentId: params.agentIdForChat,
+        visitorId: `wa_${params.from}`,
+        escalated: true,
+        inboxStatus: 'open',
+        startedAt: now,
+        handoffAt: now,
+        handoffContact: { phone: params.from },
+        handoffMessage: params.text,
+      },
+      $set: { updatedAt: now },
+    },
+    { upsert: true },
+  ).catch(() => { /* best-effort */ });
 
   // Persistir en historial para inbox + dashboard counters
   void persistWidgetTranscript({

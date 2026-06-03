@@ -8,8 +8,9 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
-import { ConversationSession, Widget, WidgetMessage } from '@/lib/db/models';
+import { ConversationSession, Widget, WidgetMessage, ClientAgent } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
+import { sendWhatsAppText, type WhatsAppAgentConfig } from '@/lib/whatsapp';
 
 type Params = { params: Promise<{ sessionId: string }> };
 
@@ -53,7 +54,53 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   await connectDB();
 
-  // Verificar que la sesión escalada pertenece a un widget del usuario.
+  // ── Sesiones WhatsApp (wa:phoneNumberId:from) ────────────────────────────────
+  if (sessionId.startsWith('wa:')) {
+    const parts = sessionId.split(':');
+    const phoneNumberId = parts[1] || '';
+    const toPhone = parts[2] || '';
+    if (!phoneNumberId || !toPhone) {
+      return NextResponse.json({ error: 'sessionId de WhatsApp inválido.' }, { status: 400 });
+    }
+
+    const agentDoc = await ClientAgent.findOne({
+      'whatsapp.phoneNumberId': phoneNumberId,
+      userId,
+    }).select({ whatsapp: 1, _id: 1 }).lean() as { whatsapp?: WhatsAppAgentConfig; _id: unknown } | null;
+
+    if (!agentDoc) {
+      return NextResponse.json({ error: 'No autorizado para este número de WhatsApp.' }, { status: 403 });
+    }
+
+    if (message) {
+      const sendResult = await sendWhatsAppText(agentDoc.whatsapp ?? {}, toPhone, message);
+      if (!sendResult.ok) {
+        return NextResponse.json({ error: `Error al enviar por WhatsApp: ${sendResult.error}` }, { status: 502 });
+      }
+    }
+
+    const created = await WidgetMessage.create({
+      widgetId: String(agentDoc._id),
+      userId,
+      agentId: '',
+      sessionId,
+      role: 'assistant',
+      sentBy: 'human',
+      content: message,
+      attachments,
+      traceId: `human:${Date.now()}`,
+    });
+
+    // Actualizar timestamp de último mensaje humano en la sesión
+    await ConversationSession.updateOne(
+      { sessionId },
+      { $set: { lastHumanMessageAt: new Date(), humanMode: true } },
+    );
+
+    return NextResponse.json({ ok: true, messageId: String(created._id), attachments, channel: 'whatsapp' });
+  }
+
+  // ── Sesiones de widget web (escaladas) ───────────────────────────────────────
   const session = await ConversationSession.findOne({ sessionId, escalated: true }).lean() as {
     widgetId?: string;
     chatSessionId?: string;
@@ -61,7 +108,6 @@ export async function POST(req: NextRequest, { params }: Params) {
   } | null;
   if (!session) return NextResponse.json({ error: 'Sesión no encontrada o no escalada.' }, { status: 404 });
 
-  // El widgetId en ConversationSession puede ser el _id del widget.
   const widgetId = String(session.widgetId || '');
   if (!widgetId) return NextResponse.json({ error: 'Sesión sin widget asociado.' }, { status: 400 });
 
