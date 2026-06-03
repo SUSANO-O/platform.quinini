@@ -367,7 +367,7 @@ export function InboxChatModal({
           style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)' }}
         >
           {!isResolved && (
-            {humanMode ? (
+            humanMode ? (
               <div
                 className="shrink-0 flex items-center justify-between gap-2 mb-3 px-3 py-2 rounded-xl"
                 style={{ background: 'rgba(234,179,8,0.10)', border: '1px solid rgba(234,179,8,0.30)' }}
@@ -391,22 +391,22 @@ export function InboxChatModal({
                 )}
               </div>
             ) : (
-            <div
-              className="shrink-0 flex items-center gap-2 mb-3 px-3 py-2 rounded-xl"
-              style={{
-                background: 'rgba(var(--brand-primary-rgb),0.06)',
-                border: '1px solid rgba(var(--brand-primary-rgb),0.12)',
-              }}
-            >
-              <span className="relative flex w-2 h-2 shrink-0">
-                <span className="animate-ping absolute inset-0 rounded-full bg-emerald-500 opacity-60" />
-                <span className="relative w-2 h-2 rounded-full bg-emerald-500" />
-              </span>
-              <span className="text-[11px] font-semibold" style={{ color: 'var(--foreground)' }}>
-                Conversación en vivo — tus respuestas llegan al visitante al instante.
-              </span>
-            </div>
-            )}
+              <div
+                className="shrink-0 flex items-center gap-2 mb-3 px-3 py-2 rounded-xl"
+                style={{
+                  background: 'rgba(var(--brand-primary-rgb),0.06)',
+                  border: '1px solid rgba(var(--brand-primary-rgb),0.12)',
+                }}
+              >
+                <span className="relative flex w-2 h-2 shrink-0">
+                  <span className="animate-ping absolute inset-0 rounded-full bg-emerald-500 opacity-60" />
+                  <span className="relative w-2 h-2 rounded-full bg-emerald-500" />
+                </span>
+                <span className="text-[11px] font-semibold" style={{ color: 'var(--foreground)' }}>
+                  Conversación en vivo — tus respuestas llegan al visitante al instante.
+                </span>
+              </div>
+            )
           )}
 
           {loading ? (
