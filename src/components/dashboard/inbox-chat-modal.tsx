@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import {
-  FileText, Loader2, MessageSquare, Paperclip, Send, Trash2, User, X, Download, Check, CheckCheck,
+  FileText, Loader2, MessageSquare, Paperclip, Send, Trash2, User, X, Download, Check, CheckCheck, Bot,
 } from 'lucide-react';
 
 export type ChatAttachment = {
@@ -64,6 +64,9 @@ type InboxChatModalProps = {
   sendingReply: boolean;
   onSendReply: () => void;
   onDeleteMessage: (messageId: string) => void;
+  humanMode?: boolean;
+  onReactivateBot?: () => void;
+  reactivatingBot?: boolean;
 };
 
 function formatBytes(n?: number): string {
@@ -250,6 +253,9 @@ export function InboxChatModal({
   sendingReply,
   onSendReply,
   onDeleteMessage,
+  humanMode = false,
+  onReactivateBot,
+  reactivatingBot = false,
 }: InboxChatModalProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -361,6 +367,30 @@ export function InboxChatModal({
           style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)' }}
         >
           {!isResolved && (
+            {humanMode ? (
+              <div
+                className="shrink-0 flex items-center justify-between gap-2 mb-3 px-3 py-2 rounded-xl"
+                style={{ background: 'rgba(234,179,8,0.10)', border: '1px solid rgba(234,179,8,0.30)' }}
+              >
+                <div className="flex items-center gap-2">
+                  <Bot size={14} style={{ color: '#b45309' }} />
+                  <span className="text-[11px] font-semibold" style={{ color: '#b45309' }}>
+                    Modo humano activo — el bot está silenciado.
+                  </span>
+                </div>
+                {onReactivateBot && (
+                  <button
+                    type="button"
+                    disabled={reactivatingBot}
+                    onClick={onReactivateBot}
+                    className="text-[11px] font-bold px-2.5 py-1 rounded-lg border-0 cursor-pointer transition-all"
+                    style={{ background: '#b45309', color: '#fff', opacity: reactivatingBot ? 0.6 : 1 }}
+                  >
+                    {reactivatingBot ? '…' : 'Devolver al bot'}
+                  </button>
+                )}
+              </div>
+            ) : (
             <div
               className="shrink-0 flex items-center gap-2 mb-3 px-3 py-2 rounded-xl"
               style={{
@@ -376,6 +406,7 @@ export function InboxChatModal({
                 Conversación en vivo — tus respuestas llegan al visitante al instante.
               </span>
             </div>
+            )}
           )}
 
           {loading ? (

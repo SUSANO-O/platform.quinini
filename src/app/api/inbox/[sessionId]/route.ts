@@ -68,6 +68,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       inboxStatus: session.inboxStatus || 'open',
       handoffMessage: session.handoffMessage || '',
       contact: contact || {},
+      humanMode: Boolean((session as { humanMode?: boolean }).humanMode),
     },
     messages: transcript.map((m) => ({
       id: (m as { _id?: unknown })._id ? String((m as { _id?: unknown })._id) : '',
@@ -91,6 +92,30 @@ export async function GET(req: NextRequest, { params }: Params) {
         : [],
     })),
   });
+}
+
+export async function PATCH(req: NextRequest, { params }: Params) {
+  const token = req.cookies.get('afhub_session')?.value;
+  if (!token) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
+  const userId = verifySessionToken(token);
+  if (!userId) return NextResponse.json({ error: 'Sesión inválida.' }, { status: 401 });
+
+  const { sessionId } = await params;
+  const body = await req.json().catch(() => ({})) as { humanMode?: boolean };
+
+  if (typeof body.humanMode !== 'boolean') {
+    return NextResponse.json({ error: 'humanMode boolean requerido.' }, { status: 400 });
+  }
+
+  await connectDB();
+  const updated = await ConversationSession.findOneAndUpdate(
+    { sessionId, userId },
+    { $set: { humanMode: body.humanMode } },
+    { new: true },
+  ).lean();
+
+  if (!updated) return NextResponse.json({ error: 'Sesión no encontrada.' }, { status: 404 });
+  return NextResponse.json({ ok: true, sessionId, humanMode: body.humanMode });
 }
 
 export async function DELETE(req: NextRequest, { params }: Params) {

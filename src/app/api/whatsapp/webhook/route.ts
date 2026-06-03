@@ -142,6 +142,38 @@ async function processIncomingMessages(rawBody: string, signatureHeader: string 
         // Es el dueño — marcar como manejado para no procesarlo como cliente
         handledByOwner.add(msg.id);
 
+        // Comando /bot: reactiva el agente IA (desactiva humanMode)
+        if (msg.text!.body.trim().toLowerCase() === '/bot') {
+          const lastSession = await ConversationSession.findOne({
+            userId: String(ownerUser._id),
+            escalated: true,
+            inboxStatus: { $ne: 'resolved' },
+          }).sort({ handoffAt: -1 }).select({ sessionId: 1 }).lean() as { sessionId: string } | null;
+
+          if (lastSession) {
+            await ConversationSession.updateOne(
+              { sessionId: lastSession.sessionId },
+              { $set: { humanMode: false } },
+            );
+          }
+          // Confirmar al dueño por WhatsApp
+          const { ClientAgent } = await import('@/lib/db/models');
+          const waAgent = await ClientAgent.findOne({
+            userId: String(ownerUser._id),
+            'whatsapp.enabled': true,
+          }).select({ whatsapp: 1 }).lean() as { whatsapp?: WhatsAppAgentConfig } | null;
+          if (waAgent?.whatsapp) {
+            await sendWhatsAppText(
+              waAgent.whatsapp,
+              normalizePhoneDigits(ownerPhone),
+              lastSession
+                ? '✅ Bot reactivado — el agente IA retoma la conversación.'
+                : '⚠️ No hay sesión activa abierta para reactivar.',
+            );
+          }
+          continue;
+        }
+
         type WaSession = { sessionId: string; chatSessionId?: string | null; widgetId?: string; userId?: string };
         const contextId = (msg as unknown as { context?: { id?: string } }).context?.id;
         let session: WaSession | null = null;
@@ -233,6 +265,14 @@ async function handleSingleMessage(params: {
   text: string;
   sessionId: string;
 }): Promise<void> {
+  // Si un humano ya tomó el control desde el Inbox, el bot se calla.
+  const activeSession = await ConversationSession.findOne({ sessionId: params.sessionId })
+    .select({ humanMode: 1 }).lean() as { humanMode?: boolean } | null;
+  if (activeSession?.humanMode === true) {
+    console.log('[whatsapp/webhook] humanMode activo — bot silenciado para', params.sessionId);
+    return;
+  }
+
   const chatBody = JSON.stringify({
     message: params.text,
     agentId: params.agentIdForChat,
