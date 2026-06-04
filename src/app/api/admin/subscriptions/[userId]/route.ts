@@ -9,12 +9,12 @@ import { connectDB } from '@/lib/db/connection';
 import { User, Subscription } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
 import { recordAudit } from '@/lib/audit-log';
-import { SCHEDULED_TASKS_FEATURE } from '@/lib/plan-catalog';
+import { VALID_FEATURE_OVERRIDES } from '@/lib/plan-catalog';
 
 const VALID_PLANS   = ['free', 'solo', 'team', 'plus', 'business', 'enterprise'] as const;
 const VALID_STATUSES = ['trialing', 'active', 'canceled', 'past_due', 'incomplete'] as const;
-/** Overrides de feature que un admin puede activar manualmente en una suscripción. */
-const VALID_FEATURES = [SCHEDULED_TASKS_FEATURE] as const;
+/** Overrides de feature que un admin puede activar manualmente (fuente única en plan-catalog). */
+const VALID_FEATURES = VALID_FEATURE_OVERRIDES;
 
 async function requireAdmin(req: NextRequest): Promise<string | null> {
   const token = req.cookies.get('afhub_session')?.value;

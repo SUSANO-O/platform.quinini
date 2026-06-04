@@ -1,4 +1,4 @@
-import { planRank, PLAN_DISPLAY, type PlanId } from '@/lib/plan-catalog';
+import { planRank, PLAN_DISPLAY, hasFeatureOverride, CUSTOM_INTEGRATION_FEATURE, type PlanId } from '@/lib/plan-catalog';
 
 /**
  * Plan mínimo por integración MCP (landing). Alineado con agent-plans / negocio.
@@ -16,7 +16,13 @@ export function minPlanForMcpIntegration(key: string): PlanId {
   return MCP_INTEGRATION_MIN_PLAN[key] ?? 'free';
 }
 
-export function isMcpIntegrationAllowedForPlan(integrationKey: string, userPlan: string): boolean {
+export function isMcpIntegrationAllowedForPlan(
+  integrationKey: string,
+  userPlan: string,
+  subscriptionFeatures?: string[] | null,
+): boolean {
+  // Override de admin: 'custom_integration' desbloquea cualquier integración MCP.
+  if (hasFeatureOverride(subscriptionFeatures, CUSTOM_INTEGRATION_FEATURE)) return true;
   const min = minPlanForMcpIntegration(integrationKey);
   return planRank(userPlan) >= planRank(min);
 }

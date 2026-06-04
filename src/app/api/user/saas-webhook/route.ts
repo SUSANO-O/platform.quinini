@@ -17,8 +17,8 @@ import {
 
 async function loadSubscription(userId: string) {
   await connectDB();
-  return Subscription.findOne({ userId }).select({ plan: 1, status: 1 }).lean() as Promise<
-    { plan?: string; status?: string } | null
+  return Subscription.findOne({ userId }).select({ plan: 1, status: 1, features: 1 }).lean() as Promise<
+    { plan?: string; status?: string; features?: string[] } | null
   >;
 }
 
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
   const sub = await loadSubscription(userId);
   const plan = sub?.plan ?? 'free';
   const status = sub?.status ?? 'free';
-  const allowed = canUseOutboundSaasWebhook(plan, status);
+  const allowed = canUseOutboundSaasWebhook(plan, status, sub?.features);
 
   const u = await User.findById(userId).select({ saasWebhookUrl: 1, saasWebhookSecret: 1 }).lean() as
     | { saasWebhookUrl?: string | null; saasWebhookSecret?: string | null }
@@ -71,7 +71,7 @@ export async function PATCH(req: NextRequest) {
   const sub = await loadSubscription(userId);
   const plan = sub?.plan ?? 'free';
   const status = sub?.status ?? 'free';
-  if (!canUseOutboundSaasWebhook(plan, status)) {
+  if (!canUseOutboundSaasWebhook(plan, status, sub?.features)) {
     return NextResponse.json(upgradePayload(), { status: 403 });
   }
 

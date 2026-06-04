@@ -4,7 +4,7 @@
  */
 
 import { Subscription, User, WidgetMessage } from '@/lib/db/models';
-import { planHasEscalationTicketFeature, type PlanId } from '@/lib/plan-catalog';
+import { canUseEscalationTickets } from '@/lib/plan-catalog';
 
 export type EscalationTicketIntegration = {
   provider: 'zendesk' | 'freshdesk';
@@ -34,12 +34,12 @@ export type EscalationTicketResult = {
   skippedReason?: string;
 };
 
-async function resolveUserPlan(userId: string): Promise<PlanId> {
-  const sub = await Subscription.findOne({ userId }).select({ plan: 1, status: 1 }).lean() as
-    | { plan?: string; status?: string }
+/** ¿El usuario puede crear tickets al escalar? (plan Business+ o override de admin). */
+async function userCanUseTickets(userId: string): Promise<boolean> {
+  const sub = await Subscription.findOne({ userId }).select({ plan: 1, status: 1, features: 1 }).lean() as
+    | { plan?: string; status?: string; features?: string[] }
     | null;
-  const active = sub?.status === 'active' || sub?.status === 'trialing';
-  return (active ? (sub?.plan ?? 'free') : 'free') as PlanId;
+  return canUseEscalationTickets(sub?.plan ?? 'free', sub?.status ?? 'free', sub?.features);
 }
 
 function parseIntegration(raw: unknown): EscalationTicketIntegration | null {
@@ -222,8 +222,7 @@ async function createFreshdeskTicket(
 export async function createEscalationTicket(
   ctx: EscalationTicketContext,
 ): Promise<EscalationTicketResult> {
-  const plan = await resolveUserPlan(ctx.userId);
-  if (!planHasEscalationTicketFeature(plan)) {
+  if (!(await userCanUseTickets(ctx.userId))) {
     return { attempted: false, skippedReason: 'plan_insufficient' };
   }
 

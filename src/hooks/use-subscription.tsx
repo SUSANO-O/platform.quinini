@@ -35,6 +35,8 @@ export interface SubscriptionStatus {
     trialStartedAt: string | null;
     trialEndsAt: string | null;
     cancelAtPeriodEnd?: boolean;
+    /** Overrides de feature activados por admin (ej. 'whatsapp', 'scheduled_tasks'). */
+    features?: string[];
   } | null;
 }
 

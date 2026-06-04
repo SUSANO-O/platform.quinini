@@ -393,6 +393,7 @@ export function DashboardSidebar({
   const showApiLink = canUseApiAccess(
     subscription?.plan ?? 'free',
     subscription?.status ?? 'free',
+    subscription?.features,
   );
   const hideQuickStart = isSoloChatOnlyPlan(subscription?.plan ?? 'free');
 

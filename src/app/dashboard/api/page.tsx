@@ -16,7 +16,7 @@ export default function DashboardApiPage() {
   const plan = subscription?.plan ?? 'free';
   const status = subscription?.status ?? 'free';
   const effective = effectiveProductPlan(plan, status);
-  const hasAccess = canUseApiAccess(plan, status);
+  const hasAccess = canUseApiAccess(plan, status, subscription?.features);
   const docsUrl = getAgentflowApiDocsUrl();
   const apiBase = getAgentflowApiUrl();
 

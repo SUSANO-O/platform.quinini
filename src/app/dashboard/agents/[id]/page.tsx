@@ -6,6 +6,7 @@ import {
 } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSubscription } from '@/hooks/use-subscription';
+import { useAuth } from '@/hooks/use-auth';
 import { useClientModels, mergeSavedModelOptions } from '@/hooks/use-client-models';
 import { TOOLS, getAgentLimits, TOOL_MAP } from '@/lib/agent-plans';
 import {
@@ -16,8 +17,7 @@ import {
   extractSheetEntries, generateSheetId, sanitizeSheetName,
   type SheetEntry,
 } from '@/lib/agent-sheets';
-import { isSoloChatOnlyPlan, planHasWhatsAppFeature } from '@/lib/plan-catalog';
-import type { PlanId } from '@/lib/plan-catalog';
+import { isSoloChatOnlyPlan, canUseWhatsApp } from '@/lib/plan-catalog';
 import { AGENT_SKILLS } from '@/lib/agent-skills';
 import {
   Bot, ChevronLeft, Save, Loader2, Plus, Trash2, Network,
@@ -325,6 +325,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const { id } = use(params);
   const router = useRouter();
   const { subscription } = useSubscription();
+  const { user } = useAuth();
   const plan = subscription?.plan ?? 'free';
   const limits = getAgentLimits(plan);
   const soloChatOnly = isSoloChatOnlyPlan(plan);
@@ -1313,8 +1314,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     { id: 'scheduled-tasks' as const, label: 'Tareas', icon: <Clock size={14} />, count: scheduledTaskCount },
     { id: 'whatsapp' as const, label: 'WhatsApp', icon: <MessageCircle size={14} /> },
   ];
-  // WhatsApp es feature exclusiva de Business+. Se oculta el tab en planes inferiores.
-  const whatsappAllowed = planHasWhatsAppFeature(plan as PlanId);
+  // WhatsApp es feature de Business+, o concedida por override (subscription.features) / rol admin.
+  const whatsappAllowed = user?.role === 'admin' || canUseWhatsApp(
+    plan,
+    subscription?.status ?? 'free',
+    subscription?.features,
+  );
   const visibleTabs = soloChatOnly
     ? TABS.filter((t) => t.id === 'general')
     : TABS.filter((t) => t.id !== 'whatsapp' || whatsappAllowed);
@@ -1345,6 +1350,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           <AgentMcpOpenFromQuery
             agentId={id}
             plan={plan}
+            features={subscription?.features}
             readOnly={readOnly}
             onConnected={loadMcp}
             onOpenToolsTab={onOpenToolsTab}
@@ -2272,7 +2278,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         <>
           {!readOnly && (
             <div style={{ marginBottom: '16px' }}>
-              <McpLandingConnectForm landingAgentId={id} plan={plan} onConnected={loadMcp} />
+              <McpLandingConnectForm landingAgentId={id} plan={plan} features={subscription?.features} onConnected={loadMcp} />
             </div>
           )}
 

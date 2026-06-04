@@ -174,6 +174,9 @@ export async function getSubscriptionStatus(userId: string) {
       trialStartedAt: doc.trialStartedAt,
       trialEndsAt: doc.trialEndsAt,
       cancelAtPeriodEnd,
+      features: Array.isArray((doc as { features?: string[] }).features)
+        ? (doc as { features?: string[] }).features!
+        : [],
     },
   };
 }

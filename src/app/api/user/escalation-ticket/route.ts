@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
 import { User, Subscription } from '@/lib/db/models';
-import { planHasEscalationTicketFeature, type PlanId } from '@/lib/plan-catalog';
+import { canUseEscalationTickets } from '@/lib/plan-catalog';
 
 function getUserId(req: NextRequest): string | null {
   const token = req.cookies.get('afhub_session')?.value;
@@ -15,12 +15,12 @@ function getUserId(req: NextRequest): string | null {
   return verifySessionToken(token);
 }
 
-async function userPlan(userId: string): Promise<PlanId> {
-  const sub = await Subscription.findOne({ userId }).select({ plan: 1, status: 1 }).lean() as
-    | { plan?: string; status?: string }
+/** ¿El usuario puede usar tickets al escalar? (Business+ o override de admin). */
+async function userTicketEligible(userId: string): Promise<boolean> {
+  const sub = await Subscription.findOne({ userId }).select({ plan: 1, status: 1, features: 1 }).lean() as
+    | { plan?: string; status?: string; features?: string[] }
     | null;
-  const active = sub?.status === 'active' || sub?.status === 'trialing';
-  return (active ? (sub?.plan ?? 'free') : 'free') as PlanId;
+  return canUseEscalationTickets(sub?.plan ?? 'free', sub?.status ?? 'free', sub?.features);
 }
 
 export async function GET(req: NextRequest) {
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
 
   await connectDB();
-  const plan = await userPlan(userId);
+  const planEligible = await userTicketEligible(userId);
   const u = await User.findById(userId).select({ escalationTicketIntegration: 1 }).lean() as
     | { escalationTicketIntegration?: Record<string, unknown> }
     | null;
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
   );
 
   return NextResponse.json({
-    planEligible: planHasEscalationTicketFeature(plan),
+    planEligible,
     configured,
     hasExistingConfig: Boolean(raw && typeof raw === 'object' && raw.subdomain),
     integration: configured && raw
@@ -71,10 +71,9 @@ export async function PUT(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
 
   await connectDB();
-  const plan = await userPlan(userId);
-  if (!planHasEscalationTicketFeature(plan)) {
+  if (!(await userTicketEligible(userId))) {
     return NextResponse.json(
-      { error: 'Los tickets automáticos requieren plan Growth o superior.' },
+      { error: 'Los tickets automáticos requieren plan Business o superior.' },
       { status: 403 },
     );
   }
