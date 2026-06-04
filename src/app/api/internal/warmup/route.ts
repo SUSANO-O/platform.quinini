@@ -4,7 +4,7 @@
  *
  * Hace ping a los endpoints de salud de AIBackHub (`/health`) y AgentFlowhub
  * (`/api/health`), que son los servicios que el webhook de WhatsApp usa para
- * generar la respuesta del agente. Se invoca por cron de Vercel cada 3 horas.
+ * generar la respuesta del agente. Se invoca por cron de Vercel una vez al día (plan Hobby).
  *
  * Protegido con CRON_SECRET (igual que las demás rutas internas). Vercel Cron
  * envía automáticamente `Authorization: Bearer <CRON_SECRET>` cuando la env var
