@@ -270,26 +270,23 @@ async function handleSingleMessage(params: {
     .select({ humanMode: 1 }).lean() as { humanMode?: boolean } | null;
   const isHumanMode = activeSession?.humanMode === true;
 
-  // Siempre guardar el mensaje del cliente en el inbox
-  void WidgetMessage.create({
-    widgetId: params.widgetIdEquivalent,
-    userId: params.ownerUserId,
-    agentId: params.agentIdForChat,
-    sessionId: params.sessionId,
-    role: 'user',
-    sentBy: 'visitor',
-    content: params.text,
-    traceId: `wa-in:${Date.now()}`,
-  }).catch(() => {});
-
-  // Actualizar timestamp del último mensaje del visitante
-  void ConversationSession.updateOne(
-    { sessionId: params.sessionId },
-    { $set: { lastVisitorMessageAt: new Date() } },
-  ).catch(() => {});
-
   if (isHumanMode) {
-    console.log('[whatsapp/webhook] humanMode activo — mensaje guardado, bot silenciado para', params.sessionId);
+    // Humano atendiendo: guardar mensaje del cliente en inbox pero no responder con bot
+    void WidgetMessage.create({
+      widgetId: params.widgetIdEquivalent,
+      userId: params.ownerUserId,
+      agentId: params.agentIdForChat,
+      sessionId: params.sessionId,
+      role: 'user',
+      sentBy: 'visitor',
+      content: params.text,
+      traceId: `wa-in:${Date.now()}`,
+    }).catch(() => {});
+    void ConversationSession.updateOne(
+      { sessionId: params.sessionId },
+      { $set: { lastVisitorMessageAt: new Date() } },
+    ).catch(() => {});
+    console.log('[whatsapp/webhook] humanMode — mensaje guardado, bot silenciado para', params.sessionId);
     return;
   }
 
