@@ -265,11 +265,31 @@ async function handleSingleMessage(params: {
   text: string;
   sessionId: string;
 }): Promise<void> {
-  // Si un humano ya tomó el control desde el Inbox, el bot se calla.
+  // Verificar si hay un humano atendiendo (bot se calla pero el mensaje sí se guarda en inbox)
   const activeSession = await ConversationSession.findOne({ sessionId: params.sessionId })
     .select({ humanMode: 1 }).lean() as { humanMode?: boolean } | null;
-  if (activeSession?.humanMode === true) {
-    console.log('[whatsapp/webhook] humanMode activo — bot silenciado para', params.sessionId);
+  const isHumanMode = activeSession?.humanMode === true;
+
+  // Siempre guardar el mensaje del cliente en el inbox
+  void WidgetMessage.create({
+    widgetId: params.widgetIdEquivalent,
+    userId: params.ownerUserId,
+    agentId: params.agentIdForChat,
+    sessionId: params.sessionId,
+    role: 'user',
+    sentBy: 'visitor',
+    content: params.text,
+    traceId: `wa-in:${Date.now()}`,
+  }).catch(() => {});
+
+  // Actualizar timestamp del último mensaje del visitante
+  void ConversationSession.updateOne(
+    { sessionId: params.sessionId },
+    { $set: { lastVisitorMessageAt: new Date() } },
+  ).catch(() => {});
+
+  if (isHumanMode) {
+    console.log('[whatsapp/webhook] humanMode activo — mensaje guardado, bot silenciado para', params.sessionId);
     return;
   }
 
