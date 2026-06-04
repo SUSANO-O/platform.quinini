@@ -44,3 +44,5 @@
 {"t":"2026-06-03T15:23:26.062Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_3"}
 {"t":"2026-06-03T15:27:40.999Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_1"}
 {"t":"2026-06-03T16:20:46.674Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_1"}
+{"t":"2026-06-04T03:10:27.389Z","event":"widget_loaded","agentId":"math","instanceId":"biv_1"}
+{"t":"2026-06-04T03:10:45.489Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_2"}
