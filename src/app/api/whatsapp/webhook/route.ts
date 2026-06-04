@@ -226,6 +226,8 @@ async function processIncomingMessages(rawBody: string, signatureHeader: string 
           }).sort({ handoffAt: -1 }).select({ sessionId: 1, chatSessionId: 1, widgetId: 1, userId: 1 }).lean() as WaSession | null;
         }
 
+        if (!session) continue; // sin sesión activa, ignorar
+
         const targetSessionId = session.chatSessionId || session.sessionId;
         await WidgetMessage.create({
           widgetId: session.widgetId || '',
