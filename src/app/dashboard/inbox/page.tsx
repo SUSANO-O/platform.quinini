@@ -680,7 +680,6 @@ export default function InboxPage() {
                         marginTop: 8,
                         padding: '8px 10px',
                         borderRadius: 10,
-                        background: 'var(--card)',
                         border: `1px solid ${item.needsReply ? 'rgba(245,158,11,0.35)' : author.isYou ? 'rgba(var(--brand-primary-rgb),0.2)' : 'var(--border)'}`,
                         background: item.needsReply ? 'rgba(255,255,255,0.65)' : 'var(--card)',
                       }}
