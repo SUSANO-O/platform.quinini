@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { X, Loader2, Trash2, Save, RefreshCw } from 'lucide-react';
-import { PLAN_ORDER, type PlanId } from '@/lib/plan-catalog';
+import { PLAN_ORDER, FEATURE_OVERRIDES, VALID_FEATURE_OVERRIDES, type PlanId } from '@/lib/plan-catalog';
 
 const PLANS = [...PLAN_ORDER] as const;
 const STATUSES = ['trialing', 'active', 'canceled', 'past_due', 'incomplete'] as const;
@@ -20,13 +20,11 @@ interface SubForm {
   cancelAtPeriodEnd: boolean;
   lsCustomerId: string;
   lsSubscriptionId: string;
-  /** Override: activa Tareas Programadas aunque el plan no lo incluya. */
-  scheduledTasks: boolean;
+  /** Overrides de feature activados (claves de subscription.features). */
+  features: string[];
   /** Override del límite de tareas ('' = usar el del plan; -1 = ilimitado). */
   scheduledTaskLimit: string;
 }
-
-const SCHEDULED_TASKS_FEATURE = 'scheduled_tasks';
 
 const EMPTY_FORM: SubForm = {
   plan: 'team',
@@ -38,7 +36,7 @@ const EMPTY_FORM: SubForm = {
   cancelAtPeriodEnd: false,
   lsCustomerId: '',
   lsSubscriptionId: '',
-  scheduledTasks: false,
+  features: [],
   scheduledTaskLimit: '',
 };
 
@@ -88,7 +86,9 @@ export function SubscriptionManagerModal({ userId, userEmail, onClose, onSaved }
             cancelAtPeriodEnd:  s.cancelAtPeriodEnd ?? false,
             lsCustomerId:       s.lsCustomerId     || '',
             lsSubscriptionId:   s.lsSubscriptionId || '',
-            scheduledTasks:     Array.isArray(s.features) && s.features.includes(SCHEDULED_TASKS_FEATURE),
+            features:           Array.isArray(s.features)
+              ? s.features.filter((f: string) => VALID_FEATURE_OVERRIDES.includes(f))
+              : [],
             scheduledTaskLimit: s.scheduledTaskLimit != null ? String(s.scheduledTaskLimit) : '',
           });
         } else {
@@ -118,7 +118,7 @@ export function SubscriptionManagerModal({ userId, userEmail, onClose, onSaved }
       cancelAtPeriodEnd:  form.cancelAtPeriodEnd,
       lsCustomerId:       form.lsCustomerId      || null,
       lsSubscriptionId:   form.lsSubscriptionId  || null,
-      features:           form.scheduledTasks ? [SCHEDULED_TASKS_FEATURE] : [],
+      features:           form.features,
       scheduledTaskLimit: form.scheduledTaskLimit.trim() === '' ? null : Number(form.scheduledTaskLimit),
     };
     const r = await fetch(`/api/admin/subscriptions/${userId}`, {
@@ -281,15 +281,34 @@ export function SubscriptionManagerModal({ userId, userEmail, onClose, onSaved }
               {/* Overrides de features */}
               <div style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--muted)/30' }}>
                 <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Features adicionales (override)</p>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                  <input type="checkbox" id="scheduledTasks" checked={form.scheduledTasks} onChange={e => set('scheduledTasks', e.target.checked)} style={{ cursor: 'pointer', marginTop: 2 }} />
-                  <label htmlFor="scheduledTasks" style={{ fontSize: 12, cursor: 'pointer', color: 'var(--foreground)' }}>
-                    <strong>Tareas Programadas</strong>
-                    <span style={{ display: 'block', color: 'var(--muted-foreground)', marginTop: 2 }}>
-                      Activa el feature aunque el plan no lo incluya (acuerdo de precio aparte). Por defecto está incluido desde Plus.
-                    </span>
-                  </label>
-                </div>
+                <p style={{ margin: '0 0 12px', fontSize: 11, color: 'var(--muted-foreground)' }}>
+                  Activa una feature aunque el plan del cliente no la incluya (acuerdo de precio aparte). Queda registrado en auditoría.
+                </p>
+                {FEATURE_OVERRIDES.map((feat, i) => {
+                  const checked = form.features.includes(feat.key);
+                  return (
+                    <div key={feat.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: i === 0 ? 0 : 10 }}>
+                      <input
+                        type="checkbox"
+                        id={`feat-${feat.key}`}
+                        checked={checked}
+                        onChange={e => set(
+                          'features',
+                          e.target.checked
+                            ? [...form.features, feat.key]
+                            : form.features.filter(k => k !== feat.key),
+                        )}
+                        style={{ cursor: 'pointer', marginTop: 2 }}
+                      />
+                      <label htmlFor={`feat-${feat.key}`} style={{ fontSize: 12, cursor: 'pointer', color: 'var(--foreground)' }}>
+                        <strong>{feat.label}</strong>
+                        <span style={{ display: 'block', color: 'var(--muted-foreground)', marginTop: 2 }}>
+                          {feat.description}
+                        </span>
+                      </label>
+                    </div>
+                  );
+                })}
                 <div style={{ ...fieldStyle, marginTop: 12 }}>
                   <label style={labelStyle}>Límite de tareas (override)</label>
                   <input

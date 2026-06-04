@@ -13,7 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
-import { ClientAgent, Subscription } from '@/lib/db/models';
+import { ClientAgent, Subscription, User } from '@/lib/db/models';
 import { getWhatsAppWebhookUrl, generateVerifyToken } from '@/lib/whatsapp';
 import { canUseWhatsApp, whatsappUpgradeLabel, WHATSAPP_MIN_PLAN } from '@/lib/plan-catalog';
 
@@ -29,10 +29,14 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   const { id } = await params;
   await connectDB();
 
-  // WhatsApp es feature exclusiva de Business+.
-  const sub = await Subscription.findOne({ userId }).select({ plan: 1, status: 1 }).lean() as
-    | { plan?: string; status?: string } | null;
-  if (!canUseWhatsApp(sub?.plan ?? 'free', sub?.status ?? 'free')) {
+  // WhatsApp es feature de Business+ (o concedida por override / rol admin).
+  const [sub, requester] = await Promise.all([
+    Subscription.findOne({ userId }).select({ plan: 1, status: 1, features: 1 }).lean() as
+      Promise<{ plan?: string; status?: string; features?: string[] } | null>,
+    User.findById(userId).select({ role: 1 }).lean() as Promise<{ role?: string } | null>,
+  ]);
+  const isAdmin = requester?.role === 'admin';
+  if (!isAdmin && !canUseWhatsApp(sub?.plan ?? 'free', sub?.status ?? 'free', sub?.features)) {
     return NextResponse.json(
       {
         error: `La integración con WhatsApp está disponible desde el plan ${whatsappUpgradeLabel()}.`,

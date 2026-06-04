@@ -113,6 +113,8 @@ type Props = {
   initialIntegrationKey?: string;
   /** Plan de suscripción (Fase D — visibilidad por plan). Por defecto free. */
   plan?: string;
+  /** Overrides de feature del usuario (ej. 'custom_integration' desbloquea MCP de plan superior). */
+  features?: string[];
 };
 
 export function McpLandingConnectForm({
@@ -120,6 +122,7 @@ export function McpLandingConnectForm({
   onConnected,
   initialIntegrationKey,
   plan: planProp,
+  features,
 }: Props) {
   const plan = planProp ?? 'free';
   const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
@@ -149,8 +152,8 @@ export function McpLandingConnectForm({
   );
 
   const entryAllowed = useMemo(
-    () => (entry ? isMcpIntegrationAllowedForPlan(entry.key, plan) : true),
-    [entry, plan],
+    () => (entry ? isMcpIntegrationAllowedForPlan(entry.key, plan, features) : true),
+    [entry, plan, features],
   );
 
   const fields = useMemo(() => {
@@ -266,7 +269,7 @@ export function McpLandingConnectForm({
   }, []);
 
   const selectIntegration = useCallback((key: string) => {
-    if (!isMcpIntegrationAllowedForPlan(key, plan)) return;
+    if (!isMcpIntegrationAllowedForPlan(key, plan, features)) return;
     setIntegrationKey(key);
     setStep(2);
     setErr(null);
@@ -278,7 +281,7 @@ export function McpLandingConnectForm({
     stdPreviewMatchRef.current = '';
     setHubspotOauthConnectionId(null);
     setHubspotOauthStarting(false);
-  }, [plan]);
+  }, [plan, features]);
 
   const startHubspotOAuth = useCallback(async () => {
     const cid = hubspotOauthConnectionId?.trim();
@@ -537,7 +540,7 @@ export function McpLandingConnectForm({
 
   function renderIntegrationCard(c: CatalogEntry, opts?: { advanced?: boolean }) {
     const advanced = opts?.advanced ?? false;
-    const allowed = isMcpIntegrationAllowedForPlan(c.key, plan);
+    const allowed = isMcpIntegrationAllowedForPlan(c.key, plan, features);
     const minP = minPlanForMcpIntegration(c.key);
 
     if (!allowed) {

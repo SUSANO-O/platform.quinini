@@ -69,10 +69,10 @@ async function deliver(url: string, secret: string, body: string): Promise<void>
 }
 
 async function userMayReceiveOutboundWebhook(userId: string): Promise<boolean> {
-  const sub = await Subscription.findOne({ userId }).select({ plan: 1, status: 1 }).lean() as
-    | { plan?: string; status?: string }
+  const sub = await Subscription.findOne({ userId }).select({ plan: 1, status: 1, features: 1 }).lean() as
+    | { plan?: string; status?: string; features?: string[] }
     | null;
-  return canUseOutboundSaasWebhook(sub?.plan ?? 'free', sub?.status ?? 'free');
+  return canUseOutboundSaasWebhook(sub?.plan ?? 'free', sub?.status ?? 'free', sub?.features);
 }
 
 /**

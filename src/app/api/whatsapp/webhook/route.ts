@@ -27,11 +27,15 @@ import { ConversationSession, WidgetMessage, User, Subscription } from '@/lib/db
 import { normalizePhoneDigits } from '@/lib/whatsapp';
 import { canUseWhatsApp } from '@/lib/plan-catalog';
 
-/** WhatsApp es feature de Business+: solo procesamos mensajes de dueños con plan vigente. */
+/** WhatsApp es feature de Business+ (o override / rol admin): solo procesamos mensajes de dueños habilitados. */
 async function ownerCanUseWhatsApp(userId: string): Promise<boolean> {
-  const sub = await Subscription.findOne({ userId }).select({ plan: 1, status: 1 }).lean() as
-    | { plan?: string; status?: string } | null;
-  return canUseWhatsApp(sub?.plan ?? 'free', sub?.status ?? 'free');
+  const [sub, owner] = await Promise.all([
+    Subscription.findOne({ userId }).select({ plan: 1, status: 1, features: 1 }).lean() as
+      Promise<{ plan?: string; status?: string; features?: string[] } | null>,
+    User.findById(userId).select({ role: 1 }).lean() as Promise<{ role?: string } | null>,
+  ]);
+  if (owner?.role === 'admin') return true;
+  return canUseWhatsApp(sub?.plan ?? 'free', sub?.status ?? 'free', sub?.features);
 }
 
 /** Compara dos números de teléfono tolerando diferencias de código de país.
@@ -346,50 +350,23 @@ async function handleSingleMessage(params: {
     visitorId: `wa_${params.from}`,
   });
 
-  let replyText = '';
-  let toolsUsed: string[] | undefined;
+  let { reply: replyText, toolsUsed } = await generateAgentReply({
+    chatBody,
+    agentIdForChat: params.agentIdForChat,
+    ownerUserId: params.ownerUserId,
+  });
 
-  // Camino 1: MCP directo (agentes con webhook tool o HubSpot auto-capture configurados)
-  try {
-    const direct = await tryServeWidgetChatViaHubMcp({
-      widgetTokenStartsWithWt: true,
-      parsedAgentId: params.agentIdForChat,
-      rawBody: chatBody,
-      ownerUserId: params.ownerUserId,
-    });
-    if (direct?.reply) {
-      replyText = direct.reply;
-      toolsUsed = direct.toolsUsed;
-    }
-  } catch (e) {
-    console.error('[whatsapp/webhook] MCP chat failed:', e);
-  }
-
-  // Camino 2: AgentFlowhub widget chat (agentes de conversación regulares sin webhook tool)
+  // Reintento único: la causa típica de respuesta vacía es un cold start del backend
+  // (AIBackHub / hub) o un timeout transitorio. Esperamos un momento y reintentamos
+  // ANTES de mandar el fallback, para no decirle "no pude procesar" al cliente.
   if (!replyText) {
-    try {
-      const hubBase = getAgentflowhubBaseUrl();
-      const hubUrl = `${hubBase.replace(/\/$/, '')}/api/widget/chat`;
-      const hubRes = await fetch(hubUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: chatBody,
-        signal: AbortSignal.timeout(60_000),
-      });
-      if (hubRes.ok) {
-        const hubData = await hubRes.json() as {
-          reply?: string; response?: string; text?: string; toolsUsed?: string[];
-        };
-        replyText = hubData.reply || hubData.response || hubData.text || '';
-        if (Array.isArray(hubData.toolsUsed) && hubData.toolsUsed.length) {
-          toolsUsed = hubData.toolsUsed;
-        }
-      } else {
-        console.warn('[whatsapp/webhook] hub fallback HTTP', hubRes.status);
-      }
-    } catch (e) {
-      console.error('[whatsapp/webhook] hub fallback error:', e);
-    }
+    console.warn('[whatsapp/webhook] respuesta vacía; reintentando una vez', { sessionId: params.sessionId });
+    await new Promise((r) => setTimeout(r, 1500));
+    ({ reply: replyText, toolsUsed } = await generateAgentReply({
+      chatBody,
+      agentIdForChat: params.agentIdForChat,
+      ownerUserId: params.ownerUserId,
+    }));
   }
 
   if (!replyText) {
@@ -437,4 +414,63 @@ async function handleSingleMessage(params: {
     assistantMessage: replyText,
     toolsUsed,
   }).catch(() => { /* persistencia best-effort */ });
+}
+
+/**
+ * Genera la respuesta del agente probando: (1) MCP directo y (2) fallback al chat
+ * del hub. Devuelve `reply` vacío si ambos caminos fallaron (para que el llamador
+ * decida reintentar o mandar el fallback).
+ */
+async function generateAgentReply(params: {
+  chatBody: string;
+  agentIdForChat: string;
+  ownerUserId: string;
+}): Promise<{ reply: string; toolsUsed?: string[] }> {
+  let reply = '';
+  let toolsUsed: string[] | undefined;
+
+  // Camino 1: MCP directo (agentes con webhook tool o HubSpot auto-capture configurados)
+  try {
+    const direct = await tryServeWidgetChatViaHubMcp({
+      widgetTokenStartsWithWt: true,
+      parsedAgentId: params.agentIdForChat,
+      rawBody: params.chatBody,
+      ownerUserId: params.ownerUserId,
+    });
+    if (direct?.reply) {
+      reply = direct.reply;
+      toolsUsed = direct.toolsUsed;
+    }
+  } catch (e) {
+    console.error('[whatsapp/webhook] MCP chat failed:', e);
+  }
+
+  // Camino 2: AgentFlowhub widget chat (agentes de conversación regulares sin webhook tool)
+  if (!reply) {
+    try {
+      const hubBase = getAgentflowhubBaseUrl();
+      const hubUrl = `${hubBase.replace(/\/$/, '')}/api/widget/chat`;
+      const hubRes = await fetch(hubUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: params.chatBody,
+        signal: AbortSignal.timeout(60_000),
+      });
+      if (hubRes.ok) {
+        const hubData = await hubRes.json() as {
+          reply?: string; response?: string; text?: string; toolsUsed?: string[];
+        };
+        reply = hubData.reply || hubData.response || hubData.text || '';
+        if (Array.isArray(hubData.toolsUsed) && hubData.toolsUsed.length) {
+          toolsUsed = hubData.toolsUsed;
+        }
+      } else {
+        console.warn('[whatsapp/webhook] hub fallback HTTP', hubRes.status);
+      }
+    } catch (e) {
+      console.error('[whatsapp/webhook] hub fallback error:', e);
+    }
+  }
+
+  return { reply, toolsUsed };
 }

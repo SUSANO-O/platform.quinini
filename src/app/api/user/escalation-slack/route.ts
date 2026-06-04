@@ -26,18 +26,19 @@ function getUserId(req: NextRequest): string | null {
   return verifySessionToken(token);
 }
 
-async function userSubscription(userId: string): Promise<{ plan: PlanId; status: string }> {
-  const sub = await Subscription.findOne({ userId }).select({ plan: 1, status: 1 }).lean() as
-    | { plan?: string; status?: string }
+async function userSubscription(userId: string): Promise<{ plan: PlanId; status: string; features: string[] }> {
+  const sub = await Subscription.findOne({ userId }).select({ plan: 1, status: 1, features: 1 }).lean() as
+    | { plan?: string; status?: string; features?: string[] }
     | null;
   return {
     plan: (sub?.plan ?? 'free') as PlanId,
     status: sub?.status ?? 'free',
+    features: Array.isArray(sub?.features) ? sub!.features! : [],
   };
 }
 
-function planEligible(plan: PlanId, status: string): boolean {
-  return canUseEscalationSlack(plan, status);
+function planEligible(plan: PlanId, status: string, features?: string[]): boolean {
+  return canUseEscalationSlack(plan, status, features);
 }
 
 function inboxUrl(req: NextRequest): string {
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
 
   await connectDB();
-  const { plan, status } = await userSubscription(userId);
+  const { plan, status, features } = await userSubscription(userId);
   const u = await User.findById(userId).select({ escalationSlackWebhookUrl: 1 }).lean() as
     | { escalationSlackWebhookUrl?: string | null }
     | null;
@@ -62,7 +63,7 @@ export async function GET(req: NextRequest) {
   const configured = Boolean(url && isValidSlackIncomingWebhookUrl(url));
 
   return NextResponse.json({
-    planEligible: planEligible(plan, status),
+    planEligible: planEligible(plan, status, features),
     minPlanLabel: PLAN_DISPLAY[ESCALATION_SLACK_MIN_PLAN]?.label ?? 'Team',
     configured,
     webhookUrlPreview: configured ? `${url.slice(0, 40)}…${url.slice(-8)}` : null,
@@ -75,8 +76,8 @@ export async function PUT(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
 
   await connectDB();
-  const { plan, status } = await userSubscription(userId);
-  if (!planEligible(plan, status)) {
+  const { plan, status, features } = await userSubscription(userId);
+  if (!planEligible(plan, status, features)) {
     return NextResponse.json(
       {
         error: `Las notificaciones Slack requieren plan ${PLAN_DISPLAY[ESCALATION_SLACK_MIN_PLAN]?.label ?? 'Team'} o superior.`,
@@ -119,8 +120,8 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
 
   await connectDB();
-  const { plan, status } = await userSubscription(userId);
-  if (!planEligible(plan, status)) {
+  const { plan, status, features } = await userSubscription(userId);
+  if (!planEligible(plan, status, features)) {
     return NextResponse.json({ error: 'Plan insuficiente.' }, { status: 403 });
   }
 

@@ -20,6 +20,14 @@ import {
   ESCALATION_TICKET_MIN_PLAN,
   CUSTOM_INTEGRATION_MIN_PLAN,
   WHATSAPP_MIN_PLAN,
+  WHATSAPP_FEATURE,
+  OUTBOUND_WEBHOOK_FEATURE,
+  ESCALATION_SLACK_FEATURE,
+  ESCALATION_TICKET_FEATURE,
+  API_ACCESS_FEATURE,
+  VALID_FEATURE_OVERRIDES,
+  canUseEscalationTickets,
+  canUseApiAccess,
   PLAN_FEATURE_BULLETS,
   LEGACY_PLAN_FEATURE_BULLETS,
   PAID_PLAN_IDS,
@@ -50,6 +58,34 @@ describe('webhook entitlements (plan-catalog)', () => {
     expect(canUseWhatsApp('business', 'canceled')).toBe(false);
     expect(planHasWhatsAppFeature('plus')).toBe(false);
     expect(planHasWhatsAppFeature('business')).toBe(true);
+  });
+
+  it('whatsapp: admin override concede acceso a planes inferiores', () => {
+    expect(canUseWhatsApp('team', 'active', [WHATSAPP_FEATURE])).toBe(true);
+    expect(canUseWhatsApp('free', 'active', [WHATSAPP_FEATURE])).toBe(true);
+    // override no afecta a otras features
+    expect(canUseWhatsApp('team', 'active', ['scheduled_tasks'])).toBe(false);
+    expect(canUseWhatsApp('team', 'active', [])).toBe(false);
+  });
+
+  it('override por feature concede acceso a planes inferiores en todas las features', () => {
+    expect(canUseOutboundSaasWebhook('free', 'active', [OUTBOUND_WEBHOOK_FEATURE])).toBe(true);
+    expect(canUseEscalationSlack('free', 'active', [ESCALATION_SLACK_FEATURE])).toBe(true);
+    expect(canUseEscalationTickets('free', 'active', [ESCALATION_TICKET_FEATURE])).toBe(true);
+    expect(canUseApiAccess('free', 'active', [API_ACCESS_FEATURE])).toBe(true);
+    // sin override, plan inferior sigue bloqueado
+    expect(canUseEscalationTickets('plus', 'active')).toBe(false);
+    expect(canUseApiAccess('solo', 'active')).toBe(false);
+  });
+
+  it('VALID_FEATURE_OVERRIDES incluye las 7 claves de override', () => {
+    expect(VALID_FEATURE_OVERRIDES).toEqual(
+      expect.arrayContaining([
+        'scheduled_tasks', 'whatsapp', 'outbound_webhook',
+        'escalation_slack', 'escalation_tickets', 'api_access', 'custom_integration',
+      ]),
+    );
+    expect(VALID_FEATURE_OVERRIDES).toHaveLength(7);
   });
 
   it('agent webhook: Team+ only (legacy Basic still entitled)', () => {

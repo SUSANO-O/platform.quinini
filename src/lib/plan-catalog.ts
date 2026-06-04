@@ -323,6 +323,46 @@ export const CUSTOM_INTEGRATION_MIN_PLAN: PlanId = 'business';
 /** Plan mínimo para la integración con WhatsApp Business (Cloud API). */
 export const WHATSAPP_MIN_PLAN: PlanId = 'business';
 
+/**
+ * Clave de override por usuario (subscription.features). Permite a un admin
+ * conceder WhatsApp a un plan inferior sin cambiar el plan del cliente
+ * (ej. acuerdo de precio aparte), igual que [[SCHEDULED_TASKS_FEATURE]].
+ */
+export const WHATSAPP_FEATURE = 'whatsapp';
+
+/** Claves de override por usuario para el resto de features de plan superior. */
+export const OUTBOUND_WEBHOOK_FEATURE = 'outbound_webhook';
+export const ESCALATION_SLACK_FEATURE = 'escalation_slack';
+export const ESCALATION_TICKET_FEATURE = 'escalation_tickets';
+export const API_ACCESS_FEATURE = 'api_access';
+export const CUSTOM_INTEGRATION_FEATURE = 'custom_integration';
+
+/**
+ * Catálogo único de overrides de feature que un admin puede conceder por usuario
+ * vía `subscription.features`. Fuente de verdad para la allowlist del endpoint
+ * admin y para los checkboxes del modal de gestión de suscripción.
+ */
+export const FEATURE_OVERRIDES: { key: string; label: string; description: string }[] = [
+  { key: SCHEDULED_TASKS_FEATURE,   label: 'Tareas Programadas',   description: 'Cron por agente. Incluido desde Plus por defecto.' },
+  { key: WHATSAPP_FEATURE,          label: 'WhatsApp Business',    description: 'Integración WhatsApp Cloud API. Incluido desde Business por defecto.' },
+  { key: OUTBOUND_WEBHOOK_FEATURE,  label: 'Webhook saliente (HMAC)', description: 'Eventos firmados a tu backend. Incluido desde Plus por defecto.' },
+  { key: ESCALATION_SLACK_FEATURE,  label: 'Slack al escalar',     description: 'Aviso a Slack en handoff. Incluido desde Team por defecto.' },
+  { key: ESCALATION_TICKET_FEATURE, label: 'Tickets al escalar',   description: 'Zendesk/Freshdesk en handoff. Incluido desde Business por defecto.' },
+  { key: API_ACCESS_FEATURE,        label: 'Acceso API REST',      description: 'Acceso a la API REST. Incluido desde Team por defecto.' },
+  { key: CUSTOM_INTEGRATION_FEATURE, label: 'Integraciones custom (MCP)', description: 'Conectores MCP de plan superior (MongoDB, Postgres…). Incluido desde Business por defecto.' },
+];
+
+/** Lista plana de claves válidas para la allowlist del endpoint admin. */
+export const VALID_FEATURE_OVERRIDES: string[] = FEATURE_OVERRIDES.map((f) => f.key);
+
+/** ¿La suscripción tiene activado este override de feature? */
+export function hasFeatureOverride(
+  subscriptionFeatures: string[] | null | undefined,
+  featureKey: string,
+): boolean {
+  return Array.isArray(subscriptionFeatures) && subscriptionFeatures.includes(featureKey);
+}
+
 /** Mínimos históricos — sin uso (planes legacy eliminados, usuarios migrados a Plus). */
 const LEGACY_AGENT_WEBHOOK_MIN_PLAN: PlanId = 'team';
 const LEGACY_OUTBOUND_SAAS_WEBHOOK_MIN_PLAN: PlanId = 'plus';
@@ -349,7 +389,12 @@ export function canUseAgentWebhookTool(plan: string): boolean {
   return meetsProductMinimum(plan, AGENT_WEBHOOK_MIN_PLAN, LEGACY_AGENT_WEBHOOK_MIN_PLAN);
 }
 
-export function canUseOutboundSaasWebhook(plan: string, status: string): boolean {
+export function canUseOutboundSaasWebhook(
+  plan: string,
+  status: string,
+  subscriptionFeatures?: string[] | null,
+): boolean {
+  if (hasFeatureOverride(subscriptionFeatures, OUTBOUND_WEBHOOK_FEATURE)) return true;
   const effective = effectiveProductPlan(plan, status);
   return meetsProductMinimum(
     effective,
@@ -374,20 +419,35 @@ export function planHasApiAccessFeature(planId: PlanId): boolean {
   return planRank(planId) >= planRank(API_ACCESS_MIN_PLAN);
 }
 
-/** Acceso API REST con suscripción activa (Team+). */
-export function canUseApiAccess(plan: string, status: string): boolean {
+/** Acceso API REST con suscripción activa (Team+), o por override de admin. */
+export function canUseApiAccess(
+  plan: string,
+  status: string,
+  subscriptionFeatures?: string[] | null,
+): boolean {
+  if (hasFeatureOverride(subscriptionFeatures, API_ACCESS_FEATURE)) return true;
   const effective = effectiveProductPlan(plan, status);
   return planRank(effective) >= planRank(API_ACCESS_MIN_PLAN);
 }
 
-/** Notificaciones Slack al escalar con suscripción activa (Team+). */
-export function canUseEscalationSlack(plan: string, status: string): boolean {
+/** Notificaciones Slack al escalar con suscripción activa (Team+), o por override. */
+export function canUseEscalationSlack(
+  plan: string,
+  status: string,
+  subscriptionFeatures?: string[] | null,
+): boolean {
+  if (hasFeatureOverride(subscriptionFeatures, ESCALATION_SLACK_FEATURE)) return true;
   const effective = effectiveProductPlan(plan, status);
   return meetsProductMinimum(effective, ESCALATION_SLACK_MIN_PLAN, ESCALATION_SLACK_MIN_PLAN);
 }
 
-/** Tickets al escalar — Business+ en venta; Growth legacy conserva acceso. */
-export function canUseEscalationTickets(plan: string, status: string): boolean {
+/** Tickets al escalar — Business+ en venta; Growth legacy conserva acceso; o por override. */
+export function canUseEscalationTickets(
+  plan: string,
+  status: string,
+  subscriptionFeatures?: string[] | null,
+): boolean {
+  if (hasFeatureOverride(subscriptionFeatures, ESCALATION_TICKET_FEATURE)) return true;
   const effective = effectiveProductPlan(plan, status);
   return meetsProductMinimum(
     effective,
@@ -421,8 +481,17 @@ export function planHasWhatsAppFeature(planId: PlanId): boolean {
   return planRank(planId) >= planRank(WHATSAPP_MIN_PLAN);
 }
 
-/** Integración WhatsApp Business con suscripción activa (Business+). */
-export function canUseWhatsApp(plan: string, status: string): boolean {
+/**
+ * Integración WhatsApp Business.
+ * true si: (a) el override `whatsapp` está en subscription.features (concedido
+ * manualmente por admin a cualquier plan), O (b) el plan vigente es Business+.
+ */
+export function canUseWhatsApp(
+  plan: string,
+  status: string,
+  subscriptionFeatures?: string[] | null,
+): boolean {
+  if (hasFeatureOverride(subscriptionFeatures, WHATSAPP_FEATURE)) return true;
   const effective = effectiveProductPlan(plan, status);
   return planRank(effective) >= planRank(WHATSAPP_MIN_PLAN);
 }

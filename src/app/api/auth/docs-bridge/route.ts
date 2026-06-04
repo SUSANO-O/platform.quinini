@@ -26,11 +26,12 @@ export async function GET(req: NextRequest) {
   const sub = await Subscription.findOne({ userId }).lean() as {
     plan?: string;
     status?: string;
+    features?: string[];
   } | null;
 
   const plan = sub?.plan ?? 'free';
   const status = sub?.status ?? 'free';
-  if (!canUseApiAccess(plan, status)) {
+  if (!canUseApiAccess(plan, status, sub?.features)) {
     return NextResponse.json(
       { error: 'Plan Team o superior requerido para la documentación API' },
       { status: 403 },

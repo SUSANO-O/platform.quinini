@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db/connection';
-import { Subscription, ClientAgent } from '@/lib/db/models';
+import { Subscription, ClientAgent, User } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
 import { deleteClientAgent } from '@/lib/delete-client-agent';
 import { getAgentLimits } from '@/lib/agent-plans';
@@ -247,7 +247,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const body = await req.json();
 
-  const subEarly = await Subscription.findOne({ userId }).lean() as { plan?: string; status?: string } | null;
+  const subEarly = await Subscription.findOne({ userId }).lean() as { plan?: string; status?: string; features?: string[] } | null;
   const hasActivePlanEarly = subEarly?.status === 'active' || subEarly?.status === 'trialing';
   const planEarly = hasActivePlanEarly ? (subEarly?.plan ?? 'free') : 'free';
   if (isSoloChatOnlyPlan(planEarly) && !('status' in body)) {
@@ -615,8 +615,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   // ── WhatsApp Business (Fase 2): captura de credenciales del cliente ─────────
   if ('whatsapp' in body && body.whatsapp && typeof body.whatsapp === 'object') {
-    // Feature exclusiva de Business+. Bloqueamos guardado de credenciales en planes inferiores.
-    if (!canUseWhatsApp(planEarly, subEarly?.status ?? 'free')) {
+    // Feature de Business+ (o concedida por override / rol admin). Bloqueamos en planes inferiores sin override.
+    const requester = await User.findById(userId).select({ role: 1 }).lean() as { role?: string } | null;
+    const isAdmin = requester?.role === 'admin';
+    if (!isAdmin && !canUseWhatsApp(planEarly, subEarly?.status ?? 'free', subEarly?.features)) {
       return NextResponse.json(
         {
           error: `La integración con WhatsApp está disponible desde el plan ${whatsappUpgradeLabel()}.`,

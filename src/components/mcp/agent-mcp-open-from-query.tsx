@@ -9,6 +9,8 @@ type InnerProps = {
   agentId: string;
   /** Plan de suscripción para filtrar integraciones MCP (mismo que en la página del agente). */
   plan?: string;
+  /** Overrides de feature del usuario (ej. 'custom_integration'). */
+  features?: string[];
   readOnly: boolean;
   onConnected: () => void;
   onOpenToolsTab: () => void;
@@ -17,6 +19,7 @@ type InnerProps = {
 function AgentMcpOpenFromQueryInner({
   agentId,
   plan,
+  features,
   readOnly,
   onConnected,
   onOpenToolsTab,
@@ -41,6 +44,7 @@ function AgentMcpOpenFromQueryInner({
       <McpLandingConnectForm
         landingAgentId={agentId}
         plan={plan}
+        features={features}
         initialIntegrationKey={openMcp ?? undefined}
         onConnected={() => {
           onConnected();
