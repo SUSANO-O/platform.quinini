@@ -123,7 +123,7 @@ function ConversationThread({
   }, [messages]);
 
   return (
-    <div ref={ref} className="flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto px-1 py-1">
+    <div ref={ref} className="flex flex-col gap-4 flex-1 min-h-0 overflow-y-auto px-2 py-2">
       {messages.map((m, i) => {
         const isUser = m.role === 'user';
         const isHuman = m.sentBy === 'human';
@@ -149,7 +149,7 @@ function ConversationThread({
               >
                 {label}
               </span>
-              <span className="text-[10px] opacity-60" style={{ color: 'var(--muted-foreground)' }}>
+              <span className="text-[10px] font-medium opacity-75" style={{ color: 'var(--muted-foreground)' }}>
                 {fmtTime(m.createdAt)}
               </span>
               {showDelete && (
@@ -305,9 +305,9 @@ export function InboxChatModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex flex-col w-full sm:max-w-[520px] overflow-hidden"
+        className="flex flex-col w-full sm:max-w-[580px] overflow-hidden"
         style={{
-          height: 'min(680px, 100dvh)',
+          height: 'min(760px, 100dvh)',
           maxHeight: '100dvh',
           borderRadius: 'clamp(16px, 3vw, 22px)',
           background: 'var(--card)',
@@ -317,10 +317,10 @@ export function InboxChatModal({
       >
         {/* Header corporativo, tono relajado */}
         <div
-          className="shrink-0 px-4 py-3.5 sm:px-5"
+          className="shrink-0 px-4 py-4 sm:px-6"
           style={{
             background: 'linear-gradient(135deg, rgba(var(--brand-primary-rgb),0.07) 0%, rgba(var(--brand-warm-rgb,234,179,8),0.04) 100%)',
-            borderBottom: '1px solid rgba(15,23,42,0.06)',
+            borderBottom: '1px solid rgba(15,23,42,0.08)',
           }}
         >
           <div className="flex items-start gap-3">
@@ -351,10 +351,10 @@ export function InboxChatModal({
                 </span>
                 {isWhatsApp && (
                   <span
-                    className="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0 inline-flex items-center gap-1"
-                    style={{ background: 'rgba(37,211,102,0.14)', color: '#1da851' }}
+                    className="text-[9px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full shrink-0 inline-flex items-center gap-1"
+                    style={{ background: 'rgba(37,211,102,0.20)', color: '#1da851', border: '1px solid rgba(37,211,102,0.3)' }}
                   >
-                    <MessageSquare size={10} />
+                    <MessageSquare size={11} />
                     WhatsApp
                   </span>
                 )}
@@ -378,7 +378,7 @@ export function InboxChatModal({
 
         {/* Área de mensajes */}
         <div
-          className="flex flex-col flex-1 min-h-0 px-4 py-3 sm:px-5"
+          className="flex flex-col flex-1 min-h-0 px-4 py-4 sm:px-6"
           style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)' }}
         >
           {!isResolved && (
@@ -470,9 +470,9 @@ export function InboxChatModal({
         {/* Composer — solo sesiones abiertas */}
         {!isResolved && (
           <div
-            className="shrink-0 px-4 py-3 sm:px-5 sm:py-4"
+            className="shrink-0 px-4 py-4 sm:px-6 sm:py-5"
             style={{
-              borderTop: '1px solid rgba(15,23,42,0.06)',
+              borderTop: '1px solid rgba(15,23,42,0.08)',
               background: 'var(--card)',
             }}
           >
@@ -520,7 +520,7 @@ export function InboxChatModal({
               </div>
             )}
 
-            <div className="flex gap-2 items-end">
+            <div className="flex gap-3 items-end">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -537,21 +537,21 @@ export function InboxChatModal({
                 disabled={uploadingAttachment || sendingReply}
                 onClick={() => fileInputRef.current?.click()}
                 title="Adjuntar archivo"
-                className="shrink-0 w-11 h-11 rounded-xl border cursor-pointer inline-flex items-center justify-center transition-all hover:brightness-95 disabled:opacity-50"
+                className="shrink-0 w-12 h-12 rounded-xl border cursor-pointer inline-flex items-center justify-center transition-all hover:brightness-95 disabled:opacity-50"
                 style={{
                   borderColor: 'var(--border)',
                   background: 'var(--muted)',
                   color: 'var(--muted-foreground)',
                 }}
               >
-                {uploadingAttachment ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={16} />}
+                {uploadingAttachment ? <Loader2 size={18} className="animate-spin" /> : <Paperclip size={18} />}
               </button>
               <textarea
                 ref={textareaRef}
-                rows={2}
+                rows={3}
                 placeholder="Escribe tu respuesta…"
-                className="landing-input flex-1 resize-none text-[13px] leading-relaxed rounded-xl"
-                style={{ padding: '10px 14px', minHeight: 44 }}
+                className="landing-input flex-1 resize-none text-[14px] leading-relaxed rounded-xl"
+                style={{ padding: '12px 14px', minHeight: 60 }}
                 value={replyDraft}
                 onChange={(e) => onReplyDraftChange(e.target.value)}
                 onKeyDown={(e) => {
@@ -563,10 +563,10 @@ export function InboxChatModal({
                 disabled={!canSend}
                 onClick={onSendReply}
                 title="Enviar (Ctrl/⌘ + Enter)"
-                className="shrink-0 w-11 h-11 rounded-xl border-0 text-white cursor-pointer inline-flex items-center justify-center transition-all hover:brightness-110 disabled:opacity-45 disabled:cursor-not-allowed"
+                className="shrink-0 w-12 h-12 rounded-xl border-0 text-white cursor-pointer inline-flex items-center justify-center transition-all hover:brightness-110 disabled:opacity-45 disabled:cursor-not-allowed font-semibold"
                 style={{ background: 'var(--brand-primary)' }}
               >
-                {sendingReply ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                {sendingReply ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
               </button>
             </div>
             <p className="text-[10px] m-0 mt-2" style={{ color: 'var(--muted-foreground)' }}>

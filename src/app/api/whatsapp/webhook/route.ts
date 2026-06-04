@@ -416,27 +416,6 @@ async function handleSingleMessage(params: {
     assistantMessage: replyText,
     toolsUsed,
   }).catch(() => { /* persistencia best-effort */ });
-
-  // Crear/actualizar ConversationSession para que aparezca en el inbox
-  void ConversationSession.updateOne(
-    { sessionId: params.sessionId },
-    {
-      $set: {
-        widgetId: params.widgetIdEquivalent,
-        userId: params.ownerUserId,
-        agentId: params.agentIdForChat,
-        escalated: true, // mostrar en inbox
-        inboxStatus: 'open',
-        startedAt: new Date(),
-        lastVisitorMessageAt: new Date(),
-      },
-      $setOnInsert: {
-        sessionId: params.sessionId,
-        createdAt: new Date(),
-      },
-    },
-    { upsert: true },
-  ).catch(() => {});
 }
 
 /**
