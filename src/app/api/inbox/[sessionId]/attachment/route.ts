@@ -114,10 +114,15 @@ export async function POST(req: NextRequest, { params }: Params) {
       },
     });
   } catch (err) {
-    const reason = err instanceof Error ? err.message : String(err);
-    console.error('[inbox/attachment]', reason, err);
-    // El agente es el dueño autenticado del widget: exponer el motivo ayuda a
-    // diagnosticar (credenciales Cloudinary inválidas, red, etc.).
+    let reason = 'Unknown error';
+    if (err instanceof Error) {
+      reason = err.message;
+    } else if (typeof err === 'object' && err !== null) {
+      reason = JSON.stringify(err).slice(0, 200);
+    } else {
+      reason = String(err);
+    }
+    console.error('[inbox/attachment] upload failed', { reason, sessionId, userId }, err);
     return NextResponse.json(
       { error: `No se pudo subir el archivo: ${reason}`.slice(0, 300), code: 'UPLOAD_FAILED', reason: reason.slice(0, 300) },
       { status: 502 },
