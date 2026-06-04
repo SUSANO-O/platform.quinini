@@ -46,31 +46,65 @@ export async function GET(req: NextRequest) {
   ];
   const lastMessages = transcriptIds.length
     ? await WidgetMessage.aggregate([
-        { $match: { userId, sessionId: { $in: transcriptIds } } },
+        { $match: { userId, sessionId: { $in: transcriptIds }, deleted: { $ne: true } } },
         { $sort: { createdAt: -1 } },
         {
           $group: {
             _id: '$sessionId',
             lastContent: { $first: '$content' },
             lastRole: { $first: '$role' },
+            lastSentBy: { $first: '$sentBy' },
+            lastMessageAt: { $first: '$createdAt' },
+            hasAttachments: {
+              $first: {
+                $gt: [{ $size: { $ifNull: ['$attachments', []] } }, 0],
+              },
+            },
             messageCount: { $sum: 1 },
           },
         },
       ])
     : [];
   const msgBySession = new Map(
-    lastMessages.map((m: { _id: string; lastContent?: string; lastRole?: string; messageCount?: number }) => [
-      m._id,
-      m,
-    ]),
+    lastMessages.map((m: {
+      _id: string;
+      lastContent?: string;
+      lastRole?: string;
+      lastSentBy?: string;
+      lastMessageAt?: Date;
+      hasAttachments?: boolean;
+      messageCount?: number;
+    }) => [m._id, m]),
   );
 
   const items = sessions.map((s) => {
     const transcriptId = inboxTranscriptSessionId(s);
     const msg = msgBySession.get(transcriptId) as
-      | { lastContent?: string; lastRole?: string; messageCount?: number }
+      | {
+          lastContent?: string;
+          lastRole?: string;
+          lastSentBy?: string;
+          lastMessageAt?: Date;
+          hasAttachments?: boolean;
+          messageCount?: number;
+        }
       | undefined;
     const contact = s.handoffContact as { name?: string; email?: string; phone?: string } | null;
+    const agentLastSeenAt = s.agentLastSeenAt ? new Date(s.agentLastSeenAt) : null;
+    const lastVisitorMessageAt = s.lastVisitorMessageAt ? new Date(s.lastVisitorMessageAt) : null;
+    const hasUnread =
+      s.inboxStatus !== 'resolved' &&
+      (!agentLastSeenAt ||
+        (lastVisitorMessageAt !== null && lastVisitorMessageAt > agentLastSeenAt));
+    const lastRole = msg?.lastRole || '';
+    const needsReply =
+      s.inboxStatus !== 'resolved' &&
+      (lastRole === 'user' || (!lastRole && Boolean(s.handoffMessage)));
+    const lastMessageAt = msg?.lastMessageAt
+      ? new Date(msg.lastMessageAt).toISOString()
+      : s.handoffAt
+        ? new Date(s.handoffAt).toISOString()
+        : null;
     return {
       sessionId: s.sessionId,
       widgetId: s.widgetId,
@@ -85,9 +119,15 @@ export async function GET(req: NextRequest) {
       followUpNote: typeof s.followUpNote === 'string' ? s.followUpNote : '',
       followUpNotified: Boolean(s.followUpNotified),
       visitorId: typeof s.visitorId === 'string' ? s.visitorId : '',
+      humanMode: Boolean(s.humanMode),
+      hasUnread,
+      needsReply,
       messageCount: msg?.messageCount ?? 0,
       lastMessage: msg?.lastContent ? String(msg.lastContent).slice(0, 200) : '',
-      lastRole: msg?.lastRole || '',
+      lastRole,
+      lastSentBy: msg?.lastSentBy || 'ai',
+      lastMessageAt,
+      lastHasAttachments: Boolean(msg?.hasAttachments),
     };
   });
 
