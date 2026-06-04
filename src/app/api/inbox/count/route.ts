@@ -9,26 +9,34 @@ import { inboxSessionFilter } from '@/lib/inbox-handoff';
 import { verifySessionToken } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
-  const token = req.cookies.get('afhub_session')?.value;
-  if (!token) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
-  const userId = verifySessionToken(token);
-  if (!userId) return NextResponse.json({ error: 'Sesión inválida.' }, { status: 401 });
+  try {
+    const token = req.cookies.get('afhub_session')?.value;
+    if (!token) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
+    const userId = verifySessionToken(token);
+    if (!userId) return NextResponse.json({ error: 'Sesión inválida.' }, { status: 401 });
 
-  await connectDB();
+    await connectDB();
 
-  // Solo "nuevas sin ver": nunca abiertas por el agente, o con un mensaje del
-  // visitante más reciente que la última vez que el agente abrió la conversación.
-  const openCount = await ConversationSession.countDocuments({
-    $and: [
-      inboxSessionFilter(userId, 'open'),
-      {
-        $or: [
-          { agentLastSeenAt: null },
-          { $expr: { $gt: ['$lastVisitorMessageAt', '$agentLastSeenAt'] } },
-        ],
-      },
-    ],
-  });
+    // Solo "nuevas sin ver": nunca abiertas por el agente, o con un mensaje del
+    // visitante más reciente que la última vez que el agente abrió la conversación.
+    const openCount = await ConversationSession.countDocuments({
+      $and: [
+        inboxSessionFilter(userId, 'open'),
+        {
+          $or: [
+            { agentLastSeenAt: null },
+            {
+              lastVisitorMessageAt: { $ne: null },
+              $expr: { $gt: ['$lastVisitorMessageAt', '$agentLastSeenAt'] },
+            },
+          ],
+        },
+      ],
+    });
 
-  return NextResponse.json({ openCount });
+    return NextResponse.json({ openCount });
+  } catch (err) {
+    console.error('[inbox/count]', err);
+    return NextResponse.json({ error: 'Error al contar solicitudes del inbox.' }, { status: 500 });
+  }
 }

@@ -161,10 +161,10 @@ export async function POST(req: NextRequest) {
         await ConversationSession.findOneAndUpdate(
           { sessionId: sid },
           {
+            // widgetId/agentId NO van aquí: están en $set (que corre también en insert).
+            // Tenerlos en ambos operadores provoca ConflictingUpdateOperators (code 40).
             $setOnInsert: {
-              widgetId,
               userId: uid,
-              agentId,
               sessionId: sid,
               startedAt: now,
               hourOfDay: now.getHours(),

@@ -47,3 +47,12 @@
 {"t":"2026-06-04T03:10:27.389Z","event":"widget_loaded","agentId":"math","instanceId":"biv_1"}
 {"t":"2026-06-04T03:10:45.489Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_2"}
 {"t":"2026-06-04T03:13:23.058Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_3"}
+{"t":"2026-06-04T16:18:19.753Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_1"}
+{"t":"2026-06-04T16:19:35.866Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_2"}
+{"t":"2026-06-04T17:04:03.323Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_1"}
+{"t":"2026-06-04T17:05:28.720Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_1"}
+{"t":"2026-06-04T17:09:07.764Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_2"}
+{"t":"2026-06-04T17:24:22.124Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_1"}
+{"t":"2026-06-04T17:27:08.984Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_2"}
+{"t":"2026-06-04T17:27:31.824Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_3"}
+{"t":"2026-06-04T17:27:53.331Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_4"}

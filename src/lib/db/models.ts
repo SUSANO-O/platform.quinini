@@ -443,7 +443,6 @@ const ConversationSessionSchema = new Schema({
 
 ConversationSessionSchema.index({ widgetId: 1, month: -1 });
 ConversationSessionSchema.index({ userId: 1, month: -1 });
-ConversationSessionSchema.index({ sessionId: 1 }, { unique: true });
 ConversationSessionSchema.index({ startedAt: -1 });
 ConversationSessionSchema.index({ userId: 1, escalated: 1, inboxStatus: 1, handoffAt: -1 });
 ConversationSessionSchema.index({ userId: 1, followUpAt: 1, followUpNotified: 1 });
@@ -509,7 +508,6 @@ const RegistrationCodeSchema = new Schema({
   trialDays:  { type: Number, default: 7, min: 1, max: 365 },
 }, { timestamps: true });
 
-RegistrationCodeSchema.index({ code: 1 }, { unique: true });
 RegistrationCodeSchema.index({ active: 1, createdAt: -1 });
 
 // ── WIDGET MESSAGES ───────────────────────────────────────────────────────────
@@ -586,8 +584,6 @@ const ReferralSchema = new Schema({
   /** Conversaciones bonus pendientes de otorgar */
   bonusPending:  { type: Number, default: 0 },
 }, { timestamps: true });
-
-ReferralSchema.index({ code: 1 }, { unique: true });
 
 // ── A/B PROMPT TEST ───────────────────────────────────────────────────────────
 

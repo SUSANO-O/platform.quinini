@@ -18,7 +18,7 @@ import {
   Sparkles,
   Inbox,
   FileText,
-  Code2,
+  Braces,
 } from 'lucide-react';
 import { BRAND_LOGO_SRC, BRAND_NAME, BRAND_TEXT_COLOR } from '@/lib/brand';
 import { PwaInstallButton } from '@/components/shared/pwa-install-button';
@@ -163,11 +163,34 @@ export const NAV_GROUPS: { title: string; items: { href: string; label: string; 
     title: 'Cuenta',
     items: [
       { href: '/dashboard/facturas', label: 'Facturas', icon: FileText },
+      { href: '/dashboard/api', label: 'API', icon: Braces },
       { href: '/dashboard/compliance', label: 'Cumplimiento', icon: Shield },
       { href: '/dashboard/settings', label: 'Ajustes', icon: Settings },
     ],
   },
 ];
+
+export function buildDashboardNavGroups({
+  showApiLink,
+  hideQuickStart,
+}: {
+  showApiLink: boolean;
+  hideQuickStart: boolean;
+}) {
+  return NAV_GROUPS.map((group) => {
+    let items = group.items;
+
+    if (group.title === 'Panel' && hideQuickStart) {
+      items = items.filter((item) => item.href !== '/dashboard/quick-start');
+    }
+
+    if (group.title === 'Cuenta' && !showApiLink) {
+      items = items.filter((item) => item.href !== '/dashboard/api');
+    }
+
+    return { ...group, items };
+  });
+}
 
 export const SIDEBAR_TOUR_KEY_BY_HREF: Record<string, string> = {
   '/dashboard': 'sidebar-inicio',
@@ -272,7 +295,7 @@ function SidebarNavLink({
         width: collapsed ? '100%' : undefined,
       }}
     >
-      <Icon size={20} strokeWidth={1.75} style={{ flexShrink: 0 }} aria-hidden />
+      <Icon size={20} strokeWidth={1.75} className="dashboard-sidebar-link__icon" aria-hidden />
       {!collapsed ? <span className="truncate">{label}</span> : null}
       <InboxBadge count={badge ?? 0} collapsed={collapsed} />
     </Link>
@@ -294,22 +317,7 @@ function SidebarNav({
   showApiLink: boolean;
   hideQuickStart: boolean;
 }) {
-  const groups = NAV_GROUPS.map((group) => {
-    if (group.title === 'Panel' && hideQuickStart) {
-      return {
-        ...group,
-        items: group.items.filter((item) => item.href !== '/dashboard/quick-start'),
-      };
-    }
-    if (group.title !== 'Cuenta' || !showApiLink) return group;
-    return {
-      ...group,
-      items: [
-        { href: '/dashboard/api', label: 'API', icon: Code2 },
-        ...group.items,
-      ],
-    };
-  });
+  const groups = buildDashboardNavGroups({ showApiLink, hideQuickStart });
 
   return (
     <nav
