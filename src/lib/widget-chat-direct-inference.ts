@@ -8,6 +8,7 @@ import { ClientAgent } from '@/lib/db/models';
 import { Types } from 'mongoose';
 import { getAibackhubBaseUrl, hubCreateHeaders, hubFetch } from '@/lib/aibackhub-sync';
 import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
+import { isTrivialMessage } from '@/lib/trivial-message';
 
 export type DirectInferenceResult = {
   reply: string;
@@ -141,10 +142,18 @@ export async function tryServeWidgetChatViaDirectInference(params: {
   }
 
   const { provider, model } = normalizeModel(storedModel);
-  logWidgetFlow('🧠', 'infer:start', 'POST /api/models directo', {
+
+  // Fast-path: saludos / cortesías triviales → forzar el modelo más barato
+  // (gemini-2.5-flash-lite), sin importar el modelo configurado del agente.
+  const trivial = isTrivialMessage(message, parsed.history);
+  const effProvider = trivial ? 'google-ai' : provider;
+  const effModel = trivial ? 'gemini-2.5-flash-lite' : model;
+
+  logWidgetFlow(trivial ? '⚡' : '🧠', 'infer:start', 'POST /api/models directo', {
     agentId: id,
-    provider,
-    model,
+    provider: effProvider,
+    model: effModel,
+    fastPath: trivial,
     ...widgetMessageProbe(message),
   });
 
@@ -176,8 +185,8 @@ export async function tryServeWidgetChatViaDirectInference(params: {
         body: JSON.stringify({
           prompt: message,
           systemPrompt: typeof ca.systemPrompt === 'string' ? ca.systemPrompt : '',
-          provider,
-          model,
+          provider: effProvider,
+          model: effModel,
           taskType: 'chat',
           history,
           ...(typeof ca.inferenceTemperature === 'number' ? { temperature: ca.inferenceTemperature } : {}),

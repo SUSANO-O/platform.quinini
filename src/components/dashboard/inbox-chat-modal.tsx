@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import {
-  FileText, Loader2, MessageSquare, Paperclip, Send, Trash2, User, X, Download, Check, CheckCheck, Bot,
+  FileText, Loader2, MessageSquare, Paperclip, Send, Trash2, User, X, Download, Check, CheckCheck, Bot, Headphones,
 } from 'lucide-react';
 
 export type ChatAttachment = {
@@ -66,7 +66,11 @@ type InboxChatModalProps = {
   onDeleteMessage: (messageId: string) => void;
   humanMode?: boolean;
   onReactivateBot?: () => void;
+  /** Pausar el bot y tomar el control (humanMode → true) sin tener que responder primero. */
+  onSilenceBot?: () => void;
   reactivatingBot?: boolean;
+  /** Conversación de WhatsApp (para mostrar badge identificador). */
+  isWhatsApp?: boolean;
 };
 
 function formatBytes(n?: number): string {
@@ -255,7 +259,9 @@ export function InboxChatModal({
   onDeleteMessage,
   humanMode = false,
   onReactivateBot,
+  onSilenceBot,
   reactivatingBot = false,
+  isWhatsApp = false,
 }: InboxChatModalProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -343,6 +349,15 @@ export function InboxChatModal({
                 >
                   {isResolved ? 'Resuelto' : 'En curso'}
                 </span>
+                {isWhatsApp && (
+                  <span
+                    className="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0 inline-flex items-center gap-1"
+                    style={{ background: 'rgba(37,211,102,0.14)', color: '#1da851' }}
+                  >
+                    <MessageSquare size={10} />
+                    WhatsApp
+                  </span>
+                )}
               </div>
               <p className="text-xs m-0 mt-0.5 truncate" style={{ color: 'var(--muted-foreground)' }}>
                 {widgetName} · {fmtDate(handoffAt)}
@@ -373,9 +388,9 @@ export function InboxChatModal({
                 style={{ background: 'rgba(234,179,8,0.10)', border: '1px solid rgba(234,179,8,0.30)' }}
               >
                 <div className="flex items-center gap-2">
-                  <Bot size={14} style={{ color: '#b45309' }} />
+                  <Headphones size={14} style={{ color: '#b45309' }} />
                   <span className="text-[11px] font-semibold" style={{ color: '#b45309' }}>
-                    Modo humano activo — el bot está silenciado.
+                    🙋 Atiendo yo — el bot está en pausa.
                   </span>
                 </div>
                 {onReactivateBot && (
@@ -383,28 +398,42 @@ export function InboxChatModal({
                     type="button"
                     disabled={reactivatingBot}
                     onClick={onReactivateBot}
-                    className="text-[11px] font-bold px-2.5 py-1 rounded-lg border-0 cursor-pointer transition-all"
+                    title="Reactivar el bot para que responda automáticamente"
+                    className="text-[11px] font-bold px-2.5 py-1 rounded-lg border-0 cursor-pointer transition-all inline-flex items-center gap-1"
                     style={{ background: '#b45309', color: '#fff', opacity: reactivatingBot ? 0.6 : 1 }}
                   >
+                    <Bot size={12} />
                     {reactivatingBot ? '…' : 'Devolver al bot'}
                   </button>
                 )}
               </div>
             ) : (
               <div
-                className="shrink-0 flex items-center gap-2 mb-3 px-3 py-2 rounded-xl"
+                className="shrink-0 flex items-center justify-between gap-2 mb-3 px-3 py-2 rounded-xl"
                 style={{
                   background: 'rgba(var(--brand-primary-rgb),0.06)',
                   border: '1px solid rgba(var(--brand-primary-rgb),0.12)',
                 }}
               >
-                <span className="relative flex w-2 h-2 shrink-0">
-                  <span className="animate-ping absolute inset-0 rounded-full bg-emerald-500 opacity-60" />
-                  <span className="relative w-2 h-2 rounded-full bg-emerald-500" />
-                </span>
-                <span className="text-[11px] font-semibold" style={{ color: 'var(--foreground)' }}>
-                  Conversación en vivo — tus respuestas llegan al visitante al instante.
-                </span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <Bot size={14} style={{ color: 'var(--brand-primary)' }} />
+                  <span className="text-[11px] font-semibold truncate" style={{ color: 'var(--foreground)' }}>
+                    🤖 Bot activo — responde automáticamente.
+                  </span>
+                </div>
+                {onSilenceBot && (
+                  <button
+                    type="button"
+                    disabled={reactivatingBot}
+                    onClick={onSilenceBot}
+                    title="Pausar el bot y tomar el control de la conversación"
+                    className="text-[11px] font-bold px-2.5 py-1 rounded-lg border-0 cursor-pointer transition-all inline-flex items-center gap-1 shrink-0"
+                    style={{ background: 'var(--brand-primary)', color: '#fff', opacity: reactivatingBot ? 0.6 : 1 }}
+                  >
+                    <Headphones size={12} />
+                    {reactivatingBot ? '…' : 'Atiendo yo'}
+                  </button>
+                )}
               </div>
             )
           )}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Phone, MessageCircle, Copy, Check, Loader2, RefreshCw, AlertCircle, CheckCircle2, ExternalLink } from 'lucide-react';
+import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 
 interface WhatsAppInfo {
   webhookUrl: string;
@@ -125,7 +126,13 @@ export default function WhatsAppTab({
   const WA = '#25d366'; // verde WhatsApp brand
 
   if (loading) {
-    return <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted-foreground)' }}><Loader2 className="animate-spin" /> Cargando…</div>;
+    return (
+      <AiLoadingInline
+        label="Cargando WhatsApp…"
+        hint="Recuperando webhook y credenciales"
+        style={{ padding: '40px 16px' }}
+      />
+    );
   }
   if (!info) {
     return <div style={{ padding: 40, color: '#ef4444' }}>⚠️ {error || 'No se pudo cargar la configuración.'}</div>;
