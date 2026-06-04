@@ -28,7 +28,7 @@ export function WidgetAvatar({
 
   return (
     <div
-      className={`relative ${dim} shrink-0 overflow-hidden rounded-xl shadow-sm ring-1 ring-black/5`}
+      className={`dashboard-resource-card__avatar relative ${dim} shrink-0 overflow-hidden rounded-full shadow-sm ring-1 ring-black/5`}
       aria-hidden
     >
       {avatarUrl ? (

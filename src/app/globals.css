@@ -1187,6 +1187,14 @@ button.dashboard-sidebar-link:hover {
   z-index: 2;
 }
 
+/* Avatar del header: siempre circular (agentes y widgets) */
+.dashboard-resource-card__header .dashboard-agent-avatar,
+.dashboard-resource-card__header .dashboard-resource-card__avatar {
+  border-radius: 50%;
+  overflow: hidden;
+  aspect-ratio: 1;
+}
+
 .dashboard-resource-card__header-end {
   display: flex;
   flex-direction: row;
@@ -1328,7 +1336,7 @@ button.dashboard-sidebar-link:hover {
   justify-content: center;
   width: 3rem;
   height: 3rem;
-  border-radius: 12px;
+  border-radius: 50%;
   flex-shrink: 0;
   color: var(--primary);
   background: rgba(var(--brand-primary-rgb), 0.09);
