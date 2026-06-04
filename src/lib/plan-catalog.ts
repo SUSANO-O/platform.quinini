@@ -320,6 +320,9 @@ export const ESCALATION_TICKET_MIN_PLAN: PlanId = 'business';
 /** Plan mínimo para integraciones custom (MCP completo, a medida). */
 export const CUSTOM_INTEGRATION_MIN_PLAN: PlanId = 'business';
 
+/** Plan mínimo para la integración con WhatsApp Business (Cloud API). */
+export const WHATSAPP_MIN_PLAN: PlanId = 'business';
+
 /** Mínimos históricos — sin uso (planes legacy eliminados, usuarios migrados a Plus). */
 const LEGACY_AGENT_WEBHOOK_MIN_PLAN: PlanId = 'team';
 const LEGACY_OUTBOUND_SAAS_WEBHOOK_MIN_PLAN: PlanId = 'plus';
@@ -413,6 +416,21 @@ export function planHasCustomIntegrationFeature(planId: PlanId): boolean {
   return planRank(planId) >= planRank(CUSTOM_INTEGRATION_MIN_PLAN);
 }
 
+/** ¿El plan incluye la integración con WhatsApp Business? (para tablas/pricing). */
+export function planHasWhatsAppFeature(planId: PlanId): boolean {
+  return planRank(planId) >= planRank(WHATSAPP_MIN_PLAN);
+}
+
+/** Integración WhatsApp Business con suscripción activa (Business+). */
+export function canUseWhatsApp(plan: string, status: string): boolean {
+  const effective = effectiveProductPlan(plan, status);
+  return planRank(effective) >= planRank(WHATSAPP_MIN_PLAN);
+}
+
+export function whatsappUpgradeLabel(): string {
+  return PLAN_DISPLAY[WHATSAPP_MIN_PLAN]?.label ?? 'Business';
+}
+
 export function outboundWebhookUpgradeLabel(): string {
   return PLAN_DISPLAY[OUTBOUND_SAAS_WEBHOOK_MIN_PLAN]?.label ?? 'Plus';
 }
@@ -472,8 +490,8 @@ export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
   business: [
     '45.000 conversaciones al mes (~1.500/día)',
     'Agentes ilimitados · integraciones custom · MCP completo',
-    'API REST (próximamente) · webhooks · Almacenamiento: 100 GB',
-    'Tickets al escalar · analytics completo (multi-agente)',
+    'Integración WhatsApp Business · API REST (próximamente) · webhooks',
+    'Tickets al escalar · analytics completo (multi-agente) · Almac. 100 GB',
     'Historial ilimitado · todos los modelos · SLA 99,9 %',
   ],
 };

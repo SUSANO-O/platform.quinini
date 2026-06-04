@@ -59,6 +59,7 @@ export function PricingComparisonTable() {
             { key: 'outboundWebhook', label: 'Webhook saliente (HMAC)' },
             { key: 'apiAccess', label: 'Acceso API REST' },
             { key: 'customIntegration', label: 'Integraciones custom' },
+            { key: 'whatsapp', label: 'Integración WhatsApp Business' },
             { key: 'escalationTickets', label: 'Creación de tickets al escalar' },
             { key: 'conversationAnalytics', label: 'Analytics de conversaciones' },
             { key: 'rag', label: 'Almacenamiento (por agente)' },

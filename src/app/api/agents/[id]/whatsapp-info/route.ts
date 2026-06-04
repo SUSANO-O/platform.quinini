@@ -13,8 +13,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
-import { ClientAgent } from '@/lib/db/models';
+import { ClientAgent, Subscription } from '@/lib/db/models';
 import { getWhatsAppWebhookUrl, generateVerifyToken } from '@/lib/whatsapp';
+import { canUseWhatsApp, whatsappUpgradeLabel, WHATSAPP_MIN_PLAN } from '@/lib/plan-catalog';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -27,6 +28,21 @@ export async function GET(req: NextRequest, { params }: Ctx) {
 
   const { id } = await params;
   await connectDB();
+
+  // WhatsApp es feature exclusiva de Business+.
+  const sub = await Subscription.findOne({ userId }).select({ plan: 1, status: 1 }).lean() as
+    | { plan?: string; status?: string } | null;
+  if (!canUseWhatsApp(sub?.plan ?? 'free', sub?.status ?? 'free')) {
+    return NextResponse.json(
+      {
+        error: `La integración con WhatsApp está disponible desde el plan ${whatsappUpgradeLabel()}.`,
+        code: 'WHATSAPP_REQUIRES_BUSINESS',
+        minPlan: WHATSAPP_MIN_PLAN,
+        minPlanLabel: whatsappUpgradeLabel(),
+      },
+      { status: 403 },
+    );
+  }
 
   const agent = await ClientAgent.findOne({ _id: id, userId });
   if (!agent) return NextResponse.json({ error: 'Agente no encontrado.' }, { status: 404 });

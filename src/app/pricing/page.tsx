@@ -60,7 +60,7 @@ export default function PricingPage() {
         <div className="hero-glow" style={{ background: 'var(--accent-warm)', top: '-60px', right: '5%' }} />
         <div className="hero-glow" style={{ background: 'var(--accent)', top: '260px', left: '40%' }} />
 
-        <div className="relative max-w-6xl mx-auto">
+        <div className="relative max-w-[1400px] mx-auto">
 
           <div className="text-center mb-10 md:mb-16">
             <div className="badge-primary mb-4 md:mb-6 mx-auto w-fit">Planes</div>
@@ -134,8 +134,8 @@ export default function PricingPage() {
             )}
           </div>
 
-          {/* Paid plans — 1 columna en móvil para legibilidad */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6 items-stretch xl:items-end">
+          {/* Paid plans — 4 columnas en una fila en desktop */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 items-stretch lg:items-end">
             {PAID_PLANS.map((plan) => (
               <PricingPlanCard
                 key={plan.id}

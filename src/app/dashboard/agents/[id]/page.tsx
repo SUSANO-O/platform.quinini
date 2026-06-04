@@ -16,7 +16,8 @@ import {
   extractSheetEntries, generateSheetId, sanitizeSheetName,
   type SheetEntry,
 } from '@/lib/agent-sheets';
-import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
+import { isSoloChatOnlyPlan, planHasWhatsAppFeature } from '@/lib/plan-catalog';
+import type { PlanId } from '@/lib/plan-catalog';
 import { AGENT_SKILLS } from '@/lib/agent-skills';
 import {
   Bot, ChevronLeft, Save, Loader2, Plus, Trash2, Network,
@@ -1312,7 +1313,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     { id: 'scheduled-tasks' as const, label: 'Tareas', icon: <Clock size={14} />, count: scheduledTaskCount },
     { id: 'whatsapp' as const, label: 'WhatsApp', icon: <MessageCircle size={14} /> },
   ];
-  const visibleTabs = soloChatOnly ? TABS.filter((t) => t.id === 'general') : TABS;
+  // WhatsApp es feature exclusiva de Business+. Se oculta el tab en planes inferiores.
+  const whatsappAllowed = planHasWhatsAppFeature(plan as PlanId);
+  const visibleTabs = soloChatOnly
+    ? TABS.filter((t) => t.id === 'general')
+    : TABS.filter((t) => t.id !== 'whatsapp' || whatsappAllowed);
 
   const deleteDescription =
     (agent.subAgentIds?.length ?? 0) > 0
@@ -3596,7 +3601,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         <ScheduledTasksTab agentId={String(agent._id)} plan={plan} readOnly={readOnly} onTaskCountChange={setScheduledTaskCount} />
       )}
 
-      {tab === 'whatsapp' && (
+      {tab === 'whatsapp' && whatsappAllowed && (
         <WhatsAppTab agentId={String(agent._id)} readOnly={readOnly} />
       )}
 

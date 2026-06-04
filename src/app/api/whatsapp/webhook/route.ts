@@ -23,8 +23,16 @@ import {
 import { tryServeWidgetChatViaHubMcp } from '@/lib/widget-chat-direct-mcp';
 import { persistWidgetTranscript } from '@/lib/widget-transcript';
 import { getAgentflowhubBaseUrl } from '@/lib/aibackhub-sync';
-import { ConversationSession, WidgetMessage, User } from '@/lib/db/models';
+import { ConversationSession, WidgetMessage, User, Subscription } from '@/lib/db/models';
 import { normalizePhoneDigits } from '@/lib/whatsapp';
+import { canUseWhatsApp } from '@/lib/plan-catalog';
+
+/** WhatsApp es feature de Business+: solo procesamos mensajes de dueños con plan vigente. */
+async function ownerCanUseWhatsApp(userId: string): Promise<boolean> {
+  const sub = await Subscription.findOne({ userId }).select({ plan: 1, status: 1 }).lean() as
+    | { plan?: string; status?: string } | null;
+  return canUseWhatsApp(sub?.plan ?? 'free', sub?.status ?? 'free');
+}
 
 /** Compara dos números de teléfono tolerando diferencias de código de país.
  *  Ej: "3133174629" vs "573133174629" → match (uno es sufijo del otro). */
@@ -270,6 +278,12 @@ async function processIncomingMessages(rawBody: string, signatureHeader: string 
 
       const agentIdForChat = agentDoc.agentHubId?.trim() || String(agentDoc._id);
       const ownerUserId = String(agentDoc.userId);
+
+      // Gate de plan: si el dueño ya no tiene Business vigente, no procesamos el bot.
+      if (!(await ownerCanUseWhatsApp(ownerUserId))) {
+        console.warn('[whatsapp/webhook] dueño sin plan Business — mensajes ignorados', { phoneNumberId });
+        continue;
+      }
 
       for (const msg of messages) {
         if (handledByOwner.has(msg.id)) continue; // ya ruteado como respuesta del dueño

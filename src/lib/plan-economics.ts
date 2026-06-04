@@ -19,6 +19,7 @@ import {
   API_REST_COMING_SOON_LABEL,
   planHasEscalationTicketFeature,
   planHasCustomIntegrationFeature,
+  planHasWhatsAppFeature,
   formatConversationAnalyticsFeature,
   type PaidPlanId,
   type PlanId,
@@ -126,6 +127,7 @@ export type PlanComparisonRow = {
   apiAccess: string;
   customIntegration: string;
   escalationTickets: string;
+  whatsapp: string;
   conversationAnalytics: string;
   highlighted?: boolean;
 };
@@ -173,6 +175,7 @@ export function buildPlanComparisonRows(): PlanComparisonRow[] {
       apiAccess: planHasApiAccessFeature(id) ? API_REST_COMING_SOON_LABEL : '—',
       customIntegration: planHasCustomIntegrationFeature(id) ? 'Incluido' : '—',
       escalationTickets: planHasEscalationTicketFeature(id) ? 'Incluido' : '—',
+      whatsapp: planHasWhatsAppFeature(id) ? 'Incluido' : '—',
       conversationAnalytics: formatConversationAnalyticsFeature(id),
       highlighted: id === 'plus',
     };
