@@ -278,7 +278,6 @@ async function handleSingleMessage(params: {
       agentId: params.agentIdForChat,
       sessionId: params.sessionId,
       role: 'user',
-      sentBy: 'visitor',
       content: params.text,
       traceId: `wa-in:${Date.now()}`,
     }).catch(() => {});
