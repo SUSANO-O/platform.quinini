@@ -19,6 +19,9 @@ type BuilderRailProps = {
   /** 'tabs' → secciones con icono + badge (agent editor). 'steps' → pasos numerados (widget builder). */
   mode?: 'tabs' | 'steps';
   title?: string;
+  subtitle?: string;
+  footer?: ReactNode;
+  className?: string;
   ariaLabel?: string;
 };
 
@@ -35,6 +38,9 @@ export function BuilderRail({
   onSelect,
   mode = 'tabs',
   title,
+  subtitle,
+  footer,
+  className = '',
   ariaLabel,
 }: BuilderRailProps) {
   if (items.length <= 1) return null;
@@ -80,59 +86,52 @@ export function BuilderRail({
   };
 
   return (
-    <>
+    <div className={`builder-rail ${className}`.trim()}>
       {/* ── Vertical (md+) ─────────────────────────────────────────────── */}
       <nav
-        className="hidden md:flex md:flex-col gap-1 md:w-52 md:shrink-0 md:sticky md:top-4 self-start"
+        className="dashboard-builder-rail builder-rail__nav hidden md:flex md:flex-col md:w-52 md:shrink-0 md:sticky md:top-4 self-start"
         role="tablist"
         aria-label={ariaLabel}
       >
-        {title && (
-          <span
-            className="px-3 mb-1 text-[10px] font-bold uppercase tracking-wider"
-            style={{ color: 'var(--muted-foreground)' }}
-          >
-            {title}
-          </span>
+        {(title || subtitle) && (
+          <div className="dashboard-builder-rail__head px-1 mb-2">
+            {title ? <p className="dashboard-builder-rail__title m-0">{title}</p> : null}
+            {subtitle ? <p className="dashboard-builder-rail__subtitle m-0">{subtitle}</p> : null}
+          </div>
         )}
-        {items.map((item, i) => {
-          const selected = item.id === activeId;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              onClick={() => onSelect(item.id)}
-              className="group flex items-center gap-2.5 w-full text-left rounded-xl border px-3 py-2.5 cursor-pointer transition-all"
-              style={{
-                fontWeight: selected ? 700 : 500,
-                fontSize: 13,
-                borderColor: selected ? `${R}44` : 'transparent',
-                background: selected ? 'var(--background)' : 'transparent',
-                color: selected ? R : 'var(--muted-foreground)',
-                boxShadow: selected ? `0 1px 0 ${R}22` : 'none',
-              }}
-            >
-              {mode === 'steps'
-                ? stepBullet(i, item, selected)
-                : item.icon && (
-                    <span className="flex shrink-0" style={{ opacity: selected ? 1 : 0.75 }}>
-                      {item.icon}
-                    </span>
-                  )}
-              <span className="flex-1 min-w-0 truncate">{item.label}</span>
-              {mode === 'tabs' && typeof item.count === 'number' && item.count > 0
-                ? countBadge(item.count, selected)
-                : null}
-            </button>
-          );
-        })}
+        <div className="dashboard-builder-rail__list flex flex-col gap-1">
+          {items.map((item, i) => {
+            const selected = item.id === activeId;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => onSelect(item.id)}
+                className={`dashboard-builder-rail__item${selected ? ' dashboard-builder-rail__item--active' : ''}`}
+              >
+                {mode === 'steps' && item.icon ? (
+                  <span className="dashboard-builder-rail__item-icon">{item.icon}</span>
+                ) : mode === 'steps' ? (
+                  stepBullet(i, item, selected)
+                ) : (
+                  item.icon && <span className="dashboard-builder-rail__item-icon">{item.icon}</span>
+                )}
+                <span className="flex-1 min-w-0 truncate">{item.label}</span>
+                {mode === 'tabs' && typeof item.count === 'number' && item.count > 0
+                  ? countBadge(item.count, selected)
+                  : null}
+              </button>
+            );
+          })}
+        </div>
+        {footer ? <div className="dashboard-builder-rail__footer mt-3">{footer}</div> : null}
       </nav>
 
       {/* ── Horizontal (móvil) ─────────────────────────────────────────── */}
       <div
-        className="flex md:hidden gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin"
+        className="builder-rail__mobile flex md:hidden gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin"
         style={{ scrollbarWidth: 'thin', WebkitOverflowScrolling: 'touch' }}
         role="tablist"
         aria-label={ariaLabel}
@@ -183,6 +182,6 @@ export function BuilderRail({
           );
         })}
       </div>
-    </>
+    </div>
   );
 }

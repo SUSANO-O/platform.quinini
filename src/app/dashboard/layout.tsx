@@ -8,7 +8,7 @@ import { useAuthSplashLoading } from '@/hooks/use-auth-splash-loading';
 import { SubscriptionProvider, useSubscription } from '@/hooks/use-subscription';
 import { AiLoadingScreen } from '@/components/ui/ai-loading-screen';
 import { DashboardSidebar, SIDEBAR_COLLAPSED_PX } from '@/components/dashboard/dashboard-sidebar';
-import { DashboardMobileNav, MOBILE_NAV_HEIGHT_PX } from '@/components/dashboard/dashboard-mobile-nav';
+import { DashboardMobileNav } from '@/components/dashboard/dashboard-mobile-nav';
 import { TourProvider, useTour } from '@/components/onboarding/app-tour';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 // import { initPaddleClient } from '@/lib/paddle-client'; // Paddle — comentado
@@ -417,18 +417,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         />
 
         {/* Main content — única columna que crece con el documento; scroll vertical aquí */}
-        <main
-          style={{
-            flex: 1,
-            minWidth: 0,
-            minHeight: 0,
-            overflowY: 'auto',
-            overflowX: 'hidden',
-            paddingTop: 52,
-            paddingBottom: `calc(${MOBILE_NAV_HEIGHT_PX}px + env(safe-area-inset-bottom, 0px))`,
-          }}
-          className="md:pt-0 md:pb-0"
-        >
+        <main className="dashboard-main">
           {children}
         </main>
 

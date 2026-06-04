@@ -25,7 +25,7 @@ import {
   Image as ImageIcon, File, Link2, AlignLeft, CheckCircle2,
   AlertCircle, X, KeyRound, RefreshCw, Sparkles, HelpCircle,
   Phone, MessageCircle, Check,
-  Copy, Eye, Search, Clock,
+  Copy, Eye, Search, Clock, Lightbulb,
 } from 'lucide-react';
 import ScheduledTasksTab from '@/components/agents/ScheduledTasksTab';
 import WhatsAppTab from '@/components/agents/WhatsAppTab';
@@ -49,8 +49,12 @@ import { useFallbackModelOptions } from '@/hooks/use-fallback-model-options';
 import { AgentDetailHeader } from '@/components/dashboard/agent-detail-header';
 import { type AgentDetailTabId } from '@/components/dashboard/agent-detail-tabs';
 import { BuilderRail } from '@/components/dashboard/builder-rail';
+import { AgentEditorSection } from '@/components/dashboard/agent-editor-section';
+import { AGENT_TAB_TIPS } from '@/lib/agent-editor-tab-tips';
 
 import { R, O, B } from '@/lib/brand-colors';
+
+const SECTION_TITLE = 'agent-editor-section__title';
 const RUNTIME_SKILL_TEMPLATES = [
   {
     id: 'sales_closer',
@@ -144,33 +148,6 @@ function mcpConnectionBadgeStyle(s: McpServerGroup): { label: string; bg: string
     return { label: 'Error sync MCP', bg: 'rgba(239,68,68,0.12)', color: '#ef4444' };
   }
   return { label: 'Pendiente MCP', bg: 'rgba(217,119,6,0.12)', color: '#d97706' };
-}
-
-function SectionCard({
-  children,
-  bar = 'rb' as 'rb' | 'bo',
-  className,
-  innerStyle,
-  outerStyle,
-}: {
-  children: ReactNode;
-  bar?: 'rb' | 'bo';
-  className?: string;
-  innerStyle?: CSSProperties;
-  outerStyle?: CSSProperties;
-}) {
-  const barBg = bar === 'bo' ? B : R;
-  return (
-    <div
-      className={`rounded-2xl overflow-hidden border mb-4 card-texture card-hover ${className ?? ''}`}
-      style={{ borderColor: 'var(--border)', ...outerStyle }}
-    >
-      <div className="h-[3px]" style={{ background: barBg }} />
-      <div className="p-5" style={innerStyle}>
-        {children}
-      </div>
-    </div>
-  );
 }
 
 interface ToolConfig { toolId: string; config: Record<string, unknown> }
@@ -1223,10 +1200,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     border: '1px solid var(--border)', background: 'var(--background)',
     color: 'var(--foreground)', fontSize: '13px', outline: 'none', boxSizing: 'border-box',
   };
-  const sectionTitle: CSSProperties = {
-    fontSize: '12px', fontWeight: 700, color: 'var(--muted-foreground)',
-    textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px',
-  };
   const getRuntimeSkillConfig = useCallback(
     (skillId: string) => skillsConfig.find((s) => s?.id === skillId),
     [skillsConfig],
@@ -1272,7 +1245,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         <div className="hero-glow pointer-events-none" style={{ background: B, top: '100px', left: '-120px' }} />
         <div className="relative max-w-3xl mx-auto">
           <AiLoadingInline
-            label="Cargando agente…"
+            label="Cargando agentes…"
             hint="Preparando configuración e integraciones"
             style={{ padding: '64px 16px' }}
           />
@@ -1329,8 +1302,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       ? `Se eliminará «${agent.name}», sus ${agent.subAgentIds!.length} sub-agente(s) y los widgets vinculados. Esta acción no se puede deshacer.`
       : `Se eliminará «${agent.name}» y los widgets vinculados. Esta acción no se puede deshacer.`;
 
+  const activeTabIdx = Math.max(0, visibleTabs.findIndex((t) => t.id === tab));
+  const activeTabLabel = visibleTabs[activeTabIdx]?.label ?? 'Agente';
+
   return (
-    <div className="relative overflow-hidden" style={{ minHeight: '100%' }}>
+    <div className="agent-editor-page dashboard-shell relative overflow-hidden min-h-full">
       <ConfirmDialog
         open={showDeleteConfirm}
         title="Eliminar agente"
@@ -1344,7 +1320,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       <div className="hero-glow pointer-events-none" style={{ background: R, top: '-200px', right: '-60px' }} />
       <div className="hero-glow pointer-events-none" style={{ background: B, top: '120px', left: '-120px' }} />
 
-      <div className="relative px-4 sm:px-6 py-8 md:py-10 max-w-5xl mx-auto">
+      <div className="agent-editor-page__inner relative px-4 sm:px-6 py-6 md:py-8">
       {agent && (
         <>
           <AgentMcpOpenFromQuery
@@ -1363,28 +1339,42 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         </>
       )}
 
-      <AgentDetailHeader
-        name={agent.name}
-        model={model || agent.model}
-        isDisabled={isDisabled}
-        hubSynced={agent.syncStatus === 'synced'}
-        ragSummary={soloChatOnly ? null : ragSummary}
-        readOnly={readOnly}
-        deleting={deleting}
-        saving={saving}
-        onToggleStatus={toggleStatus}
-        onDelete={() => setShowDeleteConfirm(true)}
-      />
+      <div className="agent-editor-page__header">
+        <AgentDetailHeader
+          name={agent.name}
+          model={model || agent.model}
+          isDisabled={isDisabled}
+          hubSynced={agent.syncStatus === 'synced'}
+          ragSummary={soloChatOnly ? null : ragSummary}
+          readOnly={readOnly}
+          deleting={deleting}
+          saving={saving}
+          onToggleStatus={toggleStatus}
+          onDelete={() => setShowDeleteConfirm(true)}
+        />
+      </div>
 
-      <div className="flex flex-col md:flex-row gap-5 md:gap-6 mt-5">
+      <div className="agent-editor-page__grid">
       <BuilderRail
         mode="tabs"
         ariaLabel="Secciones del agente"
+        title={activeTabLabel}
+        subtitle={`Sección ${activeTabIdx + 1} de ${visibleTabs.length}`}
         items={visibleTabs.map((t) => ({ id: t.id, label: t.label, icon: t.icon, count: t.count }))}
         activeId={tab}
         onSelect={(id) => setTab(id as AgentDetailTabId)}
+        footer={
+          <div className="dashboard-builder-rail__tip">
+            <p className="dashboard-builder-rail__tip-label m-0">
+              <Lightbulb size={12} className="inline mr-1" aria-hidden />
+              Tip
+            </p>
+            <p className="dashboard-builder-rail__tip-text m-0">{AGENT_TAB_TIPS[tab]}</p>
+          </div>
+        }
       />
-      <div className="flex-1 min-w-0">
+      <div className="agent-editor-page__main flex-1 min-w-0">
+      <div className="agent-editor-form-card" data-tour="agent-edit-form">
       {soloChatOnly && (
         <p className="text-xs mb-4 m-0 px-3 py-2 rounded-xl border" style={{ color: 'var(--muted-foreground)', borderColor: 'var(--border)', background: 'var(--muted)' }}>
           Plan <strong>Solo</strong>: chat básico. Actualiza a Basic o superior para reglas, FAQ, herramientas, almacenamiento y sub-agentes.
@@ -1406,8 +1396,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       {/* ── GENERAL TAB ──────────────────────────────────────────────────────── */}
       {tab === 'general' && (
         <>
-          <SectionCard>
-            <p style={sectionTitle}>Información básica</p>
+          <AgentEditorSection>
+            <p className={SECTION_TITLE}>Información básica</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '5px' }}>Nombre</label>
@@ -1426,11 +1416,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 />
               </div>
             </div>
-          </SectionCard>
+          </AgentEditorSection>
 
           {!soloChatOnly && (
-          <SectionCard bar="bo">
-            <p style={{ ...sectionTitle, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <AgentEditorSection bar="cool">
+            <p className={`${SECTION_TITLE} agent-editor-section__title--row`}>
               <KeyRound size={14} style={{ opacity: 0.85 }} /> Token público del widget <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 'normal', color: 'var(--muted-foreground)' }}>(opcional)</span>
             </p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
@@ -1460,12 +1450,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               </button>
               )}
             </div>
-          </SectionCard>
+          </AgentEditorSection>
           )}
 
           {!soloChatOnly && (
-          <SectionCard>
-            <p style={sectionTitle}>Solo propósito del agente</p>
+          <AgentEditorSection>
+            <p className={SECTION_TITLE}>Solo propósito del agente</p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
               Si está activo, el motor en AIBackHub refuerza en el system prompt que el agente{' '}
               <strong>no responda temas fuera de su rol</strong>: solo lo definido en instrucciones, FAQs, reglas y lo que permitan herramientas MCP, skills y almacenamiento. Útil para un vendedor o soporte que no debe improvisar en otros dominios.
@@ -1504,11 +1494,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '10px', marginBottom: 0 }}>
               Guarda con &quot;Guardar información&quot; para sincronizar con AIBackHub.
             </p>
-          </SectionCard>
+          </AgentEditorSection>
           )}
 
-          <SectionCard>
-            <p style={sectionTitle}>Contexto de conversación</p>
+          <AgentEditorSection>
+            <p className={SECTION_TITLE}>Contexto de conversación</p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
               Si está activo, el widget recuerda la última conversación del agente en este navegador, incluso después de refrescar o cerrar sesión.
             </p>
@@ -1558,10 +1548,10 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 {persistConversationHistory ? 'Memoria persistente activada' : 'Memoria persistente desactivada'}
               </span>
             </label>
-          </SectionCard>
+          </AgentEditorSection>
 
-          <SectionCard>
-            <p style={sectionTitle}>Modelo de IA</p>
+          <AgentEditorSection>
+            <p className={SECTION_TITLE}>Modelo de IA</p>
             <div data-tour="agent-edit-model">
             <ModelSelectionSummary
               primaryId={model}
@@ -1637,12 +1627,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             />
             )}
             </div>
-          </SectionCard>
+          </AgentEditorSection>
 
           {!soloChatOnly && (
           <>
-          <SectionCard>
-            <p style={sectionTitle}>Skills</p>
+          <AgentEditorSection>
+            <p className={SECTION_TITLE}>Skills</p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
               Capacidades de este agente. Se sincronizan con el hub al guardar.
             </p>
@@ -1742,10 +1732,10 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 </button>
               </div>
             )}
-          </SectionCard>
+          </AgentEditorSection>
 
-          <SectionCard bar="bo">
-            <p style={sectionTitle}>Perfiles runtime (cerebro)</p>
+          <AgentEditorSection bar="cool">
+            <p className={SECTION_TITLE}>Perfiles runtime (cerebro)</p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
               Estos perfiles cambian comportamiento real en AIBackHub (prompt/tools/settings).
             </p>
@@ -1808,12 +1798,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 );
               })}
             </div>
-          </SectionCard>
+          </AgentEditorSection>
           </>
           )}
 
-          <SectionCard bar="bo">
-            <p style={sectionTitle}>System Prompt</p>
+          <AgentEditorSection bar="cool">
+            <p className={SECTION_TITLE}>System Prompt</p>
             <textarea
               className="landing-input"
               style={{ ...inp, minHeight: '160px', resize: 'vertical', fontFamily: 'inherit' }}
@@ -1822,19 +1812,15 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               disabled={readOnly}
               readOnly={readOnly}
             />
-          </SectionCard>
+          </AgentEditorSection>
 
           {!readOnly && (
           <button
+            type="button"
             data-tour="agent-edit-save"
             onClick={saveGeneral}
             disabled={saving}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-opacity"
-            style={{
-              ...BTN_PRIMARY,
-              cursor: saving ? 'not-allowed' : 'pointer',
-              opacity: saving ? 0.7 : 1,
-            }}
+            className="agent-editor-page__save"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
             Guardar cambios
@@ -1846,8 +1832,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       {/* ── RULES TAB ───────────────────────────────────────────────────────── */}
       {tab === 'rules' && (
         <>
-          <SectionCard>
-            <p style={sectionTitle}>Reglas de comportamiento y flujo</p>
+          <AgentEditorSection>
+            <p className={SECTION_TITLE}>Reglas de comportamiento y flujo</p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
               Configura políticas del agente (prioridad, tono, reclamos, respuestas cortas y qué hacer cuando no sabe). Al guardar, estas reglas se integran automáticamente al system prompt.
             </p>
@@ -1861,22 +1847,22 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 <Plus size={13} /> Agregar regla
               </button>
             )}
-          </SectionCard>
+          </AgentEditorSection>
 
           {behaviorRules.length === 0 ? (
-            <SectionCard innerStyle={{ textAlign: 'center', padding: '28px 16px' }}>
+            <AgentEditorSection innerStyle={{ textAlign: 'center', padding: '28px 16px' }}>
               <Sparkles size={24} style={{ color: 'var(--muted-foreground)', margin: '0 auto 8px' }} />
               <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', margin: 0 }}>
                 Sin reglas configuradas aún.
               </p>
-            </SectionCard>
+            </AgentEditorSection>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {behaviorRules
                 .slice()
                 .sort((a, b) => a.priority - b.priority)
                 .map((rule) => (
-                  <SectionCard key={rule.id} outerStyle={{ borderColor: 'rgba(var(--brand-primary-rgb),0.2)' }}>
+                  <AgentEditorSection key={rule.id} outerStyle={{ borderColor: 'rgba(var(--brand-primary-rgb),0.2)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
                       <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>{rule.title || 'Regla sin título'}</p>
                       {!readOnly && (
@@ -2030,7 +2016,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         Priorizar respuestas cortas
                       </label>
                     </div>
-                  </SectionCard>
+                  </AgentEditorSection>
                 ))}
             </div>
           )}
@@ -2056,8 +2042,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       {/* ── FAQ TAB ─────────────────────────────────────────────────────────── */}
       {tab === 'faqs' && (
         <>
-          <SectionCard>
-            <p style={sectionTitle}>Preguntas frecuentes</p>
+          <AgentEditorSection>
+            <p className={SECTION_TITLE}>Preguntas frecuentes</p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
               Define pares pregunta–respuesta para que el modelo las use cuando la consulta sea equivalente. Al guardar,
               se integran al system prompt y se sincronizan. El widget registra preguntas repetidas que
@@ -2073,22 +2059,22 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 <Plus size={13} /> Agregar FAQ
               </button>
             )}
-          </SectionCard>
+          </AgentEditorSection>
 
           {agentFaqs.length === 0 ? (
-            <SectionCard innerStyle={{ textAlign: 'center', padding: '28px 16px' }}>
+            <AgentEditorSection innerStyle={{ textAlign: 'center', padding: '28px 16px' }}>
               <HelpCircle size={24} style={{ color: 'var(--muted-foreground)', margin: '0 auto 8px' }} />
               <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', margin: 0 }}>
                 Sin FAQs aún. Añade la primera o espera a que aparezcan candidatas desde el widget.
               </p>
-            </SectionCard>
+            </AgentEditorSection>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {agentFaqs
                 .slice()
                 .sort((a, b) => a.priority - b.priority)
                 .map((faq) => (
-                  <SectionCard key={faq.id} outerStyle={{ borderColor: 'rgba(var(--brand-primary-rgb),0.22)' }}>
+                  <AgentEditorSection key={faq.id} outerStyle={{ borderColor: 'rgba(var(--brand-primary-rgb),0.22)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
                       <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>FAQ</p>
                       {!readOnly && (
@@ -2166,13 +2152,13 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       />
                       FAQ activa
                     </label>
-                  </SectionCard>
+                  </AgentEditorSection>
                 ))}
             </div>
           )}
 
-          <SectionCard>
-            <p style={sectionTitle}>Candidatas (desde el widget)</p>
+          <AgentEditorSection>
+            <p className={SECTION_TITLE}>Candidatas (desde el widget)</p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '10px', lineHeight: 1.45 }}>
               Preguntas que los visitantes repiten y que no coinciden con ninguna FAQ por texto normalizado. Tras{' '}
               <strong>3</strong> repeticiones se sugieren al modelo como contexto; conviértelas en FAQ para fijar la
@@ -2253,7 +2239,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   ))}
               </div>
             )}
-          </SectionCard>
+          </AgentEditorSection>
 
           {!readOnly && (
             <button
@@ -2284,15 +2270,15 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
           {/* ── MCP Integrations (synced) ── */}
           {mcpLoading ? (
-            <SectionCard innerStyle={{ textAlign: 'center', padding: '28px 16px' }}>
+            <AgentEditorSection innerStyle={{ textAlign: 'center', padding: '28px 16px' }}>
               <Loader2 size={22} className="animate-spin mx-auto mb-2 block" style={{ color: R }} />
               <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', margin: 0 }}>Cargando integraciones MCP...</p>
-            </SectionCard>
+            </AgentEditorSection>
           ) : syncedMcpServers.length > 0 ? (
             <>
-              <SectionCard>
+              <AgentEditorSection>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                  <p style={{ ...sectionTitle, margin: 0 }}>Integraciones MCP conectadas</p>
+                  <p className={SECTION_TITLE} style={{ margin: 0 }}>Integraciones MCP conectadas</p>
                   <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
                     {mcpToolIds.length} tool{mcpToolIds.length !== 1 ? 's' : ''} activa{mcpToolIds.length !== 1 ? 's' : ''}
                   </span>
@@ -2503,10 +2489,10 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                     );
                   })}
                 </div>
-              </SectionCard>
+              </AgentEditorSection>
             </>
           ) : mcpServers.length === 0 && !mcpLoading ? (
-            <SectionCard innerStyle={{ textAlign: 'center', padding: '28px 16px' }}>
+            <AgentEditorSection innerStyle={{ textAlign: 'center', padding: '28px 16px' }}>
                 <RefreshCw size={24} style={{ color: 'var(--muted-foreground)', margin: '0 auto 10px' }} />
                 <p style={{ fontWeight: 600, fontSize: '13px', margin: '0 0 6px' }}>Sin integraciones MCP</p>
                 <p style={{ color: 'var(--muted-foreground)', fontSize: '12px', margin: '0 0 12px', lineHeight: 1.5 }}>
@@ -2526,13 +2512,13 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   <RefreshCw size={13} />
                   Reintentar
                 </button>
-            </SectionCard>
+            </AgentEditorSection>
           ) : null}
 
           {/* Pending/Error MCP connections */}
           {pendingOrErrorMcpServers.length > 0 && (
-            <SectionCard bar="bo">
-              <p style={{ ...sectionTitle, margin: '0 0 10px' }}>Integraciones pendientes / con error</p>
+            <AgentEditorSection bar="cool">
+              <p className={SECTION_TITLE} style={{ margin: '0 0 10px' }}>Integraciones pendientes / con error</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {pendingOrErrorMcpServers.map((srv) => {
                   const pb = mcpConnectionBadgeStyle(srv);
@@ -2608,13 +2594,13 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '10px 0 0', lineHeight: 1.5 }}>
                 Reintenta la sincronización aquí o revisa las credenciales. También puedes gestionar conexiones en AgentFlowHub.
               </p>
-            </SectionCard>
+            </AgentEditorSection>
           )}
 
           {/* ── Built-in tools ── */}
-          <SectionCard>
+          <AgentEditorSection>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <p style={{ ...sectionTitle, margin: 0 }}>Herramientas built-in</p>
+              <p className={SECTION_TITLE} style={{ margin: 0 }}>Herramientas built-in</p>
               <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{tools.length}/{limits.toolsPerAgent} seleccionadas</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -2647,7 +2633,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 );
               })}
             </div>
-          </SectionCard>
+          </AgentEditorSection>
 
           {/* Config fields for selected tools */}
           {tools.map((t) => {
@@ -2657,9 +2643,9 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             if (t.toolId === 'webhook') {
               const entries = getWebhookEntries(t);
               return (
-                <SectionCard key={t.toolId}>
+                <AgentEditorSection key={t.toolId}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <p style={{ ...sectionTitle, margin: 0 }}>🔗 Webhooks del agente</p>
+                    <p className={SECTION_TITLE} style={{ margin: 0 }}>🔗 Webhooks del agente</p>
                     {!readOnly && (
                       <button
                         type="button"
@@ -2781,7 +2767,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '14px 0 0', lineHeight: 1.5 }}>
                     Recuerda pulsar <strong>Guardar herramientas</strong> después de añadir/editar webhooks.
                   </p>
-                </SectionCard>
+                </AgentEditorSection>
               );
             }
 
@@ -2789,9 +2775,9 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             if (t.toolId === 'google-sheets') {
               const entries = getSheetEntries(t);
               return (
-                <SectionCard key={t.toolId}>
+                <AgentEditorSection key={t.toolId}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <p style={{ ...sectionTitle, margin: 0 }}>📊 Google Sheets del agente</p>
+                    <p className={SECTION_TITLE} style={{ margin: 0 }}>📊 Google Sheets del agente</p>
                     {!readOnly && (
                       <button
                         type="button"
@@ -2902,15 +2888,15 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '14px 0 0', lineHeight: 1.5 }}>
                     ⚠️ La hoja debe estar compartida como <strong>público con link</strong>. Datos sensibles deberían ir vía Webhook con autenticación.
                   </p>
-                </SectionCard>
+                </AgentEditorSection>
               );
             }
 
             // Resto de herramientas — UI genérica con configFields
             if (!def?.configFields?.length) return null;
             return (
-              <SectionCard key={t.toolId}>
-                <p style={sectionTitle}>{def.icon} {def.name} — Configuración</p>
+              <AgentEditorSection key={t.toolId}>
+                <p className={SECTION_TITLE}>{def.icon} {def.name} — Configuración</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {def.configFields.map((field) => (
                     <div key={field.key}>
@@ -2929,7 +2915,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                     </div>
                   ))}
                 </div>
-              </SectionCard>
+              </AgentEditorSection>
             );
           })}
 
@@ -2955,7 +2941,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       {tab === 'rag' && (
         <>
           {!limits.ragEnabled ? (
-            <SectionCard innerStyle={{ textAlign: 'center', padding: '36px 20px' }}>
+            <AgentEditorSection innerStyle={{ textAlign: 'center', padding: '36px 20px' }}>
               <Lock size={32} style={{ color: 'var(--muted-foreground)', margin: '0 auto 12px' }} />
               <p style={{ fontWeight: 700, marginBottom: '6px' }}>Almacenamiento no disponible en tu plan</p>
               <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', marginBottom: '16px' }}>
@@ -2964,12 +2950,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               <Link href="/dashboard" className="landing-btn-primary !inline-flex !w-auto no-underline text-sm px-5 py-2 rounded-xl">
                 Ver planes →
               </Link>
-            </SectionCard>
+            </AgentEditorSection>
           ) : (
             <>
               {/* Toggle + description */}
-              <SectionCard>
-                <p style={sectionTitle}>Almacenamiento — Base de conocimiento</p>
+              <AgentEditorSection>
+                <p className={SECTION_TITLE}>Almacenamiento — Base de conocimiento</p>
                 <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', marginBottom: '10px' }}>
                   Sube archivos o agrega texto/URLs para que el agente responda con información precisa de tu negocio.
                   Soporta PDF, Word, imágenes (OCR automático), TXT, CSV, JSON y más. Los archivos se convierten a texto
@@ -3008,10 +2994,10 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                     Guardar
                   </button>
                 )}
-              </SectionCard>
+              </AgentEditorSection>
 
-              <SectionCard>
-                <p style={sectionTitle}>Memoria del agente</p>
+              <AgentEditorSection>
+                <p className={SECTION_TITLE}>Memoria del agente</p>
                 <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
                   Resumen de memoria.
                 </p>
@@ -3060,13 +3046,13 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                     No hay datos de memoria disponibles (sincroniza el agente con el hub si aplica).
                   </p>
                 )}
-              </SectionCard>
+              </AgentEditorSection>
 
               {ragEnabled && (
                 <>
                   {/* Upload zone */}
-                  <SectionCard bar="bo">
-                    <p style={sectionTitle}>Subir archivos</p>
+                  <AgentEditorSection bar="cool">
+                    <p className={SECTION_TITLE}>Subir archivos</p>
                     <div
                       style={{
                         display: 'grid',
@@ -3205,7 +3191,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         <button onClick={() => setUploadErr('')} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}><X size={12} /></button>
                       </div>
                     )}
-                  </SectionCard>
+                  </AgentEditorSection>
 
                   {agent?.agentHubId && agent.syncStatus === 'failed' && (
                     <div
@@ -3245,11 +3231,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   )}
 
                   {/* Sources list */}
-                  <SectionCard>
+                  <AgentEditorSection>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
                         <div>
-                          <p style={{ ...sectionTitle, margin: 0 }}>
+                          <p className={SECTION_TITLE} style={{ margin: 0 }}>
                             Fuentes ({ragSources.length}/{ragMaxSources})
                           </p>
                           {agent?.agentHubId ? (
@@ -3511,7 +3497,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         Guardar fuentes de texto/URL
                       </button>
                     )}
-                  </SectionCard>
+                  </AgentEditorSection>
 
                   {ragPreview ? (
                     <div
@@ -3614,7 +3600,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       {tab === 'subagents' && (
         <>
           {limits.subAgentsPerAgent === 0 ? (
-            <SectionCard innerStyle={{ textAlign: 'center', padding: '36px 20px' }}>
+            <AgentEditorSection innerStyle={{ textAlign: 'center', padding: '36px 20px' }}>
               <Network size={32} style={{ color: 'var(--muted-foreground)', margin: '0 auto 12px' }} />
               <p style={{ fontWeight: 700, marginBottom: '6px' }}>Sub-agentes no disponibles en tu plan</p>
               <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', marginBottom: '16px' }}>
@@ -3623,7 +3609,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               <Link href="/dashboard" className="landing-btn-primary !inline-flex !w-auto no-underline text-sm px-5 py-2 rounded-xl">
                 Ver planes →
               </Link>
-            </SectionCard>
+            </AgentEditorSection>
           ) : (
             <>
               <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -3646,8 +3632,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               </div>
 
               {showNewSub && !readOnly && (
-                <SectionCard outerStyle={{ borderColor: 'rgba(var(--brand-primary-rgb),0.35)' }}>
-                  <p style={sectionTitle}>Nuevo sub-agente</p>
+                <AgentEditorSection outerStyle={{ borderColor: 'rgba(var(--brand-primary-rgb),0.35)' }}>
+                  <p className={SECTION_TITLE}>Nuevo sub-agente</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <input
                       className="landing-input"
@@ -3719,16 +3705,16 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       </button>
                     </div>
                   </div>
-                </SectionCard>
+                </AgentEditorSection>
               )}
 
               {subAgents.length === 0 && !showNewSub ? (
-                <SectionCard innerStyle={{ textAlign: 'center', padding: '28px 16px' }}>
+                <AgentEditorSection innerStyle={{ textAlign: 'center', padding: '28px 16px' }}>
                   <Network size={28} style={{ color: 'var(--muted-foreground)', margin: '0 auto 10px' }} />
                   <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', margin: 0 }}>
                     Sin sub-agentes aún. Agrega especialistas para orquestar tareas complejas.
                   </p>
-                </SectionCard>
+                </AgentEditorSection>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {subAgents.map((sa) => (
@@ -3769,6 +3755,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           )}
         </>
       )}
+      </div>
       </div>
       </div>
       </div>

@@ -253,6 +253,26 @@ export default function InboxPage() {
     }
   }
 
+  async function silenceBot(sessionId: string) {
+    setReactivatingBot(sessionId);
+    try {
+      const res = await fetch(`/api/inbox/${encodeURIComponent(sessionId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ humanMode: true }),
+      });
+      if (res.ok) {
+        setHumanModeBySession((prev) => ({ ...prev, [sessionId]: true }));
+        toast.success('Tomaste el control — el bot quedó en pausa.');
+      } else {
+        const d = await res.json();
+        toast.error(d.error || 'No se pudo pausar el bot.');
+      }
+    } finally {
+      setReactivatingBot(null);
+    }
+  }
+
   async function sendReply(sessionId: string) {
     const message = replyDraft[sessionId]?.trim() || '';
     const attachments = pendingAttachments[sessionId] || [];
@@ -476,7 +496,9 @@ export default function InboxPage() {
           onDeleteMessage={(messageId) => void deleteMessage(expanded, messageId)}
           humanMode={humanModeBySession[expanded] ?? false}
           onReactivateBot={() => void reactivateBot(expanded)}
+          onSilenceBot={() => void silenceBot(expanded)}
           reactivatingBot={reactivatingBot === expanded}
+          isWhatsApp={expanded.startsWith('wa:')}
         />
       )}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
@@ -620,6 +642,24 @@ export default function InboxPage() {
                           <p style={{ fontWeight: item.needsReply || item.hasUnread ? 800 : 700, fontSize: 15, margin: 0 }}>
                             {visitorName}
                           </p>
+                          {item.sessionId.startsWith('wa:') && (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                padding: '2px 7px',
+                                borderRadius: 999,
+                                background: 'rgba(37,211,102,0.14)',
+                                color: '#1da851',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3,
+                              }}
+                            >
+                              <MessageSquare size={10} />
+                              WhatsApp
+                            </span>
+                          )}
                           {item.needsReply && item.inboxStatus !== 'resolved' && (
                             <span
                               style={{

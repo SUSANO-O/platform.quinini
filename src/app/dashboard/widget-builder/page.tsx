@@ -2,11 +2,29 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { Copy, Check, Save, ExternalLink, Plus, Trash2, Sparkles, Loader2 } from 'lucide-react';
+import {
+  Copy,
+  Check,
+  Save,
+  ExternalLink,
+  Plus,
+  Trash2,
+  Sparkles,
+  Loader2,
+  Fingerprint,
+  Paintbrush,
+  Settings2,
+  Send,
+  Lightbulb,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/use-subscription';
 import { AvatarEditor } from '@/components/ui/AvatarEditor';
 import { BuilderRail } from '@/components/dashboard/builder-rail';
+import { WidgetBuilderPreviewPanel } from '@/components/dashboard/widget-builder-preview-panel';
+import { WidgetBuilderTrustBadges } from '@/components/dashboard/widget-builder-trust-badges';
+import { WidgetBuilderPublishStep } from '@/components/dashboard/widget-builder-publish-step';
+import { WidgetBuilderPublishPreview } from '@/components/dashboard/widget-builder-publish-preview';
 import {
   createDefaultPipelineConfig,
   isContentCapableAgent,
@@ -285,7 +303,16 @@ const DEFAULT: WidgetConfig = {
 
 // ── Mock preview ─────────────────────────────────────────────────────────────
 
-function MockPreview({ cfg, shortcuts = [] }: { cfg: WidgetConfig; shortcuts?: WidgetShortcut[] }) {
+function MockPreview({
+  cfg,
+  shortcuts = [],
+  publishTeaser = false,
+}: {
+  cfg: WidgetConfig;
+  shortcuts?: WidgetShortcut[];
+  /** Paso publicar: burbuja con mensaje de bienvenida visible. */
+  publishTeaser?: boolean;
+}) {
   const [chatOpen, setChatOpen] = useState(false);
   /** Evita mutar el DOM con innerHTML en onError (rompe a React). */
   const [fabAvatarFailed, setFabAvatarFailed] = useState(false);
@@ -316,17 +343,9 @@ function MockPreview({ cfg, shortcuts = [] }: { cfg: WidgetConfig; shortcuts?: W
     <div style={{
       position: 'relative', width: '100%', height: '380px', minHeight: '380px',
       background: cfg.theme === 'dark' ? '#1a1a2e' : '#f8fafc',
-      borderRadius: '14px', overflow: 'hidden', border: '1px solid var(--border)',
+      overflow: 'hidden',
     }}>
-      {/* Mock browser bar */}
-      <div style={{ background: cfg.theme === 'dark' ? '#0f0f23' : '#e2e8f0', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-        {['#ef4444','#f59e0b','#22c55e'].map((c) => <div key={c} style={{ width: 8, height: 8, borderRadius: '50%', background: c }} />)}
-        <div style={{ flex: 1, background: cfg.theme === 'dark' ? '#1a1a2e' : '#fff', borderRadius: 6, padding: '3px 10px', fontSize: 10, color: cfg.theme === 'dark' ? '#64748b' : '#94a3b8' }}>
-          yoursite.com
-        </div>
-      </div>
-
-      {/* Mock page content */}
+      {/* Mock page content — la barra del navegador la pinta WidgetBuilderPreviewPanel */}
       <div style={{ padding: '16px', color: cfg.theme === 'dark' ? '#e2e8f0' : '#1e293b' }}>
         {[60, 80, 45, 70].map((w, i) => (
           <div key={i} style={{ height: 8, background: cfg.theme === 'dark' ? '#2d2d4e' : '#e2e8f0', borderRadius: 4, marginBottom: 8, width: `${w}%` }} />
@@ -476,15 +495,25 @@ function MockPreview({ cfg, shortcuts = [] }: { cfg: WidgetConfig; shortcuts?: W
 
       {/* FAB */}
       <div style={{ position: 'absolute', ...fabPos, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-        {!chatOpen && cfg.fabHint && (
-          <div style={{
-            background: '#fff', color: '#333', fontSize: 10, padding: '4px 8px',
-            borderRadius: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.12)', whiteSpace: 'nowrap',
-            border: '1px solid #e2e8f0',
-          }}>
-            {cfg.fabHint}
+        {!chatOpen && (publishTeaser ? cfg.welcome : cfg.fabHint) ? (
+          <div
+            style={{
+              background: '#fff',
+              color: '#334155',
+              fontSize: publishTeaser ? 9 : 10,
+              padding: publishTeaser ? '8px 10px' : '4px 8px',
+              borderRadius: publishTeaser ? 12 : 20,
+              boxShadow: '0 4px 14px rgba(0,0,0,0.1)',
+              maxWidth: publishTeaser ? 200 : undefined,
+              lineHeight: 1.4,
+              textAlign: publishTeaser ? 'left' : 'center',
+              whiteSpace: publishTeaser ? 'normal' : 'nowrap',
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            {publishTeaser ? cfg.welcome || cfg.fabHint : cfg.fabHint}
           </div>
-        )}
+        ) : null}
         <button
           type="button"
           onClick={() => setChatOpen((v) => !v)}
@@ -554,11 +583,21 @@ function generateSnippet(
 // ── Main component ────────────────────────────────────────────────────────────
 
 const WIDGET_WIZARD_STEPS = [
-  { id: 'identity', label: 'Identidad' },
-  { id: 'appearance', label: 'Apariencia' },
-  { id: 'behavior', label: 'Comportamiento' },
-  { id: 'publish', label: 'Publicar' },
+  { id: 'identity', label: 'Identidad', icon: Fingerprint },
+  { id: 'appearance', label: 'Apariencia', icon: Paintbrush },
+  { id: 'behavior', label: 'Comportamiento', icon: Settings2 },
+  { id: 'publish', label: 'Publicar', icon: Send },
 ] as const;
+
+const WIDGET_STEP_TIPS: Record<(typeof WIDGET_WIZARD_STEPS)[number]['id'], string> = {
+  identity:
+    'Elige un nombre claro y un agente activo. El token de integración se genera al publicar.',
+  appearance:
+    'El color y la posición del botón definen la primera impresión en tu sitio.',
+  behavior:
+    'Ajusta mensajes, escalación y privacidad antes de exponer el widget.',
+  publish: 'Copia el snippet y pégalo antes de </body> en tu web.',
+};
 
 export default function WidgetBuilderPage() {
   const { subscription } = useSubscription();
@@ -577,6 +616,7 @@ export default function WidgetBuilderPage() {
   const [feedbackQuestions, setFeedbackQuestions] = useState<FeedbackQuestion[]>([]);
   const [shortcutSuggestErr, setShortcutSuggestErr] = useState('');
   const [wizardStep, setWizardStep] = useState(0);
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
 
   const plan = subscription?.plan ?? 'free';
   const planActive =
@@ -1076,6 +1116,7 @@ export default function WidgetBuilderPage() {
   };
   const labelStyle: React.CSSProperties = { display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '5px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' };
   const fieldStyle: React.CSSProperties = { marginBottom: '14px' };
+  const fieldClass = 'widget-builder-field';
 
   /** Card para agrupar una subsección (WhatsApp, Escalación, Privacidad, etc.) */
   const subSectionCard: React.CSSProperties = {
@@ -1109,75 +1150,116 @@ export default function WidgetBuilderPage() {
   const subSectionTitle: React.CSSProperties = { margin: 0, fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em' };
   const subSectionDesc: React.CSSProperties = { margin: '2px 0 0', fontSize: 11, color: 'var(--muted-foreground)', lineHeight: 1.45 };
 
-  return (
-    <div className="relative overflow-hidden min-h-full">
-      <div className="hero-glow pointer-events-none" style={{ background: BRAND_R, top: '-200px', right: '-80px' }} />
-      <div className="hero-glow pointer-events-none" style={{ background: BRAND_B, top: '120px', left: '-100px' }} />
+  const activeStep = WIDGET_WIZARD_STEPS[wizardStep];
+  const railItems = WIDGET_WIZARD_STEPS.map((s, i) => ({
+    id: s.id,
+    label: s.label,
+    icon: <s.icon size={18} strokeWidth={1.75} aria-hidden />,
+    state: (i < wizardStep ? 'done' : i === wizardStep ? 'active' : 'pending') as 'done' | 'active' | 'pending',
+  }));
 
-      <div className="relative flex flex-col xl:flex-row gap-4 max-w-[1440px] mx-auto px-2 py-2 xl:items-start">
-        {/* Sub-sidebar de pasos — vertical en escritorio, horizontal en móvil */}
+  return (
+    <div className="widget-builder-page dashboard-shell relative overflow-hidden min-h-full">
+      <div className="hero-glow pointer-events-none" style={{ background: BRAND_R, top: '-200px', right: '-80px' }} />
+
+      <div
+        className={`widget-builder-page__grid relative${wizardStep === 3 ? ' widget-builder-page__grid--publish' : ''}`}
+      >
         <BuilderRail
           mode="steps"
           ariaLabel="Pasos del widget"
-          items={WIDGET_WIZARD_STEPS.map((s, i) => ({
-            id: s.id,
-            label: s.label,
-            state: i < wizardStep ? 'done' : i === wizardStep ? 'active' : 'pending',
-          }))}
-          activeId={WIDGET_WIZARD_STEPS[wizardStep].id}
+          title={activeStep.label}
+          subtitle={`Paso ${wizardStep + 1} de ${WIDGET_WIZARD_STEPS.length}`}
+          items={railItems}
+          activeId={activeStep.id}
           onSelect={(id) => {
             const idx = WIDGET_WIZARD_STEPS.findIndex((s) => s.id === id);
             if (idx >= 0) setWizardStep(idx);
           }}
+          footer={
+            <div className="dashboard-builder-rail__tip">
+              <p className="dashboard-builder-rail__tip-label">
+                <Lightbulb size={12} className="inline mr-1" aria-hidden />
+                Tip de diseño
+              </p>
+              <p className="dashboard-builder-rail__tip-text">{WIDGET_STEP_TIPS[activeStep.id]}</p>
+            </div>
+          }
         />
 
-        {/* Formulario — columna principal */}
-        <div className="w-full xl:flex-[1.45] xl:min-w-[min(100%,480px)] shrink-0 xl:max-h-[calc(100vh-5rem)] overflow-y-auto">
-          <div className="card-texture rounded-2xl border p-4 sm:p-5" style={{ borderColor: 'var(--border)' }}>
-            <div className="badge-primary mb-3 w-fit">Widget</div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight m-0 mb-1" data-tour="widget-builder-header">
-              {editWidgetId ? (
-                <>
-                  Editar <span className="gradient-text">widget</span>
-                </>
-              ) : (
-                <>
-                  Widget <span className="gradient-text">Builder</span>
-                </>
-              )}
-            </h1>
-            <p className="text-[13px] m-0 mb-6" style={{ color: 'var(--muted-foreground)' }}>
-              {editWidgetId
-                ? 'Cambios guardados con el mismo token de integración.'
-                : 'Diseña tu chat widget. El preview se actualiza en tiempo real — misma estética que la landing.'}
-            </p>
-            {editWidgetId && (
-              <p className="mb-6 m-0">
-                <Link href="/dashboard/widgets" className="text-xs font-semibold landing-link-accent no-underline">
-                  ← Volver a Mis widgets
-                </Link>
-              </p>
-            )}
+        <div className="widget-builder-page__main w-full min-w-0 xl:max-h-[calc(100vh-5rem)] xl:overflow-y-auto">
+          {wizardStep !== 3 ? (
+          <div className="widget-builder-stepper md:hidden" aria-hidden>
+            {WIDGET_WIZARD_STEPS.map((s, i) => (
+              <span
+                key={s.id}
+                className={`widget-builder-stepper__dot${i === wizardStep ? ' is-active' : ''}${i < wizardStep ? ' is-done' : ''}`}
+              >
+                {i < wizardStep ? '✓' : i + 1}
+              </span>
+            ))}
+          </div>
+          ) : null}
+
+          <div
+            className={`widget-builder-form-card${wizardStep === 3 ? ' widget-builder-form-card--publish' : ''}`}
+            data-tour="widget-builder-form"
+          >
+            {wizardStep !== 3 ? (
+              <>
+                <div className="badge-primary mb-3 w-fit">Widget</div>
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight m-0 mb-1" data-tour="widget-builder-header">
+                  {editWidgetId ? (
+                    <>
+                      Editar <span className="gradient-text">widget</span>
+                    </>
+                  ) : (
+                    <>
+                      Widget <span className="gradient-text">Builder</span>
+                    </>
+                  )}
+                </h1>
+                <p className="text-[13px] m-0 mb-6" style={{ color: 'var(--muted-foreground)' }}>
+                  {editWidgetId
+                    ? 'Cambios guardados con el mismo token de integración.'
+                    : 'Diseña tu chat widget. El preview se actualiza en tiempo real — misma estética que la landing.'}
+                </p>
+                {editWidgetId ? (
+                  <p className="mb-6 m-0">
+                    <Link href="/dashboard/widgets" className="text-xs font-semibold landing-link-accent no-underline">
+                      ← Volver a Mis widgets
+                    </Link>
+                  </p>
+                ) : null}
+              </>
+            ) : null}
+
+        {wizardStep === 3 ? (
+          <WidgetBuilderPublishStep
+            widgetName={cfg.name}
+            snippet={generateSnippet(cfg, snippetToken)}
+            snippetToken={snippetToken}
+            copied={copied}
+            saving={saving}
+            saved={saved}
+            loadingInitial={loadingInitial}
+            editWidgetId={editWidgetId}
+            onCopy={copySnippet}
+            onSave={() => void saveWidget()}
+            onBack={() => setWizardStep(2)}
+          />
+        ) : null}
 
         {wizardStep === 0 && (
         <>
         {/* Widget name */}
-        <div style={fieldStyle} data-tour="widget-builder-name">
+        <div className={fieldClass} style={fieldStyle} data-tour="widget-builder-name">
           <label style={labelStyle}>Nombre del widget</label>
           <input style={inputStyle} value={cfg.name} onChange={(e) => update({ name: e.target.value })} placeholder="Mi widget" />
         </div>
 
         {multiAgentEligible && (
-          <div
-            style={{
-              marginBottom: 20,
-              padding: 14,
-              borderRadius: 12,
-              border: '1px solid rgba(99,102,241,0.25)',
-              background: 'rgba(99,102,241,0.06)',
-            }}
-            data-tour="widget-builder-multi-agent"
-          >
+          <div className="widget-builder-feature-card" data-tour="widget-builder-multi-agent">
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
               <input
                 type="checkbox"
@@ -1225,7 +1307,7 @@ export default function WidgetBuilderPage() {
         )}
 
         {/* Agent selector (widget.agentId = ObjectId landing; el hub resuelve por landingClientAgentId) */}
-        <div style={fieldStyle} data-tour="widget-builder-agent">
+        <div className={fieldClass} style={fieldStyle} data-tour="widget-builder-agent">
           <label style={labelStyle}>
             {cfg.multiAgentEnabled ? 'Agentes orquestadores' : 'Agente'}
           </label>
@@ -1235,7 +1317,10 @@ export default function WidgetBuilderPage() {
             </p>
           ) : null}
           {loadingInitial ? (
-            <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', margin: 0 }}>Cargando…</p>
+            <p className="flex items-center gap-2 text-[13px] m-0" style={{ color: 'var(--muted-foreground)' }}>
+              <Loader2 size={14} className="animate-spin shrink-0" aria-hidden />
+              Cargando…
+            </p>
           ) : agents.length === 0 ? (
             <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', margin: 0 }}>
               No tienes agentes activos.{' '}
@@ -2043,148 +2128,45 @@ export default function WidgetBuilderPage() {
         )}
 
         {wizardStep < 3 && (
-          <div className="flex gap-2 mt-2 mb-4">
+          <div className={`flex gap-2 mt-2${wizardStep > 0 ? '' : ' flex-col'}`}>
             {wizardStep > 0 && (
-              <button
-                type="button"
-                onClick={() => setWizardStep((s) => Math.max(0, s - 1))}
-                className="flex-1 py-2.5 rounded-xl font-bold text-[13px] border"
-                style={{ borderColor: 'var(--border)', background: 'var(--background)', color: 'var(--foreground)' }}
-              >
+              <button type="button" onClick={() => setWizardStep((s) => Math.max(0, s - 1))} className="widget-builder-btn-secondary">
                 Anterior
               </button>
             )}
-            <button
-              type="button"
-              onClick={goNextStep}
-              className="flex-1 py-2.5 rounded-xl font-bold text-[13px] text-white border-0"
-              style={{ background: BRAND_R }}
-            >
+            <button type="button" onClick={goNextStep} className="widget-builder-btn-primary">
               Siguiente
             </button>
           </div>
         )}
 
-        {wizardStep === 3 && (
-        <>
-        <p className="text-sm m-0 mb-4" style={{ color: 'var(--muted-foreground)' }}>
-          Guarda el widget y copia el snippet para pegarlo antes de <code>&lt;/body&gt;</code> en tu sitio.
-        </p>
-        {/* Action buttons */}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={copySnippet}
-            data-tour="widget-builder-copy"
-            className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-[13px] border transition-colors hover:bg-slate-50"
-            style={{ borderColor: 'var(--border)', background: 'var(--background)', color: 'var(--foreground)' }}
-          >
-            {copied ? <Check size={14} style={{ color: '#22c55e' }} /> : <Copy size={14} />}
-            {copied ? 'Copiado!' : 'Copiar código'}
-          </button>
-          <button
-            type="button"
-            onClick={saveWidget}
-            disabled={saving || loadingInitial}
-            data-tour="widget-builder-save"
-            className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-[13px] text-white border-0 transition-all hover:opacity-95 disabled:opacity-60"
-            style={{
-              background: saved ? '#22c55e' : BRAND_R,
-              boxShadow: saved ? undefined : '0 4px 18px rgba(var(--brand-primary-rgb),0.28)',
-              cursor: saving || loadingInitial ? 'not-allowed' : 'pointer',
-            }}
-          >
-            <Save size={14} />
-            {saving ? 'Guardando...' : saved ? 'Guardado!' : editWidgetId ? 'Guardar cambios' : 'Guardar widget'}
-          </button>
-        </div>
-        </>
-        )}
+        {wizardStep === 0 ? <WidgetBuilderTrustBadges /> : null}
+
           </div>
         </div>
 
-      {/* Vista previa + embed (secundario) */}
-      <div className="w-full xl:flex-[0.55] xl:max-w-[380px] shrink-0 flex flex-col gap-3 xl:sticky xl:top-4">
-        <div data-tour="widget-builder-preview">
-          <p className="text-[10px] font-bold uppercase tracking-widest m-0 mb-1.5" style={{ color: 'var(--muted-foreground)' }}>
-            Vista previa
-          </p>
-          <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border)', boxShadow: '0 4px 16px rgba(0,0,0,0.04)' }}>
-            <MockPreview cfg={cfg} shortcuts={shortcuts} />
-          </div>
-        </div>
-
-        {wizardStep === 3 && (
-        <div
-          className="rounded-xl overflow-hidden border flex flex-col"
-          style={{ borderColor: 'var(--border)', background: '#0d1117', maxHeight: 'min(42vh, 360px)' }}
-          data-tour="widget-builder-snippet-panel"
-        >
-          <div className="flex items-center justify-between gap-2 px-3 py-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)', background: '#161b22' }}>
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="flex items-center gap-1 shrink-0">
-                <div className="w-2 h-2 rounded-full" style={{ background: '#ff5f57' }} />
-                <div className="w-2 h-2 rounded-full" style={{ background: '#febc2e' }} />
-                <div className="w-2 h-2 rounded-full" style={{ background: '#28c840' }} />
+        <div className="widget-builder-page__aside flex flex-col gap-3 min-w-0">
+          <WidgetBuilderPreviewPanel
+            mobilePreviewOpen={mobilePreviewOpen}
+            onMobilePreviewOpenChange={setMobilePreviewOpen}
+            publishMode={wizardStep === 3}
+          >
+            {wizardStep === 3 ? (
+              <WidgetBuilderPublishPreview
+                color={cfg.color}
+                welcome={cfg.welcome}
+                title={cfg.title}
+                avatarUrl={cfg.avatar}
+              />
+            ) : (
+              <div data-tour="widget-builder-preview">
+                <MockPreview cfg={cfg} shortcuts={shortcuts} />
               </div>
-              <span className="text-[10px] font-semibold" style={{ color: '#94a3b8' }}>
-                Código embed
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={copySnippet}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold border-0 cursor-pointer transition-all"
-                style={{
-                  background: copied ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.08)',
-                  color: copied ? '#4ade80' : '#94a3b8',
-                }}
-              >
-                {copied ? <Check size={11} /> : <Copy size={11} />}
-                {copied ? 'Copiado' : 'Copiar'}
-              </button>
-              <a
-                href="/widget"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold no-underline"
-                style={{ background: 'rgba(255,255,255,0.06)', color: '#6b7280' }}
-              >
-                <ExternalLink size={10} />
-                Docs
-              </a>
-            </div>
-          </div>
-
-          {snippetToken !== 'YOUR_TOKEN' && (
-            <div className="flex items-center gap-2 px-3 py-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.05)', background: 'rgba(99,102,241,0.07)' }}>
-              <span className="text-[9px] font-semibold uppercase tracking-widest shrink-0" style={{ color: '#818cf8' }}>Token</span>
-              <code className="text-[10px] font-mono flex-1 truncate" style={{ color: '#c7d2fe' }}>{snippetToken}</code>
-              <button
-                type="button"
-                onClick={() => { void navigator.clipboard.writeText(snippetToken); }}
-                className="shrink-0 border-0 cursor-pointer rounded px-1.5 py-0.5 text-[9px] font-semibold"
-                style={{ background: 'rgba(99,102,241,0.18)', color: '#818cf8' }}
-              >
-                Copiar
-              </button>
-            </div>
-          )}
-
-          <pre className="p-3 text-[10px] overflow-auto m-0 flex-1 min-h-[80px]" style={{ color: '#e2e8f0', lineHeight: 1.6, fontFamily: "'Fira Code', 'Cascadia Code', 'Consolas', monospace", tabSize: 2 }}>
-            {generateSnippet(cfg, snippetToken)}
-          </pre>
-
-          <div className="px-3 py-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)', background: '#161b22' }}>
-            <span style={{ fontSize: 9, color: '#4b5563' }}>
-              Pega antes de &lt;/body&gt;. El token basta — el resto se carga del servidor.
-            </span>
-          </div>
+            )}
+          </WidgetBuilderPreviewPanel>
         </div>
-        )}
       </div>
-      </div>
+
     </div>
   );
 }
