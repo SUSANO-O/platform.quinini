@@ -26,6 +26,15 @@ import { getAgentflowhubBaseUrl } from '@/lib/aibackhub-sync';
 import { ConversationSession, WidgetMessage, User } from '@/lib/db/models';
 import { normalizePhoneDigits } from '@/lib/whatsapp';
 
+/** Compara dos números de teléfono tolerando diferencias de código de país.
+ *  Ej: "3133174629" vs "573133174629" → match (uno es sufijo del otro). */
+function phonesMatch(a: string, b: string): boolean {
+  const da = normalizePhoneDigits(a);
+  const db = normalizePhoneDigits(b);
+  if (!da || !db) return false;
+  return da === db || da.endsWith(db) || db.endsWith(da);
+}
+
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
@@ -137,7 +146,7 @@ async function processIncomingMessages(rawBody: string, signatureHeader: string 
 
         const ownerPhone = ownerWidget?.humanSupportPhone || (ownerUser as { escalationWhatsAppPhone?: string } | null)?.escalationWhatsAppPhone || '';
 
-        if (!ownerUser || normalizePhoneDigits(ownerPhone) !== senderDigits) continue;
+        if (!ownerUser || !phonesMatch(ownerPhone, senderDigits)) continue;
 
         // Es el dueño — marcar como manejado para no procesarlo como cliente
         handledByOwner.add(msg.id);
@@ -179,34 +188,44 @@ async function processIncomingMessages(rawBody: string, signatureHeader: string 
         let session: WaSession | null = null;
 
         if (contextId) {
+          // Reply citado: buscar sesión por el messageId de la notificación de handoff
           session = await ConversationSession.findOne({ handoffWaNotifMsgId: contextId })
             .select({ sessionId: 1, chatSessionId: 1, widgetId: 1, userId: 1 }).lean() as WaSession | null;
         }
+
         if (!session) {
-          session = await ConversationSession.findOne({
-            userId: String(ownerUser._id),
-            escalated: true,
-            inboxStatus: { $ne: 'resolved' },
-          }).sort({ handoffAt: -1 }).select({ sessionId: 1, chatSessionId: 1, widgetId: 1, userId: 1 }).lean() as WaSession | null;
+          // Sin cita: no podemos saber a qué visitante responder — avisar al dueño
+          const { ClientAgent: CA } = await import('@/lib/db/models');
+          const waAgent2 = await CA.findOne({
+            'whatsapp.phoneNumberId': phoneNumberId,
+            'whatsapp.enabled': true,
+          }).select({ whatsapp: 1 }).lean() as { whatsapp?: WhatsAppAgentConfig } | null;
+
+          if (waAgent2?.whatsapp) {
+            await sendWhatsAppText(
+              waAgent2.whatsapp,
+              normalizePhoneDigits(ownerPhone),
+              '⚠️ No pude identificar a qué visitante responder.\n\nUsa *Responder (Reply)* sobre el mensaje de alerta "🔔 Nueva solicitud..." para que tu respuesta llegue al visitante correcto.',
+            );
+          }
+          continue;
         }
 
-        if (session) {
-          const targetSessionId = session.chatSessionId || session.sessionId;
-          await WidgetMessage.create({
-            widgetId: session.widgetId || '',
-            userId: String(ownerUser._id),
-            agentId: '',
-            sessionId: targetSessionId,
-            role: 'assistant',
-            sentBy: 'human',
-            content: msg.text!.body.trim(),
-            traceId: `wa-owner:${Date.now()}`,
-          });
-          await ConversationSession.updateOne(
-            { sessionId: session.sessionId },
-            { $set: { lastHumanMessageAt: new Date(), humanMode: true } },
-          );
-        }
+        const targetSessionId = session.chatSessionId || session.sessionId;
+        await WidgetMessage.create({
+          widgetId: session.widgetId || '',
+          userId: String(ownerWidget?.userId ?? ownerUser._id),
+          agentId: '',
+          sessionId: targetSessionId,
+          role: 'assistant',
+          sentBy: 'human',
+          content: msg.text!.body.trim(),
+          traceId: `wa-owner:${Date.now()}`,
+        });
+        await ConversationSession.updateOne(
+          { sessionId: session.sessionId },
+          { $set: { lastHumanMessageAt: new Date(), humanMode: true } },
+        );
       }
 
       // Buscar agente que reciba en este número
