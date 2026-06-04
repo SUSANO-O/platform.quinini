@@ -326,20 +326,16 @@ async function handleSingleMessage(params: {
 
   if (isHumanMode) {
     // Humano atendiendo: guardar mensaje del cliente en inbox pero no responder con bot
-    void WidgetMessage.create({
+    void persistWidgetTranscript({
       widgetId: params.widgetIdEquivalent,
       userId: params.ownerUserId,
       agentId: params.agentIdForChat,
       sessionId: params.sessionId,
-      role: 'user',
-      content: params.text,
-      traceId: `wa-in:${Date.now()}`,
-    }).catch(() => {});
-    void ConversationSession.updateOne(
-      { sessionId: params.sessionId },
-      { $set: { lastVisitorMessageAt: new Date() } },
-    ).catch(() => {});
-    console.log('[whatsapp/webhook] humanMode — mensaje guardado, bot silenciado para', params.sessionId);
+      userMessage: params.text,
+      assistantMessage: '', // sin respuesta del bot
+      toolsUsed: undefined,
+    }).catch(() => { /* best-effort */ });
+    console.log('[whatsapp/webhook] humanMode — mensaje guardado en inbox, bot silenciado');
     return;
   }
 
@@ -392,14 +388,20 @@ async function handleSingleMessage(params: {
         widgetId: params.widgetIdEquivalent,
         agentId: params.agentIdForChat,
         visitorId: `wa_${params.from}`,
-        escalated: true,
-        inboxStatus: 'open',
         startedAt: now,
-        handoffAt: now,
         handoffContact: { phone: params.from },
         handoffMessage: params.text,
       },
-      $set: { updatedAt: now },
+      // En CADA mensaje del cliente garantizamos visibilidad en el Inbox y reabrimos
+      // la conversación si estaba resuelta (escalated/inboxStatus/handoffAt en $set,
+      // no en $setOnInsert, para que no se queden congelados tras la primera vez).
+      $set: {
+        escalated: true,
+        inboxStatus: 'open',
+        handoffAt: now,
+        lastVisitorMessageAt: now,
+        updatedAt: now,
+      },
     },
     { upsert: true },
   ).catch(() => { /* best-effort */ });
@@ -414,6 +416,27 @@ async function handleSingleMessage(params: {
     assistantMessage: replyText,
     toolsUsed,
   }).catch(() => { /* persistencia best-effort */ });
+
+  // Crear/actualizar ConversationSession para que aparezca en el inbox
+  void ConversationSession.updateOne(
+    { sessionId: params.sessionId },
+    {
+      $set: {
+        widgetId: params.widgetIdEquivalent,
+        userId: params.ownerUserId,
+        agentId: params.agentIdForChat,
+        escalated: true, // mostrar en inbox
+        inboxStatus: 'open',
+        startedAt: new Date(),
+        lastVisitorMessageAt: new Date(),
+      },
+      $setOnInsert: {
+        sessionId: params.sessionId,
+        createdAt: new Date(),
+      },
+    },
+    { upsert: true },
+  ).catch(() => {});
 }
 
 /**
