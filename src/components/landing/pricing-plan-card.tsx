@@ -77,8 +77,8 @@ export function PricingPlanCard({
       className={[
         'relative rounded-2xl flex flex-col transition-all hover:shadow-lg',
         plan.highlighted
-          ? 'p-6 md:p-8 xl:-translate-y-2 ring-2 ring-[var(--primary)] shadow-[0_12px_48px_rgba(var(--brand-primary-rgb),0.15)]'
-          : 'p-5 md:p-8 border border-[var(--border)]',
+          ? 'p-5 md:p-6 lg:-translate-y-2 ring-2 ring-[var(--primary)] shadow-[0_12px_48px_rgba(var(--brand-primary-rgb),0.15)]'
+          : 'p-5 md:p-6 border border-[var(--border)]',
       ].join(' ')}
       style={{ background: 'var(--card)' }}
     >
@@ -161,16 +161,21 @@ export function PricingPlanCard({
         ))}
       </div>
 
-      {/* Desktop: lista completa */}
-      <ul className="hidden md:block space-y-3 flex-1">
+      {/* Desktop: lista completa — una línea por feature */}
+      <ul className="hidden md:block space-y-2 flex-1 min-w-0">
         {plan.features.map((f) => (
-          <li key={f} className="flex items-start gap-2.5 text-sm leading-snug">
+          <li key={f} className="flex items-center gap-2 min-w-0">
             <Check
-              size={16}
-              className="mt-0.5 shrink-0"
+              size={14}
+              className="shrink-0"
               style={{ color: plan.highlighted ? 'var(--primary)' : 'var(--accent)' }}
             />
-            <span>{f}</span>
+            <span
+              className="text-[11px] leading-tight whitespace-nowrap overflow-hidden text-ellipsis block min-w-0"
+              title={f}
+            >
+              {f}
+            </span>
           </li>
         ))}
       </ul>
@@ -196,12 +201,13 @@ export function PricingPlanCard({
 
       {PLAN_RAG_LIMITS[plan.id as keyof typeof PLAN_RAG_LIMITS] && (
         <p
-          className="hidden md:block mt-4 text-sm rounded-lg px-3 py-2 leading-snug"
+          className="hidden md:block mt-3 text-[11px] rounded-lg px-2.5 py-1.5 leading-tight whitespace-nowrap overflow-hidden text-ellipsis"
           style={{
             color: 'var(--muted-foreground)',
             background: 'rgba(255,255,255,0.04)',
             border: '1px solid var(--border)',
           }}
+          title={`Almacenamiento: ${PLAN_RAG_LIMITS[plan.id as keyof typeof PLAN_RAG_LIMITS]!.mb.toLocaleString('es')} MB · ${PLAN_RAG_LIMITS[plan.id as keyof typeof PLAN_RAG_LIMITS]!.sources} fuentes por agente`}
         >
           Almacenamiento: {PLAN_RAG_LIMITS[plan.id as keyof typeof PLAN_RAG_LIMITS]!.mb.toLocaleString('es')} MB ·{' '}
           {PLAN_RAG_LIMITS[plan.id as keyof typeof PLAN_RAG_LIMITS]!.sources} fuentes por agente

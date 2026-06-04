@@ -24,7 +24,7 @@ import {
   resolveProviderForModelId,
 } from '@/lib/model-provider-policy';
 import { validateModelForPlan } from '@/lib/model-plan-policy';
-import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
+import { isSoloChatOnlyPlan, canUseWhatsApp, whatsappUpgradeLabel, WHATSAPP_MIN_PLAN } from '@/lib/plan-catalog';
 import { soloAgentPatchBlocked } from '@/lib/solo-plan-limits';
 import { validateAgentFallbackModels } from '@/lib/fallback-models-config';
 import { encryptSecret, decryptSecret, maskSecret, isEncryptionAvailable } from '@/lib/secret-crypto';
@@ -615,6 +615,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   // ── WhatsApp Business (Fase 2): captura de credenciales del cliente ─────────
   if ('whatsapp' in body && body.whatsapp && typeof body.whatsapp === 'object') {
+    // Feature exclusiva de Business+. Bloqueamos guardado de credenciales en planes inferiores.
+    if (!canUseWhatsApp(planEarly, subEarly?.status ?? 'free')) {
+      return NextResponse.json(
+        {
+          error: `La integración con WhatsApp está disponible desde el plan ${whatsappUpgradeLabel()}.`,
+          code: 'WHATSAPP_REQUIRES_BUSINESS',
+          minPlan: WHATSAPP_MIN_PLAN,
+          minPlanLabel: whatsappUpgradeLabel(),
+        },
+        { status: 403 },
+      );
+    }
     const w = body.whatsapp as Record<string, unknown>;
     if (!agent.get('whatsapp')) agent.set('whatsapp', {});
 

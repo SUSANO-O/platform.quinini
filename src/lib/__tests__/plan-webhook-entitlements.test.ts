@@ -9,6 +9,8 @@ import {
   planHasApiAccessFeature,
   planHasEscalationTicketFeature,
   planHasCustomIntegrationFeature,
+  planHasWhatsAppFeature,
+  canUseWhatsApp,
   formatConversationAnalyticsFeature,
   effectiveProductPlan,
   AGENT_WEBHOOK_MIN_PLAN,
@@ -17,6 +19,7 @@ import {
   API_ACCESS_MIN_PLAN,
   ESCALATION_TICKET_MIN_PLAN,
   CUSTOM_INTEGRATION_MIN_PLAN,
+  WHATSAPP_MIN_PLAN,
   PLAN_FEATURE_BULLETS,
   LEGACY_PLAN_FEATURE_BULLETS,
   PAID_PLAN_IDS,
@@ -33,6 +36,20 @@ describe('webhook entitlements (plan-catalog)', () => {
     expect(API_ACCESS_MIN_PLAN).toBe('team');
     expect(ESCALATION_TICKET_MIN_PLAN).toBe('business');
     expect(CUSTOM_INTEGRATION_MIN_PLAN).toBe('business');
+    expect(WHATSAPP_MIN_PLAN).toBe('business');
+  });
+
+  it('whatsapp: Business+ only with active subscription', () => {
+    expect(canUseWhatsApp('free', 'free')).toBe(false);
+    expect(canUseWhatsApp('team', 'active')).toBe(false);
+    expect(canUseWhatsApp('plus', 'active')).toBe(false);
+    expect(canUseWhatsApp('business', 'active')).toBe(true);
+    expect(canUseWhatsApp('business', 'trialing')).toBe(true);
+    expect(canUseWhatsApp('enterprise', 'active')).toBe(true);
+    // Business sin suscripción vigente cae a free → bloqueado
+    expect(canUseWhatsApp('business', 'canceled')).toBe(false);
+    expect(planHasWhatsAppFeature('plus')).toBe(false);
+    expect(planHasWhatsAppFeature('business')).toBe(true);
   });
 
   it('agent webhook: Team+ only (legacy Basic still entitled)', () => {
