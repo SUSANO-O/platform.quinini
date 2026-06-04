@@ -125,26 +125,34 @@ async function processIncomingMessages(rawBody: string, signatureHeader: string 
 
       // ── Detectar si el mensaje viene del dueño respondiendo una alerta de handoff ──
       const handledByOwner = new Set<string>();
+
+      // Cargar TODOS los widgets con humanSupportPhone para comparar correctamente
+      const { Widget } = await import('@/lib/db/models');
+      const widgetsWithPhone = await Widget.find({
+        humanSupportPhone: { $exists: true, $ne: '' },
+      }).select({ userId: 1, humanSupportPhone: 1 }).lean() as
+        Array<{ userId?: unknown; humanSupportPhone?: string }>;
+
       for (const msg of messages) {
         if (msg.type !== 'text' || !msg.text?.body?.trim()) continue;
         const senderDigits = normalizePhoneDigits(msg.from || '');
 
-        // Buscar widget cuyo humanSupportPhone coincida con el remitente
-        const { Widget } = await import('@/lib/db/models');
-        const ownerWidget = await Widget.findOne({
-          humanSupportPhone: { $exists: true, $ne: '' },
-        }).select({ userId: 1, humanSupportPhone: 1 }).lean() as
-          | { userId?: unknown; humanSupportPhone?: string } | null;
+        // Buscar el widget cuyo humanSupportPhone coincida exactamente con el remitente
+        const ownerWidget = widgetsWithPhone.find(
+          (w) => w.humanSupportPhone && phonesMatch(w.humanSupportPhone, senderDigits),
+        ) ?? null;
 
+        // Fallback: buscar por escalationWhatsAppPhone del usuario
         const ownerUser = ownerWidget
-          ? await User.findById(ownerWidget.userId).select({ _id: 1, escalationWhatsAppPhone: 1 }).lean() as
-              | { _id: unknown; escalationWhatsAppPhone?: string } | null
-          : await User.findOne({
-              escalationWhatsAppPhone: { $exists: true, $ne: null },
-            }).select({ _id: 1, escalationWhatsAppPhone: 1 }).lean() as
+          ? await User.findById(ownerWidget.userId)
+              .select({ _id: 1 }).lean() as { _id: unknown } | null
+          : await User.findOne({ escalationWhatsAppPhone: { $exists: true, $ne: null } })
+              .select({ _id: 1, escalationWhatsAppPhone: 1 }).lean() as
               | { _id: unknown; escalationWhatsAppPhone?: string } | null;
 
-        const ownerPhone = ownerWidget?.humanSupportPhone || (ownerUser as { escalationWhatsAppPhone?: string } | null)?.escalationWhatsAppPhone || '';
+        const ownerPhone = ownerWidget?.humanSupportPhone
+          || (ownerUser as { escalationWhatsAppPhone?: string } | null)?.escalationWhatsAppPhone
+          || '';
 
         if (!ownerUser || !phonesMatch(ownerPhone, senderDigits)) continue;
 
@@ -194,21 +202,28 @@ async function processIncomingMessages(rawBody: string, signatureHeader: string 
         }
 
         if (!session) {
-          // Sin cita: no podemos saber a qué visitante responder — avisar al dueño
-          const { ClientAgent: CA } = await import('@/lib/db/models');
-          const waAgent2 = await CA.findOne({
-            'whatsapp.phoneNumberId': phoneNumberId,
-            'whatsapp.enabled': true,
-          }).select({ whatsapp: 1 }).lean() as { whatsapp?: WhatsAppAgentConfig } | null;
+          // Sin cita: buscar la sesión activa más reciente del dueño de este widget
+          const fallbackUserId = ownerWidget?.userId
+            ? String(ownerWidget.userId)
+            : String(ownerUser._id);
+          session = await ConversationSession.findOne({
+            userId: fallbackUserId,
+            escalated: true,
+            inboxStatus: { $ne: 'resolved' },
+            handoffWaNotifMsgId: { $exists: true, $ne: null }, // solo sesiones con notif enviada
+          }).sort({ handoffAt: -1 }).select({ sessionId: 1, chatSessionId: 1, widgetId: 1, userId: 1 }).lean() as WaSession | null;
+        }
 
-          if (waAgent2?.whatsapp) {
-            await sendWhatsAppText(
-              waAgent2.whatsapp,
-              normalizePhoneDigits(ownerPhone),
-              '⚠️ No pude identificar a qué visitante responder.\n\nUsa *Responder (Reply)* sobre el mensaje de alerta "🔔 Nueva solicitud..." para que tu respuesta llegue al visitante correcto.',
-            );
-          }
-          continue;
+        if (!session) {
+          // Última sesión escalada sin importar si tiene notif — última instancia
+          const fallbackUserId2 = ownerWidget?.userId
+            ? String(ownerWidget.userId)
+            : String(ownerUser._id);
+          session = await ConversationSession.findOne({
+            userId: fallbackUserId2,
+            escalated: true,
+            inboxStatus: { $ne: 'resolved' },
+          }).sort({ handoffAt: -1 }).select({ sessionId: 1, chatSessionId: 1, widgetId: 1, userId: 1 }).lean() as WaSession | null;
         }
 
         const targetSessionId = session.chatSessionId || session.sessionId;
