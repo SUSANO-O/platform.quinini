@@ -5,7 +5,7 @@ import Link from 'next/link';
 import type { LucideIcon } from 'lucide-react';
 import { Bot, Boxes, LayoutDashboard, LogOut, Menu, X } from 'lucide-react';
 import {
-  NAV_GROUPS,
+  buildDashboardNavGroups,
   SIDEBAR_TOUR_KEY_BY_HREF,
   isActive,
   type SidebarUser,
@@ -13,6 +13,8 @@ import {
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { PwaInstallButton } from '@/components/shared/pwa-install-button';
 import { useInboxOpenCount } from '@/hooks/use-inbox-open-count';
+import { useSubscription } from '@/hooks/use-subscription';
+import { canUseApiAccess, isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 import { BRAND_TEXT_COLOR } from '@/lib/brand';
 
 /** Accesos directos en la barra inferior (estilo app móvil). */
@@ -45,6 +47,14 @@ export function DashboardMobileNav({
 }: DashboardMobileNavProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { openCount: inboxOpenCount } = useInboxOpenCount(true);
+  const { subscription } = useSubscription();
+  const showApiLink = canUseApiAccess(
+    subscription?.plan ?? 'free',
+    subscription?.status ?? 'free',
+    subscription?.features,
+  );
+  const hideQuickStart = isSoloChatOnlyPlan(subscription?.plan ?? 'free');
+  const navGroups = buildDashboardNavGroups({ showApiLink, hideQuickStart });
 
   useEffect(() => {
     setMenuOpen(false);
@@ -115,7 +125,7 @@ export function DashboardMobileNav({
           {menuFooter}
 
           <nav className="dashboard-mobile-nav__sheet-nav">
-            {NAV_GROUPS.map((group) => {
+            {navGroups.map((group) => {
               const items = group.items.filter((item) => !BOTTOM_HREFS.has(item.href));
               if (items.length === 0) return null;
               return (
@@ -134,7 +144,7 @@ export function DashboardMobileNav({
                         className={`dashboard-mobile-nav__sheet-link${active ? ' dashboard-mobile-nav__sheet-link--active' : ''}`}
                         style={{ position: 'relative' }}
                       >
-                        <Icon size={20} strokeWidth={1.75} aria-hidden />
+                        <Icon size={20} strokeWidth={1.75} className="dashboard-sidebar-link__icon" aria-hidden />
                         <span style={{ flex: 1 }}>{item.label}</span>
                         {item.href === '/dashboard/inbox' && inboxOpenCount > 0 ? (
                           <span

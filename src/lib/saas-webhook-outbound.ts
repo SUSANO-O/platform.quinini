@@ -61,6 +61,11 @@ async function deliver(url: string, secret: string, body: string): Promise<void>
       });
       if (res.ok) return;
       lastErr = new Error(`HTTP ${res.status}`);
+      // 4xx permanentes (400/401/403/404/410/422…): el destino nunca aceptará el
+      // reintento, así que cortamos. 408 (timeout) y 429 (rate limit) SÍ se reintentan.
+      if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
+        break;
+      }
     } catch (err) {
       lastErr = err;
     }
