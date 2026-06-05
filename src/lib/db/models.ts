@@ -276,9 +276,9 @@ const ClientAgentSchema = new Schema({
   strictPurposeOnly: { type: Boolean, default: true },
   /** Tras cada turno del widget: buscar/crear contacto en HubSpot si hay nombre + email o tel. CO (requiere tools HubSpot). */
   hubspotAutoCaptureContacts: { type: Boolean, default: false },
-  /** IDs de skills del catálogo (agent-skills.ts). Sincronizado bidireccional con el hub. */
+  /** IDs habilitados (derivado de skillsConfig al guardar; compat legacy). */
   skills:          { type: [String], default: [] },
-  /** Config runtime de skills (prompt/tools/settings), sincronizada con el hub. */
+  /** Fuente de verdad runtime: prompt/tools/settings por skill (catálogo agent-skills-catalog.ts). */
   skillsConfig:    { type: [Schema.Types.Mixed], default: [] },
   /** Reglas operativas editables desde la UI (prioridad, tono, reclamos, respuestas cortas, etc.). */
   behaviorRules:   { type: [Schema.Types.Mixed], default: [] },
@@ -825,3 +825,31 @@ InferenceMetricSchema.index({ userId: 1, createdAt: -1 });
 InferenceMetricSchema.index({ agentId: 1, createdAt: -1 });
 
 export const InferenceMetric = mongoose.models.InferenceMetric || mongoose.model('InferenceMetric', InferenceMetricSchema);
+
+// ── SKILL CATALOG (global, admin) ───────────────────────────────────────────
+
+const SkillCatalogSchema = new Schema({
+  skillId:          { type: String, required: true, unique: true, trim: true, index: true },
+  label:            { type: String, required: true, trim: true },
+  description:      { type: String, default: '' },
+  color:            { type: String, default: '#94a3b8' },
+  icon:             { type: String, default: '✨' },
+  kind:             { type: String, enum: ['capability', 'profile'], default: 'capability' },
+  defaultPriority:  { type: Number, default: 60 },
+  config: {
+    prompt_extension: { type: String, default: '' },
+    active_tools:     { type: [String], default: [] },
+    llm_settings: {
+      temperature:     { type: Number, default: null },
+      maxOutputTokens: { type: Number, default: null },
+    },
+  },
+  /** Si false, oculta en el editor de agentes (no borra agentes que ya la usan). */
+  catalogEnabled:   { type: Boolean, default: true },
+  sortOrder:          { type: Number, default: 0 },
+  updatedBy:          { type: String, default: null },
+}, { timestamps: true });
+
+SkillCatalogSchema.index({ kind: 1, sortOrder: 1 });
+
+export const SkillCatalog = mongoose.models.SkillCatalog || mongoose.model('SkillCatalog', SkillCatalogSchema);

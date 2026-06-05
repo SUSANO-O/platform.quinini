@@ -18,7 +18,15 @@ import {
   type SheetEntry,
 } from '@/lib/agent-sheets';
 import { isSoloChatOnlyPlan, canUseWhatsApp } from '@/lib/plan-catalog';
-import { AGENT_SKILLS } from '@/lib/agent-skills';
+import {
+  buildSkillConfigEntry,
+  countEnabledSkills,
+  isSkillEnabled,
+  normalizeAgentSkillsState,
+  skillsConfigForSave,
+  type AgentSkillCatalogEntry,
+  type SkillConfigRow,
+} from '@/lib/agent-skills-catalog';
 import {
   Bot, ChevronLeft, Save, Loader2, Plus, Trash2, Network,
   Zap, Wrench, Settings, Lock, CircleOff, Upload, FileText,
@@ -55,29 +63,6 @@ import { AGENT_TAB_TIPS } from '@/lib/agent-editor-tab-tips';
 import { R, O, B } from '@/lib/brand-colors';
 
 const SECTION_TITLE = 'agent-editor-section__title';
-const RUNTIME_SKILL_TEMPLATES = [
-  {
-    id: 'sales_closer',
-    name: 'Cierre de Ventas Consultivo',
-    defaultPriority: 50,
-    icon: '💼',
-    description: 'Enfoca la conversación en detección de necesidad, objeciones y cierre.',
-  },
-  {
-    id: 'tech_support_l1',
-    name: 'Soporte Técnico Nivel 1',
-    defaultPriority: 40,
-    icon: '🛠️',
-    description: 'Diagnóstico paso a paso, tono empático y escalamiento cuando falta contexto.',
-  },
-  {
-    id: 'data_analyst_pro',
-    name: 'Analista de Datos Pro',
-    defaultPriority: 45,
-    icon: '📊',
-    description: 'Razonamiento estructurado para métricas, tablas y detección de anomalías.',
-  },
-] as const;
 const BTN_PRIMARY: CSSProperties = {
   background: R,
   color: '#fff',
@@ -336,12 +321,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [inferenceTemperature, setInferenceTemperature] = useState('');
   const [inferenceMaxTokens, setInferenceMaxTokens] = useState('');
   const [fallbackModels, setFallbackModels] = useState<string[]>([]);
-  const [skills, setSkills] = useState<string[]>([]);
-  const [skillsConfig, setSkillsConfig] = useState<NonNullable<ClientAgent['skillsConfig']>>([]);
+  const [skillsConfig, setSkillsConfig] = useState<SkillConfigRow[]>([]);
+  const [skillCatalog, setSkillCatalog] = useState<AgentSkillCatalogEntry[]>([]);
+  const [skillCatalogLoading, setSkillCatalogLoading] = useState(true);
   const [behaviorRules, setBehaviorRules] = useState<BehaviorRule[]>([]);
   const [agentFaqs, setAgentFaqs] = useState<AgentFaqRow[]>([]);
   const [faqCandidates, setFaqCandidates] = useState<FaqCandidateRow[]>([]);
-  const [customSkillInput, setCustomSkillInput] = useState('');
 
   // MCP tools state
   const [mcpServers, setMcpServers] = useState<McpServerGroup[]>([]);
@@ -469,6 +454,35 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   }, [tab, id]);
 
   useEffect(() => {
+    let cancelled = false;
+    setSkillCatalogLoading(true);
+    fetch('/api/skills/catalog')
+      .then((r) => r.json())
+      .then((data: { catalog?: AgentSkillCatalogEntry[] }) => {
+        if (cancelled) return;
+        setSkillCatalog(Array.isArray(data.catalog) ? data.catalog : []);
+      })
+      .catch(() => {
+        if (!cancelled) setSkillCatalog([]);
+      })
+      .finally(() => {
+        if (!cancelled) setSkillCatalogLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!agent || skillCatalog.length === 0) return;
+    setSkillsConfig(
+      normalizeAgentSkillsState(
+        skillCatalog,
+        Array.isArray(agent.skills) ? agent.skills : [],
+        Array.isArray(agent.skillsConfig) ? agent.skillsConfig : [],
+      ),
+    );
+  }, [agent, skillCatalog]);
+
+  useEffect(() => {
     fetch(`/api/agents/${id}`)
       .then((r) => r.json())
       .then(({ agent: a, subAgents: sa }) => {
@@ -493,8 +507,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         setInferenceMaxTokens(
           typeof a.inferenceMaxTokens === 'number' ? String(a.inferenceMaxTokens) : '',
         );
-        setSkills(Array.isArray(a.skills) ? a.skills : []);
-        setSkillsConfig(Array.isArray(a.skillsConfig) ? a.skillsConfig : []);
         setBehaviorRules(
           Array.isArray(a.behaviorRules)
             ? (a.behaviorRules as Array<Partial<BehaviorRule>>).map((r) => ({
@@ -707,8 +719,10 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       widgetPublicToken: widgetPublicToken.trim() ? widgetPublicToken.trim().slice(0, 512) : null,
       persistConversationHistory,
       strictPurposeOnly,
-      skills,
-      skillsConfig,
+      ...(() => {
+        const saved = skillsConfigForSave(skillCatalog, skillsConfig);
+        return { skills: saved.skillIds, skillsConfig: saved.skillsConfig };
+      })(),
       behaviorRules,
       agentFaqs,
       faqCandidates,
@@ -1200,43 +1214,49 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     border: '1px solid var(--border)', background: 'var(--background)',
     color: 'var(--foreground)', fontSize: '13px', outline: 'none', boxSizing: 'border-box',
   };
-  const getRuntimeSkillConfig = useCallback(
+  const getSkillRow = useCallback(
     (skillId: string) => skillsConfig.find((s) => s?.id === skillId),
     [skillsConfig],
   );
-  const upsertRuntimeSkillConfig = useCallback(
-    (skillId: string, enabled: boolean, fallbackPriority: number) => {
-      setSkillsConfig((prev) => {
-        const idx = prev.findIndex((s) => s?.id === skillId);
-        if (idx === -1) {
-          if (!enabled) return prev;
-          return [...prev, { id: skillId, enabled: true, priority: fallbackPriority }];
-        }
-        const next = [...prev];
-        next[idx] = { ...next[idx], enabled };
-        return next;
-      });
-    },
-    [],
+  const profileSkills = useMemo(
+    () => skillCatalog.filter((s) => s.kind === 'profile'),
+    [skillCatalog],
   );
-  const setRuntimeSkillPriority = useCallback((skillId: string, value: string, fallbackPriority: number) => {
+  const capabilitySkills = useMemo(
+    () => skillCatalog.filter((s) => s.kind === 'capability'),
+    [skillCatalog],
+  );
+  const toggleSkill = useCallback((skillId: string, enabled: boolean, defaultPriority: number) => {
+    setSkillsConfig((prev) => {
+      const idx = prev.findIndex((s) => s?.id === skillId);
+      if (!enabled) {
+        if (idx === -1) return prev;
+        return prev.filter((s) => s.id !== skillId);
+      }
+      const full = buildSkillConfigEntry(skillCatalog, skillId, true, defaultPriority);
+      if (!full) return prev;
+      if (idx === -1) return [...prev, full];
+      const next = [...prev];
+      next[idx] = { ...full, priority: next[idx].priority ?? full.priority };
+      return next;
+    });
+  }, [skillCatalog]);
+  const setSkillPriority = useCallback((skillId: string, value: string, defaultPriority: number) => {
     const n = Number(value);
     if (!Number.isFinite(n)) return;
     const p = Math.max(0, Math.min(1000, Math.floor(n)));
     setSkillsConfig((prev) => {
       const idx = prev.findIndex((s) => s?.id === skillId);
-      if (idx === -1) return [...prev, { id: skillId, enabled: true, priority: p || fallbackPriority }];
+      if (idx === -1) {
+        const full = buildSkillConfigEntry(skillCatalog, skillId, true, p || defaultPriority);
+        return full ? [...prev, full] : prev;
+      }
       const next = [...prev];
       next[idx] = { ...next[idx], priority: p };
       return next;
     });
-  }, []);
-  const addCustomSkill = useCallback(() => {
-    const v = customSkillInput.trim();
-    if (!v) return;
-    setSkills((prev) => (prev.includes(v) ? prev : [...prev, v]));
-    setCustomSkillInput('');
-  }, [customSkillInput]);
+  }, [skillCatalog]);
+  const enabledSkillsCount = countEnabledSkills(skillCatalog, skillsConfig);
 
   if (loading) {
     return (
@@ -1631,34 +1651,99 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
           {!soloChatOnly && (
           <>
-          <AgentEditorSection>
+          <AgentEditorSection bar="cool">
             <p className={SECTION_TITLE}>Skills</p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
-              Capacidades de este agente. Se sincronizan con el hub al guardar.
+              Catálogo único: perfiles y capacidades modifican prompt, tools sugeridas y ajustes del modelo en el chat. Al guardar se persiste la configuración completa en el hub.
             </p>
-            <div style={{ marginBottom: '10px' }}>
+            <div style={{ marginBottom: '14px' }}>
               <span style={{
                 fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
                 background: 'rgba(var(--brand-primary-rgb),0.12)', color: B,
               }}>
-                {skills.length} seleccionada{skills.length !== 1 ? 's' : ''}
+                {enabledSkillsCount} activa{enabledSkillsCount !== 1 ? 's' : ''}
               </span>
             </div>
+
+            <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--muted-foreground)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Perfiles de comportamiento
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+              {skillCatalogLoading ? (
+                <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: '0 0 8px' }}>Cargando catálogo…</p>
+              ) : null}
+              {profileSkills.map((skill) => {
+                const enabled = isSkillEnabled(skillsConfig, skill.id);
+                const row = getSkillRow(skill.id);
+                const priority = row?.priority ?? skill.defaultPriority;
+                return (
+                  <div key={skill.id} style={{
+                    border: `1px solid ${enabled ? `${skill.color}44` : 'var(--border)'}`,
+                    borderRadius: '12px',
+                    padding: '12px',
+                    background: enabled ? `${skill.color}10` : 'transparent',
+                    transition: 'all .15s',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                      <div>
+                        <p style={{ margin: 0, fontSize: '12px', fontWeight: 700, color: enabled ? skill.color : 'var(--foreground)' }}>
+                          <span style={{ marginRight: 6 }}>{skill.icon}</span>{skill.label}
+                        </p>
+                        <p style={{ margin: 0, fontSize: '10px', color: 'var(--muted-foreground)' }}>{skill.id}</p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={readOnly}
+                        onClick={() => !readOnly && toggleSkill(skill.id, !enabled, skill.defaultPriority)}
+                        style={{
+                          padding: '5px 10px', borderRadius: '999px', border: '1px solid var(--border)',
+                          background: enabled ? skill.color : 'transparent',
+                          color: enabled ? '#fff' : 'var(--muted-foreground)', cursor: readOnly ? 'default' : 'pointer',
+                          fontSize: '11px', fontWeight: 700,
+                        }}
+                      >
+                        {enabled ? 'Activo' : 'Inactivo'}
+                      </button>
+                    </div>
+                    <details style={{ marginTop: 8 }}>
+                      <summary style={{ fontSize: 11, color: 'var(--muted-foreground)', cursor: 'pointer', userSelect: 'none' }}>
+                        Ver detalle
+                      </summary>
+                      <p style={{ margin: '8px 0 6px', fontSize: 11, color: 'var(--muted-foreground)', lineHeight: 1.45 }}>
+                        {skill.description}
+                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <label style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Prioridad</label>
+                        <input
+                          className="landing-input"
+                          style={{ ...inp, width: '120px', padding: '6px 10px', background: enabled ? 'var(--background)' : 'transparent' }}
+                          type="number"
+                          min={0}
+                          max={1000}
+                          value={String(priority)}
+                          onChange={(e) => setSkillPriority(skill.id, e.target.value, skill.defaultPriority)}
+                          disabled={readOnly || !enabled}
+                        />
+                      </div>
+                    </details>
+                  </div>
+                );
+              })}
+            </div>
+
+            <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--muted-foreground)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Capacidades
+            </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {AGENT_SKILLS.map((skill) => {
-                const active = skills.includes(skill.id);
+              {capabilitySkills.map((skill) => {
+                const active = isSkillEnabled(skillsConfig, skill.id);
                 return (
                   <button
                     key={skill.id}
                     type="button"
                     title={skill.description}
                     disabled={readOnly}
-                    onClick={() => {
-                      if (readOnly) return;
-                      setSkills((prev) =>
-                        active ? prev.filter((s) => s !== skill.id) : [...prev, skill.id],
-                      );
-                    }}
+                    onClick={() => !readOnly && toggleSkill(skill.id, !active, skill.defaultPriority)}
                     style={{
                       padding: '6px 12px',
                       borderRadius: '20px',
@@ -1672,129 +1757,9 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       opacity: readOnly ? 0.7 : 1,
                     }}
                   >
+                    <span style={{ marginRight: 4 }}>{skill.icon}</span>
                     {active ? '✓ ' : ''}{skill.label}
                   </button>
-                );
-              })}
-              {skills
-                .filter((sid) => !AGENT_SKILLS.some((s) => s.id === sid))
-                .map((sid) => (
-                  <button
-                    key={sid}
-                    type="button"
-                    title="Skill personalizada"
-                    disabled={readOnly}
-                    onClick={() => {
-                      if (readOnly) return;
-                      setSkills((prev) => prev.filter((s) => s !== sid));
-                    }}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: '20px',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      border: '1px solid rgba(99,102,241,0.28)',
-                      background: 'rgba(99,102,241,0.09)',
-                      color: '#6366f1',
-                      cursor: readOnly ? 'default' : 'pointer',
-                    }}
-                  >
-                    {sid} ✕
-                  </button>
-                ))}
-            </div>
-            {!readOnly && (
-              <div style={{
-                marginTop: '10px',
-                display: 'flex',
-                gap: '8px',
-                padding: '10px',
-                borderRadius: '12px',
-                border: '1px dashed var(--border)',
-                background: 'rgba(var(--brand-primary-rgb),0.04)',
-              }}>
-                <input
-                  className="landing-input"
-                  style={{ ...inp, flex: 1 }}
-                  value={customSkillInput}
-                  onChange={(e) => setCustomSkillInput(e.target.value)}
-                  placeholder="Agregar skill personalizada (id)"
-                />
-                <button
-                  type="button"
-                  onClick={addCustomSkill}
-                  style={{
-                    padding: '8px 12px', borderRadius: '10px', border: '1px solid var(--border)',
-                    background: 'var(--background)', cursor: 'pointer', fontWeight: 700, fontSize: '12px',
-                  }}
-                >
-                  Agregar
-                </button>
-              </div>
-            )}
-          </AgentEditorSection>
-
-          <AgentEditorSection bar="cool">
-            <p className={SECTION_TITLE}>Perfiles runtime (cerebro)</p>
-            <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
-              Estos perfiles cambian comportamiento real en AIBackHub (prompt/tools/settings).
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {RUNTIME_SKILL_TEMPLATES.map((tpl) => {
-                const cfg = getRuntimeSkillConfig(tpl.id);
-                const enabled = cfg?.enabled !== false && Boolean(cfg);
-                const priority = cfg?.priority ?? tpl.defaultPriority;
-                return (
-                  <div key={tpl.id} style={{
-                    border: `1px solid ${enabled ? `${R}30` : 'var(--border)'}`,
-                    borderRadius: '12px',
-                    padding: '12px',
-                    background: enabled ? 'rgba(var(--brand-primary-rgb),0.05)' : 'transparent',
-                    transition: 'all .15s',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                      <div>
-                        <p style={{ margin: 0, fontSize: '12px', fontWeight: 700, color: enabled ? R : 'var(--foreground)' }}>
-                          <span style={{ marginRight: 6 }}>{tpl.icon}</span>{tpl.name}
-                        </p>
-                        <p style={{ margin: 0, fontSize: '10px', color: 'var(--muted-foreground)' }}>{tpl.id}</p>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={readOnly}
-                        onClick={() => !readOnly && upsertRuntimeSkillConfig(tpl.id, !enabled, tpl.defaultPriority)}
-                        style={{
-                          padding: '5px 10px', borderRadius: '999px', border: '1px solid var(--border)',
-                          background: enabled ? R : 'transparent',
-                          color: enabled ? '#fff' : 'var(--muted-foreground)', cursor: readOnly ? 'default' : 'pointer',
-                          fontSize: '11px', fontWeight: 700,
-                        }}
-                      >
-                        {enabled ? 'Activo' : 'Inactivo'}
-                      </button>
-                    </div>
-                    <details style={{ marginTop: 8 }}>
-                      <summary style={{ fontSize: 11, color: 'var(--muted-foreground)', cursor: 'pointer', userSelect: 'none' }}>
-                        Ver detalle del perfil
-                      </summary>
-                      <p style={{ margin: '8px 0 6px', fontSize: 11, color: 'var(--muted-foreground)', lineHeight: 1.45 }}>
-                        {tpl.description}
-                      </p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <label style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Prioridad</label>
-                        <input
-                          className="landing-input"
-                          style={{ ...inp, width: '120px', padding: '6px 10px', background: enabled ? 'var(--background)' : 'transparent' }}
-                          type="number"
-                          min={0}
-                          max={1000}
-                          value={String(priority)}
-                          onChange={(e) => setRuntimeSkillPriority(tpl.id, e.target.value, tpl.defaultPriority)}
-                          disabled={readOnly}
-                        />
-                      </div>
-                    </details>
-                  </div>
                 );
               })}
             </div>

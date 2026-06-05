@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useAuthSplashLoading } from '@/hooks/use-auth-splash-loading';
 import { useEffect, useState } from 'react';
 import { AiLoadingScreen } from '@/components/ui/ai-loading-screen';
-import { LayoutDashboard, Users, LogOut, Shield, UserPlus, BarChart3, Wallet, Box, Network, Bot, Cpu, Menu, X, KeyRound, Activity, FileText, Zap } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Shield, UserPlus, BarChart3, Wallet, Box, Network, Bot, Cpu, Menu, X, KeyRound, Activity, FileText, Zap, Sparkles } from 'lucide-react';
 
 const NAV: Array<{ href: string; label: string; icon: typeof LayoutDashboard; highlight?: boolean }> = [
   { href: '/admin', label: 'Resumen', icon: LayoutDashboard },
@@ -21,6 +21,7 @@ const NAV: Array<{ href: string; label: string; icon: typeof LayoutDashboard; hi
   { href: '/admin/users', label: 'Usuarios', icon: Users },
   { href: '/admin/registration-codes', label: 'Códigos acceso', icon: KeyRound },
   { href: '/admin/promote', label: 'Promover admin', icon: UserPlus },
+  { href: '/admin/skills', label: 'Skills globales', icon: Sparkles, highlight: true },
   { href: '/admin/ai-config', label: 'Asistente AI', icon: Bot },
   { href: '/admin/security-log', label: 'Log de seguridad', icon: Activity },
 ];

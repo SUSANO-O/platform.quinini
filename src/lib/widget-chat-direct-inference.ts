@@ -173,6 +173,82 @@ export async function tryServeWidgetChatViaDirectInference(params: {
     (typeof ca.agentHubId === 'string' && ca.agentHubId.trim()) ||
     (typeof ca.name === 'string' ? ca.name : 'widget-agent');
 
+  const baseSystemPrompt = typeof ca.systemPrompt === 'string' ? ca.systemPrompt : '';
+  const rawEnabledMcpToolIds = Array.isArray(ca.enabledMcpToolIds) ? ca.enabledMcpToolIds : [];
+  const baseEnabledToolIds = rawEnabledMcpToolIds.filter(
+    (id: unknown): id is string => typeof id === 'string' && id.trim().length > 0,
+  );
+  type SkillConfigLite = { id: string; enabled?: boolean };
+  const rawSkills: unknown[] = Array.isArray(ca.skills) ? ca.skills : [];
+  const rawSkillsConfig: unknown[] = Array.isArray(ca.skillsConfig) ? ca.skillsConfig : [];
+  const skillsConfig: SkillConfigLite[] =
+    rawSkillsConfig.length > 0
+      ? rawSkillsConfig
+          .filter(
+            (s: unknown): s is SkillConfigLite =>
+              Boolean(s) &&
+              typeof s === 'object' &&
+              typeof (s as { id?: string }).id === 'string',
+          )
+          .map((s: SkillConfigLite) => ({ id: String(s.id).trim(), enabled: s.enabled }))
+      : rawSkills
+          .filter((id: unknown): id is string => typeof id === 'string' && id.trim().length > 0)
+          .map((id: string) => ({ id: id.trim(), enabled: true }));
+  const skills = skillsConfig
+    .filter((s) => s.enabled !== false && s.id.trim().length > 0)
+    .map((s) => s.id);
+
+  let resolvedSystemPrompt = baseSystemPrompt;
+  let resolvedTemperature =
+    typeof ca.inferenceTemperature === 'number' ? ca.inferenceTemperature : undefined;
+  let resolvedMaxTokens =
+    typeof ca.inferenceMaxTokens === 'number' ? ca.inferenceMaxTokens : undefined;
+
+  if (skills.length > 0 || skillsConfig.length > 0) {
+    try {
+      const skillRes = await hubFetch(
+        '/api/agents/resolve-skill-context',
+        {
+          method: 'POST',
+          headers: hubCreateHeaders(),
+          body: JSON.stringify({
+            baseSystemPrompt,
+            baseEnabledToolIds,
+            baseTemperature: resolvedTemperature,
+            baseMaxOutputTokens: resolvedMaxTokens,
+            skillIds: skills,
+            skillsConfig,
+          }),
+        },
+        8_000,
+      );
+      const skillJson = (await skillRes.json().catch(() => ({}))) as {
+        data?: {
+          systemPrompt?: string;
+          temperature?: number;
+          maxOutputTokens?: number;
+          appliedSkills?: Array<{ id: string }>;
+        };
+      };
+      if (skillRes.ok && skillJson.data) {
+        if (typeof skillJson.data.systemPrompt === 'string' && skillJson.data.systemPrompt.trim()) {
+          resolvedSystemPrompt = skillJson.data.systemPrompt;
+        }
+        if (typeof skillJson.data.temperature === 'number') {
+          resolvedTemperature = skillJson.data.temperature;
+        }
+        if (typeof skillJson.data.maxOutputTokens === 'number') {
+          resolvedMaxTokens = skillJson.data.maxOutputTokens;
+        }
+        logWidgetFlow('🧩', 'infer:skills', 'skills aplicadas en prompt (sin MCP)', {
+          applied: (skillJson.data.appliedSkills ?? []).map((s) => s.id),
+        });
+      }
+    } catch {
+      /* fallback al prompt base — no bloquear chat */
+    }
+  }
+
   try {
     const res = await hubFetch(
       '/api/models',
@@ -184,13 +260,13 @@ export async function tryServeWidgetChatViaDirectInference(params: {
         },
         body: JSON.stringify({
           prompt: message,
-          systemPrompt: typeof ca.systemPrompt === 'string' ? ca.systemPrompt : '',
+          systemPrompt: resolvedSystemPrompt,
           provider: effProvider,
           model: effModel,
           taskType: 'chat',
           history,
-          ...(typeof ca.inferenceTemperature === 'number' ? { temperature: ca.inferenceTemperature } : {}),
-          ...(typeof ca.inferenceMaxTokens === 'number' ? { maxTokens: ca.inferenceMaxTokens } : {}),
+          ...(typeof resolvedTemperature === 'number' ? { temperature: resolvedTemperature } : {}),
+          ...(typeof resolvedMaxTokens === 'number' ? { maxTokens: resolvedMaxTokens } : {}),
         }),
       },
       120_000,
