@@ -2062,10 +2062,23 @@
           return btn;
         }
 
-        fbRow.appendChild(makeFeedbackBtn('up', 'Me gusto esta respuesta', '👍'));
-        fbRow.appendChild(makeFeedbackBtn('down', 'No me gusto esta respuesta', '👎'));
-        if (String(text || '').trim()) {
-          // Agregar timestamp
+        // Contenedor izquierdo: feedback buttons + copy
+        var leftContainer = document.createElement('div');
+        leftContainer.style.display = 'flex';
+        leftContainer.style.gap = '8px';
+        leftContainer.style.alignItems = 'center';
+        leftContainer.appendChild(makeFeedbackBtn('up', 'Me gusto esta respuesta', '👋'));
+        leftContainer.appendChild(makeFeedbackBtn('down', 'No me gusto esta respuesta', '👇'));
+        leftContainer.appendChild(copyBtn);
+        fbRow.appendChild(leftContainer);
+
+        // Espaciador flexible
+        var spacer = document.createElement('div');
+        spacer.style.flex = '1';
+        fbRow.appendChild(spacer);
+
+        // Contenedor derecho: solo hora (no en saludos)
+        if (String(text || '').trim() && (!imgOpts || !imgOpts.wasGreeting)) {
           var timeSpan = document.createElement('span');
           timeSpan.className = 'afhub-msg-time';
           var now = new Date();
@@ -2073,7 +2086,6 @@
           var mins = String(now.getMinutes()).padStart(2, '0');
           timeSpan.textContent = hours + ':' + mins;
           fbRow.appendChild(timeSpan);
-          fbRow.appendChild(copyBtn);
         }
         messages.appendChild(fbRow);
       }
@@ -3222,6 +3234,13 @@
       return [{ url: upJson.url, publicId: upJson.publicId || '', mimeType: pendingAttachment.mimeType }];
     }
 
+    // Detectar si un mensaje es un saludo trivial (simplificado para el widget)
+    function isWidgetGreeting(msg) {
+      var greetings = /^(hola|ola|hey|hi|buenas|buenos|buenos dias|buenas tardes|buenas noches|saludos|saludo|gracias|thanks|ok|okey|vale|dale|listo|chao|chau|adios|bye|hasta|luego|jaja|lol)$/i;
+      var trimmed = String(msg || '').trim().toLowerCase();
+      return greetings.test(trimmed) && trimmed.length < 30;
+    }
+
     async function send(textArg) {
       if (widgetDisabled) return;
       var text = typeof textArg === 'string' ? textArg.trim() : input.value.trim();
@@ -3251,7 +3270,7 @@
       var userMsgOpts = attachPreviewForMsg
         ? { userImages: [attachPreviewForMsg] }
         : (humanAttachForMsg ? { attachments: humanAttachForMsg } : undefined);
-      var wasLastUserMsgTrivial = isTrivialMessage(displayText, history);
+      var wasLastUserMsgTrivial = isWidgetGreeting(displayText);
       addMessage('user', displayText, userMsgOpts);
       appendHumanSupportOfferInChat(displayText);
       history.push({ role: 'user', content: displayText });
@@ -3551,6 +3570,7 @@
         if (wasLastUserMsgTrivial) {
           if (botOpts === undefined) botOpts = {};
           botOpts.noFeedback = true;
+          botOpts.wasGreeting = true;
         }
 
         if (useReveal) {
@@ -4523,7 +4543,7 @@
       '#' + rootId + ' .afhub-thinking-dots span:nth-child(2) { animation-delay:.25s; }' +
       '#' + rootId + ' .afhub-thinking-dots span:nth-child(3) { animation-delay:.5s; }' +
       '#' + rootId + ' .afhub-multi-agent-tag { display:inline-flex; align-items:center; margin-bottom:8px; font-size:10px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; padding:3px 8px; border-radius:999px; color:' + cfg.color + '; background:' + cfg.color + '14; border:1px solid ' + cfg.color + '33; }' +
-      '#' + rootId + ' .afhub-feedback-row { align-self:flex-start; display:inline-flex; gap:6px; margin:-6px 0 2px 2px; align-items:center; }' +
+      '#' + rootId + ' .afhub-feedback-row { align-self:flex-start; display:flex; gap:0; margin:2px 0 2px 2px; align-items:center; width:100%; }' +
       '#' + rootId + ' .afhub-feedback-btn { width:24px; height:24px; border-radius:999px; border:none; background:transparent; color:#6b7280; font-size:12px; line-height:1; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:background .12s ease,color .12s ease; padding:0; }' +
       '#' + rootId + ' .afhub-feedback-btn:hover { background:rgba(0,0,0,.06); color:#111827; }' +
       '#' + rootId + ' .afhub-feedback-btn[data-value="up"].active { color:#16a34a; background:rgba(34,197,94,.12); }' +
