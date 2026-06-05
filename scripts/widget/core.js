@@ -3610,7 +3610,10 @@
         }
       } catch (e) {
         hideTyping();
-        var msg = 'El agente no puede responder ahora. Espera unos segundos e inténtalo de nuevo o si prefieres atención inmediata, puedes escribirnos a ';
+        var isHubError = e && e.code === 'HUB_CHAT_PROXY_FAILED';
+        var msg = isHubError && e && e.message
+          ? e.message
+          : 'El agente no puede responder ahora. Espera unos segundos e inténtalo de nuevo o si prefieres atención inmediata, puedes escribirnos a ';
         var botOpts = { error: true, showWhatsApp: true };
         addMessage('bot', msg, botOpts);
         notify('onError', { message: msg, code: 'REQUEST_ERROR' });
@@ -4111,7 +4114,9 @@
         }
         // 502 HUB_CHAT_PROXY_FAILED u otros JSON con `error` del backend / proxy
         if (serverMsg && (res.status === 502 || res.status === 503 || data.code === 'HUB_CHAT_PROXY_FAILED' || data.code === 'LANDING_SECRET_MISSING')) {
-          throw new Error(serverMsg);
+          var err = new Error(serverMsg);
+          err.code = data.code;
+          throw err;
         }
         throw new Error(serverMsg || SERVICE_ERROR);
       }

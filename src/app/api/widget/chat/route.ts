@@ -1000,7 +1000,7 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json(
       {
-        error: 'No esta respondiendo el agente. Por favor, intenta de nuevo',
+        error: 'El agente está con muchas peticiones, disculpa las molestias. Espera unos segundos e inténtalo de nuevo o puedes escribirnos a',
         code: 'HUB_CHAT_PROXY_FAILED',
         details: msg,
         hubUrl: `${base}/api/widget/chat`,
