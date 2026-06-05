@@ -160,6 +160,7 @@ interface ClientAgent {
   _id: string; name: string; description: string; systemPrompt: string;
   model: string;
   fallbackModels?: string[];
+  fastPathModel?: string;
   inferenceTemperature?: number | null;
   inferenceMaxTokens?: number | null;
   type: 'agent' | 'sub-agent'; status: 'active' | 'disabled';
@@ -320,6 +321,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [strictPurposeOnly, setStrictPurposeOnly] = useState(true);
   const [inferenceTemperature, setInferenceTemperature] = useState('');
   const [inferenceMaxTokens, setInferenceMaxTokens] = useState('');
+  const [fastPathModel, setFastPathModel] = useState('');
   const [fallbackModels, setFallbackModels] = useState<string[]>([]);
   const [skillsConfig, setSkillsConfig] = useState<SkillConfigRow[]>([]);
   const [skillCatalog, setSkillCatalog] = useState<AgentSkillCatalogEntry[]>([]);
@@ -507,6 +509,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         setInferenceMaxTokens(
           typeof a.inferenceMaxTokens === 'number' ? String(a.inferenceMaxTokens) : '',
         );
+        setFastPathModel(typeof a.fastPathModel === 'string' ? a.fastPathModel : '');
         setBehaviorRules(
           Array.isArray(a.behaviorRules)
             ? (a.behaviorRules as Array<Partial<BehaviorRule>>).map((r) => ({
@@ -703,6 +706,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   async function saveGeneral() {
     const t = inferenceTemperature.trim();
     const m = inferenceMaxTokens.trim();
+    const fp = fastPathModel.trim();
     const mergedPrompt = mergeSystemPromptWithManagedBlocks(
       systemPrompt,
       behaviorRules,
@@ -746,6 +750,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         return;
       }
       patch.inferenceMaxTokens = n;
+    }
+    if (fp === '') {
+      patch.fastPathModel = null;
+    } else {
+      patch.fastPathModel = fp;
     }
     await save(patch);
   }
@@ -1628,6 +1637,18 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   placeholder="Vacío = catálogo Hub"
                   disabled={readOnly}
                   inputMode="numeric"
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '6px', color: 'var(--muted-foreground)' }}>
+                  Modelo fast-path saludos (opcional)
+                </label>
+                <input
+                  style={inp}
+                  value={fastPathModel}
+                  onChange={(e) => setFastPathModel(e.target.value)}
+                  placeholder="Ej: gemini-2.5-flash (vacío = auto-seleccionar)"
+                  disabled={readOnly}
                 />
               </div>
             </div>
