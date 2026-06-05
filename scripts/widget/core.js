@@ -1937,6 +1937,9 @@
     }
 
     function addMessage(type, text, imgOpts) {
+      if (imgOpts && imgOpts.error) {
+        log(cfg, 'debug', 'addMessage error', { type, textLen: String(text).length, imgOpts: JSON.stringify(imgOpts) });
+      }
       var el = document.createElement('div');
       el.className = 'afhub-msg ' + type;
       if (type === 'bot') {
@@ -2027,6 +2030,22 @@
       var hasBotImages = type === 'bot' && imgOpts && imgOpts.images && imgOpts.images.length;
       var showFeedback = !imgOpts || imgOpts.noFeedback !== true;
       var isError = imgOpts && imgOpts.error === true;
+      if (imgOpts && imgOpts.error) {
+        var textTrimmed = String(text || '').trim();
+        var willCreateFbRow = type === 'bot' && (textTrimmed || hasBotImages) && showFeedback;
+        console.log('[AFHUB-DEBUG] fbRow decision:', {
+          type: type,
+          hasBotImages: hasBotImages,
+          textLength: String(text || '').length,
+          textTrimmed: textTrimmed.substring(0, 50),
+          showFeedback: showFeedback,
+          isError: isError,
+          willCreateFbRow: willCreateFbRow,
+          noFeedback: imgOpts.noFeedback,
+          imgOpts: imgOpts
+        });
+        log(cfg, 'debug', 'fbRow decision', { type, hasBotImages, textTrimmed, showFeedback, isError, willCreateFbRow });
+      }
       if (type === 'bot' && (String(text || '').trim() || hasBotImages) && showFeedback) {
         var feedbackId = 'fb_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
         var fbRow = document.createElement('div');
@@ -2069,30 +2088,42 @@
         leftContainer.style.gap = '8px';
         leftContainer.style.alignItems = 'center';
 
-        // Si es error con opción de WhatsApp, mostrar botón de WhatsApp
+        // Si es error con opción de WhatsApp, mostrar link de WhatsApp
+        console.log('[AFHUB-DEBUG] Checking WhatsApp button:', {
+          isError: isError,
+          imgOptsExists: !!imgOpts,
+          showWhatsApp: imgOpts && imgOpts.showWhatsApp,
+          condition: isError && imgOpts && imgOpts.showWhatsApp
+        });
         if (isError && imgOpts && imgOpts.showWhatsApp) {
-          var waBtn = document.createElement('button');
-          waBtn.type = 'button';
-          waBtn.className = 'afhub-feedback-btn';
-          waBtn.setAttribute('aria-label', 'Contactar por WhatsApp');
-          waBtn.textContent = '💬 WhatsApp';
-          waBtn.style.fontWeight = '500';
-          waBtn.style.padding = '6px 12px';
-          waBtn.style.borderRadius = '4px';
-          waBtn.style.border = '1px solid var(--afhub-primary, #0084ff)';
-          waBtn.style.color = 'var(--afhub-primary, #0084ff)';
-          waBtn.style.backgroundColor = 'transparent';
-          waBtn.addEventListener('click', function () {
-            // Disparar evento de contacto por WhatsApp
-            notify('onWhatsAppClick', {
-              reason: 'agent_error',
-              timestamp: new Date().toISOString()
+          console.log('[AFHUB-DEBUG] ✅ CREATING WhatsApp link!');
+          log(cfg, 'debug', 'Creating WhatsApp link', { phone: cfg.humanSupportPhone });
+          var waPhone = String(cfg.humanSupportPhone || '').trim().replace(/\D/g, '');
+          if (waPhone) {
+            var waLink = document.createElement('a');
+            waLink.className = 'afhub-persona-tag';
+            waLink.href = 'https://wa.me/' + waPhone;
+            waLink.target = '_blank';
+            waLink.rel = 'noopener noreferrer';
+            waLink.textContent = 'WhatsApp';
+            waLink.title = 'Abrir WhatsApp';
+            waLink.addEventListener('click', function () {
+              notify('onWhatsAppClick', {
+                reason: 'agent_error',
+                timestamp: new Date().toISOString()
+              });
+              emitEvent('whatsapp_clicked', { reason: 'agent_error' });
             });
-            emitEvent('whatsapp_clicked', { reason: 'agent_error' });
-          });
-          leftContainer.appendChild(waBtn);
+            leftContainer.appendChild(waLink);
+          }
         } else {
           // Mostrar feedback buttons normales
+          console.log('[AFHUB-DEBUG] ❌ NOT creating WhatsApp, showing normal buttons instead:', {
+            isError: isError,
+            imgOpts: imgOpts,
+            showWhatsApp: imgOpts && imgOpts.showWhatsApp
+          });
+          log(cfg, 'debug', 'Creating normal feedback buttons', { isError, showWhatsApp: imgOpts && imgOpts.showWhatsApp });
           leftContainer.appendChild(makeFeedbackBtn('up', 'Me gusto esta respuesta', '👍'));
           leftContainer.appendChild(makeFeedbackBtn('down', 'No me gusto esta respuesta', '👎'));
           leftContainer.appendChild(copyBtn);
@@ -3509,7 +3540,8 @@
                 if (evt.code === 'SESSION_TURN_LIMIT') {
                   errMsg = 'Esta conversación llegó al límite de mensajes. Pulsa «Nueva conversación» para empezar de cero.';
                 }
-                addMessage('bot', errMsg);
+                var streamErrorOpts = (evt.code === 'HUB_CHAT_PROXY_FAILED' || evt.code === 'AGENT_ERROR') ? { error: true, showWhatsApp: evt.code === 'HUB_CHAT_PROXY_FAILED' } : undefined;
+                addMessage('bot', errMsg, streamErrorOpts);
                 notify('onError', { message: errMsg, code: evt.code });
               }
             }
@@ -3615,6 +3647,8 @@
           ? e.message
           : 'El agente no puede responder ahora. Espera unos segundos e inténtalo de nuevo o si prefieres atención inmediata, puedes escribirnos a ';
         var botOpts = { error: true, showWhatsApp: true };
+        log(cfg, 'debug', 'Chat error - showing WhatsApp button', { isHubError, msgLength: msg.length, botOpts });
+        console.log('[AgentFlowhub Widget] Error caught - WhatsApp button should appear:', { isHubError, code: e && e.code, msgLength: msg.length });
         addMessage('bot', msg, botOpts);
         notify('onError', { message: msg, code: 'REQUEST_ERROR' });
         emitEvent('widget_error', { message: msg });
