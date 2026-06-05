@@ -12,7 +12,7 @@ export default function TerminosPage() {
           <h1 className="text-4xl font-bold mb-8" style={{ color: 'var(--brand-primary)' }}>Términos y Condiciones de Uso</h1>
           
           <div className="max-w-none space-y-10 text-sm md:text-base" style={{ color: 'var(--muted-foreground)' }}>
-            <p>Última actualización: 18 de abril de 2026</p>
+            <p>Última actualización: 4 de junio de 2026</p>
             
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-foreground">1. Aceptación de los Términos</h2>
@@ -62,21 +62,36 @@ export default function TerminosPage() {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-bold text-foreground">7. Limitación de Responsabilidad</h2>
+              <h2 className="text-2xl font-bold text-foreground">7. No Replicación, Clonación ni Competencia Desleal</h2>
+              <p className="leading-relaxed">
+                Como condición esencial para el uso del servicio, usted —y la empresa, organización o entidad en cuyo nombre actúa— se obliga, durante todo el tiempo que utilice BotIvA y por un período mínimo de dos (2) años contados a partir de la fecha en que deje de usar el servicio (sea por cancelación, terminación o cualquier otra causa), a lo siguiente:
+              </p>
+              <ul className="list-disc pl-6 space-y-3">
+                <li>No copiar, reproducir, clonar, replicar, descompilar ni aplicar ingeniería inversa, total ni parcialmente, sobre las herramientas, funcionalidades, agentes, widgets, flujos de trabajo, interfaces, diseño, arquitectura o tecnología de BotIvA.</li>
+                <li>No desarrollar, comercializar, financiar ni colaborar —directa o indirectamente— en la creación de un producto o servicio sustancialmente similar o competidor que reproduzca las características distintivas de BotIvA a las que tuvo acceso por el uso de la plataforma.</li>
+                <li>No utilizar el conocimiento técnico (know-how), los secretos comerciales ni la información confidencial obtenidos durante el uso de la plataforma para un fin distinto al uso legítimo del servicio.</li>
+              </ul>
+              <p className="leading-relaxed">
+                Esta obligación aplica a toda empresa, entidad o persona que utilice o haya utilizado BotIvA en cualquier momento, y subsiste tras la terminación de la cuenta o suscripción durante el período indicado. El incumplimiento facultará a BotIvA para suspender o cancelar el servicio de inmediato y para ejercer las acciones legales que correspondan, incluida la reclamación de los daños y perjuicios ocasionados.
+              </p>
+            </section>
+
+            <section className="space-y-4">
+              <h2 className="text-2xl font-bold text-foreground">8. Limitación de Responsabilidad</h2>
               <p className="leading-relaxed">
                 En la medida máxima permitida por la ley, BotIvA no será responsable de ningún daño indirecto, incidental, especial o consecuente que resulte del uso o la imposibilidad de usar el servicio.
               </p>
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-bold text-foreground">8. Modificaciones</h2>
+              <h2 className="text-2xl font-bold text-foreground">9. Modificaciones</h2>
               <p className="leading-relaxed">
                 Nos reservamos el derecho de modificar estos términos en cualquier momento. Los cambios entrarán en vigor inmediatamente después de su publicación en este sitio web.
               </p>
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-bold text-foreground">9. Contacto</h2>
+              <h2 className="text-2xl font-bold text-foreground">10. Contacto</h2>
               <p className="leading-relaxed">
                 Si tiene alguna pregunta sobre estos Términos, por favor contáctenos a través de nuestro soporte técnico.
               </p>

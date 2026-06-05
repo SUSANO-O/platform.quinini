@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { ConversationSession, Widget, WidgetMessage } from '@/lib/db/models';
 import { inboxSessionFilter, inboxTranscriptSessionId } from '@/lib/inbox-handoff';
+import { enrichInboxContact } from '@/lib/inbox-visitor-display';
 import { verifySessionToken } from '@/lib/auth';
 
 function getUserId(req: NextRequest): string | null {
@@ -89,7 +90,14 @@ export async function GET(req: NextRequest) {
           messageCount?: number;
         }
       | undefined;
-    const contact = s.handoffContact as { name?: string; email?: string; phone?: string } | null;
+    const contact = enrichInboxContact(
+      s.handoffContact as { name?: string; email?: string; phone?: string } | null,
+      {
+        sessionId: String(s.sessionId || ''),
+        chatSessionId: typeof s.chatSessionId === 'string' ? s.chatSessionId : '',
+        visitorId: typeof s.visitorId === 'string' ? s.visitorId : '',
+      },
+    );
     const agentLastSeenAt = s.agentLastSeenAt ? new Date(s.agentLastSeenAt) : null;
     const lastVisitorMessageAt = s.lastVisitorMessageAt ? new Date(s.lastVisitorMessageAt) : null;
     const hasUnread =
@@ -113,7 +121,7 @@ export async function GET(req: NextRequest) {
       startedAt: s.startedAt,
       handoffAt: s.handoffAt || s.updatedAt,
       inboxStatus: s.inboxStatus || 'open',
-      contact: contact || {},
+      contact,
       handoffMessage: s.handoffMessage || '',
       followUpAt: s.followUpAt ? new Date(s.followUpAt).toISOString() : null,
       followUpNote: typeof s.followUpNote === 'string' ? s.followUpNote : '',

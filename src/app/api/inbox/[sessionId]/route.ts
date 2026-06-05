@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { ConversationSession, WidgetMessage, Widget } from '@/lib/db/models';
 import { inboxSessionFilter, inboxTranscriptSessionId } from '@/lib/inbox-handoff';
+import { enrichInboxContact } from '@/lib/inbox-visitor-display';
 import { deleteInboxSessionForUser } from '@/lib/inbox-delete';
 import { verifySessionToken } from '@/lib/auth';
 
@@ -55,7 +56,14 @@ export async function GET(req: NextRequest, { params }: Params) {
           }]
         : [];
 
-  const contact = session.handoffContact as { name?: string; email?: string; phone?: string } | null;
+  const contact = enrichInboxContact(
+    session.handoffContact as { name?: string; email?: string; phone?: string } | null,
+    {
+      sessionId: String(session.sessionId || ''),
+      chatSessionId: typeof session.chatSessionId === 'string' ? session.chatSessionId : '',
+      visitorId: typeof session.visitorId === 'string' ? session.visitorId : '',
+    },
+  );
 
   return NextResponse.json({
     session: {
@@ -67,7 +75,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       handoffAt: session.handoffAt,
       inboxStatus: session.inboxStatus || 'open',
       handoffMessage: session.handoffMessage || '',
-      contact: contact || {},
+      contact,
       humanMode: Boolean((session as { humanMode?: boolean }).humanMode),
     },
     messages: transcript.map((m) => ({
