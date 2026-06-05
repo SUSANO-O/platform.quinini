@@ -40,7 +40,7 @@ Tu objetivo es resolver las dudas del usuario lo más rápido posible.
       { question: '¿Cómo puedo hacer un seguimiento de mi pedido?', answer: 'Puedes rastrear tu pedido ingresando el número de orden en nuestra página de seguimiento.' },
       { question: '¿Cuál es la política de devoluciones?', answer: 'Aceptamos devoluciones dentro de los 30 días posteriores a la compra con el producto en su estado original.' },
     ],
-    suggestedSkills: ['faq-responder', 'human-handoff', 'sentiment-detection'],
+    suggestedSkills: ['customer_service', 'knowledge_base'],
     tags: ['soporte', 'clientes', 'quejas', 'FAQ'],
   },
   {
@@ -66,7 +66,7 @@ No divulgues información confidencial de otros empleados.`,
       { question: '¿Cuántos días de vacaciones tengo por año?', answer: 'Los empleados con más de 1 año tienen derecho a 15 días hábiles de vacaciones anuales.' },
       { question: '¿Cómo solicito un permiso?', answer: 'Los permisos se solicitan a través del portal interno de RRHH con al menos 48 horas de anticipación.' },
     ],
-    suggestedSkills: ['faq-responder', 'document-qa'],
+    suggestedSkills: ['knowledge_base', 'document_summary'],
     tags: ['RRHH', 'empleados', 'políticas', 'beneficios'],
   },
   {
@@ -94,7 +94,7 @@ Si el cliente quiere hablar con un agente humano, facilita la conexión sin resi
       { question: '¿Aceptan tarjetas de crédito?', answer: 'Aceptamos Visa, MasterCard, American Express y PayPal.' },
       { question: '¿Puedo cambiar mi pedido?', answer: 'Los pedidos pueden modificarse hasta 2 horas después de realizados, contactando a nuestro equipo de soporte.' },
     ],
-    suggestedSkills: ['product-search', 'order-tracking', 'human-handoff'],
+    suggestedSkills: ['customer_service', 'knowledge_base', 'crm_integration'],
     tags: ['tienda', 'productos', 'pedidos', 'envíos'],
   },
   {
@@ -120,7 +120,7 @@ Mantén un tono profesional y confiable. Si no tienes información de una propie
       { question: '¿Tienen propiedades en [zona]?', answer: 'Tenemos varias opciones disponibles. ¿Prefiere comprar o arrendar? ¿Cuál es su presupuesto aproximado?' },
       { question: '¿Cómo puedo agendar una visita?', answer: 'Puede agendar una visita directamente desde aquí. Necesito su nombre, teléfono y la propiedad de interés.' },
     ],
-    suggestedSkills: ['lead-capture', 'appointment-booking', 'property-search'],
+    suggestedSkills: ['crm_integration', 'calendar_management', 'maps_geolocation'],
     tags: ['inmobiliaria', 'propiedades', 'leads', 'visitas'],
   },
   {
@@ -148,7 +148,7 @@ Materias que puedes cubrir: matemáticas, ciencias, historia, idiomas, programac
       { question: '¿Puedes explicarme las fracciones?', answer: 'Claro. Imagina que tienes una pizza. Si la cortas en 4 partes iguales y te comes 1, has comido 1/4 de la pizza...' },
       { question: '¿Puedes ayudarme con mi tarea?', answer: '¡Con gusto! ¿Cuál es el tema? No te daré la respuesta directamente, pero te guiaré paso a paso.' },
     ],
-    suggestedSkills: ['step-by-step-reasoning', 'socratic-method', 'quiz-generator'],
+    suggestedSkills: ['document_summary', 'customer_service'],
     tags: ['educación', 'tutorías', 'estudiantes', 'aprendizaje'],
   },
 ];

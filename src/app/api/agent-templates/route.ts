@@ -9,6 +9,8 @@ import { verifySessionToken } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent, Subscription } from '@/lib/db/models';
 import { getAgentLimits, isAgentLimitReached } from '@/lib/agent-plans';
+import { buildSkillConfigEntry } from '@/lib/agent-skills-catalog';
+import { listSkillCatalog } from '@/lib/skill-catalog-service';
 
 export async function GET() {
   return NextResponse.json({
@@ -56,6 +58,10 @@ export async function POST(req: NextRequest) {
   }
 
   const agentName = (name?.trim() || template.name).slice(0, 100);
+  const catalog = await listSkillCatalog();
+  const templateSkillRows = template.suggestedSkills
+    .map((id) => buildSkillConfigEntry(catalog, id, true))
+    .filter((row): row is NonNullable<typeof row> => Boolean(row));
 
   const agent = await ClientAgent.create({
     userId,
@@ -70,7 +76,8 @@ export async function POST(req: NextRequest) {
       answer: f.answer,
       createdAt: new Date().toISOString(),
     })),
-    skills: template.suggestedSkills,
+    skills: templateSkillRows.map((s) => s.id),
+    skillsConfig: templateSkillRows,
     strictPurposeOnly: true,
     syncStatus: 'pending',
     type: 'agent',

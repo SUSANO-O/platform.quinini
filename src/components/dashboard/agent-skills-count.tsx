@@ -1,10 +1,20 @@
 'use client';
 
 import { Sparkles } from 'lucide-react';
-import { SKILL_MAP } from '@/lib/agent-skills';
 
-export function AgentSkillsCount({ skillIds }: { skillIds?: string[] }) {
-  const count = (skillIds ?? []).filter((id) => SKILL_MAP.has(id)).length;
+export function AgentSkillsCount({
+  skillIds,
+  skillsConfig,
+}: {
+  skillIds?: string[];
+  skillsConfig?: Array<{ id?: string; enabled?: boolean }>;
+}) {
+  const fromConfig =
+    Array.isArray(skillsConfig) && skillsConfig.length > 0
+      ? skillsConfig.filter((s) => s?.enabled !== false && String(s?.id || '').trim().length > 0).length
+      : 0;
+  const fromIds = (skillIds ?? []).filter((id) => typeof id === 'string' && id.trim().length > 0).length;
+  const count = fromConfig > 0 ? fromConfig : fromIds;
   if (count <= 0) return null;
 
   return (
