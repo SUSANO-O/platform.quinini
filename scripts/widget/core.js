@@ -2026,6 +2026,7 @@
       messages.appendChild(el);
       var hasBotImages = type === 'bot' && imgOpts && imgOpts.images && imgOpts.images.length;
       var showFeedback = !imgOpts || imgOpts.noFeedback !== true;
+      var isError = imgOpts && imgOpts.error === true;
       if (type === 'bot' && (String(text || '').trim() || hasBotImages) && showFeedback) {
         var feedbackId = 'fb_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
         var fbRow = document.createElement('div');
@@ -2062,14 +2063,40 @@
           return btn;
         }
 
-        // Contenedor izquierdo: feedback buttons + copy
+        // Contenedor izquierdo
         var leftContainer = document.createElement('div');
         leftContainer.style.display = 'flex';
         leftContainer.style.gap = '8px';
         leftContainer.style.alignItems = 'center';
-        leftContainer.appendChild(makeFeedbackBtn('up', 'Me gusto esta respuesta', '👍'));
-        leftContainer.appendChild(makeFeedbackBtn('down', 'No me gusto esta respuesta', '👎'));
-        leftContainer.appendChild(copyBtn);
+
+        // Si es error con opción de WhatsApp, mostrar botón de WhatsApp
+        if (isError && imgOpts && imgOpts.showWhatsApp) {
+          var waBtn = document.createElement('button');
+          waBtn.type = 'button';
+          waBtn.className = 'afhub-feedback-btn';
+          waBtn.setAttribute('aria-label', 'Contactar por WhatsApp');
+          waBtn.textContent = '💬 WhatsApp';
+          waBtn.style.fontWeight = '500';
+          waBtn.style.padding = '6px 12px';
+          waBtn.style.borderRadius = '4px';
+          waBtn.style.border = '1px solid var(--afhub-primary, #0084ff)';
+          waBtn.style.color = 'var(--afhub-primary, #0084ff)';
+          waBtn.style.backgroundColor = 'transparent';
+          waBtn.addEventListener('click', function () {
+            // Disparar evento de contacto por WhatsApp
+            notify('onWhatsAppClick', {
+              reason: 'agent_error',
+              timestamp: new Date().toISOString()
+            });
+            emitEvent('whatsapp_clicked', { reason: 'agent_error' });
+          });
+          leftContainer.appendChild(waBtn);
+        } else {
+          // Mostrar feedback buttons normales
+          leftContainer.appendChild(makeFeedbackBtn('up', 'Me gusto esta respuesta', '👍'));
+          leftContainer.appendChild(makeFeedbackBtn('down', 'No me gusto esta respuesta', '👎'));
+          leftContainer.appendChild(copyBtn);
+        }
         fbRow.appendChild(leftContainer);
 
         // Espaciador flexible
@@ -2077,8 +2104,8 @@
         spacer.style.flex = '1';
         fbRow.appendChild(spacer);
 
-        // Contenedor derecho: solo hora (no en saludos)
-        if (String(text || '').trim() && (!imgOpts || !imgOpts.wasGreeting)) {
+        // Contenedor derecho: solo hora (no en saludos, no en errores)
+        if (!isError && String(text || '').trim() && (!imgOpts || !imgOpts.wasGreeting)) {
           var timeSpan = document.createElement('span');
           timeSpan.className = 'afhub-msg-time';
           var now = new Date();
@@ -3583,8 +3610,9 @@
         }
       } catch (e) {
         hideTyping();
-        var msg = (e && e.message) ? e.message : 'Lo siento, ocurrio un error. Intenta de nuevo.';
-        addMessage('bot', msg);
+        var msg = 'El agente no puede responder ahora. Espera unos segundos e inténtalo de nuevo o si prefieres atención inmediata, puedes escribirnos a ';
+        var botOpts = { error: true, showWhatsApp: true };
+        addMessage('bot', msg, botOpts);
         notify('onError', { message: msg, code: 'REQUEST_ERROR' });
         emitEvent('widget_error', { message: msg });
         log(cfg, 'error', 'Request failed', e);
