@@ -84,6 +84,14 @@ export default function AiConfigPage() {
   const [tierSavedOk, setTierSavedOk] = useState(false);
   const [tierError, setTierError] = useState<string | null>(null);
 
+  // ── Fast Path Model (para preguntas triviales) ──────────────────────────────
+  const [fastPathModel, setFastPathModel] = useState<string>('');
+  const [fastPathModelDraft, setFastPathModelDraft] = useState<string>('');
+  const [loadingFastPath, setLoadingFastPath] = useState(true);
+  const [savingFastPath, setSavingFastPath] = useState(false);
+  const [fastPathSavedOk, setFastPathSavedOk] = useState(false);
+  const [fastPathError, setFastPathError] = useState<string | null>(null);
+
   // ── Respaldo HuggingFace ───────────────────────────────────────────────────
   const [fallbackConfig, setFallbackConfig] = useState<FallbackModelsConfig>({
     mode: 'all',
@@ -864,6 +872,97 @@ export default function AiConfigPage() {
           {tierSavedOk && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#22c55e', fontSize: 13, fontWeight: 600 }}>
               <CheckCircle size={15} /> Tiers guardados
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Fast Path Model para preguntas triviales ── */}
+      <div style={{ marginTop: 48, borderTop: '1px solid var(--border)', paddingTop: 36 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(34,197,94,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Layers size={20} style={{ color: '#22c55e' }} />
+          </div>
+          <div>
+            <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>Modelo para preguntas triviales</h3>
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--muted-foreground)' }}>Configuración global para saludos y preguntas triviales</p>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+          <div style={{ flex: 1 }}>
+            <strong>Auto (más barato):</strong> El sistema elige automáticamente el modelo más económico.
+            <br />
+            <strong>Gemini 2.5 Flash:</strong> Rápido, económico y de buena calidad. Recomendado.
+            <br />
+            <strong>Claude Sonnet:</strong> Mayor precisión, mejor para lógica compleja.
+            <br />
+            <strong>DeepSeek V4:</strong> Alternativa económica con buen balance.
+          </div>
+        </div>
+
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          Modelo seleccionado
+        </label>
+        <select
+          value={fastPathModelDraft || ''}
+          onChange={(e) => {
+            setFastPathModelDraft(e.target.value);
+            setFastPathError(null);
+          }}
+          style={{
+            width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)',
+            background: 'var(--background)', color: 'var(--foreground)', fontSize: 13, cursor: 'pointer',
+            fontFamily: 'inherit', marginBottom: 12
+          }}
+        >
+          <option value="">Auto (elige el más barato automáticamente)</option>
+          <option value="vertex/gemini-2.5-flash">Gemini 2.5 Flash (Google Vertex)</option>
+          <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (Anthropic)</option>
+          <option value="deepseek-v4-flash">DeepSeek V4 Flash</option>
+        </select>
+
+        <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button
+            onClick={async () => {
+              setSavingFastPath(true);
+              setFastPathError(null);
+              try {
+                const res = await fetch('/api/admin/fastpath-model', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ modelId: fastPathModelDraft || '' }),
+                });
+                if (!res.ok) throw new Error('No se pudo guardar');
+                setFastPathModel(fastPathModelDraft);
+                setFastPathSavedOk(true);
+                setTimeout(() => setFastPathSavedOk(false), 3000);
+              } catch (err: any) {
+                setFastPathError(err.message || 'Error al guardar');
+              } finally {
+                setSavingFastPath(false);
+              }
+            }}
+            disabled={fastPathModelDraft === fastPathModel || savingFastPath}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '10px 24px', borderRadius: 10,
+              border: 'none',
+              background: fastPathModelDraft !== fastPathModel && !savingFastPath ? '#22c55e' : 'var(--border)',
+              color: fastPathModelDraft !== fastPathModel && !savingFastPath ? '#fff' : 'var(--muted-foreground)',
+              fontSize: 14, fontWeight: 600, cursor: fastPathModelDraft !== fastPathModel && !savingFastPath ? 'pointer' : 'not-allowed',
+            }}
+          >
+            {savingFastPath ? <Loader2 size={15} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Save size={15} />}
+            {savingFastPath ? 'Guardando...' : 'Guardar modelo'}
+          </button>
+          {fastPathSavedOk && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#22c55e', fontSize: 13, fontWeight: 600 }}>
+              <CheckCircle size={15} /> Modelo guardado
+            </div>
+          )}
+          {fastPathError && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#ef4444', fontSize: 13, fontWeight: 600 }}>
+              <AlertTriangle size={15} /> {fastPathError}
             </div>
           )}
         </div>
