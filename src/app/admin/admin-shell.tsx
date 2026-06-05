@@ -6,11 +6,12 @@ import { useAuth } from '@/hooks/use-auth';
 import { useAuthSplashLoading } from '@/hooks/use-auth-splash-loading';
 import { useEffect, useState } from 'react';
 import { AiLoadingScreen } from '@/components/ui/ai-loading-screen';
-import { LayoutDashboard, Users, LogOut, Shield, UserPlus, BarChart3, Wallet, Box, Network, Bot, Cpu, Menu, X, KeyRound, Activity, FileText, Zap, Sparkles } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Shield, UserPlus, BarChart3, Wallet, Box, Network, Bot, Cpu, Menu, X, KeyRound, Activity, FileText, Zap, Sparkles, Clock } from 'lucide-react';
 
 const NAV: Array<{ href: string; label: string; icon: typeof LayoutDashboard; highlight?: boolean }> = [
   { href: '/admin', label: 'Resumen', icon: LayoutDashboard },
   { href: '/admin/inference-metrics', label: 'Tokens & Costo LLM', icon: Zap, highlight: true },
+  { href: '/admin/widget-latency', label: 'Latencia widget', icon: Clock, highlight: true },
   { href: '/admin/user-margins', label: 'Margen por usuario', icon: Wallet, highlight: true },
   { href: '/admin/widget-analytics', label: 'Widgets / uso', icon: BarChart3 },
   { href: '/admin/model-stats', label: 'Modelos', icon: Cpu },

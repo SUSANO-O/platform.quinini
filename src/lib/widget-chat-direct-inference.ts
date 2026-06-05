@@ -98,6 +98,8 @@ export async function tryServeWidgetChatViaDirectInference(params: {
   rawBody: string;
   ownerUserId: string;
   agentHubId?: string;
+  /** SSE stream: notifica fases (skills, model) al widget. */
+  onStatus?: (phase: string, message: string) => void;
 }): Promise<DirectInferenceResult | null> {
   if (!getAibackhubBaseUrl() || !params.parsedAgentId.trim()) return null;
 
@@ -205,6 +207,12 @@ export async function tryServeWidgetChatViaDirectInference(params: {
     typeof ca.inferenceMaxTokens === 'number' ? ca.inferenceMaxTokens : undefined;
 
   if (skills.length > 0 || skillsConfig.length > 0) {
+    params.onStatus?.(
+      'skills',
+      skills.length === 1
+        ? `Aplicando habilidad: ${skills[0]}…`
+        : `Aplicando ${skills.length} habilidades del agente…`,
+    );
     try {
       const skillRes = await hubFetch(
         '/api/agents/resolve-skill-context',
@@ -248,6 +256,8 @@ export async function tryServeWidgetChatViaDirectInference(params: {
       /* fallback al prompt base — no bloquear chat */
     }
   }
+
+  params.onStatus?.('model', 'Generando respuesta…');
 
   try {
     const res = await hubFetch(

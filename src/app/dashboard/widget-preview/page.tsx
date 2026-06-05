@@ -16,7 +16,7 @@ import {
   Shield,
   RefreshCw,
 } from 'lucide-react';
-import { AiLoadingBlock } from '@/components/ui/ai-loading-screen';
+import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 
 interface WidgetShortcut {
   id: string;
@@ -327,10 +327,17 @@ export default function WidgetPreviewPage() {
       </p>
 
       {loading && (
-        <AiLoadingBlock
-          label="Cargando configuración…"
-          hint="Agente, herramientas y chat embebido"
-        />
+        <div className="relative overflow-hidden" style={{ minHeight: '60vh' }}>
+          <div className="hero-glow pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.3), transparent)', top: '-200px', right: '-60px' }} />
+          <div className="hero-glow pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), transparent)', top: '100px', left: '-120px' }} />
+          <div className="relative max-w-3xl mx-auto">
+            <AiLoadingInline
+              label="Cargando configuración…"
+              hint="Agente, herramientas y chat embebido"
+              style={{ padding: '64px 16px' }}
+            />
+          </div>
+        </div>
       )}
 
       {!loading && error && !widget && (
