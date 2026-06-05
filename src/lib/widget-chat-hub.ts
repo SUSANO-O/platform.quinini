@@ -91,7 +91,7 @@ export function formatHubFetchError(err: unknown, base: string): HubProxyConfigE
   const isLocal = /127\.0\.0\.1|localhost/i.test(base);
   return {
     code: 'HUB_CHAT_PROXY_FAILED',
-    message: 'No responde el motor del agente. Revisa que AgentFlowhub esté en marcha.',
+    message: 'El agente no puede responder ahora. Espera unos segundos e inténtalo de nuevo o si prefieres atención inmediata, puedes escribirnos a',
     details: msg,
     hint: isLocal
       ? `Arranca AgentFlowhub en ${base} (API suele ser :9002; UI :9010) y AIBackHub en BACKEND_URL. Revisa AGENTFLOWHUB_URL en .env.`
