@@ -372,7 +372,15 @@ async function handleSingleMessage(params: {
   // Enviar respuesta por WhatsApp
   const sendResult = await sendWhatsAppText(params.waConfig, params.from, replyText);
   if (!sendResult.ok) {
-    console.error('[whatsapp/webhook] send failed:', sendResult.error);
+    console.error('[whatsapp/webhook] send failed:', {
+      error: sendResult.error,
+      toPhone: params.from,
+      hasToken: !!params.waConfig?.accessTokenEnc,
+      hasPhoneNumberId: !!params.waConfig?.phoneNumberId,
+      apiVersion: params.waConfig?.apiVersion,
+    });
+  } else {
+    console.log('[whatsapp/webhook] reply sent OK', { messageId: sendResult.id, to: params.from });
   }
 
   // Upsert ConversationSession para que la conversación aparezca en el Inbox del dashboard.
@@ -404,7 +412,9 @@ async function handleSingleMessage(params: {
       },
     },
     { upsert: true },
-  ).catch(() => { /* best-effort */ });
+  ).catch((err) => {
+    console.error('[whatsapp/webhook] ConversationSession upsert failed:', err, { sessionId: params.sessionId });
+  });
 
   // Persistir en historial para inbox + dashboard counters
   void persistWidgetTranscript({
