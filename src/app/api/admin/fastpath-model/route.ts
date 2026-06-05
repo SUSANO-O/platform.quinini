@@ -4,9 +4,21 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db/connection';
 import { User } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
+
+interface FastpathModelConfig {
+  key: string;
+  modelId: string;
+  updatedAt: Date | string;
+  updatedBy?: string;
+}
+
+function getSystemConfig() {
+  return mongoose.connection.db!.collection<FastpathModelConfig>('system_config');
+}
 
 async function requireAdmin(req: NextRequest): Promise<string | null> {
   const token = req.cookies.get('afhub_session')?.value;
@@ -24,12 +36,12 @@ export async function GET(req: NextRequest) {
   if (!adminId) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
 
   await connectDB();
-  const db = (await import('@/lib/db/connection').then(m => m.getFarmMongoDb()))?.();
-
-  // Obtener configuración global de fastpath
-  // Por ahora usamos una colección "system_config"
-  const doc = db?.collection('system_config').findOne({ key: 'fastpath_model' });
-  const config = doc || { key: 'fastpath_model', modelId: '', updatedAt: new Date() };
+  const doc = await getSystemConfig().findOne({ key: 'fastpath_model' });
+  const config: FastpathModelConfig = doc ?? {
+    key: 'fastpath_model',
+    modelId: '',
+    updatedAt: new Date(),
+  };
 
   return NextResponse.json({
     ok: true,
@@ -51,10 +63,8 @@ export async function POST(req: NextRequest) {
     }
 
     await connectDB();
-    const db = (await import('@/lib/db/connection').then(m => m.getFarmMongoDb()))?.();
 
-    // Guardar en system_config
-    await db?.collection('system_config').updateOne(
+    await getSystemConfig().updateOne(
       { key: 'fastpath_model' },
       {
         $set: {
