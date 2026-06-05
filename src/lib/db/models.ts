@@ -826,6 +826,31 @@ InferenceMetricSchema.index({ agentId: 1, createdAt: -1 });
 
 export const InferenceMetric = mongoose.models.InferenceMetric || mongoose.model('InferenceMetric', InferenceMetricSchema);
 
+// ── WIDGET CHAT LATENCY (Fase 4) ─────────────────────────────────────────────
+// Una fila por request widget con desglose de ms por fase (auth, hub, reveal…).
+// TTL 30 días. Complementa InferenceMetric (tokens/costo) con diagnóstico de UX.
+
+const WidgetChatLatencySchema = new Schema({
+  traceId:    { type: String, required: true, index: true },
+  userId:     { type: String, default: '', index: true },
+  agentId:    { type: String, default: '', index: true },
+  widgetId:   { type: String, default: null, index: true },
+  sessionId:  { type: String, default: null },
+  path:       { type: String, default: '' },
+  totalMs:    { type: Number, default: 0 },
+  phases:     { type: Schema.Types.Mixed, default: {} },
+  ok:         { type: Boolean, default: true },
+  errorCode:  { type: String, default: null },
+  replyLen:   { type: Number, default: null },
+  createdAt:  { type: Date, default: Date.now, expires: 30 * 24 * 60 * 60 },
+}, { timestamps: false });
+
+WidgetChatLatencySchema.index({ createdAt: -1 });
+WidgetChatLatencySchema.index({ path: 1, createdAt: -1 });
+
+export const WidgetChatLatency =
+  mongoose.models.WidgetChatLatency || mongoose.model('WidgetChatLatency', WidgetChatLatencySchema);
+
 // ── SKILL CATALOG (global, admin) ───────────────────────────────────────────
 
 const SkillCatalogSchema = new Schema({

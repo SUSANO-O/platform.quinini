@@ -51,6 +51,16 @@ import { agentHasAnyWebhook } from '@/lib/agent-webhooks';
 import { agentHasAnySheet } from '@/lib/agent-sheets';
 import { tryServeWidgetChatViaDirectInference } from '@/lib/widget-chat-direct-inference';
 import { normalizeVisitorId } from '@/lib/widget-visitor';
+import {
+  emitWidgetChatStatus,
+  loadAgentStreamHints,
+  type WidgetChatStreamHints,
+} from '@/lib/widget-chat-status';
+import { emitStreamTokensFromText } from '@/lib/widget-stream-reply';
+import {
+  finalizeWidgetChatTrace,
+  WidgetChatTrace,
+} from '@/lib/widget-chat-latency';
 
 export const maxDuration = 60; // Vercel: allow up to 60s for LLM + streaming
 
@@ -88,6 +98,7 @@ export async function OPTIONS(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const origin = req.headers.get('origin') || '*';
   const traceId = (req.headers.get('x-trace-id') || req.headers.get('x-request-id') || '').trim() || randomUUID();
+  const latencyTrace = new WidgetChatTrace({ traceId, stream: true });
 
   const ip = getClientIp(req);
   const rlGlobal = await checkRateLimitAsync('widget-chat-ip', ip, 120, 60_000);
@@ -115,7 +126,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const imageEnriched = await enrichWidgetChatBodyWithImages(rawBodyInitial);
+  const imageEnriched = await latencyTrace.span('vision', () =>
+    enrichWidgetChatBodyWithImages(rawBodyInitial),
+  );
   let rawBody = imageEnriched.body;
   const imageEnrichment: WidgetImageEnrichment | null = imageEnriched.enrichment;
   const userDisplayMessage = imageEnrichment?.displayMessage || guardResult.text || '';
@@ -171,6 +184,13 @@ export async function POST(req: NextRequest) {
     config: WidgetMultiAgentConfig;
     plan: string;
   } | null = null;
+  let prefetchedAgentHintsDoc: {
+    skills?: string[];
+    skillsConfig?: Array<{ id?: string; enabled?: boolean }>;
+    ragEnabled?: boolean;
+    enabledMcpToolIds?: string[];
+    tools?: Array<{ toolId?: string }>;
+  } | null = null;
 
   // Validate wt_ token and quota
   if (widgetToken.startsWith('wt_') && parsedAgentId) {
@@ -206,8 +226,35 @@ export async function POST(req: NextRequest) {
           );
         }
         faqTrackOwnerId = w.userId;
-        const quota = await checkConversationQuota(w.userId);
+        const agentFilter = /^[a-f0-9]{24}$/i.test(parsedAgentId)
+          ? { _id: parsedAgentId }
+          : { agentHubId: parsedAgentId };
+
+        const [quota, subDoc, agentDoc] = await Promise.all([
+          checkConversationQuota(w.userId),
+          Subscription.findOne({ userId: w.userId })
+            .select({ status: 1, plan: 1 })
+            .lean() as Promise<{ status?: string; plan?: string } | null>,
+          ClientAgent.findOne(agentFilter)
+            .select({
+              tools: 1,
+              skills: 1,
+              skillsConfig: 1,
+              ragEnabled: 1,
+              enabledMcpToolIds: 1,
+            })
+            .lean() as Promise<{
+              tools?: Array<{ toolId?: string; config?: unknown }>;
+              skills?: string[];
+              skillsConfig?: Array<{ id?: string; enabled?: boolean }>;
+              ragEnabled?: boolean;
+              enabledMcpToolIds?: string[];
+            } | null>,
+        ]);
+
         if (!quota.allowed) {
+          latencyTrace.mark('auth');
+          finalizeWidgetChatTrace(latencyTrace, { ok: false, errorCode: 'QUOTA_EXCEEDED' });
           return new Response(
             sseEvent({ type: 'error', message: `Límite de ${quota.limit.toLocaleString('es')} conversaciones alcanzado.`, code: 'QUOTA_EXCEEDED' }),
             { status: 200, headers: { 'Content-Type': 'text/event-stream', ...corsHeaders(origin) } },
@@ -215,13 +262,12 @@ export async function POST(req: NextRequest) {
         }
 
         try {
-          const subDoc = await Subscription.findOne({ userId: w.userId })
-            .select({ status: 1 })
-            .lean() as { status?: string } | null;
           const hasActivePlan =
             subDoc?.status === 'active' || subDoc?.status === 'trialing';
           const userTurnCount = guardResult.turnCount ?? 0;
           if (!hasActivePlan && userTurnCount >= 2) {
+            latencyTrace.mark('auth');
+            finalizeWidgetChatTrace(latencyTrace, { ok: false, errorCode: 'WIDGET_PROVIDER_SUBSCRIPTION_REQUIRED' });
             return new Response(
               sseEvent({
                 type: 'error',
@@ -236,23 +282,17 @@ export async function POST(req: NextRequest) {
           /* fail-open */
         }
 
+        prefetchedAgentHintsDoc = agentDoc;
+
         // ── Multi-webhook detection — fuerza fallback al endpoint non-stream ──
-        // Si el agente tiene webhooks configurados, NO streamear: el path streaming
-        // proxya a AgentFlowhub que NO expone los webhooks como tools. El path
-        // non-stream sí pasa por tryServeWidgetChatViaHubMcp → AIBackHub → tools.
         try {
-          const ca = await ClientAgent.findOne(
-            /^[a-f0-9]{24}$/i.test(parsedAgentId)
-              ? { _id: parsedAgentId }
-              : { agentHubId: parsedAgentId },
-          )
-            .select({ tools: 1 })
-            .lean() as { tools?: Array<{ toolId?: string; config?: unknown }> } | null;
-          if (ca && (agentHasAnyWebhook(ca) || agentHasAnySheet(ca))) {
+          if (agentDoc && (agentHasAnyWebhook(agentDoc) || agentHasAnySheet(agentDoc))) {
             logWidgetFlow('🔀', 'stream:skip', 'agente con webhooks/sheets → forzando fallback non-stream', {
               traceId,
               agentId: parsedAgentId,
             });
+            latencyTrace.mark('auth');
+            finalizeWidgetChatTrace(latencyTrace, { ok: false, errorCode: 'STREAM_NOT_SUPPORTED' });
             return new Response(
               sseEvent({ type: 'error', message: 'stream_unavailable', code: 'STREAM_NOT_SUPPORTED' }),
               { status: 503, headers: { 'Content-Type': 'text/event-stream', ...corsHeaders(origin) } },
@@ -263,12 +303,9 @@ export async function POST(req: NextRequest) {
         }
 
         try {
-          const subForRoute = await Subscription.findOne({ userId: w.userId })
-            .select({ plan: 1, status: 1 })
-            .lean() as { plan?: string; status?: string } | null;
           const active =
-            subForRoute?.status === 'active' || subForRoute?.status === 'trialing';
-          const planForRoute = active ? (subForRoute?.plan ?? 'free') : 'free';
+            subDoc?.status === 'active' || subDoc?.status === 'trialing';
+          const planForRoute = active ? (subDoc?.plan ?? 'free') : 'free';
           multiAgentCtx = {
             userId: w.userId,
             plan: planForRoute,
@@ -294,6 +331,7 @@ export async function POST(req: NextRequest) {
           console.warn('[widget/chat/stream] enrich body skipped:', enrichErr);
         }
       }
+      latencyTrace.mark('auth');
     } catch {
       /* fail-open */
     }
@@ -304,24 +342,32 @@ export async function POST(req: NextRequest) {
   // visitante y devolvemos un aviso por SSE. Protege contra SDKs viejos.
   if (parsedSessionId && faqTrackOwnerId) {
     try {
-      await connectDB();
-      const liveSession = await ConversationSession.findOne({
-        chatSessionId: parsedSessionId,
-        humanMode: true,
-      }).select({ inboxStatus: 1 }).lean() as { inboxStatus?: string } | null;
-      if (liveSession && liveSession.inboxStatus !== 'resolved') {
-        if (parsedMessage.trim()) {
-          await WidgetMessage.create({
-            widgetId: resolvedWidgetId,
-            userId: faqTrackOwnerId,
-            agentId: parsedAgentId || '',
-            sessionId: parsedSessionId,
-            role: 'user',
-            content: parsedMessage.trim().slice(0, 4000),
-            traceId: `human-mode:${traceId}`,
-          }).catch(() => {});
+      const humanHit = await latencyTrace.span('human_guard', async () => {
+        await connectDB();
+        const liveSession = await ConversationSession.findOne({
+          chatSessionId: parsedSessionId,
+          humanMode: true,
+        }).select({ inboxStatus: 1 }).lean() as { inboxStatus?: string } | null;
+        if (liveSession && liveSession.inboxStatus !== 'resolved') {
+          if (parsedMessage.trim()) {
+            await WidgetMessage.create({
+              widgetId: resolvedWidgetId,
+              userId: faqTrackOwnerId,
+              agentId: parsedAgentId || '',
+              sessionId: parsedSessionId,
+              role: 'user',
+              content: parsedMessage.trim().slice(0, 4000),
+              traceId: `human-mode:${traceId}`,
+            }).catch(() => {});
+          }
+          return 'human';
         }
+        return null;
+      });
+      if (humanHit === 'human') {
         const note = 'Un miembro del equipo está atendiendo esta conversación y te responderá aquí mismo.';
+        latencyTrace.setPath('human-mode');
+        finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: note.length });
         return new Response(
           sseEvent({ type: 'token', text: note }) + sseEvent({ type: 'done', humanMode: true }),
           { status: 200, headers: { 'Content-Type': 'text/event-stream', ...corsHeaders(origin) } },
@@ -356,23 +402,31 @@ export async function POST(req: NextRequest) {
       };
       if (widgetToken) headers['X-Widget-Token'] = widgetToken;
 
+      let streamHints: WidgetChatStreamHints | null = null;
+
+      latencyTrace.setMeta({
+        userId: faqTrackOwnerId,
+        agentId: parsedAgentIdLocal || parsedAgentId,
+        widgetId: resolvedWidgetId || parsedWidgetId,
+        sessionId: parsedSessionId || traceId,
+      });
+
       try {
-        if (imageEnrichment?.images?.length) {
-          enqueue({ type: 'status', phase: 'vision', message: 'Analizando captura…' });
+        emitWidgetChatStatus(enqueue, 'prepare');
+        if (faqTrackOwnerId) {
+          emitWidgetChatStatus(enqueue, 'enrich');
         }
-        enqueue({ type: 'status', phase: 'start', message: 'Generando respuesta…' });
+        if (imageEnrichment?.images?.length) {
+          emitWidgetChatStatus(enqueue, 'vision');
+        }
 
         if (multiAgentCtx) {
           if (multiAgentCtx.config.multiAgentEnabled) {
-            enqueue({
-              type: 'status',
-              phase: 'triage',
-              message: buildMultiAgentStatusMessage('triage'),
-            });
+            emitWidgetChatStatus(enqueue, 'triage');
           }
 
           if (multiAgentCtx.config.multiAgentEnabled && multiAgentCtx.config.multiAgentMode === 'pipeline' && hubSecret) {
-            const pipeline = await executePipelineMultiAgentFlow({
+            const pipeline = await latencyTrace.span('multi_pipeline', () => executePipelineMultiAgentFlow({
               rawBody: hubBody,
               config: multiAgentCtx.config,
               userId: multiAgentCtx.userId,
@@ -383,7 +437,7 @@ export async function POST(req: NextRequest) {
               onPhase: (phase, message) => {
                 enqueue({ type: 'status', phase, message });
               },
-            });
+            }));
             if (pipeline) {
               parsedAgentIdLocal = pipeline.routedHubAgentId;
               multiAgentMeta = pipeline.meta;
@@ -395,12 +449,14 @@ export async function POST(req: NextRequest) {
                 traceId,
                 creativeAgent: pipeline.meta.routedAgentName,
               });
-              enqueue({ type: 'token', text: pipeline.reply });
+              emitWidgetChatStatus(enqueue, 'model');
+              await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, pipeline.reply));
               enqueue({
                 type: 'done',
                 reply: pipeline.reply,
                 agentId: pipeline.routedHubAgentId,
                 multiAgent: pipeline.meta,
+                streamed: true,
                 ...(pipeline.images?.length ? { images: pipeline.images } : {}),
               });
               if (widgetToken.startsWith('wt_') && parsedAgentIdLocal) {
@@ -418,12 +474,14 @@ export async function POST(req: NextRequest) {
                   routingMeta: pipeline.meta,
                 });
               }
+              latencyTrace.setPath('stream-pipeline');
+              finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: pipeline.reply.length });
               return;
             }
           }
 
           if (multiAgentCtx.config.multiAgentEnabled && multiAgentCtx.config.multiAgentMode === 'parallel' && hubSecret) {
-            const parallel = await executeParallelMultiAgentFlow({
+            const parallel = await latencyTrace.span('multi_parallel', () => executeParallelMultiAgentFlow({
               rawBody: hubBody,
               config: multiAgentCtx.config,
               userId: multiAgentCtx.userId,
@@ -434,7 +492,7 @@ export async function POST(req: NextRequest) {
               onPhase: (phase, message) => {
                 enqueue({ type: 'status', phase, message });
               },
-            });
+            }));
             if (parallel) {
               parsedAgentIdLocal = parallel.routedHubAgentId;
               multiAgentMeta = parallel.meta;
@@ -447,12 +505,14 @@ export async function POST(req: NextRequest) {
                 routedAgentId: parallel.meta.routedAgentId,
                 synthesized: parallel.meta.synthesized,
               });
-              enqueue({ type: 'token', text: parallel.reply });
+              emitWidgetChatStatus(enqueue, 'model');
+              await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, parallel.reply));
               enqueue({
                 type: 'done',
                 reply: parallel.reply,
                 agentId: parallel.routedHubAgentId,
                 multiAgent: parallel.meta,
+                streamed: true,
               });
               if (widgetToken.startsWith('wt_') && parsedAgentIdLocal) {
                 void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true).catch(() => {});
@@ -469,16 +529,18 @@ export async function POST(req: NextRequest) {
                   routingMeta: parallel.meta,
                 });
               }
+              latencyTrace.setPath('stream-parallel');
+              finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: parallel.reply.length });
               return;
             }
           }
 
-          const routing = await applyMultiAgentRouting({
+          const routing = await latencyTrace.span('multi_triage', () => applyMultiAgentRouting({
             rawBody: hubBody,
             config: multiAgentCtx.config,
             userId: multiAgentCtx.userId,
             plan: multiAgentCtx.plan,
-          });
+          }));
           if (routing) {
             hubBody = routing.body;
             parsedAgentIdLocal = routing.routedHubAgentId;
@@ -507,7 +569,9 @@ export async function POST(req: NextRequest) {
         if (parsedAgentIdLocal) {
           try {
             const sessionBucket = parsedSessionId || traceId;
-            const variant = await getActiveVariant(parsedAgentIdLocal, sessionBucket);
+            const variant = await latencyTrace.span('ab_variant', () =>
+              getActiveVariant(parsedAgentIdLocal, sessionBucket),
+            );
             if (variant) {
               activeVariantId = variant.id;
               const parsed = JSON.parse(hubBody) as Record<string, unknown>;
@@ -522,6 +586,7 @@ export async function POST(req: NextRequest) {
 
         if (parsedAgentId) {
           try {
+            await latencyTrace.span('strict_purpose', async () => {
             await connectDB();
             const agentDoc = await ClientAgent.findById(parsedAgentId, { strictPurposeOnly: 1, systemPrompt: 1 })
               .lean() as { strictPurposeOnly?: boolean; systemPrompt?: string } | null;
@@ -533,10 +598,15 @@ export async function POST(req: NextRequest) {
               parsed.systemPromptOverride = basePrompt + STRICT_PURPOSE_SUFFIX;
               hubBody = JSON.stringify(parsed);
             }
+            });
           } catch { /* non-critical */ }
         }
 
-        const hubAgentResolve = await resolveHubAgentIdInBody(hubBody, faqTrackOwnerId ?? undefined);
+        emitWidgetChatStatus(enqueue, 'resolve');
+
+        const hubAgentResolve = await latencyTrace.span('resolve', () =>
+          resolveHubAgentIdInBody(hubBody, faqTrackOwnerId ?? undefined),
+        );
         if (!hubAgentResolve.ok) {
           enqueue({
             type: 'error',
@@ -544,12 +614,32 @@ export async function POST(req: NextRequest) {
             code: hubAgentResolve.code,
             ...(hubAgentResolve.hint ? { hint: hubAgentResolve.hint } : {}),
           });
+          latencyTrace.setPath('stream-error');
+          finalizeWidgetChatTrace(latencyTrace, { ok: false, errorCode: hubAgentResolve.code });
           return;
         }
         hubBody = hubAgentResolve.body;
         const hubAgentId = hubAgentResolve.hubAgentId || parsedAgentIdLocal;
         if (hubAgentResolve.hubAgentId) {
           parsedAgentIdLocal = hubAgentResolve.hubAgentId;
+        }
+
+        try {
+          streamHints = await latencyTrace.span('hints', () =>
+            loadAgentStreamHints(parsedAgentIdLocal, faqTrackOwnerId, prefetchedAgentHintsDoc ?? undefined),
+          );
+          if (streamHints.hasSkills) {
+            emitWidgetChatStatus(
+              enqueue,
+              'skills',
+              streamHints.skillCount === 1 ? '1 habilidad' : `${streamHints.skillCount} habilidades`,
+            );
+          }
+          if (streamHints.ragEnabled) {
+            emitWidgetChatStatus(enqueue, 'rag');
+          }
+        } catch (hintsErr) {
+          logWidgetFlow('⚠️', 'stream:hintsErr', hintsErr instanceof Error ? hintsErr.message : String(hintsErr));
         }
 
         if (hubSecret && widgetToken.startsWith('wt_')) {
@@ -559,22 +649,28 @@ export async function POST(req: NextRequest) {
 
         if (widgetToken.startsWith('wt_') && faqTrackOwnerId && parsedAgentIdLocal) {
           try {
-            const inferred = await tryServeWidgetChatViaDirectInference({
+            const inferred = await latencyTrace.span('infer_direct', () =>
+              tryServeWidgetChatViaDirectInference({
               parsedAgentId: parsedAgentIdLocal,
               rawBody: hubBody,
               ownerUserId: faqTrackOwnerId,
-            });
+              onStatus: (phase, message) => {
+                enqueue({ type: 'status', phase, message });
+              },
+            }),
+            );
             if (inferred?.reply) {
               logWidgetFlow('✅', 'stream:inferOk', 'respuesta directa /api/models', {
                 traceId,
                 replyLen: inferred.reply.length,
                 usedModel: inferred.usedModel,
               });
-              enqueue({ type: 'token', text: inferred.reply });
+              await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, inferred.reply));
               enqueue({
                 type: 'done',
                 reply: inferred.reply,
                 agentId: parsedAgentIdLocal,
+                streamed: true,
                 ...(inferred.usedModel ? { usedModel: inferred.usedModel } : {}),
                 ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
               });
@@ -596,6 +692,8 @@ export async function POST(req: NextRequest) {
                   routingMeta: multiAgentMeta,
                 });
               }
+              latencyTrace.setPath('stream-infer-direct');
+              finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: inferred.reply.length });
               return;
             }
           } catch (inferErr) {
@@ -617,13 +715,20 @@ export async function POST(req: NextRequest) {
           agentId: hubAgentId || parsedAgentId || undefined,
           ...widgetMessageProbe(streamMsg),
         });
-        enqueue({ type: 'status', phase: 'hub', message: 'Consultando al asistente…' });
-        const res = await fetchHubWidgetChat(base, {
-          method: 'POST',
-          headers,
-          body: hubBody,
-          signal: AbortSignal.timeout(120_000),
-        });
+        if (streamHints?.hasMcpTools) {
+          emitWidgetChatStatus(enqueue, 'mcp');
+        } else if (streamHints?.hasWebhookTools) {
+          emitWidgetChatStatus(enqueue, 'tools');
+        }
+        emitWidgetChatStatus(enqueue, 'hub');
+        const res = await latencyTrace.span('hub', () =>
+          fetchHubWidgetChat(base, {
+            method: 'POST',
+            headers,
+            body: hubBody,
+            signal: AbortSignal.timeout(120_000),
+          }),
+        );
 
         const json = await res.json() as {
           reply?: string;
@@ -642,6 +747,8 @@ export async function POST(req: NextRequest) {
         if (!res.ok || json.code === 'AGENT_COOLDOWN' || json.error) {
           const msg = json.error || json.reply || 'Error del agente.';
           enqueue({ type: 'error', message: msg, code: json.code || 'HUB_ERROR' });
+          latencyTrace.setPath('stream-error');
+          finalizeWidgetChatTrace(latencyTrace, { ok: false, errorCode: json.code || 'HUB_ERROR' });
           controller.close();
           return;
         }
@@ -660,24 +767,27 @@ export async function POST(req: NextRequest) {
           mcpTag: typeof json.mcpTag === 'string' ? json.mcpTag : undefined,
         });
 
-        // Send full reply as a single token so the message bubble is created,
-        // then immediately send done — no word-by-word delay that risks timeout.
         const mcpTag =
           typeof json.mcpTag === 'string' && json.mcpTag.trim() ? json.mcpTag.trim() : undefined;
         const images = Array.isArray(json.images) && json.images.length ? json.images : undefined;
         const usedModel =
           typeof json.usedModel === 'string' && json.usedModel.trim() ? json.usedModel.trim() : undefined;
-        enqueue({ type: 'token', text: fullReply });
+        emitWidgetChatStatus(enqueue, 'model');
+        await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, fullReply));
         enqueue({
           type: 'done',
           reply: fullReply,
           agentId: json.agentId || hubAgentId || parsedAgentIdLocal,
           toolsUsed: json.toolsUsed || [],
+          streamed: true,
           ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
           ...(mcpTag ? { mcpTag } : {}),
           ...(images ? { images } : {}),
           ...(usedModel ? { usedModel } : {}),
         });
+
+        latencyTrace.setPath('stream-hub');
+        finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: fullReply.length });
 
         // Telemetry (non-blocking)
         if (widgetToken.startsWith('wt_') && parsedAgentId) {
@@ -725,6 +835,8 @@ export async function POST(req: NextRequest) {
           ...(formatted.hint ? { hint: formatted.hint } : {}),
           ...(formatted.details ? { details: formatted.details } : {}),
         });
+        latencyTrace.setPath('stream-error');
+        finalizeWidgetChatTrace(latencyTrace, { ok: false, errorCode: formatted.code });
       } finally {
         controller.close();
       }

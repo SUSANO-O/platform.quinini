@@ -901,6 +901,8 @@
   function createWidgetInstance(id, cfg) {
     var rootId = 'afhub-widget-root-' + id;
     var typingId = 'afhub-typing-' + id;
+    var typingTimerHandle = null;
+    var typingStartedAt = 0;
     var isOpen = false;
     var isLoading = false;
     var widgetDisabled = cfg.active === false;
@@ -1014,7 +1016,7 @@
 
     var headerInfo = document.createElement('div');
     headerInfo.className = 'afhub-header-info';
-    headerInfo.innerHTML = '<h3>' + escapeHtml(cfg.title) + '</h3><p>' + escapeHtml(cfg.subtitle) + '</p>';
+    headerInfo.innerHTML = '<h3>' + escapeHtml(cfg.title) + '</h3><p>' + escapeHtml(cfg.subtitle) + ' <span class="afhub-status-bullet" aria-hidden="true">•</span> En línea</p>';
     header.appendChild(headerInfo);
 
     function humanWaDigits() {
@@ -1868,11 +1870,80 @@
       return '';
     }
 
+    function splitTextForReveal(text) {
+      var raw = String(text || '');
+      if (!raw || raw.length < 48) return raw ? [raw] : [];
+      var parts = [];
+      var tokens = raw.split(/(\s+)/);
+      var buf = '';
+      var wc = 0;
+      for (var ti = 0; ti < tokens.length; ti++) {
+        buf += tokens[ti];
+        if (tokens[ti].trim()) wc++;
+        if (wc >= 3 && buf.length >= 20) {
+          parts.push(buf);
+          buf = '';
+          wc = 0;
+        }
+      }
+      if (buf) parts.push(buf);
+      return parts.length ? parts : [raw];
+    }
+
+    function revealDelayForParts(n) {
+      if (n <= 1) return 0;
+      return Math.min(32, Math.max(8, Math.floor(2800 / n)));
+    }
+
+    function updateStreamBubble(bubble, streamReply) {
+      if (!bubble) return;
+      var streamShown = botReplyForDisplay(streamReply);
+      var textEl = bubble.querySelector('.afhub-msg-text');
+      if (textEl) {
+        textEl.innerHTML = formatBotHtml(streamShown);
+      } else {
+        var html = formatBotHtmlWrapped(streamShown);
+        var wrap = document.createElement('div');
+        wrap.innerHTML = html;
+        var inner = wrap.firstChild;
+        if (inner) bubble.insertBefore(inner, bubble.firstChild);
+      }
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function revealBotReplyProgressively(fullText, finalizeFn) {
+      var parts = splitTextForReveal(fullText);
+      if (parts.length <= 1) {
+        var single = addMessage('bot', fullText, finalizeFn && finalizeFn.opts);
+        if (finalizeFn) finalizeFn(single, fullText);
+        return;
+      }
+      var bubble = addMessage('bot', '', { streaming: true });
+      var acc = '';
+      var delay = revealDelayForParts(parts.length);
+      var idx = 0;
+      function step() {
+        if (idx >= parts.length) {
+          bubble.classList.remove('afhub-msg--streaming');
+          if (finalizeFn) finalizeFn(bubble, fullText);
+          return;
+        }
+        acc += parts[idx];
+        idx++;
+        updateStreamBubble(bubble, acc);
+        setTimeout(step, delay);
+      }
+      step();
+    }
+
     function addMessage(type, text, imgOpts) {
       var el = document.createElement('div');
       el.className = 'afhub-msg ' + type;
       if (type === 'bot') {
         el.className += ' afhub-msg-rich';
+        if (imgOpts && imgOpts.streaming) {
+          el.classList.add('afhub-msg--streaming');
+        }
         var displayBotText = botReplyForDisplay(text);
         var cooldownPrefix =
           imgOpts && imgOpts.cooldown
@@ -1954,7 +2025,8 @@
       });
       messages.appendChild(el);
       var hasBotImages = type === 'bot' && imgOpts && imgOpts.images && imgOpts.images.length;
-      if (type === 'bot' && (String(text || '').trim() || hasBotImages)) {
+      var showFeedback = !imgOpts || imgOpts.noFeedback !== true;
+      if (type === 'bot' && (String(text || '').trim() || hasBotImages) && showFeedback) {
         var feedbackId = 'fb_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
         var fbRow = document.createElement('div');
         fbRow.className = 'afhub-feedback-row';
@@ -1993,6 +2065,14 @@
         fbRow.appendChild(makeFeedbackBtn('up', 'Me gusto esta respuesta', '👍'));
         fbRow.appendChild(makeFeedbackBtn('down', 'No me gusto esta respuesta', '👎'));
         if (String(text || '').trim()) {
+          // Agregar timestamp
+          var timeSpan = document.createElement('span');
+          timeSpan.className = 'afhub-msg-time';
+          var now = new Date();
+          var hours = String(now.getHours()).padStart(2, '0');
+          var mins = String(now.getMinutes()).padStart(2, '0');
+          timeSpan.textContent = hours + ':' + mins;
+          fbRow.appendChild(timeSpan);
           fbRow.appendChild(copyBtn);
         }
         messages.appendChild(fbRow);
@@ -2001,38 +2081,128 @@
       return el;
     }
 
-    function showTyping(statusLabel) {
-      var el = document.createElement('div');
-      el.className = 'afhub-msg bot typing';
-      el.id = typingId;
-      var labelHtml = statusLabel
-        ? '<span class="afhub-typing-label">' + escapeHtml(statusLabel) + '</span>'
-        : '';
-      el.innerHTML =
-        labelHtml +
-        '<div class="afhub-typing-dots"><div class="afhub-dot"></div><div class="afhub-dot"></div><div class="afhub-dot"></div></div>';
-      messages.appendChild(el);
-      messages.scrollTop = messages.scrollHeight;
+    function thinkingCopyFromStatus(statusLabel, statusPhase) {
+      var s = String(statusLabel || '').trim();
+      var phase = String(statusPhase || '').trim();
+      if (phase === 'prepare') return { title: 'Preparando…', sub: s || 'Organizando tu solicitud' };
+      if (phase === 'enrich') return { title: 'Cargando contexto…', sub: s || 'Recuperando la conversación' };
+      if (phase === 'vision') return { title: 'Analizando imagen…', sub: s || 'Procesando la captura' };
+      if (phase === 'resolve') return { title: 'Identificando agente…', sub: s || 'Conectando con tu asistente' };
+      if (phase === 'skills' || phase === 'skill') return { title: 'Aplicando habilidades…', sub: s || 'Configurando el agente' };
+      if (phase === 'rag') return { title: 'Consultando documentos…', sub: s || 'Buscando en la base de conocimiento' };
+      if (phase === 'mcp' || phase === 'tools') return { title: 'Usando integraciones…', sub: s || 'Ejecutando herramientas conectadas' };
+      if (phase === 'model') return { title: 'Generando respuesta…', sub: s || 'El modelo está redactando' };
+      if (phase === 'hub') return { title: 'Consultando al asistente…', sub: s || 'Procesando en el servidor' };
+      if (phase === 'triage') return { title: 'Analizando tu consulta…', sub: s || 'Determinando el mejor enfoque' };
+      if (phase === 'handoff') return { title: 'Derivando a especialista…', sub: s || 'Transfiriendo la consulta' };
+      if (phase === 'parallel') return { title: 'Consultando especialistas…', sub: s || 'Varios agentes en paralelo' };
+      if (phase === 'pipeline' || phase === 'content') return { title: 'Recopilando información…', sub: s || 'Pipeline multiagente' };
+      if (phase === 'creative') return { title: 'Generando creativo…', sub: s || 'Agente creativo en acción' };
+      if (phase === 'synthesize') return { title: 'Unificando respuesta…', sub: s || 'Sintetizando resultados' };
+      if (!s) return { title: 'Pensando…', sub: 'Preparando tu respuesta' };
+      var lower = s.toLowerCase();
+      if (lower.indexOf('subiendo') >= 0) return { title: 'Subiendo archivo…', sub: s };
+      if (lower.indexOf('captura') >= 0 || lower.indexOf('analizando captura') >= 0) return { title: 'Analizando imagen…', sub: s };
+      if (lower.indexOf('habilidad') >= 0 || lower.indexOf('skills') >= 0) return { title: 'Aplicando habilidades…', sub: s };
+      if (lower.indexOf('documentos') >= 0 || lower.indexOf('indexados') >= 0) return { title: 'Consultando documentos…', sub: s };
+      if (lower.indexOf('integraciones') >= 0 || lower.indexOf('herramienta') >= 0) return { title: 'Usando integraciones…', sub: s };
+      if (lower.indexOf('especialist') >= 0 || lower.indexOf('paralelo') >= 0) return { title: 'Consultando especialistas…', sub: s };
+      if (lower.indexOf('recopil') >= 0) return { title: 'Recopilando información…', sub: s };
+      if (lower.indexOf('consultando al asistente') >= 0) return { title: 'Consultando al asistente…', sub: s };
+      if (lower.indexOf('analizando tu consulta') >= 0) return { title: 'Analizando tu consulta…', sub: s };
+      if (lower.indexOf('derivando') >= 0 || lower.indexOf('conectando con') >= 0) return { title: 'Derivando a especialista…', sub: s };
+      if (lower.indexOf('unificada') >= 0 || lower.indexOf('síntesis') >= 0 || lower.indexOf('sintesis') >= 0) return { title: 'Redactando respuesta…', sub: s };
+      if (lower.indexOf('preparando') >= 0) return { title: 'Preparando…', sub: s };
+      if (lower.indexOf('contexto') >= 0) return { title: 'Cargando contexto…', sub: s };
+      if (lower.indexOf('generando') >= 0) return { title: 'Generando respuesta…', sub: s };
+      return { title: 'Pensando…', sub: s };
     }
 
-    function updateTypingStatus(statusLabel) {
-      var el = document.getElementById(typingId);
-      if (!el) return;
-      var labelEl = el.querySelector('.afhub-typing-label');
-      if (statusLabel) {
-        if (!labelEl) {
-          labelEl = document.createElement('span');
-          labelEl.className = 'afhub-typing-label';
-          el.insertBefore(labelEl, el.firstChild);
+    function clearTypingTimer() {
+      if (typingTimerHandle) {
+        clearInterval(typingTimerHandle);
+        typingTimerHandle = null;
+      }
+    }
+
+    function startTypingTimer() {
+      clearTypingTimer();
+      typingStartedAt = Date.now();
+      typingTimerHandle = setInterval(function () {
+        var el = document.getElementById(typingId);
+        if (!el) {
+          clearTypingTimer();
+          return;
         }
-        labelEl.textContent = statusLabel;
-      } else if (labelEl) {
-        labelEl.remove();
+        var elapsedEl = el.querySelector('.afhub-thinking-elapsed');
+        if (!elapsedEl) return;
+        var sec = Math.floor((Date.now() - typingStartedAt) / 1000);
+        if (sec < 3) {
+          elapsedEl.textContent = '';
+          return;
+        }
+        elapsedEl.textContent = sec + ' s';
+        if (sec >= 20) {
+          var subEl = el.querySelector('.afhub-thinking-sub');
+          if (subEl && subEl.getAttribute('data-slow') !== '1') {
+            subEl.setAttribute('data-slow', '1');
+            subEl.textContent = 'Está tardando más de lo habitual. Seguimos trabajando en tu respuesta…';
+          }
+        }
+      }, 1000);
+    }
+
+    function renderThinkingCard(el, statusLabel, statusPhase) {
+      var copy = thinkingCopyFromStatus(statusLabel, statusPhase);
+      el.innerHTML =
+        '<div class="afhub-thinking-head">' +
+          '<span class="afhub-thinking-pulse" aria-hidden="true"></span>' +
+          '<div class="afhub-thinking-titles">' +
+            '<span class="afhub-thinking-sub">' + escapeHtml(copy.sub) + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="afhub-thinking-meta">' +
+          '<span class="afhub-thinking-elapsed"></span>' +
+          '<span class="afhub-thinking-dots" aria-hidden="true"><span></span><span></span><span></span></span>' +
+        '</div>';
+    }
+
+    function showTyping(statusLabel, statusPhase) {
+      hideTyping();
+      var el = document.createElement('div');
+      el.className = 'afhub-msg bot afhub-thinking-card';
+      el.id = typingId;
+      el.setAttribute('role', 'status');
+      el.setAttribute('aria-live', 'polite');
+      el.setAttribute('aria-busy', 'true');
+      if (statusPhase) el.setAttribute('data-phase', String(statusPhase));
+      renderThinkingCard(el, statusLabel, statusPhase);
+      messages.appendChild(el);
+      messages.scrollTop = messages.scrollHeight;
+      startTypingTimer();
+    }
+
+    function updateTypingStatus(statusLabel, statusPhase) {
+      var el = document.getElementById(typingId);
+      if (!el) {
+        showTyping(statusLabel, statusPhase);
+        return;
+      }
+      var subEl = el.querySelector('.afhub-thinking-sub');
+      if (subEl && subEl.getAttribute('data-slow') === '1') return;
+      if (statusPhase) el.setAttribute('data-phase', String(statusPhase));
+      var copy = thinkingCopyFromStatus(statusLabel, statusPhase);
+      var titleEl = el.querySelector('.afhub-thinking-title');
+      if (titleEl) titleEl.textContent = copy.title;
+      if (subEl) {
+        subEl.removeAttribute('data-slow');
+        subEl.textContent = copy.sub;
       }
       messages.scrollTop = messages.scrollHeight;
     }
 
     function hideTyping() {
+      clearTypingTimer();
       var el = document.getElementById(typingId);
       if (el) el.remove();
     }
@@ -3081,6 +3251,7 @@
       var userMsgOpts = attachPreviewForMsg
         ? { userImages: [attachPreviewForMsg] }
         : (humanAttachForMsg ? { attachments: humanAttachForMsg } : undefined);
+      var wasLastUserMsgTrivial = isTrivialMessage(displayText, history);
       addMessage('user', displayText, userMsgOpts);
       appendHumanSupportOfferInChat(displayText);
       history.push({ role: 'user', content: displayText });
@@ -3215,21 +3386,18 @@
               var evt;
               try { evt = JSON.parse(rawJson); } catch { continue; }
               if (evt.type === 'status' && typeof evt.message === 'string') {
-                if (!document.getElementById(typingId)) showTyping(evt.message);
-                else updateTypingStatus(evt.message);
+                var stPhase = typeof evt.phase === 'string' ? evt.phase : '';
+                if (!document.getElementById(typingId)) showTyping(evt.message, stPhase);
+                else updateTypingStatus(evt.message, stPhase);
                 continue;
               }
               if (evt.type === 'token') {
                 hideTyping();
-                streamReply += evt.text;
-                var streamShown = botReplyForDisplay(streamReply);
+                streamReply += typeof evt.text === 'string' ? evt.text : '';
                 if (!streamBubble) {
-                  streamBubble = addMessage('bot', streamShown, { streaming: true });
+                  streamBubble = addMessage('bot', botReplyForDisplay(streamReply), { streaming: true });
                 } else {
-                  var textEl = streamBubble.querySelector('.afhub-msg-text');
-                  if (textEl) textEl.innerHTML = formatBotHtml(streamShown);
-                  var msgs = root.querySelector('.afhub-messages');
-                  if (msgs) msgs.scrollTop = msgs.scrollHeight;
+                  updateStreamBubble(streamBubble, streamReply);
                 }
               } else if (evt.type === 'done') {
                 streamDone = true;
@@ -3363,19 +3531,36 @@
             botOpts.quotaHtml = qHtml;
           }
         }
-        var botBubble = addMessage('bot', reply, botOpts);
-        appendMultiAgentBadge(botBubble, data.multiAgent);
-        if (usedModel) appendFallbackTagToBubble(botBubble, usedModel, cfg.debug);
-        history.push({ role: 'model', content: reply });
-        saveChatToSession();
-        notify('onMessageReceived', reply);
-        emitMultiAgentEvent(data.multiAgent);
-        emitEvent('message_received', {
-          length: String(reply || '').length,
-          model: data.model || null,
-          mcpTag: mcpTag || null,
-          toolsUsed: toolsUsed && toolsUsed.length ? toolsUsed : null
-        });
+        function finalizeStandardBubble(botBubble, finalReply) {
+          appendMultiAgentBadge(botBubble, data.multiAgent);
+          if (usedModel) appendFallbackTagToBubble(botBubble, usedModel, cfg.debug);
+          history.push({ role: 'model', content: finalReply });
+          saveChatToSession();
+          notify('onMessageReceived', finalReply);
+          emitMultiAgentEvent(data.multiAgent);
+          emitEvent('message_received', {
+            length: String(finalReply || '').length,
+            model: data.model || null,
+            mcpTag: mcpTag || null,
+            toolsUsed: toolsUsed && toolsUsed.length ? toolsUsed : null
+          });
+        }
+        // Detectar si fue respuesta a saludo trivial
+        var qHtmlForReveal = qh && !cooldown ? formatQuotaTagHtml(qh) : '';
+        var useReveal = reply.length >= 48 && !(imgs && imgs.length) && !cooldown && !qHtmlForReveal;
+        if (wasLastUserMsgTrivial) {
+          if (botOpts === undefined) botOpts = {};
+          botOpts.noFeedback = true;
+        }
+
+        if (useReveal) {
+          revealBotReplyProgressively(reply, function (botBubble, finalReply) {
+            finalizeStandardBubble(botBubble, finalReply);
+          });
+        } else {
+          var botBubble = addMessage('bot', reply, botOpts);
+          finalizeStandardBubble(botBubble, reply);
+        }
       } catch (e) {
         hideTyping();
         var msg = (e && e.message) ? e.message : 'Lo siento, ocurrio un error. Intenta de nuevo.';
@@ -4126,6 +4311,13 @@
           '#' + rootId + ' .afhub-powered { color:#6b6b78; }' +
           '#' + rootId + ' .afhub-powered a { color:#9a9aaa; }' +
           '#' + rootId + ' .afhub-dot { background:#777; }' +
+          '#' + rootId + ' .afhub-thinking-card { background:transparent; border:none; }' +
+          '#' + rootId + ' .afhub-thinking-title { display:none; }' +
+          '#' + rootId + ' .afhub-thinking-sub { color:#9ca3af; display:block; }' +
+          '#' + rootId + ' .afhub-thinking-elapsed { color:#6b7280; }' +
+          '#' + rootId + ' .afhub-skel-line { display:none; }' +
+          '#' + rootId + ' .afhub-thinking-dots span { background:#6b7280; }' +
+          '#' + rootId + ' .afhub-msg-time { color:#6b7280; }' +
           '#' + rootId + ' .afhub-fab-hint { background:#252530; color:#ececf1; border-color:rgba(255,255,255,.06); }' +
           '#' + rootId + ' .afhub-fab-hint::after { border-top-color:#252530 !important; }' +
           '#' + rootId + ' .afhub-unread-hint { background:#252530; color:#ececf1; border-color:rgba(255,255,255,.08); }' +
@@ -4178,6 +4370,12 @@
         rootId +
         ' .afhub-fab-hint { animation:none !important; opacity:1 !important; transform:none !important; filter:none !important; } #' +
         rootId +
+        ' .afhub-thinking-card { animation:none !important; } #' +
+        rootId +
+        ' .afhub-thinking-pulse,#' + rootId + ' .afhub-skel-line,#' + rootId + ' .afhub-thinking-dots span { animation:none !important; } #' +
+        rootId +
+        ' .afhub-msg--streaming .afhub-msg-text::after { animation:none !important; opacity:0 !important; } #' +
+        rootId +
         ' .afhub-fab-hint-float { animation:none !important; } #' +
         rootId +
         ' .afhub-fab::after { transition:none !important; transform:none !important; } #' +
@@ -4187,6 +4385,7 @@
         ' .afhub-fab:hover { transform:none !important; } #' +
         rootId +
         ' .afhub-orb-avatar-halo { animation:none !important; opacity:.75 !important; } }' +
+      '#' + rootId + '.afhub-open .afhub-fab { width:48px; height:48px; opacity:.78; }' +
       '#' + rootId + '.afhub-open .afhub-fab-hint-wrap { opacity:0; max-height:0; margin:0; padding:0; overflow:hidden; pointer-events:none; }' +
       '#' + rootId + ' .afhub-fab { width:60px; height:60px; border-radius:50%; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; background:linear-gradient(155deg,rgba(255,255,255,.22) 0%,transparent 42%),' +
       orbIridescentStack(cfg) +
@@ -4228,12 +4427,12 @@
       '#' + rootId + '-scrim,.afhub-scrim { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9; backdrop-filter:blur(2px); transition:opacity .25s; }' +
       '#' +
         rootId +
-        ' .afhub-header { padding:16px 18px; color:#fff; display:flex; align-items:center; gap:12px; flex-shrink:0; background:linear-gradient(180deg,rgba(255,255,255,.16) 0%,transparent 45%),' +
-      orbIridescentStack(cfg) +
-      ',' +
-      orbGradientFromCfg(cfg) +
-      '; background-blend-mode:screen,color-dodge,soft-light,soft-light,hard-light,saturation,multiply,normal,normal; filter:saturate(1.2) contrast(1.06) brightness(1.03); position:relative; }' +
-      '#' + rootId + ' .afhub-header::after { content:""; position:absolute; inset:0; background:radial-gradient(120% 80% at 90% -20%,rgba(255,255,255,.25),transparent 55%); pointer-events:none; }' +
+        ' .afhub-header { padding:16px 18px; color:#fff; display:flex; align-items:center; gap:12px; flex-shrink:0; background:linear-gradient(135deg,' +
+      cfg.color +
+      ' 0%,' +
+      cfg.color +
+      'dd 100%); position:relative; }' +
+      '#' + rootId + ' .afhub-header::after { display:none; }' +
       '#' + rootId + ' .afhub-header > * { position:relative; z-index:1; }' +
       '#' + rootId + ' .afhub-avatar { width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,.22); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; box-shadow:0 0 0 2px rgba(255,255,255,.2); }' +
       '#' + rootId + ' .afhub-avatar img { width:100%; height:100%; object-fit:cover; }' +
@@ -4241,6 +4440,7 @@
       '#' + rootId + ' .afhub-header-info { flex:1; min-width:0; }' +
       '#' + rootId + ' .afhub-header-info h3 { font-size:15px; font-weight:600; letter-spacing:.01em; }' +
       '#' + rootId + ' .afhub-header-info p { font-size:11px; text-transform:uppercase; letter-spacing:.08em; opacity:.88; margin-top:3px; font-weight:500; }' +
+      '#' + rootId + ' .afhub-status-bullet { display:inline; margin:0 5px; opacity:.72; }' +
       '#' + rootId + ' .afhub-header-actions { display:flex; align-items:center; gap:4px; flex-shrink:0; margin-left:auto; }' +
       '#' + rootId + ' .afhub-header-icon-btn { flex-shrink:0; background:rgba(255,255,255,.14); border:none; color:#fff; cursor:pointer; padding:6px; border-radius:8px; opacity:.92; display:inline-flex; align-items:center; justify-content:center; line-height:0; }' +
       '#' + rootId + ' .afhub-header-icon-btn:hover { opacity:1; background:rgba(255,255,255,.26); }' +
@@ -4255,12 +4455,13 @@
       '#' + rootId + ' .afhub-settings-clear:hover { background:rgba(220,38,38,.08); }' +
       '#' + rootId + ' .afhub-settings-speaker--active { color:#059669; font-weight:600; }' +
       '#' + rootId + ' .afhub-settings-speaker--active:hover { background:rgba(5,150,105,.08); }' +
-      '#' + rootId + ' .afhub-close-btn { flex-shrink:0; margin-left:0; background:rgba(255,255,255,.14); border:none; color:#fff; cursor:pointer; padding:6px; border-radius:8px; opacity:.92; display:inline-flex; align-items:center; justify-content:center; line-height:0; }' +
-      '#' + rootId + ' .afhub-close-btn:hover { opacity:1; background:rgba(255,255,255,.26); }' +
+      '#' + rootId + ' .afhub-close-btn { flex-shrink:0; margin-left:0; background:rgba(255,255,255,.18); border:none; color:#fff; cursor:pointer; padding:7px; border-radius:8px; opacity:.88; display:inline-flex; align-items:center; justify-content:center; line-height:0; transition:background .15s,opacity .15s; }' +
+      '#' + rootId + ' .afhub-close-btn:hover { opacity:1; background:rgba(255,255,255,.32); }' +
       '#' + rootId + ' .afhub-messages { flex:1 1 0; min-height:0; overflow-y:auto; padding:12px 14px; display:flex; flex-direction:column; gap:8px; scroll-behavior:smooth; background:linear-gradient(180deg,#fafbfc 0%,#f4f6f8 100%); font-size:14px; line-height:1.45; scrollbar-width:thin; }' +
-      '#' + rootId + ' .afhub-msg { max-width:88%; padding:9px 13px; border-radius:16px; font-size:14px; line-height:1.45; word-wrap:break-word; }' +
+      '#' + rootId + ' .afhub-msg { max-width:88%; padding:9px 13px; border-radius:16px; font-size:14px; line-height:1.45; word-wrap:break-word; animation:afhub-msg-fade-in .35s ease-out; }' +
       '#' + rootId + ' .afhub-msg.user { white-space:pre-wrap; background:' + cfg.color + '; color:#fff; align-self:flex-end; border-bottom-right-radius:5px; box-shadow:0 2px 10px rgba(0,0,0,.14); }' +
       '#' + rootId + ' .afhub-msg-rich { white-space:normal; }' +
+      '#' + rootId + ' .afhub-msg--streaming .afhub-msg-text::after { content:""; display:inline-block; width:2px; height:.95em; margin-left:2px; vertical-align:text-bottom; background:currentColor; opacity:.55; animation:afhub-stream-cursor .85s step-end infinite; }' +
       '#' + rootId + ' .afhub-msg.bot { background:linear-gradient(180deg,#fff,#f0f2f5); color:#141428; align-self:flex-start; border-bottom-left-radius:5px; border:1px solid rgba(0,0,0,.06); box-shadow:0 1px 2px rgba(0,0,0,.04); }' +
       '#' + rootId + ' .afhub-human-wrap { align-self:flex-start; max-width:88%; width:100%; display:flex; flex-direction:column; gap:4px; }' +
       '#' + rootId + ' .afhub-human-meta { display:flex; align-items:center; gap:6px; padding:0 2px; }' +
@@ -4304,15 +4505,30 @@
       '#' + rootId + ' .afhub-tool-tag { font-size:10px; line-height:1.25; letter-spacing:.02em; padding:2px 6px; border-radius:6px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:rgba(0,0,0,.06); color:#5a5a6e; border:1px solid rgba(0,0,0,.08); }' +
       '#' + rootId + ' .afhub-img-wrap { margin-top:10px; max-width:100%; display:flex; flex-direction:column; gap:8px; }' +
       '#' + rootId + ' .afhub-widget-img { display:block; width:100%; max-width:100%; height:auto; vertical-align:middle; }' +
-      '#' + rootId + ' .afhub-msg.typing { display:flex; flex-direction:column; gap:6px; padding:12px 18px; }' +
-      '#' + rootId + ' .afhub-typing-dots { display:flex; gap:4px; align-items:center; }' +
-      '#' + rootId + ' .afhub-typing-label { font-size:11px; line-height:1.35; color:#6b7280; font-weight:600; }' +
+      '#' + rootId + ' .afhub-thinking-card { display:flex; flex-direction:column; gap:8px; padding:8px 10px; max-width:88%; align-self:flex-start; border-radius:14px; border:none; background:transparent; animation:afhub-thinking-in .28s ease-out; }' +
+      '#' + rootId + ' .afhub-thinking-head { display:flex; align-items:flex-start; gap:10px; }' +
+      '#' + rootId + ' .afhub-thinking-pulse { flex-shrink:0; width:10px; height:10px; margin-top:4px; border-radius:50%; background:' + cfg.color + '; box-shadow:0 0 0 0 ' + cfg.color + '55; animation:afhub-thinking-pulse 1.6s ease-out infinite; }' +
+      '#' + rootId + ' .afhub-thinking-titles { display:flex; flex-direction:column; gap:2px; min-width:0; }' +
+      '#' + rootId + ' .afhub-thinking-title { display:none; }' +
+      '#' + rootId + ' .afhub-thinking-sub { font-size:12px; line-height:1.4; color:#6b7280; font-weight:500; display:block; }' +
+      '#' + rootId + ' .afhub-thinking-skeleton { display:none; }' +
+      '#' + rootId + ' .afhub-skel-line { display:none; }' +
+      '#' + rootId + ' .afhub-skel-line--lg { display:none; }' +
+      '#' + rootId + ' .afhub-skel-line--md { display:none; }' +
+      '#' + rootId + ' .afhub-skel-line--sm { display:none; }' +
+      '#' + rootId + ' .afhub-thinking-meta { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:14px; }' +
+      '#' + rootId + ' .afhub-thinking-elapsed { font-size:10px; font-weight:600; letter-spacing:.03em; color:#9ca3af; font-variant-numeric:tabular-nums; }' +
+      '#' + rootId + ' .afhub-thinking-dots { display:inline-flex; gap:3px; align-items:center; margin-left:auto; }' +
+      '#' + rootId + ' .afhub-thinking-dots span { width:5px; height:5px; border-radius:50%; background:#9ca3af; animation:afhub-thinking-dot 1.5s ease-in-out infinite; }' +
+      '#' + rootId + ' .afhub-thinking-dots span:nth-child(2) { animation-delay:.25s; }' +
+      '#' + rootId + ' .afhub-thinking-dots span:nth-child(3) { animation-delay:.5s; }' +
       '#' + rootId + ' .afhub-multi-agent-tag { display:inline-flex; align-items:center; margin-bottom:8px; font-size:10px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; padding:3px 8px; border-radius:999px; color:' + cfg.color + '; background:' + cfg.color + '14; border:1px solid ' + cfg.color + '33; }' +
-      '#' + rootId + ' .afhub-feedback-row { align-self:flex-start; display:inline-flex; gap:6px; margin:-6px 0 2px 2px; }' +
+      '#' + rootId + ' .afhub-feedback-row { align-self:flex-start; display:inline-flex; gap:6px; margin:-6px 0 2px 2px; align-items:center; }' +
       '#' + rootId + ' .afhub-feedback-btn { width:24px; height:24px; border-radius:999px; border:none; background:transparent; color:#6b7280; font-size:12px; line-height:1; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:background .12s ease,color .12s ease; padding:0; }' +
       '#' + rootId + ' .afhub-feedback-btn:hover { background:rgba(0,0,0,.06); color:#111827; }' +
       '#' + rootId + ' .afhub-feedback-btn[data-value="up"].active { color:#16a34a; background:rgba(34,197,94,.12); }' +
       '#' + rootId + ' .afhub-feedback-btn[data-value="down"].active { color:#dc2626; background:rgba(239,68,68,.12); }' +
+      '#' + rootId + ' .afhub-msg-time { font-size:11px; color:#9ca3af; font-weight:500; line-height:1; white-space:nowrap; }' +
       '#' + rootId + ' .afhub-dot { width:8px; height:8px; background:#aaa; border-radius:50%; animation:afhub-bounce .6s infinite alternate; }' +
       '#' + rootId + ' .afhub-dot:nth-child(2) { animation-delay:.2s; }' +
       '#' + rootId + ' .afhub-dot:nth-child(3) { animation-delay:.4s; }' +
@@ -4360,7 +4576,7 @@
       '#' + rootId + ' .afhub-shortcuts-wrap { flex-shrink:0; border-top:1px solid #e8eaed; }' +
       '#' + rootId + ' .afhub-shortcuts-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; padding:7px 14px; background:transparent; border:none; cursor:pointer; font-family:inherit; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-shortcuts-toggle:hover { background:' + cfg.color + '0a; }' +
-      '#' + rootId + ' .afhub-shortcuts-toggle-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:' + cfg.color + '; }' +
+      '#' + rootId + ' .afhub-shortcuts-toggle-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:' + cfg.color + '; }' +
       '#' + rootId + ' .afhub-shortcuts-toggle-chevron { font-size:18px; color:' + cfg.color + '; transition:transform .2s; line-height:1; }' +
       '#' + rootId + ' .afhub-shortcuts { display:flex; flex-direction:column; gap:6px; padding:0 10px 8px; flex-shrink:0; max-height:112px; overflow-y:auto; scrollbar-width:none; }' +
       '#' + rootId + ' .afhub-shortcuts::-webkit-scrollbar { display:none; }' +
@@ -4407,6 +4623,13 @@
       '#' + rootId + ' .afhub-voice-stop { background:none; border:1px solid rgba(239,68,68,.3); color:#ef4444; font-size:11px; padding:3px 10px; border-radius:20px; cursor:pointer; font-weight:600; transition:background .15s; }' +
       '#' + rootId + ' .afhub-voice-stop:hover { background:rgba(239,68,68,.08); }' +
       '@keyframes afhub-bounce { to { transform:translateY(-6px); opacity:.4; } }' +
+      '@keyframes afhub-thinking-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }' +
+      '@keyframes afhub-msg-fade-in { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }' +
+      '@keyframes afhub-status-pulse { 0%,100% { opacity:1; } 50% { opacity:.6; } }' +
+      '@keyframes afhub-thinking-pulse { 0% { box-shadow:0 0 0 0 ' + cfg.color + '66; transform:scale(.92); } 70% { box-shadow:0 0 0 8px ' + cfg.color + '00; transform:scale(1); } 100% { box-shadow:0 0 0 0 ' + cfg.color + '00; transform:scale(.92); } }' +
+      '@keyframes afhub-skel-shimmer { 0% { background-position:100% 0; } 100% { background-position:-100% 0; } }' +
+      '@keyframes afhub-thinking-dot { 0%,80%,100% { opacity:.35; transform:translateY(0); } 40% { opacity:1; transform:translateY(-2px); } }' +
+      '@keyframes afhub-stream-cursor { 0%,100% { opacity:0; } 50% { opacity:.8; } }' +
       '@keyframes afhub-wave { 0% { transform:scale(.68); opacity:.72; } 100% { transform:scale(1.55); opacity:0; } }' +
       '@keyframes afhub-genie-hint { 0% { opacity:0; transform:scale(0.1) translateY(52px); filter:blur(16px); } 50% { opacity:1; transform:scale(1.08) translateY(-10px); filter:blur(0); } 78% { transform:scale(0.96) translateY(5px); } 100% { opacity:1; transform:scale(1) translateY(0); filter:blur(0); } }' +
       '@keyframes afhub-hint-float-y { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-4px); } }' +

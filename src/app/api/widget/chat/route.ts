@@ -39,6 +39,20 @@ import { persistWidgetTranscript } from '@/lib/widget-transcript';
 import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-enrich';
 import { logInferenceMetric, estimateTokens } from '@/lib/inference-metrics';
 import { normalizeVisitorId } from '@/lib/widget-visitor';
+import {
+  finalizeWidgetChatTrace,
+  WidgetChatTrace,
+  type WidgetChatLatencyPath,
+} from '@/lib/widget-chat-latency';
+
+function finishNonStreamTrace(
+  trace: WidgetChatTrace,
+  path: WidgetChatLatencyPath,
+  opts?: { ok?: boolean; errorCode?: string | null; replyLen?: number },
+): void {
+  trace.setPath(path);
+  finalizeWidgetChatTrace(trace, opts);
+}
 
 /** Max body size accepted from widget SDK (512 KB — allows image-to-image thumbnail). */
 const MAX_WIDGET_BODY_BYTES = 512 * 1024;
@@ -192,9 +206,12 @@ export async function POST(req: NextRequest) {
     );
   }
   const userTurnCount = guardResult.turnCount ?? estimateUserTurnFromBody(rawBodyInitial);
+  const latencyTrace = new WidgetChatTrace({ traceId: requestIdEarly, stream: false });
 
   // ── Análisis de capturas (Cloudinary + Gemini Vision) ─────────────────────
-  const imageEnriched = await enrichWidgetChatBodyWithImages(rawBodyInitial);
+  const imageEnriched = await latencyTrace.span('vision', () =>
+    enrichWidgetChatBodyWithImages(rawBodyInitial),
+  );
   let rawBody = imageEnriched.body;
   const imageEnrichment: WidgetImageEnrichment | null = imageEnriched.enrichment;
 
@@ -371,6 +388,13 @@ export async function POST(req: NextRequest) {
                 }).catch(() => {});
               }
               const note = 'Un miembro del equipo está atendiendo esta conversación y te responderá aquí mismo.';
+              latencyTrace.setMeta({
+                userId: w.userId,
+                agentId: parsedAgentId,
+                widgetId: resolvedWidgetId || w.id,
+                sessionId: parsedSessionId || traceId,
+              });
+              finishNonStreamTrace(latencyTrace, 'human-mode', { ok: true, replyLen: note.length });
               return NextResponse.json(
                 { reply: note, text: note, response: note, humanMode: true },
                 { headers: cors(origin) },
@@ -497,8 +521,16 @@ export async function POST(req: NextRequest) {
           const multiConfig = buildWidgetMultiAgentConfig(w);
 
           const secretForParallel = process.env.HUB_TO_LANDING_SECRET?.trim() ?? '';
+          latencyTrace.setMeta({
+            userId: w.userId,
+            agentId: parsedAgentId,
+            widgetId: resolvedWidgetId || w.id,
+            sessionId: parsedSessionId || traceId,
+          });
+
           if (multiConfig.multiAgentEnabled && multiConfig.multiAgentMode === 'pipeline' && secretForParallel) {
-            const pipeline = await executePipelineMultiAgentFlow({
+            const pipeline = await latencyTrace.span('multi_pipeline', () =>
+              executePipelineMultiAgentFlow({
               rawBody: bodyToForward,
               config: multiConfig,
               userId: w.userId,
@@ -506,7 +538,8 @@ export async function POST(req: NextRequest) {
               widgetToken,
               traceId,
               hubSecret: secretForParallel,
-            });
+            }),
+            );
             if (pipeline) {
               parsedAgentId = pipeline.routedHubAgentId;
               multiAgentMeta = pipeline.meta;
@@ -535,6 +568,10 @@ export async function POST(req: NextRequest) {
                 agentResponse: pipeline.reply,
                 routingMeta: pipeline.meta,
               });
+              finishNonStreamTrace(latencyTrace, 'non-stream-pipeline', {
+                ok: true,
+                replyLen: pipeline.reply.length,
+              });
               return NextResponse.json(
                 {
                   reply: pipeline.reply,
@@ -548,7 +585,8 @@ export async function POST(req: NextRequest) {
           }
 
           if (multiConfig.multiAgentEnabled && multiConfig.multiAgentMode === 'parallel' && secretForParallel) {
-            const parallel = await executeParallelMultiAgentFlow({
+            const parallel = await latencyTrace.span('multi_parallel', () =>
+              executeParallelMultiAgentFlow({
               rawBody: bodyToForward,
               config: multiConfig,
               userId: w.userId,
@@ -556,7 +594,8 @@ export async function POST(req: NextRequest) {
               widgetToken,
               traceId,
               hubSecret: secretForParallel,
-            });
+            }),
+            );
             if (parallel) {
               parsedAgentId = parallel.routedHubAgentId;
               multiAgentMeta = parallel.meta;
@@ -586,6 +625,10 @@ export async function POST(req: NextRequest) {
                 agentResponse: parallel.reply,
                 routingMeta: parallel.meta,
               });
+              finishNonStreamTrace(latencyTrace, 'non-stream-parallel', {
+                ok: true,
+                replyLen: parallel.reply.length,
+              });
               return NextResponse.json(
                 {
                   reply: parallel.reply,
@@ -597,12 +640,14 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          const routing = await applyMultiAgentRouting({
+          const routing = await latencyTrace.span('multi_triage', () =>
+            applyMultiAgentRouting({
             rawBody: bodyToForward,
             config: multiConfig,
             userId: w.userId,
             plan: planForRoute,
-          });
+          }),
+          );
           if (routing) {
             bodyToForward = routing.body;
             parsedAgentId = routing.routedHubAgentId;
@@ -644,12 +689,14 @@ export async function POST(req: NextRequest) {
             agentId: parsedAgentId,
           });
           const directStartedAt = Date.now();
-          const direct = await tryServeWidgetChatViaHubMcp({
-            widgetTokenStartsWithWt: true,
-            parsedAgentId,
-            rawBody: bodyToForward,
-            ownerUserId: w.userId,
-          });
+          const direct = await latencyTrace.span('direct_mcp', () =>
+            tryServeWidgetChatViaHubMcp({
+              widgetTokenStartsWithWt: true,
+              parsedAgentId,
+              rawBody: bodyToForward,
+              ownerUserId: w.userId,
+            }),
+          );
           if (!direct) {
             logWidgetFlow('⏭️', 'chat:directSkip', 'no aplica directo (sin webhook URL en agente o hub no respondió)', {
               traceId,
@@ -694,6 +741,10 @@ export async function POST(req: NextRequest) {
               inputTokens: estimateTokens(parsedMessage || ''),
               ok: true,
             });
+            finishNonStreamTrace(latencyTrace, 'non-stream-direct-mcp', {
+              ok: true,
+              replyLen: direct.reply?.length ?? 0,
+            });
             return NextResponse.json(
               {
                 reply: direct.reply,
@@ -724,11 +775,13 @@ export async function POST(req: NextRequest) {
 
         /** Inferencia directa /api/models con modelo explícito del agente (evita orquestador obsoleto). */
         try {
-          const inferred = await tryServeWidgetChatViaDirectInference({
-            parsedAgentId,
-            rawBody: bodyToForward,
-            ownerUserId: w.userId,
-          });
+          const inferred = await latencyTrace.span('infer_direct', () =>
+            tryServeWidgetChatViaDirectInference({
+              parsedAgentId,
+              rawBody: bodyToForward,
+              ownerUserId: w.userId,
+            }),
+          );
           if (inferred) {
             logWidgetFlow('✅', 'chat:inferOk', 'respuesta directa /api/models', {
               traceId,
@@ -752,6 +805,10 @@ export async function POST(req: NextRequest) {
               agentResponse: inferred.reply,
               routingMeta: multiAgentMeta,
             });
+            finishNonStreamTrace(latencyTrace, 'non-stream-infer-direct', {
+              ok: true,
+              replyLen: inferred.reply.length,
+            });
             return NextResponse.json(
               {
                 reply: inferred.reply,
@@ -768,6 +825,7 @@ export async function POST(req: NextRequest) {
             err: inferErr instanceof Error ? inferErr.message : String(inferErr),
           });
         }
+        latencyTrace.mark('auth');
       }
     } catch {
       /* sin DB: el hub intentará validación remota si está configurada */
@@ -804,7 +862,13 @@ export async function POST(req: NextRequest) {
       hub: `${base.replace(/\/$/, '')}/api/widget/chat`,
       agentId: parsedAgentId || undefined,
     });
-    const res = await fetchHubWidgetChat(base, init);
+    latencyTrace.setMeta({
+      userId: faqTrackOwnerId,
+      agentId: parsedAgentId,
+      widgetId: resolvedWidgetId || parsedWidgetId,
+      sessionId: parsedSessionId || traceId,
+    });
+    const res = await latencyTrace.span('hub', () => fetchHubWidgetChat(base, init));
     logWidgetFlow('↩️', 'chat:proxyRes', 'respuesta AgentFlowhub', {
       traceId,
       status: res.status,
@@ -838,6 +902,10 @@ export async function POST(req: NextRequest) {
             agentIdOrHubId: parsedAgentId,
             rawBody: rawBodyInitial,
           }).catch(() => {});
+          finishNonStreamTrace(latencyTrace, 'non-stream-infer-direct', {
+            ok: true,
+            replyLen: inferred.reply.length,
+          });
           return NextResponse.json(
             {
               reply: inferred.reply,
@@ -905,6 +973,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (res.ok) {
+      let replyLen = 0;
+      try {
+        const parsed = JSON.parse(data) as { reply?: string; text?: string; response?: string };
+        replyLen = (parsed.reply || parsed.text || parsed.response || '').length;
+      } catch { /* ignore */ }
+      finishNonStreamTrace(latencyTrace, 'non-stream-hub', { ok: true, replyLen });
+    } else {
+      finishNonStreamTrace(latencyTrace, 'non-stream-error', { ok: false, errorCode: `HTTP_${res.status}` });
+    }
     return new NextResponse(outText, { status: res.status, headers: out });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -916,6 +994,10 @@ export async function POST(req: NextRequest) {
       e && typeof e === 'object' && 'code' in e
         ? String((e as { code?: unknown }).code ?? '')
         : '';
+    finishNonStreamTrace(latencyTrace, 'non-stream-error', {
+      ok: false,
+      errorCode: 'HUB_CHAT_PROXY_FAILED',
+    });
     return NextResponse.json(
       {
         error: 'No esta respondiendo el agente. Por favor, intenta de nuevo',
