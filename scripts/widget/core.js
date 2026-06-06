@@ -3568,6 +3568,15 @@
                   mcpTag: stTagInf || null,
                   toolsUsed: stTools && stTools.length ? stTools : null,
                 });
+                if ((voiceActive || ttsMode) && finalReply) {
+                  if (voiceActive) setVoiceState('speaking');
+                  ttsSpeak(finalReply, function() {
+                    if (voiceActive && voiceShouldBeActive) {
+                      setTimeout(startListening, 300);
+                      setVoiceState('listening');
+                    }
+                  });
+                }
               } else if (evt.type === 'error') {
                 streamDone = true;
                 hideTyping();
@@ -3919,7 +3928,8 @@
     var _origAddMessage = addMessage;
     function addMessageWithTTS(type, text, imgOpts) {
       var el = _origAddMessage(type, text, imgOpts);
-      if (type === 'bot' && (voiceActive || ttsMode)) {
+      // En streaming el texto llega por tokens; el TTS se dispara al recibir "done".
+      if (type === 'bot' && (voiceActive || ttsMode) && !(imgOpts && imgOpts.streaming)) {
         if (voiceActive) setVoiceState('speaking');
         var ttsText = String(text || '');
         log(cfg, 'debug', '[TTS] Text received', { length: ttsText.length, preview: ttsText.substring(0, 100) });
