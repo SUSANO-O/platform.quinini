@@ -34,7 +34,7 @@ async function callVertexVision(buffer: Buffer, mimeType: string, prompt: string
     return '[Imagen adjunta — configura VERTEX_GEMINI_API_KEY para análisis automático de capturas.]';
   }
 
-  const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+  const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
   const body = {
     contents: [{

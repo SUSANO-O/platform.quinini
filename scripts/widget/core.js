@@ -1926,15 +1926,7 @@
         if (idx >= parts.length) {
           bubble.classList.remove('afhub-msg--streaming');
           if (finalizeFn) finalizeFn(bubble, fullText);
-          if ((voiceActive || ttsMode) && fullText) {
-            if (voiceActive) setVoiceState('speaking');
-            ttsSpeak(fullText, function() {
-              if (voiceActive && voiceShouldBeActive) {
-                setTimeout(startListening, 300);
-                setVoiceState('listening');
-              }
-            });
-          }
+          speakBotReplyIfEnabled(fullText);
           return;
         }
         acc += parts[idx];
@@ -3515,6 +3507,7 @@
                 streamDone = true;
                 hideTyping();
                 var finalRaw = evt.reply || streamReply;
+                if (streamReply.length > String(finalRaw || '').length) finalRaw = streamReply;
                 var finalReply = botReplyForDisplay(finalRaw);
                 var stTools = evt.toolsUsed;
                 if ((!stTools || !stTools.length) && evt.data && evt.data.toolsUsed && evt.data.toolsUsed.length) {
@@ -3568,15 +3561,7 @@
                   mcpTag: stTagInf || null,
                   toolsUsed: stTools && stTools.length ? stTools : null,
                 });
-                if ((voiceActive || ttsMode) && finalReply) {
-                  if (voiceActive) setVoiceState('speaking');
-                  ttsSpeak(finalReply, function() {
-                    if (voiceActive && voiceShouldBeActive) {
-                      setTimeout(startListening, 300);
-                      setVoiceState('listening');
-                    }
-                  });
-                }
+                speakBotReplyIfEnabled(finalReply);
               } else if (evt.type === 'error') {
                 streamDone = true;
                 hideTyping();
@@ -3713,6 +3698,56 @@
     var voiceShouldBeActive = false;
     var ttsAudio = null;
     var ttsUtterance = null;
+    var ttsSessionId = 0;
+
+    function ttsCleanText(text) {
+      return String(text || '')
+        .replace(/<[^>]*>/g, '')
+        .replace(/```[\s\S]*?```/g, '')
+        .replace(/`[^`]+`/g, function(m) { return m.slice(1, -1); })
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/\*([^*]+)\*/g, '$1')
+        .replace(/#+\s/g, '')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        .replace(/\n+/g, '. ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 5000);
+    }
+
+    /** Chrome trunca utterances largos; partir en trozos cortos y encolarlos. */
+    function ttsSplitIntoChunks(text, maxLen) {
+      maxLen = maxLen || 180;
+      if (!text) return [];
+      if (text.length <= maxLen) return [text];
+      var chunks = [];
+      var rest = text;
+      while (rest.length > 0) {
+        if (rest.length <= maxLen) {
+          chunks.push(rest);
+          break;
+        }
+        var slice = rest.slice(0, maxLen);
+        var breakAt = Math.max(
+          slice.lastIndexOf('. '),
+          slice.lastIndexOf('! '),
+          slice.lastIndexOf('? '),
+          slice.lastIndexOf('… '),
+          slice.lastIndexOf(', ')
+        );
+        if (breakAt < Math.floor(maxLen * 0.35)) {
+          breakAt = slice.lastIndexOf(' ');
+        }
+        if (breakAt < Math.floor(maxLen * 0.25)) {
+          chunks.push(rest.slice(0, maxLen));
+          rest = rest.slice(maxLen).trim();
+        } else {
+          chunks.push(rest.slice(0, breakAt + 1).trim());
+          rest = rest.slice(breakAt + 1).trim();
+        }
+      }
+      return chunks.filter(function(c) { return c.length > 0; });
+    }
 
     function setVoiceState(state) {
       voiceState = state;
@@ -3746,70 +3781,83 @@
     }
 
     function ttsSpeak(text, onEnd) {
-      var cleaned = String(text || '')
-        .replace(/<[^>]*>/g, '')
-        .replace(/```[\s\S]*?```/g, '')
-        .replace(/`[^`]+`/g, function(m) { return m.slice(1, -1); })
-        .replace(/\*\*([^*]+)\*\*/g, '$1')
-        .replace(/\*([^*]+)\*/g, '$1')
-        .replace(/#+\s/g, '')
-        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-        .replace(/\n+/g, '. ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .slice(0, 5000);
-
+      var cleaned = ttsCleanText(text);
       if (!cleaned) { if (onEnd) onEnd(); return; }
 
       if (!window.speechSynthesis) { if (onEnd) onEnd(); return; }
 
-      // Fix Chrome: resume si está en pausa (bug tras tab en background)
       if (window.speechSynthesis.paused) window.speechSynthesis.resume();
       window.speechSynthesis.cancel();
 
       var lang = cfg.voiceLang || navigator.language || 'es-ES';
+      var chunks = ttsSplitIntoChunks(cleaned, 180);
+      var session = ++ttsSessionId;
+      var idx = 0;
 
-      function doSpeak() {
-        var utt = new SpeechSynthesisUtterance(cleaned);
+      log(cfg, 'debug', '[TTS] Speaking', { chars: cleaned.length, chunks: chunks.length });
+
+      function speakNext() {
+        if (session !== ttsSessionId) return;
+        if (idx >= chunks.length) {
+          ttsUtterance = null;
+          if (onEnd) onEnd();
+          return;
+        }
+        var chunk = chunks[idx++];
+        var utt = new SpeechSynthesisUtterance(chunk);
         utt.lang = lang;
         utt.rate = 1.05;
         utt.pitch = 1.0;
         var voice = ttsBestVoice(lang);
         if (voice) utt.voice = voice;
 
-        var ended = false;
-        function finish() { if (!ended) { ended = true; clearInterval(watchdog); if (onEnd) onEnd(); } }
-
-        // Fix Chrome: onend a veces no se dispara — watchdog verifica que terminó de hablar
-        var watchdog = setInterval(function() {
-          if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending) finish();
-        }, 250);
-
-        utt.onend = finish;
-        utt.onerror = finish;
+        utt.onend = function() {
+          if (session !== ttsSessionId) return;
+          // Chrome a veces pausa la cola entre chunks
+          if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+          speakNext();
+        };
+        utt.onerror = function() {
+          if (session !== ttsSessionId) return;
+          speakNext();
+        };
         ttsUtterance = utt;
         window.speechSynthesis.speak(utt);
       }
 
-      // Si las voces aún no han cargado, espera el evento voiceschanged una vez
+      function start() { speakNext(); }
+
       var voices = window.speechSynthesis.getVoices();
       if (!voices.length) {
         var done = false;
         window.speechSynthesis.addEventListener('voiceschanged', function onVC() {
           window.speechSynthesis.removeEventListener('voiceschanged', onVC);
-          if (!done) { done = true; doSpeak(); }
+          if (!done && session === ttsSessionId) { done = true; start(); }
         });
-        // Fallback si voiceschanged nunca llega (Safari)
-        setTimeout(function() { if (!done) { done = true; doSpeak(); } }, 500);
+        setTimeout(function() { if (!done && session === ttsSessionId) { done = true; start(); } }, 500);
       } else {
-        doSpeak();
+        start();
       }
     }
 
     function ttsStop() {
+      ttsSessionId++;
       if (window.speechSynthesis) window.speechSynthesis.cancel();
       if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; }
       ttsUtterance = null;
+    }
+
+    function speakBotReplyIfEnabled(text) {
+      if (!(voiceActive || ttsMode)) return;
+      var ttsText = String(text || '').trim();
+      if (!ttsText) return;
+      if (voiceActive) setVoiceState('speaking');
+      ttsSpeak(ttsText, function() {
+        if (voiceActive && voiceShouldBeActive) {
+          setTimeout(startListening, 300);
+          setVoiceState('listening');
+        }
+      });
     }
 
     function _doStartRecognition() {
@@ -3930,15 +3978,9 @@
       var el = _origAddMessage(type, text, imgOpts);
       // En streaming el texto llega por tokens; el TTS se dispara al recibir "done".
       if (type === 'bot' && (voiceActive || ttsMode) && !(imgOpts && imgOpts.streaming)) {
-        if (voiceActive) setVoiceState('speaking');
         var ttsText = String(text || '');
         log(cfg, 'debug', '[TTS] Text received', { length: ttsText.length, preview: ttsText.substring(0, 100) });
-        ttsSpeak(ttsText, function() {
-          if (voiceActive && voiceShouldBeActive) {
-            setTimeout(startListening, 300);
-            setVoiceState('listening');
-          }
-        });
+        speakBotReplyIfEnabled(ttsText);
       }
       return el;
     }
