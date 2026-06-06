@@ -75,30 +75,24 @@ export async function enrichWidgetChatBodyWithImages(
   let enrichedMessage: string;
 
   if (!userText) {
-    // Sin instrucciones del usuario → pedir al LLM que pregunte qué quiere hacer
     enrichedMessage = [
-      '[El usuario ha adjuntado una imagen sin especificar instrucciones.]',
+      '[El usuario ha adjuntado una imagen.]',
       '',
       '---',
-      '[IMAGEN RECIBIDA — SIN INSTRUCCIONES]',
+      '[IMAGEN RECIBIDA]',
       imageBlock,
       '---',
-      'Instrucciones para el asistente: El usuario envió esta imagen pero no indicó qué quiere que hagas con ella.',
-      'Preséntate de forma amigable, confirma brevemente lo que ves en la imagen (1 línea) y luego pregúntale',
-      'qué desea que hagas: analizarla, extraer texto, describir su contenido, responder una pregunta, etc.',
-      'NO realices ningún análisis completo hasta que el usuario indique qué necesita.',
+      'El usuario envió esta imagen. Confirma brevemente lo que ves y pregúntale en qué puedes ayudarle.',
     ].join('\n');
   } else {
-    // Con instrucciones → flujo original de soporte
     enrichedMessage = [
       userText,
       '',
       '---',
-      '[IMÁGENES DEL USUARIO — CONTEXTO PARA SOPORTE]',
+      '[IMAGEN DEL USUARIO]',
       imageBlock,
       '---',
-      'Instrucciones: usa el contenido detectado para diagnosticar y proponer pasos concretos.',
-      'Si no puedes resolver con certeza, indica al usuario que pulse "Hablar con una persona" para escalar a un agente humano.',
+      'Usa el contenido de la imagen para responder la pregunta del usuario según tu rol y conocimiento.',
     ].join('\n');
   }
 
