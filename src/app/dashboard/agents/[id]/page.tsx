@@ -323,6 +323,10 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [inferenceMaxTokens, setInferenceMaxTokens] = useState('');
   const [fastPathModel, setFastPathModel] = useState('');
   const [fallbackModels, setFallbackModels] = useState<string[]>([]);
+  const [visionEnabled, setVisionEnabled] = useState(false);
+  const [visionModel, setVisionModel] = useState<'gemini-2.5-flash' | 'gemini-2.5-pro' | 'claude-vision'>('gemini-2.5-flash');
+  const [visionRagOnImages, setVisionRagOnImages] = useState(true);
+  const [visionAutoExtractText, setVisionAutoExtractText] = useState(true);
   const [skillsConfig, setSkillsConfig] = useState<SkillConfigRow[]>([]);
   const [skillCatalog, setSkillCatalog] = useState<AgentSkillCatalogEntry[]>([]);
   const [skillCatalogLoading, setSkillCatalogLoading] = useState(true);
@@ -510,6 +514,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           typeof a.inferenceMaxTokens === 'number' ? String(a.inferenceMaxTokens) : '',
         );
         setFastPathModel(typeof a.fastPathModel === 'string' ? a.fastPathModel : '');
+        setVisionEnabled((a.vision as { enabled?: boolean })?.enabled === true);
+        const vModel = (a.vision as { model?: string })?.model ?? 'gemini-2.5-flash';
+        setVisionModel(['gemini-2.5-flash', 'gemini-2.5-pro', 'claude-vision'].includes(vModel) ? (vModel as any) : 'gemini-2.5-flash');
+        setVisionRagOnImages((a.vision as { ragOnImages?: boolean })?.ragOnImages !== false);
+        setVisionAutoExtractText((a.vision as { autoExtractText?: boolean })?.autoExtractText !== false);
         setBehaviorRules(
           Array.isArray(a.behaviorRules)
             ? (a.behaviorRules as Array<Partial<BehaviorRule>>).map((r) => ({
@@ -723,6 +732,14 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       widgetPublicToken: widgetPublicToken.trim() ? widgetPublicToken.trim().slice(0, 512) : null,
       persistConversationHistory,
       strictPurposeOnly,
+      vision: {
+        enabled: visionEnabled,
+        model: visionModel,
+        ragOnImages: visionRagOnImages,
+        autoExtractText: visionAutoExtractText,
+        maxImageSize: 20,
+        acceptedFormats: ['jpeg', 'png', 'webp'],
+      },
       ...(() => {
         const saved = skillsConfigForSave(skillCatalog, skillsConfig);
         return { skills: saved.skillIds, skillsConfig: saved.skillsConfig };
@@ -1669,6 +1686,94 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             )}
             </div>
           </AgentEditorSection>
+
+          {!soloChatOnly && (
+          <AgentEditorSection bar="cool">
+            <p className={`${SECTION_TITLE} agent-editor-section__title--row`}>
+              <ImageIcon size={14} style={{ opacity: 0.85 }} /> Análisis de imágenes (Vision)
+            </p>
+            <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
+              Habilita que el agente analice imágenes. El widget puede procesar imágenes de usuarios y el agente responderá basándose en su contenido.
+            </p>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: readOnly ? 'default' : 'pointer', marginBottom: '16px' }}>
+              <div
+                onClick={() => !readOnly && setVisionEnabled((prev) => !prev)}
+                style={{
+                  width: 40,
+                  height: 22,
+                  borderRadius: 11,
+                  position: 'relative',
+                  cursor: readOnly ? 'not-allowed' : 'pointer',
+                  background: visionEnabled ? R : 'var(--border)',
+                  transition: 'background 0.2s',
+                  opacity: readOnly ? 0.75 : 1,
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 3,
+                    left: visionEnabled ? 21 : 3,
+                    width: 16,
+                    height: 16,
+                    borderRadius: '50%',
+                    background: '#fff',
+                    transition: 'left 0.2s',
+                  }}
+                />
+              </div>
+              <span style={{ fontSize: '13px', fontWeight: 600 }}>
+                {visionEnabled ? 'Vision activada' : 'Vision desactivada'}
+              </span>
+            </label>
+            {visionEnabled && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '6px', color: 'var(--muted-foreground)' }}>
+                    Modelo de visión
+                  </label>
+                  <select
+                    style={{ ...inp, fontSize: '12px' }}
+                    value={visionModel}
+                    onChange={(e) => setVisionModel(e.target.value as any)}
+                    disabled={readOnly}
+                  >
+                    <option value="gemini-2.5-flash">Gemini 2.5 Flash (rápido)</option>
+                    <option value="gemini-2.5-pro">Gemini 2.5 Pro (preciso)</option>
+                    <option value="claude-vision">Claude Vision</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                  <label style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', cursor: readOnly ? 'default' : 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={visionRagOnImages}
+                      onChange={(e) => !readOnly && setVisionRagOnImages(e.target.checked)}
+                      disabled={readOnly}
+                      style={{ cursor: readOnly ? 'not-allowed' : 'pointer' }}
+                    />
+                    <span style={{ fontSize: '11px', fontWeight: 600 }}>RAG + Visión</span>
+                  </label>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                  <label style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', cursor: readOnly ? 'default' : 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={visionAutoExtractText}
+                      onChange={(e) => !readOnly && setVisionAutoExtractText(e.target.checked)}
+                      disabled={readOnly}
+                      style={{ cursor: readOnly ? 'not-allowed' : 'pointer' }}
+                    />
+                    <span style={{ fontSize: '11px', fontWeight: 600 }}>OCR automático</span>
+                  </label>
+                </div>
+              </div>
+            )}
+            <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '10px', marginBottom: 0 }}>
+              Guarda con &quot;Guardar información&quot; para sincronizar con AIBackHub.
+            </p>
+          </AgentEditorSection>
+          )}
 
           {!soloChatOnly && (
           <>
