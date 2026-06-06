@@ -3738,7 +3738,7 @@
         .replace(/\n+/g, '. ')
         .replace(/\s+/g, ' ')
         .trim()
-        .slice(0, 800);
+        .slice(0, 5000);
 
       if (!cleaned) { if (onEnd) onEnd(); return; }
 
@@ -3911,7 +3911,8 @@
       var el = _origAddMessage(type, text, imgOpts);
       if (type === 'bot' && (voiceActive || ttsMode)) {
         if (voiceActive) setVoiceState('speaking');
-        ttsSpeak(text, function() {
+        var ttsText = botReplyForDisplay(text);
+        ttsSpeak(ttsText, function() {
           if (voiceActive && voiceShouldBeActive) {
             setTimeout(startListening, 300);
             setVoiceState('listening');
