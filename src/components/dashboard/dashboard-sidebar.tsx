@@ -19,6 +19,7 @@ import {
   Inbox,
   FileText,
   Braces,
+  MessageSquare,
 } from 'lucide-react';
 import { BRAND_LOGO_SRC, BRAND_NAME, BRAND_TEXT_COLOR } from '@/lib/brand';
 import { PwaInstallButton } from '@/components/shared/pwa-install-button';
@@ -149,6 +150,7 @@ export const NAV_GROUPS: { title: string; items: { href: string; label: string; 
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/dashboard/quick-start', label: 'Quick Start', icon: Sparkles },
       { href: '/dashboard/inbox', label: 'Inbox', icon: Inbox },
+      { href: '/dashboard/chats', label: 'Chats', icon: MessageSquare },
     ],
   },
   {
