@@ -290,6 +290,15 @@ const ClientAgentSchema = new Schema({
   widgetVoiceName: { type: String, default: null },
   /** Modelos de respaldo (máx. 3). Se prueban en orden cuando el modelo principal falla. */
   fallbackModels:  { type: [String], default: [] },
+  /** Configuración de Vision (análisis de imágenes). */
+  vision: {
+    enabled:         { type: Boolean, default: false },
+    model:           { type: String, enum: ['gemini-2.5-flash', 'gemini-2.5-pro', 'claude-vision'], default: 'gemini-2.5-flash' },
+    ragOnImages:     { type: Boolean, default: true },
+    autoExtractText: { type: Boolean, default: true },
+    maxImageSize:    { type: Number, default: 20 },
+    acceptedFormats: { type: [String], default: ['jpeg', 'png', 'webp'] },
+  },
   /**
    * WhatsApp Business (Cloud API) — Fase 2 del chat multiusuario.
    * Credenciales que el CLIENTE conecta (su propia cuenta de Meta). El access
