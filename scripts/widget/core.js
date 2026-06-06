@@ -1749,6 +1749,34 @@
       return cfg.showMcpUi ? t : stripHubSpotProducerNotes(t);
     }
 
+    /** Elige la variante más larga entre tokens acumulados y campos del evento done. */
+    function resolveStreamFinalRaw(doneEvt, accumulated) {
+      var best = String(accumulated || '');
+      if (!doneEvt || typeof doneEvt !== 'object') return best;
+      var candidates = [
+        best,
+        doneEvt.reply,
+        doneEvt.response,
+        doneEvt.text,
+        doneEvt.data && doneEvt.data.reply,
+        doneEvt.data && doneEvt.data.response,
+        doneEvt.data && doneEvt.data.text,
+      ];
+      for (var ri = 0; ri < candidates.length; ri++) {
+        var s = String(candidates[ri] || '');
+        if (s.length > best.length) best = s;
+      }
+      return best;
+    }
+
+    /** Texto plano visible en la burbuja (fuente fiable para TTS). */
+    function ttsTextFromMessageBubble(bubble) {
+      if (!bubble) return '';
+      var textEl = bubble.querySelector('.afhub-msg-text');
+      if (!textEl) return '';
+      return String(textEl.innerText || textEl.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+
     function shortMcpToolLabel(toolId) {
       var s = String(toolId || '');
       var mHub = /^mcp:[^:]+:(.+)$/.exec(s);
@@ -1926,7 +1954,7 @@
         if (idx >= parts.length) {
           bubble.classList.remove('afhub-msg--streaming');
           if (finalizeFn) finalizeFn(bubble, fullText);
-          speakBotReplyIfEnabled(fullText);
+          speakBotReplyIfEnabled(fullText, bubble);
           return;
         }
         acc += parts[idx];
@@ -3475,9 +3503,10 @@
           var streamBuf = '';
           var streamReply = '';
           var streamBubble = null;
-          var streamDone = false;
+          var streamDoneEvt = null;
+          var streamErrorEvt = null;
 
-          while (!streamDone) {
+          while (!streamErrorEvt) {
             var chunk = await streamReader.read();
             if (chunk.done) break;
             streamBuf += streamDecoder.decode(chunk.value, { stream: true });
@@ -3504,66 +3533,10 @@
                   updateStreamBubble(streamBubble, streamReply);
                 }
               } else if (evt.type === 'done') {
-                streamDone = true;
+                streamDoneEvt = evt;
                 hideTyping();
-                var finalRaw = evt.reply || streamReply;
-                if (streamReply.length > String(finalRaw || '').length) finalRaw = streamReply;
-                var finalReply = botReplyForDisplay(finalRaw);
-                var stTools = evt.toolsUsed;
-                if ((!stTools || !stTools.length) && evt.data && evt.data.toolsUsed && evt.data.toolsUsed.length) {
-                  stTools = evt.data.toolsUsed;
-                }
-                var stMcpTag = typeof evt.mcpTag === 'string' ? evt.mcpTag.trim() : '';
-                if (!stMcpTag && evt.data && typeof evt.data.mcpTag === 'string') {
-                  stMcpTag = evt.data.mcpTag.trim();
-                }
-                var stUsedModel = typeof evt.usedModel === 'string' ? evt.usedModel.trim() : '';
-                if (!stUsedModel && evt.data && typeof evt.data.usedModel === 'string') {
-                  stUsedModel = evt.data.usedModel.trim();
-                }
-                if (streamBubble) {
-                  var te2 = streamBubble.querySelector('.afhub-msg-text');
-                  if (te2) te2.innerHTML = formatBotHtml(finalReply);
-                  streamBubble.classList.remove('afhub-msg--streaming');
-                  appendMultiAgentBadge(streamBubble, evt.multiAgent);
-                  if (cfg.showMcpUi) {
-                    appendMcpMetadataToBubble(streamBubble, { toolsUsed: stTools, mcpTag: stMcpTag });
-                  }
-                  if (stUsedModel) appendFallbackTagToBubble(streamBubble, stUsedModel, cfg.debug);
-                  if (evt.images && evt.images.length) {
-                    var firstEvtImg = evt.images[0];
-                    var firstEvtUrl = firstEvtImg && (firstEvtImg.dataUrl || firstEvtImg.url);
-                    if (typeof firstEvtUrl === 'string' && /^data:image\//i.test(firstEvtUrl)) {
-                      lastGeneratedImageDataUrl = firstEvtUrl;
-                    }
-                    for (var si = 0; si < evt.images.length; si++) {
-                      var sItem = evt.images[si];
-                      var sUrl = sItem && (sItem.dataUrl || sItem.url);
-                      if (typeof sUrl === 'string' && (/^data:image\//i.test(sUrl) || /^https?:\/\//i.test(sUrl))) {
-                        var sWrap = document.createElement('div');
-                        sWrap.className = 'afhub-img-wrap';
-                        appendGeneratedImage(sWrap, sUrl, sItem, si);
-                        streamBubble.appendChild(sWrap);
-                      }
-                    }
-                  }
-                }
-                resolvedAgentId = evt.agentId || resolvedAgentId;
-                history.push({ role: 'model', content: finalReply });
-                saveChatToSession();
-                notify('onMessageReceived', finalReply);
-                emitMultiAgentEvent(evt.multiAgent);
-                var stTagInf = stMcpTag;
-                if (!stTagInf && stTools && stTools.length) stTagInf = inferMcpTagFromToolIds(stTools);
-                emitEvent('message_received', {
-                  length: finalReply.length,
-                  streaming: true,
-                  mcpTag: stTagInf || null,
-                  toolsUsed: stTools && stTools.length ? stTools : null,
-                });
-                speakBotReplyIfEnabled(finalReply);
               } else if (evt.type === 'error') {
-                streamDone = true;
+                streamErrorEvt = evt;
                 hideTyping();
                 var errMsg = evt.message || 'Error del agente.';
                 if (evt.code === 'SESSION_TURN_LIMIT') {
@@ -3574,6 +3547,73 @@
                 notify('onError', { message: errMsg, code: evt.code });
               }
             }
+          }
+
+          if (streamDoneEvt) {
+            var doneEvt = streamDoneEvt;
+            var finalRaw = resolveStreamFinalRaw(doneEvt, streamReply);
+            var finalReply = botReplyForDisplay(finalRaw);
+            var stTools = doneEvt.toolsUsed;
+            if ((!stTools || !stTools.length) && doneEvt.data && doneEvt.data.toolsUsed && doneEvt.data.toolsUsed.length) {
+              stTools = doneEvt.data.toolsUsed;
+            }
+            var stMcpTag = typeof doneEvt.mcpTag === 'string' ? doneEvt.mcpTag.trim() : '';
+            if (!stMcpTag && doneEvt.data && typeof doneEvt.data.mcpTag === 'string') {
+              stMcpTag = doneEvt.data.mcpTag.trim();
+            }
+            var stUsedModel = typeof doneEvt.usedModel === 'string' ? doneEvt.usedModel.trim() : '';
+            if (!stUsedModel && doneEvt.data && typeof doneEvt.data.usedModel === 'string') {
+              stUsedModel = doneEvt.data.usedModel.trim();
+            }
+            if (!streamBubble && finalReply) {
+              streamBubble = addMessage('bot', finalReply, { streaming: true });
+            }
+            if (streamBubble) {
+              var te2 = streamBubble.querySelector('.afhub-msg-text');
+              if (te2) te2.innerHTML = formatBotHtml(finalReply);
+              streamBubble.classList.remove('afhub-msg--streaming');
+              appendMultiAgentBadge(streamBubble, doneEvt.multiAgent);
+              if (cfg.showMcpUi) {
+                appendMcpMetadataToBubble(streamBubble, { toolsUsed: stTools, mcpTag: stMcpTag });
+              }
+              if (stUsedModel) appendFallbackTagToBubble(streamBubble, stUsedModel, cfg.debug);
+              if (doneEvt.images && doneEvt.images.length) {
+                var firstEvtImg = doneEvt.images[0];
+                var firstEvtUrl = firstEvtImg && (firstEvtImg.dataUrl || firstEvtImg.url);
+                if (typeof firstEvtUrl === 'string' && /^data:image\//i.test(firstEvtUrl)) {
+                  lastGeneratedImageDataUrl = firstEvtUrl;
+                }
+                for (var si = 0; si < doneEvt.images.length; si++) {
+                  var sItem = doneEvt.images[si];
+                  var sUrl = sItem && (sItem.dataUrl || sItem.url);
+                  if (typeof sUrl === 'string' && (/^data:image\//i.test(sUrl) || /^https?:\/\//i.test(sUrl))) {
+                    var sWrap = document.createElement('div');
+                    sWrap.className = 'afhub-img-wrap';
+                    appendGeneratedImage(sWrap, sUrl, sItem, si);
+                    streamBubble.appendChild(sWrap);
+                  }
+                }
+              }
+            }
+            resolvedAgentId = doneEvt.agentId || resolvedAgentId;
+            history.push({ role: 'model', content: finalReply });
+            saveChatToSession();
+            notify('onMessageReceived', finalReply);
+            emitMultiAgentEvent(doneEvt.multiAgent);
+            var stTagInf = stMcpTag;
+            if (!stTagInf && stTools && stTools.length) stTagInf = inferMcpTagFromToolIds(stTools);
+            emitEvent('message_received', {
+              length: finalReply.length,
+              streaming: true,
+              mcpTag: stTagInf || null,
+              toolsUsed: stTools && stTools.length ? stTools : null,
+            });
+            log(cfg, 'debug', '[TTS] Stream complete', {
+              streamReplyLen: streamReply.length,
+              finalRawLen: finalRaw.length,
+              finalReplyLen: finalReply.length,
+            });
+            speakBotReplyIfEnabled(finalReply, streamBubble);
           }
           isLoading = false;
           sendBtn.disabled = false;
@@ -3847,11 +3887,16 @@
       ttsUtterance = null;
     }
 
-    function speakBotReplyIfEnabled(text) {
+    function speakBotReplyIfEnabled(text, bubble) {
       if (!(voiceActive || ttsMode)) return;
       var ttsText = String(text || '').trim();
+      if (bubble) {
+        var domText = ttsTextFromMessageBubble(bubble);
+        if (domText.length > ttsText.length) ttsText = domText;
+      }
       if (!ttsText) return;
       if (voiceActive) setVoiceState('speaking');
+      log(cfg, 'debug', '[TTS] Speaking reply', { length: ttsText.length, preview: ttsText.substring(0, 120) });
       ttsSpeak(ttsText, function() {
         if (voiceActive && voiceShouldBeActive) {
           setTimeout(startListening, 300);
@@ -3980,7 +4025,7 @@
       if (type === 'bot' && (voiceActive || ttsMode) && !(imgOpts && imgOpts.streaming)) {
         var ttsText = String(text || '');
         log(cfg, 'debug', '[TTS] Text received', { length: ttsText.length, preview: ttsText.substring(0, 100) });
-        speakBotReplyIfEnabled(ttsText);
+        speakBotReplyIfEnabled(ttsText, el);
       }
       return el;
     }
