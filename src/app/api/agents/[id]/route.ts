@@ -683,6 +683,29 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     agent.markModified('whatsapp');
   }
 
+  // ── Vision update ────────────────────────────────────────────────────────
+  if ('vision' in body) {
+    const raw = body.vision;
+    if (raw === null) {
+      agent.set('vision', null);
+    } else if (raw && typeof raw === 'object') {
+      const visionConfig = {
+        enabled: raw.enabled === true,
+        model: ['gemini-2.5-flash', 'gemini-2.5-pro', 'claude-vision'].includes(raw.model)
+          ? raw.model
+          : 'gemini-2.5-flash',
+        ragOnImages: raw.ragOnImages !== false,
+        autoExtractText: raw.autoExtractText !== false,
+        maxImageSize: typeof raw.maxImageSize === 'number' && raw.maxImageSize > 0 ? raw.maxImageSize : 20,
+        acceptedFormats: Array.isArray(raw.acceptedFormats) && raw.acceptedFormats.length > 0
+          ? raw.acceptedFormats
+          : ['jpeg', 'png', 'webp'],
+      };
+      agent.set('vision', visionConfig);
+      agent.markModified('vision');
+    }
+  }
+
   await agent.save();
 
   const hubId = typeof agent.agentHubId === 'string' ? agent.agentHubId.trim() : '';
