@@ -3729,6 +3729,7 @@
 
     function ttsSpeak(text, onEnd) {
       var cleaned = String(text || '')
+        .replace(/<[^>]*>/g, '')
         .replace(/```[\s\S]*?```/g, '')
         .replace(/`[^`]+`/g, function(m) { return m.slice(1, -1); })
         .replace(/\*\*([^*]+)\*\*/g, '$1')
@@ -3911,7 +3912,8 @@
       var el = _origAddMessage(type, text, imgOpts);
       if (type === 'bot' && (voiceActive || ttsMode)) {
         if (voiceActive) setVoiceState('speaking');
-        var ttsText = botReplyForDisplay(text);
+        var ttsText = String(text || '');
+        log(cfg, 'debug', '[TTS] Text received', { length: ttsText.length, preview: ttsText.substring(0, 100) });
         ttsSpeak(ttsText, function() {
           if (voiceActive && voiceShouldBeActive) {
             setTimeout(startListening, 300);
