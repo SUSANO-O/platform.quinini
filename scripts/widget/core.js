@@ -1926,6 +1926,15 @@
         if (idx >= parts.length) {
           bubble.classList.remove('afhub-msg--streaming');
           if (finalizeFn) finalizeFn(bubble, fullText);
+          if ((voiceActive || ttsMode) && fullText) {
+            if (voiceActive) setVoiceState('speaking');
+            ttsSpeak(fullText, function() {
+              if (voiceActive && voiceShouldBeActive) {
+                setTimeout(startListening, 300);
+                setVoiceState('listening');
+              }
+            });
+          }
           return;
         }
         acc += parts[idx];
