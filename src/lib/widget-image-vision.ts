@@ -10,12 +10,8 @@ const SUPPORT_VISION_PROMPT =
   'Responde en el mismo idioma que predomine en la imagen. ' +
   'Formato: secciones breves con viñetas. Solo contenido extraído, sin explicaciones meta.';
 
-function geminiApiKey(): string | null {
-  return (
-    process.env.GEMINI_API_KEY?.trim() ||
-    process.env.VERTEX_GEMINI_API_KEY?.trim() ||
-    null
-  );
+function getVertexApiKey(): string | null {
+  return process.env.VERTEX_GEMINI_API_KEY?.trim() || null;
 }
 
 async function fetchImageBuffer(url: string): Promise<{ buffer: Buffer; mimeType: string }> {
@@ -32,14 +28,13 @@ function parseDataUrl(dataUrl: string): { buffer: Buffer; mimeType: string } | n
   return { mimeType: m[1], buffer: Buffer.from(m[2], 'base64') };
 }
 
-async function callGeminiVision(buffer: Buffer, mimeType: string, prompt: string): Promise<string> {
-  const apiKey = geminiApiKey();
+async function callVertexVision(buffer: Buffer, mimeType: string, prompt: string): Promise<string> {
+  const apiKey = getVertexApiKey();
   if (!apiKey) {
-    return '[Imagen adjunta — configura GEMINI_API_KEY para análisis automático de capturas.]';
+    return '[Imagen adjunta — configura VERTEX_GEMINI_API_KEY para análisis automático de capturas.]';
   }
 
-  const endpoint =
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+  const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
   const body = {
     contents: [{
@@ -58,7 +53,10 @@ async function callGeminiVision(buffer: Buffer, mimeType: string, prompt: string
     signal: AbortSignal.timeout(45_000),
   });
 
-  if (!res.ok) throw new Error(`Gemini API error: ${res.status}`);
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Vision API error: ${res.status} - ${errText}`);
+  }
 
   const data = await res.json() as {
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
@@ -83,7 +81,7 @@ export async function analyzeSupportScreenshot(source: string): Promise<string> 
       mimeType = fetched.mimeType;
     }
 
-    const text = await callGeminiVision(buffer, mimeType, SUPPORT_VISION_PROMPT);
+    const text = await callVertexVision(buffer, mimeType, SUPPORT_VISION_PROMPT);
     return text || '[No se detectó texto legible en la captura.]';
   } catch (err) {
     console.error('[widget-image-vision] analyzeSupportScreenshot:', err);
