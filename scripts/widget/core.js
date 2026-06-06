@@ -1973,7 +1973,33 @@
           });
         }
       } else {
-        el.textContent = text;
+        // Detectar y convertir URLs a links en mensajes de usuario
+        var urlRegex = /https?:\/\/[^\s]+/gi;
+        var hasUrls = urlRegex.test(text);
+        if (hasUrls) {
+          // Reset regex
+          urlRegex = /https?:\/\/[^\s]+/gi;
+          var parts = text.split(urlRegex);
+          var urls = text.match(urlRegex) || [];
+          for (var pi = 0; pi < parts.length; pi++) {
+            if (parts[pi]) {
+              el.appendChild(document.createTextNode(parts[pi]));
+            }
+            if (pi < urls.length) {
+              var link = document.createElement('a');
+              link.href = urls[pi];
+              link.textContent = urls[pi];
+              link.target = '_blank';
+              link.rel = 'noopener noreferrer';
+              link.style.color = 'var(--brand-primary, #0084ff)';
+              link.style.textDecoration = 'underline';
+              link.style.wordBreak = 'break-all';
+              el.appendChild(link);
+            }
+          }
+        } else {
+          el.textContent = text;
+        }
         if (imgOpts && imgOpts.userImages && imgOpts.userImages.length) {
           for (var ui = 0; ui < imgOpts.userImages.length; ui++) {
             var uItem = imgOpts.userImages[ui];
