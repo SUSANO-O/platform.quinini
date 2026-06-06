@@ -351,3 +351,9 @@
 {"t":"2026-06-06T01:04:46.677Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_2"}
 {"t":"2026-06-06T06:32:59.560Z","event":"widget_loaded","agentId":"math","instanceId":"biv_1"}
 {"t":"2026-06-06T07:48:25.832Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_2"}
+{"t":"2026-06-06T21:40:38.411Z","event":"widget_loaded","agentId":"math","instanceId":"biv_1"}
+{"t":"2026-06-06T21:40:52.236Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_2"}
+{"t":"2026-06-06T21:42:30.791Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_3"}
+{"t":"2026-06-06T21:43:01.021Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_4"}
+{"t":"2026-06-06T21:43:17.627Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_5"}
+{"t":"2026-06-06T21:43:58.851Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_6"}
