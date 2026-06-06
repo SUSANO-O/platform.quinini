@@ -3,12 +3,12 @@
  */
 
 const SUPPORT_VISION_PROMPT =
-  'Analiza esta captura de pantalla de soporte técnico. Extrae:\n' +
-  '1. Todos los mensajes de error visibles (texto exacto, sin parafrasear)\n' +
-  '2. Códigos HTTP, URLs, IDs de error o stack traces parciales\n' +
-  '3. Elementos de UI relevantes (botones, formularios, estados)\n' +
-  'Responde en el mismo idioma que predomine en la imagen. ' +
-  'Formato: secciones breves con viñetas. Solo contenido extraído, sin explicaciones meta.';
+  'Describe detalladamente el contenido de esta imagen. Incluye:\n' +
+  '1. Qué objetos, productos o elementos aparecen\n' +
+  '2. Texto visible (exacto, sin parafrasear)\n' +
+  '3. Colores, formas, marcas o características relevantes\n' +
+  '4. Contexto general de la imagen\n' +
+  'Responde en español. Formato: descripción clara y concisa. Solo describe lo que ves, sin opiniones ni explicaciones adicionales.';
 
 function getVertexApiKey(): string | null {
   return process.env.VERTEX_GEMINI_API_KEY?.trim() || null;
@@ -72,19 +72,27 @@ export async function analyzeSupportScreenshot(source: string): Promise<string> 
 
     if (source.startsWith('data:image/')) {
       const parsed = parseDataUrl(source);
-      if (!parsed) return '[Formato de imagen no válido.]';
+      if (!parsed) {
+        console.error('[widget-image-vision] Formato de data URL inválido');
+        return '[Formato de imagen no válido.]';
+      }
       buffer = parsed.buffer;
       mimeType = parsed.mimeType;
+      console.log(`[widget-image-vision] data URL: ${mimeType} ${buffer.length} bytes`);
     } else {
+      console.log(`[widget-image-vision] Descargando imagen: ${source.slice(0, 80)}`);
       const fetched = await fetchImageBuffer(source);
       buffer = fetched.buffer;
       mimeType = fetched.mimeType;
+      console.log(`[widget-image-vision] Imagen descargada: ${mimeType} ${buffer.length} bytes`);
     }
 
+    console.log('[widget-image-vision] Llamando Gemini Vision gemini-2.5-flash...');
     const text = await callVertexVision(buffer, mimeType, SUPPORT_VISION_PROMPT);
-    return text || '[No se detectó texto legible en la captura.]';
+    console.log(`[widget-image-vision] Respuesta Vision (${text.length} chars): ${text.slice(0, 100)}`);
+    return text || '[No se detectó contenido en la imagen.]';
   } catch (err) {
-    console.error('[widget-image-vision] analyzeSupportScreenshot:', err);
-    return '[Error al analizar la captura — el agente humano puede revisar la imagen adjunta.]';
+    console.error('[widget-image-vision] ERROR analyzeSupportScreenshot:', err);
+    return '[No se pudo analizar la imagen.]';
   }
 }
