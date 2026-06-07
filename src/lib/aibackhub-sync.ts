@@ -93,7 +93,7 @@ export function hubCatalogStatusToLandingStatus(
   return undefined;
 }
 
-type LandingToolConfig = { toolId: string; config?: Record<string, unknown> };
+export type LandingToolConfig = { toolId: string; config?: Record<string, unknown> };
 
 function normalizeLandingTools(raw: unknown): LandingToolConfig[] | undefined {
   if (!Array.isArray(raw)) return undefined;
@@ -153,6 +153,8 @@ export type HubCatalogAgent = {
       };
     };
   }>;
+  /** IDs MCP habilitados (`mcp:…` / `std:…`). */
+  enabledToolIds?: string[];
   /** Herramientas built-in del agente (incluye `webhook` con su config). */
   tools?: LandingToolConfig[];
   /** Modelos de respaldo (máx. 3); el widget los prueba en orden si el principal falla. */
