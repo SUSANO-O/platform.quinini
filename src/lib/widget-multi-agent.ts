@@ -4,7 +4,17 @@
  * - multiAgentEnabled (Business+) → varios orquestadores + modo paralelo + filtro de especialistas.
  */
 
-import { ClientAgent } from '@/lib/db/models';
+import { ClientAgent, ScheduledTask } from '@/lib/db/models';
+import { fetchCatalogAgentFromHub } from '@/lib/aibackhub-sync';
+import { listSkillCatalog } from '@/lib/skill-catalog-service';
+import {
+  buildAgentCapabilityProfile,
+  formatCapabilitySummaryForLlm,
+  scoreMemberCapabilityMatch,
+  type AgentCapabilityProfile,
+  type AgentDocForCapabilities,
+  type ScheduledTaskSummary,
+} from '@/lib/widget-agent-capabilities';
 import {
   ensureClientAgentHubSynced,
   getAibackhubBaseUrl,
@@ -49,6 +59,8 @@ export type TeamMember = {
   role: 'orchestrator' | 'specialist';
   /** Especialista: _id del orquestador padre en Mongo. */
   parentOrchestratorId?: string;
+  /** Capacidades derivadas de MCP, skills, tools, crons y RAG del agente. */
+  capabilities?: AgentCapabilityProfile;
 };
 
 export type WidgetRoutingCapabilities = {
@@ -213,13 +225,27 @@ export async function loadWidgetTeam(
   );
   const useFilter = specialistFilter.size > 0;
 
+  const agentCapabilityFields = {
+    name: 1,
+    description: 1,
+    systemPrompt: 1,
+    agentHubId: 1,
+    subAgentIds: 1,
+    enabledMcpToolIds: 1,
+    tools: 1,
+    skills: 1,
+    skillsConfig: 1,
+    ragEnabled: 1,
+    vision: 1,
+  } as const;
+
   const orchestrators = await ClientAgent.find({
     _id: { $in: orchIds },
     status: 'active',
     type: 'agent',
     $or: [{ userId }, { isPlatform: true }],
   })
-    .select({ name: 1, description: 1, systemPrompt: 1, agentHubId: 1, subAgentIds: 1 })
+    .select(agentCapabilityFields)
     .lean();
 
   const orchById = new Map(orchestrators.map((o) => [String(o._id), o]));
@@ -243,11 +269,40 @@ export async function loadWidgetTeam(
         status: 'active',
         $or: [{ userId }, { isPlatform: true }],
       })
-        .select({ name: 1, description: 1, systemPrompt: 1, agentHubId: 1, parentAgentId: 1 })
+        .select({ ...agentCapabilityFields, parentAgentId: 1 })
         .lean()
     : [];
 
   const specById = new Map(specialists.map((s) => [String(s._id), s]));
+  const allAgentIds = [...orderedOrchs.map((o) => String(o._id)), ...specialists.map((s) => String(s._id))];
+
+  const [skillCatalog, cronRows] = await Promise.all([
+    listSkillCatalog(),
+    ScheduledTask.find({
+      agentId: { $in: allAgentIds },
+      enabled: true,
+    })
+      .select({ agentId: 1, name: 1, action: 1, enabled: 1 })
+      .lean(),
+  ]);
+
+  const cronsByAgent = new Map<string, ScheduledTaskSummary[]>();
+  for (const row of cronRows) {
+    const aid = String(row.agentId ?? '').trim();
+    if (!aid) continue;
+    const list = cronsByAgent.get(aid) ?? [];
+    list.push({
+      name: String(row.name ?? '').trim() || 'tarea',
+      actionType: String((row.action as { type?: string } | undefined)?.type ?? 'agent_run'),
+      enabled: row.enabled !== false,
+    });
+    cronsByAgent.set(aid, list);
+  }
+
+  const docById = new Map<string, AgentDocForCapabilities>();
+  for (const doc of [...orderedOrchs, ...specialists]) {
+    docById.set(String(doc._id), doc as AgentDocForCapabilities);
+  }
 
   const members: TeamMember[] = [];
   for (const orch of orderedOrchs) {
@@ -259,6 +314,11 @@ export async function loadWidgetTeam(
       description: (orch.description ?? '').trim(),
       role: 'orchestrator',
       parentOrchestratorId: oid,
+      capabilities: buildAgentCapabilityProfile({
+        agent: docById.get(oid) ?? (orch as AgentDocForCapabilities),
+        skillCatalog,
+        scheduledTasks: cronsByAgent.get(oid) ?? [],
+      }),
     });
     for (const raw of orch.subAgentIds ?? []) {
       const sid = String(raw).trim();
@@ -273,33 +333,59 @@ export async function loadWidgetTeam(
         description: (s.description ?? '').trim(),
         role: 'specialist',
         parentOrchestratorId: oid,
+        capabilities: buildAgentCapabilityProfile({
+          agent: docById.get(sid) ?? (s as AgentDocForCapabilities),
+          skillCatalog,
+          scheduledTasks: cronsByAgent.get(sid) ?? [],
+        }),
       });
     }
   }
 
-  return hydrateTeamHubIds(members, userId);
+  const hydrated = await hydrateTeamHubIds(members, userId);
+  return enrichTeamCapabilitiesFromHub(hydrated, docById, skillCatalog, cronsByAgent);
 }
 
-function keywordScore(message: string, member: TeamMember): number {
-  const text = `${member.name} ${member.description}`.toLowerCase();
-  const msg = message.toLowerCase();
-  let score = 0;
-  const tokens = text.split(/[\s,.;:/\-–—]+/).filter((t) => t.length > 3);
-  for (const token of tokens) {
-    if (msg.includes(token)) score += 2;
-  }
-  const buckets: Array<{ keys: string[]; weight: number }> = [
-    { keys: ['venta', 'precio', 'comprar', 'plan', 'cotiz', 'pago', 'factur'], weight: 8 },
-    { keys: ['soporte', 'error', 'problema', 'ayuda', 'ticket', 'bug'], weight: 8 },
-    { keys: ['billing', 'cobro', 'suscri', 'renov', 'reembolso', 'invoice'], weight: 10 },
-  ];
-  for (const bucket of buckets) {
-    if (bucket.keys.some((k) => msg.includes(k))) {
-      if (bucket.keys.some((k) => text.includes(k))) score += bucket.weight;
-    }
-  }
-  if (member.role === 'orchestrator') score += 1;
-  return score;
+async function enrichTeamCapabilitiesFromHub(
+  members: TeamMember[],
+  docById: Map<string, AgentDocForCapabilities>,
+  skillCatalog: Awaited<ReturnType<typeof listSkillCatalog>>,
+  cronsByAgent: Map<string, ScheduledTaskSummary[]>,
+): Promise<TeamMember[]> {
+  const enriched = await Promise.all(
+    members.map(async (member) => {
+      const landingDoc = docById.get(member.id);
+      const hasLocalMcp =
+        (landingDoc?.enabledMcpToolIds?.length ?? 0) > 0 ||
+        (landingDoc?.enabledToolIds?.length ?? 0) > 0;
+      if (hasLocalMcp || !member.hubId) return member;
+
+      const hubAgent = await fetchCatalogAgentFromHub(member.hubId);
+      if (!hubAgent) return member;
+
+      const merged: AgentDocForCapabilities = {
+        ...(landingDoc ?? {}),
+        name: member.name,
+        description: member.description,
+        agentHubId: member.hubId,
+        enabledMcpToolIds: Array.isArray(hubAgent.enabledToolIds) ? hubAgent.enabledToolIds : [],
+        tools: Array.isArray(hubAgent.tools) ? hubAgent.tools : landingDoc?.tools,
+        skills: Array.isArray(hubAgent.skills) ? hubAgent.skills : landingDoc?.skills,
+        skillsConfig: Array.isArray(hubAgent.skillsConfig) ? hubAgent.skillsConfig : landingDoc?.skillsConfig,
+        ragEnabled: hubAgent.ragEnabled ?? landingDoc?.ragEnabled,
+      };
+
+      return {
+        ...member,
+        capabilities: buildAgentCapabilityProfile({
+          agent: merged,
+          skillCatalog,
+          scheduledTasks: cronsByAgent.get(member.id) ?? [],
+        }),
+      };
+    }),
+  );
+  return enriched;
 }
 
 export function triageByKeywords(message: string, team: TeamMember[]): TriageResult {
@@ -309,27 +395,13 @@ export function triageByKeywords(message: string, team: TeamMember[]): TriageRes
   let best = team[0];
   let bestScore = -1;
   for (const member of team) {
-    const score = keywordScore(message, member);
+    const score = scoreMemberCapabilityMatch(message, member);
     if (score > bestScore) {
       bestScore = score;
       best = member;
     }
   }
   if (bestScore <= 1) {
-    const msgLower = message.toLowerCase();
-    const billingKeys = ['reembolso', 'cobro', 'suscri', 'factur', 'billing', 'invoice', 'devolu', 'cancelar'];
-    if (billingKeys.some((k) => msgLower.includes(k))) {
-      const billingSpec = team.find(
-        (m) =>
-          m.role === 'specialist' &&
-          /financ|billing|cobro|reembolso|factur|peritaje|closer|soporte/i.test(
-            `${m.name} ${m.description}`,
-          ),
-      );
-      if (billingSpec) {
-        return { target: billingSpec, method: 'keyword', score: 12 };
-      }
-    }
     return { target: team[0], method: 'default' };
   }
   return { target: best, method: 'keyword', score: bestScore };
@@ -375,12 +447,15 @@ async function triageByLlm(message: string, team: TeamMember[]): Promise<TriageR
   if (team.length <= 1) return null;
 
   const roster = team
-    .map((m) => `- id="${m.id}" name="${m.name}" role=${m.role}: ${m.description || 'sin descripción'}`)
+    .map((m) => {
+      const caps = formatCapabilitySummaryForLlm(m.capabilities);
+      return `- id="${m.id}" name="${m.name}" role=${m.role}: ${m.description || 'sin descripción'} | capacidades: ${caps}`;
+    })
     .join('\n');
 
   const prompt = [
     'Eres un router de triaje para un widget de chat.',
-    'Elige UN solo agentId de la lista que mejor atienda el mensaje del usuario.',
+    'Elige UN solo agentId de la lista que mejor atienda el mensaje según sus capacidades (MCP, skills, tools, crons, RAG).',
     'Responde SOLO JSON válido: {"agentId":"..."}',
     'Si no hay match claro, usa el agente con role=orchestrator.',
     '',

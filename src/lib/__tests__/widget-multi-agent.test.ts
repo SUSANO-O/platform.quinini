@@ -15,6 +15,8 @@ import {
   validateMultiAgentMode,
   type TeamMember,
 } from '../widget-multi-agent';
+import { buildAgentCapabilityProfile } from '../widget-agent-capabilities';
+import { DEFAULT_AGENT_SKILLS_CATALOG } from '../agent-skills-catalog-defaults';
 import {
   isContentCapableAgent,
   isCreativeCapableAgent,
@@ -29,7 +31,20 @@ describe('widget-multi-agent', () => {
     expect(isMultiAgentPlanEligible('starter')).toBe(false);
   });
 
-  it('triaje por keywords deriva billing al especialista financiero aunque falte descripción', () => {
+  it('triaje por keywords deriva billing al especialista con capacidad financiera', () => {
+    const billingCaps = buildAgentCapabilityProfile({
+      agent: {
+        name: 'Closer Financiero & Peritaje',
+        skillsConfig: [
+          {
+            id: 'customer_service',
+            enabled: true,
+            config: { prompt_extension: 'Gestión de reembolsos, cobros y suscripciones.' },
+          },
+        ],
+      },
+      skillCatalog: DEFAULT_AGENT_SKILLS_CATALOG,
+    });
     const team: TeamMember[] = [
       { id: 'o1', hubId: 'hub-o', name: 'Ventas', description: 'vehículos', role: 'orchestrator' },
       {
@@ -38,6 +53,7 @@ describe('widget-multi-agent', () => {
         name: 'Closer Financiero & Peritaje',
         description: '',
         role: 'specialist',
+        capabilities: billingCaps,
       },
     ];
     const result = triageByKeywords('Necesito un reembolso de mi suscripción', team);
@@ -46,9 +62,20 @@ describe('widget-multi-agent', () => {
   });
 
   it('triaje por keywords deriva a billing con descripción', () => {
+    const billingCaps = buildAgentCapabilityProfile({
+      agent: { name: 'Billing', description: 'facturación y reembolsos' },
+      skillCatalog: DEFAULT_AGENT_SKILLS_CATALOG,
+    });
     const team: TeamMember[] = [
       { id: 'o1', hubId: 'hub-o', name: 'Recepción', description: 'triaje general', role: 'orchestrator' },
-      { id: 's1', hubId: 'hub-b', name: 'Billing', description: 'facturación y reembolsos', role: 'specialist' },
+      {
+        id: 's1',
+        hubId: 'hub-b',
+        name: 'Billing',
+        description: 'facturación y reembolsos',
+        role: 'specialist',
+        capabilities: billingCaps,
+      },
       { id: 's2', hubId: 'hub-v', name: 'Ventas', description: 'planes y precios', role: 'specialist' },
     ];
     const result = triageByKeywords('Necesito un reembolso de mi suscripción', team);
@@ -64,6 +91,65 @@ describe('widget-multi-agent', () => {
     const result = triageByKeywords('hola', team);
     expect(result.target.id).toBe('o1');
     expect(result.method).toBe('default');
+  });
+
+  it('triaje deriva preguntas de base de datos al agente con MCP mongo', () => {
+    const mongoCaps = buildAgentCapabilityProfile({
+      agent: {
+        name: 'mongo agent',
+        agentHubId: 'mongo-agent',
+        enabledMcpToolIds: ['mcp:mongodb:mongo_find'],
+      },
+      skillCatalog: DEFAULT_AGENT_SKILLS_CATALOG,
+    });
+    const financeCaps = buildAgentCapabilityProfile({
+      agent: {
+        name: 'asesor financiero',
+        tools: [{ toolId: 'webhook', config: { webhooks: [{ name: 'noticias' }] } }],
+      },
+      skillCatalog: DEFAULT_AGENT_SKILLS_CATALOG,
+    });
+    const team: TeamMember[] = [
+      {
+        id: 'o1',
+        hubId: 'asesor-financiero',
+        name: 'asesor financiero',
+        description: 'consultas financieras',
+        role: 'orchestrator',
+        capabilities: financeCaps,
+      },
+      { id: 's1', hubId: 'orquestador', name: 'orquestador', description: '', role: 'specialist' },
+      {
+        id: 'o2',
+        hubId: 'mongo-agent',
+        name: 'mongo agent',
+        description: 'sabes de qa',
+        role: 'orchestrator',
+        capabilities: mongoCaps,
+      },
+    ];
+    const result = triageByKeywords('tienes coneccion a base de datos ?', team);
+    expect(result.target.id).toBe('o2');
+    expect(result.method).toBe('keyword');
+  });
+
+  it('triaje prioriza especialista cuando el mensaje menciona su nombre', () => {
+    const team: TeamMember[] = [
+      {
+        id: 'o1',
+        hubId: 'hub-o',
+        name: 'asesor financiero',
+        description: 'consultas financieras',
+        role: 'orchestrator',
+      },
+      { id: 's1', hubId: 'hub-orch', name: 'orquestador', description: '', role: 'specialist' },
+    ];
+    const result = triageByKeywords(
+      'Hola orquestador, necesito asesoría sobre crédito hipotecario y tasa EA',
+      team,
+    );
+    expect(result.target.id).toBe('s1');
+    expect(result.method).toBe('keyword');
   });
 
   it('validateMultiAgentMode acepta pipeline', () => {

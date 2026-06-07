@@ -1604,7 +1604,7 @@ export default function WidgetBuilderPage() {
             <label style={labelStyle}>Color</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <input type="color" value={cfg.color} onChange={(e) => update({ color: e.target.value })}
-                style={{ width: 36, height: 36, border: 'none', borderRadius: '8px', cursor: 'pointer', padding: 2 }} />
+                style={{ width: 36, height: 36, border: 'none', borderRadius: '50%', cursor: 'pointer', padding: 2, overflow: 'hidden' }} />
               <input style={{ ...inputStyle, flex: 1 }} value={cfg.color} onChange={(e) => update({ color: e.target.value })} />
             </div>
           </div>
