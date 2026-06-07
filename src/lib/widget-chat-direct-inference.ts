@@ -21,7 +21,7 @@ function inferProvider(model: string): string {
   if (m.startsWith('hf/')) return 'huggingface';
   if (m.startsWith('claude') || m.startsWith('anthropic/')) return 'anthropic';
   if (m.startsWith('deepseek')) return 'deepseek';
-  return 'google-ai';
+  return 'vertex';
 }
 
 function normalizeModel(model: string): { provider: string; model: string } {
@@ -148,7 +148,7 @@ export async function tryServeWidgetChatViaDirectInference(params: {
   // Fast-path: saludos / cortesías triviales → forzar el modelo más barato
   // (gemini-2.5-flash-lite), sin importar el modelo configurado del agente.
   const trivial = isTrivialMessage(message, parsed.history);
-  const effProvider = trivial ? 'google-ai' : provider;
+  const effProvider = trivial ? 'vertex' : provider;
   const effModel = trivial ? 'gemini-2.5-flash-lite' : model;
 
   logWidgetFlow(trivial ? '⚡' : '🧠', 'infer:start', 'POST /api/models directo', {

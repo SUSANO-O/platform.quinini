@@ -15,6 +15,7 @@ import {
   Globe,
   Shield,
   RefreshCw,
+  Network,
 } from 'lucide-react';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 
@@ -46,6 +47,10 @@ interface WidgetDoc {
   autoOpen?: boolean;
   afhubToken?: string | null;
   shortcuts?: WidgetShortcut[];
+  multiAgentEnabled?: boolean;
+  multiAgentMode?: 'triage' | 'pipeline' | 'parallel';
+  orchestratorAgentIds?: string[];
+  agentIds?: string[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -72,6 +77,13 @@ interface AgentDoc {
   createdAt?: string;
   updatedAt?: string;
 }
+
+type SubAgentSummary = {
+  _id: string;
+  name: string;
+  model?: string;
+  status?: string;
+};
 
 interface McpServerGroup {
   integrationKey: string;
@@ -135,6 +147,7 @@ function loadWidgetScript(origin: string): Promise<void> {
 export default function WidgetPreviewPage() {
   const [widget, setWidget] = useState<WidgetDoc | null>(null);
   const [agent, setAgent] = useState<AgentDoc | null>(null);
+  const [subAgents, setSubAgents] = useState<SubAgentSummary[]>([]);
   const [mcpServers, setMcpServers] = useState<McpServerGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -224,6 +237,17 @@ export default function WidgetPreviewPage() {
             const aData = await agentRes.json().catch(() => ({}));
             const ag = aData?.agent ?? aData?.data ?? null;
             if (ag) setAgent(ag as AgentDoc);
+            const subs = Array.isArray(aData?.subAgents) ? aData.subAgents : [];
+            if (subs.length > 0) {
+              setSubAgents(
+                subs.map((s: SubAgentSummary) => ({
+                  _id: String(s._id),
+                  name: String(s.name || 'Sub-agente'),
+                  model: typeof s.model === 'string' ? s.model : undefined,
+                  status: typeof s.status === 'string' ? s.status : undefined,
+                })),
+              );
+            }
           }
           if (!cancelled && mcpRes?.ok) {
             const mData = await mcpRes.json().catch(() => ({}));
@@ -280,6 +304,15 @@ export default function WidgetPreviewPage() {
           const ag = (aData?.agent ?? aData?.data ?? null) as AgentDoc | null;
           if (ag) {
             setAgent(ag);
+            const subs = Array.isArray(aData?.subAgents) ? aData.subAgents : [];
+            setSubAgents(
+              subs.map((s: SubAgentSummary) => ({
+                _id: String(s._id),
+                name: String(s.name || 'Sub-agente'),
+                model: typeof s.model === 'string' ? s.model : undefined,
+                status: typeof s.status === 'string' ? s.status : undefined,
+              })),
+            );
             const mcpKey = mcpAgentToolsQueryId(aid, ag);
             const mcpRes = await fetch(`/api/mcp/agent-tools?agentId=${encodeURIComponent(mcpKey)}`);
             if (mcpRes.ok) {
@@ -300,6 +333,8 @@ export default function WidgetPreviewPage() {
   const totalMcpTools = mcpServers.reduce((s, g) => s + g.tools.length, 0);
   const syncedServers = mcpServers.filter((s) => s.syncStatus === 'ok');
   const builtInTools = agent?.tools?.filter((t) => !t.toolId.startsWith('mcp:') && !t.toolId.startsWith('std:')) ?? [];
+  const subAgentCount = subAgents.length || agent?.subAgentIds?.length || 0;
+  const isMultiAgentWidget = widget?.multiAgentEnabled === true || subAgentCount > 0;
 
   return (
     <div style={{ padding: '28px', maxWidth: 820 }}>
@@ -419,6 +454,16 @@ export default function WidgetPreviewPage() {
               }
             />
             <Row label="Token" value={widget.afhubToken ? <span style={{ color: '#22c55e', fontSize: 11 }}><Shield size={11} /> Asignado</span> : <span style={{ color: '#f59e0b', fontSize: 11 }}>Sin token</span>} />
+            {isMultiAgentWidget && (
+              <Row
+                label="Multi-agente"
+                value={
+                  widget.multiAgentEnabled
+                    ? <span style={{ color: '#6366f1', fontWeight: 700 }}>Avanzado · {formatMultiAgentMode(widget.multiAgentMode)}</span>
+                    : <span style={{ color: '#22c55e', fontWeight: 700 }}>Triaje automático</span>
+                }
+              />
+            )}
             <Row label="Creado" value={formatDate(widget.createdAt)} />
           </InfoCard>
 
@@ -509,7 +554,14 @@ export default function WidgetPreviewPage() {
                     {hubRetryHint}
                   </p>
                 ) : null}
-                <Row label="Tipo" value={agent.type === 'sub-agent' ? 'Sub-agente' : 'Agente'} />
+                <Row
+                  label="Tipo"
+                  value={
+                    <span style={{ color: isMultiAgentWidget ? '#6366f1' : undefined, fontWeight: isMultiAgentWidget ? 700 : 500 }}>
+                      {widget ? resolveAgentRoleLabel(agent, widget) : 'Agente'}
+                    </span>
+                  }
+                />
                 <Row label="Modelo" value={agent.model || 'gemini-2.5-flash'} mono />
                 {typeof agent.inferenceTemperature === 'number' && (
                   <Row label="Temperatura" value={String(agent.inferenceTemperature)} />
@@ -531,7 +583,6 @@ export default function WidgetPreviewPage() {
                 )}
                 {agent.description && <Row label="Descripción" value={<span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>{agent.description.slice(0, 120)}{agent.description.length > 120 ? '…' : ''}</span>} />}
                 {agent.ragEnabled && <Row label="Almacenamiento" value={<span style={{ color: '#22c55e' }}>Activo ({agent.ragSources?.length ?? 0} fuentes)</span>} />}
-                {(agent.subAgentIds?.length ?? 0) > 0 && <Row label="Sub-agentes" value={`${agent.subAgentIds!.length}`} />}
                 {agent.createdAt && <Row label="Creado" value={formatDate(agent.createdAt)} />}
               </>
             ) : (
@@ -540,6 +591,58 @@ export default function WidgetPreviewPage() {
               </p>
             )}
           </InfoCard>
+
+          {/* Multi-agent Card */}
+          {isMultiAgentWidget && widget && (
+            <InfoCard title="Equipo multi-agente" icon={<Network size={15} />}>
+              <Row
+                label="Modo"
+                value={resolveRoutingSummary(widget, subAgentCount)}
+              />
+              {widget.multiAgentEnabled && (widget.orchestratorAgentIds?.length ?? 0) > 0 && (
+                <Row
+                  label="Orquestadores extra"
+                  value={`${widget.orchestratorAgentIds!.length} adicional${widget.orchestratorAgentIds!.length !== 1 ? 'es' : ''}`}
+                />
+              )}
+              {subAgentCount > 0 ? (
+                <div style={{ marginTop: 8 }}>
+                  <span style={{ fontWeight: 700, fontSize: 12 }}>Sub-agentes ({subAgentCount})</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+                    {(subAgents.length > 0 ? subAgents : (agent?.subAgentIds ?? []).map((id) => ({ _id: id, name: id }))).map((sub) => (
+                      <div
+                        key={sub._id}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: 8,
+                          fontSize: 11,
+                          padding: '6px 8px',
+                          borderRadius: 8,
+                          background: 'color-mix(in oklab, #6366f1 8%, transparent)',
+                          border: '1px solid color-mix(in oklab, #6366f1 18%, transparent)',
+                        }}
+                      >
+                        <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {sub.name}
+                        </span>
+                        {'model' in sub && sub.model ? (
+                          <span style={{ fontFamily: 'monospace', fontSize: 10, color: 'var(--muted-foreground)', flexShrink: 0 }}>
+                            {sub.model}
+                          </span>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : widget.multiAgentEnabled ? (
+                <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '6px 0' }}>
+                  Sin sub-agentes vinculados al orquestador principal. El routing usa orquestadores y especialistas del equipo.
+                </p>
+              ) : null}
+            </InfoCard>
+          )}
 
           {/* Model Card */}
           <InfoCard title="Modelo" icon={<Cpu size={15} />}>
@@ -721,4 +824,32 @@ function inferProvider(model: string): string {
   if (model.startsWith('vx/')) return 'Vertex AI';
   if (model.startsWith('gemini') || model.startsWith('gemma')) return 'Google AI';
   return 'Auto';
+}
+
+function formatMultiAgentMode(mode?: string): string {
+  if (mode === 'parallel') return 'Paralelo + síntesis';
+  if (mode === 'pipeline') return 'Pipeline contenido→creativo';
+  return 'Triaje automático';
+}
+
+function resolveAgentRoleLabel(
+  agent: AgentDoc,
+  widget: WidgetDoc,
+): string {
+  if (agent.type === 'sub-agent') return 'Sub-agente';
+  if (widget.multiAgentEnabled) return 'Orquestador (multi-agente avanzado)';
+  if ((agent.subAgentIds?.length ?? 0) > 0) return 'Orquestador (triaje automático)';
+  return 'Agente';
+}
+
+function resolveRoutingSummary(widget: WidgetDoc, subAgentCount: number): string {
+  if (widget.multiAgentEnabled) {
+    const orchCount = 1 + (widget.orchestratorAgentIds?.length ?? 0);
+    const specialistCount = widget.agentIds?.length ?? 0;
+    return `${formatMultiAgentMode(widget.multiAgentMode)} · ${orchCount} orquestador${orchCount !== 1 ? 'es' : ''}${specialistCount > 0 ? ` · ${specialistCount} especialista${specialistCount !== 1 ? 's' : ''}` : ''}`;
+  }
+  if (subAgentCount > 0) {
+    return `Triaje automático · ${subAgentCount} sub-agente${subAgentCount !== 1 ? 's' : ''} del orquestador`;
+  }
+  return 'Agente único (sin delegación)';
 }

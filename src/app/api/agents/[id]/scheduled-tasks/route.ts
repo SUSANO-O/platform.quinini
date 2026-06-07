@@ -6,9 +6,14 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
+import { createHash } from 'crypto';
 import { connectDB } from '@/lib/db/connection';
 import { Subscription, ClientAgent, ScheduledTask, User } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
+
+function hashSecurityCode(code: string): string {
+  return createHash('sha256').update(code.trim()).digest('hex');
+}
 import {
   DEFAULT_TIMEZONE,
   validateCron,
@@ -60,9 +65,15 @@ export async function GET(req: NextRequest, { params }: Params) {
   const agent = await findOwnedAgent(id, userId);
   if (!agent) return NextResponse.json({ error: 'Agente no encontrado.' }, { status: 404 });
 
-  const tasks = await ScheduledTask.find({ agentId: String(agent._id), userId })
+  const rawTasks = await ScheduledTask.find({ agentId: String(agent._id), userId })
     .sort({ createdAt: -1 })
     .lean();
+
+  // Nunca exponer el hash al cliente — solo indicar si tiene código configurado.
+  const tasks = rawTasks.map(({ securityCodeHash, ...t }) => ({
+    ...t,
+    hasSecurityCode: Boolean(securityCodeHash),
+  }));
 
   // Acceso por plan/override/admin para que la UI decida (lista vs. tarjeta de upsell).
   const { hasAccess, plan, limit } = await resolveAccess(userId);
@@ -125,6 +136,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   const retryPolicy = sanitizeRetryPolicy(body.retryPolicy);
   const enabled = body.enabled !== false;
 
+  const rawCode = typeof body.securityCode === 'string' ? body.securityCode.trim() : '';
+  const securityCodeHash = rawCode ? hashSecurityCode(rawCode) : null;
+
   const task = await ScheduledTask.create({
     agentId,
     userId,
@@ -139,6 +153,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     status: enabled ? 'idle' : 'paused',
     attempts: 0,
     nextRunAt: enabled ? computeNextRun(cron, timezone) : null,
+    securityCodeHash,
   });
 
   return NextResponse.json({ task }, { status: 201 });
