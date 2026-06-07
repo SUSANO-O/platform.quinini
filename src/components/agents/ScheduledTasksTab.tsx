@@ -7,7 +7,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Clock, Plus, Trash2, Pause, Play, AlertTriangle, CheckCircle2, Loader2, Eye, X, ScrollText, Pencil, Zap } from 'lucide-react';
+import { Clock, Plus, Trash2, Pause, Play, AlertTriangle, CheckCircle2, Loader2, Eye, X, ScrollText, Pencil, Zap, EyeOff } from 'lucide-react';
 
 const TZ = 'America/Bogota';
 
@@ -28,6 +28,7 @@ interface ScheduledTask {
   lastRunAt: string | null;
   lastStatus: string;
   attempts: number;
+  hasSecurityCode?: boolean;
 }
 
 const ACTION_LABELS: Record<ActionType, { label: string; desc: string; emoji: string }> = {
@@ -326,6 +327,9 @@ function TaskRow({
             {isExhausted ? <AlertTriangle size={10} className="inline mr-0.5" /> : null}
             {badge.label}
           </span>
+          {task.hasSecurityCode && (
+            <span title="Requiere código de seguridad para ejecutarse desde el chat" style={{ fontSize: 12 }}>🔒</span>
+          )}
         </div>
         <p style={{ color: 'var(--muted-foreground)', fontSize: 12, margin: '4px 0 0' }}>
           {ACTION_LABELS[task.action.type]?.label} · Próxima: {fmtDate(task.nextRunAt)} · Última:{' '}
@@ -441,11 +445,13 @@ function TaskWizard({
   const [minute, setMinute] = useState(sched?.minute ?? 0);
   const [dow, setDow] = useState(sched?.dow ?? 1);
   const [dom, setDom] = useState(sched?.dom ?? 1);
-  // Paso 3 — config dinámica + reintentos
+  // Paso 3 — config dinámica + reintentos + código de seguridad
   const [config, setConfig] = useState<Record<string, string>>(initCfg);
   const [widgetId, setWidgetId] = useState((task as unknown as { widgetId?: string })?.widgetId ?? '');
   const [maxRetries, setMaxRetries] = useState(task?.retryPolicy?.maxRetries ?? 3);
   const [retryDelayMinutes, setRetryDelayMinutes] = useState(task?.retryPolicy?.retryDelayMinutes ?? 5);
+  const [securityCode, setSecurityCode] = useState('');
+  const [showCode, setShowCode] = useState(false);
 
   const setCfg = (k: string, v: string) => setConfig((p) => ({ ...p, [k]: v }));
 
@@ -462,6 +468,8 @@ function TaskWizard({
         retryPolicy: { maxRetries, backoff: task?.retryPolicy?.backoff ?? 'fixed', retryDelayMinutes },
       };
       if (widgetId.trim()) body.widgetId = widgetId.trim();
+      // Solo enviar securityCode si el usuario escribió algo (vacío = eliminar código en edición).
+      if (securityCode.trim() || isEdit) body.securityCode = securityCode.trim();
       const url = isEdit
         ? `/api/agents/${agentId}/scheduled-tasks/${task!._id}`
         : `/api/agents/${agentId}/scheduled-tasks`;
@@ -586,6 +594,35 @@ function TaskWizard({
               <Field label="Espera entre reintentos (min)">
                 <input className="landing-input" type="number" min={1} max={1440} value={retryDelayMinutes} onChange={(e) => setRetryDelayMinutes(Number(e.target.value))} />
               </Field>
+            </div>
+
+            {/* Código de seguridad */}
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 4 }}>
+              <Field label="🔒 Código de seguridad (opcional)">
+                <div style={{ position: 'relative' }}>
+                  <input
+                    className="landing-input"
+                    type={showCode ? 'text' : 'password'}
+                    value={securityCode}
+                    onChange={(e) => setSecurityCode(e.target.value)}
+                    placeholder={isEdit && task?.hasSecurityCode ? '••••••• (dejar vacío para eliminar)' : 'Ej. MiClave123'}
+                    style={{ paddingRight: 36 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCode((v) => !v)}
+                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted-foreground)', padding: 0 }}
+                  >
+                    {showCode ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+              </Field>
+              <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '4px 0 0' }}>
+                🔒 Si configuras un código, el agente lo pedirá al usuario antes de ejecutar la tarea desde el chat.
+                {isEdit && task?.hasSecurityCode && !securityCode && (
+                  <span style={{ color: '#22c55e', marginLeft: 4 }}>✓ Código ya configurado.</span>
+                )}
+              </p>
             </div>
           </div>
         )}

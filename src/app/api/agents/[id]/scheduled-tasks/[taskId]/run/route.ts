@@ -6,9 +6,14 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
+import { createHash } from 'crypto';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent, ScheduledTask } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
+
+function hashSecurityCode(code: string): string {
+  return createHash('sha256').update(code.trim()).digest('hex');
+}
 
 type Params = { params: Promise<{ id: string; taskId: string }> };
 
@@ -34,6 +39,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   const agentId = await findOwnedAgentId(id, userId);
   if (!agentId) return NextResponse.json({ error: 'Agente no encontrado.' }, { status: 404 });
 
+  const body = await req.json().catch(() => ({})) as { securityCode?: string };
+
   const task = await ScheduledTask.findOne({ _id: taskId, agentId, userId });
   if (!task) return NextResponse.json({ error: 'Tarea no encontrada.' }, { status: 404 });
   if (!task.enabled) {
@@ -41,6 +48,24 @@ export async function POST(req: NextRequest, { params }: Params) {
       { error: 'La tarea está pausada. Actívala antes de ejecutarla.', code: 'TASK_PAUSED' },
       { status: 400 },
     );
+  }
+
+  // Validar código de seguridad si la tarea lo requiere.
+  const storedHash = (task as unknown as { securityCodeHash?: string | null }).securityCodeHash;
+  if (storedHash) {
+    const provided = typeof body.securityCode === 'string' ? body.securityCode.trim() : '';
+    if (!provided) {
+      return NextResponse.json(
+        { error: 'Esta tarea requiere un código de seguridad para ejecutarse.', code: 'SECURITY_CODE_REQUIRED' },
+        { status: 403 },
+      );
+    }
+    if (hashSecurityCode(provided) !== storedHash) {
+      return NextResponse.json(
+        { error: 'Código de seguridad incorrecto.', code: 'INVALID_SECURITY_CODE' },
+        { status: 403 },
+      );
+    }
   }
 
   // Marcar como vencida ya: el worker la tomará en el próximo /tick.

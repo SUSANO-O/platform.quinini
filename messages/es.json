@@ -25,7 +25,7 @@
     "rights": "Todos los derechos reservados."
   },
   "landing": {
-    "badge": "7 días gratis — sin tarjeta de crédito",
+    "badge": "7 días gratis",
     "hero": {
       "title1": "Agentes de IA para",
       "title2": "cualquier industria",
@@ -35,7 +35,7 @@
       "ctaDocs": "Ver Precios"
     },
     "stats": {
-      "trial": "Prueba gratuita — sin tarjeta",
+      "trial": "Prueba gratuita",
       "setup": "Minutos para el primer widget",
       "models": "Modelos de IA disponibles"
     },
@@ -43,7 +43,7 @@
       "title": "Funciona en 5 pasos",
       "subtitle": "Integra un agente de IA en tu sitio en menos de 10 minutos.",
       "step1Title": "Crea tu cuenta",
-      "step1Desc": "7 días gratis, sin tarjeta. Acceso completo al Widget Builder y los 9 agentes.",
+      "step1Desc": "7 días gratis. Acceso completo al Widget Builder y los 9 agentes.",
       "step2Title": "Entrena tu agente",
       "step2Desc": "Sube documentos, agrega URLs o configura herramientas para que el agente conozca tu negocio a la perfección.",
       "step3Title": "Diseña tu widget",
@@ -99,7 +99,7 @@
       "available": "Disponible ahora",
       "msg1": "¡Hola! 👋 Soy tu asistente. ¿Estás buscando información sobre nuestros planes?",
       "msg2": "Sí, ¿qué incluye el plan Growth?",
-      "msg3": "Growth incluye agentes ilimitados, almacenamiento con archivos/URLs y analítica avanzada. Empieza con <strong>7 días gratis</strong> — sin tarjeta. 🚀",
+      "msg3": "Growth incluye agentes ilimitados, almacenamiento con archivos/URLs y analítica avanzada. Empieza con <strong>7 días gratis</strong>. 🚀",
       "inputPlaceholder": "Escribe tu mensaje…",
       "socialProof": "<red>+320 empresas</red> ya usan BotIvA para convertir más visitantes en clientes"
     },
@@ -270,7 +270,7 @@
     "cta": {
       "title1": "Empieza hoy.",
       "title2": "7 días gratis.",
-      "subtitle": "Sin tarjeta. Cancela cuando quieras. Tu primer widget activo en minutos.",
+      "subtitle": "Cancela cuando quieras. Tu primer widget activo en minutos.",
       "primary": "Crear cuenta gratis",
       "secondary": "Ya tengo cuenta"
     }

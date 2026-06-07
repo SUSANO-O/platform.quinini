@@ -335,9 +335,44 @@ export function triageByKeywords(message: string, team: TeamMember[]): TriageRes
   return { target: best, method: 'keyword', score: bestScore };
 }
 
-async function triageByLlm(message: string, team: TeamMember[]): Promise<TriageResult | null> {
+/** Llama /api/models directamente en vertex. Devuelve el texto o null. */
+async function callInternalLlm(
+  prompt: string,
+  maxTokens: number,
+  temperature: number,
+  timeoutMs = 12_000,
+): Promise<string | null> {
   const hubBase = getAibackhubBaseUrl();
-  if (!hubBase || team.length <= 1) return null;
+  if (!hubBase) return null;
+
+  const providers: Array<{ provider: string; model: string }> = [
+    { provider: 'vertex', model: 'gemini-2.5-flash' },
+  ];
+
+  for (const { provider, model } of providers) {
+    try {
+      const res = await fetch(`${hubBase}/api/models`, {
+        method: 'POST',
+        headers: hubCreateHeaders(),
+        body: JSON.stringify({ prompt, provider, model, maxTokens, temperature }),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (!res.ok) continue;
+      const data = (await res.json()) as { text?: string; reply?: string; data?: { text?: string } };
+      const text =
+        (typeof data.text === 'string' ? data.text : '') ||
+        (typeof data.reply === 'string' ? data.reply : '') ||
+        (typeof data.data?.text === 'string' ? data.data.text : '');
+      if (text.trim()) return text.trim();
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+async function triageByLlm(message: string, team: TeamMember[]): Promise<TriageResult | null> {
+  if (team.length <= 1) return null;
 
   const roster = team
     .map((m) => `- id="${m.id}" name="${m.name}" role=${m.role}: ${m.description || 'sin descripción'}`)
@@ -352,29 +387,15 @@ async function triageByLlm(message: string, team: TeamMember[]): Promise<TriageR
     'Agentes:',
     roster,
     '',
-    `Mensaje del usuario: ${message.slice(0, 1500)}`,
+    `Mensaje del usuario: ${message.slice(0, 800)}`,
   ].join('\n');
 
+  const raw = await callInternalLlm(prompt, 80, 0.1, 12_000);
+  if (!raw) return null;
+
+  const match = raw.match(/\{[\s\S]*?\}/);
+  if (!match) return null;
   try {
-    const res = await fetch(`${hubBase}/api/models`, {
-      method: 'POST',
-      headers: hubCreateHeaders(),
-      body: JSON.stringify({
-        prompt,
-        model: 'gemini-2.5-flash',
-        maxTokens: 120,
-        temperature: 0.1,
-      }),
-      signal: AbortSignal.timeout(12_000),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { text?: string; reply?: string; data?: { text?: string } };
-    const raw =
-      (typeof data.text === 'string' ? data.text : '') ||
-      (typeof data.reply === 'string' ? data.reply : '') ||
-      (typeof data.data?.text === 'string' ? data.data.text : '');
-    const match = raw.match(/\{[\s\S]*?\}/);
-    if (!match) return null;
     const parsed = JSON.parse(match[0]) as { agentId?: string };
     const picked = normalizeAgentId(parsed.agentId);
     const member = team.find((m) => m.id === picked);
@@ -999,31 +1020,8 @@ async function synthesizeParallelReplies(params: {
   orchestratorReply: string;
   specialistReply: string;
 }): Promise<string | null> {
-  const hubBase = getAibackhubBaseUrl();
-  if (!hubBase) return null;
   const prompt = buildParallelSynthesisPrompt(params);
-  try {
-    const res = await fetch(`${hubBase}/api/models`, {
-      method: 'POST',
-      headers: hubCreateHeaders(),
-      body: JSON.stringify({
-        prompt,
-        model: 'gemini-2.5-flash',
-        maxTokens: 1200,
-        temperature: 0.35,
-      }),
-      signal: AbortSignal.timeout(20_000),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { text?: string; reply?: string; data?: { text?: string } };
-    const text =
-      (typeof data.text === 'string' ? data.text : '') ||
-      (typeof data.reply === 'string' ? data.reply : '') ||
-      (typeof data.data?.text === 'string' ? data.data.text : '');
-    return text.trim() || null;
-  } catch {
-    return null;
-  }
+  return callInternalLlm(prompt, 1200, 0.35, 20_000);
 }
 
 /**

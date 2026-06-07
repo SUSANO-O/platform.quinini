@@ -25,7 +25,7 @@
     "rights": "All rights reserved."
   },
   "landing": {
-    "badge": "7 days free — no credit card required",
+    "badge": "7 days free",
     "hero": {
       "title1": "AI Agents for",
       "title2": "any industry",
@@ -35,7 +35,7 @@
       "ctaDocs": "View Pricing"
     },
     "stats": {
-      "trial": "Free trial — no credit card",
+      "trial": "Free trial",
       "setup": "Minutes to first widget",
       "models": "AI models available"
     },
@@ -43,7 +43,7 @@
       "title": "Works in 5 steps",
       "subtitle": "Integrate an AI agent into your site in less than 10 minutes.",
       "step1Title": "Create your account",
-      "step1Desc": "7 days free, no card. Full access to the Widget Builder and all 9 agents.",
+      "step1Desc": "7 days free. Full access to the Widget Builder and all 9 agents.",
       "step2Title": "Train your agent",
       "step2Desc": "Upload documents, add URLs or configure tools so the agent knows your business perfectly.",
       "step3Title": "Design your widget",
@@ -99,7 +99,7 @@
       "available": "Available now",
       "msg1": "Hi! 👋 I'm your assistant. Are you looking for information about our plans?",
       "msg2": "Yes, what's included in the Growth plan?",
-      "msg3": "Growth includes unlimited agents, storage with files/URLs and advanced analytics. Start with <strong>7 days free</strong> — no card required. 🚀",
+      "msg3": "Growth includes unlimited agents, storage with files/URLs and advanced analytics. Start with <strong>7 days free</strong>. 🚀",
       "inputPlaceholder": "Type your message…",
       "socialProof": "<red>+320 companies</red> already use BotIvA to convert more visitors into customers"
     },
@@ -270,7 +270,7 @@
     "cta": {
       "title1": "Start today.",
       "title2": "7 days free.",
-      "subtitle": "No card. Cancel anytime. Your first widget live in minutes.",
+      "subtitle": "Cancel anytime. Your first widget live in minutes.",
       "primary": "Create free account",
       "secondary": "I already have an account"
     }

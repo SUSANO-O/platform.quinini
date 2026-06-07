@@ -1016,11 +1016,60 @@
 
     var headerInfo = document.createElement('div');
     headerInfo.className = 'afhub-header-info';
-    headerInfo.innerHTML = '<h3>' + escapeHtml(cfg.title) + '</h3><p>' + escapeHtml(cfg.subtitle) + ' <span class="afhub-status-bullet" aria-hidden="true">•</span> En línea</p>';
+    headerInfo.innerHTML =
+      '<h3>' + escapeHtml(cfg.title) + '</h3>' +
+      '<p>' + escapeHtml(String(cfg.subtitle || 'Asistente').toUpperCase()) +
+      ' <span class="afhub-status-bullet" aria-hidden="true">•</span> EN LÍNEA</p>';
     header.appendChild(headerInfo);
 
     function humanWaDigits() {
       return String(cfg.humanSupportPhone || '').replace(/\D/g, '');
+    }
+
+    function createWhatsAppLink(reason) {
+      var digits = humanWaDigits();
+      if (digits.length < 8) return null;
+      var a = document.createElement('a');
+      a.className = 'afhub-persona-tag';
+      a.href = 'https://wa.me/' + digits;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.textContent = 'WhatsApp';
+      a.title = 'Abrir WhatsApp';
+      a.addEventListener('click', function () {
+        notify('onWhatsAppClick', {
+          reason: reason || 'human_support',
+          timestamp: new Date().toISOString(),
+        });
+        emitEvent('whatsapp_clicked', { reason: reason || 'human_support' });
+      });
+      return a;
+    }
+
+    function errorMessageWantsWhatsApp(text) {
+      return /escribirnos\s+a\s*:?\s*$/i.test(String(text || '').trim());
+    }
+
+    function canShowErrorWhatsApp(imgOpts, text) {
+      if (cfg.humanSupportEnabled === false) return false;
+      if (humanWaDigits().length < 8) return false;
+      if (imgOpts && imgOpts.showWhatsApp) return true;
+      if (imgOpts && imgOpts.error && errorMessageWantsWhatsApp(text)) return true;
+      return false;
+    }
+
+    function botOptsForAgentError(evt) {
+      var msg = evt && evt.message ? evt.message : '';
+      var hubCodes = {
+        HUB_CHAT_PROXY_FAILED: 1,
+        HUB_ERROR: 1,
+        AGENT_ERROR: 1,
+        AGENTFLOWHUB_URL_LOCALHOST: 1,
+        LANDING_SECRET_MISSING: 1,
+      };
+      if (!hubCodes[evt && evt.code] && !errorMessageWantsWhatsApp(msg)) return undefined;
+      var opts = { error: true, showWhatsApp: canShowErrorWhatsApp({ showWhatsApp: true }, msg) };
+      return opts;
     }
 
     /** Normaliza tildes para buscar palabras clave (ES5). */
@@ -1083,13 +1132,8 @@
       var hint = document.createElement('span');
       hint.className = 'afhub-persona-offer-hint';
       hint.textContent = 'Si prefieres atención inmediata, puedes escribirnos por WhatsApp.';
-      var a = document.createElement('a');
-      a.className = 'afhub-persona-tag';
-      a.href = 'https://wa.me/' + digits;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      a.textContent = 'WhatsApp';
-      a.title = 'Abrir WhatsApp';
+      var a = createWhatsAppLink('keyword_offer');
+      if (!a) return;
       inner.appendChild(hint);
       inner.appendChild(document.createTextNode(' '));
       inner.appendChild(a);
@@ -1159,21 +1203,25 @@
     settingsWrap.appendChild(settingsBtn);
     settingsWrap.appendChild(settingsMenu);
 
-    var closeBtn = document.createElement('button');
-    closeBtn.className = 'afhub-close-btn';
-    closeBtn.innerHTML = ICON_X;
-    closeBtn.setAttribute('aria-label', 'Cerrar chat');
-    closeBtn.setAttribute('type', 'button');
+    var headerSpeakerBtn = null;
 
+    headerActions.appendChild(layoutBtn);
+    headerActions.appendChild(expandBtn);
+    if (voiceMenuAvailable) {
+      headerSpeakerBtn = document.createElement('button');
+      headerSpeakerBtn.className = 'afhub-header-icon-btn afhub-header-speaker';
+      headerSpeakerBtn.setAttribute('type', 'button');
+      headerSpeakerBtn.innerHTML = ICON_VOLUME_OFF;
+      headerSpeakerBtn.setAttribute('aria-label', 'Lectura en voz alta');
+      headerSpeakerBtn.title = 'Lectura en voz alta';
+      headerActions.appendChild(headerSpeakerBtn);
+    }
+    headerActions.appendChild(settingsWrap);
+    header.appendChild(headerActions);
     var speakerMenuItem = voiceMenuAvailable
       ? settingsMenu.querySelector('.afhub-settings-speaker')
       : null;
 
-    headerActions.appendChild(layoutBtn);
-    headerActions.appendChild(expandBtn);
-    headerActions.appendChild(settingsWrap);
-    headerActions.appendChild(closeBtn);
-    header.appendChild(headerActions);
     chat.appendChild(header);
 
     var messages = document.createElement('div');
@@ -1191,7 +1239,7 @@
       shortcutsToggle.type = 'button';
       shortcutsToggle.innerHTML =
         '<span class="afhub-shortcuts-toggle-label">Accesos rápidos</span>' +
-        '<span class="afhub-shortcuts-toggle-chevron">‹</span>';
+        '<span class="afhub-shortcuts-toggle-chevron">▾</span>';
 
       shortcutsBar = document.createElement('div');
       shortcutsBar.className = 'afhub-shortcuts';
@@ -1225,12 +1273,12 @@
 
       var scOpen = false;
       shortcutsBar.style.display = 'none';
-      shortcutsToggle.querySelector('.afhub-shortcuts-toggle-chevron').style.transform = 'rotate(90deg)';
+      shortcutsToggle.querySelector('.afhub-shortcuts-toggle-chevron').textContent = '▾';
       shortcutsToggle.addEventListener('click', function() {
         scOpen = !scOpen;
         shortcutsBar.style.display = scOpen ? 'flex' : 'none';
-        shortcutsToggle.querySelector('.afhub-shortcuts-toggle-chevron').style.transform =
-          scOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+        shortcutsToggle.querySelector('.afhub-shortcuts-toggle-chevron').textContent =
+          scOpen ? '▴' : '▾';
       });
 
       shortcutsWrap.appendChild(shortcutsToggle);
@@ -1266,13 +1314,16 @@
       inputArea.appendChild(attachBtn);
     }
 
+    var inputWrap = document.createElement('div');
+    inputWrap.className = 'afhub-input-wrap';
+
     var input = document.createElement('textarea');
     input.className = 'afhub-input';
     input.placeholder = 'Escribe un mensaje...';
     input.rows = 1;
     input.setAttribute('autocomplete', 'off');
     input.setAttribute('spellcheck', 'true');
-    inputArea.appendChild(input);
+    inputWrap.appendChild(input);
 
     // Voice mic button (solo si el navegador soporta Web Speech API)
     var micBtn = null;
@@ -1285,7 +1336,7 @@
       micBtn.innerHTML = ICON_MIC;
       micBtn.setAttribute('aria-label', 'Activar voz');
       micBtn.setAttribute('type', 'button');
-      inputArea.appendChild(micBtn);
+      inputWrap.appendChild(micBtn);
 
       // Voice status bar (oculta por defecto) — insertar *después* de que inputArea sea hijo de chat
       voiceBar = document.createElement('div');
@@ -1296,6 +1347,7 @@
         '<button class="afhub-voice-stop" type="button" aria-label="Detener voz">Detener</button>';
     }
 
+    inputArea.appendChild(inputWrap);
     var sendBtn = document.createElement('button');
     sendBtn.className = 'afhub-send';
     sendBtn.innerHTML = ICON_SEND;
@@ -1384,7 +1436,7 @@
 
     var powered = document.createElement('div');
     powered.className = 'afhub-powered';
-    powered.innerHTML = 'Powered by <a href="https://botiva.space" target="_blank" rel="noopener">BotIvA</a>';
+    powered.innerHTML = 'Powered by <a href="https://botiva.space" target="_blank" rel="noopener">BOTIVA</a>';
     chat.appendChild(powered);
 
     root.appendChild(chat);
@@ -1983,6 +2035,18 @@
             : '';
         var quotaPrefix = imgOpts && imgOpts.quotaHtml ? imgOpts.quotaHtml : '';
         el.innerHTML = cooldownPrefix + quotaPrefix + formatBotHtmlWrapped(displayBotText);
+        if (canShowErrorWhatsApp(imgOpts, displayBotText)) {
+          var inlineWaRow = document.createElement('div');
+          inlineWaRow.className = 'afhub-persona-offer-inner';
+          inlineWaRow.style.marginTop = '6px';
+          var inlineWaLink = createWhatsAppLink('agent_error');
+          if (inlineWaLink) {
+            inlineWaRow.appendChild(inlineWaLink);
+            el.appendChild(inlineWaRow);
+            if (!imgOpts) imgOpts = {};
+            imgOpts.noFeedback = true;
+          }
+        }
         if (imgOpts && imgOpts.images && imgOpts.images.length) {
           for (var j = 0; j < imgOpts.images.length; j++) {
             var item = imgOpts.images[j];
@@ -2150,27 +2214,10 @@
           showWhatsApp: imgOpts && imgOpts.showWhatsApp,
           condition: isError && imgOpts && imgOpts.showWhatsApp
         });
-        if (isError && imgOpts && imgOpts.showWhatsApp) {
-          console.log('[AFHUB-DEBUG] ✅ CREATING WhatsApp link!');
+        if (isError && canShowErrorWhatsApp(imgOpts, String(text || ''))) {
           log(cfg, 'debug', 'Creating WhatsApp link', { phone: cfg.humanSupportPhone });
-          var waPhone = String(cfg.humanSupportPhone || '').trim().replace(/\D/g, '');
-          if (waPhone) {
-            var waLink = document.createElement('a');
-            waLink.className = 'afhub-persona-tag';
-            waLink.href = 'https://wa.me/' + waPhone;
-            waLink.target = '_blank';
-            waLink.rel = 'noopener noreferrer';
-            waLink.textContent = 'WhatsApp';
-            waLink.title = 'Abrir WhatsApp';
-            waLink.addEventListener('click', function () {
-              notify('onWhatsAppClick', {
-                reason: 'agent_error',
-                timestamp: new Date().toISOString()
-              });
-              emitEvent('whatsapp_clicked', { reason: 'agent_error' });
-            });
-            leftContainer.appendChild(waLink);
-          }
+          var waLink = createWhatsAppLink('agent_error');
+          if (waLink) leftContainer.appendChild(waLink);
         } else {
           // Mostrar feedback buttons normales
           console.log('[AFHUB-DEBUG] ❌ NOT creating WhatsApp, showing normal buttons instead:', {
@@ -3542,7 +3589,7 @@
                 if (evt.code === 'SESSION_TURN_LIMIT') {
                   errMsg = 'Esta conversación llegó al límite de mensajes. Pulsa «Nueva conversación» para empezar de cero.';
                 }
-                var streamErrorOpts = (evt.code === 'HUB_CHAT_PROXY_FAILED' || evt.code === 'AGENT_ERROR') ? { error: true, showWhatsApp: evt.code === 'HUB_CHAT_PROXY_FAILED' } : undefined;
+                var streamErrorOpts = botOptsForAgentError(evt);
                 addMessage('bot', errMsg, streamErrorOpts);
                 notify('onError', { message: errMsg, code: evt.code });
               }
@@ -3715,9 +3762,8 @@
         var msg = isHubError && e && e.message
           ? e.message
           : 'El agente no puede responder ahora. Espera unos segundos e inténtalo de nuevo o si prefieres atención inmediata, puedes escribirnos a ';
-        var botOpts = { error: true, showWhatsApp: true };
+        var botOpts = { error: true, showWhatsApp: canShowErrorWhatsApp({ showWhatsApp: true }, msg) };
         log(cfg, 'debug', 'Chat error - showing WhatsApp button', { isHubError, msgLength: msg.length, botOpts });
-        console.log('[AgentFlowhub Widget] Error caught - WhatsApp button should appear:', { isHubError, code: e && e.code, msgLength: msg.length });
         addMessage('bot', msg, botOpts);
         notify('onError', { message: msg, code: 'REQUEST_ERROR' });
         emitEvent('widget_error', { message: msg });
@@ -4032,22 +4078,37 @@
     addMessage = addMessageWithTTS;
 
     function syncSpeakerMenuItem() {
-      if (!speakerMenuItem) return;
-      speakerMenuItem.innerHTML =
-        (ttsMode ? ICON_VOLUME_ON : ICON_VOLUME_OFF) +
-        '<span>' +
-        (ttsMode ? 'Desactivar lectura en voz alta' : 'Lectura en voz alta') +
-        '</span>';
-      speakerMenuItem.classList.toggle('afhub-settings-speaker--active', ttsMode);
+      if (speakerMenuItem) {
+        speakerMenuItem.innerHTML =
+          (ttsMode ? ICON_VOLUME_ON : ICON_VOLUME_OFF) +
+          '<span>' +
+          (ttsMode ? 'Desactivar lectura en voz alta' : 'Lectura en voz alta') +
+          '</span>';
+        speakerMenuItem.classList.toggle('afhub-settings-speaker--active', ttsMode);
+      }
+      if (headerSpeakerBtn) {
+        headerSpeakerBtn.innerHTML = ttsMode ? ICON_VOLUME_ON : ICON_VOLUME_OFF;
+        headerSpeakerBtn.classList.toggle('afhub-header-speaker--active', ttsMode);
+        headerSpeakerBtn.setAttribute(
+          'aria-label',
+          ttsMode ? 'Desactivar lectura en voz alta' : 'Lectura en voz alta'
+        );
+        headerSpeakerBtn.title = ttsMode ? 'Desactivar lectura en voz alta' : 'Lectura en voz alta';
+      }
+    }
+
+    function toggleTtsMode() {
+      ttsMode = !ttsMode;
+      syncSpeakerMenuItem();
+      if (!ttsMode) ttsStop();
     }
 
     // Menú ⋮ — toggle TTS
     if (speakerMenuItem) {
-      speakerMenuItem.addEventListener('click', function () {
-        ttsMode = !ttsMode;
-        syncSpeakerMenuItem();
-        if (!ttsMode) ttsStop();
-      });
+      speakerMenuItem.addEventListener('click', toggleTtsMode);
+    }
+    if (headerSpeakerBtn) {
+      headerSpeakerBtn.addEventListener('click', toggleTtsMode);
     }
 
     // Event listener para el botón stop en la barra de voz
@@ -4166,7 +4227,6 @@
       else sidebarSize = 'compact';
       syncChatPanelLayout();
     });
-    closeBtn.addEventListener('click', close);
 
     /** Menú Ajustes — abrir/cerrar y manejar opciones */
     settingsBtn.addEventListener('click', function (e) {
@@ -4607,7 +4667,8 @@
         ' .afhub-fab:hover { transform:none !important; } #' +
         rootId +
         ' .afhub-orb-avatar-halo { animation:none !important; opacity:.75 !important; } }' +
-      '#' + rootId + '.afhub-open .afhub-fab { width:48px; height:48px; opacity:.78; }' +
+      '#' + rootId + '.afhub-open .afhub-fab { width:52px; height:52px; opacity:1; background:' + cfg.color + '; box-shadow:0 6px 20px rgba(0,0,0,.22); }' +
+      '#' + rootId + '.afhub-open .afhub-fab svg { width:22px; height:22px; stroke-width:2.5; }' +
       '#' + rootId + '.afhub-open .afhub-fab-hint-wrap { opacity:0; max-height:0; margin:0; padding:0; overflow:hidden; pointer-events:none; }' +
       '#' + rootId + ' .afhub-fab { width:60px; height:60px; border-radius:50%; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; background:linear-gradient(155deg,rgba(255,255,255,.22) 0%,transparent 42%),' +
       orbIridescentStack(cfg) +
@@ -4649,25 +4710,24 @@
       '#' + rootId + '-scrim,.afhub-scrim { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9; backdrop-filter:blur(2px); transition:opacity .25s; }' +
       '#' +
         rootId +
-        ' .afhub-header { padding:16px 18px; color:#fff; display:flex; align-items:center; gap:12px; flex-shrink:0; background:linear-gradient(135deg,' +
+        ' .afhub-header { padding:14px 16px; color:#fff; display:flex; align-items:center; gap:12px; flex-shrink:0; background:' +
       cfg.color +
-      ' 0%,' +
-      cfg.color +
-      'dd 100%); position:relative; }' +
+      '; position:relative; }' +
       '#' + rootId + ' .afhub-header::after { display:none; }' +
       '#' + rootId + ' .afhub-header > * { position:relative; z-index:1; }' +
-      '#' + rootId + ' .afhub-avatar { width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,.22); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; box-shadow:0 0 0 2px rgba(255,255,255,.2); }' +
+      '#' + rootId + ' .afhub-avatar { width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,.22); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; box-shadow:0 0 0 2px rgba(255,255,255,.28); }' +
       '#' + rootId + ' .afhub-avatar img { width:100%; height:100%; object-fit:cover; }' +
       '#' + rootId + ' .afhub-avatar svg { width:22px; height:22px; }' +
       '#' + rootId + ' .afhub-header-info { flex:1; min-width:0; }' +
-      '#' + rootId + ' .afhub-header-info h3 { font-size:15px; font-weight:600; letter-spacing:.01em; }' +
-      '#' + rootId + ' .afhub-header-info p { font-size:11px; text-transform:uppercase; letter-spacing:.08em; opacity:.88; margin-top:3px; font-weight:500; }' +
+      '#' + rootId + ' .afhub-header-info h3 { font-size:16px; font-weight:700; letter-spacing:.01em; line-height:1.2; }' +
+      '#' + rootId + ' .afhub-header-info p { font-size:10px; text-transform:uppercase; letter-spacing:.1em; opacity:.92; margin-top:4px; font-weight:600; }' +
       '#' + rootId + ' .afhub-status-bullet { display:inline; margin:0 5px; opacity:.72; }' +
       '#' + rootId + ' .afhub-header-actions { display:flex; align-items:center; gap:4px; flex-shrink:0; margin-left:auto; }' +
       '#' + rootId + ' .afhub-header-icon-btn { flex-shrink:0; background:rgba(255,255,255,.14); border:none; color:#fff; cursor:pointer; padding:6px; border-radius:8px; opacity:.92; display:inline-flex; align-items:center; justify-content:center; line-height:0; }' +
       '#' + rootId + ' .afhub-header-icon-btn:hover { opacity:1; background:rgba(255,255,255,.26); }' +
       '#' + rootId + ' .afhub-header-icon-btn:disabled { opacity:.45; cursor:default; pointer-events:none; }' +
       '#' + rootId + ' .afhub-header-icon-btn svg { width:18px; height:18px; }' +
+      '#' + rootId + ' .afhub-header-speaker--active { background:rgba(255,255,255,.28) !important; opacity:1 !important; }' +
       '#' + rootId + ' .afhub-settings-wrap { position:relative; flex-shrink:0; display:inline-flex; }' +
       '#' + rootId + ' .afhub-settings-menu { position:absolute; top:calc(100% + 6px); right:0; min-width:200px; background:#fff; border:1px solid rgba(0,0,0,.08); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.16); padding:6px; z-index:10000; }' +
       '#' + rootId + ' .afhub-settings-item { display:flex; align-items:center; gap:8px; width:100%; padding:9px 10px; background:transparent; border:none; border-radius:7px; color:#1a1a2e; font-size:13px; font-weight:500; cursor:pointer; text-align:left; min-height:44px; font-family:inherit; }' +
@@ -4685,7 +4745,7 @@
       '#' + rootId + ' .afhub-msg.user { white-space:pre-wrap; background:' + cfg.color + '; color:#fff; align-self:flex-end; border-bottom-right-radius:5px; box-shadow:0 2px 10px rgba(0,0,0,.14); }' +
       '#' + rootId + ' .afhub-msg-rich { white-space:normal; }' +
       '#' + rootId + ' .afhub-msg--streaming .afhub-msg-text::after { content:""; display:inline-block; width:2px; height:.95em; margin-left:2px; vertical-align:text-bottom; background:currentColor; opacity:.55; animation:afhub-stream-cursor .85s step-end infinite; }' +
-      '#' + rootId + ' .afhub-msg.bot { background:linear-gradient(180deg,#fff,#f0f2f5); color:#141428; align-self:flex-start; border-bottom-left-radius:5px; border:1px solid rgba(0,0,0,.06); box-shadow:0 1px 2px rgba(0,0,0,.04); }' +
+      '#' + rootId + ' .afhub-msg.bot { background:#fff; color:#141428; align-self:flex-start; border-bottom-left-radius:5px; border:1px solid rgba(0,0,0,.1); box-shadow:none; }' +
       '#' + rootId + ' .afhub-human-wrap { align-self:flex-start; max-width:88%; width:100%; display:flex; flex-direction:column; gap:4px; }' +
       '#' + rootId + ' .afhub-human-meta { display:flex; align-items:center; gap:6px; padding:0 2px; }' +
       '#' + rootId + ' .afhub-human-badge { display:inline-flex; align-items:center; gap:5px; padding:2px 9px 2px 7px; border-radius:999px; background:' + cfg.color + '14; color:' + cfg.color + '; font-size:10px; font-weight:700; letter-spacing:.02em; }' +
@@ -4746,7 +4806,7 @@
       '#' + rootId + ' .afhub-thinking-dots span:nth-child(2) { animation-delay:.25s; }' +
       '#' + rootId + ' .afhub-thinking-dots span:nth-child(3) { animation-delay:.5s; }' +
       '#' + rootId + ' .afhub-multi-agent-tag { display:inline-flex; align-items:center; margin-bottom:8px; font-size:10px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; padding:3px 8px; border-radius:999px; color:' + cfg.color + '; background:' + cfg.color + '14; border:1px solid ' + cfg.color + '33; }' +
-      '#' + rootId + ' .afhub-feedback-row { align-self:flex-start; display:flex; gap:0; margin:2px 0 2px 2px; align-items:center; width:100%; }' +
+      '#' + rootId + ' .afhub-feedback-row { align-self:flex-start; display:flex; gap:0; margin:2px 0 6px 2px; align-items:center; max-width:88%; width:100%; }' +
       '#' + rootId + ' .afhub-feedback-btn { width:24px; height:24px; border-radius:999px; border:none; background:transparent; color:#6b7280; font-size:12px; line-height:1; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:background .12s ease,color .12s ease; padding:0; }' +
       '#' + rootId + ' .afhub-feedback-btn:hover { background:rgba(0,0,0,.06); color:#111827; }' +
       '#' + rootId + ' .afhub-feedback-btn[data-value="up"].active { color:#16a34a; background:rgba(34,197,94,.12); }' +
@@ -4755,8 +4815,8 @@
       '#' + rootId + ' .afhub-dot { width:8px; height:8px; background:#aaa; border-radius:50%; animation:afhub-bounce .6s infinite alternate; }' +
       '#' + rootId + ' .afhub-dot:nth-child(2) { animation-delay:.2s; }' +
       '#' + rootId + ' .afhub-dot:nth-child(3) { animation-delay:.4s; }' +
-      '#' + rootId + ' .afhub-powered { text-align:center; font-size:8px; letter-spacing:.03em; text-transform:uppercase; color:#ccc; padding:3px 0 3px; flex-shrink:0; }' +
-      '#' + rootId + ' .afhub-powered a { color:#888; text-decoration:none; }' +
+      '#' + rootId + ' .afhub-powered { text-align:center; font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:#b8bcc4; padding:4px 0 6px; flex-shrink:0; font-weight:600; }' +
+      '#' + rootId + ' .afhub-powered a { color:#9aa0ac; text-decoration:none; font-weight:700; }' +
       '#' + rootId + ' .afhub-powered a:hover { text-decoration:underline; }' +
       '#' + rootId + ' .afhub-persona-offer { align-self:flex-start; max-width:92%; padding:10px 14px; border-radius:12px; border:1px solid rgba(0,0,0,.08); background:rgba(0,0,0,.03); font-size:13px; line-height:1.45; }' +
       '#' + rootId + ' .afhub-persona-offer-inner { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }' +
@@ -4769,9 +4829,9 @@
       '#' + rootId + ' .afhub-handoff-btn:hover { background:' + cfg.color + '18; }' +
       '#' + rootId + ' .afhub-handoff-btn:disabled { cursor:not-allowed; opacity:.6; }' +
       // Barra de acciones compacta (chips) — "Hablar con una persona"
-      '#' + rootId + ' .afhub-action-bar { flex-shrink:0; display:flex; gap:6px; padding:4px 10px 6px; border-top:1px solid #eef0f2; background:#f8fafc; }' +
-      '#' + rootId + ' .afhub-action-btn { flex:1; min-width:0; padding:5px 8px; border-radius:999px; border:1px solid ' + cfg.color + '33 !important; background:transparent !important; color:' + cfg.color + ' !important; font-size:11px; font-weight:600; cursor:pointer; font-family:inherit; transition:background .15s,border-color .15s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; appearance:none; -webkit-appearance:none; }' +
-      '#' + rootId + ' .afhub-action-btn:hover { background:' + cfg.color + '12 !important; }' +
+      '#' + rootId + ' .afhub-action-bar { flex-shrink:0; display:flex; gap:6px; padding:6px 12px 8px; border-top:none; background:#fff; }' +
+      '#' + rootId + ' .afhub-action-btn { flex:1; min-width:0; padding:10px 14px; border-radius:999px; border:1.5px solid ' + cfg.color + ' !important; background:#fff !important; color:' + cfg.color + ' !important; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; transition:background .15s,border-color .15s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; appearance:none; -webkit-appearance:none; }' +
+      '#' + rootId + ' .afhub-action-btn:hover { background:' + cfg.color + '0d !important; }' +
       '#' + rootId + ' .afhub-action-btn--ghost { border-color:#e2e4e8; color:#80868b; }' +
       '#' + rootId + ' .afhub-action-btn--ghost:hover { background:#f5f6f7; color:#5f6368; }' +
       '#' + rootId + ' .afhub-action-btn--disabled { cursor:not-allowed; opacity:.5; pointer-events:none; }' +
@@ -4799,7 +4859,7 @@
       '#' + rootId + ' .afhub-shortcuts-wrap { flex-shrink:0; border-top:1px solid #e8eaed; }' +
       '#' + rootId + ' .afhub-shortcuts-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; padding:7px 14px; background:transparent; border:none; cursor:pointer; font-family:inherit; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-shortcuts-toggle:hover { background:' + cfg.color + '0a; }' +
-      '#' + rootId + ' .afhub-shortcuts-toggle-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:' + cfg.color + '; }' +
+      '#' + rootId + ' .afhub-shortcuts-toggle-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:' + cfg.color + '; }' +
       '#' + rootId + ' .afhub-shortcuts-toggle-chevron { font-size:18px; color:' + cfg.color + '; transition:transform .2s; line-height:1; }' +
       '#' + rootId + ' .afhub-shortcuts { display:flex; flex-direction:column; gap:6px; padding:0 10px 8px; flex-shrink:0; max-height:112px; overflow-y:auto; scrollbar-width:none; }' +
       '#' + rootId + ' .afhub-shortcuts::-webkit-scrollbar { display:none; }' +
@@ -4813,7 +4873,7 @@
       '#' + rootId + ' .afhub-policy-link { color:' + cfg.color + '; text-decoration:underline; }' +
       '#' + rootId + ' a.afhub-policy-link { cursor:pointer; }' +
       '#' + rootId + ' a.afhub-policy-link:hover { filter:brightness(0.9); }' +
-      '#' + rootId + ' .afhub-input-area { padding:5px 10px; border-top:1px solid #eef0f2; display:flex; gap:6px; flex-shrink:0; background:#f8fafc; align-items:center; }' +
+      '#' + rootId + ' .afhub-input-area { padding:8px 12px; border-top:1px solid #eef0f2; display:flex; gap:8px; flex-shrink:0; background:#fff; align-items:center; }' +
       '#' + rootId + ' .afhub-attach-input { position:absolute; width:0; height:0; opacity:0; pointer-events:none; overflow:hidden; }' +
       '#' + rootId + ' .afhub-attach { width:32px; height:32px; border-radius:10px; border:none; cursor:pointer; background:transparent; color:#64748b; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background .18s,color .18s; padding:0; }' +
       '#' + rootId + ' .afhub-attach:hover { background:rgba(15,23,42,.06); color:' + cfg.color + '; }' +
@@ -4824,16 +4884,19 @@
       '#' + rootId + ' .afhub-attach-preview-label { flex:1; font-size:12px; color:#64748b; font-weight:500; }' +
       '#' + rootId + ' .afhub-attach-preview-remove { width:26px; height:26px; border-radius:50%; border:none; background:#fee2e2; color:#dc2626; font-size:18px; line-height:1; cursor:pointer; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-img-wrap--user { margin-top:8px; }' +
-      '#' + rootId + ' .afhub-input { flex:1; min-width:0; border:none; border-radius:18px; padding:7px 14px; font-size:15px; font-weight:400; outline:none; resize:none; min-height:34px; max-height:88px; line-height:1.3; letter-spacing:-0.01em; font-family:inherit !important; color:#0f172a !important; -webkit-text-fill-color:#0f172a; caret-color:' + cfg.color + '; background:#fff; box-shadow:inset 0 0 0 1px #dbe1ea; overflow-y:hidden; scrollbar-width:none; transition:box-shadow .15s ease; }' +
+      '#' + rootId + ' .afhub-input-wrap { flex:1; min-width:0; position:relative; display:flex; align-items:center; }' +
+      '#' + rootId + ' .afhub-input-wrap .afhub-input { width:100%; padding-right:40px; }' +
+      '#' + rootId + ' .afhub-input-wrap .afhub-mic { position:absolute; right:4px; top:50%; transform:translateY(-50%); z-index:1; }' +
+      '#' + rootId + ' .afhub-input { flex:1; min-width:0; border:none; border-radius:22px; padding:9px 14px; font-size:14px; font-weight:400; outline:none; resize:none; min-height:38px; max-height:88px; line-height:1.35; letter-spacing:-0.01em; font-family:inherit !important; color:#0f172a !important; -webkit-text-fill-color:#0f172a; caret-color:' + cfg.color + '; background:#fff; box-shadow:inset 0 0 0 1px #d8dee6; overflow-y:hidden; scrollbar-width:none; transition:box-shadow .15s ease; }' +
       '#' + rootId + ' .afhub-input::-webkit-scrollbar { display:none; width:0; height:0; }' +
       '#' + rootId + ' .afhub-input::placeholder { color:#94a3b8; opacity:1; font-weight:400; }' +
       '#' + rootId + ' .afhub-input:focus { box-shadow:inset 0 0 0 2px ' + cfg.color + '66, 0 0 0 3px ' + cfg.color + '1a; }' +
-      '#' + rootId + ' .afhub-send { width:36px; height:36px; border-radius:12px; border:none; cursor:pointer; background:' + cfg.color + '; color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:opacity .15s,transform .12s ease; box-shadow:0 2px 8px rgba(15,23,42,.12); }' +
+      '#' + rootId + ' .afhub-send { width:40px; height:40px; border-radius:50%; border:none; cursor:pointer; background:' + cfg.color + '; color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:opacity .15s,transform .12s ease; box-shadow:0 2px 10px rgba(15,23,42,.14); }' +
       '#' + rootId + ' .afhub-send:not(:disabled):hover { transform:scale(1.04); }' +
       '#' + rootId + ' .afhub-send:disabled { opacity:.35; cursor:default; box-shadow:none; }' +
       '#' + rootId + ' .afhub-send svg { width:17px; height:17px; }' +
-      '#' + rootId + ' .afhub-mic { width:32px; height:32px; border-radius:10px; border:none; cursor:pointer; background:transparent; color:#64748b; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background .18s,color .18s; padding:0; }' +
-      '#' + rootId + ' .afhub-mic:hover { background:rgba(15,23,42,.06); color:' + cfg.color + '; }' +
+      '#' + rootId + ' .afhub-mic { width:30px; height:30px; border-radius:50%; border:none; cursor:pointer; background:transparent; color:#94a3b8; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background .18s,color .18s; padding:0; }' +
+      '#' + rootId + ' .afhub-mic:hover { background:rgba(15,23,42,.05); color:' + cfg.color + '; }' +
       '#' + rootId + ' .afhub-mic--active { background:rgba(239,68,68,.1) !important; color:#ef4444 !important; animation:afhub-mic-pulse 1.5s ease-in-out infinite; }' +
       '#' + rootId + ' .afhub-mic svg { width:18px; height:18px; }' +
       '#' + rootId + ' .afhub-voice-bar { display:none; align-items:center; gap:10px; padding:8px 16px; background:rgba(99,102,241,.06); border-top:1px solid rgba(99,102,241,.12); flex-shrink:0; }' +

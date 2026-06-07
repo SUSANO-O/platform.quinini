@@ -686,6 +686,8 @@ const ScheduledTaskSchema = new Schema({
   lastError:   { type: String, default: '' },
   /** Marca de lock para detectar corridas colgadas (el worker lo reclama tras timeout). */
   lockedAt:    { type: Date, default: null },
+  /** SHA-256 del código de seguridad (opcional). Si existe, el agente debe pedirlo antes de ejecutar. */
+  securityCodeHash: { type: String, default: null },
 }, { timestamps: true });
 
 ScheduledTaskSchema.index({ enabled: 1, nextRunAt: 1 });

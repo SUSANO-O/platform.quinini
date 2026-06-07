@@ -5,7 +5,12 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
+import { createHash } from 'crypto';
 import { connectDB } from '@/lib/db/connection';
+
+function hashSecurityCode(code: string): string {
+  return createHash('sha256').update(code.trim()).digest('hex');
+}
 import { ClientAgent, ScheduledTask, TaskExecution, Subscription } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
 import {
@@ -41,12 +46,16 @@ export async function GET(req: NextRequest, { params }: Params) {
   const agentId = await findOwnedAgentId(id, userId);
   if (!agentId) return NextResponse.json({ error: 'Agente no encontrado.' }, { status: 404 });
 
-  const task = await ScheduledTask.findOne({ _id: taskId, agentId, userId }).lean();
-  if (!task) return NextResponse.json({ error: 'Tarea no encontrada.' }, { status: 404 });
+  const rawTask = await ScheduledTask.findOne({ _id: taskId, agentId, userId }).lean();
+  if (!rawTask) return NextResponse.json({ error: 'Tarea no encontrada.' }, { status: 404 });
+
+  // Nunca exponer el hash al cliente.
+  const { securityCodeHash, ...task } = rawTask as typeof rawTask & { securityCodeHash?: string | null };
+  const taskForClient = { ...task, hasSecurityCode: Boolean(securityCodeHash) };
 
   // Incluir últimas ejecuciones para el dashboard de estado.
   const executions = await TaskExecution.find({ taskId: String(taskId) }).sort({ runAt: -1 }).limit(10).lean();
-  return NextResponse.json({ task, executions });
+  return NextResponse.json({ task: taskForClient, executions });
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
@@ -101,6 +110,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   if (typeof body.widgetId === 'string') task.widgetId = body.widgetId;
   if (typeof body.sessionId === 'string') task.sessionId = body.sessionId;
+
+  // Código de seguridad: cadena vacía = eliminar el código; nueva cadena = reemplazar hash.
+  if ('securityCode' in body) {
+    const rawCode = typeof body.securityCode === 'string' ? body.securityCode.trim() : '';
+    (task as unknown as { securityCodeHash: string | null }).securityCodeHash = rawCode
+      ? hashSecurityCode(rawCode)
+      : null;
+  }
 
   // On/off: pausar conserva la tarea; reactivar reprograma.
   if ('enabled' in body) {

@@ -136,7 +136,7 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     if (m.startsWith('hf/')) return 'huggingface';
     if (m.startsWith('vx/')) return 'vertex';
     if (m.startsWith('deepseek')) return 'deepseek';
-    return 'google-ai';
+    return 'vertex';
   }
 
   const payload = {
