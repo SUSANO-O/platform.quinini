@@ -609,7 +609,13 @@ export default function WidgetPreviewPage() {
                 <div style={{ marginTop: 8 }}>
                   <span style={{ fontWeight: 700, fontSize: 12 }}>Sub-agentes ({subAgentCount})</span>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
-                    {(subAgents.length > 0 ? subAgents : (agent?.subAgentIds ?? []).map((id) => ({ _id: id, name: id }))).map((sub) => (
+                    {(subAgents.length > 0
+                      ? subAgents
+                      : (agent?.subAgentIds ?? []).map((id) => ({ _id: id, name: id, model: undefined as string | undefined }))
+                    ).map((sub) => {
+                      const modelLabel =
+                        typeof sub.model === 'string' && sub.model.trim() ? sub.model.trim() : null;
+                      return (
                       <div
                         key={sub._id}
                         style={{
@@ -627,13 +633,14 @@ export default function WidgetPreviewPage() {
                         <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {sub.name}
                         </span>
-                        {'model' in sub && sub.model ? (
+                        {modelLabel ? (
                           <span style={{ fontFamily: 'monospace', fontSize: 10, color: 'var(--muted-foreground)', flexShrink: 0 }}>
-                            {sub.model}
+                            {modelLabel}
                           </span>
                         ) : null}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ) : widget.multiAgentEnabled ? (
