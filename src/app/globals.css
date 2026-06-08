@@ -2106,6 +2106,12 @@ button.dashboard-sidebar-link:hover {
   padding: 0.75rem 0.5rem;
 }
 
+.chats-page__messages .conversation-thread {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
 .chats-page__stats {
   display: flex;
   flex-wrap: wrap;

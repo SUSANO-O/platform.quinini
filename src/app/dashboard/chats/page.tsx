@@ -17,7 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { DashboardShell } from '@/components/dashboard/dashboard-shell';
-import { ConversationThread, type ChatMessage } from '@/components/dashboard/inbox-chat-modal';
+import { ConversationThread, countVisibleMessages, type ChatMessage } from '@/components/dashboard/inbox-chat-modal';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 
@@ -298,6 +298,7 @@ export default function ChatsPage() {
   }
 
   const selectedSession = sessions.find((s) => s.sessionId === selectedId);
+  const visibleMessageCount = useMemo(() => countVisibleMessages(messages), [messages]);
   const isSelectedActive = selectedSession ? !selectedSession.endedAt : false;
   const contact = selectedSession?.contact ?? {};
   const showSidebar = !mobileShowThread;
@@ -546,13 +547,17 @@ export default function ChatsPage() {
                       label="Cargando mensajes…"
                       style={{ padding: '2rem 0', flex: 1 }}
                     />
-                  ) : messages.length === 0 ? (
+                  ) : visibleMessageCount === 0 ? (
                     <div className="chats-page__empty-panel">
                       <Bot size={28} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />
-                      <p style={{ margin: 0, fontSize: '0.8125rem' }}>Sin mensajes en esta sesión</p>
+                      <p style={{ margin: 0, fontSize: '0.8125rem' }}>
+                        {messages.length > 0
+                          ? 'Los mensajes de esta sesión no tienen contenido visible'
+                          : 'Sin mensajes en esta sesión'}
+                      </p>
                     </div>
                   ) : (
-                    <ConversationThread messages={messages} />
+                    <ConversationThread key={selectedId} messages={messages} />
                   )}
                 </div>
 
@@ -560,7 +565,7 @@ export default function ChatsPage() {
                   <footer className="chats-page__stats">
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                       <MessageSquare size={10} />
-                      {messages.length} mensajes
+                      {visibleMessageCount} mensaje{visibleMessageCount !== 1 ? 's' : ''}
                     </span>
                     <span>
                       Inicio:{' '}

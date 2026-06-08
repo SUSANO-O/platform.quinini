@@ -89,17 +89,21 @@ export async function persistWidgetTranscript(input: PersistTranscriptInput): Pr
 
   const userContent = (input.enrichment?.displayMessage || input.userMessage).slice(0, 4000);
 
-  await WidgetMessage.insertMany([
+  const docs: Array<Record<string, unknown>> = [
     {
       ...base,
       role: 'user',
       content: userContent,
       ...(userAttachments.length ? { attachments: userAttachments } : {}),
     },
-    {
+  ];
+  const assistantContent = input.assistantMessage.trim().slice(0, 8000);
+  if (assistantContent) {
+    docs.push({
       ...base,
       role: 'assistant',
-      content: input.assistantMessage.slice(0, 8000),
-    },
-  ]);
+      content: assistantContent,
+    });
+  }
+  await WidgetMessage.insertMany(docs);
 }
