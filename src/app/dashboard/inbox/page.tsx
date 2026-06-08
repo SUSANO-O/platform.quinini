@@ -257,8 +257,13 @@ export default function InboxPage() {
     try {
       const res = await fetch(`/api/inbox/${encodeURIComponent(sessionId)}`);
       const data = await res.json();
-      if (res.ok && Array.isArray(data.messages)) {
-        setTranscripts((prev) => ({ ...prev, [sessionId]: data.messages }));
+      if (res.ok) {
+        if (Array.isArray(data.messages)) {
+          setTranscripts((prev) => ({ ...prev, [sessionId]: data.messages }));
+        }
+        if (typeof data.session?.humanMode === 'boolean') {
+          setHumanModeBySession((prev) => ({ ...prev, [sessionId]: data.session.humanMode }));
+        }
       }
     } finally {
       setLoadingTranscript(null);
@@ -381,14 +386,19 @@ export default function InboxPage() {
           sendingReply={sendingReply === expanded}
           onSendReply={() => void sendReply(expanded)}
           onDeleteMessage={(messageId) => void deleteMessage(expanded, messageId)}
-          humanMode={humanModeBySession[expanded] ?? false}
+          humanMode={humanModeBySession[expanded] ?? activeChatItem.humanMode ?? false}
           onReactivateBot={() => void reactivateBot(expanded)}
           onSilenceBot={() => void silenceBot(expanded)}
           reactivatingBot={reactivatingBot === expanded}
           isWhatsApp={expanded.startsWith('wa:')}
         />
       )}
-      <h1 className="inbox-page__title">Bandeja de Entrada</h1>
+      <header className="inbox-page__header">
+        <h1 className="inbox-page__title">Bandeja de Entrada</h1>
+        <p className="inbox-page__subtitle">
+          Conversaciones de widgets y WhatsApp que requieren tu atención.
+        </p>
+      </header>
 
       <div className="inbox-page__toolbar">
         {tab === 'open' ? (

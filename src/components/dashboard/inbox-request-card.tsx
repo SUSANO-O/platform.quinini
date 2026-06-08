@@ -131,12 +131,17 @@ export function InboxRequestCard({
     <article className="inbox-card card-texture">
       <div className="inbox-card__head">
         <div className="inbox-card__identity">
-          <div
-            className="inbox-card__avatar"
-            style={{ background: palette.bg, color: palette.fg, borderColor: palette.border }}
-            aria-hidden
-          >
-            {visitorInitials(item)}
+          <div className="inbox-card__avatar-wrap">
+            <div
+              className="inbox-card__avatar"
+              style={{ background: palette.bg, color: palette.fg, borderColor: palette.border }}
+              aria-hidden
+            >
+              {visitorInitials(item)}
+            </div>
+            {item.hasUnread && item.inboxStatus !== 'resolved' ? (
+              <span className="inbox-card__unread" aria-label="Sin leer" />
+            ) : null}
           </div>
           <div className="inbox-card__meta min-w-0">
             <div className="inbox-card__name-row">
@@ -211,7 +216,7 @@ export function InboxRequestCard({
             onClick={onOpenChat}
           >
             <Send size={14} aria-hidden />
-            {item.hasUnread ? 'Responder' : 'Chat'}
+            {item.hasUnread ? 'Ver y responder' : 'Abrir chat'}
             {!item.needsReply && item.messageCount > 0 ? (
               <span className="inbox-card__count">{item.messageCount}</span>
             ) : null}
