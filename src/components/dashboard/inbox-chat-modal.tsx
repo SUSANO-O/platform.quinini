@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  FileText, Loader2, MessageSquare, Paperclip, Send, Trash2, User, X, Download, Check, CheckCheck, Bot, Headphones,
+  ChevronDown, FileText, Loader2, MessageSquare, Paperclip, Send, Trash2, User, X, Download, Check, CheckCheck, Bot, Headphones,
 } from 'lucide-react';
 
 export type ChatAttachment = {
@@ -105,7 +105,93 @@ function fmtDate(iso: string) {
 
 function contactInitial(name: string) {
   const t = name.trim();
-  return t ? t.charAt(0).toUpperCase() : '?';
+  if (!t) return '?';
+  const digits = t.replace(/\D/g, '');
+  if (digits.length >= 8 && /^\+?\d[\d\s-]{6,}$/.test(t)) return digits.slice(-2);
+  const parts = t.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return t.charAt(0).toUpperCase();
+}
+
+function sameCalendarDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function fmtDateDivider(iso: string) {
+  const d = new Date(iso);
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (sameCalendarDay(d, now)) return 'Hoy';
+  if (sameCalendarDay(d, yesterday)) return 'Ayer';
+  return d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'short' });
+}
+
+function messageHasBody(m: ChatMessage) {
+  return Boolean(m.content?.trim()) || Boolean(m.attachments?.some((a) => a.url));
+}
+
+function sortMessages(messages: ChatMessage[]) {
+  return [...messages].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+}
+
+function senderKey(m: ChatMessage) {
+  if (m.role === 'user') return 'user';
+  return m.sentBy === 'human' ? 'human' : 'bot';
+}
+
+type ThreadRow =
+  | { kind: 'date'; key: string; label: string }
+  | { kind: 'msg'; key: string; message: ChatMessage; showMeta: boolean; grouped: boolean; isLastInGroup: boolean };
+
+function buildThreadRows(messages: ChatMessage[]): ThreadRow[] {
+  const sorted = sortMessages(messages).filter(messageHasBody);
+  const rows: ThreadRow[] = [];
+  let prevDay = '';
+  let prevSender = '';
+
+  for (let i = 0; i < sorted.length; i++) {
+    const m = sorted[i];
+    const dayKey = new Date(m.createdAt).toDateString();
+    if (dayKey !== prevDay) {
+      rows.push({ kind: 'date', key: `d-${dayKey}`, label: fmtDateDivider(m.createdAt) });
+      prevDay = dayKey;
+      prevSender = '';
+    }
+    const sk = senderKey(m);
+    const next = sorted[i + 1];
+    const nextSameGroup =
+      next &&
+      senderKey(next) === sk &&
+      new Date(next.createdAt).toDateString() === dayKey;
+    const grouped = sk === prevSender && Boolean(nextSameGroup);
+    const isLastInGroup = !nextSameGroup;
+    rows.push({
+      kind: 'msg',
+      key: m.id || `m-${i}`,
+      message: m,
+      showMeta: sk !== prevSender,
+      grouped,
+      isLastInGroup,
+    });
+    prevSender = sk;
+  }
+  return rows;
+}
+
+function MessageContent({ text }: { text: string }) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.startsWith('**') && part.endsWith('**') ? (
+          <strong key={i}>{part.slice(2, -2)}</strong>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
+    </>
+  );
 }
 
 export function ConversationThread({
@@ -118,70 +204,121 @@ export function ConversationThread({
   onDelete?: (messageId: string) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [showScrollDown, setShowScrollDown] = useState(false);
+  const rows = useMemo(() => buildThreadRows(messages), [messages]);
+  const prevCountRef = useRef(0);
+
+  const scrollToBottom = useCallback((smooth = false) => {
+    const el = ref.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+    setShowScrollDown(false);
+  }, []);
+
   useEffect(() => {
-    if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
-  }, [messages]);
+    const el = ref.current;
+    if (!el) return;
+    const grew = rows.length > prevCountRef.current;
+    prevCountRef.current = rows.length;
+    if (!grew || !showScrollDown) scrollToBottom();
+  }, [rows, showScrollDown, scrollToBottom]);
+
+  const onScroll = () => {
+    const el = ref.current;
+    if (!el) return;
+    const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollDown(dist > 100);
+  };
 
   return (
-    <div ref={ref} className="flex flex-col gap-4 flex-1 min-h-0 overflow-y-auto px-2 py-2">
-      {messages.map((m, i) => {
-        const isUser = m.role === 'user';
-        const isHuman = m.sentBy === 'human';
-        const right = !isUser;
-        const label = isUser ? 'Visitante' : isHuman ? 'Tú · Agente' : 'Bot';
-        const onDark = isHuman;
-        const bubble: React.CSSProperties = isUser
-          ? { background: '#fff', color: 'var(--foreground)', boxShadow: '0 1px 3px rgba(15,23,42,0.06)' }
-          : isHuman
-            ? { background: 'var(--brand-primary)', color: '#fff' }
-            : { background: 'rgba(255,255,255,0.85)', color: 'var(--foreground)', boxShadow: '0 1px 3px rgba(15,23,42,0.05)' };
-        const showDelete = canDelete && isHuman && m.id && onDelete;
+    <div className="relative flex flex-1 min-h-0">
+      <div
+        ref={ref}
+        onScroll={onScroll}
+        className="inbox-thread flex flex-col gap-1 flex-1 min-h-0 overflow-y-auto px-2 py-2 scroll-smooth"
+      >
+        {rows.map((row) => {
+          if (row.kind === 'date') {
+            return (
+              <div key={row.key} className="inbox-thread__date">
+                <span>{row.label}</span>
+              </div>
+            );
+          }
 
-        return (
-          <div
-            key={m.id || i}
-            className={`flex flex-col ${right ? 'items-end' : 'items-start'}`}
-          >
-            <div className="flex gap-1.5 items-center mb-1 px-1">
-              <span
-                className="text-[10px] font-bold"
-                style={{ color: isHuman ? 'var(--brand-primary)' : 'var(--muted-foreground)' }}
-              >
-                {label}
-              </span>
-              <span className="text-[10px] font-medium opacity-75" style={{ color: 'var(--muted-foreground)' }}>
-                {fmtTime(m.createdAt)}
-              </span>
-              {showDelete && (
-                <button
-                  type="button"
-                  onClick={() => onDelete!(m.id!)}
-                  title="Retirar mensaje"
-                  className="border-0 bg-transparent p-0 inline-flex items-center opacity-60 hover:opacity-100 cursor-pointer"
-                  style={{ color: 'var(--muted-foreground)' }}
-                >
-                  <Trash2 size={11} />
-                </button>
-              )}
-            </div>
+          const m = row.message;
+          const isUser = m.role === 'user';
+          const isHuman = m.sentBy === 'human';
+          const right = !isUser;
+          const label = isUser ? 'Visitante' : isHuman ? 'Tú · Agente' : 'Bot';
+          const onDark = isHuman;
+          const bubble: React.CSSProperties = isUser
+            ? { background: '#fff', color: 'var(--foreground)', boxShadow: '0 1px 3px rgba(15,23,42,0.06)' }
+            : isHuman
+              ? { background: 'var(--brand-primary)', color: '#fff' }
+              : { background: 'rgba(255,255,255,0.92)', color: 'var(--foreground)', boxShadow: '0 1px 3px rgba(15,23,42,0.05)' };
+          const showDelete = canDelete && isHuman && m.id && onDelete;
+
+          return (
             <div
-              className="max-w-[88%] px-3.5 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap break-words"
-              style={{
-                borderRadius: 16,
-                borderBottomRightRadius: right ? 5 : 16,
-                borderBottomLeftRadius: right ? 16 : 5,
-                ...bubble,
-              }}
+              key={row.key}
+              className={`flex flex-col ${right ? 'items-end' : 'items-start'} ${row.grouped ? 'inbox-thread__msg--grouped' : 'inbox-thread__msg'}`}
             >
-              {m.content}
-              {m.attachments?.map((att, ai) =>
-                att.url ? <AttachmentView key={ai} att={att} onDark={onDark} /> : null,
+              {row.showMeta && (
+                <div className="flex gap-1.5 items-center mb-1 px-1">
+                  <span
+                    className="text-[10px] font-bold"
+                    style={{ color: isHuman ? 'var(--brand-primary)' : 'var(--muted-foreground)' }}
+                  >
+                    {label}
+                  </span>
+                  <span className="text-[10px] font-medium opacity-75" style={{ color: 'var(--muted-foreground)' }}>
+                    {fmtTime(m.createdAt)}
+                  </span>
+                  {showDelete && (
+                    <button
+                      type="button"
+                      onClick={() => onDelete!(m.id!)}
+                      title="Retirar mensaje"
+                      className="border-0 bg-transparent p-0 inline-flex items-center opacity-60 hover:opacity-100 cursor-pointer"
+                      style={{ color: 'var(--muted-foreground)' }}
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  )}
+                </div>
               )}
+              <div
+                className="max-w-[88%] px-3.5 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap break-words"
+                style={{
+                  borderRadius: row.grouped ? (right ? '12px 12px 5px 12px' : '12px 12px 12px 5px') : 16,
+                  borderBottomRightRadius: right ? 5 : row.grouped ? 12 : 16,
+                  borderBottomLeftRadius: right ? (row.grouped ? 12 : 16) : 5,
+                  ...bubble,
+                }}
+              >
+                {m.content?.trim() ? <MessageContent text={m.content} /> : null}
+                {m.attachments?.map((att, ai) =>
+                  att.url ? <AttachmentView key={ai} att={att} onDark={onDark} /> : null,
+                )}
+              </div>
+              {isHuman && row.isLastInGroup && <ReadReceipt m={m} />}
             </div>
-            {isHuman && <ReadReceipt m={m} />}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
+
+      {showScrollDown && (
+        <button
+          type="button"
+          onClick={() => scrollToBottom(true)}
+          title="Ir al final"
+          className="inbox-thread__scroll-btn"
+          aria-label="Ir al final del chat"
+        >
+          <ChevronDown size={18} />
+        </button>
+      )}
     </div>
   );
 }
@@ -274,6 +411,17 @@ export function InboxChatModal({
   const displayName = contactName.trim() || 'Visitante sin nombre';
   const draft = replyDraft.trim();
   const canSend = (draft.length > 0 || pendingAttachments.length > 0) && !sendingReply && !uploadingAttachment;
+  const visibleMessageCount = useMemo(
+    () => (messages ? sortMessages(messages).filter(messageHasBody).length : 0),
+    [messages],
+  );
+
+  const resizeComposer = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, 44), 128)}px`;
+  }, []);
 
   // Enfocar SOLO al abrir (cuando `open` pasa a true), nunca en cada render.
   // Si dependiera de `onClose`, cada tecla y cada poll robaría el foco hacia la X.
@@ -291,6 +439,10 @@ export function InboxChatModal({
     if (open) document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, [open]);
+
+  useEffect(() => {
+    if (open) resizeComposer();
+  }, [open, replyDraft, resizeComposer]);
 
   if (!open) return null;
 
@@ -360,7 +512,10 @@ export function InboxChatModal({
                 )}
               </div>
               <p className="text-xs m-0 mt-0.5 truncate" style={{ color: 'var(--muted-foreground)' }}>
-                {widgetName} · {fmtDate(handoffAt)}
+                {widgetName}
+                {visibleMessageCount > 0 ? ` · ${visibleMessageCount} mensaje${visibleMessageCount !== 1 ? 's' : ''}` : ''}
+                {' · '}
+                {fmtDate(handoffAt)}
               </p>
             </div>
             <button
@@ -377,21 +532,16 @@ export function InboxChatModal({
         </div>
 
         {/* Área de mensajes */}
-        <div
-          className="flex flex-col flex-1 min-h-0 px-4 py-4 sm:px-6"
-          style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)' }}
-        >
+        <div className="inbox-chat__body flex flex-col flex-1 min-h-0 px-4 py-4 sm:px-6">
           {!isResolved && (
             humanMode ? (
-              <div
-                className="shrink-0 flex items-center justify-between gap-2 mb-3 px-3 py-2 rounded-xl"
-                style={{ background: 'rgba(234,179,8,0.10)', border: '1px solid rgba(234,179,8,0.30)' }}
-              >
-                <div className="flex items-center gap-2">
-                  <Headphones size={14} style={{ color: '#b45309' }} />
-                  <span className="text-[11px] font-semibold" style={{ color: '#b45309' }}>
-                    🙋 Atiendo yo — el bot está en pausa.
-                  </span>
+              <div className="inbox-chat__mode inbox-chat__mode--human shrink-0 flex items-center justify-between gap-2 mb-3 px-3 py-2.5 rounded-xl">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Headphones size={14} className="shrink-0" />
+                  <div className="min-w-0">
+                    <span className="block text-[11px] font-bold leading-tight">Atención humana activa</span>
+                    <span className="block text-[10px] opacity-80 leading-tight">El bot no responderá hasta que lo reactives</span>
+                  </div>
                 </div>
                 {onReactivateBot && (
                   <button
@@ -399,8 +549,7 @@ export function InboxChatModal({
                     disabled={reactivatingBot}
                     onClick={onReactivateBot}
                     title="Reactivar el bot para que responda automáticamente"
-                    className="text-[11px] font-bold px-2.5 py-1 rounded-lg border-0 cursor-pointer transition-all inline-flex items-center gap-1"
-                    style={{ background: '#b45309', color: '#fff', opacity: reactivatingBot ? 0.6 : 1 }}
+                    className="inbox-chat__mode-btn text-[11px] font-bold px-2.5 py-1.5 rounded-lg border-0 cursor-pointer transition-all inline-flex items-center gap-1 shrink-0"
                   >
                     <Bot size={12} />
                     {reactivatingBot ? '…' : 'Devolver al bot'}
@@ -408,18 +557,13 @@ export function InboxChatModal({
                 )}
               </div>
             ) : (
-              <div
-                className="shrink-0 flex items-center justify-between gap-2 mb-3 px-3 py-2 rounded-xl"
-                style={{
-                  background: 'rgba(var(--brand-primary-rgb),0.06)',
-                  border: '1px solid rgba(var(--brand-primary-rgb),0.12)',
-                }}
-              >
+              <div className="inbox-chat__mode inbox-chat__mode--bot shrink-0 flex items-center justify-between gap-2 mb-3 px-3 py-2.5 rounded-xl">
                 <div className="flex items-center gap-2 min-w-0">
-                  <Bot size={14} style={{ color: 'var(--brand-primary)' }} />
-                  <span className="text-[11px] font-semibold truncate" style={{ color: 'var(--foreground)' }}>
-                    🤖 Bot activo — responde automáticamente.
-                  </span>
+                  <Bot size={14} className="shrink-0" />
+                  <div className="min-w-0">
+                    <span className="block text-[11px] font-bold leading-tight">Bot respondiendo</span>
+                    <span className="block text-[10px] opacity-75 leading-tight">Puedes tomar el control en cualquier momento</span>
+                  </div>
                 </div>
                 {onSilenceBot && (
                   <button
@@ -427,8 +571,7 @@ export function InboxChatModal({
                     disabled={reactivatingBot}
                     onClick={onSilenceBot}
                     title="Pausar el bot y tomar el control de la conversación"
-                    className="text-[11px] font-bold px-2.5 py-1 rounded-lg border-0 cursor-pointer transition-all inline-flex items-center gap-1 shrink-0"
-                    style={{ background: 'var(--brand-primary)', color: '#fff', opacity: reactivatingBot ? 0.6 : 1 }}
+                    className="inbox-chat__mode-btn text-[11px] font-bold px-2.5 py-1.5 rounded-lg border-0 cursor-pointer transition-all inline-flex items-center gap-1 shrink-0"
                   >
                     <Headphones size={12} />
                     {reactivatingBot ? '…' : 'Atiendo yo'}
@@ -443,7 +586,7 @@ export function InboxChatModal({
               <Loader2 size={18} className="animate-spin" />
               Cargando conversación…
             </div>
-          ) : messages?.length ? (
+          ) : visibleMessageCount > 0 && messages ? (
             <ConversationThread
               messages={messages}
               canDelete={!isResolved}
@@ -548,14 +691,20 @@ export function InboxChatModal({
               </button>
               <textarea
                 ref={textareaRef}
-                rows={3}
+                rows={1}
                 placeholder="Escribe tu respuesta…"
-                className="landing-input flex-1 resize-none text-[14px] leading-relaxed rounded-xl"
-                style={{ padding: '12px 14px', minHeight: 60 }}
+                className="landing-input inbox-chat__composer flex-1 resize-none text-[14px] leading-relaxed rounded-xl"
+                style={{ padding: '12px 14px', minHeight: 44, maxHeight: 128 }}
                 value={replyDraft}
-                onChange={(e) => onReplyDraftChange(e.target.value)}
+                onChange={(e) => {
+                  onReplyDraftChange(e.target.value);
+                  resizeComposer();
+                }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && canSend) onSendReply();
+                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && canSend) {
+                    e.preventDefault();
+                    onSendReply();
+                  }
                 }}
               />
               <button
