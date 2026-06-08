@@ -56,6 +56,22 @@ export function inboxTranscriptSessionId(session: {
   return chatId || session.sessionId;
 }
 
+/** IDs posibles bajo los que pueden estar guardados los mensajes de una sesión. */
+export function transcriptSessionIdCandidates(session: {
+  sessionId: string;
+  chatSessionId?: string | null;
+}): string[] {
+  const ids: string[] = [];
+  const push = (raw: string) => {
+    const id = raw.trim();
+    if (id && !ids.includes(id)) ids.push(id);
+  };
+  push(inboxTranscriptSessionId(session));
+  push(session.sessionId);
+  if (typeof session.chatSessionId === 'string') push(session.chatSessionId);
+  return ids;
+}
+
 /** Criterio de sesiones que deben aparecer en Inbox. */
 export function inboxSessionFilter(userId: string, status: 'open' | 'resolved' | 'all' = 'open') {
   const uid = String(userId).trim();

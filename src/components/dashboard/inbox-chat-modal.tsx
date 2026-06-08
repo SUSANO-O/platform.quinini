@@ -127,12 +127,20 @@ function fmtDateDivider(iso: string) {
   return d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'short' });
 }
 
-function messageHasBody(m: ChatMessage) {
-  return Boolean(m.content?.trim()) || Boolean(m.attachments?.some((a) => a.url));
+function messageText(m: ChatMessage): string {
+  return typeof m.content === 'string' ? m.content : String(m.content ?? '');
 }
 
-function sortMessages(messages: ChatMessage[]) {
+export function messageHasBody(m: ChatMessage) {
+  return Boolean(messageText(m).trim()) || Boolean(m.attachments?.some((a) => a?.url));
+}
+
+export function sortMessages(messages: ChatMessage[]) {
   return [...messages].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+}
+
+export function countVisibleMessages(messages: ChatMessage[]) {
+  return sortMessages(messages).filter(messageHasBody).length;
 }
 
 function senderKey(m: ChatMessage) {
@@ -207,36 +215,55 @@ export function ConversationThread({
   const [showScrollDown, setShowScrollDown] = useState(false);
   const rows = useMemo(() => buildThreadRows(messages), [messages]);
   const prevCountRef = useRef(0);
+  /** true mientras el usuario está cerca del final — evita robar el scroll al subir. */
+  const pinnedToBottomRef = useRef(true);
+  const threadAnchor = messages[0]?.id || (messages.length === 0 ? '' : `len-${messages.length}-${messages[0]?.createdAt}`);
+
+  useEffect(() => {
+    prevCountRef.current = 0;
+    pinnedToBottomRef.current = true;
+    setShowScrollDown(false);
+  }, [threadAnchor]);
 
   const scrollToBottom = useCallback((smooth = false) => {
     const el = ref.current;
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+    pinnedToBottomRef.current = true;
     setShowScrollDown(false);
   }, []);
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
     const grew = rows.length > prevCountRef.current;
+    const isFirstLoad = prevCountRef.current === 0 && rows.length > 0;
     prevCountRef.current = rows.length;
-    if (!grew || !showScrollDown) scrollToBottom();
-  }, [rows, showScrollDown, scrollToBottom]);
+    // Solo bajar automáticamente al abrir el hilo o si llegaron mensajes y ya estabas abajo.
+    if (isFirstLoad || (grew && pinnedToBottomRef.current)) {
+      scrollToBottom();
+    }
+  }, [rows, scrollToBottom]);
 
   const onScroll = () => {
     const el = ref.current;
     if (!el) return;
     const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
-    setShowScrollDown(dist > 100);
+    const nearBottom = dist <= 100;
+    pinnedToBottomRef.current = nearBottom;
+    setShowScrollDown(!nearBottom);
   };
 
   return (
-    <div className="relative flex flex-1 min-h-0">
+    <div className="conversation-thread relative flex flex-col flex-1 min-h-0 w-full h-full">
       <div
         ref={ref}
         onScroll={onScroll}
-        className="inbox-thread flex flex-col gap-1 flex-1 min-h-0 overflow-y-auto px-2 py-2 scroll-smooth"
+        className="inbox-thread flex flex-col gap-1 flex-1 min-h-0 w-full overflow-y-auto px-2 py-2"
       >
+        {rows.length === 0 ? (
+          <div className="flex flex-1 items-center justify-center px-4 text-center text-xs" style={{ color: 'var(--muted-foreground)' }}>
+            Sin mensajes para mostrar en este hilo.
+          </div>
+        ) : null}
         {rows.map((row) => {
           if (row.kind === 'date') {
             return (
@@ -297,7 +324,7 @@ export function ConversationThread({
                   ...bubble,
                 }}
               >
-                {m.content?.trim() ? <MessageContent text={m.content} /> : null}
+                {messageText(m).trim() ? <MessageContent text={messageText(m)} /> : null}
                 {m.attachments?.map((att, ai) =>
                   att.url ? <AttachmentView key={ai} att={att} onDark={onDark} /> : null,
                 )}
@@ -412,7 +439,7 @@ export function InboxChatModal({
   const draft = replyDraft.trim();
   const canSend = (draft.length > 0 || pendingAttachments.length > 0) && !sendingReply && !uploadingAttachment;
   const visibleMessageCount = useMemo(
-    () => (messages ? sortMessages(messages).filter(messageHasBody).length : 0),
+    () => (messages ? countVisibleMessages(messages) : 0),
     [messages],
   );
 
