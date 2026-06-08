@@ -17,7 +17,12 @@ import {
   extractSheetEntries, generateSheetId, sanitizeSheetName,
   type SheetEntry,
 } from '@/lib/agent-sheets';
-import { isSoloChatOnlyPlan, canUseWhatsApp } from '@/lib/plan-catalog';
+import {
+  isSoloChatOnlyPlan,
+  canUseWhatsApp,
+  sheetNightlySyncEnabled,
+  SHEET_SYNC_USD_PER_GB,
+} from '@/lib/plan-catalog';
 import {
   buildSkillConfigEntry,
   countEnabledSkills,
@@ -293,6 +298,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const plan = subscription?.plan ?? 'free';
   const limits = getAgentLimits(plan);
   const soloChatOnly = isSoloChatOnlyPlan(plan);
+  const sheetSyncAvailable = sheetNightlySyncEnabled(plan, subscription?.features);
+  const [sheetSyncMeta, setSheetSyncMeta] = useState<{
+    billingEnabled: boolean;
+    gbStored: number;
+    estimatedUsd: number;
+  } | null>(null);
 
   const [agent, setAgent] = useState<ClientAgent | null>(null);
   const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
@@ -439,6 +450,21 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [ragPreview]);
+
+  useEffect(() => {
+    if (tab !== 'tools' || !sheetSyncAvailable) return;
+    fetch('/api/billing/sheet-sync-usage', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!j || typeof j !== 'object') return;
+        setSheetSyncMeta({
+          billingEnabled: Boolean((j as { billingEnabled?: boolean }).billingEnabled),
+          gbStored: typeof (j as { gbStored?: number }).gbStored === 'number' ? (j as { gbStored: number }).gbStored : 0,
+          estimatedUsd: typeof (j as { estimatedUsd?: number }).estimatedUsd === 'number' ? (j as { estimatedUsd: number }).estimatedUsd : 0,
+        });
+      })
+      .catch(() => {});
+  }, [tab, sheetSyncAvailable]);
 
   useEffect(() => {
     if (tab !== 'rag' || !id) return;
@@ -2883,8 +2909,66 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   </div>
                   <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '0 0 14px', lineHeight: 1.5 }}>
                     Pega el enlace del archivo, <strong>elige la pestaña</strong> y describe qué debe buscar el agente.
-                    En hojas grandes el sistema <strong>filtra por búsqueda</strong> (no descarga todo). Archivo <strong>público</strong>.
+                    Activa <strong>sync 3 AM</strong> en Plus+ para consultas instantáneas desde Mongo. Archivo <strong>público</strong>.
                   </p>
+
+                  {sheetSyncAvailable ? (
+                    <div
+                      style={{
+                        marginBottom: 14,
+                        padding: '12px 14px',
+                        borderRadius: 10,
+                        border: '1px solid var(--border)',
+                        background: 'rgba(var(--brand-primary-rgb),0.04)',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 10,
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700 }}>Facturación almacenamiento sync</div>
+                        <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: '4px 0 0', lineHeight: 1.45 }}>
+                          ${SHEET_SYNC_USD_PER_GB}/GB · sync diario 3:00 AM (Bogotá) ·{' '}
+                          {sheetSyncMeta ? `${sheetSyncMeta.gbStored} GB almacenados` : 'cargando uso…'}
+                          {sheetSyncMeta && sheetSyncMeta.estimatedUsd > 0 ? ` · ~$${sheetSyncMeta.estimatedUsd.toFixed(2)}/mes` : ''}
+                        </p>
+                      </div>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, cursor: readOnly ? 'not-allowed' : 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={sheetSyncMeta?.billingEnabled ?? false}
+                          disabled={readOnly}
+                          onChange={async (e) => {
+                            const billingEnabled = e.target.checked;
+                            const res = await fetch('/api/billing/sheet-sync-usage', {
+                              method: 'PATCH',
+                              credentials: 'include',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ billingEnabled }),
+                            });
+                            if (res.ok) {
+                              const j = await res.json() as { billingEnabled?: boolean; billingActive?: boolean };
+                              setSheetSyncMeta((prev) => ({
+                                billingEnabled: Boolean(j.billingEnabled),
+                                gbStored: prev?.gbStored ?? 0,
+                                estimatedUsd: prev?.estimatedUsd ?? 0,
+                              }));
+                              toast.success(billingEnabled ? 'Cobro por almacenamiento activado' : 'Cobro desactivado');
+                            } else {
+                              toast.error('No se pudo actualizar la facturación');
+                            }
+                          }}
+                        />
+                        Cobrar almacenamiento (off por defecto)
+                      </label>
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: 11, color: '#d97706', margin: '0 0 14px' }}>
+                      Sync nocturno Sheets → Mongo disponible en <strong>Plus</strong> o superior.
+                    </p>
+                  )}
 
                   {entries.length === 0 ? (
                     <div style={{ padding: '24px 16px', border: '1px dashed var(--border)', borderRadius: 10, textAlign: 'center', color: 'var(--muted-foreground)', fontSize: 12 }}>
@@ -2899,6 +2983,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                           index={idx}
                           readOnly={readOnly}
                           inp={inp}
+                          sheetSyncAvailable={sheetSyncAvailable}
                           onUpdate={(patch) => updateSheet(t.toolId, s.id, patch)}
                           onRemove={() => removeSheet(t.toolId, s.id)}
                         />

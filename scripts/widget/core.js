@@ -8,7 +8,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.6.0';
+  var VERSION = '1.6.1';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -603,11 +603,69 @@
     }
   }
 
+  function trimUrlTrailingPunctuation(url) {
+    var trimmed = String(url || '');
+    var trail = '';
+    while (trimmed.length > 8 && /[.,;:!?)\]]$/.test(trimmed)) {
+      trail = trimmed.slice(-1) + trail;
+      trimmed = trimmed.slice(0, -1);
+    }
+    return { url: trimmed, trail: trail };
+  }
+
+  function linkifyEscapedText(esc) {
+    return String(esc || '').replace(/(https?:\/\/[^\s<>&"]+)/gi, function (raw) {
+      var parts = trimUrlTrailingPunctuation(raw);
+      var href = parts.url;
+      if (!href) return raw;
+      return (
+        '<a href="' +
+        href +
+        '" target="_blank" rel="noopener noreferrer" class="afhub-msg-link">' +
+        href +
+        '</a>' +
+        parts.trail
+      );
+    });
+  }
+
+  function appendTextWithLinks(el, text, linkStyle) {
+    var urlRegex = /https?:\/\/[^\s]+/gi;
+    var src = String(text || '');
+    if (!urlRegex.test(src)) {
+      el.textContent = src;
+      return;
+    }
+    urlRegex.lastIndex = 0;
+    var parts = src.split(urlRegex);
+    var urls = src.match(urlRegex) || [];
+    for (var pi = 0; pi < parts.length; pi++) {
+      if (parts[pi]) el.appendChild(document.createTextNode(parts[pi]));
+      if (pi < urls.length) {
+        var parsed = trimUrlTrailingPunctuation(urls[pi]);
+        var link = document.createElement('a');
+        link.href = parsed.url;
+        link.textContent = parsed.url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = 'afhub-msg-link';
+        if (linkStyle) {
+          for (var sk in linkStyle) {
+            if (Object.prototype.hasOwnProperty.call(linkStyle, sk)) link.style[sk] = linkStyle[sk];
+          }
+        }
+        el.appendChild(link);
+        if (parsed.trail) el.appendChild(document.createTextNode(parsed.trail));
+      }
+    }
+  }
+
   function formatInlineOnlyEsc(esc) {
     var t = esc;
     t = t.replace(/`([^`]+)`/g, '<code class="afhub-code">$1</code>');
     t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     t = t.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    t = linkifyEscapedText(t);
     return t;
   }
 
@@ -2132,33 +2190,11 @@
           });
         }
       } else {
-        // Detectar y convertir URLs a links en mensajes de usuario
-        var urlRegex = /https?:\/\/[^\s]+/gi;
-        var hasUrls = urlRegex.test(text);
-        if (hasUrls) {
-          // Reset regex
-          urlRegex = /https?:\/\/[^\s]+/gi;
-          var parts = text.split(urlRegex);
-          var urls = text.match(urlRegex) || [];
-          for (var pi = 0; pi < parts.length; pi++) {
-            if (parts[pi]) {
-              el.appendChild(document.createTextNode(parts[pi]));
-            }
-            if (pi < urls.length) {
-              var link = document.createElement('a');
-              link.href = urls[pi];
-              link.textContent = urls[pi];
-              link.target = '_blank';
-              link.rel = 'noopener noreferrer';
-              link.style.color = 'rgba(255,255,255,.92)';
-              link.style.textDecoration = 'underline';
-              link.style.wordBreak = 'break-all';
-              el.appendChild(link);
-            }
-          }
-        } else {
-          el.textContent = text;
-        }
+        appendTextWithLinks(el, text, {
+          color: 'rgba(255,255,255,.92)',
+          textDecoration: 'underline',
+          wordBreak: 'break-all',
+        });
         if (imgOpts && imgOpts.userImages && imgOpts.userImages.length) {
           for (var ui = 0; ui < imgOpts.userImages.length; ui++) {
             var uItem = imgOpts.userImages[ui];
@@ -2816,7 +2852,7 @@
       if (text) {
         var tx = document.createElement('div');
         tx.className = 'afhub-msg-text';
-        tx.textContent = text;
+        appendTextWithLinks(tx, text);
         bubble.appendChild(tx);
       }
       for (var i = 0; i < atts.length; i++) appendHumanAttachment(bubble, atts[i]);
@@ -2828,16 +2864,40 @@
       if (!opts.silent) onHumanMessageArrived();
     }
 
-    function deactivateHumanMode(msg) {
+    function resetHumanModeState(msg) {
       humanModeActive = false;
       if (humanPollTimer) { clearInterval(humanPollTimer); humanPollTimer = null; }
       if (humanModeTimer) { clearTimeout(humanModeTimer); humanModeTimer = null; }
-      // Descartar adjuntos del visitante que quedaran sin enviar.
+      humanShownIds = {};
+      humanPollCount = 0;
+      humanTimeoutOffered = false;
       if (pendingHumanAttachments.length) { pendingHumanAttachments = []; renderHumanAttachPreviews(); }
       if (msg) addMessage('bot', msg);
-      // Reactiva el input de chat (si lo habíamos desactivado).
       var inp = chat.querySelector('.afhub-input, .afhub-chat-input, textarea');
       if (inp) inp.disabled = false;
+    }
+
+    function deactivateHumanMode(msg) {
+      resetHumanModeState(msg);
+    }
+
+    function historyIsUserOnly(hist) {
+      return Array.isArray(hist) && hist.length > 0 && hist.every(function (e) {
+        return e && e.role === 'user';
+      });
+    }
+
+    function resetToWelcomeChat() {
+      history = [];
+      lastMsgDateKey = '';
+      historyDomReady = false;
+      clearPersistedChatState(cfg);
+      removeFeedbackCard();
+      feedbackOfferShown = false;
+      messages.innerHTML = '';
+      addMessage('bot', cfg.welcome);
+      historyDomReady = true;
+      saveChatToSession();
     }
 
     function pollHumanMessages() {
@@ -2876,7 +2936,7 @@
             if (feedbackQs.length && !feedbackAlreadyDone()) {
               // Cerrar modo humano y ofrecer la encuesta final.
               deactivateHumanMode();
-              addMessage('bot', 'La conversación con el agente ha finalizado. Antes de irte, ¿nos dejas tu opinión?');
+              addMessage('bot', 'La conversación con el agente ha finalizado. Antes de irte, ¿nos dejas tu opinión?', { noFeedback: true });
               openFeedbackSurvey(null);
             } else {
               deactivateHumanMode('La conversación con el agente ha finalizado. ¿Puedo ayudarte en algo más?');
@@ -2907,6 +2967,10 @@
             if (!opts.skipReconnectBanner) {
               addMessage('bot', 'Sigues conectado con un agente. Escríbele aquí y te responderá en este chat.');
             }
+            return;
+          }
+          if (historyIsUserOnly(history)) {
+            resetToWelcomeChat();
           }
         })
         .catch(function () { /* silencioso */ });
@@ -2973,7 +3037,7 @@
       if (mins <= 0 || countUserTurnsInHistory(history) <= 0) return;
       var age = lastActivityAge();
       if (age > 0 && age > mins * 60 * 1000) {
-        addMessage('bot', 'Esta conversación se finalizó por inactividad. Antes de empezar otra, ¿nos dejas tu opinión?');
+        addMessage('bot', 'Esta conversación se finalizó por inactividad. Antes de empezar otra, ¿nos dejas tu opinión?', { noFeedback: true });
         openFeedbackSurvey(function () { startNewConversation(); });
       }
     }
@@ -3086,6 +3150,130 @@
       var cb = feedbackOnDone; feedbackOnDone = null;
       if (typeof cb === 'function') cb();
     }
+
+    function normalizeFeedbackToken(t) {
+      return String(t || '').trim().toLowerCase()
+        .replace(/á/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i')
+        .replace(/ó/g, 'o').replace(/ú/g, 'u').replace(/ü/g, 'u').replace(/ñ/g, 'n');
+    }
+
+    function isAffirmativeFeedback(t) {
+      var raw = String(t || '').trim();
+      var n = normalizeFeedbackToken(raw);
+      if (!n) return false;
+      if (/^👍/.test(raw)) return true;
+      return n === 'si' || n === 'yes' || n === 'ya' || n === 'claro' || n === 'ok' || n === 'okey'
+        || n === 'vale' || n === 'bueno' || n === 'bien' || n === 'excelente' || n === 'perfecto'
+        || n === 'genial' || n === '+1' || n === 'de acuerdo';
+    }
+
+    function isNegativeFeedback(t) {
+      var raw = String(t || '').trim();
+      var n = normalizeFeedbackToken(raw);
+      if (!n) return false;
+      if (/^👎/.test(raw)) return true;
+      return n === 'no' || n === 'nop' || n === 'nope' || n === 'mal' || n === 'pesimo' || n === 'regular';
+    }
+
+    function isFeedbackDismissText(t) {
+      var n = normalizeFeedbackToken(t);
+      return /^(ahora no|omitir|saltar|skip|luego|despues|no gracias|paso)$/.test(n);
+    }
+
+    function lastBotMessageAsksForFeedback() {
+      for (var i = history.length - 1; i >= 0; i--) {
+        var role = history[i] && history[i].role;
+        if (role === 'model' || role === 'assistant' || role === 'bot') {
+          var txt = String(history[i].content || '').toLowerCase();
+          return /opini[oó]n|calificar|experiencia|encuesta|nos dejas|valoraci[oó]n|antes de (irte|empezar)/.test(txt);
+        }
+        if (role === 'user') break;
+      }
+      return false;
+    }
+
+    function autofillFeedbackCardFromSentiment(positive) {
+      if (!feedbackCard) return false;
+      var qEls = feedbackCard.querySelectorAll('.afhub-fb-q');
+      for (var i = 0; i < qEls.length; i++) {
+        var el = qEls[i];
+        var type = el.getAttribute('data-type');
+        if (type === 'rating') {
+          var val = positive ? 5 : 2;
+          var group = el.querySelector('.afhub-fb-stars');
+          if (group) {
+            group.setAttribute('data-value', String(val));
+            var stars = group.querySelectorAll('.afhub-fb-star');
+            for (var m = 0; m < stars.length; m++) {
+              var bv = parseInt(stars[m].getAttribute('data-star'), 10);
+              stars[m].style.color = bv <= val ? '#f5b301' : '#ccc';
+            }
+          }
+        } else if (type === 'yesno') {
+          var radios = el.querySelectorAll('input[type=radio]');
+          for (var r = 0; r < radios.length; r++) {
+            var rv = normalizeFeedbackToken(radios[r].value);
+            if ((positive && rv === 'si') || (!positive && rv === 'no')) {
+              radios[r].checked = true;
+              break;
+            }
+          }
+        } else {
+          var ta = el.querySelector('.afhub-fb-text');
+          if (ta && !ta.value.trim()) {
+            ta.value = positive ? 'Buena experiencia' : 'Puede mejorar';
+          }
+        }
+      }
+      return true;
+    }
+
+    function recordQuickFeedback(value) {
+      emitEvent('message_feedback', {
+        value: value,
+        feedbackId: 'fb_text_' + Date.now(),
+        messagePreview: 'feedback_text_reply',
+      });
+      try { sessionStorage.setItem('afhub-fb-done:' + chatSessionId, '1'); } catch (e) { /* */ }
+    }
+
+    /** Respuestas cortas (sí/no/ahora no) mientras hay encuesta pendiente — no enviar al agente. */
+    function tryConsumeFeedbackTextReply(text) {
+      if (feedbackAlreadyDone() || !feedbackQs.length) return false;
+      var raw = String(text || '').trim();
+      if (!raw) return false;
+
+      if (isFeedbackDismissText(raw)) {
+        if (feedbackCard || feedbackOnDone || lastBotMessageAsksForFeedback()) {
+          dismissFeedback();
+          return true;
+        }
+        return false;
+      }
+
+      var aff = isAffirmativeFeedback(raw);
+      var neg = isNegativeFeedback(raw);
+      if (!aff && !neg) return false;
+
+      var inFeedbackFlow = !!(feedbackCard || feedbackOnDone || lastBotMessageAsksForFeedback());
+      if (!inFeedbackFlow) return false;
+
+      if (!feedbackCard) openFeedbackSurvey(null);
+
+      if (feedbackCard) {
+        autofillFeedbackCardFromSentiment(aff);
+        submitFeedback();
+        return true;
+      }
+
+      recordQuickFeedback(aff ? 'up' : 'down');
+      addMessage('bot', cfg.feedbackThanks || '¡Gracias por tu feedback!', { noFeedback: true });
+      var cb = feedbackOnDone;
+      feedbackOnDone = null;
+      if (typeof cb === 'function') setTimeout(cb, 800);
+      return true;
+    }
+
     function submitFeedback() {
       var res = collectFeedbackAnswers();
       var errEl = feedbackCard && feedbackCard.querySelector('.afhub-fb-error');
@@ -3203,6 +3391,7 @@
     function startNewConversation() {
       if (isLoading) return;
       emitEvent('widget_closed');
+      resetHumanModeState();
       clearPersistedChatState(cfg);
       try {
         sessionStorage.removeItem(chatSessionStorageKey(cfg) + ':long-warn');
@@ -3211,16 +3400,16 @@
       }
       chatSessionId = rotateChatSessionId(cfg);
       history = [];
-      feedbackOfferShown = false; // nueva conversación → puede volver a ofrecer la encuesta
+      feedbackOfferShown = false;
+      feedbackOnDone = null;
       touchActivity();
       lastGeneratedImageDataUrl = '';
-      lastSessionImageUrls = [];
-      clearPendingAttachment();
       lastSessionImageUrls = [];
       clearPendingAttachment();
       historyDomReady = false;
       lastMsgDateKey = '';
       hideTyping();
+      removeFeedbackCard();
       messages.innerHTML = '';
       input.value = '';
       input.style.height = 'auto';
@@ -3493,6 +3682,18 @@
       var hasAttach = !!(pendingAttachment && pendingAttachment.dataUrl);
       var hasHumanAttach = humanActive && pendingHumanAttachments.length > 0;
       if ((!text && !hasAttach && !hasHumanAttach) || isLoading) return;
+
+      if (text && !hasAttach && !hasHumanAttach && tryConsumeFeedbackTextReply(text)) {
+        addMessage('user', text);
+        history.push({ role: 'user', content: text });
+        saveChatToSession();
+        touchActivity();
+        input.value = '';
+        input.style.height = 'auto';
+        syncSendButtonState();
+        return;
+      }
+
       if (!cfg.agentId) {
         var errNoAgent = { message: 'Configura agentId para usar el widget.', code: 'MISSING_AGENT_ID' };
         notify('onError', errNoAgent);
@@ -4877,6 +5078,9 @@
       '#' + rootId + ' .afhub-msg-rich .afhub-code { font-size:.9em; padding:2px 6px; border-radius:5px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:rgba(0,0,0,.07); }' +
       '#' + rootId + ' .afhub-msg-rich strong { font-weight:600; }' +
       '#' + rootId + ' .afhub-msg-rich em { font-style:italic; opacity:.95; }' +
+      '#' + rootId + ' .afhub-msg-link { color:' + cfg.color + '; text-decoration:underline; word-break:break-all; }' +
+      '#' + rootId + ' .afhub-msg-link:hover { filter:brightness(0.92); }' +
+      '#' + rootId + ' .afhub-msg.user .afhub-msg-link { color:rgba(255,255,255,.95); }' +
       '#' + rootId + ' .afhub-msg-copy-btn { width:24px; height:24px; opacity:1; }' +
       '#' + rootId + ' .afhub-msg-copy-btn svg { width:13px; height:13px; }' +
       '#' + rootId + ' .afhub-msg-copy-btn.active { border:none; color:' + cfg.color + '; background:' + cfg.color + '14; }' +
@@ -4924,7 +5128,7 @@
       '#' + rootId + ' .afhub-dot { width:8px; height:8px; background:#aaa; border-radius:50%; animation:afhub-bounce .6s infinite alternate; }' +
       '#' + rootId + ' .afhub-dot:nth-child(2) { animation-delay:.2s; }' +
       '#' + rootId + ' .afhub-dot:nth-child(3) { animation-delay:.4s; }' +
-      '#' + rootId + ' .afhub-powered { text-align:center; font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:#b8bcc4; padding:4px 0 6px; flex-shrink:0; font-weight:600; }' +
+      '#' + rootId + ' .afhub-powered { text-align:center; font-size:8px; letter-spacing:.1em; text-transform:uppercase; color:#b8bcc4; padding:2px 0 4px; flex-shrink:0; font-weight:600; }' +
       '#' + rootId + ' .afhub-powered a { color:#9aa0ac; text-decoration:none; font-weight:700; }' +
       '#' + rootId + ' .afhub-powered a:hover { text-decoration:underline; }' +
       '#' + rootId + ' .afhub-persona-offer { align-self:flex-start; max-width:92%; padding:10px 14px; border-radius:12px; border:1px solid rgba(0,0,0,.08); background:rgba(0,0,0,.03); font-size:13px; line-height:1.45; }' +
@@ -4938,8 +5142,8 @@
       '#' + rootId + ' .afhub-handoff-btn:hover { background:' + cfg.color + '18; }' +
       '#' + rootId + ' .afhub-handoff-btn:disabled { cursor:not-allowed; opacity:.6; }' +
       // Barra de acciones compacta (chips) — "Hablar con una persona"
-      '#' + rootId + ' .afhub-action-bar { flex-shrink:0; display:flex; gap:6px; padding:6px 12px 8px; border-top:none; background:#fff; }' +
-      '#' + rootId + ' .afhub-action-btn { flex:1; min-width:0; padding:10px 14px; border-radius:999px; border:1.5px solid ' + cfg.color + ' !important; background:#fff !important; color:' + cfg.color + ' !important; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; transition:background .15s,border-color .15s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; appearance:none; -webkit-appearance:none; }' +
+      '#' + rootId + ' .afhub-action-bar { flex-shrink:0; display:flex; gap:6px; padding:4px 10px 4px; border-top:none; background:#fff; }' +
+      '#' + rootId + ' .afhub-action-btn { flex:1; min-width:0; padding:7px 12px; border-radius:999px; border:1.5px solid ' + cfg.color + ' !important; background:#fff !important; color:' + cfg.color + ' !important; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; transition:background .15s,border-color .15s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; appearance:none; -webkit-appearance:none; }' +
       '#' + rootId + ' .afhub-action-btn:hover { background:' + cfg.color + '0d !important; }' +
       '#' + rootId + ' .afhub-action-btn--ghost { border-color:#e2e4e8; color:#80868b; }' +
       '#' + rootId + ' .afhub-action-btn--ghost:hover { background:#f5f6f7; color:#5f6368; }' +
@@ -4966,7 +5170,7 @@
       '#' + rootId + ' .afhub-handoff-submit:hover { filter:brightness(0.95); }' +
       '#' + rootId + ' .afhub-handoff-submit:disabled { opacity:.6; cursor:wait; }' +
       '#' + rootId + ' .afhub-shortcuts-wrap { flex-shrink:0; border-top:1px solid #e8eaed; }' +
-      '#' + rootId + ' .afhub-shortcuts-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; padding:7px 14px; background:transparent; border:none; cursor:pointer; font-family:inherit; flex-shrink:0; }' +
+      '#' + rootId + ' .afhub-shortcuts-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; padding:5px 12px; background:transparent; border:none; cursor:pointer; font-family:inherit; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-shortcuts-toggle:hover { background:' + cfg.color + '0a; }' +
       '#' + rootId + ' .afhub-shortcuts-toggle-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:' + cfg.color + '; }' +
       '#' + rootId + ' .afhub-shortcuts-toggle-chevron { font-size:18px; color:' + cfg.color + '; transition:transform .2s; line-height:1; }' +
@@ -4978,12 +5182,12 @@
       '#' + rootId + ' .afhub-pill-text { flex:1; line-height:1.4; white-space:normal; overflow-wrap:break-word; word-break:break-word; min-width:0; }' +
       '#' + rootId + ' .afhub-pill-arrow { font-size:18px; color:' + cfg.color + '; flex-shrink:0; font-weight:400; line-height:1; }' +
       // Aviso de privacidad / política (footer del chat)
-      '#' + rootId + ' .afhub-policy { text-align:center; font-size:10px; line-height:1.45; color:#9aa0ac; padding:6px 14px 2px; flex-shrink:0; }' +
+      '#' + rootId + ' .afhub-policy { text-align:center; font-size:9px; line-height:1.35; color:#9aa0ac; padding:3px 12px 0; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-policy-link { color:' + cfg.color + '; text-decoration:underline; }' +
       '#' + rootId + ' a.afhub-policy-link { cursor:pointer; }' +
       '#' + rootId + ' a.afhub-policy-link:hover { filter:brightness(0.9); }' +
-      '#' + rootId + ' .afhub-input-area { padding:10px 12px 12px; border-top:1px solid #e8ecf0; display:flex; gap:8px; flex-shrink:0; background:#fff; align-items:flex-end; }' +
-      '#' + rootId + ' .afhub-input-composer { flex:1; min-width:0; display:flex; align-items:flex-end; gap:2px; padding:5px 6px 5px 4px; border-radius:24px; background:#f8fafc; border:1px solid #e2e8f0; transition:border-color .15s ease,box-shadow .15s ease,background .15s ease; }' +
+      '#' + rootId + ' .afhub-input-area { padding:6px 10px 8px; border-top:1px solid #e8ecf0; display:flex; gap:6px; flex-shrink:0; background:#fff; align-items:flex-end; }' +
+      '#' + rootId + ' .afhub-input-composer { flex:1; min-width:0; display:flex; align-items:flex-end; gap:2px; padding:4px 5px 4px 3px; border-radius:22px; background:#f8fafc; border:1px solid #e2e8f0; transition:border-color .15s ease,box-shadow .15s ease,background .15s ease; }' +
       '#' + rootId + ' .afhub-input-composer:focus-within { border-color:' + cfg.color + '55; box-shadow:0 0 0 3px ' + cfg.color + '14; background:#fff; }' +
       '#' + rootId + ' .afhub-attach-input { position:absolute; width:0; height:0; opacity:0; pointer-events:none; overflow:hidden; }' +
       '#' + rootId + ' .afhub-attach { width:34px; height:34px; border-radius:10px; border:none; cursor:pointer; background:transparent; color:#64748b; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background .18s,color .18s; padding:0; }' +
@@ -4998,11 +5202,11 @@
       '#' + rootId + ' .afhub-input-wrap { flex:1; min-width:0; position:relative; display:flex; align-items:center; }' +
       '#' + rootId + ' .afhub-input-wrap .afhub-input { width:100%; padding-right:40px; }' +
       '#' + rootId + ' .afhub-input-wrap .afhub-mic { position:absolute; right:4px; top:50%; transform:translateY(-50%); z-index:1; }' +
-      '#' + rootId + ' .afhub-input { flex:1; min-width:0; border:none; border-radius:18px; padding:8px 10px; font-size:14px; font-weight:400; outline:none; resize:none; min-height:36px; max-height:96px; line-height:1.4; letter-spacing:-0.01em; font-family:inherit !important; color:#0f172a !important; -webkit-text-fill-color:#0f172a; caret-color:' + cfg.color + '; background:transparent; box-shadow:none; overflow-y:auto; scrollbar-width:none; transition:none; }' +
+      '#' + rootId + ' .afhub-input { flex:1; min-width:0; border:none; border-radius:18px; padding:6px 9px; font-size:13px; font-weight:400; outline:none; resize:none; min-height:32px; max-height:88px; line-height:1.35; letter-spacing:-0.01em; font-family:inherit !important; color:#0f172a !important; -webkit-text-fill-color:#0f172a; caret-color:' + cfg.color + '; background:transparent; box-shadow:none; overflow-y:auto; scrollbar-width:none; transition:none; }' +
       '#' + rootId + ' .afhub-input::-webkit-scrollbar { display:none; width:0; height:0; }' +
       '#' + rootId + ' .afhub-input::placeholder { color:#94a3b8; opacity:1; font-weight:400; }' +
       '#' + rootId + ' .afhub-input:focus { box-shadow:none; }' +
-      '#' + rootId + ' .afhub-send { width:42px; height:42px; border-radius:50%; border:none; cursor:pointer; background:linear-gradient(145deg,' + cfg.color + ',' + cfg.color + 'dd); color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:opacity .15s,transform .12s ease,box-shadow .15s ease; box-shadow:0 4px 14px rgba(15,23,42,.16); }' +
+      '#' + rootId + ' .afhub-send { width:36px; height:36px; border-radius:50%; border:none; cursor:pointer; background:linear-gradient(145deg,' + cfg.color + ',' + cfg.color + 'dd); color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:opacity .15s,transform .12s ease,box-shadow .15s ease; box-shadow:0 3px 10px rgba(15,23,42,.14); }' +
       '#' + rootId + ' .afhub-send:not(:disabled):hover { transform:scale(1.04); }' +
       '#' + rootId + ' .afhub-send:disabled { opacity:.35; cursor:default; box-shadow:none; }' +
       '#' + rootId + ' .afhub-send svg { width:17px; height:17px; }' +

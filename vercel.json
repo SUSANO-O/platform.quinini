@@ -11,12 +11,20 @@
     {
       "path": "/api/internal/warmup",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/internal/sheet-sync",
+      "schedule": "0 8 * * *"
     }
   ],
   "functions": {
     "src/app/api/agents/[id]/rag/scrape/route.ts": {
       "memory": 1024,
       "maxDuration": 60
+    },
+    "src/app/api/internal/sheet-sync/route.ts": {
+      "memory": 1024,
+      "maxDuration": 300
     }
   }
 }

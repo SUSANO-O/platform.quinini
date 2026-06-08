@@ -8,6 +8,7 @@ import { connectDB } from '@/lib/db/connection';
 import { ConversationSession, Widget, WidgetMessage } from '@/lib/db/models';
 import { inboxSessionFilter, inboxTranscriptSessionId } from '@/lib/inbox-handoff';
 import { enrichInboxContact } from '@/lib/inbox-visitor-display';
+import { resolveInboxSession } from '@/lib/inbox-resolve';
 import { verifySessionToken } from '@/lib/auth';
 
 function getUserId(req: NextRequest): string | null {
@@ -170,6 +171,43 @@ export async function PATCH(req: NextRequest) {
   }
 
   await connectDB();
+
+  if (inboxStatus === 'resolved') {
+    const session = await ConversationSession.findOne({
+      sessionId,
+      userId,
+      escalated: true,
+    }).lean();
+
+    if (!session) {
+      return NextResponse.json({ error: 'Sesión no encontrada.' }, { status: 404 });
+    }
+
+    const resolveResult = await resolveInboxSession(userId, {
+      sessionId: String(session.sessionId),
+      chatSessionId: typeof session.chatSessionId === 'string' ? session.chatSessionId : '',
+      widgetId: String(session.widgetId || ''),
+      agentId: String(session.agentId || ''),
+      userId: String(session.userId || userId),
+      startedAt: session.startedAt as Date,
+    });
+
+    if (!resolveResult.ok) {
+      return NextResponse.json({ error: resolveResult.error }, { status: 502 });
+    }
+
+    const updated = await ConversationSession.findOne({ sessionId, userId }).lean();
+    return NextResponse.json({
+      ok: true,
+      sessionId,
+      inboxStatus: 'resolved',
+      channel: resolveResult.channel,
+      messageSent: resolveResult.messageSent,
+      followUpAt: updated?.followUpAt ? new Date(updated.followUpAt).toISOString() : null,
+      followUpNote: updated?.followUpNote ?? '',
+    });
+  }
+
   const $set: Record<string, unknown> = {};
   if (inboxStatus) $set.inboxStatus = inboxStatus;
   if (body.clearFollowUp === true) {

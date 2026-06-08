@@ -246,15 +246,6 @@ export default function AgentsPage() {
         </div>
       ) : null}
 
-      <aside className="dashboard-callout">
-        <p className="dashboard-callout__text m-0">
-          <Link href="/dashboard/mcp" className="font-semibold landing-link-accent no-underline">
-            Catálogo MCP →
-          </Link>{' '}
-          Conecta herramientas externas a tus agentes.
-        </p>
-      </aside>
-
       {loading ? (
         <AiLoadingInline
           label="Cargando agentes…"

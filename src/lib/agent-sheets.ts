@@ -22,6 +22,8 @@ export interface SheetEntry {
   tabTitle?:   string;   // nombre visible de la pestaña en Google
   tabGid?:     string;   // gid de la pestaña elegida
   range?:      string;   // opcional, ej. "Inventario!A1:F50"
+  /** Sync nocturno 3 AM → Mongo (Plus+). Default false. */
+  nightlySyncEnabled?: boolean;
 }
 
 /** Sanea nombre a identificador LLM-safe. */
@@ -179,6 +181,7 @@ export function extractSheetEntries(
       ...(tabTitle ? { tabTitle } : {}),
       ...(tabGid ? { tabGid } : {}),
       ...(typeof e.range === 'string' && e.range.trim() ? { range: e.range.trim() } : {}),
+      nightlySyncEnabled: e.nightlySyncEnabled === true,
     });
   }
   return out;
@@ -195,6 +198,51 @@ export function extractAgentSheets(agent: {
     out.push(...extractSheetEntries(t.config));
   }
   return out;
+}
+
+/** Rango A1 para paginación de sync/fetch parcial. */
+export function sheetDataRowsToA1Range(fromRow: number, toRowExclusive: number, maxCol = 'ZZ'): string {
+  const start = Math.max(0, Math.floor(fromRow)) + 2;
+  const end = Math.max(start, Math.floor(toRowExclusive) + 1);
+  return `A${start}:${maxCol}${end}`;
+}
+
+export function buildGvizCsvUrl(params: {
+  spreadsheetId: string;
+  gid?: string | null;
+  sheetName?: string | null;
+  range?: string;
+}): string {
+  const u = new URL(`https://docs.google.com/spreadsheets/d/${params.spreadsheetId}/gviz/tq`);
+  u.searchParams.set('tqx', 'out:csv');
+  if (params.gid) u.searchParams.set('gid', params.gid);
+  else if (params.sheetName) u.searchParams.set('sheet', params.sheetName);
+  if (params.range) u.searchParams.set('range', params.range);
+  return u.toString();
+}
+
+/** Parsea CSV simple en header + filas. */
+export function parseSimpleCsv(csv: string): { header: string[]; rows: string[][] } {
+  const lines = csv.split('\n').filter((l) => l.trim() !== '');
+  if (lines.length === 0) return { header: [], rows: [] };
+  const parseLine = (line: string): string[] => {
+    const out: string[] = [];
+    let cur = '';
+    let inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i]!;
+      if (ch === '"') {
+        if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+        else inQ = !inQ;
+      } else if (ch === ',' && !inQ) { out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out;
+  };
+  const header = parseLine(lines[0]!);
+  const rows = lines.slice(1).map(parseLine);
+  return { header, rows };
 }
 
 export function agentHasAnySheet(agent: {

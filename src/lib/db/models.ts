@@ -105,6 +105,8 @@ const SubscriptionSchema = new Schema({
   /** Override del límite de tareas programadas para este cliente (null = usar el del plan).
    *  -1 = ilimitado. Acordado manualmente desde admin. */
   scheduledTaskLimit: { type: Number, default: null },
+  /** Facturar almacenamiento de sync Sheets→Mongo ($1/GB). Default: false. */
+  sheetSyncBillingEnabled: { type: Boolean, default: false },
 }, { timestamps: true });
 
 SubscriptionSchema.index({ lsCustomerId: 1 });
@@ -889,3 +891,41 @@ const SkillCatalogSchema = new Schema({
 SkillCatalogSchema.index({ kind: 1, sortOrder: 1 });
 
 export const SkillCatalog = mongoose.models.SkillCatalog || mongoose.model('SkillCatalog', SkillCatalogSchema);
+
+// ── SHEET SNAPSHOTS (sync nocturno Plus) ────────────────────────────────────
+
+const SheetSnapshotSchema = new Schema({
+  userId:         { type: String, required: true, index: true },
+  agentId:        { type: String, required: true, index: true },
+  sheetEntryId:   { type: String, required: true },
+  sheetName:      { type: String, default: '' },
+  spreadsheetId:  { type: String, default: '' },
+  tabGid:         { type: String, default: '' },
+  tabTitle:       { type: String, default: '' },
+  header:         { type: [String], default: [] },
+  rows:           { type: [[String]], default: [] },
+  byteSize:       { type: Number, default: 0 },
+  rowCount:       { type: Number, default: 0 },
+  syncedAt:       { type: Date, default: Date.now },
+  syncError:      { type: String, default: null },
+}, { timestamps: true });
+
+SheetSnapshotSchema.index({ agentId: 1, sheetEntryId: 1 }, { unique: true });
+SheetSnapshotSchema.index({ userId: 1, syncedAt: -1 });
+
+export const SheetSnapshot =
+  mongoose.models.SheetSnapshot || mongoose.model('SheetSnapshot', SheetSnapshotSchema);
+
+const SheetSyncUsageSchema = new Schema({
+  userId:           { type: String, required: true },
+  month:            { type: String, required: true },
+  bytesStored:      { type: Number, default: 0 },
+  estimatedUsd:     { type: Number, default: 0 },
+  billingEnabled:   { type: Boolean, default: false },
+  lastSyncAt:       { type: Date, default: null },
+}, { timestamps: true });
+
+SheetSyncUsageSchema.index({ userId: 1, month: 1 }, { unique: true });
+
+export const SheetSyncUsage =
+  mongoose.models.SheetSyncUsage || mongoose.model('SheetSyncUsage', SheetSyncUsageSchema);
