@@ -14,9 +14,9 @@ import { buildPlanWhatsAppUrl } from '@/lib/sales-whatsapp';
 /** Métodos de pago aceptados (pago coordinado por WhatsApp). Si existe el SVG oficial
  *  en /public/payment/<slug>.svg se muestra el logo; si no, badge de color con icono. */
 const PAYMENT_METHODS: { name: string; slug: string; bg: string; Icon: LucideIcon }[] = [
-  { name: 'Nequi', slug: 'nequi', bg: '#DA0081', Icon: Smartphone },     // billetera móvil
-  { name: 'Daviplata', slug: 'daviplata', bg: '#E1251B', Icon: Wallet }, // billetera móvil
-  { name: 'PSE', slug: 'pse', bg: '#1D5BA4', Icon: Landmark },           // transferencia bancaria
+ // { name: 'Nequi', slug: 'nequi', bg: '#DA0081', Icon: Smartphone },     // billetera móvil
+ // { name: 'Daviplata', slug: 'daviplata', bg: '#E1251B', Icon: Wallet }, // billetera móvil
+ // { name: 'PSE', slug: 'pse', bg: '#1D5BA4', Icon: Landmark },           // transferencia bancaria
   { name: 'Bre-B', slug: 'bre-b', bg: '#0FB5BA', Icon: Zap },            // pago inmediato
 ];
 
