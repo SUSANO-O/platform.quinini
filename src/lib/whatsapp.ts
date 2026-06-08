@@ -26,7 +26,25 @@ export type WhatsAppAgentConfig = {
   verifyToken?: string;
   apiVersion?: string;
   status?: string;
+  /** Plantilla Meta aprobada para alertas de handoff (override de HANDOFF_WA_TEMPLATE_NAME). */
+  handoffTemplateName?: string;
+  handoffTemplateLang?: string;
 };
+
+function resolveHandoffTemplateName(cfg: WhatsAppAgentConfig): string {
+  const enabled = process.env.HANDOFF_WA_TEMPLATE_ENABLED === '1'
+    || process.env.HANDOFF_WA_TEMPLATE_ENABLED === 'true';
+  if (!enabled) return '';
+  const fromAgent = typeof cfg.handoffTemplateName === 'string' ? cfg.handoffTemplateName.trim() : '';
+  if (fromAgent) return fromAgent;
+  return (process.env.HANDOFF_WA_TEMPLATE_NAME || '').trim();
+}
+
+function resolveHandoffTemplateLang(cfg: WhatsAppAgentConfig): string {
+  const fromAgent = typeof cfg.handoffTemplateLang === 'string' ? cfg.handoffTemplateLang.trim() : '';
+  if (fromAgent) return fromAgent;
+  return (process.env.HANDOFF_WA_TEMPLATE_LANG || 'es').trim() || 'es';
+}
 
 /** URL pública del webhook que el cliente configura en Meta. */
 export function getWhatsAppWebhookUrl(): string {
@@ -43,6 +61,21 @@ export function generateVerifyToken(): string {
 export function getWhatsAppAccessToken(cfg: WhatsAppAgentConfig | null | undefined): string {
   if (!cfg || !cfg.accessTokenEnc) return '';
   return decryptSecret(cfg.accessTokenEnc);
+}
+
+/** Motivo legible si faltan credenciales o el token no descifra (p. ej. SECRET_ENCRYPTION_KEY distinta en local). */
+export function resolveWhatsAppSendConfigError(cfg: WhatsAppAgentConfig | null | undefined): string | null {
+  if (!cfg) return 'WhatsApp: agente sin configuración.';
+  const phoneNumberId = (cfg.phoneNumberId || '').trim();
+  if (!phoneNumberId) return 'WhatsApp: falta phoneNumberId en el agente.';
+  if (!cfg.accessTokenEnc) return 'WhatsApp: el agente no tiene access token guardado.';
+  if (!getWhatsAppAccessToken(cfg)) {
+    if (process.env.SECRET_ENCRYPTION_KEY?.trim()) {
+      return 'WhatsApp: no se pudo descifrar el token (SECRET_ENCRYPTION_KEY incorrecta).';
+    }
+    return 'WhatsApp: no se pudo descifrar el token (copia SECRET_ENCRYPTION_KEY de producción a tu .env local).';
+  }
+  return null;
 }
 
 /** Descifra el app secret del agente (o '' si no hay). */
@@ -81,10 +114,11 @@ export async function sendWhatsAppText(
   toPhone: string,
   text: string,
 ): Promise<{ ok: boolean; id?: string; error?: string }> {
-  const token = getWhatsAppAccessToken(cfg);
+  const configError = resolveWhatsAppSendConfigError(cfg);
+  if (configError) return { ok: false, error: configError };
+  const token = getWhatsAppAccessToken(cfg)!;
   const phoneNumberId = (cfg.phoneNumberId || '').trim();
   const version = (cfg.apiVersion || 'v21.0').trim();
-  if (!token || !phoneNumberId) return { ok: false, error: 'WhatsApp no configurado.' };
   if (!toPhone || !text) return { ok: false, error: 'Faltan destinatario o texto.' };
 
   try {
@@ -114,31 +148,143 @@ export async function sendWhatsAppText(
   }
 }
 
+/** Plantilla Meta (utility) — funciona sin ventana de 24 h. */
+export async function sendWhatsAppTemplate(
+  cfg: WhatsAppAgentConfig,
+  toPhone: string,
+  templateName: string,
+  lang: string,
+  bodyParams: string[],
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const configError = resolveWhatsAppSendConfigError(cfg);
+  if (configError) return { ok: false, error: configError };
+  const token = getWhatsAppAccessToken(cfg)!;
+  const phoneNumberId = (cfg.phoneNumberId || '').trim();
+  const version = (cfg.apiVersion || 'v21.0').trim();
+  if (!toPhone || !templateName) return { ok: false, error: 'Faltan destinatario o plantilla.' };
+
+  const components =
+    bodyParams.length > 0
+      ? [{
+          type: 'body',
+          parameters: bodyParams.map((text) => ({ type: 'text', text: text.slice(0, 1024) })),
+        }]
+      : undefined;
+
+  try {
+    const res = await fetch(`${GRAPH}/${version}/${encodeURIComponent(phoneNumberId)}/messages`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: toPhone,
+        type: 'template',
+        template: {
+          name: templateName,
+          language: { code: lang },
+          ...(components ? { components } : {}),
+        },
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = data?.error?.message || `HTTP ${res.status}`;
+      return { ok: false, error: msg };
+    }
+    return { ok: true, id: data?.messages?.[0]?.id };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Error de red' };
+  }
+}
+
+export type HandoffNotificationResult = {
+  ok: boolean;
+  messageId?: string;
+  error?: string;
+  method?: 'template' | 'text';
+  notifyPhone?: string;
+  /** true si el dueño escribió al Business en las últimas 24 h (texto libre entregable). */
+  serviceWindowOpen?: boolean;
+};
+
 /**
- * Envía una alerta de handoff al número personal del dueño.
- * Devuelve el messageId del WA enviado (para mapear su respuesta a la sesión).
+ * Envía alerta de handoff al número del widget (WhatsApp humano).
+ * Por defecto solo texto libre. Plantillas desactivadas salvo HANDOFF_WA_TEMPLATE_ENABLED=1.
  */
 export async function sendHandoffNotification(params: {
   waConfig: WhatsAppAgentConfig;
-  ownerPhone: string;           // número personal del dueño: +57 313 3174629
+  ownerPhone: string;
   visitorName?: string;
   userMessage?: string;
   widgetName?: string;
-  sessionId: string;            // ho_* del inbox para rutear la respuesta
-}): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+  sessionId: string;
+  ownerWaLastInboundAt?: Date | null;
+}): Promise<HandoffNotificationResult> {
   const visitorLabel = params.visitorName?.trim() || 'Visitante anónimo';
-  const msgPreview = params.userMessage?.trim().slice(0, 120) || '';
+  const msgPreview = params.userMessage?.trim().slice(0, 120) || 'Sin mensaje adicional';
   const widgetLabel = params.widgetName?.trim() || 'widget';
+  const toPhone = normalizePhoneDigits(params.ownerPhone);
+  const serviceWindowOpen = params.ownerWaLastInboundAt
+    ? Date.now() - params.ownerWaLastInboundAt.getTime() < 24 * 60 * 60 * 1000
+    : false;
+
+  console.log('[AFHUB-DEBUG] sendHandoffNotification:', {
+    toPhone,
+    widgetLabel,
+    visitorLabel,
+    serviceWindowOpen,
+    templateEnabled: Boolean(resolveHandoffTemplateName(params.waConfig)),
+    phoneNumberId: params.waConfig.phoneNumberId || null,
+  });
+
+  const templateName = resolveHandoffTemplateName(params.waConfig);
+  if (templateName) {
+    const templateResult = await sendWhatsAppTemplate(
+      params.waConfig,
+      toPhone,
+      templateName,
+      resolveHandoffTemplateLang(params.waConfig),
+      [widgetLabel, visitorLabel, msgPreview],
+    );
+    if (templateResult.ok) {
+      return {
+        ok: true,
+        messageId: templateResult.id,
+        method: 'template',
+        notifyPhone: toPhone,
+        serviceWindowOpen,
+      };
+    }
+    console.warn('[handoff] template send failed, trying free text:', templateResult.error);
+  }
 
   const body = [
     `🔔 *Nueva solicitud de atención humana*`,
     `👤 ${visitorLabel} — ${widgetLabel}`,
-    ...(msgPreview ? [`💬 "${msgPreview}"`] : []),
+    ...(msgPreview !== 'Sin mensaje adicional' ? [`💬 "${msgPreview}"`] : []),
     ``,
     `↩️ *Responde ESTE mensaje* (usa Reply/Responder en WhatsApp) para contestar al visitante en tiempo real.`,
   ].join('\n');
 
-  const result = await sendWhatsAppText(params.waConfig, normalizePhoneDigits(params.ownerPhone), body);
-  if (!result.ok) return { ok: false, error: result.error };
-  return { ok: true, messageId: result.id };
+  const result = await sendWhatsAppText(params.waConfig, toPhone, body);
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: result.error,
+      method: 'text',
+      notifyPhone: toPhone,
+      serviceWindowOpen,
+    };
+  }
+  return {
+    ok: true,
+    messageId: result.id,
+    method: 'text',
+    notifyPhone: toPhone,
+    serviceWindowOpen,
+  };
 }

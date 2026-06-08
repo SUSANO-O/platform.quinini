@@ -412,3 +412,11 @@
 {"t":"2026-06-08T15:04:04.583Z","event":"widget_opened","agentId":"6a1da96d094e6d2eefa7d066"}
 {"t":"2026-06-08T15:04:19.221Z","event":"message_received","agentId":"6a1da96d094e6d2eefa7d066"}
 {"t":"2026-06-08T20:27:56.447Z","event":"widget_loaded","agentId":"math","instanceId":"biv_1"}
+{"t":"2026-06-08T22:03:16.999Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_2"}
+{"t":"2026-06-08T22:03:45.663Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_3"}
+{"t":"2026-06-08T22:04:38.856Z","event":"widget_loaded","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
+{"t":"2026-06-08T22:04:44.392Z","event":"widget_opened","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
+{"t":"2026-06-08T22:05:13.296Z","event":"conversation_handoff","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
+{"t":"2026-06-08T22:07:13.622Z","event":"widget_loaded","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
+{"t":"2026-06-08T22:07:14.286Z","event":"widget_opened","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
+{"t":"2026-06-08T22:07:24.118Z","event":"conversation_handoff","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
