@@ -20,13 +20,14 @@ import {
 } from 'lucide-react';
 
 import { CHECKOUT_UPGRADE_PLAN_IDS, PLAN_DISPLAY } from '@/lib/plan-catalog';
+import { buildTrialExpiredWhatsAppUrl } from '@/lib/sales-whatsapp';
 
 const SIDEBAR_COLLAPSED_KEY = 'dashboard-sidebar-collapsed';
 
 
 function SubscriptionExpiryGate() {
   const { user, logout } = useAuth();
-  const { loading, hasAccess, isTrialActive, authExpired, subscription, startCheckout } = useSubscription();
+  const { loading, hasAccess, isTrialActive, authExpired, subscription } = useSubscription();
 
   const trialExpired = useMemo(
     () => Boolean(user) && !authExpired && !loading && !hasAccess && !isTrialActive,
@@ -84,17 +85,18 @@ function SubscriptionExpiryGate() {
           {expiredAt
             ? `Tu prueba gratuita terminó el ${expiredAt}.`
             : 'Tu prueba gratuita ya terminó.'}{' '}
-          Elige un plan para continuar usando BotIvA, o cierra sesión.
+          Elige un plan y contáctanos por WhatsApp para activarlo, o cierra sesión.
         </p>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
           {CHECKOUT_UPGRADE_PLAN_IDS.map((planId) => {
             const plan = PLAN_DISPLAY[planId];
             return (
-              <button
+              <a
                 key={planId}
-                type="button"
-                onClick={() => startCheckout(planId)}
+                href={buildTrialExpiredWhatsAppUrl(plan.label, plan.priceLabel)}
+                target="_blank"
+                rel="noopener noreferrer"
                 style={{
                   border: 0,
                   borderRadius: '10px',
@@ -104,10 +106,13 @@ function SubscriptionExpiryGate() {
                   color: '#fff',
                   cursor: 'pointer',
                   background: 'var(--brand-primary)',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
                 }}
               >
                 {plan.label} · {plan.priceLabel}
-              </button>
+              </a>
             );
           })}
         </div>
@@ -134,7 +139,7 @@ function SubscriptionExpiryGate() {
 }
 
 function SidebarExpiryBadge() {
-  const { loading, hasAccess, isTrialActive, startCheckout } = useSubscription();
+  const { loading, hasAccess, isTrialActive } = useSubscription();
   if (loading || hasAccess || isTrialActive) return null;
   return (
     <div style={{
@@ -152,10 +157,11 @@ function SidebarExpiryBadge() {
         {CHECKOUT_UPGRADE_PLAN_IDS.map((planId) => {
           const plan = PLAN_DISPLAY[planId];
           return (
-          <button
+          <a
             key={planId}
-            type="button"
-            onClick={() => startCheckout(planId)}
+            href={buildTrialExpiredWhatsAppUrl(plan.label, plan.priceLabel)}
+            target="_blank"
+            rel="noopener noreferrer"
             style={{
               border: 0,
               borderRadius: '8px',
@@ -165,10 +171,12 @@ function SidebarExpiryBadge() {
               color: '#fff',
               cursor: 'pointer',
               background: 'var(--brand-primary)',
+              textDecoration: 'none',
+              textAlign: 'center',
             }}
           >
             {plan.label} · {plan.priceLabel}
-          </button>
+          </a>
         );})}
       </div>
     </div>
