@@ -15,10 +15,10 @@ export type HandoffSessionInput = {
   handoffAt?: Date;
 };
 
-export async function upsertHandoffInboxSession(input: HandoffSessionInput): Promise<boolean> {
+export async function upsertHandoffInboxSession(input: HandoffSessionInput): Promise<string | null> {
   const chatSessionId = input.sessionId.trim();
   const userId = String(input.userId).trim();
-  if (!chatSessionId || !userId) return false;
+  if (!chatSessionId || !userId) return null;
 
   const now = input.handoffAt ?? new Date();
   const handoffSessionId = `ho_${randomUUID()}`;
@@ -40,10 +40,10 @@ export async function upsertHandoffInboxSession(input: HandoffSessionInput): Pro
       messageCount: 0,
       lastVisitorMessageAt: now, // nueva solicitud sin ver por el agente
     });
-    return true;
+    return handoffSessionId;
   } catch (err) {
     console.error('[inbox] upsertHandoffInboxSession failed:', handoffSessionId, err);
-    return false;
+    return null;
   }
 }
 

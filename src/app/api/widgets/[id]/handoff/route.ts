@@ -10,20 +10,19 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
-import { Widget, User, ConversationSession, WidgetMessage } from '@/lib/db/models';
+import { Widget, User, WidgetMessage } from '@/lib/db/models';
 import { dispatchSaasWebhook } from '@/lib/saas-webhook-outbound';
 import { sendPushToUser } from '@/lib/push-notifications';
 import { createEscalationTicket } from '@/lib/escalation-tickets';
 import { notifySlackOnEscalation } from '@/lib/escalation-slack';
 import { upsertHandoffInboxSession } from '@/lib/inbox-handoff';
 import { getCorsHeaders, handlePreflight, withCors } from '@/lib/cors';
-import { sendHandoffNotification } from '@/lib/whatsapp';
-import { ClientAgent } from '@/lib/db/models';
 import {
   normalizeHandoffNotifyMode,
   shouldDispatchHandoffSlack,
   shouldDispatchHandoffWebhook,
 } from '@/lib/handoff-notify';
+import { notifyOwnerHandoffViaWhatsApp } from '@/lib/handoff-whatsapp';
 
 export async function OPTIONS(req: NextRequest) {
   const preflight = handlePreflight(req);
@@ -96,8 +95,9 @@ export async function POST(
     phone: body.contactInfo?.phone?.trim() || '',
   };
 
+  let handoffSessionId: string | null = null;
   if (body.sessionId?.trim()) {
-    await upsertHandoffInboxSession({
+    handoffSessionId = await upsertHandoffInboxSession({
       sessionId: body.sessionId.trim(),
       userId: uid,
       widgetId: id,
@@ -150,42 +150,19 @@ export async function POST(
     }).catch(() => {});
   }
 
-  // ── Notificación WhatsApp al dueño usando humanSupportPhone del widget ────────
-  // El número ya está en el widget (campo "WhatsApp para atención humana").
-  // Si no hay número en el widget, cae al escalationWhatsAppPhone del usuario.
-  const notifyPhone = widget.humanSupportPhone?.trim() || user?.escalationWhatsAppPhone?.trim() || '';
-  if (notifyPhone && body.sessionId?.trim()) {
-    void (async () => {
-      try {
-        const waAgent = await ClientAgent.findOne({
-          userId: uid,
-          'whatsapp.enabled': true,
-          'whatsapp.accessTokenEnc': { $exists: true, $ne: '' },
-        }).select({ whatsapp: 1 }).lean() as { whatsapp?: import('@/lib/whatsapp').WhatsAppAgentConfig } | null;
-
-        if (!waAgent?.whatsapp) return;
-
-        const notifResult = await sendHandoffNotification({
-          waConfig: waAgent.whatsapp,
-          ownerPhone: notifyPhone,
-          visitorName: contactInfo.name || undefined,
-          userMessage: body.userMessage,
-          widgetName: widget.name || id,
-          sessionId: body.sessionId!.trim(),
-        });
-
-        if (notifResult.ok && notifResult.messageId) {
-          const { ConversationSession } = await import('@/lib/db/models');
-          await ConversationSession.updateOne(
-            { chatSessionId: body.sessionId!.trim() },
-            { $set: { handoffWaNotifMsgId: notifResult.messageId } },
-          ).catch(() => {});
-        }
-      } catch (e) {
-        console.error('[handoff] WA notification failed:', e);
-      }
-    })();
-  }
+  // ── Notificación WhatsApp al dueño (await: en Vercel el void async se cancelaba al responder) ──
+  const waNotification = await notifyOwnerHandoffViaWhatsApp({
+    userId: uid,
+    widgetId: id,
+    widgetName: widget.name || id,
+    widget,
+    user,
+    chatSessionId: body.sessionId,
+    handoffSessionId,
+    preferredAgentId: body.agentId,
+    visitorName: contactInfo.name || undefined,
+    userMessage: body.userMessage,
+  });
 
   const webhookPayload = {
     widgetId: id,
@@ -254,6 +231,7 @@ export async function POST(
       slack: slackResult.attempted
         ? { ok: slackResult.ok === true, error: slackResult.error }
         : null,
+      waNotification,
     }),
   );
 }
