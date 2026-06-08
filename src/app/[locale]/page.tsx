@@ -231,13 +231,7 @@ export default async function LandingPage() {
                   </div>
 
                   <h3 className="text-lg font-bold mt-5 mb-2" style={{ letterSpacing: '-0.01em' }}>{a.name}</h3>
-                  <p className="text-sm leading-relaxed min-h-[62px]" style={{ color: 'var(--muted-foreground)' }}>{a.desc}</p>
-
-                  <div className="mt-5 pt-4" style={{ borderTop: `1px solid ${a.color}20` }}>
-                    <span className="text-xs font-semibold" style={{ color: a.color }}>
-                      Ver demo →
-                    </span>
-                  </div>
+                  <p className="text-sm leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>{a.desc}</p>
                 </div>
               </Link>
             ))}
