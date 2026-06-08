@@ -267,11 +267,23 @@ export default function InboxPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionId, inboxStatus }),
     });
+    const data = await res.json().catch(() => ({})) as { error?: string; channel?: string; messageSent?: boolean };
     if (!res.ok) {
-      toast.error('No se pudo actualizar la sesión.');
+      toast.error(typeof data.error === 'string' ? data.error : 'No se pudo actualizar la sesión.');
       return;
     }
-    toast.success(inboxStatus === 'resolved' ? 'Marcada como resuelta' : 'Reabierta');
+    if (inboxStatus === 'resolved') {
+      if (data.channel === 'whatsapp' && data.messageSent) {
+        toast.success('Conversación cerrada y mensaje enviado por WhatsApp.');
+      } else {
+        toast.success('Conversación cerrada. El visitante verá el mensaje de despedida.');
+      }
+      if (expanded === sessionId) {
+        closeInboxChat();
+      }
+    } else {
+      toast.success('Reabierta');
+    }
     notifyInboxChanged();
     void queryClient.invalidateQueries({ queryKey: dashboardKeys.inbox(tab) });
   }

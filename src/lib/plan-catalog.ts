@@ -176,6 +176,10 @@ export const PLAN_TOOLS_LIMITS: Record<string, number> = {
 // salen del plan; un override sobre un plan sin cupo recibe cortesía de 3.
 
 export const SCHEDULED_TASKS_FEATURE = 'scheduled_tasks';
+/** Sync nocturno Google Sheets → Mongo (3 AM). Incluido desde Plus. */
+export const SHEET_NIGHTLY_SYNC_FEATURE = 'sheet_nightly_sync';
+/** Precio por GB almacenado en snapshots (facturación opt-in). */
+export const SHEET_SYNC_USD_PER_GB = 1;
 
 /** Máx. tareas por agente. `-1` = ilimitado. 0 = sin cupo propio (solo override → 3). */
 export const PLAN_SCHEDULED_TASK_LIMITS: Record<string, number> = {
@@ -199,6 +203,7 @@ export const PLAN_SCHEDULED_TASK_MIN_INTERVAL_MIN: Record<string, number> = {
 
 /** Plan mínimo con acceso por defecto a Tareas Programadas. */
 const SCHEDULED_TASKS_MIN_PLAN: PlanId = 'plus';
+const SHEET_NIGHTLY_SYNC_MIN_PLAN: PlanId = 'plus';
 
 /**
  * ¿El cliente puede usar Tareas Programadas?
@@ -210,6 +215,27 @@ export function scheduledTasksEnabled(plan: string, subscriptionFeatures?: strin
   }
   const idx = PLAN_ORDER.indexOf(plan as PlanId);
   return idx >= 0 && idx >= PLAN_ORDER.indexOf(SCHEDULED_TASKS_MIN_PLAN);
+}
+
+/** ¿Puede activar sync nocturno Sheet → Mongo? (Plus+ o override admin). */
+export function sheetNightlySyncEnabled(plan: string, subscriptionFeatures?: string[] | null): boolean {
+  if (hasFeatureOverride(subscriptionFeatures, SHEET_NIGHTLY_SYNC_FEATURE)) return true;
+  return planRank(plan) >= planRank(SHEET_NIGHTLY_SYNC_MIN_PLAN);
+}
+
+/** Facturación $/GB habilitada globalmente (env) y por suscripción. */
+export function sheetSyncBillingActive(
+  subscriptionBillingEnabled?: boolean | null,
+): boolean {
+  const globalOn = process.env.SHEET_SYNC_BILLING_ENABLED === '1'
+    || process.env.SHEET_SYNC_BILLING_ENABLED === 'true';
+  return globalOn && subscriptionBillingEnabled === true;
+}
+
+export function sheetSyncChargeUsd(byteSize: number): number {
+  if (!Number.isFinite(byteSize) || byteSize <= 0) return 0;
+  const gb = byteSize / (1024 ** 3);
+  return Math.round(gb * SHEET_SYNC_USD_PER_GB * 100) / 100;
 }
 
 /** Máx. tareas efectivo. `hasAccess` aplica la cortesía de 3 a overrides sin cupo de plan. */
@@ -344,6 +370,7 @@ export const CUSTOM_INTEGRATION_FEATURE = 'custom_integration';
  */
 export const FEATURE_OVERRIDES: { key: string; label: string; description: string }[] = [
   { key: SCHEDULED_TASKS_FEATURE,   label: 'Tareas Programadas',   description: 'Cron por agente. Incluido desde Plus por defecto.' },
+  { key: SHEET_NIGHTLY_SYNC_FEATURE, label: 'Sync nocturno Sheets', description: 'Copia Sheets a Mongo a las 3 AM. Incluido desde Plus.' },
   { key: WHATSAPP_FEATURE,          label: 'WhatsApp Business',    description: 'Integración WhatsApp Cloud API. Incluido desde Business por defecto.' },
   { key: OUTBOUND_WEBHOOK_FEATURE,  label: 'Webhook saliente (HMAC)', description: 'Eventos firmados a tu backend. Incluido desde Plus por defecto.' },
   { key: ESCALATION_SLACK_FEATURE,  label: 'Slack al escalar',     description: 'Aviso a Slack en handoff. Incluido desde Team por defecto.' },

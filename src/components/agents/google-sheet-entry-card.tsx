@@ -16,6 +16,7 @@ type Props = {
   index: number;
   readOnly: boolean;
   inp: CSSProperties;
+  sheetSyncAvailable: boolean;
   onUpdate: (patch: Partial<SheetEntry>) => void;
   onRemove: () => void;
 };
@@ -25,9 +26,11 @@ export function GoogleSheetEntryCard({
   index,
   readOnly,
   inp,
+  sheetSyncAvailable,
   onUpdate,
   onRemove,
 }: Props) {
+  const syncOn = entry.nightlySyncEnabled === true;
   const [tabs, setTabs] = useState<SheetTab[]>([]);
   const [tabsLoading, setTabsLoading] = useState(false);
   const [tabsError, setTabsError] = useState('');
@@ -201,6 +204,50 @@ export function GoogleSheetEntryCard({
               </option>
             ))}
           </select>
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: 12,
+            padding: '10px 12px',
+            borderRadius: 10,
+            border: '1px solid var(--border)',
+            background: 'var(--background)',
+          }}
+        >
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 2 }}>
+              Sync nocturno a las 3:00 AM (Mongo)
+            </div>
+            <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.45 }}>
+              {sheetSyncAvailable
+                ? 'Copia esta pestaña cada noche para consultas instantáneas sin ir a Google.'
+                : 'Disponible en plan Plus o superior.'}
+            </p>
+          </div>
+          <label
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: readOnly || !sheetSyncAvailable ? 'not-allowed' : 'pointer',
+              opacity: readOnly || !sheetSyncAvailable ? 0.5 : 1,
+              flexShrink: 0,
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={syncOn}
+              disabled={readOnly || !sheetSyncAvailable}
+              onChange={(e) => onUpdate({ nightlySyncEnabled: e.target.checked })}
+            />
+            {syncOn ? 'Activo' : 'Off'}
+          </label>
         </div>
 
         <div>

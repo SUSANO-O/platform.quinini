@@ -319,10 +319,28 @@ async function handleSingleMessage(params: {
   text: string;
   sessionId: string;
 }): Promise<void> {
-  // Verificar si hay un humano atendiendo (bot se calla pero el mensaje sí se guarda en inbox)
   const activeSession = await ConversationSession.findOne({ sessionId: params.sessionId })
-    .select({ humanMode: 1 }).lean() as { humanMode?: boolean } | null;
+    .select({ humanMode: 1, inboxStatus: 1 }).lean() as { humanMode?: boolean; inboxStatus?: string } | null;
   const isHumanMode = activeSession?.humanMode === true;
+  const isResolved = activeSession?.inboxStatus === 'resolved';
+
+  if (isResolved) {
+    void persistWidgetTranscript({
+      widgetId: params.widgetIdEquivalent,
+      userId: params.ownerUserId,
+      agentId: params.agentIdForChat,
+      sessionId: params.sessionId,
+      userMessage: params.text,
+      assistantMessage: '',
+      toolsUsed: undefined,
+    }).catch(() => { /* best-effort */ });
+    await sendWhatsAppText(
+      params.waConfig,
+      params.from,
+      'Esta conversación ya fue cerrada. Si necesitas ayuda de nuevo, envíanos un mensaje y con gusto te atenderemos.',
+    ).catch(() => {});
+    return;
+  }
 
   if (isHumanMode) {
     // Humano atendiendo: guardar mensaje del cliente en inbox pero no responder con bot

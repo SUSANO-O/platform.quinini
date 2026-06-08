@@ -275,10 +275,26 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   // ── Tools update ─────────────────────────────────────────────────────────
   if ('tools' in body) {
-    const sub = await Subscription.findOne({ userId }).lean() as { plan?: string; status?: string } | null;
+    const sub = await Subscription.findOne({ userId }).lean() as {
+      plan?: string;
+      status?: string;
+      features?: string[];
+    } | null;
     const hasActivePlan = sub?.status === 'active' || sub?.status === 'trialing';
     const plan = hasActivePlan ? (sub?.plan ?? 'free') : 'free';
     const limits = getAgentLimits(plan);
+
+    const { sheetNightlySyncEnabled } = await import('@/lib/plan-catalog');
+    const canSheetSync = sheetNightlySyncEnabled(plan, sub?.features);
+    for (const t of body.tools) {
+      if (t?.toolId !== 'google-sheets' || !t.config || typeof t.config !== 'object') continue;
+      const sheets = (t.config as { sheets?: unknown }).sheets;
+      if (!Array.isArray(sheets)) continue;
+      for (const s of sheets) {
+        if (!s || typeof s !== 'object') continue;
+        if (!canSheetSync) (s as { nightlySyncEnabled?: boolean }).nightlySyncEnabled = false;
+      }
+    }
 
     if (body.tools.length > limits.toolsPerAgent) {
       return NextResponse.json({
