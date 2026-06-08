@@ -10,6 +10,7 @@ import { listSkillCatalog } from '@/lib/skill-catalog-service';
 import {
   buildAgentCapabilityProfile,
   formatCapabilitySummaryForLlm,
+  messageLooksToolIntent,
   scoreMemberCapabilityMatch,
   type AgentCapabilityProfile,
   type AgentDocForCapabilities,
@@ -366,7 +367,10 @@ async function enrichTeamCapabilitiesFromHub(
       const merged: AgentDocForCapabilities = {
         ...(landingDoc ?? {}),
         name: member.name,
-        description: member.description,
+        description: member.description || hubAgent.description || landingDoc?.description,
+        systemPrompt:
+          landingDoc?.systemPrompt ||
+          (typeof hubAgent.prompt === 'string' ? hubAgent.prompt : undefined),
         agentHubId: member.hubId,
         enabledMcpToolIds: Array.isArray(hubAgent.enabledToolIds) ? hubAgent.enabledToolIds : [],
         tools: Array.isArray(hubAgent.tools) ? hubAgent.tools : landingDoc?.tools,
@@ -388,21 +392,51 @@ async function enrichTeamCapabilitiesFromHub(
   return enriched;
 }
 
-export function triageByKeywords(message: string, team: TeamMember[]): TriageResult {
+function triageScoreOptions(
+  member: TeamMember,
+  primaryOrchestratorId?: string,
+): { memberId?: string; primaryOrchestratorId?: string } {
+  return { memberId: member.id, primaryOrchestratorId };
+}
+
+export function triageByKeywords(
+  message: string,
+  team: TeamMember[],
+  primaryOrchestratorId?: string,
+): TriageResult {
   if (team.length <= 1) {
     return { target: team[0], method: 'default' };
   }
   let best = team[0];
   let bestScore = -1;
+  let secondScore = -1;
   for (const member of team) {
-    const score = scoreMemberCapabilityMatch(message, member);
+    const score = scoreMemberCapabilityMatch(message, member, triageScoreOptions(member, primaryOrchestratorId));
     if (score > bestScore) {
+      secondScore = bestScore;
       bestScore = score;
       best = member;
+    } else if (score > secondScore) {
+      secondScore = score;
     }
   }
+  const primaryId = normalizeAgentId(primaryOrchestratorId);
   if (bestScore <= 1) {
-    return { target: team[0], method: 'default' };
+    const primary = primaryId ? team.find((m) => m.id === primaryId) : team[0];
+    return { target: primary ?? team[0], method: 'default', score: bestScore };
+  }
+  if (primaryId && best.id !== primaryId && bestScore - secondScore < 3) {
+    const primary = team.find((m) => m.id === primaryId);
+    if (primary) {
+      const primaryScore = scoreMemberCapabilityMatch(
+        message,
+        primary,
+        triageScoreOptions(primary, primaryOrchestratorId),
+      );
+      if (primaryScore >= bestScore - 2 && !messageLooksToolIntent(message)) {
+        return { target: primary, method: 'keyword', score: primaryScore };
+      }
+    }
   }
   return { target: best, method: 'keyword', score: bestScore };
 }
@@ -443,21 +477,31 @@ async function callInternalLlm(
   return null;
 }
 
-async function triageByLlm(message: string, team: TeamMember[]): Promise<TriageResult | null> {
+async function triageByLlm(
+  message: string,
+  team: TeamMember[],
+  primaryOrchestratorId?: string,
+): Promise<TriageResult | null> {
   if (team.length <= 1) return null;
 
+  const primaryId = normalizeAgentId(primaryOrchestratorId);
   const roster = team
     .map((m) => {
       const caps = formatCapabilitySummaryForLlm(m.capabilities);
-      return `- id="${m.id}" name="${m.name}" role=${m.role}: ${m.description || 'sin descripción'} | capacidades: ${caps}`;
+      const primaryTag = m.id === primaryId ? ' [ORQUESTADOR PRINCIPAL]' : '';
+      return `- id="${m.id}" name="${m.name}" role=${m.role}${primaryTag}: ${m.description || 'sin descripción'} | ${caps}`;
     })
     .join('\n');
 
   const prompt = [
     'Eres un router de triaje para un widget de chat.',
-    'Elige UN solo agentId de la lista que mejor atienda el mensaje según sus capacidades (MCP, skills, tools, crons, RAG).',
+    'Elige UN solo agentId según el ROL/PROMPT del agente (dominio) y solo deriva a otro si la pregunta encaja con sus herramientas específicas (MCP, crons, webhooks).',
+    'Preguntas generales de asesoría, finanzas, negocio o conversación → orquestador principal.',
+    'Preguntas técnicas de bases de datos, integraciones o tareas → agente con esa herramienta.',
     'Responde SOLO JSON válido: {"agentId":"..."}',
-    'Si no hay match claro, usa el agente con role=orchestrator.',
+    primaryId
+      ? `Si no hay match claro de herramienta, usa id="${primaryId}" (orquestador principal).`
+      : 'Si no hay match claro, usa el agente con role=orchestrator.',
     '',
     'Agentes:',
     roster,
@@ -481,12 +525,18 @@ async function triageByLlm(message: string, team: TeamMember[]): Promise<TriageR
   }
 }
 
-export async function triageWidgetMessage(message: string, team: TeamMember[]): Promise<TriageResult> {
+export async function triageWidgetMessage(
+  message: string,
+  team: TeamMember[],
+  primaryOrchestratorId?: string,
+): Promise<TriageResult> {
   if (!message.trim() || team.length <= 1) {
     return { target: team[0], method: 'default' };
   }
-  const keywordResult = triageByKeywords(message, team);
-  const llm = await triageByLlm(message, team);
+  const primaryId = normalizeAgentId(primaryOrchestratorId);
+  const keywordResult = triageByKeywords(message, team, primaryOrchestratorId);
+  const llm = await triageByLlm(message, team, primaryOrchestratorId);
+
   if (
     llm &&
     llm.target.role === 'orchestrator' &&
@@ -495,6 +545,18 @@ export async function triageWidgetMessage(message: string, team: TeamMember[]): 
   ) {
     return keywordResult;
   }
+
+  if (llm && keywordResult.method === 'keyword' && llm.target.id !== keywordResult.target.id) {
+    const kwScore = keywordResult.score ?? 0;
+    const toolIntent = messageLooksToolIntent(message);
+    if (!toolIntent && primaryId && keywordResult.target.id === primaryId && kwScore >= 6) {
+      return keywordResult;
+    }
+    if (kwScore >= 10) {
+      return keywordResult;
+    }
+  }
+
   if (llm) return llm;
   return keywordResult;
 }
@@ -583,7 +645,7 @@ export async function applyMultiAgentRouting(params: {
   }
 
   const message = typeof parsed.message === 'string' ? parsed.message : '';
-  const triage = await triageWidgetMessage(message, team);
+  const triage = await triageWidgetMessage(message, team, params.config.orchestratorAgentId);
   const primaryOrch = team.find((m) => m.id === params.config.orchestratorAgentId) ?? team[0];
   const route = resolveRoutableHubAgentId(primaryOrch, triage.target);
   if (!route) return null;
@@ -1126,7 +1188,7 @@ export async function executeParallelMultiAgentFlow(params: {
     return null;
   }
 
-  const triage = await triageWidgetMessage(message, team);
+  const triage = await triageWidgetMessage(message, team, params.config.orchestratorAgentId);
   params.onPhase?.('triage', buildMultiAgentStatusMessage('triage'));
   const primaryOrch = team.find((m) => m.id === params.config.orchestratorAgentId) ?? team[0];
   const route = resolveRoutableHubAgentId(primaryOrch, triage.target);

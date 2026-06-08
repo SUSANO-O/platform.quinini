@@ -93,6 +93,48 @@ describe('widget-multi-agent', () => {
     expect(result.method).toBe('default');
   });
 
+  it('triaje mantiene asesor financiero ante consulta de finanzas (no mongo)', () => {
+    const financeCaps = buildAgentCapabilityProfile({
+      agent: {
+        name: 'asesor financiero',
+        description: 'eres capaz de consultar flujos externos y financiero muy capaz',
+        systemPrompt: 'Eres un asesor financiero personal. Ayudas a mejorar finanzas, crédito y ahorro.',
+        tools: [{ toolId: 'webhook', config: { webhooks: [{ name: 'noticias' }] } }],
+      },
+      skillCatalog: DEFAULT_AGENT_SKILLS_CATALOG,
+    });
+    const mongoCaps = buildAgentCapabilityProfile({
+      agent: {
+        name: 'mongo agent',
+        agentHubId: 'mongo-agent',
+        systemPrompt: 'eres experto en qa',
+        enabledMcpToolIds: ['mcp:mongodb:mongo_find'],
+      },
+      skillCatalog: DEFAULT_AGENT_SKILLS_CATALOG,
+    });
+    const team: TeamMember[] = [
+      {
+        id: 'o1',
+        hubId: 'asesor-financiero',
+        name: 'asesor financiero',
+        description: 'consultas financieras',
+        role: 'orchestrator',
+        capabilities: financeCaps,
+      },
+      {
+        id: 'o2',
+        hubId: 'mongo-agent',
+        name: 'mongo agent',
+        description: 'sabes de qa',
+        role: 'orchestrator',
+        capabilities: mongoCaps,
+      },
+    ];
+    const result = triageByKeywords('como puedo mejorar mis finanzas personales', team, 'o1');
+    expect(result.target.id).toBe('o1');
+    expect(result.method).toBe('keyword');
+  });
+
   it('triaje deriva preguntas de base de datos al agente con MCP mongo', () => {
     const mongoCaps = buildAgentCapabilityProfile({
       agent: {
@@ -128,7 +170,7 @@ describe('widget-multi-agent', () => {
         capabilities: mongoCaps,
       },
     ];
-    const result = triageByKeywords('tienes coneccion a base de datos ?', team);
+    const result = triageByKeywords('tienes coneccion a base de datos ?', team, 'o1');
     expect(result.target.id).toBe('o2');
     expect(result.method).toBe('keyword');
   });

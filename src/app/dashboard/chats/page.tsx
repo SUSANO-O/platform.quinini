@@ -1,20 +1,25 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
+  ArrowLeft,
   Bot,
+  ChevronRight,
   Circle,
   Clock,
+  Copy,
+  ExternalLink,
   MessageSquare,
   RefreshCw,
-  User,
+  Search,
   X,
-  Image as ImageIcon,
-  Paperclip,
 } from 'lucide-react';
 import { DashboardShell } from '@/components/dashboard/dashboard-shell';
+import { ConversationThread, type ChatMessage } from '@/components/dashboard/inbox-chat-modal';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -38,15 +43,6 @@ type ChatSession = {
   lastMessageAt: string | null;
 };
 
-type ChatMessage = {
-  id: string;
-  role: string;
-  sentBy: string;
-  content: string;
-  createdAt: string;
-  attachments?: Array<{ type: string; url: string; name?: string; mime?: string }>;
-};
-
 type SessionDetail = {
   sessionId: string;
   widgetName: string;
@@ -58,6 +54,8 @@ type SessionDetail = {
   humanMode: boolean;
 };
 
+type TabKey = 'active' | 'all' | 'ended';
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function timeAgo(iso: string | null): string {
@@ -67,10 +65,6 @@ function timeAgo(iso: string | null): string {
   if (diff < 3600) return `hace ${Math.floor(diff / 60)} min`;
   if (diff < 86400) return `hace ${Math.floor(diff / 3600)} h`;
   return `hace ${Math.floor(diff / 86400)} d`;
-}
-
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
 }
 
 function formatDuration(sec: number | null): string {
@@ -99,6 +93,18 @@ function initials(label: string): string {
   return label.slice(0, 2).toUpperCase();
 }
 
+function sentimentTag(sentiment: string): { label: string; className: string } | null {
+  if (sentiment === 'positive') return { label: 'Positivo', className: 'chats-page__tag chats-page__tag--sentiment-pos' };
+  if (sentiment === 'negative') return { label: 'Negativo', className: 'chats-page__tag chats-page__tag--sentiment-neg' };
+  return null;
+}
+
+function tabStatus(tab: TabKey): string {
+  if (tab === 'active') return 'active';
+  if (tab === 'ended') return 'ended';
+  return 'all';
+}
+
 // ─── Session Card ─────────────────────────────────────────────────────────────
 
 function SessionCard({
@@ -112,216 +118,56 @@ function SessionCard({
 }) {
   const color = sessionColor(item.sessionId);
   const isActive = !item.endedAt;
+  const sentiment = sentimentTag(item.sentiment);
 
   return (
     <button
+      type="button"
       onClick={onClick}
-      style={{
-        width: '100%',
-        textAlign: 'left',
-        padding: '12px 14px',
-        display: 'flex',
-        gap: 10,
-        alignItems: 'flex-start',
-        background: selected ? 'rgba(var(--brand-primary-rgb), 0.08)' : 'transparent',
-        borderLeft: selected ? '3px solid var(--brand-primary)' : '3px solid transparent',
-        borderBottom: '1px solid #f0f0f2',
-        cursor: 'pointer',
-        transition: 'background 0.15s',
-      }}
+      className={`chats-page__session${selected ? ' is-selected' : ''}`}
     >
-      {/* Avatar */}
-      <div style={{ position: 'relative', flexShrink: 0 }}>
+      <div className="chats-page__avatar-wrap">
         <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: '50%',
-            background: color.bg,
-            border: `1.5px solid ${color.border}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 13,
-            fontWeight: 600,
-            color: color.fg,
-          }}
+          className="chats-page__avatar"
+          style={{ background: color.bg, color: color.fg, border: `1.5px solid ${color.border}` }}
         >
           {initials(item.visitorLabel)}
         </div>
-        {isActive && (
-          <span
-            style={{
-              position: 'absolute',
-              bottom: 1,
-              right: 1,
-              width: 9,
-              height: 9,
-              background: '#22c55e',
-              border: '1.5px solid white',
-              borderRadius: '50%',
-            }}
-          />
-        )}
+        {isActive ? <span className="chats-page__live-dot" aria-hidden /> : null}
       </div>
 
-      {/* Content */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 4 }}>
-          <span style={{ fontWeight: 600, fontSize: 13, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {item.visitorLabel}
-          </span>
-          <span style={{ fontSize: 11, color: '#94a3b8', flexShrink: 0 }}>
-            {timeAgo(item.lastMessageAt || item.startedAt)}
-          </span>
+      <div className="chats-page__session-body">
+        <div className="chats-page__session-row">
+          <span className="chats-page__session-name">{item.visitorLabel}</span>
+          <span className="chats-page__session-time">{timeAgo(item.lastMessageAt || item.startedAt)}</span>
         </div>
-        <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {item.lastMessage || item.widgetName}
+        <div className="chats-page__session-preview">
+          {item.lastMessage || item.widgetName || 'Sin mensajes'}
         </div>
-        <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-          {item.widgetName && (
-            <span style={{ fontSize: 10, color: '#94a3b8', background: '#f1f5f9', borderRadius: 4, padding: '1px 5px' }}>
-              {item.widgetName}
-            </span>
-          )}
-          {item.escalated && (
-            <span style={{ fontSize: 10, color: '#92400e', background: '#fef3c7', borderRadius: 4, padding: '1px 5px' }}>
-              Escalado
-            </span>
-          )}
-          {item.humanMode && (
-            <span style={{ fontSize: 10, color: '#1e40af', background: '#dbeafe', borderRadius: 4, padding: '1px 5px' }}>
-              Humano
-            </span>
-          )}
-          <span style={{ fontSize: 10, color: '#94a3b8' }}>
-            {item.messageCount} msg
-          </span>
+        <div className="chats-page__session-tags">
+          {item.widgetName ? (
+            <span className="chats-page__tag chats-page__tag--widget">{item.widgetName}</span>
+          ) : null}
+          {item.escalated ? (
+            <span className="chats-page__tag chats-page__tag--escalated">Escalado</span>
+          ) : null}
+          {item.humanMode ? (
+            <span className="chats-page__tag chats-page__tag--human">Humano</span>
+          ) : null}
+          {sentiment ? <span className={sentiment.className}>{sentiment.label}</span> : null}
+          <span className="chats-page__tag chats-page__tag--widget">{item.messageCount} msg</span>
         </div>
       </div>
     </button>
   );
 }
 
-// ─── Message Bubble ────────────────────────────────────────────────────────────
-
-function MessageBubble({ msg }: { msg: ChatMessage }) {
-  const isUser = msg.role === 'user';
-  const hasAttachments = msg.attachments && msg.attachments.length > 0;
-
-  return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: isUser ? 'flex-end' : 'flex-start',
-        marginBottom: 8,
-        gap: 6,
-        alignItems: 'flex-end',
-      }}
-    >
-      {!isUser && (
-        <div
-          style={{
-            width: 24,
-            height: 24,
-            borderRadius: '50%',
-            background: '#e2e8f0',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            marginBottom: 2,
-          }}
-        >
-          <Bot size={13} color="#64748b" />
-        </div>
-      )}
-
-      <div style={{ maxWidth: '75%' }}>
-        {hasAttachments && (
-          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 4, justifyContent: isUser ? 'flex-end' : 'flex-start' }}>
-            {msg.attachments!.map((att, i) => (
-              att.type === 'image' ? (
-                <a key={i} href={att.url} target="_blank" rel="noreferrer">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={att.url}
-                    alt={att.name || 'imagen'}
-                    style={{ maxWidth: 160, maxHeight: 120, borderRadius: 8, objectFit: 'cover', display: 'block' }}
-                  />
-                </a>
-              ) : (
-                <a
-                  key={i}
-                  href={att.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    padding: '4px 8px',
-                    background: '#f1f5f9',
-                    borderRadius: 6,
-                    fontSize: 12,
-                    color: '#3b82f6',
-                    textDecoration: 'none',
-                  }}
-                >
-                  <Paperclip size={11} />
-                  {att.name || 'archivo'}
-                </a>
-              )
-            ))}
-          </div>
-        )}
-        {msg.content && (
-          <div
-            style={{
-              padding: '8px 12px',
-              borderRadius: isUser ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-              background: isUser ? 'var(--brand-primary, #3b82f6)' : '#f1f5f9',
-              color: isUser ? 'white' : '#1e293b',
-              fontSize: 13,
-              lineHeight: 1.5,
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-            }}
-          >
-            {msg.content}
-          </div>
-        )}
-        <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3, textAlign: isUser ? 'right' : 'left', paddingInline: 4 }}>
-          {formatTime(msg.createdAt)}
-          {msg.sentBy === 'human' && ' · Agente'}
-        </div>
-      </div>
-
-      {isUser && (
-        <div
-          style={{
-            width: 24,
-            height: 24,
-            borderRadius: '50%',
-            background: '#dbeafe',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            marginBottom: 2,
-          }}
-        >
-          <User size={13} color="#3b82f6" />
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function ChatsPage() {
-  const [tab, setTab] = useState<'active' | 'all'>('active');
+  const [tab, setTab] = useState<TabKey>('active');
+  const [search, setSearch] = useState('');
+  const [widgetFilter, setWidgetFilter] = useState('');
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeCount, setActiveCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -331,13 +177,12 @@ export default function ChatsPage() {
   const [loadingThread, setLoadingThread] = useState(false);
   const [closingId, setClosingId] = useState<string | null>(null);
   const [confirmClose, setConfirmClose] = useState<{ sessionId: string; label: string } | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [mobileShowThread, setMobileShowThread] = useState(false);
 
   const loadSessions = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const status = tab === 'active' ? 'active' : 'all';
-      const res = await fetch(`/api/conversations?status=${status}&limit=60`);
+      const res = await fetch(`/api/conversations?status=${tabStatus(tab)}&limit=80`);
       const data = await res.json();
       if (!res.ok) {
         if (!silent) toast.error(typeof data.error === 'string' ? data.error : 'Error al cargar chats.');
@@ -352,18 +197,49 @@ export default function ChatsPage() {
 
   useEffect(() => { void loadSessions(); }, [loadSessions]);
 
-  // Refresco silencioso de la lista cada 8s
   useEffect(() => {
     const id = setInterval(() => { void loadSessions(true); }, 8000);
     return () => clearInterval(id);
   }, [loadSessions]);
+
+  const widgetOptions = useMemo(() => {
+    const names = new Set<string>();
+    for (const s of sessions) {
+      if (s.widgetName?.trim()) names.add(s.widgetName.trim());
+    }
+    return Array.from(names).sort((a, b) => a.localeCompare(b, 'es'));
+  }, [sessions]);
+
+  const filteredSessions = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return sessions.filter((s) => {
+      if (widgetFilter && s.widgetName !== widgetFilter) return false;
+      if (!q) return true;
+      const haystack = [
+        s.visitorLabel,
+        s.widgetName,
+        s.lastMessage,
+        s.contact.email,
+        s.contact.phone,
+        s.contact.name,
+        s.sessionId,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [sessions, search, widgetFilter]);
 
   const loadThread = useCallback(async (sessionId: string, silent = false) => {
     if (!silent) setLoadingThread(true);
     try {
       const res = await fetch(`/api/conversations/${encodeURIComponent(sessionId)}`);
       const data = await res.json();
-      if (!res.ok) { toast.error('Error al cargar mensajes.'); return; }
+      if (!res.ok) {
+        if (!silent) toast.error('Error al cargar mensajes.');
+        return;
+      }
       setMessages(Array.isArray(data.messages) ? data.messages : []);
       if (data.session) setSessionDetail(data.session as SessionDetail);
     } finally {
@@ -371,23 +247,18 @@ export default function ChatsPage() {
     }
   }, []);
 
-  // Polling del hilo cada 4s mientras está seleccionado y es activo
   useEffect(() => {
     if (!selectedId) return;
     const selected = sessions.find((s) => s.sessionId === selectedId);
-    if (selected?.endedAt) return; // sesión cerrada, no necesita polling
+    if (selected?.endedAt) return;
     const id = setInterval(() => { void loadThread(selectedId, true); }, 4000);
     return () => clearInterval(id);
   }, [selectedId, sessions, loadThread]);
 
-  // Scroll al final cuando llegan mensajes
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
   function selectSession(sessionId: string) {
     if (sessionId === selectedId) return;
     setSelectedId(sessionId);
+    setMobileShowThread(true);
     setMessages([]);
     setSessionDetail(null);
     void loadThread(sessionId);
@@ -402,11 +273,14 @@ export default function ChatsPage() {
         body: JSON.stringify({ action: 'close' }),
       });
       const data = await res.json();
-      if (!res.ok) { toast.error(typeof data.error === 'string' ? data.error : 'Error al cerrar.'); return; }
+      if (!res.ok) {
+        toast.error(typeof data.error === 'string' ? data.error : 'Error al cerrar.');
+        return;
+      }
       toast.success('Sesión cerrada.');
       void loadSessions(true);
       if (selectedId === sessionId) {
-        setSessionDetail((prev) => prev ? { ...prev, endedAt: data.endedAt ?? new Date().toISOString() } : prev);
+        setSessionDetail((prev) => (prev ? { ...prev, endedAt: data.endedAt ?? new Date().toISOString() } : prev));
       }
     } finally {
       setClosingId(null);
@@ -414,78 +288,133 @@ export default function ChatsPage() {
     }
   }
 
+  async function copySessionId(sessionId: string) {
+    try {
+      await navigator.clipboard.writeText(sessionId);
+      toast.success('ID de sesión copiado.');
+    } catch {
+      toast.error('No se pudo copiar.');
+    }
+  }
+
   const selectedSession = sessions.find((s) => s.sessionId === selectedId);
   const isSelectedActive = selectedSession ? !selectedSession.endedAt : false;
+  const contact = selectedSession?.contact ?? {};
+  const showSidebar = !mobileShowThread;
+  const showPanel = mobileShowThread || selectedId !== null;
 
   return (
-    <DashboardShell>
-      <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)', minHeight: 400 }}>
-
-        {/* Header */}
-        <div style={{ padding: '0 0 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+    <DashboardShell wide className="chats-page-shell">
+      <div className="chats-page">
+        <div className="chats-page__header">
           <div>
-            <h1 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', margin: 0 }}>Chats</h1>
-            <p style={{ fontSize: 13, color: '#64748b', margin: '2px 0 0' }}>
-              {activeCount} sesión{activeCount !== 1 ? 'es' : ''} activa{activeCount !== 1 ? 's' : ''}
+            <h1 className="chats-page__title">Chats</h1>
+            <p className="chats-page__subtitle">
+              Historial de conversaciones de tus widgets · {activeCount} activa{activeCount !== 1 ? 's' : ''}
             </p>
           </div>
           <button
+            type="button"
+            className="chats-page__refresh"
             onClick={() => void loadSessions()}
-            style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#64748b' }}
           >
             <RefreshCw size={13} />
             Actualizar
           </button>
         </div>
 
-        {/* Main layout */}
-        <div style={{ flex: 1, display: 'flex', gap: 0, border: '1px solid #e8eaf0', borderRadius: 12, overflow: 'hidden', background: 'white', minHeight: 0 }}>
-
-          {/* ── Left Panel: Session List ── */}
-          <div style={{ width: 300, minWidth: 240, display: 'flex', flexDirection: 'column', borderRight: '1px solid #e8eaf0', flexShrink: 0 }}>
-
-            {/* Tabs */}
-            <div style={{ display: 'flex', borderBottom: '1px solid #e8eaf0', flexShrink: 0 }}>
-              {(['active', 'all'] as const).map((t) => (
+        <div className="chats-page__layout">
+          {/* Lista de sesiones */}
+          <aside className={`chats-page__sidebar${showSidebar ? '' : ' chats-page__sidebar--hidden-mobile'}`}>
+            <div className="chats-page__tabs" role="tablist" aria-label="Filtrar chats">
+              {([
+                { key: 'active' as const, label: 'Activos', badge: activeCount },
+                { key: 'all' as const, label: 'Todos', badge: 0 },
+                { key: 'ended' as const, label: 'Cerrados', badge: 0 },
+              ]).map(({ key, label, badge }) => (
                 <button
-                  key={t}
-                  onClick={() => { setTab(t); setSelectedId(null); }}
-                  style={{
-                    flex: 1,
-                    padding: '10px 0',
-                    fontSize: 13,
-                    fontWeight: tab === t ? 600 : 400,
-                    color: tab === t ? 'var(--brand-primary, #3b82f6)' : '#64748b',
-                    background: 'none',
-                    border: 'none',
-                    borderBottom: tab === t ? '2px solid var(--brand-primary, #3b82f6)' : '2px solid transparent',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s',
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === key}
+                  className={`chats-page__tab${tab === key ? ' is-active' : ''}`}
+                  onClick={() => {
+                    setTab(key);
+                    setSelectedId(null);
+                    setMobileShowThread(false);
                   }}
                 >
-                  {t === 'active' ? (
-                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                  {key === 'active' ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                       <Circle size={7} fill="#22c55e" color="#22c55e" />
-                      Activos {activeCount > 0 && <span style={{ background: '#22c55e', color: 'white', borderRadius: 8, fontSize: 10, padding: '1px 5px' }}>{activeCount}</span>}
+                      {label}
+                      {badge > 0 ? <span className="chats-page__tab-badge">{badge}</span> : null}
                     </span>
-                  ) : 'Todos'}
+                  ) : label}
                 </button>
               ))}
             </div>
 
-            {/* List */}
-            <div style={{ flex: 1, overflowY: 'auto' }}>
+            <div className="chats-page__filters">
+              <div style={{ position: 'relative' }}>
+                <Search
+                  size={14}
+                  style={{
+                    position: 'absolute',
+                    left: 10,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--muted-foreground)',
+                    pointerEvents: 'none',
+                  }}
+                />
+                <input
+                  type="search"
+                  className="chats-page__search"
+                  placeholder="Buscar visitante, widget, mensaje…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  style={{ paddingLeft: '2rem' }}
+                />
+              </div>
+              {widgetOptions.length > 1 ? (
+                <select
+                  className="chats-page__widget-select"
+                  value={widgetFilter}
+                  onChange={(e) => setWidgetFilter(e.target.value)}
+                  aria-label="Filtrar por widget"
+                >
+                  <option value="">Todos los widgets</option>
+                  {widgetOptions.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              ) : null}
+            </div>
+
+            <div className="chats-page__list">
               {loading ? (
-                <div style={{ padding: 32, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Cargando...</div>
-              ) : sessions.length === 0 ? (
-                <div style={{ padding: 32, textAlign: 'center' }}>
-                  <MessageSquare size={32} color="#cbd5e1" style={{ marginBottom: 8 }} />
-                  <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
-                    {tab === 'active' ? 'No hay chats activos' : 'No hay chats registrados'}
+                <AiLoadingInline
+                  label="Cargando chats…"
+                  hint="Recuperando sesiones de tus widgets"
+                  compact
+                  style={{ padding: '2rem 1rem' }}
+                />
+              ) : filteredSessions.length === 0 ? (
+                <div className="chats-page__empty-panel" style={{ minHeight: '12rem' }}>
+                  <MessageSquare size={32} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />
+                  <p style={{ margin: 0, fontSize: '0.8125rem', fontWeight: 600 }}>
+                    {search || widgetFilter
+                      ? 'Sin resultados para este filtro'
+                      : tab === 'active'
+                        ? 'No hay chats activos'
+                        : tab === 'ended'
+                          ? 'No hay chats cerrados'
+                          : 'No hay chats registrados'}
                   </p>
                 </div>
               ) : (
-                sessions.map((item) => (
+                filteredSessions.map((item) => (
                   <SessionCard
                     key={item.sessionId}
                     item={item}
@@ -495,176 +424,193 @@ export default function ChatsPage() {
                 ))
               )}
             </div>
-          </div>
+          </aside>
 
-          {/* ── Right Panel: Messages ── */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          {/* Panel de mensajes */}
+          <section
+            className={`chats-page__panel${showPanel && selectedId ? '' : ' chats-page__panel--hidden-mobile'}`}
+          >
             {!selectedId ? (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', gap: 8 }}>
-                <MessageSquare size={40} color="#cbd5e1" />
-                <p style={{ fontSize: 14, margin: 0 }}>Selecciona un chat para ver los mensajes</p>
+              <div className="chats-page__empty-panel">
+                <MessageSquare size={40} style={{ color: 'var(--muted-foreground)', opacity: 0.45 }} />
+                <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600 }}>Selecciona un chat</p>
+                <p style={{ margin: 0, fontSize: '0.8125rem', maxWidth: '16rem' }}>
+                  Elige una conversación de la lista para ver el historial completo de mensajes.
+                </p>
               </div>
             ) : (
               <>
-                {/* Thread Header */}
-                <div
-                  style={{
-                    padding: '12px 16px',
-                    borderBottom: '1px solid #e8eaf0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexShrink: 0,
-                    background: '#fafbfc',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ position: 'relative' }}>
-                      <div
-                        style={{
-                          width: 34,
-                          height: 34,
-                          borderRadius: '50%',
-                          background: selectedSession ? sessionColor(selectedSession.sessionId).bg : '#e2e8f0',
-                          border: `1.5px solid ${selectedSession ? sessionColor(selectedSession.sessionId).border : '#e2e8f0'}`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 12,
-                          fontWeight: 600,
-                          color: selectedSession ? sessionColor(selectedSession.sessionId).fg : '#64748b',
-                        }}
-                      >
-                        {selectedSession ? initials(selectedSession.visitorLabel) : '?'}
-                      </div>
-                      {isSelectedActive && (
-                        <span style={{ position: 'absolute', bottom: 1, right: 1, width: 8, height: 8, background: '#22c55e', border: '1.5px solid white', borderRadius: '50%' }} />
-                      )}
+                <header className="chats-page__thread-header">
+                  <div className="chats-page__thread-identity">
+                    <button
+                      type="button"
+                      className="chats-page__back"
+                      onClick={() => setMobileShowThread(false)}
+                    >
+                      <ArrowLeft size={16} />
+                      Volver
+                    </button>
+                    <div
+                      className="chats-page__avatar"
+                      style={{
+                        width: '2.125rem',
+                        height: '2.125rem',
+                        background: selectedSession ? sessionColor(selectedSession.sessionId).bg : 'var(--muted)',
+                        color: selectedSession ? sessionColor(selectedSession.sessionId).fg : 'var(--muted-foreground)',
+                        border: selectedSession
+                          ? `1.5px solid ${sessionColor(selectedSession.sessionId).border}`
+                          : '1px solid var(--border-subtle)',
+                      }}
+                    >
+                      {selectedSession ? initials(selectedSession.visitorLabel) : '?'}
                     </div>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: '#0f172a' }}>
-                        {sessionDetail?.visitorLabel || selectedSession?.visitorLabel || '...'}
+                    <div className="chats-page__thread-meta">
+                      <div className="chats-page__thread-name">
+                        {sessionDetail?.visitorLabel || selectedSession?.visitorLabel || '…'}
                       </div>
-                      <div style={{ fontSize: 11, color: '#94a3b8', display: 'flex', gap: 8 }}>
+                      <div className="chats-page__thread-sub">
                         <span>{sessionDetail?.widgetName || selectedSession?.widgetName}</span>
-                        {selectedSession && (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                        {selectedSession ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                             <Clock size={10} />
                             {formatDuration(selectedSession.durationSec)}
                           </span>
+                        ) : null}
+                        {isSelectedActive ? (
+                          <span className="chats-page__status-live">● Activo</span>
+                        ) : (
+                          <span className="chats-page__status-closed">● Cerrado</span>
                         )}
-                        {isSelectedActive
-                          ? <span style={{ color: '#22c55e', fontWeight: 500 }}>● Activo</span>
-                          : <span style={{ color: '#94a3b8' }}>● Cerrado</span>
-                        }
                       </div>
+                      {(contact.email || contact.phone) ? (
+                        <div className="chats-page__contact-chips">
+                          {contact.name ? (
+                            <span className="chats-page__contact-chip">{contact.name}</span>
+                          ) : null}
+                          {contact.email ? (
+                            <span className="chats-page__contact-chip">{contact.email}</span>
+                          ) : null}
+                          {contact.phone ? (
+                            <span className="chats-page__contact-chip">{contact.phone}</span>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    {isSelectedActive && (
+                  <div className="chats-page__thread-actions">
+                    {selectedSession?.agentId ? (
+                      <Link
+                        href={`/dashboard/agents/${selectedSession.agentId}`}
+                        className="chats-page__icon-btn"
+                        title="Ver agente"
+                      >
+                        <ExternalLink size={14} />
+                      </Link>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="chats-page__icon-btn"
+                      title="Copiar ID de sesión"
+                      onClick={() => void copySessionId(selectedId)}
+                    >
+                      <Copy size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      className="chats-page__icon-btn"
+                      title="Actualizar mensajes"
+                      onClick={() => void loadThread(selectedId)}
+                    >
+                      <RefreshCw size={14} />
+                    </button>
+                    {isSelectedActive ? (
                       <button
+                        type="button"
+                        className="chats-page__close-btn"
+                        disabled={closingId === selectedId}
                         onClick={() => {
                           const label = selectedSession?.visitorLabel || selectedId;
                           setConfirmClose({ sessionId: selectedId, label });
                         }}
-                        disabled={closingId === selectedId}
-                        style={{
-                          padding: '5px 12px',
-                          borderRadius: 7,
-                          border: '1px solid #fca5a5',
-                          background: '#fff1f2',
-                          color: '#dc2626',
-                          fontSize: 12,
-                          fontWeight: 500,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 5,
-                        }}
                       >
                         <X size={12} />
-                        Cerrar chat
+                        Cerrar
                       </button>
-                    )}
-                    <button
-                      onClick={() => void loadThread(selectedId)}
-                      style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: 7, padding: '5px 8px', cursor: 'pointer', color: '#64748b' }}
-                    >
-                      <RefreshCw size={13} />
-                    </button>
+                    ) : null}
                   </div>
-                </div>
+                </header>
 
-                {/* Messages */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+                <div className="chats-page__messages">
                   {loadingThread ? (
-                    <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 13, padding: 32 }}>Cargando mensajes...</div>
+                    <AiLoadingInline
+                      label="Cargando mensajes…"
+                      compact
+                      style={{ padding: '2rem 0', flex: 1 }}
+                    />
                   ) : messages.length === 0 ? (
-                    <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 13, padding: 32 }}>
-                      <ImageIcon size={28} color="#cbd5e1" style={{ marginBottom: 8 }} />
-                      <p style={{ margin: 0 }}>Sin mensajes aún</p>
+                    <div className="chats-page__empty-panel">
+                      <Bot size={28} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />
+                      <p style={{ margin: 0, fontSize: '0.8125rem' }}>Sin mensajes en esta sesión</p>
                     </div>
                   ) : (
-                    <>
-                      {messages.map((msg) => (
-                        <MessageBubble key={msg.id} msg={msg} />
-                      ))}
-                      <div ref={messagesEndRef} />
-                    </>
+                    <ConversationThread messages={messages} />
                   )}
                 </div>
 
-                {/* Stats bar */}
-                {selectedSession && (
-                  <div
-                    style={{
-                      padding: '8px 16px',
-                      borderTop: '1px solid #e8eaf0',
-                      display: 'flex',
-                      gap: 16,
-                      fontSize: 11,
-                      color: '#94a3b8',
-                      flexShrink: 0,
-                      background: '#fafbfc',
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {selectedSession ? (
+                  <footer className="chats-page__stats">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                       <MessageSquare size={10} />
                       {messages.length} mensajes
                     </span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Clock size={10} />
-                      Inicio: {new Date(selectedSession.startedAt).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    <span>
+                      Inicio:{' '}
+                      {new Date(selectedSession.startedAt).toLocaleString('es-CO', {
+                        day: '2-digit',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
                     </span>
-                    {selectedSession.endedAt && (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        Fin: {new Date(selectedSession.endedAt).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {selectedSession.endedAt ? (
+                      <span>
+                        Fin:{' '}
+                        {new Date(selectedSession.endedAt).toLocaleString('es-CO', {
+                          day: '2-digit',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </span>
-                    )}
-                    {selectedSession.escalated && (
-                      <span style={{ color: '#d97706' }}>⚠ Escalado</span>
-                    )}
-                    {selectedSession.humanMode && (
-                      <span style={{ color: '#3b82f6' }}>👤 Modo humano</span>
-                    )}
-                    {selectedSession.agentId && (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    ) : null}
+                    {selectedSession.escalated ? <span style={{ color: '#d97706' }}>Escalado</span> : null}
+                    {selectedSession.humanMode ? <span style={{ color: 'var(--primary)' }}>Modo humano</span> : null}
+                    {selectedSession.agentId ? (
+                      <Link
+                        href={`/dashboard/agents/${selectedSession.agentId}`}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          color: 'var(--primary)',
+                          textDecoration: 'none',
+                        }}
+                      >
                         <Bot size={10} />
-                        {selectedSession.agentId.slice(-8)}
-                      </span>
-                    )}
-                  </div>
-                )}
+                        Ver agente
+                        <ChevronRight size={10} />
+                      </Link>
+                    ) : null}
+                  </footer>
+                ) : null}
               </>
             )}
-          </div>
+          </section>
         </div>
       </div>
 
-      {/* Confirm close dialog */}
-      {confirmClose && (
+      {confirmClose ? (
         <ConfirmDialog
           open={!!confirmClose}
           title="Cerrar sesión de chat"
@@ -676,7 +622,7 @@ export default function ChatsPage() {
           loading={closingId === confirmClose.sessionId}
           variant="danger"
         />
-      )}
+      ) : null}
     </DashboardShell>
   );
 }
