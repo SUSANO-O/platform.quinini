@@ -36,6 +36,8 @@ const UserSchema = new Schema({
   escalationSlackWebhookUrl: { type: String, default: null },
   /** Número WhatsApp personal del dueño para recibir alertas de handoff y responder desde WA. */
   escalationWhatsAppPhone: { type: String, default: null },
+  /** Último mensaje WA entrante del dueño al número Business (abre ventana 24 h). */
+  ownerWaLastInboundAt: { type: Date, default: null },
   // Two-Factor Authentication (TOTP)
   twoFactorEnabled: { type: Boolean, default: false },
   twoFactorSecret:  { type: String, default: null },
@@ -319,6 +321,8 @@ const ClientAgentSchema = new Schema({
     status:         { type: String, enum: ['disconnected', 'pending', 'connected', 'error'], default: 'disconnected' },
     lastError:      { type: String, default: '' },
     connectedAt:    { type: Date, default: null },
+    handoffTemplateName: { type: String, default: '' },
+    handoffTemplateLang: { type: String, default: '' },
   },
 }, { timestamps: true });
 
@@ -450,6 +454,8 @@ const ConversationSessionSchema = new Schema({
   lastHumanMessageAt: { type: Date, default: null },
   /** ID del mensaje WA enviado al dueño como alerta de handoff (para rutear su respuesta). */
   handoffWaNotifMsgId: { type: String, default: null },
+  /** Error de entrega Meta (webhook status failed), si aplica. */
+  handoffWaDeliveryError: { type: String, default: null },
   /** WhatsApp: esperando respuesta a la encuesta tras resolver (antes de nueva conversación). */
   waFeedbackPending: { type: Boolean, default: false },
 }, { timestamps: true });

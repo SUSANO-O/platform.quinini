@@ -1,5 +1,5 @@
 /**
- * Crea una entrada de Inbox por cada solicitud de handoff (no sobrescribe solicitudes anteriores).
+ * Handoff Inbox: cierra solicitudes anteriores y crea una sesión ho_* nueva por escalación.
  */
 import { randomUUID } from 'crypto';
 import { ConversationSession } from '@/lib/db/models';
@@ -15,12 +15,61 @@ export type HandoffSessionInput = {
   handoffAt?: Date;
 };
 
-export async function upsertHandoffInboxSession(input: HandoffSessionInput): Promise<string | null> {
+const MS_24H = 24 * 60 * 60 * 1000;
+
+/** Cierra handoffs abiertos previos del mismo chat para empezar conversación limpia. */
+export async function closePreviousHandoffSessions(input: {
+  chatSessionId: string;
+  userId: string;
+  widgetId: string;
+  closedAt?: Date;
+}): Promise<number> {
+  const chatSessionId = input.chatSessionId.trim();
+  const userId = String(input.userId).trim();
+  const widgetId = String(input.widgetId).trim();
+  if (!chatSessionId || !userId || !widgetId) return 0;
+
+  const closedAt = input.closedAt ?? new Date();
+  const result = await ConversationSession.updateMany(
+    {
+      userId,
+      widgetId,
+      chatSessionId,
+      escalated: true,
+      inboxStatus: { $ne: 'resolved' },
+      handoffAt: { $exists: true, $ne: null },
+    },
+    {
+      $set: {
+        inboxStatus: 'resolved',
+        humanMode: false,
+        endedAt: closedAt,
+      },
+      $unset: {
+        handoffWaNotifMsgId: 1,
+        handoffWaDeliveryError: 1,
+      },
+    },
+  );
+  return result.modifiedCount ?? 0;
+}
+
+/**
+ * Cierra handoffs viejos del mismo chat y crea una entrada Inbox nueva (ho_*).
+ */
+export async function prepareHandoffInboxSession(input: HandoffSessionInput): Promise<string | null> {
   const chatSessionId = input.sessionId.trim();
   const userId = String(input.userId).trim();
   if (!chatSessionId || !userId) return null;
 
   const now = input.handoffAt ?? new Date();
+  await closePreviousHandoffSessions({
+    chatSessionId,
+    userId,
+    widgetId: input.widgetId,
+    closedAt: now,
+  });
+
   const handoffSessionId = `ho_${randomUUID()}`;
 
   try {
@@ -38,13 +87,25 @@ export async function upsertHandoffInboxSession(input: HandoffSessionInput): Pro
       handoffAt: now,
       startedAt: now,
       messageCount: 0,
-      lastVisitorMessageAt: now, // nueva solicitud sin ver por el agente
+      lastVisitorMessageAt: now,
+      humanMode: true,
+      humanModeAt: now,
     });
     return handoffSessionId;
   } catch (err) {
-    console.error('[inbox] upsertHandoffInboxSession failed:', handoffSessionId, err);
+    console.error('[inbox] prepareHandoffInboxSession failed:', handoffSessionId, err);
     return null;
   }
+}
+
+/** @deprecated Usar prepareHandoffInboxSession */
+export async function upsertHandoffInboxSession(input: HandoffSessionInput): Promise<string | null> {
+  return prepareHandoffInboxSession(input);
+}
+
+export function isWhatsAppServiceWindowOpen(lastOwnerInboundAt?: Date | null, now = Date.now()): boolean {
+  if (!(lastOwnerInboundAt instanceof Date) || Number.isNaN(lastOwnerInboundAt.getTime())) return false;
+  return now - lastOwnerInboundAt.getTime() < MS_24H;
 }
 
 /** sessionId del chat para buscar mensajes (entradas ho_* guardan chatSessionId). */

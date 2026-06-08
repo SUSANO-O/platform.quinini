@@ -15,7 +15,7 @@ import { dispatchSaasWebhook } from '@/lib/saas-webhook-outbound';
 import { sendPushToUser } from '@/lib/push-notifications';
 import { createEscalationTicket } from '@/lib/escalation-tickets';
 import { notifySlackOnEscalation } from '@/lib/escalation-slack';
-import { upsertHandoffInboxSession } from '@/lib/inbox-handoff';
+import { prepareHandoffInboxSession } from '@/lib/inbox-handoff';
 import { getCorsHeaders, handlePreflight, withCors } from '@/lib/cors';
 import {
   normalizeHandoffNotifyMode,
@@ -97,7 +97,7 @@ export async function POST(
 
   let handoffSessionId: string | null = null;
   if (body.sessionId?.trim()) {
-    handoffSessionId = await upsertHandoffInboxSession({
+    handoffSessionId = await prepareHandoffInboxSession({
       sessionId: body.sessionId.trim(),
       userId: uid,
       widgetId: id,
@@ -135,8 +135,13 @@ export async function POST(
   }
 
   const user = await User.findById(uid)
-    .select({ email: 1, pushSubscription: 1, escalationWhatsAppPhone: 1 })
-    .lean() as { email?: string; pushSubscription?: unknown; escalationWhatsAppPhone?: string | null } | null;
+    .select({ email: 1, pushSubscription: 1, escalationWhatsAppPhone: 1, ownerWaLastInboundAt: 1 })
+    .lean() as {
+      email?: string;
+      pushSubscription?: unknown;
+      escalationWhatsAppPhone?: string | null;
+      ownerWaLastInboundAt?: Date | null;
+    } | null;
 
   const notifTitle = 'Nueva solicitud de atención humana';
   const notifBody = `Widget "${widget.name || id}"${contactInfo.name ? ` — ${contactInfo.name}` : ''}${body.userMessage ? `: "${body.userMessage.slice(0, 60)}"` : ''}`;

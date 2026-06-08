@@ -112,6 +112,13 @@ interface IncomingMessage {
 interface ChangeValue {
   metadata?: { phone_number_id?: string; display_phone_number?: string };
   messages?: IncomingMessage[];
+  statuses?: Array<{
+    id?: string;
+    status?: string;
+    timestamp?: string;
+    recipient_id?: string;
+    errors?: Array<{ code?: number; title?: string; message?: string }>;
+  }>;
   contacts?: Array<{ profile?: { name?: string }; wa_id?: string }>;
 }
 
@@ -134,6 +141,32 @@ async function processIncomingMessages(rawBody: string, signatureHeader: string 
 
       const phoneNumberId = value.metadata?.phone_number_id?.trim();
       const messages = value.messages || [];
+      const statuses = value.statuses || [];
+
+      // ── Estados de entrega (failed/delivered) — Meta avisa si el mensaje no llegó ──
+      for (const st of statuses) {
+        const msgId = typeof st.id === 'string' ? st.id.trim() : '';
+        const status = typeof st.status === 'string' ? st.status.trim() : '';
+        if (!msgId) continue;
+        if (status === 'failed') {
+          const errMsg = st.errors?.[0]?.message || st.errors?.[0]?.title || 'delivery failed';
+          console.error('[whatsapp/webhook] handoff/delivery failed', {
+            messageId: msgId,
+            recipient: st.recipient_id,
+            errors: st.errors,
+          });
+          await ConversationSession.updateOne(
+            { handoffWaNotifMsgId: msgId },
+            { $set: { handoffWaDeliveryError: String(errMsg).slice(0, 500) } },
+          ).catch(() => {});
+        } else if (status === 'delivered' || status === 'read') {
+          await ConversationSession.updateOne(
+            { handoffWaNotifMsgId: msgId },
+            { $unset: { handoffWaDeliveryError: 1 } },
+          ).catch(() => {});
+        }
+      }
+
       if (!phoneNumberId || messages.length === 0) continue;
 
       // ── Detectar si el mensaje viene del dueño respondiendo una alerta de handoff ──
@@ -168,6 +201,12 @@ async function processIncomingMessages(rawBody: string, signatureHeader: string 
           || '';
 
         if (!ownerUser || !phonesMatch(ownerPhone, senderDigits)) continue;
+
+        // Dueño escribió al Business → ventana 24 h activa para alertas de handoff en texto libre.
+        void User.updateOne(
+          { _id: ownerUser._id },
+          { $set: { ownerWaLastInboundAt: new Date() } },
+        ).catch(() => {});
 
         // Es el dueño — marcar como manejado para no procesarlo como cliente
         handledByOwner.add(msg.id);

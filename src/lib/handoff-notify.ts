@@ -45,17 +45,17 @@ export function resolveWidgetHumanSupportPhone(
   return userPhone ? userPhone.slice(0, 48) : '';
 }
 
-/** Número personal del dueño para alertas de handoff (Flujo B: formulario). Ajustes primero. */
+/** Número destino de alertas handoff: widget «WhatsApp humano» primero, luego Ajustes. */
 export function resolveHandoffOwnerNotifyPhone(
   widget: { humanSupportPhone?: unknown },
   user?: { escalationWhatsAppPhone?: unknown } | null,
 ): string {
-  const ownerPhone =
-    typeof user?.escalationWhatsAppPhone === 'string' ? user.escalationWhatsAppPhone.trim() : '';
-  if (ownerPhone) return ownerPhone.slice(0, 48);
   const widgetPhone =
     typeof widget.humanSupportPhone === 'string' ? widget.humanSupportPhone.trim() : '';
-  return widgetPhone ? widgetPhone.slice(0, 48) : '';
+  if (widgetPhone) return widgetPhone.slice(0, 48);
+  const ownerPhone =
+    typeof user?.escalationWhatsAppPhone === 'string' ? user.escalationWhatsAppPhone.trim() : '';
+  return ownerPhone ? ownerPhone.slice(0, 48) : '';
 }
 
 /** Normaliza campos de soporte humano / escalación en respuestas API del widget. */

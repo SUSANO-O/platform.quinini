@@ -4,8 +4,8 @@
 
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent, ConversationSession } from '@/lib/db/models';
-import { resolveHandoffOwnerNotifyPhone } from '@/lib/handoff-notify';
-import { sendHandoffNotification, type WhatsAppAgentConfig } from '@/lib/whatsapp';
+import { isWhatsAppServiceWindowOpen, resolveHandoffOwnerNotifyPhone } from '@/lib/handoff-notify';
+import { sendHandoffNotification, getWhatsAppAccessToken, type WhatsAppAgentConfig } from '@/lib/whatsapp';
 
 export type HandoffWaNotifyResult = {
   attempted: boolean;
@@ -13,6 +13,9 @@ export type HandoffWaNotifyResult = {
   skippedReason?: 'no_session' | 'no_phone' | 'no_whatsapp_agent' | 'send_failed';
   error?: string;
   messageId?: string;
+  notifyPhone?: string;
+  method?: 'template' | 'text';
+  serviceWindowOpen?: boolean;
 };
 
 const WA_AGENT_FILTER = {
@@ -42,7 +45,7 @@ export async function notifyOwnerHandoffViaWhatsApp(params: {
   widgetId: string;
   widgetName: string;
   widget: { humanSupportPhone?: unknown };
-  user?: { escalationWhatsAppPhone?: unknown } | null;
+  user?: { escalationWhatsAppPhone?: unknown; ownerWaLastInboundAt?: Date | null } | null;
   chatSessionId?: string;
   handoffSessionId?: string | null;
   preferredAgentId?: string;
@@ -51,25 +54,55 @@ export async function notifyOwnerHandoffViaWhatsApp(params: {
 }): Promise<HandoffWaNotifyResult> {
   const chatSessionId = params.chatSessionId?.trim() || '';
   if (!chatSessionId) {
+    console.log('[AFHUB-DEBUG] handoff WA skipped: no sessionId', {
+      widgetId: params.widgetId,
+      userId: params.userId,
+    });
     return { attempted: false, skippedReason: 'no_session' };
   }
 
   const notifyPhone = resolveHandoffOwnerNotifyPhone(params.widget, params.user);
   if (!notifyPhone) {
+    console.log('[AFHUB-DEBUG] handoff WA skipped: no notify phone', {
+      widgetId: params.widgetId,
+      userId: params.userId,
+    });
     return { attempted: false, skippedReason: 'no_phone' };
   }
 
   await connectDB();
 
+  console.log('[AFHUB-DEBUG] handoff WA notify starting:', {
+    widgetId: params.widgetId,
+    widgetName: params.widgetName,
+    userId: params.userId,
+    chatSessionId,
+    handoffSessionId: params.handoffSessionId || null,
+    preferredAgentId: params.preferredAgentId || null,
+    notifyPhone,
+  });
+
   const waAgent = await findWhatsAppAgentForHandoff(params.userId, params.preferredAgentId);
   if (!waAgent?.whatsapp) {
-    console.warn('[handoff] WA notification skipped: no agent with WhatsApp connected', {
+    console.log('[AFHUB-DEBUG] ❌ handoff WA skipped: no WhatsApp agent connected', {
       widgetId: params.widgetId,
       userId: params.userId,
       preferredAgentId: params.preferredAgentId || null,
     });
     return { attempted: true, ok: false, skippedReason: 'no_whatsapp_agent' };
   }
+
+  console.log('[AFHUB-DEBUG] handoff WA agent resolved:', {
+    phoneNumberId: waAgent.whatsapp.phoneNumberId || null,
+    displayPhone: waAgent.whatsapp.displayPhone || null,
+    status: waAgent.whatsapp.status || null,
+    hasAccessTokenEnc: Boolean(waAgent.whatsapp.accessTokenEnc),
+    tokenDecryptOk: Boolean(getWhatsAppAccessToken(waAgent.whatsapp)),
+    hasSecretEncryptionKey: Boolean(process.env.SECRET_ENCRYPTION_KEY?.trim()),
+  });
+
+  const ownerWaLastInboundAt =
+    params.user?.ownerWaLastInboundAt instanceof Date ? params.user.ownerWaLastInboundAt : null;
 
   const notifResult = await sendHandoffNotification({
     waConfig: waAgent.whatsapp,
@@ -78,18 +111,23 @@ export async function notifyOwnerHandoffViaWhatsApp(params: {
     userMessage: params.userMessage,
     widgetName: params.widgetName,
     sessionId: chatSessionId,
+    ownerWaLastInboundAt,
   });
 
   if (!notifResult.ok) {
-    console.error('[handoff] WA notification send failed:', notifResult.error, {
+    console.log('[AFHUB-DEBUG] ❌ handoff WA send failed:', {
       widgetId: params.widgetId,
       notifyPhone,
+      error: notifResult.error,
+      method: notifResult.method,
+      serviceWindowOpen: notifResult.serviceWindowOpen,
     });
     return {
       attempted: true,
       ok: false,
       skippedReason: 'send_failed',
       error: notifResult.error,
+      notifyPhone,
     };
   }
 
@@ -100,5 +138,24 @@ export async function notifyOwnerHandoffViaWhatsApp(params: {
     ).catch(() => {});
   }
 
-  return { attempted: true, ok: true, messageId: notifResult.messageId };
+  const serviceWindowOpen =
+    notifResult.serviceWindowOpen ?? isWhatsAppServiceWindowOpen(ownerWaLastInboundAt);
+
+  console.log('[AFHUB-DEBUG] ✅ handoff WA sent to Meta:', {
+    widgetId: params.widgetId,
+    notifyPhone: notifResult.notifyPhone || notifyPhone,
+    messageId: notifResult.messageId,
+    method: notifResult.method,
+    serviceWindowOpen,
+    handoffSessionId: params.handoffSessionId || null,
+  });
+
+  return {
+    attempted: true,
+    ok: true,
+    messageId: notifResult.messageId,
+    notifyPhone: notifResult.notifyPhone || notifyPhone,
+    method: notifResult.method,
+    serviceWindowOpen,
+  };
 }

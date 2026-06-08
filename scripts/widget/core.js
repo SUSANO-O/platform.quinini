@@ -2540,6 +2540,13 @@
     function openHandoffModal() {
       if (cfg.handoffEnabled === false) return;
       if (widgetDisabled) return;
+      console.log('[AFHUB-DEBUG] Handoff modal opened:', {
+        handoffEnabled: cfg.handoffEnabled !== false,
+        humanSupportPhone: cfg.humanSupportPhone,
+        humanSupportEnabled: cfg.humanSupportEnabled !== false,
+        handoffNotifyMode: cfg.handoffNotifyMode,
+        agentId: cfg.agentId || '',
+      });
       handoffOverlay.classList.add('visible');
       var errEl = handoffOverlay.querySelector('.afhub-handoff-error');
       if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
@@ -2584,6 +2591,16 @@
       }
       if (submitBtn) submitBtn.disabled = true;
       var endpoint = cfg.host.replace(/\/$/, '') + '/api/widgets/' + encodeURIComponent(wid) + '/handoff';
+      console.log('[AFHUB-DEBUG] Handoff submit starting:', {
+        endpoint: endpoint,
+        sessionId: chatSessionId,
+        agentId: cfg.agentId || '',
+        humanSupportPhone: cfg.humanSupportPhone,
+        handoffEnabled: cfg.handoffEnabled !== false,
+        hasToken: !!(cfg.token && String(cfg.token).trim()),
+        contactInfo: contactInfo,
+        userMessagePreview: userMessage ? userMessage.slice(0, 80) : '',
+      });
       fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -2605,6 +2622,30 @@
         .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
         .then(function (result) {
           if (submitBtn) submitBtn.disabled = false;
+          var wa = result.data && result.data.waNotification;
+          console.log('[AFHUB-DEBUG] Handoff API response:', {
+            httpOk: result.ok,
+            handoffNotifyMode: result.data && result.data.handoffNotifyMode,
+            humanSupportPhone: result.data && result.data.humanSupportPhone,
+            slack: result.data && result.data.slack,
+            waNotification: wa,
+          });
+          if (wa && wa.ok === true) {
+            console.log('[AFHUB-DEBUG] ✅ WhatsApp handoff alert SENT to owner:', {
+              notifyPhone: wa.notifyPhone,
+              messageId: wa.messageId,
+              method: wa.method,
+              serviceWindowOpen: wa.serviceWindowOpen,
+            });
+          } else if (wa && wa.attempted === true) {
+            console.log('[AFHUB-DEBUG] ❌ WhatsApp handoff alert NOT sent:', {
+              skippedReason: wa.skippedReason,
+              error: wa.error,
+              notifyPhone: wa.notifyPhone,
+            });
+          } else if (wa) {
+            console.log('[AFHUB-DEBUG] ⏭️ WhatsApp handoff alert skipped:', wa);
+          }
           if (!result.ok) {
             if (errEl) {
               errEl.textContent = (result.data && result.data.error) ? result.data.error : 'Error al enviar.';
