@@ -26,6 +26,7 @@ import { getAgentflowhubBaseUrl } from '@/lib/aibackhub-sync';
 import { ConversationSession, WidgetMessage, User, Subscription } from '@/lib/db/models';
 import { normalizePhoneDigits } from '@/lib/whatsapp';
 import { canUseWhatsApp } from '@/lib/plan-catalog';
+import { handleWhatsAppResolvedInbound, reopenWhatsAppSession } from '@/lib/inbox-resolve';
 
 /** WhatsApp es feature de Business+ (o override / rol admin): solo procesamos mensajes de dueños habilitados. */
 async function ownerCanUseWhatsApp(userId: string): Promise<boolean> {
@@ -320,26 +321,37 @@ async function handleSingleMessage(params: {
   sessionId: string;
 }): Promise<void> {
   const activeSession = await ConversationSession.findOne({ sessionId: params.sessionId })
-    .select({ humanMode: 1, inboxStatus: 1 }).lean() as { humanMode?: boolean; inboxStatus?: string } | null;
+    .select({ humanMode: 1, inboxStatus: 1, waFeedbackPending: 1 })
+    .lean() as { humanMode?: boolean; inboxStatus?: string; waFeedbackPending?: boolean } | null;
   const isHumanMode = activeSession?.humanMode === true;
   const isResolved = activeSession?.inboxStatus === 'resolved';
 
   if (isResolved) {
-    void persistWidgetTranscript({
-      widgetId: params.widgetIdEquivalent,
-      userId: params.ownerUserId,
-      agentId: params.agentIdForChat,
+    const resolvedAction = await handleWhatsAppResolvedInbound({
       sessionId: params.sessionId,
-      userMessage: params.text,
-      assistantMessage: '',
-      toolsUsed: undefined,
-    }).catch(() => { /* best-effort */ });
-    await sendWhatsAppText(
-      params.waConfig,
-      params.from,
-      'Esta conversación ya fue cerrada. Si necesitas ayuda de nuevo, envíanos un mensaje y con gusto te atenderemos.',
-    ).catch(() => {});
-    return;
+      ownerUserId: params.ownerUserId,
+      agentIdForChat: params.agentIdForChat,
+      widgetIdEquivalent: params.widgetIdEquivalent,
+      waConfig: params.waConfig,
+      from: params.from,
+      text: params.text,
+      waFeedbackPending: activeSession?.waFeedbackPending === true,
+    });
+
+    if (resolvedAction === 'feedback_handled') {
+      void persistWidgetTranscript({
+        widgetId: params.widgetIdEquivalent,
+        userId: params.ownerUserId,
+        agentId: params.agentIdForChat,
+        sessionId: params.sessionId,
+        userMessage: params.text,
+        assistantMessage: '',
+        toolsUsed: undefined,
+      }).catch(() => { /* best-effort */ });
+      return;
+    }
+
+    await reopenWhatsAppSession(params.sessionId);
   }
 
   if (isHumanMode) {
