@@ -46,18 +46,19 @@
       "modelsHint": "Gemini, Claude, GPT y más"
     },
     "how": {
-      "title": "Funciona en 5 pasos",
-      "subtitle": "Integra un agente de IA en tu sitio en menos de 10 minutos.",
+      "badge": "Implementación rápida",
+      "title": "Configura tu IA en minutos",
+      "subtitle": "Nuestra plataforma está diseñada para que despliegues agentes inteligentes sin complicaciones técnicas. Sigue estos cinco pasos y transforma tu atención al cliente hoy mismo.",
       "step1Title": "Crea tu cuenta",
-      "step1Desc": "7 días gratis. Acceso completo al Widget Builder y los 9 agentes.",
+      "step1Desc": "Regístrate en segundos y accede a nuestro panel de control intuitivo. No se requiere tarjeta de crédito para comenzar.",
       "step2Title": "Entrena tu agente",
-      "step2Desc": "Sube documentos, agrega URLs o configura herramientas para que el agente conozca tu negocio a la perfección.",
+      "step2Desc": "Sube tus documentos o conecta tu base de conocimientos. Nuestra IA aprenderá de tu contenido en tiempo real.",
       "step3Title": "Diseña tu widget",
-      "step3Desc": "Elige el agente, personaliza colores, textos y posición con el Widget Builder visual.",
+      "step3Desc": "Personaliza colores, logo y estilo para que el chat se integre perfectamente con la identidad de tu marca.",
       "step4Title": "Copia el snippet",
-      "step4Desc": "Un bloque de código. Pégalo en tu HTML y el chat aparece al instante.",
+      "step4Desc": "Copia una sola línea de código e insértala en tu sitio web. Tu agente estará activo y listo para ayudar de inmediato.",
       "step5Title": "Escala cuando estés listo",
-      "step5Desc": "Actualiza al plan que necesites. Sin contratos, cancela cuando quieras."
+      "step5Desc": "Actualiza al plan que necesites, añade multi-agente o más capacidad. Sin contratos, cancela cuando quieras."
     },
     "agents": {
       "title": "Crea agentes especializados",

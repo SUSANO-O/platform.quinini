@@ -46,18 +46,19 @@
       "modelsHint": "Gemini, Claude, GPT & more"
     },
     "how": {
-      "title": "Works in 5 steps",
-      "subtitle": "Integrate an AI agent into your site in less than 10 minutes.",
+      "badge": "Fast setup",
+      "title": "Configure your AI in minutes",
+      "subtitle": "Our platform is built so you can deploy intelligent agents without technical hassle. Follow these five steps and transform your customer support today.",
       "step1Title": "Create your account",
-      "step1Desc": "7 days free. Full access to the Widget Builder and all 9 agents.",
+      "step1Desc": "Sign up in seconds and access our intuitive control panel. No credit card required to get started.",
       "step2Title": "Train your agent",
-      "step2Desc": "Upload documents, add URLs or configure tools so the agent knows your business perfectly.",
+      "step2Desc": "Upload your documents or connect your knowledge base. Our AI learns from your content in real time.",
       "step3Title": "Design your widget",
-      "step3Desc": "Choose the agent, customize colors, text and position with the visual Widget Builder.",
+      "step3Desc": "Customize colors, logo and style so the chat fits your brand identity perfectly.",
       "step4Title": "Copy the snippet",
-      "step4Desc": "One code block. Paste it in your HTML and the chat appears instantly.",
+      "step4Desc": "Copy a single line of code and paste it on your website. Your agent will be live and ready to help instantly.",
       "step5Title": "Scale when you're ready",
-      "step5Desc": "Upgrade to the plan you need. No contracts, cancel anytime."
+      "step5Desc": "Upgrade to the plan you need, add multi-agent or more capacity. No contracts — cancel anytime."
     },
     "agents": {
       "title": "6 Specialized Agents",

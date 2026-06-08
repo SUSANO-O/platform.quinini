@@ -46,7 +46,7 @@ import {
 } from '@/lib/widget-multi-agent';
 import { enrichWidgetChatBodyWithImages, type WidgetImageEnrichment } from '@/lib/widget-chat-images';
 import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-enrich';
-import { persistWidgetTranscript } from '@/lib/widget-transcript';
+import { schedulePersistWidgetTranscript } from '@/lib/widget-transcript';
 import { agentHasAnyWebhook } from '@/lib/agent-webhooks';
 import { agentHasAnySheet } from '@/lib/agent-sheets';
 import { tryServeWidgetChatViaDirectInference } from '@/lib/widget-chat-direct-inference';
@@ -473,6 +473,16 @@ export async function POST(req: NextRequest) {
                   agentResponse: pipeline.reply,
                   routingMeta: pipeline.meta,
                 });
+                schedulePersistWidgetTranscript({
+                  widgetId: resolvedWidgetId,
+                  userId: faqTrackOwnerId,
+                  agentId: pipeline.routedHubAgentId,
+                  sessionId: parsedSessionId || traceId,
+                  traceId,
+                  userMessage: userDisplayMessage || parsedMessage,
+                  assistantMessage: pipeline.reply,
+                  enrichment: imageEnrichment,
+                });
               }
               latencyTrace.setPath('stream-pipeline');
               finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: pipeline.reply.length });
@@ -527,6 +537,16 @@ export async function POST(req: NextRequest) {
                   userMessage: userDisplayMessage || parsedMessage,
                   agentResponse: parallel.reply,
                   routingMeta: parallel.meta,
+                });
+                schedulePersistWidgetTranscript({
+                  widgetId: resolvedWidgetId,
+                  userId: faqTrackOwnerId,
+                  agentId: parallel.routedHubAgentId,
+                  sessionId: parsedSessionId || traceId,
+                  traceId,
+                  userMessage: userDisplayMessage || parsedMessage,
+                  assistantMessage: parallel.reply,
+                  enrichment: imageEnrichment,
                 });
               }
               latencyTrace.setPath('stream-parallel');
@@ -691,6 +711,16 @@ export async function POST(req: NextRequest) {
                   agentResponse: inferred.reply,
                   routingMeta: multiAgentMeta,
                 });
+                schedulePersistWidgetTranscript({
+                  widgetId: resolvedWidgetId,
+                  userId: faqTrackOwnerId,
+                  agentId: parsedAgentIdLocal,
+                  sessionId: parsedSessionId || traceId,
+                  traceId,
+                  userMessage: userDisplayMessage || parsedMessage,
+                  assistantMessage: inferred.reply,
+                  enrichment: imageEnrichment,
+                });
               }
               latencyTrace.setPath('stream-infer-direct');
               finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: inferred.reply.length });
@@ -801,7 +831,7 @@ export async function POST(req: NextRequest) {
 
             // Persist transcript (fire-and-forget — never blocks stream)
             if (fullReply && resolvedWidgetId) {
-              void persistWidgetTranscript({
+              schedulePersistWidgetTranscript({
                 widgetId: resolvedWidgetId,
                 userId: faqTrackOwnerId,
                 agentId: parsedAgentId,
@@ -810,7 +840,8 @@ export async function POST(req: NextRequest) {
                 userMessage: userDisplayMessage || streamMsg,
                 assistantMessage: fullReply,
                 enrichment: imageEnrichment,
-              }).catch(() => {});
+                toolsUsed: json.toolsUsed,
+              });
             }
           }
         }

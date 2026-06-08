@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useAuthSplashLoading } from '@/hooks/use-auth-splash-loading';
 import { SubscriptionProvider, useSubscription } from '@/hooks/use-subscription';
+import { QueryProvider } from '@/providers/query-provider';
 import { AiLoadingScreen } from '@/components/ui/ai-loading-screen';
 import { DashboardSidebar, SIDEBAR_COLLAPSED_PX } from '@/components/dashboard/dashboard-sidebar';
 import { DashboardMobileNav } from '@/components/dashboard/dashboard-mobile-nav';
@@ -333,6 +334,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   return (
+    <QueryProvider>
     <SubscriptionProvider>
       <TourProvider>
       <SubscriptionExpiryGate />
@@ -445,5 +447,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
       </TourProvider>
     </SubscriptionProvider>
+    </QueryProvider>
   );
 }

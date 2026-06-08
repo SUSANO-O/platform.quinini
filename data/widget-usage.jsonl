@@ -409,3 +409,5 @@
 {"t":"2026-06-08T03:52:28.992Z","event":"message_received","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
 {"t":"2026-06-08T03:54:27.122Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_3"}
 {"t":"2026-06-08T03:57:58.353Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_4"}
+{"t":"2026-06-08T15:04:04.583Z","event":"widget_opened","agentId":"6a1da96d094e6d2eefa7d066"}
+{"t":"2026-06-08T15:04:19.221Z","event":"message_received","agentId":"6a1da96d094e6d2eefa7d066"}

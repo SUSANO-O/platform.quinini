@@ -1,16 +1,21 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   Inbox,
 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
+import { BackgroundRefreshIndicator } from '@/components/dashboard/background-refresh-indicator';
 import { InboxChatModal } from '@/components/dashboard/inbox-chat-modal';
 import { InboxRequestCard, type InboxCardItem, displayVisitorName } from '@/components/dashboard/inbox-request-card';
 import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 import { notifyInboxChanged } from '@/hooks/use-inbox-open-count';
+import { dashboardKeys } from '@/lib/dashboard-query-keys';
+import { fetchInboxList, fetchInboxThread, type InboxListResult } from '@/lib/dashboard-fetch';
+import { useDashboardUiStore } from '@/stores/dashboard-ui-store';
 
 type InboxItem = InboxCardItem;
 
@@ -27,91 +32,65 @@ type Attachment = {
   ocrText?: string;
 };
 
-type TranscriptMessage = {
-  id?: string;
-  role: string;
-  sentBy?: string;
-  content: string;
-  createdAt: string;
-  attachments?: Attachment[];
-  deliveredAt?: string | null;
-  readAt?: string | null;
-};
-
 export default function InboxPage() {
-  const [tab, setTab] = useState<'open' | 'resolved'>('open');
-  const [replyFilter, setReplyFilter] = useState<'unanswered' | 'answered'>('unanswered');
-  const [items, setItems] = useState<InboxItem[]>([]);
-  const [openCount, setOpenCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [transcripts, setTranscripts] = useState<Record<string, TranscriptMessage[]>>({});
-  const [loadingTranscript, setLoadingTranscript] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const tab = useDashboardUiStore((s) => s.inbox.tab);
+  const replyFilter = useDashboardUiStore((s) => s.inbox.replyFilter);
+  const expanded = useDashboardUiStore((s) => s.inbox.expandedSessionId);
+  const livePolling = useDashboardUiStore((s) => s.inbox.livePollingSessionId);
+  const replyDrafts = useDashboardUiStore((s) => s.inbox.replyDrafts);
+  const setInboxTab = useDashboardUiStore((s) => s.setInboxTab);
+  const setInboxReplyFilter = useDashboardUiStore((s) => s.setInboxReplyFilter);
+  const openInboxChat = useDashboardUiStore((s) => s.openInboxChat);
+  const closeInboxChat = useDashboardUiStore((s) => s.closeInboxChat);
+  const setInboxReplyDraft = useDashboardUiStore((s) => s.setInboxReplyDraft);
+  const clearInboxReplyDraft = useDashboardUiStore((s) => s.clearInboxReplyDraft);
   const [followUpDraft, setFollowUpDraft] = useState<Record<string, { at: string; note: string }>>({});
-  const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
   const [sendingReply, setSendingReply] = useState<string | null>(null);
   const [deletingSession, setDeletingSession] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ sessionId: string; label: string } | null>(null);
   // Adjuntos pendientes de envío (ya subidos a Cloudinary) por sesión.
   const [pendingAttachments, setPendingAttachments] = useState<Record<string, Attachment[]>>({});
   const [uploadingAttachment, setUploadingAttachment] = useState<string | null>(null);
-  // Polling del hilo mientras el modal de chat está abierto en una sesión activa.
-  const [livePolling, setLivePolling] = useState<string | null>(null);
   const [humanModeBySession, setHumanModeBySession] = useState<Record<string, boolean>>({});
   const [reactivatingBot, setReactivatingBot] = useState<string | null>(null);
   const [followUpExpanded, setFollowUpExpanded] = useState<Record<string, boolean>>({});
 
-  const load = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    try {
-      const res = await fetch(`/api/inbox?status=${tab}`);
-      const data = await res.json();
-      if (!res.ok) {
-        if (!silent) toast.error(typeof data.error === 'string' ? data.error : 'Error al cargar inbox.');
-        return;
-      }
-      setItems(Array.isArray(data.items) ? data.items : []);
-      setOpenCount(typeof data.openCount === 'number' ? data.openCount : 0);
-      notifyInboxChanged();
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }, [tab]);
+  const inboxQuery = useQuery({
+    queryKey: dashboardKeys.inbox(tab),
+    queryFn: () => fetchInboxList(tab),
+    refetchInterval: 8000,
+  });
+
+  const items = inboxQuery.data?.items ?? [];
+  const openCount = inboxQuery.data?.openCount ?? 0;
+  const showListSpinner = inboxQuery.isLoading && items.length === 0;
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (inboxQuery.isSuccess) notifyInboxChanged();
+  }, [inboxQuery.isSuccess, inboxQuery.dataUpdatedAt]);
 
-  // Inbox reactivo: refresca la lista en segundo plano cada 8s (sin spinner).
-  useEffect(() => {
-    const id = setInterval(() => { void load(true); }, 8000);
-    return () => clearInterval(id);
-  }, [load]);
+  const threadQuery = useQuery({
+    queryKey: dashboardKeys.inboxThread(expanded ?? ''),
+    queryFn: () => fetchInboxThread(expanded!),
+    enabled: Boolean(expanded),
+    refetchInterval: livePolling ? 4000 : false,
+  });
 
-  // Polling del hilo cada 4s mientras la sesión está expandida y abierta.
   useEffect(() => {
-    if (!livePolling) return;
-    const id = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/inbox/${encodeURIComponent(livePolling)}`);
-        const data = await res.json();
-        if (res.ok && Array.isArray(data.messages)) {
-          setTranscripts((prev) => ({ ...prev, [livePolling]: data.messages }));
-        }
-      } catch { /* silencioso */ }
-    }, 4000);
-    return () => clearInterval(id);
-  }, [livePolling]);
+    if (!expanded || typeof threadQuery.data?.humanMode !== 'boolean') return;
+    setHumanModeBySession((prev) => ({ ...prev, [expanded]: threadQuery.data!.humanMode }));
+  }, [expanded, threadQuery.data?.humanMode]);
 
   async function refreshThread(sessionId: string) {
-    const tr = await fetch(`/api/inbox/${encodeURIComponent(sessionId)}`);
-    const td = await tr.json();
-    if (tr.ok && Array.isArray(td.messages)) {
-      setTranscripts((prev) => ({ ...prev, [sessionId]: td.messages }));
-      if (typeof td.session?.humanMode === 'boolean') {
-        setHumanModeBySession((prev) => ({ ...prev, [sessionId]: td.session.humanMode }));
-      }
-    }
+    await queryClient.invalidateQueries({ queryKey: dashboardKeys.inboxThread(sessionId) });
+  }
+
+  function patchInboxList(patch: (list: InboxListResult) => InboxListResult) {
+    queryClient.setQueryData(dashboardKeys.inbox(tab), (old: InboxListResult | undefined) => {
+      if (!old) return old;
+      return patch(old);
+    });
   }
 
   async function reactivateBot(sessionId: string) {
@@ -155,7 +134,7 @@ export default function InboxPage() {
   }
 
   async function sendReply(sessionId: string) {
-    const message = replyDraft[sessionId]?.trim() || '';
+    const message = replyDrafts[sessionId]?.trim() || '';
     const attachments = pendingAttachments[sessionId] || [];
     if (!message && attachments.length === 0) return;
     setSendingReply(sessionId);
@@ -170,13 +149,16 @@ export default function InboxPage() {
         toast.error(d.error || 'No se pudo enviar el mensaje.');
         return;
       }
-      setReplyDraft((prev) => ({ ...prev, [sessionId]: '' }));
+      clearInboxReplyDraft(sessionId);
       setPendingAttachments((prev) => ({ ...prev, [sessionId]: [] }));
-      setItems((prev) =>
-        prev.map((i) =>
-          i.sessionId === sessionId ? { ...i, needsReply: false, hasUnread: false, lastRole: 'assistant', lastSentBy: 'human' } : i,
+      patchInboxList((old) => ({
+        ...old,
+        items: old.items.map((i) =>
+          i.sessionId === sessionId
+            ? { ...i, needsReply: false, hasUnread: false, lastRole: 'assistant', lastSentBy: 'human' }
+            : i,
         ),
-      );
+      }));
       await refreshThread(sessionId);
       toast.success('Mensaje enviado al visitante.');
     } finally {
@@ -219,10 +201,10 @@ export default function InboxPage() {
   async function deleteMessage(sessionId: string, messageId: string) {
     if (!messageId) return;
     // Optimista: quitar del hilo.
-    setTranscripts((prev) => ({
-      ...prev,
-      [sessionId]: (prev[sessionId] || []).filter((m) => m.id !== messageId),
-    }));
+    queryClient.setQueryData(dashboardKeys.inboxThread(sessionId), (old: Awaited<ReturnType<typeof fetchInboxThread>> | undefined) => {
+      if (!old) return old;
+      return { ...old, messages: old.messages.filter((m) => m.id !== messageId) };
+    });
     try {
       const res = await fetch(
         `/api/inbox/${encodeURIComponent(sessionId)}/message/${encodeURIComponent(messageId)}`,
@@ -242,32 +224,15 @@ export default function InboxPage() {
   }
 
   function closeChat() {
-    setExpanded(null);
-    setLivePolling(null);
+    closeInboxChat();
   }
 
-  async function openChat(sessionId: string, isOpen: boolean) {
-    setExpanded(sessionId);
-    setLivePolling(isOpen ? sessionId : null);
-    setLoadingTranscript(sessionId);
-    // Marcar como leída en la UI de inmediato (el servidor lo confirma al cargar el hilo).
-    setItems((prev) =>
-      prev.map((i) => (i.sessionId === sessionId ? { ...i, hasUnread: false } : i)),
-    );
-    try {
-      const res = await fetch(`/api/inbox/${encodeURIComponent(sessionId)}`);
-      const data = await res.json();
-      if (res.ok) {
-        if (Array.isArray(data.messages)) {
-          setTranscripts((prev) => ({ ...prev, [sessionId]: data.messages }));
-        }
-        if (typeof data.session?.humanMode === 'boolean') {
-          setHumanModeBySession((prev) => ({ ...prev, [sessionId]: data.session.humanMode }));
-        }
-      }
-    } finally {
-      setLoadingTranscript(null);
-    }
+  function openChat(sessionId: string, isOpen: boolean) {
+    openInboxChat(sessionId, isOpen);
+    patchInboxList((old) => ({
+      ...old,
+      items: old.items.map((i) => (i.sessionId === sessionId ? { ...i, hasUnread: false } : i)),
+    }));
   }
 
   async function confirmDeleteSession() {
@@ -282,18 +247,13 @@ export default function InboxPage() {
         return;
       }
       if (expanded === sessionId) {
-        setExpanded(null);
-        setLivePolling(null);
+        closeInboxChat();
       }
-      setTranscripts((prev) => {
-        const next = { ...prev };
-        delete next[sessionId];
-        return next;
-      });
+      queryClient.removeQueries({ queryKey: dashboardKeys.inboxThread(sessionId) });
       setDeleteTarget(null);
       toast.success('Conversación eliminada.');
       notifyInboxChanged();
-      await load(true);
+      await queryClient.invalidateQueries({ queryKey: dashboardKeys.inbox(tab) });
     } catch {
       toast.error('Error de red al eliminar.');
     } finally {
@@ -313,7 +273,7 @@ export default function InboxPage() {
     }
     toast.success(inboxStatus === 'resolved' ? 'Marcada como resuelta' : 'Reabierta');
     notifyInboxChanged();
-    load();
+    void queryClient.invalidateQueries({ queryKey: dashboardKeys.inbox(tab) });
   }
 
   async function saveFollowUp(sessionId: string) {
@@ -332,7 +292,7 @@ export default function InboxPage() {
       return;
     }
     toast.success('Recordatorio guardado.');
-    load();
+    void queryClient.invalidateQueries({ queryKey: dashboardKeys.inbox(tab) });
   }
 
   function fmtDate(iso: string) {
@@ -375,10 +335,10 @@ export default function InboxPage() {
           widgetName={activeChatItem.widgetName}
           handoffAt={activeChatItem.handoffAt}
           inboxStatus={activeChatItem.inboxStatus}
-          loading={loadingTranscript === expanded}
-          messages={transcripts[expanded]}
-          replyDraft={replyDraft[expanded] ?? ''}
-          onReplyDraftChange={(value) => setReplyDraft((p) => ({ ...p, [expanded]: value }))}
+          loading={Boolean(expanded) && threadQuery.isLoading && !threadQuery.data}
+          messages={threadQuery.data?.messages}
+          replyDraft={replyDrafts[expanded] ?? ''}
+          onReplyDraftChange={(value) => setInboxReplyDraft(expanded, value)}
           pendingAttachments={pendingAttachments[expanded] ?? []}
           onRemoveAttachment={(index) => removePendingAttachment(expanded, index)}
           onUploadAttachment={(file) => void uploadAttachment(expanded, file)}
@@ -394,10 +354,15 @@ export default function InboxPage() {
         />
       )}
       <header className="inbox-page__header">
-        <h1 className="inbox-page__title">Bandeja de Entrada</h1>
-        <p className="inbox-page__subtitle">
-          Conversaciones de widgets y WhatsApp que requieren tu atención.
-        </p>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="inbox-page__title">Bandeja de Entrada</h1>
+            <p className="inbox-page__subtitle">
+              Conversaciones de widgets y WhatsApp que requieren tu atención.
+            </p>
+          </div>
+          <BackgroundRefreshIndicator active={inboxQuery.isFetching && !showListSpinner} />
+        </div>
       </header>
 
       <div className="inbox-page__toolbar">
@@ -406,14 +371,14 @@ export default function InboxPage() {
             <button
               type="button"
               className={`inbox-page__filter inbox-page__filter--pending${replyFilter === 'unanswered' ? ' is-active' : ''}`}
-              onClick={() => setReplyFilter('unanswered')}
+              onClick={() => setInboxReplyFilter('unanswered')}
             >
               Sin responder
             </button>
             <button
               type="button"
               className={`inbox-page__filter inbox-page__filter--answered${replyFilter === 'answered' ? ' is-active' : ''}`}
-              onClick={() => setReplyFilter('answered')}
+              onClick={() => setInboxReplyFilter('answered')}
             >
               Respondida
             </button>
@@ -430,7 +395,7 @@ export default function InboxPage() {
               role="tab"
               aria-selected={tab === t}
               className={`inbox-page__tab${tab === t ? ' is-active' : ''}`}
-              onClick={() => setTab(t)}
+              onClick={() => setInboxTab(t)}
             >
               {t === 'open' ? 'Abiertas' : 'Resueltas'}
               {t === 'open' && openCount > 0 ? (
@@ -441,7 +406,7 @@ export default function InboxPage() {
         </div>
       </div>
 
-      {loading ? (
+      {showListSpinner ? (
         <AiLoadingInline
           label="Cargando bandeja…"
           hint="Recuperando conversaciones de tus widgets"

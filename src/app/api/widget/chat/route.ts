@@ -35,7 +35,7 @@ import {
   type MultiAgentRoutingMeta,
 } from '@/lib/widget-multi-agent';
 import { enrichWidgetChatBodyWithImages, type WidgetImageEnrichment } from '@/lib/widget-chat-images';
-import { persistWidgetTranscript } from '@/lib/widget-transcript';
+import { schedulePersistWidgetTranscript } from '@/lib/widget-transcript';
 import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-enrich';
 import { logInferenceMetric, estimateTokens } from '@/lib/inference-metrics';
 import { normalizeVisitorId } from '@/lib/widget-visitor';
@@ -568,6 +568,16 @@ export async function POST(req: NextRequest) {
                 agentResponse: pipeline.reply,
                 routingMeta: pipeline.meta,
               });
+              schedulePersistWidgetTranscript({
+                widgetId: resolvedWidgetId || w.id,
+                userId: w.userId,
+                agentId: parsedAgentId,
+                sessionId: parsedSessionId || traceId,
+                traceId,
+                userMessage: guardResult.text || parsedMessage,
+                assistantMessage: pipeline.reply,
+                enrichment: imageEnrichment,
+              });
               finishNonStreamTrace(latencyTrace, 'non-stream-pipeline', {
                 ok: true,
                 replyLen: pipeline.reply.length,
@@ -624,6 +634,16 @@ export async function POST(req: NextRequest) {
                 userMessage: parsedMessage,
                 agentResponse: parallel.reply,
                 routingMeta: parallel.meta,
+              });
+              schedulePersistWidgetTranscript({
+                widgetId: resolvedWidgetId || w.id,
+                userId: w.userId,
+                agentId: parsedAgentId,
+                sessionId: parsedSessionId || traceId,
+                traceId,
+                userMessage: guardResult.text || parsedMessage,
+                assistantMessage: parallel.reply,
+                enrichment: imageEnrichment,
               });
               finishNonStreamTrace(latencyTrace, 'non-stream-parallel', {
                 ok: true,
@@ -726,6 +746,17 @@ export async function POST(req: NextRequest) {
               agentResponse: direct.reply,
               routingMeta: multiAgentMeta,
             });
+            schedulePersistWidgetTranscript({
+              widgetId: resolvedWidgetId || w.id,
+              userId: w.userId,
+              agentId: parsedAgentId,
+              sessionId: parsedSessionId || traceId,
+              traceId,
+              userMessage: guardResult.text || parsedMessage,
+              assistantMessage: direct.reply,
+              enrichment: imageEnrichment,
+              toolsUsed: direct.toolsUsed,
+            });
             // Métricas del request (best-effort, fire-and-forget)
             logInferenceMetric({
               userId: w.userId,
@@ -804,6 +835,16 @@ export async function POST(req: NextRequest) {
               userMessage: parsedMessage,
               agentResponse: inferred.reply,
               routingMeta: multiAgentMeta,
+            });
+            schedulePersistWidgetTranscript({
+              widgetId: resolvedWidgetId || w.id,
+              userId: w.userId,
+              agentId: parsedAgentId,
+              sessionId: parsedSessionId || traceId,
+              traceId,
+              userMessage: guardResult.text || parsedMessage,
+              assistantMessage: inferred.reply,
+              enrichment: imageEnrichment,
             });
             finishNonStreamTrace(latencyTrace, 'non-stream-infer-direct', {
               ok: true,
@@ -902,6 +943,28 @@ export async function POST(req: NextRequest) {
             agentIdOrHubId: parsedAgentId,
             rawBody: rawBodyInitial,
           }).catch(() => {});
+          void afterWidgetChatSuccess({
+            ownerUserId: faqTrackOwnerId,
+            widgetId: resolvedWidgetId || undefined,
+            chatSessionId: parsedSessionId || traceId,
+            visitorId: parsedVisitorId,
+            hubAgentId: parsedAgentId,
+            userMessage: guardResult.text || parsedMessage,
+            agentResponse: inferred.reply,
+            routingMeta: multiAgentMeta,
+          });
+          if (resolvedWidgetId) {
+            schedulePersistWidgetTranscript({
+              widgetId: resolvedWidgetId,
+              userId: faqTrackOwnerId,
+              agentId: parsedAgentId,
+              sessionId: parsedSessionId || traceId,
+              traceId,
+              userMessage: guardResult.text || parsedMessage,
+              assistantMessage: inferred.reply,
+              enrichment: imageEnrichment,
+            });
+          }
           finishNonStreamTrace(latencyTrace, 'non-stream-infer-direct', {
             ok: true,
             replyLen: inferred.reply.length,
@@ -957,7 +1020,7 @@ export async function POST(req: NextRequest) {
             const hubJson = JSON.parse(data) as { reply?: string };
             const replyText = typeof hubJson.reply === 'string' ? hubJson.reply : '';
             if (replyText) {
-              void persistWidgetTranscript({
+              schedulePersistWidgetTranscript({
                 widgetId: resolvedWidgetId,
                 userId: faqTrackOwnerId,
                 agentId: parsedAgentId,
@@ -966,7 +1029,7 @@ export async function POST(req: NextRequest) {
                 userMessage: guardResult.text || '',
                 assistantMessage: replyText,
                 enrichment: imageEnrichment,
-              }).catch(() => {});
+              });
             }
           } catch { /* non-critical */ }
         }
