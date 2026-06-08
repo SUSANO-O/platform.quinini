@@ -31,3 +31,4 @@ npm run dev    # http://localhost:3201
 
 - [docs/widget-troubleshooting.md](./docs/widget-troubleshooting.md)
 - [../ARCHITECTURE.md](../ARCHITECTURE.md)
+node
