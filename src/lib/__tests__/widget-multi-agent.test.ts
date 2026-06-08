@@ -9,6 +9,7 @@ import {
   isMultiAgentPlanEligible,
   pickPipelineAgents,
   resolveHubAgentId,
+  resolveParallelContributors,
   resolveRoutableHubAgentId,
   resolveWidgetRoutingCapabilities,
   triageByKeywords,
@@ -91,6 +92,46 @@ describe('widget-multi-agent', () => {
     const result = triageByKeywords('hola', team);
     expect(result.target.id).toBe('o1');
     expect(result.method).toBe('default');
+  });
+
+  it('triaje no envía a mongo cuando el usuario pregunta "sabes de finanzas"', () => {
+    const financeCaps = buildAgentCapabilityProfile({
+      agent: {
+        name: 'asesor financiero',
+        description: 'eres capaz de consultar flujos externos y financiero muy capaz',
+        systemPrompt: 'Eres un asesor financiero personal. Ayudas a mejorar finanzas, crédito y ahorro.',
+      },
+      skillCatalog: DEFAULT_AGENT_SKILLS_CATALOG,
+    });
+    const mongoCaps = buildAgentCapabilityProfile({
+      agent: {
+        name: 'mongo agent',
+        description: 'sabes de qa',
+        systemPrompt: 'eres experto en qa daras respuestas correctas',
+        enabledMcpToolIds: ['mcp:mongodb:mongo_find'],
+      },
+      skillCatalog: DEFAULT_AGENT_SKILLS_CATALOG,
+    });
+    const team: TeamMember[] = [
+      {
+        id: 'o1',
+        hubId: 'asesor-financiero',
+        name: 'asesor financiero',
+        description: 'financiero muy capaz',
+        role: 'orchestrator',
+        capabilities: financeCaps,
+      },
+      {
+        id: 'o2',
+        hubId: 'mongo-agent',
+        name: 'mongo agent',
+        description: 'sabes de qa',
+        role: 'orchestrator',
+        capabilities: mongoCaps,
+      },
+    ];
+    const result = triageByKeywords('hola sabes de finanzas', team, 'o1');
+    expect(result.target.id).toBe('o1');
   });
 
   it('triaje mantiene asesor financiero ante consulta de finanzas (no mongo)', () => {
@@ -192,6 +233,26 @@ describe('widget-multi-agent', () => {
     );
     expect(result.target.id).toBe('s1');
     expect(result.method).toBe('keyword');
+  });
+
+  it('resolveParallelContributors usa orquestador principal con 2.º orquestador', () => {
+    const primary: TeamMember = {
+      id: 'o1',
+      hubId: 'asesor-financiero',
+      name: 'asesor financiero',
+      description: '',
+      role: 'orchestrator',
+    };
+    const mongo: TeamMember = {
+      id: 'o2',
+      hubId: 'mongo-agent',
+      name: 'mongo agent',
+      description: '',
+      role: 'orchestrator',
+    };
+    const pair = resolveParallelContributors([primary, mongo], primary, mongo);
+    expect(pair.orchestrator.id).toBe('o1');
+    expect(pair.specialist.id).toBe('o2');
   });
 
   it('validateMultiAgentMode acepta pipeline', () => {
