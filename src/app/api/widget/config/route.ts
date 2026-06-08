@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
         borderRadius:      widget.borderRadius,
         autoOpen:          widget.autoOpen,
         fabDismissible:    widget.fabDismissible !== false,
-        voiceEnabled:      widget.voiceEnabled !== false,
+        voiceEnabled:      widget.voiceEnabled === true,
         humanSupportPhone: effectiveHumanSupportPhone,
         humanSupportEnabled: widget.humanSupportEnabled !== false,
         handoffEnabled:    widget.handoffEnabled !== false,

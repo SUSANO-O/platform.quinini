@@ -20,6 +20,7 @@
   var ICON_ATTACH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>';
   var ICON_COPY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
   var ICON_MIC_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
+  var ICON_HEADSET = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h2a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H3z"/><path d="M21 11h-2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2z"/><path d="M3 11V9a9 9 0 0 1 18 0v2"/></svg>';
   var ICON_VOLUME_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>';
   var ICON_VOLUME_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
   /** Barra lateral anclada al borde de la ventana */
@@ -102,8 +103,8 @@
     theme: 'light',
     orbLight: '',
     orbDeep: '',
-    /** Habilita el botón de micrófono y modo voz continuo */
-    voiceEnabled: true,
+    /** Habilita micrófono, STT y lectura en voz alta (opt-in). */
+    voiceEnabled: false,
     /** Idioma BCP-47 para STT/TTS, por defecto detecta del navegador */
     voiceLang: '',
     /** Nombre exacto de la voz SpeechSynthesis; vacío = auto */
@@ -377,6 +378,7 @@
       .substring(0, 48);
     merged.humanSupportEnabled = input && input.humanSupportEnabled === false ? false : true;
     merged.handoffEnabled = input && input.handoffEnabled === false ? false : true;
+    merged.voiceEnabled = input && input.voiceEnabled === true ? true : false;
     merged.handoffTimeout = (input && typeof input.handoffTimeout === 'number') ? Math.max(0, input.handoffTimeout) : 5;
     merged.feedbackEnabled = input && input.feedbackEnabled === true ? true : false;
     merged.feedbackTitle = String((input && input.feedbackTitle) || '¿Cómo fue tu experiencia?');
@@ -1240,7 +1242,7 @@
     settingsBtn.title = 'Ajustes';
 
     var voiceMenuAvailable =
-      cfg.voiceEnabled !== false && typeof window !== 'undefined' && window.speechSynthesis;
+      cfg.voiceEnabled === true && typeof window !== 'undefined' && window.speechSynthesis;
     var settingsMenuHtml =
       '<button type="button" class="afhub-settings-item afhub-settings-new-chat">' +
         ICON_NEW_CHAT +
@@ -1401,7 +1403,7 @@
     var voiceBar = null;
     var hasSpeechAPI = typeof window !== 'undefined' &&
       (typeof window.SpeechRecognition !== 'undefined' || typeof window.webkitSpeechRecognition !== 'undefined');
-    if (cfg.voiceEnabled !== false && hasSpeechAPI) {
+    if (cfg.voiceEnabled === true && hasSpeechAPI) {
       micBtn = document.createElement('button');
       micBtn.className = 'afhub-mic';
       micBtn.innerHTML = ICON_MIC;
@@ -1421,6 +1423,18 @@
     inputComposer.appendChild(inputWrap);
 
     inputArea.appendChild(inputComposer);
+
+    var handoffBtn = null;
+    if (cfg.handoffEnabled !== false) {
+      handoffBtn = document.createElement('button');
+      handoffBtn.className = 'afhub-handoff-icon';
+      handoffBtn.type = 'button';
+      handoffBtn.innerHTML = ICON_HEADSET;
+      handoffBtn.setAttribute('aria-label', 'Hablar con una persona');
+      handoffBtn.setAttribute('title', 'Hablar con una persona');
+      inputArea.appendChild(handoffBtn);
+    }
+
     var sendBtn = document.createElement('button');
     sendBtn.className = 'afhub-send';
     sendBtn.innerHTML = ICON_SEND;
@@ -1435,22 +1449,11 @@
       sendBtn.disabled = true;
       if (micBtn) micBtn.disabled = true;
       if (attachBtn) attachBtn.disabled = true;
+      if (handoffBtn) handoffBtn.disabled = true;
       inputArea.classList.add('afhub-input-area--disabled');
     }
     if (voiceBar) {
       chat.insertBefore(voiceBar, inputArea);
-    }
-
-    // Barra de acciones compacta: "Hablar con una persona" (chip en una sola fila).
-    var actionBar = document.createElement('div');
-    actionBar.className = 'afhub-action-bar';
-    var handoffBtn = document.createElement('button');
-    handoffBtn.className = 'afhub-action-btn';
-    handoffBtn.type = 'button';
-    handoffBtn.textContent = 'Hablar con una persona';
-    handoffBtn.setAttribute('aria-label', 'Solicitar atención humana');
-    if (cfg.handoffEnabled !== false) {
-      actionBar.appendChild(handoffBtn);
     }
 
     var handoffOverlay = document.createElement('div');
@@ -1477,11 +1480,6 @@
     var feedbackQs = (cfg.feedbackEnabled && Array.isArray(cfg.feedbackQuestions))
       ? cfg.feedbackQuestions.filter(function (q) { return q && q.enabled !== false && q.text; })
       : [];
-
-    // Añadir la barra de acciones solo si tiene al menos un botón visible.
-    if (actionBar.childNodes.length) {
-      chat.appendChild(actionBar);
-    }
 
     // ── Aviso de privacidad / política (footer, siempre visible si está activo) ──
     if (cfg.policyEnabled !== false && (cfg.policyText || cfg.policyLinkLabel)) {
@@ -3004,7 +3002,7 @@
     }
     // ── FIN MODO HUMANO ───────────────────────────────────────────────────────
 
-    handoffBtn.addEventListener('click', openHandoffModal);
+    if (handoffBtn) handoffBtn.addEventListener('click', openHandoffModal);
     handoffOverlay.querySelector('.afhub-handoff-cancel').addEventListener('click', closeHandoffModal);
     handoffOverlay.querySelector('.afhub-handoff-submit').addEventListener('click', submitHandoffRequest);
     handoffOverlay.addEventListener('click', function (e) {
@@ -3334,9 +3332,9 @@
       feedbackCard.querySelector('.afhub-fb-skip').addEventListener('click', dismissFeedback);
       feedbackCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
-    if (widgetDisabled) {
+    if (widgetDisabled && handoffBtn) {
       handoffBtn.disabled = true;
-      handoffBtn.classList.add('afhub-action-btn--disabled');
+      handoffBtn.classList.add('afhub-handoff-icon--disabled');
     }
 
     function open() {
@@ -4666,7 +4664,7 @@
       autoOpen: attr(script, 'data-auto-open', 'false') === 'true',
       debug: attr(script, 'data-debug', 'false') === 'true',
       theme: attr(script, 'data-theme', DEFAULTS.theme),
-      voiceEnabled: attr(script, 'data-voice-enabled', 'true') !== 'false',
+      voiceEnabled: attr(script, 'data-voice-enabled', 'false') === 'true',
       voiceLang: attr(script, 'data-voice-lang', ''),
       voiceName: attr(script, 'data-voice-name', ''),
       humanSupportPhone: attr(script, 'data-human-support-phone', ''),
@@ -5200,7 +5198,8 @@
       '#' + rootId + ' .afhub-attach-preview-remove { width:26px; height:26px; border-radius:50%; border:none; background:#fee2e2; color:#dc2626; font-size:18px; line-height:1; cursor:pointer; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-img-wrap--user { margin-top:8px; }' +
       '#' + rootId + ' .afhub-input-wrap { flex:1; min-width:0; position:relative; display:flex; align-items:center; }' +
-      '#' + rootId + ' .afhub-input-wrap .afhub-input { width:100%; padding-right:40px; }' +
+      '#' + rootId + ' .afhub-input-wrap .afhub-input { width:100%; padding-right:8px; }' +
+      '#' + rootId + ' .afhub-input-wrap:has(.afhub-mic) .afhub-input { padding-right:40px; }' +
       '#' + rootId + ' .afhub-input-wrap .afhub-mic { position:absolute; right:4px; top:50%; transform:translateY(-50%); z-index:1; }' +
       '#' + rootId + ' .afhub-input { flex:1; min-width:0; border:none; border-radius:18px; padding:6px 9px; font-size:13px; font-weight:400; outline:none; resize:none; min-height:32px; max-height:88px; line-height:1.35; letter-spacing:-0.01em; font-family:inherit !important; color:#0f172a !important; -webkit-text-fill-color:#0f172a; caret-color:' + cfg.color + '; background:transparent; box-shadow:none; overflow-y:auto; scrollbar-width:none; transition:none; }' +
       '#' + rootId + ' .afhub-input::-webkit-scrollbar { display:none; width:0; height:0; }' +
@@ -5210,6 +5209,10 @@
       '#' + rootId + ' .afhub-send:not(:disabled):hover { transform:scale(1.04); }' +
       '#' + rootId + ' .afhub-send:disabled { opacity:.35; cursor:default; box-shadow:none; }' +
       '#' + rootId + ' .afhub-send svg { width:17px; height:17px; }' +
+      '#' + rootId + ' .afhub-handoff-icon { width:36px; height:36px; border-radius:50%; border:1.5px solid ' + cfg.color + '; cursor:pointer; background:#fff; color:' + cfg.color + '; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background .15s ease,border-color .15s ease,transform .12s ease,color .15s ease; padding:0; appearance:none; -webkit-appearance:none; }' +
+      '#' + rootId + ' .afhub-handoff-icon:hover { background:' + cfg.color + '12; transform:scale(1.04); }' +
+      '#' + rootId + ' .afhub-handoff-icon svg { width:17px; height:17px; }' +
+      '#' + rootId + ' .afhub-handoff-icon--disabled { opacity:.45; cursor:not-allowed; pointer-events:none; }' +
       '#' + rootId + ' .afhub-mic { width:30px; height:30px; border-radius:50%; border:none; cursor:pointer; background:transparent; color:#94a3b8; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background .18s,color .18s; padding:0; }' +
       '#' + rootId + ' .afhub-mic:hover { background:rgba(15,23,42,.05); color:' + cfg.color + '; }' +
       '#' + rootId + ' .afhub-mic--active { background:rgba(239,68,68,.1) !important; color:#ef4444 !important; animation:afhub-mic-pulse 1.5s ease-in-out infinite; }' +
