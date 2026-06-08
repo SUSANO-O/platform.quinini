@@ -397,7 +397,6 @@ export default function ChatsPage() {
                 <AiLoadingInline
                   label="Cargando chats…"
                   hint="Recuperando sesiones de tus widgets"
-                  compact
                   style={{ padding: '2rem 1rem' }}
                 />
               ) : filteredSessions.length === 0 ? (
@@ -545,7 +544,6 @@ export default function ChatsPage() {
                   {loadingThread ? (
                     <AiLoadingInline
                       label="Cargando mensajes…"
-                      compact
                       style={{ padding: '2rem 0', flex: 1 }}
                     />
                   ) : messages.length === 0 ? (
