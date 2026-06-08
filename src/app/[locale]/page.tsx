@@ -11,9 +11,9 @@ import {
   GraduationCap, TrendingUp, Lock, Wrench,
   UserPlus, Palette, Rocket, Brain,
   Users, BookOpen, PlayCircle, BadgeCheck, Star,
-  Gift, Timer, Layers,
 } from 'lucide-react';
 import { FaqDetails } from '@/components/ui/faq-details';
+import { HowStepMock } from '@/components/landing/how-step-mock';
 
 import { PREMIUM, R, O, B, Rd } from '@/lib/brand-colors';
 
@@ -36,11 +36,11 @@ export default async function LandingPage() {
   ];
 
   const HOW = [
-    { step: '01', title: t('how.step1Title'), desc: t('how.step1Desc'), Icon: UserPlus, accent: R,  grad: R },
-    { step: '02', title: t('how.step2Title'), desc: t('how.step2Desc'), Icon: Brain,    accent: O,  grad: O },
-    { step: '03', title: t('how.step3Title'), desc: t('how.step3Desc'), Icon: Palette,  accent: B,  grad: B },
-    { step: '04', title: t('how.step4Title'), desc: t('how.step4Desc'), Icon: Terminal, accent: Rd, grad: Rd },
-    { step: '05', title: t('how.step5Title'), desc: t('how.step5Desc'), Icon: Rocket,   accent: Rd, grad: Rd },
+    { step: 1, title: t('how.step1Title'), desc: t('how.step1Desc'), Icon: UserPlus, accent: R, variant: 1 as const },
+    { step: 2, title: t('how.step2Title'), desc: t('how.step2Desc'), Icon: Brain,    accent: O, variant: 2 as const },
+    { step: 3, title: t('how.step3Title'), desc: t('how.step3Desc'), Icon: Palette,  accent: R, variant: 3 as const },
+    { step: 4, title: t('how.step4Title'), desc: t('how.step4Desc'), Icon: Terminal, accent: O, variant: 4 as const },
+    { step: 5, title: t('how.step5Title'), desc: t('how.step5Desc'), Icon: Rocket,   accent: R, variant: 5 as const },
   ];
 
   const FAQ_ITEMS = t.raw('faq.items') as { q: string; a: string }[];
@@ -60,12 +60,6 @@ export default async function LandingPage() {
     { step: '02', Icon: BookOpen,    color: O, title: t('training.step2Title'), desc: t('training.step2Desc'), grad: O },
     { step: '03', Icon: Rocket,      color: B, title: t('training.step3Title'), desc: t('training.step3Desc'), grad: B },
     { step: '04', Icon: PlayCircle,  color: Rd, title: t('training.step4Title'), desc: t('training.step4Desc'), grad: Rd },
-  ];
-
-  const STATS = [
-    { value: t('stats.trialValue'),  label: t('stats.trial'),  hint: t('stats.trialHint'),  color: R,  Icon: Gift },
-    { value: t('stats.setupValue'),  label: t('stats.setup'),  hint: t('stats.setupHint'),  color: O,  Icon: Timer },
-    { value: t('stats.modelsValue'), label: t('stats.models'), hint: t('stats.modelsHint'), color: B,  Icon: Layers },
   ];
 
   return (
@@ -123,113 +117,46 @@ export default async function LandingPage() {
             </Link>
           </div>
 
-          <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto landing-hero-stats">
-            {STATS.map((s) => (
-              <div
-                key={s.label}
-                className="landing-hero-stat card-texture"
-                style={{ '--stat-accent': s.color } as React.CSSProperties}
-              >
-                <div className="landing-hero-stat__icon" aria-hidden>
-                  <s.Icon size={18} strokeWidth={2.25} />
-                </div>
-                <p className="landing-hero-stat__value">{s.value}</p>
-                <p className="landing-hero-stat__label">{s.label}</p>
-                <p className="landing-hero-stat__hint">{s.hint}</p>
-              </div>
-            ))}
-          </div>
-
         </div>
       </section>
 
       {/* ── HOW IT WORKS ─────────────────────────────────────────────────────── */}
-      <section className="py-24 px-6 relative overflow-hidden" style={{ background: 'var(--muted)' }}>
-        <div className="ai-mesh" />
-        <div style={{
-          position: 'absolute', top: '50%', left: '50%',
-          transform: 'translate(-50%,-50%)',
-          width: 700, height: 500, pointerEvents: 'none',
-          background: `radial-gradient(ellipse, ${R}09 0%, transparent 70%)`,
-        }} />
-
-        <div className="max-w-3xl mx-auto relative">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold">{t('how.title')}</h2>
-            <p className="mt-4" style={{ color: 'var(--muted-foreground)' }}>
+      <section className="how-steps-section py-24 px-6 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto relative">
+          <div className="text-center mb-14 max-w-3xl mx-auto">
+            <div className="how-steps-badge mx-auto w-fit">
+              <Zap size={13} strokeWidth={2.5} />
+              {t('how.badge')}
+            </div>
+            <h2
+              className="text-3xl md:text-4xl font-bold mt-5"
+              style={{ fontFamily: "'Clash Display', sans-serif", letterSpacing: '-0.02em' }}
+            >
+              {t('how.title')}
+            </h2>
+            <p className="mt-4 text-base md:text-lg leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
               {t('how.subtitle')}
             </p>
           </div>
 
-          <div className="relative">
-            <div style={{
-              position: 'absolute', left: 27, top: 28, bottom: 28, width: 2,
-              background: `${R}35`,
-              borderRadius: 2,
-            }} />
-
-            <div className="space-y-4">
-              {HOW.map((s, i) => (
-                <div key={s.step} className="relative flex gap-5 items-stretch group">
-                  <div className="relative flex flex-col items-center shrink-0" style={{ width: 64 }}>
-                    <div style={{ position: 'relative', display: 'inline-flex' }}>
-                      <div style={{
-                        position: 'absolute', inset: -5, borderRadius: 24,
-                        border: `1px solid ${s.accent}25`, pointerEvents: 'none',
-                      }} />
-                      <div
-                        className="icon-pro relative z-10"
-                        style={{
-                          width: 60, height: 60,
-                          background: s.grad,
-                          boxShadow: `0 4px 20px ${s.accent}42, 0 0 0 6px ${s.accent}0a`,
-                          color: 'white',
-                        }}
-                      >
-                        <s.Icon size={26} color="white" strokeWidth={1.5} />
-                        <div style={{
-                          position: 'absolute', top: -8, right: -8,
-                          width: 22, height: 22, borderRadius: 999,
-                          background: 'var(--muted)',
-                          border: `2px solid ${s.accent}`,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 9, fontWeight: 800, color: s.accent, lineHeight: 1,
-                          zIndex: 11,
-                        }}>
-                          {i + 1}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div
-                    className="flex-1 relative overflow-hidden rounded-2xl"
-                    style={{ background: 'var(--card)', border: `1px solid ${s.accent}22`, boxShadow: `0 1px 3px rgba(0,0,0,0.04)` }}
-                  >
-                    <div style={{ height: 2, background: s.grad }} />
-                    <div style={{
-                      position: 'absolute', right: 10, bottom: -12,
-                      fontSize: 90, fontWeight: 900, lineHeight: 1,
-                      color: s.accent, opacity: 0.045,
-                      fontFamily: 'monospace', userSelect: 'none', pointerEvents: 'none',
-                    }}>
-                      {s.step}
-                    </div>
-                    <div style={{
-                      position: 'absolute', inset: 0, pointerEvents: 'none',
-                      backgroundImage: `radial-gradient(circle, ${s.accent}20 1px, transparent 1px)`,
-                      backgroundSize: '16px 16px',
-                      maskImage: `radial-gradient(ellipse 60% 80% at 95% 10%, black, transparent)`,
-                      WebkitMaskImage: `radial-gradient(ellipse 60% 80% at 95% 10%, black, transparent)`,
-                    }} />
-                    <div className="p-5 relative">
-                      <h3 className="text-base font-bold mb-1" style={{ letterSpacing: '-0.02em' }}>{s.title}</h3>
-                      <p className="text-sm leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>{s.desc}</p>
-                    </div>
-                  </div>
+          <div className="how-steps-grid">
+            {HOW.map((s) => (
+              <article
+                key={s.step}
+                className="how-step-card card-texture"
+                style={{ '--step-accent': s.accent } as React.CSSProperties}
+              >
+                <div className="how-step-card__icon">
+                  <s.Icon size={18} strokeWidth={2.25} />
                 </div>
-              ))}
-            </div>
+                <h3 className="how-step-card__title">{s.title}</h3>
+                <p className="how-step-card__desc">{s.desc}</p>
+                <div className="how-step-card__visual">
+                  <span className="how-step-card__watermark" aria-hidden>{s.step}</span>
+                  <HowStepMock variant={s.variant} />
+                </div>
+              </article>
+            ))}
           </div>
         </div>
       </section>

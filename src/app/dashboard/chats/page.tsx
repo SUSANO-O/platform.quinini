@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -17,7 +18,11 @@ import {
   X,
 } from 'lucide-react';
 import { DashboardShell } from '@/components/dashboard/dashboard-shell';
-import { ConversationThread, countVisibleMessages, type ChatMessage } from '@/components/dashboard/inbox-chat-modal';
+import { ConversationThread, countVisibleMessages } from '@/components/dashboard/inbox-chat-modal';
+import { BackgroundRefreshIndicator } from '@/components/dashboard/background-refresh-indicator';
+import { dashboardKeys } from '@/lib/dashboard-query-keys';
+import { fetchConversationsList, fetchConversationThread } from '@/lib/dashboard-fetch';
+import { useDashboardUiStore } from '@/stores/dashboard-ui-store';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 
@@ -99,12 +104,6 @@ function sentimentTag(sentiment: string): { label: string; className: string } |
   return null;
 }
 
-function tabStatus(tab: TabKey): string {
-  if (tab === 'active') return 'active';
-  if (tab === 'ended') return 'ended';
-  return 'all';
-}
-
 // ─── Session Card ─────────────────────────────────────────────────────────────
 
 function SessionCard({
@@ -165,42 +164,43 @@ function SessionCard({
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function ChatsPage() {
-  const [tab, setTab] = useState<TabKey>('active');
-  const [search, setSearch] = useState('');
-  const [widgetFilter, setWidgetFilter] = useState('');
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [activeCount, setActiveCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [sessionDetail, setSessionDetail] = useState<SessionDetail | null>(null);
-  const [loadingThread, setLoadingThread] = useState(false);
+  const queryClient = useQueryClient();
+  const tab = useDashboardUiStore((s) => s.chats.tab);
+  const search = useDashboardUiStore((s) => s.chats.search);
+  const widgetFilter = useDashboardUiStore((s) => s.chats.widgetFilter);
+  const selectedId = useDashboardUiStore((s) => s.chats.selectedSessionId);
+  const mobileShowThread = useDashboardUiStore((s) => s.chats.mobileShowThread);
+  const setChatsTab = useDashboardUiStore((s) => s.setChatsTab);
+  const selectChatSession = useDashboardUiStore((s) => s.selectChatSession);
+  const setChatsSearch = useDashboardUiStore((s) => s.setChatsSearch);
+  const setChatsWidgetFilter = useDashboardUiStore((s) => s.setChatsWidgetFilter);
+  const setChatsMobileShowThread = useDashboardUiStore((s) => s.setChatsMobileShowThread);
   const [closingId, setClosingId] = useState<string | null>(null);
   const [confirmClose, setConfirmClose] = useState<{ sessionId: string; label: string } | null>(null);
-  const [mobileShowThread, setMobileShowThread] = useState(false);
 
-  const loadSessions = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    try {
-      const res = await fetch(`/api/conversations?status=${tabStatus(tab)}&limit=80`);
-      const data = await res.json();
-      if (!res.ok) {
-        if (!silent) toast.error(typeof data.error === 'string' ? data.error : 'Error al cargar chats.');
-        return;
-      }
-      setSessions(Array.isArray(data.items) ? data.items : []);
-      setActiveCount(typeof data.activeCount === 'number' ? data.activeCount : 0);
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }, [tab]);
+  const conversationsQuery = useQuery({
+    queryKey: dashboardKeys.conversations(tab),
+    queryFn: () => fetchConversationsList(tab),
+    refetchInterval: 8000,
+  });
 
-  useEffect(() => { void loadSessions(); }, [loadSessions]);
+  const sessions = conversationsQuery.data?.items ?? [];
+  const activeCount = conversationsQuery.data?.activeCount ?? 0;
+  const showListSpinner = conversationsQuery.isLoading && sessions.length === 0;
 
-  useEffect(() => {
-    const id = setInterval(() => { void loadSessions(true); }, 8000);
-    return () => clearInterval(id);
-  }, [loadSessions]);
+  const threadQuery = useQuery({
+    queryKey: dashboardKeys.conversationThread(selectedId ?? ''),
+    queryFn: () => fetchConversationThread(selectedId!),
+    enabled: Boolean(selectedId),
+    refetchInterval: (query) => {
+      const ended = query.state.data?.session?.endedAt;
+      return selectedId && !ended ? 4000 : false;
+    },
+  });
+
+  const messages = threadQuery.data?.messages ?? [];
+  const sessionDetail = (threadQuery.data?.session as SessionDetail | null) ?? null;
+  const showThreadSpinner = Boolean(selectedId) && threadQuery.isLoading && messages.length === 0;
 
   const widgetOptions = useMemo(() => {
     const names = new Set<string>();
@@ -231,37 +231,9 @@ export default function ChatsPage() {
     });
   }, [sessions, search, widgetFilter]);
 
-  const loadThread = useCallback(async (sessionId: string, silent = false) => {
-    if (!silent) setLoadingThread(true);
-    try {
-      const res = await fetch(`/api/conversations/${encodeURIComponent(sessionId)}`);
-      const data = await res.json();
-      if (!res.ok) {
-        if (!silent) toast.error('Error al cargar mensajes.');
-        return;
-      }
-      setMessages(Array.isArray(data.messages) ? data.messages : []);
-      if (data.session) setSessionDetail(data.session as SessionDetail);
-    } finally {
-      if (!silent) setLoadingThread(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!selectedId) return;
-    const selected = sessions.find((s) => s.sessionId === selectedId);
-    if (selected?.endedAt) return;
-    const id = setInterval(() => { void loadThread(selectedId, true); }, 4000);
-    return () => clearInterval(id);
-  }, [selectedId, sessions, loadThread]);
-
   function selectSession(sessionId: string) {
     if (sessionId === selectedId) return;
-    setSelectedId(sessionId);
-    setMobileShowThread(true);
-    setMessages([]);
-    setSessionDetail(null);
-    void loadThread(sessionId);
+    selectChatSession(sessionId);
   }
 
   async function closeSession(sessionId: string) {
@@ -278,9 +250,15 @@ export default function ChatsPage() {
         return;
       }
       toast.success('Sesión cerrada.');
-      void loadSessions(true);
+      void queryClient.invalidateQueries({ queryKey: dashboardKeys.conversations(tab) });
       if (selectedId === sessionId) {
-        setSessionDetail((prev) => (prev ? { ...prev, endedAt: data.endedAt ?? new Date().toISOString() } : prev));
+        queryClient.setQueryData(dashboardKeys.conversationThread(sessionId), (old: Awaited<ReturnType<typeof fetchConversationThread>> | undefined) => {
+          if (!old?.session) return old;
+          return {
+            ...old,
+            session: { ...old.session, endedAt: data.endedAt ?? new Date().toISOString() },
+          };
+        });
       }
     } finally {
       setClosingId(null);
@@ -314,14 +292,19 @@ export default function ChatsPage() {
               Historial de conversaciones de tus widgets · {activeCount} activa{activeCount !== 1 ? 's' : ''}
             </p>
           </div>
-          <button
-            type="button"
-            className="chats-page__refresh"
-            onClick={() => void loadSessions()}
-          >
-            <RefreshCw size={13} />
-            Actualizar
-          </button>
+          <div className="flex items-center gap-2">
+            <BackgroundRefreshIndicator
+              active={conversationsQuery.isFetching && !showListSpinner}
+            />
+            <button
+              type="button"
+              className="chats-page__refresh"
+              onClick={() => void conversationsQuery.refetch()}
+            >
+              <RefreshCw size={13} />
+              Actualizar
+            </button>
+          </div>
         </div>
 
         <div className="chats-page__layout">
@@ -339,11 +322,7 @@ export default function ChatsPage() {
                   role="tab"
                   aria-selected={tab === key}
                   className={`chats-page__tab${tab === key ? ' is-active' : ''}`}
-                  onClick={() => {
-                    setTab(key);
-                    setSelectedId(null);
-                    setMobileShowThread(false);
-                  }}
+                  onClick={() => setChatsTab(key)}
                 >
                   {key === 'active' ? (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -374,7 +353,7 @@ export default function ChatsPage() {
                   className="chats-page__search"
                   placeholder="Buscar visitante, widget, mensaje…"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => setChatsSearch(e.target.value)}
                   style={{ paddingLeft: '2rem' }}
                 />
               </div>
@@ -382,7 +361,7 @@ export default function ChatsPage() {
                 <select
                   className="chats-page__widget-select"
                   value={widgetFilter}
-                  onChange={(e) => setWidgetFilter(e.target.value)}
+                  onChange={(e) => setChatsWidgetFilter(e.target.value)}
                   aria-label="Filtrar por widget"
                 >
                   <option value="">Todos los widgets</option>
@@ -394,7 +373,7 @@ export default function ChatsPage() {
             </div>
 
             <div className="chats-page__list">
-              {loading ? (
+              {showListSpinner ? (
                 <AiLoadingInline
                   label="Cargando chats…"
                   hint="Recuperando sesiones de tus widgets"
@@ -445,7 +424,7 @@ export default function ChatsPage() {
                     <button
                       type="button"
                       className="chats-page__back"
-                      onClick={() => setMobileShowThread(false)}
+                      onClick={() => setChatsMobileShowThread(false)}
                     >
                       <ArrowLeft size={16} />
                       Volver
@@ -520,7 +499,7 @@ export default function ChatsPage() {
                       type="button"
                       className="chats-page__icon-btn"
                       title="Actualizar mensajes"
-                      onClick={() => void loadThread(selectedId)}
+                      onClick={() => void threadQuery.refetch()}
                     >
                       <RefreshCw size={14} />
                     </button>
@@ -542,7 +521,7 @@ export default function ChatsPage() {
                 </header>
 
                 <div className="chats-page__messages">
-                  {loadingThread ? (
+                  {showThreadSpinner ? (
                     <AiLoadingInline
                       label="Cargando mensajes…"
                       style={{ padding: '2rem 0', flex: 1 }}

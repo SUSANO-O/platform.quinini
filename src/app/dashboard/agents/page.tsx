@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/use-subscription';
@@ -17,6 +18,9 @@ import { DashboardEmptyState } from '@/components/dashboard/dashboard-empty-stat
 import { DashboardButton, DashboardButtonLink } from '@/components/dashboard/dashboard-button';
 import { DashboardFilterMenu } from '@/components/dashboard/dashboard-filter-menu';
 import { DashboardGridToolbar } from '@/components/dashboard/dashboard-grid-toolbar';
+import { BackgroundRefreshIndicator } from '@/components/dashboard/background-refresh-indicator';
+import { dashboardKeys } from '@/lib/dashboard-query-keys';
+import { fetchAgentsList } from '@/lib/dashboard-fetch';
 
 type AgentFilter = 'all' | 'active' | 'inactive' | 'platform';
 
@@ -34,13 +38,20 @@ function filterByStatus(list: AgentListItem[], filter: AgentFilter): AgentListIt
 }
 
 export default function AgentsPage() {
+  const queryClient = useQueryClient();
   const { subscription } = useSubscription();
   const plan = subscription?.plan ?? 'free';
   const limits = getAgentLimits(plan);
 
-  const [agents, setAgents] = useState<AgentListItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  const agentsQuery = useQuery({
+    queryKey: dashboardKeys.agents(),
+    queryFn: fetchAgentsList,
+  });
+  const agents = (agentsQuery.data ?? []) as unknown as AgentListItem[];
+  const loading = agentsQuery.isLoading && agents.length === 0;
+  const fetchError = agentsQuery.isError
+    ? (agentsQuery.error instanceof Error ? agentsQuery.error.message : 'Error de red')
+    : null;
   const [toggling, setToggling] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AgentListItem | null>(null);
@@ -56,25 +67,6 @@ export default function AgentsPage() {
   }, [clientModels]);
 
   const getModelLabel = (modelId: string) => modelLabelById[modelId] ?? modelId;
-
-  async function loadAgents() {
-    setFetchError(null);
-    setLoading(true);
-    try {
-      const r = await fetch('/api/agents');
-      if (!r.ok) throw new Error('No se pudieron cargar los agentes.');
-      const d = await r.json();
-      setAgents(d.agents ?? []);
-    } catch (e) {
-      setFetchError(e instanceof Error ? e.message : 'Error de red');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    void loadAgents();
-  }, []);
 
   const mainAgents = useMemo(() => agents.filter((a) => a.type === 'agent'), [agents]);
   const mineAgents = useMemo(() => mainAgents.filter((a) => !a.isPlatform), [mainAgents]);
@@ -111,7 +103,9 @@ export default function AgentsPage() {
       body: JSON.stringify({ status: newStatus }),
     });
     if (res.ok) {
-      setAgents((prev) => prev.map((a) => (a._id === agent._id ? { ...a, status: newStatus } : a)));
+      queryClient.setQueryData(dashboardKeys.agents(), (prev: AgentListItem[] | undefined) =>
+        (prev ?? []).map((a) => (a._id === agent._id ? { ...a, status: newStatus } : a)),
+      );
       toast.success(newStatus === 'active' ? 'Agente activado' : 'Agente desactivado');
     } else {
       toast.error('No se pudo cambiar el estado del agente');
@@ -134,7 +128,9 @@ export default function AgentsPage() {
         toast.error(typeof data.error === 'string' ? data.error : 'No se pudo eliminar el agente.');
         return;
       }
-      setAgents((prev) => prev.filter((a) => a._id !== deleteTarget._id));
+      queryClient.setQueryData(dashboardKeys.agents(), (prev: AgentListItem[] | undefined) =>
+        (prev ?? []).filter((a) => a._id !== deleteTarget._id),
+      );
       setDeleteTarget(null);
       toast.success('Agente eliminado.');
     } catch {
@@ -183,7 +179,9 @@ export default function AgentsPage() {
         titleAccent="agentes"
         description="Tus agentes y el catálogo global van separados: el cupo del plan solo aplica a los tuyos."
         actions={
-          atLimit ? (
+          <>
+          <BackgroundRefreshIndicator active={agentsQuery.isFetching && !loading} />
+          {atLimit ? (
             <DashboardButtonLink
               href="/dashboard/settings#settings-billing"
               variant="secondary"
@@ -203,7 +201,8 @@ export default function AgentsPage() {
               <Plus size={16} strokeWidth={2.5} />
               Nuevo agente
             </DashboardButtonLink>
-          )
+          )}
+          </>
         }
       />
 
@@ -241,7 +240,7 @@ export default function AgentsPage() {
       {fetchError ? (
         <div className="dashboard-callout flex flex-wrap items-center justify-between gap-3 border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.06)]">
           <p className="dashboard-callout__text m-0 text-[var(--state-error)]">{fetchError}</p>
-          <DashboardButton variant="primary" className="text-xs px-3 py-1.5" onClick={() => void loadAgents()}>
+          <DashboardButton variant="primary" className="text-xs px-3 py-1.5" onClick={() => void agentsQuery.refetch()}>
             Reintentar
           </DashboardButton>
         </div>

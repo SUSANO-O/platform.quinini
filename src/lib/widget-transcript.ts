@@ -107,3 +107,10 @@ export async function persistWidgetTranscript(input: PersistTranscriptInput): Pr
   }
   await WidgetMessage.insertMany(docs);
 }
+
+/** Fire-and-forget: persiste transcript cuando hay respuesta del asistente. */
+export function schedulePersistWidgetTranscript(input: PersistTranscriptInput): void {
+  const assistant = (input.assistantMessage || '').trim();
+  if (!assistant || !input.sessionId?.trim() || !input.widgetId || !input.userId) return;
+  void persistWidgetTranscript(input).catch(() => {});
+}

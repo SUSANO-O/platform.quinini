@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
       startedAt: s.startedAt,
       endedAt: s.endedAt ? new Date(s.endedAt as Date).toISOString() : null,
       durationSec: typeof s.durationSec === 'number' ? s.durationSec : null,
-      messageCount: msg?.messageCount ?? (typeof s.messageCount === 'number' ? s.messageCount : 0),
+      messageCount: msg?.messageCount ?? 0,
       escalated: Boolean(s.escalated),
       humanMode: Boolean(s.humanMode),
       sentiment: typeof s.sentiment === 'string' ? s.sentiment : 'neutral',

@@ -25,6 +25,7 @@ import { BRAND_LOGO_SRC, BRAND_NAME, BRAND_TEXT_COLOR } from '@/lib/brand';
 import { PwaInstallButton } from '@/components/shared/pwa-install-button';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { useInboxOpenCount } from '@/hooks/use-inbox-open-count';
+import { useDashboardPrefetch } from '@/hooks/dashboard/use-dashboard-prefetch';
 import { useSubscription } from '@/hooks/use-subscription';
 import { canUseApiAccess, isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 
@@ -264,6 +265,7 @@ function SidebarNavLink({
   collapsed,
   onNavigate,
   badge,
+  onPrefetch,
 }: {
   href: string;
   label: string;
@@ -272,10 +274,14 @@ function SidebarNavLink({
   collapsed: boolean;
   onNavigate?: () => void;
   badge?: number;
+  onPrefetch?: (href: string) => void;
 }) {
   return (
     <Link
       href={href}
+      prefetch
+      onMouseEnter={() => onPrefetch?.(href)}
+      onFocus={() => onPrefetch?.(href)}
       onClick={onNavigate}
       data-tour={SIDEBAR_TOUR_KEY_BY_HREF[href]}
       title={badge && badge > 0 ? `${label} (${badge} pendientes)` : label}
@@ -319,6 +325,7 @@ function SidebarNav({
   showApiLink: boolean;
   hideQuickStart: boolean;
 }) {
+  const prefetchRoute = useDashboardPrefetch();
   const groups = buildDashboardNavGroups({ showApiLink, hideQuickStart });
 
   return (
@@ -361,6 +368,7 @@ function SidebarNav({
                   active={isActive(pathname, item.href)}
                   collapsed={collapsed}
                   onNavigate={onNavigate}
+                  onPrefetch={prefetchRoute}
                   badge={item.href === '/dashboard/inbox' ? inboxOpenCount : undefined}
                 />
                 {item.href === '/dashboard/settings' ? (

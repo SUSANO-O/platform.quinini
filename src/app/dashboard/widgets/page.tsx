@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EncryptedDownloadModal } from '@/components/encrypted-download-modal';
@@ -16,6 +17,9 @@ import { DashboardButton, DashboardButtonLink } from '@/components/dashboard/das
 import { DashboardFilterMenu } from '@/components/dashboard/dashboard-filter-menu';
 import { DashboardGridToolbar } from '@/components/dashboard/dashboard-grid-toolbar';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
+import { BackgroundRefreshIndicator } from '@/components/dashboard/background-refresh-indicator';
+import { dashboardKeys } from '@/lib/dashboard-query-keys';
+import { fetchWidgetsList } from '@/lib/dashboard-fetch';
 
 type WidgetFilter = 'all' | 'active' | 'inactive' | 'multi';
 
@@ -53,10 +57,15 @@ function buildMinimalSnippet(w: Widget, origin: string) {
 }
 
 export default function WidgetsPage() {
+  const queryClient = useQueryClient();
   const { subscription } = useSubscription();
-  const [widgets, setWidgets] = useState<Widget[]>([]);
+  const widgetsQuery = useQuery({
+    queryKey: dashboardKeys.widgets(),
+    queryFn: fetchWidgetsList,
+  });
+  const widgets = (widgetsQuery.data ?? []) as unknown as Widget[];
+  const loading = widgetsQuery.isLoading && widgets.length === 0;
   const [multiAgentStats, setMultiAgentStats] = useState<MultiAgentAnalytics | null>(null);
-  const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [origin, setOrigin] = useState('');
@@ -69,18 +78,6 @@ export default function WidgetsPage() {
   useEffect(() => {
     setOrigin(typeof window !== 'undefined' ? window.location.origin : '');
   }, []);
-
-  async function loadWidgets() {
-    try {
-      const res = await fetch('/api/widgets');
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setWidgets(data.widgets || []);
-    } catch {
-      toast.error('No se pudieron cargar los widgets');
-    }
-    setLoading(false);
-  }
 
   async function toggleWidgetActive(w: Widget) {
     const isActive = w.active !== false;
@@ -97,8 +94,8 @@ export default function WidgetsPage() {
       }
       const data = (await res.json()) as { widget?: Widget };
       const nextActive = data.widget?.active !== false;
-      setWidgets((prev) =>
-        prev.map((item) => (item._id === w._id ? { ...item, active: nextActive } : item)),
+      queryClient.setQueryData(dashboardKeys.widgets(), (prev: Widget[] | undefined) =>
+        (prev ?? []).map((item) => (item._id === w._id ? { ...item, active: nextActive } : item)),
       );
       toast.success(nextActive ? 'Widget activado' : 'Widget desactivado — el embed ya no acepta mensajes');
     } catch {
@@ -117,7 +114,9 @@ export default function WidgetsPage() {
         toast.error('No se pudo eliminar el widget');
         return;
       }
-      setWidgets((prev) => prev.filter((w) => w._id !== deleteTarget));
+      queryClient.setQueryData(dashboardKeys.widgets(), (prev: Widget[] | undefined) =>
+        (prev ?? []).filter((w) => w._id !== deleteTarget),
+      );
       toast.success('Widget eliminado');
       setDeleteTarget(null);
     } finally {
@@ -141,10 +140,6 @@ export default function WidgetsPage() {
       setCopied(false);
     }
   }
-
-  useEffect(() => {
-    void loadWidgets();
-  }, []);
 
   const plan = subscription?.plan ?? 'free';
   const planActive = subscription?.status === 'active' || subscription?.status === 'trialing';
@@ -218,6 +213,8 @@ export default function WidgetsPage() {
         titleAccent="widgets"
         description="Gestiona todos tus chat widgets — misma línea visual que el resto del panel."
         actions={
+          <>
+          <BackgroundRefreshIndicator active={widgetsQuery.isFetching && !loading} />
           <DashboardButtonLink
             href="/dashboard/widget-builder"
             variant="primary"
@@ -227,6 +224,7 @@ export default function WidgetsPage() {
             <Plus size={16} strokeWidth={2.5} />
             Nuevo widget
           </DashboardButtonLink>
+          </>
         }
       />
 

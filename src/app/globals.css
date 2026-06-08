@@ -199,96 +199,328 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: var(--shadow-surface);
 }
 
-/* Hero stats — landing principal */
-.landing-hero-stats {
-  perspective: 800px;
+/* ── Landing: cómo funciona (tarjetas horizontales) ── */
+.how-steps-section {
+  background: color-mix(in oklab, var(--muted) 88%, var(--background));
 }
 
-.landing-hero-stat {
-  --stat-accent: var(--brand-primary);
+.how-steps-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brand-primary);
+  background: color-mix(in oklab, var(--brand-primary) 10%, transparent);
+  border: 1px solid color-mix(in oklab, var(--brand-primary) 22%, transparent);
+}
+
+.how-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .how-steps-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .how-steps-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .how-steps-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.85rem;
+  }
+}
+
+.how-step-card {
+  --step-accent: var(--brand-primary);
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 1.25rem 1rem 1.1rem;
-  border-radius: 1rem;
+  min-height: 100%;
+  padding: 1.15rem 1.1rem 0;
+  border-radius: 1.1rem;
   overflow: hidden;
-  transition: transform 0.22s ease, box-shadow 0.22s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.landing-hero-stat::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--stat-accent), color-mix(in oklab, var(--stat-accent) 45%, transparent));
-  border-radius: 1rem 1rem 0 0;
-}
-
-.landing-hero-stat::after {
-  content: '';
-  position: absolute;
-  top: -40%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in oklab, var(--stat-accent) 14%, transparent) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-.landing-hero-stat:hover {
-  transform: translateY(-4px);
+.how-step-card:hover {
+  transform: translateY(-3px);
   box-shadow: var(--shadow-surface-hover);
 }
 
-.landing-hero-stat__icon {
-  position: relative;
-  z-index: 1;
+.how-step-card__icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  margin-bottom: 0.65rem;
-  border-radius: 50%;
-  color: var(--stat-accent);
-  background: color-mix(in oklab, var(--stat-accent) 12%, transparent);
-  border: 1px solid color-mix(in oklab, var(--stat-accent) 22%, transparent);
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.7rem;
+  color: var(--step-accent);
+  background: color-mix(in oklab, var(--step-accent) 12%, transparent);
+  border: 1px solid color-mix(in oklab, var(--step-accent) 20%, transparent);
+  margin-bottom: 0.85rem;
 }
 
-.landing-hero-stat__value {
-  position: relative;
-  z-index: 1;
-  margin: 0;
-  font-family: 'Clash Display', sans-serif;
-  font-size: 1.65rem;
+.how-step-card__title {
+  margin: 0 0 0.45rem;
+  font-size: 0.95rem;
   font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-  color: var(--stat-accent);
-}
-
-.landing-hero-stat__label {
-  position: relative;
-  z-index: 1;
-  margin: 0.35rem 0 0;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--foreground);
-  line-height: 1.35;
-}
-
-.landing-hero-stat__hint {
-  position: relative;
-  z-index: 1;
-  margin: 0.2rem 0 0;
-  font-size: 0.68rem;
-  font-weight: 500;
-  color: var(--muted-foreground);
   line-height: 1.3;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+}
+
+.how-step-card__desc {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--muted-foreground);
+  flex: 1;
+}
+
+.how-step-card__visual {
+  position: relative;
+  margin-top: 1rem;
+  min-height: 7.5rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 0.75rem 0.75rem 0 0;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--step-accent) 6%, transparent) 0%, color-mix(in oklab, var(--muted) 40%, transparent) 100%);
+}
+
+.how-step-card__watermark {
+  position: absolute;
+  right: 0.35rem;
+  bottom: -0.15rem;
+  font-family: 'Clash Display', sans-serif;
+  font-size: 5.5rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--step-accent);
+  opacity: 0.07;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Ilustraciones CSS de cada paso */
+.how-step-mock {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: 0.5rem 0.75rem 0.85rem;
+  display: flex;
+  justify-content: center;
+}
+
+.how-step-mock__device {
+  position: relative;
+  background: #1e293b;
+  border-radius: 0.45rem;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+}
+
+.how-step-mock__device--laptop {
+  width: 88%;
+  max-width: 9.5rem;
+  padding: 0.35rem 0.35rem 0.5rem;
+  border-radius: 0.5rem 0.5rem 0.15rem 0.15rem;
+}
+
+.how-step-mock__device--laptop::after {
+  content: '';
+  display: block;
+  width: 108%;
+  margin-left: -4%;
+  height: 0.28rem;
+  margin-top: 0.22rem;
+  border-radius: 0 0 0.35rem 0.35rem;
+  background: #cbd5e1;
+}
+
+.how-step-mock__device--tablet {
+  width: 62%;
+  max-width: 5.5rem;
+  padding: 0.3rem;
+  border-radius: 0.55rem;
+}
+
+.how-step-mock__device--monitor {
+  width: 84%;
+  max-width: 9rem;
+  padding: 0.3rem 0.3rem 0.45rem;
+  border-radius: 0.4rem;
+}
+
+.how-step-mock__device--monitor::after {
+  content: '';
+  display: block;
+  width: 28%;
+  height: 0.55rem;
+  margin: 0.18rem auto 0;
+  border-radius: 0 0 0.2rem 0.2rem;
+  background: #94a3b8;
+}
+
+.how-step-mock__screen {
+  background: #f8fafc;
+  border-radius: 0.25rem;
+  padding: 0.45rem;
+  min-height: 3.8rem;
+  overflow: hidden;
+}
+
+.how-step-mock__screen--code {
+  background: #0f172a;
+  padding: 0.5rem;
+}
+
+.how-step-mock__bar {
+  width: 42%;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: #cbd5e1;
+  margin-bottom: 0.35rem;
+}
+
+.how-step-mock__field {
+  height: 0.42rem;
+  border-radius: 0.2rem;
+  background: #e2e8f0;
+  margin-bottom: 0.28rem;
+}
+
+.how-step-mock__btn {
+  width: 55%;
+  height: 0.5rem;
+  border-radius: 0.25rem;
+  margin-top: 0.35rem;
+  background: var(--brand-primary);
+}
+
+.how-step-mock__charts {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.22rem;
+  height: 2rem;
+  margin-bottom: 0.35rem;
+}
+
+.how-step-mock__chart {
+  flex: 1;
+  border-radius: 0.15rem 0.15rem 0 0;
+  background: color-mix(in oklab, var(--brand-primary) 55%, #94a3b8);
+}
+
+.how-step-mock__chart--a { height: 45%; }
+.how-step-mock__chart--b { height: 78%; background: color-mix(in oklab, #ffb300 70%, #94a3b8); }
+.how-step-mock__chart--c { height: 58%; }
+
+.how-step-mock__lines span {
+  display: block;
+  height: 0.28rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  margin-bottom: 0.22rem;
+}
+
+.how-step-mock__lines span:nth-child(2) { width: 82%; }
+.how-step-mock__lines span:nth-child(3) { width: 64%; }
+
+.how-step-mock__palette {
+  display: flex;
+  gap: 0.22rem;
+  margin-bottom: 0.45rem;
+}
+
+.how-step-mock__palette span {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--brand-primary);
+}
+
+.how-step-mock__palette span:nth-child(2) { background: #ffb300; }
+.how-step-mock__palette span:nth-child(3) { background: #6366f1; }
+.how-step-mock__palette span:nth-child(4) { background: #22c55e; }
+
+.how-step-mock__bubble {
+  width: 72%;
+  height: 0.9rem;
+  border-radius: 0.35rem;
+  background: #e2e8f0;
+  margin-bottom: 0.35rem;
+}
+
+.how-step-mock__fab {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  margin-left: auto;
+  background: var(--brand-primary);
+  box-shadow: 0 2px 8px rgba(0, 131, 143, 0.35);
+}
+
+.how-step-mock__code-line {
+  height: 0.3rem;
+  border-radius: 0.15rem;
+  background: #334155;
+  margin-bottom: 0.28rem;
+}
+
+.how-step-mock__code-line--tag {
+  width: 68%;
+  background: #0d9488;
+}
+
+.how-step-mock__code-line--short {
+  width: 48%;
+}
+
+.how-step-mock__growth {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.18rem;
+  height: 2.2rem;
+  margin-bottom: 0.4rem;
+}
+
+.how-step-mock__growth span {
+  flex: 1;
+  border-radius: 0.12rem 0.12rem 0 0;
+  background: color-mix(in oklab, var(--brand-primary) 50%, #94a3b8);
+}
+
+.how-step-mock__growth span:nth-child(1) { height: 35%; }
+.how-step-mock__growth span:nth-child(2) { height: 48%; }
+.how-step-mock__growth span:nth-child(3) { height: 42%; }
+.how-step-mock__growth span:nth-child(4) { height: 68%; background: color-mix(in oklab, #ffb300 65%, #94a3b8); }
+.how-step-mock__growth span:nth-child(5) { height: 88%; background: var(--brand-primary); }
+
+.how-step-mock__metric-row {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.how-step-mock__metric-row span {
+  flex: 1;
+  height: 0.55rem;
+  border-radius: 0.2rem;
+  background: #e2e8f0;
 }
 
 /* Cards con clase Tailwind `border` → sombra en lugar de línea */
@@ -1170,6 +1402,29 @@ button.dashboard-sidebar-link:hover {
   font-size: 0.8125rem;
   color: var(--muted-foreground);
   line-height: 1.45;
+}
+
+.dashboard-bg-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  background: rgba(var(--brand-primary-rgb), 0.06);
+  border: 1px solid rgba(var(--brand-primary-rgb), 0.12);
+  white-space: nowrap;
+}
+
+.dashboard-bg-refresh__icon {
+  animation: dashboard-bg-refresh-spin 0.9s linear infinite;
+}
+
+@keyframes dashboard-bg-refresh-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .inbox-page__toolbar {
