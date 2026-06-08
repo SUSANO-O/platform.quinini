@@ -125,12 +125,66 @@ function uniqueSignals(parts: Array<string | undefined | null>): string[] {
   return [...out];
 }
 
+/** Palabras genéricas de chat que no deben decidir el routing entre agentes. */
+const TRIAGE_STOPWORDS = new Set([
+  'sabes',
+  'sabe',
+  'hola',
+  'como',
+  'cómo',
+  'puedo',
+  'puede',
+  'ayuda',
+  'ayudar',
+  'ayudarte',
+  'quiero',
+  'necesito',
+  'tienes',
+  'tiene',
+  'algo',
+  'sobre',
+  'para',
+  'mis',
+  'muy',
+  'bien',
+  'gracias',
+  'favor',
+  'decir',
+  'dime',
+  'cuentame',
+  'explica',
+  'coneccion',
+  'conexion',
+  'conección',
+  'tener',
+  'tengo',
+  'hacer',
+  'eres',
+  'eres',
+  'estas',
+  'estás',
+  'puedes',
+  'podrias',
+  'podrías',
+  'consulta',
+  'pregunta',
+]);
+
 function tokenize(text: string): string[] {
   return text
     .toLowerCase()
     .split(/[\s,.;:/\-–—_]+/)
     .map((t) => t.trim())
     .filter((t) => t.length >= 3);
+}
+
+function meaningfulMessageTokens(message: string): string[] {
+  return tokenize(message).filter((t) => !TRIAGE_STOPWORDS.has(t));
+}
+
+function isWeakTriageSignal(signal: string): boolean {
+  const s = signal.trim().toLowerCase();
+  return s.length < 5 || TRIAGE_STOPWORDS.has(s);
 }
 
 function stemsMatch(a: string, b: string): boolean {
@@ -177,15 +231,16 @@ function scoreSignalsAgainstMessage(
   weight: number,
 ): number {
   const msg = message.toLowerCase();
-  const msgWords = tokenize(msg);
+  const msgWords = meaningfulMessageTokens(msg);
   let score = 0;
   for (const signal of signals) {
-    if (signal.length >= 4 && msg.includes(signal)) {
-      score += (signal.length >= 10 ? 8 : 5) * weight;
+    if (isWeakTriageSignal(signal)) continue;
+    if (signal.length >= 5 && msg.includes(signal)) {
+      score += (signal.length >= 10 ? 8 : 6) * weight;
       continue;
     }
     if (signal.length >= 4 && msgWords.some((w) => stemsMatch(w, signal))) {
-      score += 5 * weight;
+      score += 6 * weight;
     }
   }
   return score;
@@ -471,6 +526,11 @@ export function scoreMemberCapabilityMatch(
 
   if (profile) {
     score += scoreSignalsAgainstMessage(message, profile.domainSignals, 2);
+
+    for (const topic of meaningfulMessageTokens(message)) {
+      if (topic.length < 5) continue;
+      score += scoreSignalsAgainstMessage(topic, profile.domainSignals, 2.5);
+    }
 
     if (toolIntent) {
       score += scoreSignalsAgainstMessage(message, profile.toolSignals, 1.2);

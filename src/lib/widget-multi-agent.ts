@@ -138,6 +138,24 @@ export function findOrchestratorForMember(team: TeamMember[], target: TeamMember
   return team.find((m) => m.role === 'orchestrator') ?? team[0];
 }
 
+/** Orquestador + especialista para modo paralelo (incluye 2.º orquestador del equipo). */
+export function resolveParallelContributors(
+  team: TeamMember[],
+  primaryOrchestrator: TeamMember,
+  picked: TeamMember,
+): { orchestrator: TeamMember; specialist: TeamMember } {
+  if (picked.id === primaryOrchestrator.id) {
+    return { orchestrator: primaryOrchestrator, specialist: picked };
+  }
+  if (picked.role === 'specialist') {
+    return {
+      orchestrator: findOrchestratorForMember(team, picked),
+      specialist: picked,
+    };
+  }
+  return { orchestrator: primaryOrchestrator, specialist: picked };
+}
+
 export type TriageResult = {
   target: TeamMember;
   method: 'llm' | 'keyword' | 'default';
@@ -425,17 +443,25 @@ export function triageByKeywords(
     const primary = primaryId ? team.find((m) => m.id === primaryId) : team[0];
     return { target: primary ?? team[0], method: 'default', score: bestScore };
   }
-  if (primaryId && best.id !== primaryId && bestScore - secondScore < 3) {
-    const primary = team.find((m) => m.id === primaryId);
-    if (primary) {
-      const primaryScore = scoreMemberCapabilityMatch(
-        message,
-        primary,
-        triageScoreOptions(primary, primaryOrchestratorId),
-      );
-      if (primaryScore >= bestScore - 2 && !messageLooksToolIntent(message)) {
-        return { target: primary, method: 'keyword', score: primaryScore };
-      }
+  const primary = primaryId ? team.find((m) => m.id === primaryId) : undefined;
+  if (primary && best.id !== primaryId && !messageLooksToolIntent(message)) {
+    const primaryScore = scoreMemberCapabilityMatch(
+      message,
+      primary,
+      triageScoreOptions(primary, primaryOrchestratorId),
+    );
+    if (primaryScore >= bestScore || bestScore - primaryScore <= 3) {
+      return { target: primary, method: 'keyword', score: primaryScore };
+    }
+  }
+  if (primaryId && best.id !== primaryId && bestScore - secondScore < 3 && primary) {
+    const primaryScore = scoreMemberCapabilityMatch(
+      message,
+      primary,
+      triageScoreOptions(primary, primaryOrchestratorId),
+    );
+    if (primaryScore >= bestScore - 2 && !messageLooksToolIntent(message)) {
+      return { target: primary, method: 'keyword', score: primaryScore };
     }
   }
   return { target: best, method: 'keyword', score: bestScore };
@@ -1137,6 +1163,8 @@ export function buildParallelSynthesisPrompt(params: {
   return [
     'Eres un orquestador de widget de chat. Redacta UNA sola respuesta final para el visitante.',
     'Combina el contexto del orquestador con la respuesta técnica del especialista.',
+    'Responde al tema que preguntó el usuario: si es asesoría/finanzas usa al orquestador; si es técnico (BD, integraciones) usa al especialista.',
+    'Nunca digas que no sabes de un tema si el orquestador sí puede ayudar en ese dominio.',
     'Tono claro y profesional. No menciones agentes internos ni procesos de routing.',
     'No incluyas JSON ni metadatos.',
     '',
@@ -1194,11 +1222,12 @@ export async function executeParallelMultiAgentFlow(params: {
   const route = resolveRoutableHubAgentId(primaryOrch, triage.target);
   if (!route?.handoff) return null;
 
-  const orchestrator = findOrchestratorForMember(team, route.target);
+  const pair = resolveParallelContributors(team, primaryOrch, route.target);
+  const orchestrator = pair.orchestrator;
+  const specialist = pair.specialist;
   const orchHubId = resolveHubAgentId(orchestrator);
-  const specHubId = resolveHubAgentId(route.target);
+  const specHubId = resolveHubAgentId(specialist);
   if (!orchHubId || !specHubId) return null;
-  const specialist = route.target;
 
   params.onPhase?.('parallel', buildMultiAgentStatusMessage('parallel'));
   const [orchRes, specRes] = await Promise.all([
@@ -1244,8 +1273,8 @@ export async function executeParallelMultiAgentFlow(params: {
       enabled: true,
       mode: 'parallel',
       orchestratorId: orchestrator.id,
-      routedAgentId: route.target.id,
-      routedAgentName: route.target.name,
+      routedAgentId: specialist.id,
+      routedAgentName: specialist.name,
       handoff: true,
       triageMethod: triage.method,
       synthesized: Boolean(synthesized),
