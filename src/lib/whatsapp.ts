@@ -139,5 +139,6 @@ export async function sendHandoffNotification(params: {
   ].join('\n');
 
   const result = await sendWhatsAppText(params.waConfig, normalizePhoneDigits(params.ownerPhone), body);
-  return result;
+  if (!result.ok) return { ok: false, error: result.error };
+  return { ok: true, messageId: result.id };
 }
