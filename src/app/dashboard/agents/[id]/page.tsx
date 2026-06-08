@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import ScheduledTasksTab from '@/components/agents/ScheduledTasksTab';
 import WhatsAppTab from '@/components/agents/WhatsAppTab';
+import { GoogleSheetEntryCard } from '@/components/agents/google-sheet-entry-card';
 import {
   stripManagedFaqPrompt,
   buildFaqPromptBlock,
@@ -929,7 +930,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     const cur = getSheetEntries({ toolId, config: tools.find((x) => x.toolId === toolId)?.config ?? {} });
     setSheetEntries(toolId, [
       ...cur,
-      { id: generateSheetId(), name: `sheet_${cur.length + 1}`, description: '', url: '' },
+      { id: generateSheetId(), name: `sheet_${cur.length + 1}`, description: '', matrixNeed: '', url: '' },
     ]);
   }
   function updateSheet(toolId: string, sheetId: string, patch: Partial<SheetEntry>) {
@@ -2881,97 +2882,26 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                     )}
                   </div>
                   <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '0 0 14px', lineHeight: 1.5 }}>
-                    Configura una o varias hojas de Google Sheets <strong>públicas</strong> (compartidas como "Cualquiera con el link puede ver").
-                    El LLM consulta la hoja, lee los datos y los analiza según la <strong>descripción</strong> que escribas.
+                    Pega el enlace del archivo, <strong>elige la pestaña</strong> y describe qué debe buscar el agente.
+                    En hojas grandes el sistema <strong>filtra por búsqueda</strong> (no descarga todo). Archivo <strong>público</strong>.
                   </p>
 
                   {entries.length === 0 ? (
                     <div style={{ padding: '24px 16px', border: '1px dashed var(--border)', borderRadius: 10, textAlign: 'center', color: 'var(--muted-foreground)', fontSize: 12 }}>
-                      Aún no hay hojas. Pulsa <strong>Añadir hoja</strong> para configurar la primera.
+                      Aún no hay matrices. Pulsa <strong>Añadir hoja</strong> para configurar la primera.
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                       {entries.map((s, idx) => (
-                        <div key={s.id} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 14, background: 'var(--muted)' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted-foreground)' }}>HOJA #{idx + 1}</span>
-                            {!readOnly && (
-                              <button
-                                type="button"
-                                onClick={() => removeSheet(t.toolId, s.id)}
-                                title="Eliminar esta hoja"
-                                style={{ display: 'inline-flex', alignItems: 'center', padding: '5px 10px', borderRadius: 7, border: '1px solid rgba(239,68,68,0.35)', background: 'rgba(239,68,68,0.06)', color: '#ef4444', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
-                              >
-                                <Trash2 size={11} />
-                              </button>
-                            )}
-                          </div>
-
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            <div>
-                              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
-                                Nombre interno <span style={{ color: '#ef4444' }}>*</span>
-                                <span style={{ marginLeft: 6, color: 'var(--muted-foreground)', fontWeight: 400 }}>(snake_case, se usa como id de la herramienta para el LLM)</span>
-                              </label>
-                              <input
-                                className="landing-input"
-                                style={inp}
-                                type="text"
-                                value={s.name}
-                                onChange={(e) => updateSheet(t.toolId, s.id, { name: e.target.value })}
-                                placeholder="lista_clientes"
-                                disabled={readOnly}
-                              />
-                            </div>
-
-                            <div>
-                              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
-                                Descripción de los datos <span style={{ color: '#ef4444' }}>*</span>
-                                <span style={{ marginLeft: 6, color: 'var(--muted-foreground)', fontWeight: 400 }}>(el LLM lee esto para decidir cuándo consultarla)</span>
-                              </label>
-                              <textarea
-                                className="landing-input"
-                                style={{ ...inp, minHeight: 60, resize: 'vertical', fontFamily: 'inherit' }}
-                                value={s.description}
-                                onChange={(e) => updateSheet(t.toolId, s.id, { description: e.target.value })}
-                                placeholder="Hoja con clientes activos: columnas RUT, nombre, plan, saldo, ciudad. Úsala cuando el usuario pida buscar/consultar/analizar clientes."
-                                disabled={readOnly}
-                              />
-                            </div>
-
-                            <div>
-                              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
-                                URL del Google Sheet <span style={{ color: '#ef4444' }}>*</span>
-                                <span style={{ marginLeft: 6, color: 'var(--muted-foreground)', fontWeight: 400 }}>(debe ser pública — compartir como "Cualquiera con el link")</span>
-                              </label>
-                              <input
-                                className="landing-input"
-                                style={inp}
-                                type="text"
-                                value={s.url}
-                                onChange={(e) => updateSheet(t.toolId, s.id, { url: e.target.value })}
-                                placeholder="https://docs.google.com/spreadsheets/d/.../edit#gid=0"
-                                disabled={readOnly}
-                              />
-                            </div>
-
-                            <div>
-                              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
-                                Rango (opcional)
-                                <span style={{ marginLeft: 6, color: 'var(--muted-foreground)', fontWeight: 400 }}>(ej. Sheet1!A1:F500 — vacío = todo el sheet)</span>
-                              </label>
-                              <input
-                                className="landing-input"
-                                style={inp}
-                                type="text"
-                                value={s.range ?? ''}
-                                onChange={(e) => updateSheet(t.toolId, s.id, { range: e.target.value })}
-                                placeholder="Sheet1!A1:F500"
-                                disabled={readOnly}
-                              />
-                            </div>
-                          </div>
-                        </div>
+                        <GoogleSheetEntryCard
+                          key={s.id}
+                          entry={s}
+                          index={idx}
+                          readOnly={readOnly}
+                          inp={inp}
+                          onUpdate={(patch) => updateSheet(t.toolId, s.id, patch)}
+                          onRemove={() => removeSheet(t.toolId, s.id)}
+                        />
                       ))}
                     </div>
                   )}
