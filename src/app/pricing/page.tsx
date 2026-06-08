@@ -9,8 +9,7 @@ import { PricingComparisonTable } from '@/components/landing/pricing-comparison-
 import { PricingPlanCard } from '@/components/landing/pricing-plan-card';
 import Link from 'next/link';
 
-/** Ventas manual — reactivar /register cuando las suscripciones sean automáticas. */
-const SALES_WHATSAPP = '+57 313 3174629';
+import { buildPlanWhatsAppUrl } from '@/lib/sales-whatsapp';
 
 /** Métodos de pago aceptados (pago coordinado por WhatsApp). Si existe el SVG oficial
  *  en /public/payment/<slug>.svg se muestra el logo; si no, badge de color con icono. */
@@ -32,11 +31,7 @@ function paymentLogo(slug: string): string | null {
 }
 
 function planWhatsAppUrl(planName: string, priceLabel?: string) {
-  const pricePart = priceLabel ? ` (${priceLabel})` : '';
-  const text =
-    `Hola, me interesa el plan ${planName}${pricePart}. ` +
-    'Quiero adquirirlo o recibir más información.';
-  return `https://wa.me/${SALES_WHATSAPP}?text=${encodeURIComponent(text)}`;
+  return buildPlanWhatsAppUrl(planName, priceLabel);
 }
 
 const FREE_PLAN       = PLANS.find((p) => p.id === 'free');
