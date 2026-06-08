@@ -450,6 +450,8 @@ const ConversationSessionSchema = new Schema({
   lastHumanMessageAt: { type: Date, default: null },
   /** ID del mensaje WA enviado al dueño como alerta de handoff (para rutear su respuesta). */
   handoffWaNotifMsgId: { type: String, default: null },
+  /** WhatsApp: esperando respuesta a la encuesta tras resolver (antes de nueva conversación). */
+  waFeedbackPending: { type: Boolean, default: false },
 }, { timestamps: true });
 
 ConversationSessionSchema.index({ widgetId: 1, month: -1 });
