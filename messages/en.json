@@ -35,9 +35,15 @@
       "ctaDocs": "View Pricing"
     },
     "stats": {
+      "trialValue": "7 days",
       "trial": "Free trial",
-      "setup": "Minutes to first widget",
-      "models": "AI models available"
+      "trialHint": "No credit card required",
+      "setupValue": "< 10 min",
+      "setup": "Your first live widget",
+      "setupHint": "Multi-agent included",
+      "modelsValue": "30+",
+      "models": "AI models",
+      "modelsHint": "Gemini, Claude, GPT & more"
     },
     "how": {
       "title": "Works in 5 steps",

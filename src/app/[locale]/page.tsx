@@ -11,6 +11,7 @@ import {
   GraduationCap, TrendingUp, Lock, Wrench,
   UserPlus, Palette, Rocket, Brain,
   Users, BookOpen, PlayCircle, BadgeCheck, Star,
+  Gift, Timer, Layers,
 } from 'lucide-react';
 import { FaqDetails } from '@/components/ui/faq-details';
 
@@ -62,9 +63,9 @@ export default async function LandingPage() {
   ];
 
   const STATS = [
-    { value: '7 días', label: t('stats.trial'),  color: R },
-    { value: '< 10',   label: t('stats.setup'),  color: O },
-    { value: '8+',     label: t('stats.models'), color: B },
+    { value: t('stats.trialValue'),  label: t('stats.trial'),  hint: t('stats.trialHint'),  color: R,  Icon: Gift },
+    { value: t('stats.setupValue'),  label: t('stats.setup'),  hint: t('stats.setupHint'),  color: O,  Icon: Timer },
+    { value: t('stats.modelsValue'), label: t('stats.models'), hint: t('stats.modelsHint'), color: B,  Icon: Layers },
   ];
 
   return (
@@ -122,17 +123,19 @@ export default async function LandingPage() {
             </Link>
           </div>
 
-          <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
+          <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto landing-hero-stats">
             {STATS.map((s) => (
               <div
                 key={s.label}
-                className="rounded-xl p-4 card-texture text-center"
-                style={{ border: '1px solid var(--border)' }}
+                className="landing-hero-stat card-texture"
+                style={{ '--stat-accent': s.color } as React.CSSProperties}
               >
-                <p className="text-2xl font-extrabold m-0" style={{ color: s.color }}>
-                  {s.value}
-                </p>
-                <p className="text-xs mt-1 m-0" style={{ color: 'var(--muted-foreground)' }}>{s.label}</p>
+                <div className="landing-hero-stat__icon" aria-hidden>
+                  <s.Icon size={18} strokeWidth={2.25} />
+                </div>
+                <p className="landing-hero-stat__value">{s.value}</p>
+                <p className="landing-hero-stat__label">{s.label}</p>
+                <p className="landing-hero-stat__hint">{s.hint}</p>
               </div>
             ))}
           </div>

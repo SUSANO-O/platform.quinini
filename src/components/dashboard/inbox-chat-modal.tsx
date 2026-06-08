@@ -108,7 +108,7 @@ function contactInitial(name: string) {
   return t ? t.charAt(0).toUpperCase() : '?';
 }
 
-function ConversationThread({
+export function ConversationThread({
   messages,
   canDelete,
   onDelete,

@@ -8,7 +8,7 @@ import type { AgentSkillCatalogEntry, SkillConfigRow } from '@/lib/agent-skills-
 import { normalizeAgentSkillsState } from '@/lib/agent-skills-catalog';
 import type { LandingToolConfig } from '@/lib/aibackhub-sync';
 
-export type CapabilityKind = 'mcp' | 'skill' | 'tool' | 'webhook' | 'cron' | 'rag' | 'vision';
+export type CapabilityKind = 'domain' | 'mcp' | 'skill' | 'tool' | 'webhook' | 'cron' | 'rag' | 'vision';
 
 export type AgentCapabilityItem = {
   kind: CapabilityKind;
@@ -21,9 +21,15 @@ export type AgentCapabilityItem = {
 
 export type AgentCapabilityProfile = {
   items: AgentCapabilityItem[];
-  /** Texto compacto para triaje LLM. */
+  /** Rol / propósito extraído del prompt y descripción. */
+  domainSummary: string;
+  /** Texto compacto para triaje LLM (dominio + herramientas). */
   summary: string;
-  /** Señales aplanadas (sin duplicados) para scoring por keywords. */
+  /** Señales de dominio (prompt, descripción, skills de perfil). */
+  domainSignals: string[];
+  /** Señales técnicas (MCP, webhooks, crons). */
+  toolSignals: string[];
+  /** Alias de domainSignals — compatibilidad. */
   signals: string[];
 };
 
@@ -88,6 +94,7 @@ const CRON_ACTION_TOPICS: Record<string, string[]> = {
 export type AgentDocForCapabilities = {
   name?: string;
   description?: string;
+  systemPrompt?: string;
   agentHubId?: string | null;
   enabledMcpToolIds?: string[];
   enabledToolIds?: string[];
@@ -127,9 +134,61 @@ function tokenize(text: string): string[] {
 }
 
 function stemsMatch(a: string, b: string): boolean {
-  if (a.length < 5 || b.length < 5) return false;
-  const n = Math.min(6, a.length, b.length);
+  if (a.length < 4 || b.length < 4) return false;
+  if (a.includes(b) || b.includes(a)) return true;
+  const n = Math.min(5, a.length, b.length);
   return a.slice(0, n) === b.slice(0, n);
+}
+
+const TOOL_INTENT_PATTERN =
+  /base de datos|bases de datos|mongodb|\bmongo\b|colecci[oó]n|webhook|\bcron\b|tarea programada|hubspot|\bslack\b|\bsql\b|listar bases|consulta(?:r)?\s+(?:a\s+)?(?:la\s+)?(?:base|mongo|datos)/i;
+
+export function messageLooksToolIntent(message: string): boolean {
+  return TOOL_INTENT_PATTERN.test(message);
+}
+
+function appendDomainCapability(agent: AgentDocForCapabilities, items: AgentCapabilityItem[]): void {
+  const name = (agent.name ?? '').trim();
+  const description = (agent.description ?? '').trim();
+  const prompt = (agent.systemPrompt ?? '').trim();
+  const promptLead = prompt.slice(0, 900);
+  const signals = uniqueSignals([
+    name,
+    description,
+    promptLead,
+    ...tokenize(name),
+    ...tokenize(description),
+    ...tokenize(promptLead),
+  ]);
+  if (!signals.length && !promptLead && !description) return;
+
+  items.push({
+    kind: 'domain',
+    id: 'domain',
+    label: 'Rol y propósito',
+    description: promptLead.slice(0, 280) || description || undefined,
+    signals,
+  });
+}
+
+function scoreSignalsAgainstMessage(
+  message: string,
+  signals: string[],
+  weight: number,
+): number {
+  const msg = message.toLowerCase();
+  const msgWords = tokenize(msg);
+  let score = 0;
+  for (const signal of signals) {
+    if (signal.length >= 4 && msg.includes(signal)) {
+      score += (signal.length >= 10 ? 8 : 5) * weight;
+      continue;
+    }
+    if (signal.length >= 4 && msgWords.some((w) => stemsMatch(w, signal))) {
+      score += 5 * weight;
+    }
+  }
+  return score;
 }
 
 function parseMcpToolId(toolId: string): { integration: string; tool: string } | null {
@@ -297,6 +356,8 @@ export function buildAgentCapabilityProfile(params: {
   const items: AgentCapabilityItem[] = [];
   const agent = params.agent;
 
+  appendDomainCapability(agent, items);
+
   const mcpIds = [
     ...(Array.isArray(agent.enabledMcpToolIds) ? agent.enabledMcpToolIds : []),
     ...(Array.isArray(agent.enabledToolIds) ? agent.enabledToolIds : []),
@@ -332,47 +393,69 @@ export function buildAgentCapabilityProfile(params: {
 
   const name = (agent.name ?? '').trim();
   const description = (agent.description ?? '').trim();
-  const hubId = (agent.agentHubId ?? '').trim();
-  const baseSignals = uniqueSignals([
-    name,
-    description,
-    hubId,
-    humanizeKey(hubId),
-    ...tokenize(name),
-    ...tokenize(description),
+  const domainItem = items.find((i) => i.kind === 'domain');
+  const domainSummary =
+    domainItem?.description?.trim() ||
+    [name, description].filter(Boolean).join(' — ') ||
+    'sin rol definido';
+
+  const domainSignals = uniqueSignals([
+    ...(domainItem?.signals ?? []),
+    ...items.filter((i) => i.kind === 'skill').flatMap((i) => i.signals),
   ]);
 
-  const itemSignals = items.flatMap((i) => i.signals);
-  const signals = uniqueSignals([...baseSignals, ...itemSignals]);
+  const toolSignals = uniqueSignals(
+    items
+      .filter((i) => i.kind !== 'domain' && i.kind !== 'skill')
+      .flatMap((i) => i.signals),
+  );
 
-  const summaryParts = items.slice(0, 12).map((i) => {
-    const desc = i.description ? ` (${i.description.slice(0, 80)})` : '';
-    return `${i.kind}:${i.label}${desc}`;
-  });
+  const toolParts = items
+    .filter((i) => i.kind !== 'domain')
+    .slice(0, 10)
+    .map((i) => {
+      const desc = i.description ? ` (${i.description.slice(0, 60)})` : '';
+      return `${i.kind}:${i.label}${desc}`;
+    });
 
-  const summary =
-    summaryParts.length > 0
-      ? summaryParts.join('; ')
-      : [name, description].filter(Boolean).join(' — ') || 'sin capacidades registradas';
+  const summary = [
+    `dominio: ${domainSummary.slice(0, 220)}`,
+    toolParts.length ? `herramientas: ${toolParts.join('; ')}` : '',
+  ]
+    .filter(Boolean)
+    .join(' | ');
 
-  return { items, summary, signals };
+  return {
+    items,
+    domainSummary,
+    summary,
+    domainSignals,
+    toolSignals,
+    signals: domainSignals,
+  };
 }
 
 export function formatCapabilitySummaryForLlm(profile: AgentCapabilityProfile | undefined): string {
-  if (!profile?.items.length) return profile?.summary ?? 'sin capacidades registradas';
-  return profile.summary;
+  return profile?.summary ?? 'sin capacidades registradas';
 }
 
-/** Puntúa qué tan bien el mensaje encaja con las capacidades reales del miembro del equipo. */
+export type CapabilityMatchOptions = {
+  memberId?: string;
+  primaryOrchestratorId?: string;
+};
+
+/** Puntúa encaje dominio (prompt/rol) vs herramientas (MCP/crons). */
 export function scoreMemberCapabilityMatch(
   message: string,
   member: {
+    id?: string;
     name: string;
     description: string;
     hubId?: string | null;
     role: 'orchestrator' | 'specialist';
     capabilities?: AgentCapabilityProfile;
   },
+  opts?: CapabilityMatchOptions,
 ): number {
   const msg = message.toLowerCase();
   let score = 0;
@@ -381,37 +464,38 @@ export function scoreMemberCapabilityMatch(
   if (name.length >= 4 && msg.includes(name)) score += 20;
 
   const hub = (member.hubId ?? '').trim().toLowerCase();
-  if (hub.length >= 4 && (msg.includes(hub) || msg.includes(hub.replace(/-/g, ' ')))) score += 10;
+  if (hub.length >= 4 && (msg.includes(hub) || msg.includes(hub.replace(/-/g, ' ')))) score += 8;
 
   const profile = member.capabilities;
-  if (profile) {
-    const msgWords = tokenize(msg);
-    for (const signal of profile.signals) {
-      if (signal.length >= 4 && msg.includes(signal)) {
-        score += signal.length >= 10 ? 8 : 5;
-        continue;
-      }
-      if (signal.length >= 5 && msgWords.some((w) => stemsMatch(w, signal))) {
-        score += 5;
-      }
-    }
+  const toolIntent = messageLooksToolIntent(message);
 
-    const msgTokens = new Set(tokenize(msg));
-    for (const item of profile.items) {
-      const blob = `${item.label} ${item.description ?? ''} ${item.signals.join(' ')}`.toLowerCase();
-      if (item.label.length >= 4 && msg.includes(item.label.toLowerCase())) score += 8;
-      for (const token of tokenize(blob)) {
-        if (msgTokens.has(token)) score += 2;
-        else if (token.length >= 5 && [...msgTokens].some((mt) => stemsMatch(mt, token))) score += 2;
+  if (profile) {
+    score += scoreSignalsAgainstMessage(message, profile.domainSignals, 2);
+
+    if (toolIntent) {
+      score += scoreSignalsAgainstMessage(message, profile.toolSignals, 1.2);
+    } else {
+      for (const item of profile.items) {
+        if (item.kind === 'mcp' || item.kind === 'webhook' || item.kind === 'cron' || item.kind === 'tool') {
+          const hit = scoreSignalsAgainstMessage(message, item.signals, 1);
+          if (hit >= 5) score += hit * 0.5;
+        }
       }
     }
   } else {
-    const text = `${member.name} ${member.description}`.toLowerCase();
-    for (const token of tokenize(text)) {
-      if (msg.includes(token)) score += 2;
-    }
+    score += scoreSignalsAgainstMessage(
+      message,
+      uniqueSignals([member.name, member.description, ...tokenize(`${member.name} ${member.description}`)]),
+      1.5,
+    );
+  }
+
+  const primaryId = opts?.primaryOrchestratorId?.trim();
+  const memberId = opts?.memberId ?? member.id;
+  if (primaryId && memberId === primaryId && !toolIntent) {
+    score += 6;
   }
 
   if (member.role === 'orchestrator') score += 1;
-  return score;
+  return Math.round(score);
 }
