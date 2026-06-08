@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db/connection';
-import { Widget, Subscription } from '@/lib/db/models';
+import { Widget, Subscription, User } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
 import { validateMultiAgentWidgetSave, validateMultiAgentMode, validatePipelineWidgetConfigSave } from '@/lib/widget-multi-agent';
 import { invalidateWidgetTokenCache } from '@/lib/widget-token-verify';
@@ -77,7 +77,13 @@ export async function GET(
   const widget = await Widget.findOne({ _id: id, userId }).lean();
   if (!widget) return NextResponse.json({ error: 'No encontrado.' }, { status: 404 });
 
-  return NextResponse.json({ widget: normalizeWidgetSupportFields(widget as Record<string, unknown>) });
+  const ownerUser = await User.findById(userId).select('escalationWhatsAppPhone').lean() as
+    | { escalationWhatsAppPhone?: string | null }
+    | null;
+
+  return NextResponse.json({
+    widget: normalizeWidgetSupportFields(widget as Record<string, unknown>, ownerUser),
+  });
 }
 
 export async function PATCH(

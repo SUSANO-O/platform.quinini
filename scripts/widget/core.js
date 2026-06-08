@@ -1051,11 +1051,18 @@
     }
 
     function canShowErrorWhatsApp(imgOpts, text) {
-      if (cfg.humanSupportEnabled === false) return false;
       if (humanWaDigits().length < 8) return false;
       if (imgOpts && imgOpts.showWhatsApp) return true;
       if (imgOpts && imgOpts.error && errorMessageWantsWhatsApp(text)) return true;
       return false;
+    }
+
+    function adjustErrorMessageForWhatsApp(text, showWa) {
+      var t = String(text || '').trim();
+      if (showWa) return t;
+      return t
+        .replace(/\s*o\s+si\s+prefieres\s+atenci[o\u00f3]n\s+inmediata,?\s+puedes\s+escribirnos\s+a\s*:?\s*$/i, '.')
+        .replace(/\s*o\s+puedes\s+escribirnos\s+a\s*:?\s*$/i, '.');
     }
 
     function botOptsForAgentError(evt) {
@@ -3590,6 +3597,9 @@
                   errMsg = 'Esta conversación llegó al límite de mensajes. Pulsa «Nueva conversación» para empezar de cero.';
                 }
                 var streamErrorOpts = botOptsForAgentError(evt);
+                var streamShowWa = canShowErrorWhatsApp(streamErrorOpts, errMsg);
+                errMsg = adjustErrorMessageForWhatsApp(errMsg, streamShowWa);
+                if (streamErrorOpts) streamErrorOpts.showWhatsApp = streamShowWa;
                 addMessage('bot', errMsg, streamErrorOpts);
                 notify('onError', { message: errMsg, code: evt.code });
               }
@@ -3759,10 +3769,12 @@
       } catch (e) {
         hideTyping();
         var isHubError = e && e.code === 'HUB_CHAT_PROXY_FAILED';
-        var msg = isHubError && e && e.message
+        var msgRaw = isHubError && e && e.message
           ? e.message
           : 'El agente no puede responder ahora. Espera unos segundos e inténtalo de nuevo o si prefieres atención inmediata, puedes escribirnos a ';
-        var botOpts = { error: true, showWhatsApp: canShowErrorWhatsApp({ showWhatsApp: true }, msg) };
+        var showWa = canShowErrorWhatsApp({ showWhatsApp: true }, msgRaw);
+        var msg = adjustErrorMessageForWhatsApp(msgRaw, showWa);
+        var botOpts = { error: true, showWhatsApp: showWa };
         log(cfg, 'debug', 'Chat error - showing WhatsApp button', { isHubError, msgLength: msg.length, botOpts });
         addMessage('bot', msg, botOpts);
         notify('onError', { message: msg, code: 'REQUEST_ERROR' });

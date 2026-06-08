@@ -29,10 +29,28 @@ export const HANDOFF_NOTIFY_MODE_LABELS: Record<HandoffNotifyMode, string> = {
   both: 'Webhook + Slack',
 };
 
+/** Teléfono efectivo para WhatsApp: widget primero, luego escalation del dueño. */
+export function resolveWidgetHumanSupportPhone(
+  widget: { humanSupportPhone?: unknown },
+  user?: { escalationWhatsAppPhone?: unknown } | null,
+): string {
+  const widgetPhone =
+    typeof widget.humanSupportPhone === 'string' ? widget.humanSupportPhone.trim() : '';
+  if (widgetPhone) return widgetPhone.slice(0, 48);
+  const userPhone =
+    typeof user?.escalationWhatsAppPhone === 'string' ? user.escalationWhatsAppPhone.trim() : '';
+  return userPhone ? userPhone.slice(0, 48) : '';
+}
+
 /** Normaliza campos de soporte humano / escalación en respuestas API del widget. */
-export function normalizeWidgetSupportFields<T extends Record<string, unknown>>(widget: T) {
+export function normalizeWidgetSupportFields<T extends Record<string, unknown>>(
+  widget: T,
+  user?: { escalationWhatsAppPhone?: unknown } | null,
+) {
+  const humanSupportPhone = resolveWidgetHumanSupportPhone(widget, user);
   return {
     ...widget,
+    humanSupportPhone,
     handoffNotifyMode: normalizeHandoffNotifyMode(widget.handoffNotifyMode),
     handoffEnabled: widget.handoffEnabled !== false,
     humanSupportEnabled: widget.humanSupportEnabled !== false,

@@ -12,9 +12,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
-import { Widget, ClientAgent } from '@/lib/db/models';
+import { Widget, ClientAgent, User } from '@/lib/db/models';
 import { validateMultiAgentMode } from '@/lib/widget-multi-agent';
-import { normalizeHandoffNotifyMode } from '@/lib/handoff-notify';
+import { normalizeHandoffNotifyMode, resolveWidgetHumanSupportPhone } from '@/lib/handoff-notify';
 import { getCorsHeaders, handlePreflight, withCors } from '@/lib/cors';
 
 export async function OPTIONS(req: NextRequest) {
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   await connectDB();
 
   const widget = await Widget.findOne({ afhubToken: token })
-    .select('_id agentId color title subtitle welcome fabHint avatar position theme borderRadius autoOpen fabDismissible voiceEnabled humanSupportPhone humanSupportEnabled handoffEnabled handoffNotifyMode handoffTimeout shortcuts multiAgentEnabled multiAgentMode active feedbackEnabled feedbackTitle feedbackThanks feedbackQuestions conversationIdleTimeout policyEnabled policyText policyLinkLabel policyUrl')
+    .select('_id userId agentId color title subtitle welcome fabHint avatar position theme borderRadius autoOpen fabDismissible voiceEnabled humanSupportPhone humanSupportEnabled handoffEnabled handoffNotifyMode handoffTimeout shortcuts multiAgentEnabled multiAgentMode active feedbackEnabled feedbackTitle feedbackThanks feedbackQuestions conversationIdleTimeout policyEnabled policyText policyLinkLabel policyUrl')
     .lean() as Record<string, unknown> | null;
 
   if (!widget) {
@@ -44,6 +44,16 @@ export async function GET(req: NextRequest) {
       NextResponse.json({ error: 'Widget no encontrado.' }, { status: 404 }),
     );
   }
+
+  let ownerUser: { escalationWhatsAppPhone?: string | null } | null = null;
+  if (widget.userId) {
+    try {
+      ownerUser = await User.findById(widget.userId as string)
+        .select('escalationWhatsAppPhone')
+        .lean() as { escalationWhatsAppPhone?: string | null } | null;
+    } catch { /* non-critical */ }
+  }
+  const effectiveHumanSupportPhone = resolveWidgetHumanSupportPhone(widget, ownerUser);
 
   // Fetch voice name from the linked agent (stored there, not on Widget)
   let voiceName = '';
@@ -74,7 +84,7 @@ export async function GET(req: NextRequest) {
         autoOpen:          widget.autoOpen,
         fabDismissible:    widget.fabDismissible !== false,
         voiceEnabled:      widget.voiceEnabled !== false,
-        humanSupportPhone: widget.humanSupportPhone,
+        humanSupportPhone: effectiveHumanSupportPhone,
         humanSupportEnabled: widget.humanSupportEnabled !== false,
         handoffEnabled:    widget.handoffEnabled !== false,
         handoffNotifyMode: normalizeHandoffNotifyMode(widget.handoffNotifyMode),
