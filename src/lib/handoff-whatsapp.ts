@@ -4,7 +4,8 @@
 
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent, ConversationSession } from '@/lib/db/models';
-import { isWhatsAppServiceWindowOpen, resolveHandoffOwnerNotifyPhone } from '@/lib/handoff-notify';
+import { isWhatsAppServiceWindowOpen } from '@/lib/inbox-handoff';
+import { resolveHandoffOwnerNotifyPhone } from '@/lib/handoff-notify';
 import { sendHandoffNotification, getWhatsAppAccessToken, type WhatsAppAgentConfig } from '@/lib/whatsapp';
 
 export type HandoffWaNotifyResult = {
