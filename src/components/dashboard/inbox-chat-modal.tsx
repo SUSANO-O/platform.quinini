@@ -69,8 +69,10 @@ type InboxChatModalProps = {
   /** Pausar el bot y tomar el control (humanMode → true) sin tener que responder primero. */
   onSilenceBot?: () => void;
   reactivatingBot?: boolean;
-  /** Conversación de WhatsApp (para mostrar badge identificador). */
+  /** WhatsApp (para mostrar badge identificador). */
   isWhatsApp?: boolean;
+  /** Incrementar tras envío exitoso para remontar el composer. */
+  composerResetKey?: number;
 };
 
 function formatBytes(n?: number): string {
@@ -426,6 +428,7 @@ export function InboxChatModal({
   onSilenceBot,
   reactivatingBot = false,
   isWhatsApp = false,
+  composerResetKey = 0,
 }: InboxChatModalProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -469,7 +472,13 @@ export function InboxChatModal({
 
   useEffect(() => {
     if (open) resizeComposer();
-  }, [open, replyDraft, resizeComposer]);
+  }, [open, replyDraft, resizeComposer, composerResetKey]);
+
+  useEffect(() => {
+    if (!replyDraft.trim() && textareaRef.current) {
+      textareaRef.current.style.height = '44px';
+    }
+  }, [replyDraft, composerResetKey]);
 
   if (!open) return null;
 
@@ -647,7 +656,7 @@ export function InboxChatModal({
             }}
           >
             {pendingAttachments.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-2.5">
+              <div key={`att-${composerResetKey}`} className="flex flex-wrap gap-2 mb-2.5">
                 {pendingAttachments.map((att, ai) => (
                   <div
                     key={ai}
@@ -717,6 +726,7 @@ export function InboxChatModal({
                 {uploadingAttachment ? <Loader2 size={18} className="animate-spin" /> : <Paperclip size={18} />}
               </button>
               <textarea
+                key={`composer-${composerResetKey}`}
                 ref={textareaRef}
                 rows={1}
                 placeholder="Escribe tu respuesta…"

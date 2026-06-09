@@ -11,12 +11,15 @@ import { sendHandoffNotification, getWhatsAppAccessToken, type WhatsAppAgentConf
 export type HandoffWaNotifyResult = {
   attempted: boolean;
   ok?: boolean;
-  skippedReason?: 'no_session' | 'no_phone' | 'no_whatsapp_agent' | 'send_failed';
+  skippedReason?: 'no_session' | 'no_phone' | 'no_whatsapp_agent' | 'send_failed' | 'window_closed';
   error?: string;
   messageId?: string;
   notifyPhone?: string;
   method?: 'template' | 'text';
   serviceWindowOpen?: boolean;
+  fromDisplayPhone?: string | null;
+  fromPhoneNumberId?: string | null;
+  deliveryWarning?: string;
 };
 
 const WA_AGENT_FILTER = {
@@ -116,19 +119,27 @@ export async function notifyOwnerHandoffViaWhatsApp(params: {
   });
 
   if (!notifResult.ok) {
+    const windowClosed =
+      notifResult.serviceWindowOpen === false
+      && typeof notifResult.error === 'string'
+      && notifResult.error.includes('Ventana WhatsApp cerrada');
     console.log('[AFHUB-DEBUG] ❌ handoff WA send failed:', {
       widgetId: params.widgetId,
       notifyPhone,
       error: notifResult.error,
       method: notifResult.method,
       serviceWindowOpen: notifResult.serviceWindowOpen,
+      windowClosed,
     });
     return {
       attempted: true,
       ok: false,
-      skippedReason: 'send_failed',
+      skippedReason: windowClosed ? 'window_closed' : 'send_failed',
       error: notifResult.error,
       notifyPhone,
+      serviceWindowOpen: notifResult.serviceWindowOpen,
+      fromDisplayPhone: waAgent.whatsapp.displayPhone || null,
+      fromPhoneNumberId: waAgent.whatsapp.phoneNumberId || null,
     };
   }
 
@@ -158,5 +169,10 @@ export async function notifyOwnerHandoffViaWhatsApp(params: {
     notifyPhone: notifResult.notifyPhone || notifyPhone,
     method: notifResult.method,
     serviceWindowOpen,
+    fromDisplayPhone: waAgent.whatsapp.displayPhone || null,
+    fromPhoneNumberId: waAgent.whatsapp.phoneNumberId || null,
+    deliveryWarning: serviceWindowOpen
+      ? undefined
+      : 'Meta puede rechazar la entrega (Re-engagement): el dueño debe escribir primero al número Business del agente, o usar plantilla aprobada.',
   };
 }

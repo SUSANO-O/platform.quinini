@@ -13,7 +13,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
-import { ClientAgent, Subscription, User } from '@/lib/db/models';
+import { ClientAgent, Subscription, User, Widget } from '@/lib/db/models';
+import { resolveHandoffOwnerNotifyPhone } from '@/lib/handoff-notify';
 import { getWhatsAppWebhookUrl, generateVerifyToken } from '@/lib/whatsapp';
 import { canUseWhatsApp, whatsappUpgradeLabel, WHATSAPP_MIN_PLAN } from '@/lib/plan-catalog';
 
@@ -61,6 +62,19 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   }
 
   const wa = agent.get('whatsapp') || {};
+
+  const ownerUser = await User.findById(userId)
+    .select({ escalationWhatsAppPhone: 1, ownerWaLastInboundAt: 1 })
+    .lean() as { escalationWhatsAppPhone?: string | null; ownerWaLastInboundAt?: Date | null } | null;
+
+  const linkedWidget = await Widget.findOne({ userId, agentId: id, active: { $ne: false } })
+    .select({ _id: 1, name: 1, humanSupportPhone: 1 })
+    .lean() as { _id?: unknown; name?: string; humanSupportPhone?: string } | null;
+
+  const handoffNotifyPhone = linkedWidget
+    ? resolveHandoffOwnerNotifyPhone(linkedWidget, ownerUser)
+    : resolveHandoffOwnerNotifyPhone({}, ownerUser);
+
   return NextResponse.json({
     webhookUrl:    getWhatsAppWebhookUrl(),
     verifyToken,
@@ -74,5 +88,14 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     hasAppSecret:   Boolean(wa.appSecretEnc),
     connectedAt:    wa.connectedAt || null,
     lastError:      String(wa.lastError || ''),
+    /** Número Business que ENVÍA (Meta Cloud API). */
+    senderDisplayPhone: String(wa.displayPhone || ''),
+    senderPhoneNumberId: String(wa.phoneNumberId || ''),
+    /** Número del operador que RECIBE alertas de handoff (widget / ajustes). */
+    handoffNotifyPhone: handoffNotifyPhone || '',
+    handoffNotifyWidgetName: linkedWidget?.name || '',
+    handoffNotifyWidgetId: linkedWidget?._id ? String(linkedWidget._id) : '',
+    ownerWaLastInboundAt: ownerUser?.ownerWaLastInboundAt || null,
+    escalationWhatsAppPhone: ownerUser?.escalationWhatsAppPhone || '',
   });
 }

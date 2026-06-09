@@ -420,3 +420,8 @@
 {"t":"2026-06-08T22:07:13.622Z","event":"widget_loaded","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
 {"t":"2026-06-08T22:07:14.286Z","event":"widget_opened","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
 {"t":"2026-06-08T22:07:24.118Z","event":"conversation_handoff","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
+{"t":"2026-06-08T22:30:40.598Z","event":"widget_closed","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
+{"t":"2026-06-08T22:31:03.408Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_1"}
+{"t":"2026-06-08T22:32:44.200Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_1"}
+{"t":"2026-06-08T23:30:35.877Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_2"}
+{"t":"2026-06-08T23:43:27.778Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_3"}

@@ -1725,15 +1725,16 @@ export default function WidgetBuilderPage() {
           </div>
           {cfg.humanSupportEnabled && (
             <>
-              <label style={labelStyle}>Número de WhatsApp</label>
+              <label style={labelStyle}>📥 Número que RECIBE (operador / WhatsApp humano)</label>
               <input
                 style={inputStyle}
                 value={cfg.humanSupportPhone ?? ''}
                 onChange={(e) => update({ humanSupportPhone: e.target.value.slice(0, 48) })}
-                placeholder="+52 55 1234 5678 (con código de país)"
+                placeholder="+57 313 3174629 (celular del operador, NO el de Meta)"
               />
               <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 6, marginBottom: 0, lineHeight: 1.45 }}>
-                Se activa cuando el visitante escribe «persona», «humano», «atención humana» o similar.
+                Alertas de handoff y enlace wa.me van a este número. El Business Meta que <strong>envía</strong> se configura en el agente → pestaña WhatsApp.
+                <br />Se activa el enlace cuando el visitante escribe «persona», «humano», etc.
               </p>
             </>
           )}

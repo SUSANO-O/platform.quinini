@@ -1,0 +1,76 @@
+/**
+ * Métricas del dashboard alineadas con facturación (RequestLog):
+ * - billableTurns: cada respuesta AI ≈ +1 en "Uso del mes" (716/45.000)
+ * - sessionsStarted: chats nuevos (primer mensaje en el rango)
+ */
+
+import { WidgetMessage } from '@/lib/db/models';
+
+const EXCLUDED_SESSION_PREFIXES = ['ho_', 'smoke_', 'img_test_', 'dbg-'] as const;
+
+export function isExcludedConversationSessionId(sessionId: unknown): boolean {
+  if (typeof sessionId !== 'string' || !sessionId.trim()) return true;
+  const sid = sessionId.trim();
+  if (sid.startsWith('ho_')) return true;
+  const lower = sid.toLowerCase();
+  if (/verify_|curltest|_curl/i.test(sid)) return true;
+  return EXCLUDED_SESSION_PREFIXES.some(
+    (prefix) => prefix !== 'ho_' && lower.startsWith(prefix),
+  );
+}
+
+function sessionIdMatch(userId: string) {
+  return {
+    userId,
+    sessionId: { $type: 'string' as const, $ne: '', $not: /^ho_/ },
+  };
+}
+
+/** Sesiones únicas cuyo primer mensaje cae dentro del rango [from, to?]. */
+export async function countUserConversationsStartedInRange(
+  userId: string,
+  from: Date,
+  to?: Date | null,
+): Promise<number> {
+  const firstAtFilter: Record<string, Date> = { $gte: from };
+  if (to) firstAtFilter.$lte = to;
+
+  const rows = await WidgetMessage.aggregate<{ _id: string; firstAt: Date }>([
+    {
+      $match: sessionIdMatch(userId),
+    },
+    {
+      $group: {
+        _id: '$sessionId',
+        firstAt: { $min: '$createdAt' },
+      },
+    },
+    { $match: { firstAt: firstAtFilter } },
+  ]);
+
+  return rows.filter((r) => !isExcludedConversationSessionId(r._id)).length;
+}
+
+/**
+ * Turnos facturables en el rango — proxy de RequestLog: respuestas del agente AI
+ * (no humano inbox). Coincide con lo que ves en "Uso del mes actual".
+ */
+export async function countUserBillableTurnsInRange(
+  userId: string,
+  from: Date,
+  to?: Date | null,
+): Promise<number> {
+  const createdAt: Record<string, Date> = { $gte: from };
+  if (to) createdAt.$lte = to;
+
+  const rows = await WidgetMessage.find({
+    ...sessionIdMatch(userId),
+    role: 'assistant',
+    sentBy: { $ne: 'human' },
+    createdAt,
+  })
+    .select({ sessionId: 1 })
+    .lean() as { sessionId?: string }[];
+
+  return rows.filter((r) => !isExcludedConversationSessionId(r.sessionId)).length;
+}

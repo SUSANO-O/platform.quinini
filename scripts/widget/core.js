@@ -2636,13 +2636,21 @@
               messageId: wa.messageId,
               method: wa.method,
               serviceWindowOpen: wa.serviceWindowOpen,
+              fromDisplayPhone: wa.fromDisplayPhone,
+              fromPhoneNumberId: wa.fromPhoneNumberId,
+              deliveryWarning: wa.deliveryWarning,
             });
           } else if (wa && wa.attempted === true) {
             console.log('[AFHUB-DEBUG] ❌ WhatsApp handoff alert NOT sent:', {
               skippedReason: wa.skippedReason,
               error: wa.error,
               notifyPhone: wa.notifyPhone,
+              serviceWindowOpen: wa.serviceWindowOpen,
+              fromDisplayPhone: wa.fromDisplayPhone,
             });
+            if (wa.skippedReason === 'window_closed') {
+              console.log('[AFHUB-DEBUG] ℹ️ Ventana Meta cerrada — Inbox/Slack siguen activos. WA requiere plantilla o que el operador escriba al Business en 24 h.');
+            }
           } else if (wa) {
             console.log('[AFHUB-DEBUG] ⏭️ WhatsApp handoff alert skipped:', wa);
           }
@@ -3683,8 +3691,20 @@
       renderAttachPreview();
     }
 
+    function mimeTypeFromImageUrl(url) {
+      if (typeof url !== 'string') return 'image/jpeg';
+      var m = /\.(jpe?g|png|webp|gif)(?:[?#]|$)/i.exec(url);
+      if (!m) return 'image/jpeg';
+      var ext = m[1].toLowerCase();
+      if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+      return 'image/' + ext;
+    }
+
     async function uploadPendingAttachment() {
       if (!pendingAttachment || !pendingAttachment.dataUrl) return [];
+      // Snapshot antes del fetch: clearPendingAttachment() puede ejecutarse mientras sube.
+      var snapDataUrl = pendingAttachment.dataUrl;
+      var snapMimeType = pendingAttachment.mimeType || 'image/jpeg';
       var uploadEndpoint = cfg.host.replace(/\/$/, '') + '/api/widget/upload-image';
       var upHeaders = { 'Content-Type': 'application/json' };
       if (cfg.token) upHeaders['X-Widget-Token'] = String(cfg.token).trim();
@@ -3692,7 +3712,7 @@
         method: 'POST',
         headers: upHeaders,
         body: JSON.stringify({
-          dataUrl: pendingAttachment.dataUrl,
+          dataUrl: snapDataUrl,
           sessionId: chatSessionId,
           widgetId: cfg.widgetId && String(cfg.widgetId).trim() ? String(cfg.widgetId).trim() : undefined,
           agentId: cfg.agentId || '',
@@ -3704,7 +3724,11 @@
       if (!upRes.ok || !upJson.url) {
         throw new Error((upJson && upJson.error) ? upJson.error : 'No se pudo subir la captura.');
       }
-      return [{ url: upJson.url, publicId: upJson.publicId || '', mimeType: pendingAttachment.mimeType }];
+      return [{
+        url: upJson.url,
+        publicId: upJson.publicId || '',
+        mimeType: upJson.mimeType || snapMimeType || mimeTypeFromImageUrl(upJson.url),
+      }];
     }
 
     // Detectar si un mensaje es un saludo trivial (simplificado para el widget)
