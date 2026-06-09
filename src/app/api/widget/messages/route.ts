@@ -42,8 +42,24 @@ export async function POST(req: NextRequest) {
 
   const now = new Date();
   await WidgetMessage.updateMany(
-    { _id: { $in: ids }, widgetId: String(widget._id), sessionId, sentBy: 'human' },
-    [{ $set: { readAt: { $ifNull: ['$readAt', now] }, deliveredAt: { $ifNull: ['$deliveredAt', now] } } }],
+    {
+      _id: { $in: ids },
+      widgetId: String(widget._id),
+      sessionId,
+      sentBy: 'human',
+      readAt: null,
+    },
+    { $set: { readAt: now } },
+  ).catch(() => {});
+  await WidgetMessage.updateMany(
+    {
+      _id: { $in: ids },
+      widgetId: String(widget._id),
+      sessionId,
+      sentBy: 'human',
+      deliveredAt: null,
+    },
+    { $set: { deliveredAt: now } },
   ).catch(() => {});
 
   return withCors(req, NextResponse.json({ ok: true }));
@@ -70,12 +86,33 @@ export async function GET(req: NextRequest) {
   }
   const widgetId = String(widget._id);
 
-  // Comprobar si la sesión está resuelta (para notificar al widget).
-  const session = await ConversationSession.findOne({ chatSessionId: sessionId })
+  // Puede haber varios ho_* por chatSessionId (handoffs viejos resueltos + uno abierto).
+  // findOne sin orden devolvía a veces el resuelto → el widget creía que la conversación terminó.
+  const openSession = await ConversationSession.findOne({
+    chatSessionId: sessionId,
+    escalated: true,
+    inboxStatus: { $ne: 'resolved' },
+  })
+    .sort({ handoffAt: -1 })
     .select({ inboxStatus: 1, humanMode: 1 })
     .lean() as { inboxStatus?: string; humanMode?: boolean } | null;
 
-  const resolved = session?.inboxStatus === 'resolved';
+  let resolved: boolean;
+  let humanMode: boolean;
+  if (openSession) {
+    resolved = false;
+    humanMode = openSession.humanMode ?? true;
+  } else {
+    const lastSession = await ConversationSession.findOne({
+      chatSessionId: sessionId,
+      escalated: true,
+    })
+      .sort({ handoffAt: -1 })
+      .select({ inboxStatus: 1, humanMode: 1 })
+      .lean() as { inboxStatus?: string; humanMode?: boolean } | null;
+    resolved = lastSession?.inboxStatus === 'resolved';
+    humanMode = lastSession?.humanMode ?? false;
+  }
 
   // Mensajes nuevos desde `since` con sentBy: 'human' (excluye los retirados).
   const sinceDate = since ? new Date(since) : new Date(0);
@@ -121,7 +158,7 @@ export async function GET(req: NextRequest) {
     })),
     deletedIds: deletedDocs.map((d) => String(d._id)),
     resolved,
-    humanMode: session?.humanMode ?? false,
+    humanMode,
     // Hora del servidor: el cliente la usa como cursor del siguiente poll
     // para evitar drift de reloj del navegador.
     now: new Date().toISOString(),
