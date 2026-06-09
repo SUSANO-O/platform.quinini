@@ -10,7 +10,16 @@ export type CloudinaryUploadResult = {
   width?: number;
   height?: number;
   bytes?: number;
+  mimeType?: string;
 };
+
+function mimeTypeFromCloudinaryFormat(format: unknown): string {
+  if (typeof format !== 'string' || !format.trim()) return 'image/jpeg';
+  const ext = format.trim().toLowerCase();
+  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+  if (ext === 'png' || ext === 'webp' || ext === 'gif') return `image/${ext}`;
+  return 'image/jpeg';
+}
 
 function isConfigured(): boolean {
   return Boolean(
@@ -64,6 +73,7 @@ export async function uploadWidgetImage(
     width: result.width,
     height: result.height,
     bytes: result.bytes,
+    mimeType: mimeTypeFromCloudinaryFormat(result.format),
   };
 }
 

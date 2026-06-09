@@ -131,6 +131,7 @@ export async function POST(req: NextRequest) {
         publicId: uploaded.publicId,
         width: uploaded.width,
         height: uploaded.height,
+        mimeType: uploaded.mimeType || 'image/jpeg',
       }),
     );
   } catch (err) {

@@ -262,6 +262,19 @@ export async function sendHandoffNotification(params: {
     console.warn('[handoff] template send failed, trying free text:', templateResult.error);
   }
 
+  // Meta no permite texto libre business→usuario sin ventana 24 h (error "Re-engagement message").
+  // No intentamos enviar: evita ok:true falso. Inbox + Slack siguen funcionando siempre.
+  if (!serviceWindowOpen) {
+    return {
+      ok: false,
+      error:
+        'Ventana WhatsApp cerrada: Meta no permite alertas en texto libre sin que el operador haya escrito al Business en 24 h. Usa Inbox/Slack (siempre activos) o activa una plantilla Meta aprobada (HANDOFF_WA_TEMPLATE_ENABLED=1).',
+      method: 'text',
+      notifyPhone: toPhone,
+      serviceWindowOpen: false,
+    };
+  }
+
   const body = [
     `🔔 *Nueva solicitud de atención humana*`,
     `👤 ${visitorLabel} — ${widgetLabel}`,

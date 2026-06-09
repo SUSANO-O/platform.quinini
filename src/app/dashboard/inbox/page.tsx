@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 import { BackgroundRefreshIndicator } from '@/components/dashboard/background-refresh-indicator';
 import { InboxChatModal } from '@/components/dashboard/inbox-chat-modal';
+import type { ChatMessage } from '@/components/dashboard/inbox-chat-modal';
 import { InboxRequestCard, type InboxCardItem, displayVisitorName } from '@/components/dashboard/inbox-request-card';
 import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 import { notifyInboxChanged } from '@/hooks/use-inbox-open-count';
@@ -55,6 +56,8 @@ export default function InboxPage() {
   const [humanModeBySession, setHumanModeBySession] = useState<Record<string, boolean>>({});
   const [reactivatingBot, setReactivatingBot] = useState<string | null>(null);
   const [followUpExpanded, setFollowUpExpanded] = useState<Record<string, boolean>>({});
+  /** Fuerza remount del composer tras envío (Grammarly/extensiones a veces dejan el textarea pegado). */
+  const [composerResetKey, setComposerResetKey] = useState(0);
 
   const inboxQuery = useQuery({
     queryKey: dashboardKeys.inbox(tab),
@@ -135,8 +138,14 @@ export default function InboxPage() {
 
   async function sendReply(sessionId: string) {
     const message = replyDrafts[sessionId]?.trim() || '';
-    const attachments = pendingAttachments[sessionId] || [];
+    const attachments = [...(pendingAttachments[sessionId] || [])];
     if (!message && attachments.length === 0) return;
+
+    // Limpiar composer al instante (UX: no dejar texto/adjuntos pegados mientras envía).
+    clearInboxReplyDraft(sessionId);
+    setPendingAttachments((prev) => ({ ...prev, [sessionId]: [] }));
+    setComposerResetKey((k) => k + 1);
+
     setSendingReply(sessionId);
     try {
       const res = await fetch(`/api/inbox/${encodeURIComponent(sessionId)}/reply`, {
@@ -144,13 +153,40 @@ export default function InboxPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message, attachments }),
       });
+      const data = await res.json().catch(() => ({})) as {
+        error?: string;
+        messageId?: string;
+        attachments?: Attachment[];
+      };
       if (!res.ok) {
-        const d = await res.json();
-        toast.error(d.error || 'No se pudo enviar el mensaje.');
+        setInboxReplyDraft(sessionId, message);
+        setPendingAttachments((prev) => ({ ...prev, [sessionId]: attachments }));
+        toast.error(data.error || 'No se pudo enviar el mensaje.');
         return;
       }
-      clearInboxReplyDraft(sessionId);
-      setPendingAttachments((prev) => ({ ...prev, [sessionId]: [] }));
+
+      const optimisticMsg: ChatMessage = {
+        id: typeof data.messageId === 'string' ? data.messageId : `tmp-${Date.now()}`,
+        role: 'assistant',
+        sentBy: 'human',
+        content: message,
+        createdAt: new Date().toISOString(),
+        attachments: Array.isArray(data.attachments) && data.attachments.length
+          ? data.attachments
+          : attachments.length
+            ? attachments
+            : undefined,
+      };
+      queryClient.setQueryData(
+        dashboardKeys.inboxThread(sessionId),
+        (old: Awaited<ReturnType<typeof fetchInboxThread>> | undefined) => {
+          if (!old) return old;
+          const exists = optimisticMsg.id && old.messages.some((m) => m.id === optimisticMsg.id);
+          if (exists) return old;
+          return { ...old, messages: [...old.messages, optimisticMsg] };
+        },
+      );
+
       patchInboxList((old) => ({
         ...old,
         items: old.items.map((i) =>
@@ -159,7 +195,7 @@ export default function InboxPage() {
             : i,
         ),
       }));
-      await refreshThread(sessionId);
+      void refreshThread(sessionId);
       toast.success('Mensaje enviado al visitante.');
     } finally {
       setSendingReply(null);
@@ -363,6 +399,7 @@ export default function InboxPage() {
           onSilenceBot={() => void silenceBot(expanded)}
           reactivatingBot={reactivatingBot === expanded}
           isWhatsApp={expanded.startsWith('wa:')}
+          composerResetKey={composerResetKey}
         />
       )}
       <header className="inbox-page__header">

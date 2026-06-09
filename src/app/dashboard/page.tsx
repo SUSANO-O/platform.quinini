@@ -98,6 +98,7 @@ export default function DashboardPage() {
   const [dateRange, setDateRange] = useState<DateRange>(() => resolveRange('last_30d'));
   const [usage,            setUsage]            = useState<UsageData | null>(null);
   const [conversationsToday, setConversationsToday] = useState<number | null>(null);
+  const [sessionsStartedToday, setSessionsStartedToday] = useState<number | null>(null);
   const [agentCount,       setAgentCount]       = useState<number | null>(null);
   const [widgetCount,      setWidgetCount]      = useState<number | null>(null);
   const [sysStatus,        setSysStatus]        = useState<SystemStatus | null>(null);
@@ -137,7 +138,12 @@ export default function DashboardPage() {
     const qs = `from=${encodeURIComponent(dateRange.from.toISOString())}&to=${encodeURIComponent(dateRange.to.toISOString())}`;
     fetch(`/api/dashboard/conversations-today?${qs}`)
       .then(r => r.ok ? r.json() : null)
-      .then(d => d && typeof d.count === 'number' && setConversationsToday(d.count))
+      .then(d => {
+        if (!d) return;
+        const turns = typeof d.billableTurns === 'number' ? d.billableTurns : d.count;
+        if (typeof turns === 'number') setConversationsToday(turns);
+        if (typeof d.sessionsStarted === 'number') setSessionsStartedToday(d.sessionsStarted);
+      })
       .catch(() => {});
   }, [user, dateRange]);
 
@@ -273,14 +279,18 @@ export default function DashboardPage() {
           <MetricCard
             accent={`linear-gradient(90deg,${O},${B})`}
             icon={<Clock size={13} style={{ color: O }} />}
-            label={dateRange.preset === 'today' ? 'Conversaciones hoy' : 'Conversaciones en rango'}
+            label={dateRange.preset === 'today' ? 'Mensajes hoy' : 'Mensajes en rango'}
             value={conversationsToday === null ? '—' : conversationsToday.toLocaleString('es')}
             sub={
               conversationsToday === null
                 ? '—'
                 : dateRange.preset === 'today'
-                  ? (conversationsToday === 0 ? 'sin actividad aún' : conversationsToday === 1 ? 'iniciada hoy' : 'iniciadas hoy')
-                  : dateRange.label.toLowerCase()
+                  ? (sessionsStartedToday === null
+                    ? 'facturables · mismo criterio que uso del mes'
+                    : `${sessionsStartedToday} chat${sessionsStartedToday === 1 ? '' : 's'} nuevo${sessionsStartedToday === 1 ? '' : 's'}`)
+                  : (sessionsStartedToday === null
+                    ? 'facturables · mismo criterio que uso del mes'
+                    : `${sessionsStartedToday} chat${sessionsStartedToday === 1 ? '' : 's'} nuevo${sessionsStartedToday === 1 ? '' : 's'} en el periodo`)
             }
           />
           <MetricCard
