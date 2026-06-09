@@ -105,6 +105,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     widgetId?: string;
     chatSessionId?: string;
     inboxStatus?: string;
+    humanModeAt?: Date | null;
   } | null;
   if (!session) return NextResponse.json({ error: 'Sesión no encontrada o no escalada.' }, { status: 404 });
 
@@ -133,21 +134,12 @@ export async function POST(req: NextRequest, { params }: Params) {
   });
 
   // Activar modo humano y registrar timestamps.
-  await ConversationSession.updateOne(
-    { sessionId },
-    [
-      {
-        $set: {
-          lastHumanMessageAt: now,
-          humanMode: true,
-          // humanModeAt: solo primera vez (si aún es null).
-          humanModeAt: {
-            $ifNull: ['$humanModeAt', now],
-          },
-        },
-      },
-    ],
-  );
+  const sessionUpdate: Record<string, unknown> = {
+    lastHumanMessageAt: now,
+    humanMode: true,
+  };
+  if (!session.humanModeAt) sessionUpdate.humanModeAt = now;
+  await ConversationSession.updateOne({ sessionId }, { $set: sessionUpdate });
 
   return NextResponse.json({ ok: true, messageId: String(created._id), attachments });
 }
