@@ -114,7 +114,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
   const sub = await Subscription.findOneAndUpdate(
     { userId },
-    { $set: update },
+    { $set: { ...update, planManagedBy: 'admin' } },
     { upsert: true, new: true, setDefaultsOnInsert: true },
   );
 

@@ -42,6 +42,7 @@ export function readSubscriptionCreatedSeconds(sub: unknown): number {
 
 /**
  * Reconcilia MongoDB con LemonSqueezy cuando tenemos el ID de suscripción.
+ * No escribe si el plan lo gestiona el admin (cobros manuales / override).
  */
 export async function syncSubscriptionFromLS(userId: string) {
   if (!process.env.LEMONSQUEEZY_API_KEY) return;
@@ -49,6 +50,7 @@ export async function syncSubscriptionFromLS(userId: string) {
   await connectDB();
   const sub = await SubscriptionModel.findOne({ userId });
   if (!sub?.lsSubscriptionId) return;
+  if ((sub as { planManagedBy?: string | null }).planManagedBy === 'admin') return;
 
   ensureLSSetup();
   try {
@@ -126,45 +128,63 @@ export async function getSubscription(userId: string) {
   return SubscriptionModel.findOne({ userId });
 }
 
-export async function getSubscriptionStatus(userId: string) {
-  const sub = await ensureTrial(userId);
-  await syncSubscriptionFromLS(userId);
+type SubscriptionDoc = {
+  status: string;
+  plan: string;
+  currentPeriodEnd: number;
+  currentPeriodStart?: number;
+  stripeSubscriptionCreated?: number;
+  trialStartedAt?: Date | null;
+  trialEndsAt?: Date | null;
+  cancelAtPeriodEnd?: boolean;
+  lsSubscriptionId?: string | null;
+  paddleSubscriptionId?: string | null;
+  features?: string[];
+  updatedAt?: Date;
+};
 
-  const fresh = await SubscriptionModel.findOne({ userId });
-  const doc = fresh || sub;
-  const now = Date.now();
-  const nowSec = now / 1000;
-
-  // hasStripeSubscription: compatibilidad con frontend — true si hay suscripción LS (o Paddle legacy)
-  const hasStripeSubscription = Boolean(doc.lsSubscriptionId || doc.paddleSubscriptionId);
-  const paidStatuses = ['active', 'trialing', 'past_due'];
-  const periodOk = doc.currentPeriodEnd > nowSec;
-  const statusOk =
-    paidStatuses.includes(doc.status) ||
-    (doc.status === 'incomplete' && isPaidProductPlan(doc.plan));
-  const paidPlan = isPaidProductPlan(doc.plan);
-  const periodMissingButPaid =
-    doc.currentPeriodEnd <= 0 &&
-    paidPlan &&
-    (doc.status === 'active' || doc.status === 'incomplete');
-  const isPaidActive =
-    hasStripeSubscription && statusOk && (periodOk || periodMissingButPaid);
-
+/** Acceso y premium desde MongoDB — fuente de verdad (admin o webhook LS, no sync en lectura). */
+export function resolveSubscriptionAccess(doc: SubscriptionDoc, nowMs = Date.now()) {
+  const nowSec = nowMs / 1000;
   const trialEndsAt = doc.trialEndsAt ? new Date(doc.trialEndsAt).getTime() : 0;
-  const isTrialActive = doc.status === 'trialing' && !hasStripeSubscription && trialEndsAt > now;
+  const hasBillingProvider = Boolean(doc.lsSubscriptionId || doc.paddleSubscriptionId);
+  const paidPlan = isPaidProductPlan(doc.plan);
+  const periodExpired = doc.currentPeriodEnd > 0 && doc.currentPeriodEnd <= nowSec;
+
+  const isTrialActive = doc.status === 'trialing' && trialEndsAt > nowMs;
+
+  const isPaidActive =
+    paidPlan &&
+    !periodExpired &&
+    (doc.status === 'active' ||
+      doc.status === 'past_due' ||
+      (doc.status === 'incomplete' && paidPlan));
+
   const trialDaysRemaining = isTrialActive
-    ? Math.max(0, Math.ceil((trialEndsAt - now) / (1000 * 60 * 60 * 24)))
+    ? Math.max(0, Math.ceil((trialEndsAt - nowMs) / (1000 * 60 * 60 * 24)))
     : 0;
 
-  const hasAccess = isPaidActive || isTrialActive;
-  const cancelAtPeriodEnd = Boolean((doc as { cancelAtPeriodEnd?: boolean }).cancelAtPeriodEnd);
-
   return {
-    hasAccess,
+    hasAccess: isPaidActive || isTrialActive,
     isPremium: isPaidActive,
     isTrialActive,
     trialDaysRemaining,
-    hasStripeSubscription,
+    hasStripeSubscription: hasBillingProvider,
+  };
+}
+
+export async function getSubscriptionStatus(userId: string) {
+  const sub = await ensureTrial(userId);
+  const doc = (sub.toObject ? sub.toObject() : sub) as SubscriptionDoc;
+  const access = resolveSubscriptionAccess(doc);
+  const cancelAtPeriodEnd = Boolean(doc.cancelAtPeriodEnd);
+  const subscriptionUpdatedAt = doc.updatedAt
+    ? new Date(doc.updatedAt).getTime()
+    : 0;
+
+  return {
+    ...access,
+    subscriptionUpdatedAt,
     subscription: {
       status: doc.status,
       plan: doc.plan,
@@ -174,9 +194,7 @@ export async function getSubscriptionStatus(userId: string) {
       trialStartedAt: doc.trialStartedAt,
       trialEndsAt: doc.trialEndsAt,
       cancelAtPeriodEnd,
-      features: Array.isArray((doc as { features?: string[] }).features)
-        ? (doc as { features?: string[] }).features!
-        : [],
+      features: Array.isArray(doc.features) ? doc.features : [],
     },
   };
 }

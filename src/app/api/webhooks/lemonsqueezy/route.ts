@@ -135,6 +135,7 @@ export async function POST(req: NextRequest) {
               currentPeriodEnd,
               cancelAtPeriodEnd: false,
               stripeSubscriptionCreated: created,
+              planManagedBy: 'billing',
             },
           },
           { upsert: true },
@@ -158,6 +159,7 @@ export async function POST(req: NextRequest) {
           lsSubscriptionId: data.id,
           currentPeriodEnd,
           cancelAtPeriodEnd: cancelAtEnd,
+          planManagedBy: 'billing',
         };
         if (plan) update.plan = plan;
 

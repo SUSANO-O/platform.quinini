@@ -12,11 +12,13 @@ export const SUBSCRIPTION_CACHE_TTL_MS = 10 * 60 * 1000;
 type CachedEnvelope = {
   t: number;
   v: unknown;
+  rev?: number;
 };
 
 export function readSubscriptionSessionCache(userId: string): {
   data: unknown;
   stale: boolean;
+  revision?: number;
 } | null {
   if (typeof window === 'undefined' || !userId) return null;
   try {
@@ -25,7 +27,11 @@ export function readSubscriptionSessionCache(userId: string): {
     const parsed = JSON.parse(raw) as CachedEnvelope;
     if (!parsed || typeof parsed.t !== 'number') return null;
     const age = Date.now() - parsed.t;
-    return { data: parsed.v, stale: age > SUBSCRIPTION_CACHE_TTL_MS };
+    return {
+      data: parsed.v,
+      stale: age > SUBSCRIPTION_CACHE_TTL_MS,
+      revision: typeof parsed.rev === 'number' ? parsed.rev : undefined,
+    };
   } catch {
     return null;
   }
@@ -34,7 +40,14 @@ export function readSubscriptionSessionCache(userId: string): {
 export function writeSubscriptionSessionCache(userId: string, data: unknown): void {
   if (typeof window === 'undefined' || !userId) return;
   try {
-    sessionStorage.setItem(PREFIX + userId, JSON.stringify({ t: Date.now(), v: data }));
+    const rev =
+      data &&
+      typeof data === 'object' &&
+      'subscriptionUpdatedAt' in data &&
+      typeof (data as { subscriptionUpdatedAt?: unknown }).subscriptionUpdatedAt === 'number'
+        ? (data as { subscriptionUpdatedAt: number }).subscriptionUpdatedAt
+        : undefined;
+    sessionStorage.setItem(PREFIX + userId, JSON.stringify({ t: Date.now(), v: data, rev }));
   } catch {
     /* quota / private mode */
   }
