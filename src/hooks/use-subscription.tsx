@@ -24,6 +24,8 @@ export interface SubscriptionStatus {
   trialDaysRemaining: number;
   /** True si existe suscripción enlazada en Stripe (hay `stripeSubscriptionId`). */
   hasStripeSubscription: boolean;
+  /** Epoch ms — invalidar caché cliente si cambió la suscripción en servidor. */
+  subscriptionUpdatedAt?: number;
   subscription: {
     status: string;
     plan: string;
@@ -94,6 +96,21 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
           setLoading(false);
           setIsRefreshing(false);
           loadedOnce.current = true;
+          // Revalidar en segundo plano (p. ej. cambio manual desde admin)
+          void fetch('/api/subscription')
+            .then(async (r) => {
+              if (r.status === 401) return null;
+              if (!r.ok) return null;
+              return r.json() as Promise<SubscriptionStatus & { error?: string }>;
+            })
+            .then((data) => {
+              if (!data || typeof data.error === 'string') return;
+              const prevRev = (cached.data as SubscriptionStatus)?.subscriptionUpdatedAt;
+              if (prevRev != null && data.subscriptionUpdatedAt === prevRev) return;
+              setStatus(data);
+              writeSubscriptionSessionCache(uid, data);
+            })
+            .catch(() => {});
           return;
         }
       }

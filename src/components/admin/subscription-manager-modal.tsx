@@ -276,6 +276,9 @@ export function SubscriptionManagerModal({ userId, userEmail, onClose, onSaved }
                     <input type="text" style={inputStyle} value={form.lsSubscriptionId} placeholder="sub_..." onChange={e => set('lsSubscriptionId', e.target.value)} />
                   </div>
                 </div>
+                <p style={{ margin: '10px 0 0', fontSize: 11, color: 'var(--muted-foreground)', lineHeight: 1.45 }}>
+                  Cobros manuales: deja los IDs vacíos. Al guardar, la app usa solo MongoDB (Lemon no sobrescribe en lectura).
+                </p>
               </div>
 
               {/* Overrides de features */}

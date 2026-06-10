@@ -109,6 +109,8 @@ const SubscriptionSchema = new Schema({
   scheduledTaskLimit: { type: Number, default: null },
   /** Facturar almacenamiento de sync Sheets→Mongo ($1/GB). Default: false. */
   sheetSyncBillingEnabled: { type: Boolean, default: false },
+  /** Quién controla plan/estado: admin (manual) o billing (webhook LS). Evita sync LS en lectura. */
+  planManagedBy: { type: String, enum: ['admin', 'billing'], default: null },
 }, { timestamps: true });
 
 SubscriptionSchema.index({ lsCustomerId: 1 });
