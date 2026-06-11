@@ -255,6 +255,10 @@ export default function WidgetPreviewPage() {
             humanSupportEnabled: w.humanSupportEnabled !== false,
             handoffEnabled: w.handoffEnabled !== false,
             avatar:    w.avatar || '',
+            fabAvatarSize:
+              typeof (w as { fabAvatarSize?: number }).fabAvatarSize === 'number'
+                ? (w as { fabAvatarSize?: number }).fabAvatarSize
+                : 86,
             position:  w.position || 'bottom-right',
             theme:     w.theme === 'dark' ? 'dark' : 'light',
             borderRadius: parseBorderRadius(w.borderRadius),

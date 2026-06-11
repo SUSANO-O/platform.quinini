@@ -136,6 +136,8 @@ const WidgetSchema = new Schema({
   welcome:      { type: String, default: '' },
   fabHint:      { type: String, default: '' },
   avatar:       { type: String, default: '' },
+  /** Tamaño del botón FAB cuando hay avatar (px). Sin avatar se usa el orbe fijo. */
+  fabAvatarSize: { type: Number, default: 86 },
   position:     { type: String, default: 'bottom-right' },
   theme:        { type: String, enum: ['light', 'dark'], default: 'light' },
   borderRadius: { type: String, default: '16px' },

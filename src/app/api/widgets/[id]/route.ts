@@ -29,6 +29,7 @@ const PATCHABLE = [
   'welcome',
   'fabHint',
   'avatar',
+  'fabAvatarSize',
   'position',
   'theme',
   'borderRadius',
@@ -136,6 +137,11 @@ export async function PATCH(
     if (key === 'conversationIdleTimeout') {
       const n = typeof v === 'number' ? v : parseInt(String(v), 10);
       if (Number.isFinite(n) && n >= 0) $set.conversationIdleTimeout = Math.min(n, 1440);
+      continue;
+    }
+    if (key === 'fabAvatarSize') {
+      const n = typeof v === 'number' ? v : parseInt(String(v), 10);
+      if (Number.isFinite(n)) $set.fabAvatarSize = Math.min(120, Math.max(56, Math.round(n)));
       continue;
     }
     if (typeof v === 'string') {

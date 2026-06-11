@@ -4,7 +4,7 @@
  */
 
 /** Mantener en sync con `VERSION` en scripts/widget/core.js (cache-bust de assist.js). */
-export const WIDGET_SDK_VERSION = '1.5.7';
+export const WIDGET_SDK_VERSION = '1.6.4';
 
 export type InternalAssistContext = 'app' | 'marketing';
 
@@ -17,8 +17,6 @@ export type InternalAssistBootConfig = {
   welcome: string;
   fabHint: string;
   avatar?: string;
-  /** Si true, muestra el avatar dentro del orbe animado (FAB del dashboard). */
-  fabOrbAvatar?: boolean;
   position: string;
   edgeInset: number;
   offsetBottom: number;
@@ -90,12 +88,11 @@ export function resolveInternalAssistBoot(
     title: envStr('INTERNAL_APP_ASSIST_TITLE', 'Math-ais'),
     subtitle: envStr('INTERNAL_APP_ASSIST_SUBTITLE', 'En linea'),
     welcome: envStr('INTERNAL_APP_ASSIST_WELCOME', 'Hola! Como puedo ayudarte hoy?'),
-    fabHint: envStr('INTERNAL_APP_ASSIST_FAB_HINT', '¿tienes duda en el uso?'),
+    fabHint: envStr('INTERNAL_APP_ASSIST_FAB_HINT', '¿Tienes dudas plataforma?'),
     avatar: envStr(
       'INTERNAL_APP_ASSIST_AVATAR',
-      '/assets/assist/engineer-fab-orb.png',
+      '/assets/assist/botivaorbe.webp',
     ),
-    fabOrbAvatar: true,
     // Solo WhatsApp por ahora: sin "Hablar con una persona" (inbox/canales).
     humanSupportEnabled: true,
     handoffEnabled: false,

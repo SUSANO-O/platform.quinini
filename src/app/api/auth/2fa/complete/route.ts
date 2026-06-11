@@ -67,7 +67,6 @@ export async function POST(req: NextRequest) {
     twoFactorSecret?: string | null;
     twoFactorEnabled?: boolean;
     landingAccessLockEnabled?: boolean;
-    role?: string;
   } | null;
 
   if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {

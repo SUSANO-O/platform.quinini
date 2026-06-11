@@ -245,6 +245,8 @@ interface WidgetConfig {
   policyLinkLabel: string;
   policyUrl: string;
   avatar: string;
+  /** Tamaño del FAB cuando hay avatar (px). */
+  fabAvatarSize: number;
   position: string;
   theme: 'light' | 'dark';
   borderRadius: string;
@@ -275,6 +277,7 @@ const DEFAULT: WidgetConfig = {
   welcome: '¡Hola! ¿En qué puedo ayudarte?',
   fabHint: '¿Necesitas ayuda?',
   avatar: '',
+  fabAvatarSize: 86,
   position: 'bottom-right',
   theme: 'light',
   borderRadius: '16px',
@@ -517,22 +520,24 @@ function MockPreview({
         <button
           type="button"
           onClick={() => setChatOpen((v) => !v)}
-          className="relative overflow-hidden rounded-full border-0 shadow-lg ring-1 ring-white/35"
+          className="relative overflow-hidden rounded-full border-0 shadow-lg"
           style={{
-            width: 44,
-            height: 44,
+            width: cfg.avatar && !fabAvatarFailed ? cfg.fabAvatarSize : 44,
+            height: cfg.avatar && !fabAvatarFailed ? cfg.fabAvatarSize : 44,
             cursor: 'pointer',
-            boxShadow: `0 4px 16px ${cfg.color}66`,
+            boxShadow: cfg.avatar && !fabAvatarFailed ? '0 4px 14px rgba(15,23,42,0.18)' : `0 4px 16px ${cfg.color}66`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            background: cfg.avatar && !fabAvatarFailed ? 'transparent' : undefined,
           }}
         >
           {cfg.avatar && !fabAvatarFailed ? (
             <img
               src={cfg.avatar}
               alt=""
-              className="relative z-10 h-full w-full object-cover"
+              className="relative z-10 h-full w-full object-contain object-bottom"
+              style={{ filter: 'drop-shadow(0 4px 10px rgba(15,23,42,0.22))' }}
               onError={() => setFabAvatarFailed(true)}
             />
           ) : (
@@ -887,6 +892,10 @@ export default function WidgetBuilderPage() {
               policyLinkLabel: String((widget as { policyLinkLabel?: string }).policyLinkLabel ?? DEFAULT.policyLinkLabel),
               policyUrl: String((widget as { policyUrl?: string }).policyUrl ?? ''),
               avatar: String(widget.avatar ?? ''),
+              fabAvatarSize:
+                typeof (widget as { fabAvatarSize?: number }).fabAvatarSize === 'number'
+                  ? Math.min(120, Math.max(56, Math.round((widget as { fabAvatarSize?: number }).fabAvatarSize!)))
+                  : DEFAULT.fabAvatarSize,
               position: String(widget.position ?? 'bottom-right'),
               theme: th,
               borderRadius: String(widget.borderRadius ?? '16px'),
@@ -1664,6 +1673,61 @@ export default function WidgetBuilderPage() {
             onResult={(url) => update({ avatar: url })}
           />
         </div>
+        {cfg.avatar.trim() ? (
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Tamaño del avatar en el botón ({cfg.fabAvatarSize}px)</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button
+                type="button"
+                aria-label="Reducir avatar"
+                onClick={() => update({ fabAvatarSize: Math.max(56, cfg.fabAvatarSize - 4) })}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 8,
+                  border: '1px solid var(--border)',
+                  background: 'var(--background)',
+                  cursor: 'pointer',
+                  fontSize: 18,
+                  lineHeight: 1,
+                }}
+              >
+                −
+              </button>
+              <input
+                type="range"
+                min={56}
+                max={120}
+                step={4}
+                value={cfg.fabAvatarSize}
+                onChange={(e) =>
+                  update({ fabAvatarSize: Math.min(120, Math.max(56, parseInt(e.target.value, 10) || 86)) })
+                }
+                style={{ flex: 1, accentColor: cfg.color }}
+              />
+              <button
+                type="button"
+                aria-label="Aumentar avatar"
+                onClick={() => update({ fabAvatarSize: Math.min(120, cfg.fabAvatarSize + 4) })}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 8,
+                  border: '1px solid var(--border)',
+                  background: 'var(--background)',
+                  cursor: 'pointer',
+                  fontSize: 18,
+                  lineHeight: 1,
+                }}
+              >
+                +
+              </button>
+            </div>
+            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '6px 0 0', lineHeight: 1.45 }}>
+              Solo aplica cuando hay imagen. Sin avatar se muestra el orbe animado.
+            </p>
+          </div>
+        ) : null}
         <div style={fieldStyle}>
           <label style={labelStyle}>Border radius</label>
           <input style={inputStyle} value={cfg.borderRadius} onChange={(e) => update({ borderRadius: e.target.value })} placeholder="16px" />
@@ -2168,6 +2232,7 @@ export default function WidgetBuilderPage() {
                 welcome={cfg.welcome}
                 title={cfg.title}
                 avatarUrl={cfg.avatar}
+                fabAvatarSize={cfg.fabAvatarSize}
               />
             ) : (
               <div data-tour="widget-builder-preview">

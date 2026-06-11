@@ -8,7 +8,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.6.1';
+  var VERSION = '1.6.4';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -50,17 +50,9 @@
     '<span class="afhub-orb-wave"></span><span class="afhub-orb-wave afhub-orb-wave-b"></span>' +
     '<span class="afhub-orb-core"></span></span></span>';
 
-  /** Orbe con avatar en el centro (misma URL que cabecera) o núcleo luminoso por defecto */
+  /** Con avatar → silueta PNG sola. Sin avatar → orbe animado (ondas + núcleo). */
   function orbHtmlForCfg(cfg) {
     var url = cfg.avatar && String(cfg.avatar).trim();
-    if (url && cfg.fabOrbAvatar) {
-      return (
-        '<span class="afhub-fab-inner" aria-hidden="true"><span class="afhub-orb afhub-orb--embedded-avatar">' +
-        '<span class="afhub-orb-wave"></span><span class="afhub-orb-wave afhub-orb-wave-b"></span>' +
-        '<img class="afhub-orb-embedded-img" src="' + escapeAttr(url) + '" alt="" width="64" height="64" decoding="async" loading="eager">' +
-        '</span></span>'
-      );
-    }
     if (url) {
       return (
         '<span class="afhub-fab-inner" aria-hidden="true"><span class="afhub-orb afhub-orb--avatar afhub-orb--avatar-silhouette">' +
@@ -76,7 +68,7 @@
   }
 
   function usesFabSilhouetteAvatar(cfg) {
-    return hasFabAvatar(cfg) && !cfg.fabOrbAvatar;
+    return hasFabAvatar(cfg);
   }
 
   function syncFabAvatarMode(fab, cfg) {
@@ -104,6 +96,8 @@
     offsetLeft: null,
     offsetRight: null,
     avatar: '',
+    /** Tamaño del FAB con avatar (px). Ignorado si no hay avatar. */
+    fabAvatarSize: 86,
     borderRadius: 16,
     autoOpen: false,
     debug: false,
@@ -143,8 +137,6 @@
     /** Arrastrar el orbe (FAB) para fijar posición; se recuerda en sessionStorage por agente/widget. */
     fabDraggable: true,
     fabDismissible: true,
-    /** Avatar dentro del orbe animado (ondas + imagen). Si false y hay avatar → silueta grande. */
-    fabOrbAvatar: false,
     /** Si false, el chat se muestra pero no acepta mensajes (widget desactivado en el panel). */
     active: true,
     onOpen: null,
@@ -382,7 +374,9 @@
     merged.debug = Boolean(merged.debug);
     merged.theme = merged.theme === 'dark' ? 'dark' : 'light';
     merged.fabHint = String(merged.fabHint == null ? '' : merged.fabHint).trim().substring(0, 200);
-    merged.fabOrbAvatar = input && input.fabOrbAvatar === true;
+    merged.fabAvatarSize = Number(merged.fabAvatarSize);
+    if (!Number.isFinite(merged.fabAvatarSize)) merged.fabAvatarSize = 86;
+    merged.fabAvatarSize = clamp(Math.round(merged.fabAvatarSize), 56, 120);
     merged.orbLight = String(merged.orbLight == null ? '' : merged.orbLight).trim();
     merged.orbDeep = String(merged.orbDeep == null ? '' : merged.orbDeep).trim();
     merged.widgetId = String(merged.widgetId == null ? '' : merged.widgetId).trim();
@@ -4932,7 +4926,14 @@
     );
   }
 
+  function fabAvatarSizePx(cfg) {
+    var n = Number(cfg && cfg.fabAvatarSize);
+    if (!Number.isFinite(n)) n = 86;
+    return clamp(Math.round(n), 56, 120);
+  }
+
   function cssForRoot(rootId, cfg) {
+    var fabAvatarPx = fabAvatarSizePx(cfg);
     var dark =
       cfg.theme === 'dark'
         ? '#' + rootId + ' .afhub-chat { background:#13131a; box-shadow:0 8px 40px rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.06); }' +
@@ -5061,9 +5062,6 @@
       '#' + rootId + ' .afhub-orb-core { position:relative; z-index:2; width:12px; height:12px; border-radius:50%; background:radial-gradient(circle at 50% 48%,#fff,rgba(255,255,255,.92)); box-shadow:0 0 14px rgba(255,255,255,.85),inset 0 1px 2px rgba(255,255,255,.5); }' +
       '#' + rootId + ' .afhub-orb-wave { pointer-events:none; position:absolute; left:50%; top:50%; width:26px; height:26px; margin:-13px 0 0 -13px; border-radius:50%; border:2px solid rgba(255,255,255,.42); animation:afhub-wave 2.5s cubic-bezier(.22,1,.36,1) infinite; }' +
       '#' + rootId + ' .afhub-orb-wave-b { animation-delay:1.2s; border-width:1px; border-color:rgba(255,255,255,.28); }' +
-      '#' + rootId + ' .afhub-orb--embedded-avatar { width:34px; height:34px; }' +
-      '#' + rootId + ' .afhub-orb-embedded-img { position:relative; z-index:2; width:28px; height:28px; border-radius:50%; object-fit:cover; object-position:center 12%; display:block; background:#fff; border:1.5px solid rgba(255,255,255,.92); box-shadow:0 2px 10px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.45); filter:contrast(1.04) saturate(1.05); -webkit-backface-visibility:hidden; backface-visibility:hidden; transform:translateZ(0); }' +
-      '#' + rootId + ' .afhub-fab:hover .afhub-orb-embedded-img { box-shadow:0 3px 14px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.5); }' +
       '#' + rootId + ' .afhub-orb--avatar { width:36px; height:36px; display:flex; align-items:center; justify-content:center; position:relative; border-radius:50%; }' +
       '#' + rootId + ' .afhub-orb-avatar-halo { position:absolute; inset:-22%; border-radius:50%; pointer-events:none; z-index:0; background:radial-gradient(circle at 50% 42%,rgba(255,255,255,.55) 0%,rgba(212,175,55,.22) 42%,transparent 72%); filter:blur(11px); opacity:.9; animation:afhub-avatar-halo 5.2s ease-in-out infinite; }' +
       '#' + rootId + ' .afhub-orb-avatar-img { width:36px; height:36px; border-radius:50%; object-fit:cover; object-position:center 18%; position:relative; z-index:2; display:block; border:2px solid rgba(255,255,255,.94); box-shadow:inset 0 2px 10px rgba(0,0,0,.16),inset 0 -1px 0 rgba(255,255,255,.28),0 4px 14px rgba(0,0,0,.18); filter:contrast(1.06) saturate(1.08); -webkit-backface-visibility:hidden; backface-visibility:hidden; transform:translateZ(0); }' +
@@ -5071,7 +5069,7 @@
       '#' + rootId + ' .afhub-orb-avatar-halo,#' + rootId + ' .afhub-orb-avatar-shine { display:none; }' +
       '#' + rootId + ' .afhub-orb--avatar-silhouette { border-radius:0; overflow:visible; background:transparent; box-shadow:none; }' +
       '#' + rootId + ' .afhub-orb--avatar-silhouette .afhub-orb-avatar-img { border-radius:0; object-fit:contain; object-position:center bottom; background:transparent; border:none; box-shadow:none; filter:drop-shadow(0 4px 10px rgba(15,23,42,.22)); }' +
-      '#' + rootId + ' .afhub-fab.afhub-fab--avatar { width:72px; height:72px; background:transparent; background-blend-mode:normal; filter:none; padding:0; overflow:visible; box-shadow:none; transition:transform .34s cubic-bezier(.22,1,.36,1); }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar { width:' + fabAvatarPx + 'px; height:' + fabAvatarPx + 'px; background:transparent; background-blend-mode:normal; filter:none; padding:0; overflow:visible; box-shadow:none; transition:transform .34s cubic-bezier(.22,1,.36,1); }' +
       '#' + rootId + ' .afhub-fab.afhub-fab--avatar::before,#' + rootId + ' .afhub-fab.afhub-fab--avatar::after { display:none; }' +
       '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-fab-inner { width:100%; height:100%; }' +
       '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-orb--avatar { width:100%; height:100%; padding:0; background:transparent; box-shadow:none; border-radius:0; overflow:visible; }' +
