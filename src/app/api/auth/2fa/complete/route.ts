@@ -11,6 +11,7 @@ import { User } from '@/lib/db/models';
 import {
   verifyTwoFactorPendingToken,
   createSessionToken,
+  createLandingAccessPendingToken,
   IMPERSONATOR_COOKIE,
 } from '@/lib/auth';
 import { recordAudit } from '@/lib/audit-log';
@@ -65,6 +66,8 @@ export async function POST(req: NextRequest) {
     pendingEmail?: string | null;
     twoFactorSecret?: string | null;
     twoFactorEnabled?: boolean;
+    landingAccessLockEnabled?: boolean;
+    role?: string;
   } | null;
 
   if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
@@ -81,6 +84,11 @@ export async function POST(req: NextRequest) {
   if (!valid) {
     await recordAudit({ userId: user._id.toString(), action: 'auth.2fa.failed', resource: 'session', ip });
     return noCache(NextResponse.json({ error: 'Código incorrecto o expirado.' }, { status: 401 }));
+  }
+
+  if (user.landingAccessLockEnabled && user.role !== 'admin') {
+    const landingTempToken = createLandingAccessPendingToken(user._id.toString());
+    return noCache(NextResponse.json({ requiresLandingAccessCode: true, tempToken: landingTempToken }));
   }
 
   const sessionToken = createSessionToken(user._id.toString());

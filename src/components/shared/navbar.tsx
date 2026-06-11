@@ -19,7 +19,7 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5">
           <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={120} height={36} className="h-9 w-auto object-contain rounded-xl" priority />
-          <span className="text-lg font-bold text-black">
+          <span className="text-lg font-bold text-black font-display">
             {BRAND_NAME}
           </span>
         </Link>

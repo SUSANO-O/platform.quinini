@@ -27,7 +27,7 @@ const USE_CASES = [
 
 export default function HealthAgentPage() {
   return (
-    <div style={{ background: '#fff', color: '#111827', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ background: '#fff', color: '#111827' }}>
       {/* Hero */}
       <section style={{ background: `linear-gradient(135deg, ${R}10, ${O}08)`, borderBottom: '1px solid #fee2e2', padding: '80px 24px 60px' }}>
         <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center' }}>

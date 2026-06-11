@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Scissors, Sliders, Sparkles, X, Check, Loader2, Minus, Plus, RotateCcw } from 'lucide-react';
 import { compressCanvasToDataUrl, computeAvatarCropRect } from '@/lib/avatar-export';
+import { browserImageUrlError } from '@/lib/safe-image-url';
 import { USER_AVATAR_MAX_DATA_URL_LENGTH } from '@/lib/user-profile';
 
 type Tab = 'crop' | 'filters' | 'ai';
@@ -128,6 +129,11 @@ export function AvatarEditor({
     setBrightness(100); setContrast(100); setSaturation(100); setHue(0);
     setGeneratedUrl(''); setAiError(''); setAiPrompt(''); setExportError('');
     setTab(allowedTabs[0] ?? 'crop');
+    const urlErr = currentUrl ? browserImageUrlError(currentUrl) : null;
+    if (urlErr) {
+      setImgStatus('error');
+      setExportError(urlErr);
+    }
   }, [open, currentUrl]);
 
   // Focus AI textarea
@@ -212,8 +218,13 @@ export function AvatarEditor({
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ description: aiPrompt.trim(), agentContext: agentContext ?? {} }),
       });
-      const json = await res.json() as { url?: string; error?: string };
-      if (!res.ok || !json.url) throw new Error(json.error ?? 'No se generó imagen');
+      const json = await res.json() as { url?: string; error?: string; code?: string };
+      if (!res.ok || !json.url) {
+        throw new Error(json.error ?? 'No se generó imagen');
+      }
+      if (!json.url.startsWith('data:image/')) {
+        throw new Error('Respuesta inválida del servidor. Sube una imagen manualmente.');
+      }
       setGeneratedUrl(json.url);
       setOffsetX(0); setOffsetY(0); setZoom(1);
       setImgStatus('loading');
@@ -404,7 +415,7 @@ export function AvatarEditor({
           {tab === 'ai' && (
             <div>
               <p style={{ fontSize: 12, color: 'var(--muted-foreground)', marginBottom: 12, lineHeight: 1.5 }}>
-                Describe el avatar. El modelo genera un prompt en inglés optimizado y produce la imagen vía Flux AI.
+                Describe el avatar. Requiere créditos Pollinations en el servidor (POLLINATIONS_API_KEY).
               </p>
               <textarea
                 ref={aiRef}

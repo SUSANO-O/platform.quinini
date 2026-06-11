@@ -20,7 +20,7 @@ export function FaqDetails({ question, answer, accent = BRAND.primary }: FaqDeta
     >
       <summary
         aria-expanded="false"
-        className="px-6 py-4 font-semibold cursor-pointer text-sm flex items-center justify-between"
+        className="px-6 py-4 font-semibold cursor-pointer landing-body-sm flex items-center justify-between"
         style={{ listStyle: 'none' }}
       >
         {question}
@@ -32,7 +32,7 @@ export function FaqDetails({ question, answer, accent = BRAND.primary }: FaqDeta
           +
         </span>
       </summary>
-      <p className="px-6 pb-5 text-sm m-0" style={{ color: 'var(--muted-foreground)' }}>
+      <p className="px-6 pb-5 landing-body-sm m-0 landing-muted">
         {answer}
       </p>
     </details>

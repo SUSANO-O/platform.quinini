@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useAuth } from '@/hooks/use-auth';
 import { SubscriptionManagerModal } from '@/components/admin/subscription-manager-modal';
+import { AdminLandingAccessLockControl } from '@/components/admin/landing-access-lock-control';
 
 interface UserRow {
   uid: string;
@@ -22,6 +23,8 @@ interface UserRow {
   trialDaysRemaining: number;
   periodEnd: number;
   allowedModelProviders?: string[];
+  landingAccessLockEnabled?: boolean;
+  landingAccessCode?: string | null;
 }
 
 const PROVIDER_OPTIONS = ['google', 'vertex', 'huggingface', 'openai', 'anthropic', 'deepseek'] as const;
@@ -58,6 +61,8 @@ export default function AdminUsersPage() {
   const subModalUser = subModalUid ? users.find(u => u.uid === subModalUid) : null;
   const [reset2faTarget, setReset2faTarget] = useState<string | null>(null);
   const [resetting2fa, setResetting2fa] = useState(false);
+  const [lockDrafts, setLockDrafts] = useState<Record<string, string>>({});
+  const [savingLockUid, setSavingLockUid] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -125,6 +130,48 @@ export default function AdminUsersPage() {
       setUsers((prev) => prev.map((u) => (u.uid === uid ? { ...u, allowedModelProviders: providers } : u)));
     } finally {
       setSavingPolicyUid(null);
+    }
+  }
+
+  async function patchLandingLock(
+    uid: string,
+    payload: { enabled?: boolean; regenerate?: boolean; accessCode?: string },
+  ) {
+    setSavingLockUid(uid);
+    try {
+      const res = await fetch(`/api/admin/users/${uid}/landing-access-lock`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        landingAccessLockEnabled?: boolean;
+        landingAccessCode?: string | null;
+      };
+      if (!res.ok) {
+        toast.error(data.error || 'No se pudo actualizar el candado.');
+        return;
+      }
+      setUsers((prev) => prev.map((u) => (u.uid === uid
+        ? {
+          ...u,
+          landingAccessLockEnabled: data.landingAccessLockEnabled,
+          landingAccessCode: data.landingAccessCode ?? null,
+        }
+        : u)));
+      if (data.landingAccessCode) {
+        setLockDrafts((prev) => ({ ...prev, [uid]: data.landingAccessCode! }));
+      } else {
+        setLockDrafts((prev) => {
+          const next = { ...prev };
+          delete next[uid];
+          return next;
+        });
+      }
+      toast.success('Candado landing actualizado');
+    } finally {
+      setSavingLockUid(null);
     }
   }
 
@@ -233,6 +280,20 @@ export default function AdminUsersPage() {
                     {u.displayName && <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: 0 }}>{u.displayName}</p>}
                     {u.role === 'admin' && (
                       <span style={{ fontSize: '10px', fontWeight: 700, color: '#6366f1', background: 'rgba(99,102,241,0.1)', padding: '1px 6px', borderRadius: '4px' }}>admin</span>
+                    )}
+                    {u.role !== 'admin' && u.uid !== currentUser?.uid && (
+                      <AdminLandingAccessLockControl
+                        enabled={Boolean(u.landingAccessLockEnabled)}
+                        accessCode={lockDrafts[u.uid] ?? u.landingAccessCode ?? ''}
+                        saving={savingLockUid === u.uid}
+                        onToggle={(enabled) => void patchLandingLock(u.uid, { enabled, regenerate: enabled && !u.landingAccessCode })}
+                        onRegenerate={() => void patchLandingLock(u.uid, { enabled: true, regenerate: true })}
+                        onCodeChange={(code) => setLockDrafts((prev) => ({ ...prev, [u.uid]: code }))}
+                        onSaveCode={() => void patchLandingLock(u.uid, {
+                          enabled: true,
+                          accessCode: lockDrafts[u.uid] ?? u.landingAccessCode ?? '',
+                        })}
+                      />
                     )}
                   </div>
                   {/* Status */}
@@ -382,6 +443,20 @@ export default function AdminUsersPage() {
                     {u.displayName && <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: 0 }}>{u.displayName}</p>}
                     {u.role === 'admin' && (
                       <span style={{ fontSize: '10px', fontWeight: 700, color: '#6366f1', background: 'rgba(99,102,241,0.1)', padding: '1px 6px', borderRadius: '4px', marginTop: '4px', display: 'inline-block' }}>admin</span>
+                    )}
+                    {u.role !== 'admin' && u.uid !== currentUser?.uid && (
+                      <AdminLandingAccessLockControl
+                        enabled={Boolean(u.landingAccessLockEnabled)}
+                        accessCode={lockDrafts[u.uid] ?? u.landingAccessCode ?? ''}
+                        saving={savingLockUid === u.uid}
+                        onToggle={(enabled) => void patchLandingLock(u.uid, { enabled, regenerate: enabled && !u.landingAccessCode })}
+                        onRegenerate={() => void patchLandingLock(u.uid, { enabled: true, regenerate: true })}
+                        onCodeChange={(code) => setLockDrafts((prev) => ({ ...prev, [u.uid]: code }))}
+                        onSaveCode={() => void patchLandingLock(u.uid, {
+                          enabled: true,
+                          accessCode: lockDrafts[u.uid] ?? u.landingAccessCode ?? '',
+                        })}
+                      />
                     )}
                   </div>
                   <span style={{ fontSize: '11px', fontWeight: 700, color: st.color, background: st.bg, padding: '3px 8px', borderRadius: '6px', whiteSpace: 'nowrap', flexShrink: 0 }}>

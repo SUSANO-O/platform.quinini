@@ -87,7 +87,7 @@ export default function UserMarginsPage() {
     : data?.rows ?? [];
 
   return (
-    <div style={{ padding: 4, fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ padding: 4 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
         <DollarSign size={22} style={{ color: '#f97316' }} />
         <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>Margen por usuario</h1>

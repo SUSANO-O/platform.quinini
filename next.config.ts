@@ -35,8 +35,8 @@ const nextConfig: NextConfig = {
   async headers() {
     // Origen del servicio agent-flow-api (documentación embebida en iframe)
     const agentflowApiOrigin = (() => {
-      const raw = process.env.NEXT_PUBLIC_AGENTFLOW_API_URL?.trim() || 'http://localhost:4000';
-      try { return new URL(raw).origin; } catch { return 'http://localhost:4000'; }
+      const raw = process.env.NEXT_PUBLIC_AGENTFLOW_API_URL?.trim() || 'http://127.0.0.1:4000';
+      try { return new URL(raw).origin; } catch { return 'http://127.0.0.1:4000'; }
     })();
 
     return [

@@ -9,11 +9,12 @@ import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 import { TurnstileWidget } from '@/components/ui/turnstile-widget';
 import type { TurnstileInstance } from '@marsidev/react-turnstile';
 import { ShieldCheck } from 'lucide-react';
+import { LandingAccessGate } from '@/components/auth/landing-access-gate';
 
 const CAPTCHA_ENABLED = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
 function LoginForm() {
-  const { login, complete2FA } = useAuth();
+  const { login, complete2FA, refreshUser } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const from = searchParams.get('from') || '/dashboard';
@@ -29,6 +30,7 @@ function LoginForm() {
 
   // Estado del paso 2FA
   const [twoFAStep, setTwoFAStep] = useState(false);
+  const [landingAccessStep, setLandingAccessStep] = useState(false);
   const [tempToken, setTempToken] = useState('');
   const [totpCode, setTotpCode] = useState('');
 
@@ -54,6 +56,9 @@ function LoginForm() {
     } else if (result.requires2FA && result.tempToken) {
       setTempToken(result.tempToken);
       setTwoFAStep(true);
+    } else if (result.requiresLandingAccessCode && result.tempToken) {
+      setTempToken(result.tempToken);
+      setLandingAccessStep(true);
     } else {
       const destination = result.user?.role === 'admin' ? '/admin' : from;
       router.push(destination);
@@ -70,10 +75,27 @@ function LoginForm() {
     if (result.error) {
       setError(result.error);
       setTotpCode('');
+    } else if (result.requiresLandingAccessCode && result.tempToken) {
+      setTempToken(result.tempToken);
+      setTwoFAStep(false);
+      setLandingAccessStep(true);
     } else {
       const destination = result.user?.role === 'admin' ? '/admin' : from;
       router.push(destination);
     }
+  }
+
+  if (landingAccessStep) {
+    return (
+      <LandingAccessGate
+        mode="login"
+        tempToken={tempToken}
+        onVerified={async () => {
+          await refreshUser();
+          router.push(from);
+        }}
+      />
+    );
   }
 
   if (twoFAStep) {

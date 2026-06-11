@@ -1,62 +1,65 @@
 @import "tailwindcss";
 
-/* ── Paleta BotIvA — teal / cian / ámbar (logo esfera IA) ─────────────────── */
+/* ── Paleta Cognitive Nexus — BotIvA ─────────────────────────────────────── */
 :root {
-  /* Surfaces */
-  --background: #f8f9fa;
-  --foreground: #0d1b2a;
-  --muted: #eef6f8;
-  --muted-foreground: #475569;
-  /* Bordes casi imperceptibles — la separación la da la sombra */
-  --border: rgba(15, 23, 42, 0.07);
-  --border-subtle: rgba(15, 23, 42, 0.05);
+  /* Surfaces (neutral #1A1C1E + tintes teal) */
+  --background: #f4f7f8;
+  --foreground: #1a1c1e;
+  --muted: #e8eff1;
+  --muted-foreground: #5a6168;
+  --border: rgba(26, 28, 30, 0.08);
+  --border-subtle: rgba(26, 28, 30, 0.05);
   --card: #ffffff;
-  --card-foreground: #0d1b2a;
+  --card-foreground: #1a1c1e;
 
-  /* Elevación suave (sin bordes sólidos) */
+  /* Elevación suave */
   --shadow-surface-sm:
-    0 1px 2px rgba(15, 23, 42, 0.04),
-    0 2px 10px rgba(15, 23, 42, 0.05);
+    0 1px 2px rgba(26, 28, 30, 0.04),
+    0 2px 10px rgba(0, 107, 125, 0.04);
   --shadow-surface:
-    0 2px 16px rgba(15, 23, 42, 0.06),
-    0 1px 3px rgba(15, 23, 42, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  --shadow-surface-lg:
-    0 4px 24px rgba(15, 23, 42, 0.07),
-    0 2px 8px rgba(15, 23, 42, 0.05),
+    0 2px 16px rgba(26, 28, 30, 0.06),
+    0 1px 3px rgba(0, 107, 125, 0.04),
     inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  --shadow-surface-lg:
+    0 4px 24px rgba(26, 28, 30, 0.07),
+    0 2px 8px rgba(0, 107, 125, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
   --shadow-surface-hover:
-    0 8px 28px rgba(15, 23, 42, 0.08),
-    0 3px 10px rgba(15, 23, 42, 0.05);
+    0 8px 28px rgba(0, 107, 125, 0.1),
+    0 3px 10px rgba(26, 28, 30, 0.05);
+  --shadow-brand:
+    0 4px 20px rgba(0, 107, 125, 0.22);
   --divider-soft: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(15, 23, 42, 0.07) 18%,
-    rgba(15, 23, 42, 0.07) 82%,
+    rgba(0, 107, 125, 0.12) 18%,
+    rgba(0, 107, 125, 0.12) 82%,
     transparent 100%
   );
 
-  /* RGB helpers (rgba en sombras y halos) */
-  --brand-primary-rgb: 0, 131, 143;
-  --brand-warm-rgb: 255, 179, 0;
-  /* Sin cian neón en UI — mismo tono teal oscuro */
-  --brand-cool-rgb: 0, 96, 100;
+  /* RGB helpers */
+  --brand-primary-rgb: 0, 107, 125;
+  --brand-tertiary-rgb: 139, 85, 30;
+  --brand-neutral-rgb: 26, 28, 30;
+  --brand-warm-rgb: 139, 85, 30;
+  --brand-cool-rgb: 0, 74, 87;
 
-  /* Brand — 70% neutros · 20% teal dominante · 10% ámbar acento */
-  --brand-primary:       #00838f;
-  --brand-primary-light: #18dce5;
-  --brand-primary-dark:  #006064;
-  --brand-warm:          #ffb300;
-  --brand-cool:          #006064;
+  /* Cognitive Nexus */
+  --brand-primary:       #006b7d;
+  --brand-primary-light: #28a4b8;
+  --brand-primary-dark:  #004a57;
+  --brand-tertiary:      #8b551e;
+  --brand-neutral:       #1a1c1e;
+  --brand-warm:          var(--brand-tertiary);
+  --brand-cool:          #004a57;
 
-  /* Alias semánticos (compatibilidad) */
+  /* Alias semánticos */
   --primary:       var(--brand-primary);
   --primary-light: var(--brand-primary-light);
   --primary-dark:  var(--brand-primary-dark);
   --accent:        var(--foreground);
-  --accent-warm:   var(--brand-warm);
+  --accent-warm:   var(--brand-tertiary);
 
-  /* Premium — planes Growth / badges destacados */
   --premium:       var(--brand-primary);
   --accent-cyan:   var(--premium);
 
@@ -77,11 +80,25 @@
   --gradient-start: var(--brand-primary-dark);
   --gradient-mid:   var(--brand-primary);
   --gradient-end:   var(--brand-primary-dark);
+
+  /* Tipografía global — Clash Display (títulos) + Satoshi (cuerpo) */
+  --font-display: 'Clash Display', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Satoshi', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 /* ── Fonts ────────────────────────────────────────────────────────────────── */
-.font-headline {
-  font-family: 'Clash Display', -apple-system, BlinkMacSystemFont, sans-serif;
+.font-headline,
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-body {
+  font-family: var(--font-body);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
 }
 
 html {
@@ -103,14 +120,14 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: 'Satoshi', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
 
-  /* Halos ambientales — tenues (70% neutro) */
+  /* Halos ambientales — teal + bronce sutil */
   background-image:
-    radial-gradient(circle at 14% 10%,  hsl(187 100% 19% / 0.06), transparent 32%),
-    radial-gradient(circle at 84% 12%,  hsl(187 100% 45% / 0.05), transparent 30%),
-    radial-gradient(circle at 50% 98%,  hsl(43  100% 50% / 0.04), transparent 28%);
+    radial-gradient(circle at 14% 10%,  rgba(var(--brand-primary-rgb), 0.07), transparent 34%),
+    radial-gradient(circle at 84% 12%,  rgba(var(--brand-primary-rgb), 0.05), transparent 32%),
+    radial-gradient(circle at 72% 88%,  rgba(var(--brand-tertiary-rgb), 0.035), transparent 30%);
   background-attachment: fixed;
   min-height: 100vh;
 }
@@ -132,17 +149,54 @@ body::before {
 
 body > * { position: relative; z-index: 1; }
 
-/* ── Tipografía ───────────────────────────────────────────────────────────── */
+/* ── Tipografía global ────────────────────────────────────────────────────── */
 h1, h2, h3, h4, h5, h6 {
-  font-family: 'Clash Display', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-display);
   letter-spacing: -0.02em;
+}
+
+button,
+input,
+select,
+textarea,
+label {
+  font-family: inherit;
+}
+
+/* Títulos de UI (dashboard, inbox, builder…) que no son h1–h6 */
+:is(
+  .dashboard-grid-toolbar__title,
+  .dashboard-section-title,
+  .dashboard-resource-card__title,
+  .dashboard-stat-strip__title,
+  .dashboard-builder-rail__title,
+  .dashboard-mobile-nav__group-title,
+  .agent-editor-section__title,
+  .widget-builder-publish__title,
+  .inbox-page__title,
+  .chats-page__title,
+  .how-step-card__title,
+  .landing-display,
+  .landing-section-title,
+  .landing-card-title,
+  .landing-nav-brand
+) {
+  font-family: var(--font-display);
 }
 
 /* ── Utilidades ───────────────────────────────────────────────────────────── */
 
-/* Texto de marca — color sólido (sin degradado) */
+/* Texto de marca — degradado teal premium */
 .gradient-text {
-  color: var(--brand-primary);
+  background: linear-gradient(
+    135deg,
+    var(--brand-primary-dark) 0%,
+    var(--brand-primary) 45%,
+    var(--brand-primary-light) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 /* Borde degradado */
@@ -163,10 +217,10 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Nav glass */
 .glass {
-  background: rgba(248, 249, 250, 0.85);
+  background: rgba(244, 247, 248, 0.88);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 3px rgba(var(--brand-primary-rgb), 0.05);
   border-bottom: none;
 }
 
@@ -199,24 +253,129 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: var(--shadow-surface);
 }
 
-/* ── Landing: cómo funciona (tarjetas horizontales) ── */
-.how-steps-section {
-  background: color-mix(in oklab, var(--muted) 88%, var(--background));
+/* ── Landing: fondo unificado (mesh + halos en toda la página) ── */
+.landing-page {
+  position: relative;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
-.how-steps-badge {
+.landing-page :where(h1, h2, h3, h4, .landing-display) {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+}
+
+.landing-page h1 {
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.landing-page .landing-lead {
+  font-size: clamp(1.0625rem, 2vw, 1.25rem);
+  line-height: 1.55;
+  color: var(--muted-foreground);
+}
+
+.landing-page .landing-muted {
+  color: var(--muted-foreground);
+}
+
+.landing-page .landing-eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  padding: 5px 14px;
   border-radius: 999px;
+  font-family: var(--font-body);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--brand-primary);
-  background: color-mix(in oklab, var(--brand-primary) 10%, transparent);
-  border: 1px solid color-mix(in oklab, var(--brand-primary) 22%, transparent);
+  background: rgba(var(--brand-primary-rgb), 0.09);
+  border: none;
+  box-shadow: inset 0 0 0 1px rgba(var(--brand-primary-rgb), 0.12);
+}
+
+.landing-page .landing-section-title {
+  font-size: clamp(1.875rem, 4vw, 2.25rem);
+  line-height: 1.15;
+}
+
+.landing-page .landing-card-title {
+  font-size: 1.0625rem;
+  letter-spacing: -0.01em;
+}
+
+.landing-page .landing-body-sm {
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.landing-page .landing-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.landing-page .landing-btn {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.landing-page .landing-nav-brand {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.landing-page .icon-pro svg,
+.landing-page .how-step-card__icon svg {
+  stroke-width: 1.75;
+}
+
+.landing-page__bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.landing-page > :not(.landing-page__bg) {
+  position: relative;
+  z-index: 1;
+}
+
+.ai-mesh--full {
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+/* ── Landing: cómo funciona (tarjetas horizontales) ── */
+.how-steps-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brand-primary);
+  background: rgba(var(--brand-primary-rgb), 0.09);
+  box-shadow: inset 0 0 0 1px rgba(var(--brand-primary-rgb), 0.12);
 }
 
 .how-steps-grid {
@@ -276,6 +435,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .how-step-card__title {
   margin: 0 0 0.45rem;
+  font-family: var(--font-display);
   font-size: 0.95rem;
   font-weight: 700;
   line-height: 1.3;
@@ -285,7 +445,8 @@ h1, h2, h3, h4, h5, h6 {
 
 .how-step-card__desc {
   margin: 0;
-  font-size: 0.78rem;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
   line-height: 1.55;
   color: var(--muted-foreground);
   flex: 1;
@@ -307,7 +468,7 @@ h1, h2, h3, h4, h5, h6 {
   position: absolute;
   right: 0.35rem;
   bottom: -0.15rem;
-  font-family: 'Clash Display', sans-serif;
+  font-family: var(--font-display);
   font-size: 5.5rem;
   font-weight: 700;
   line-height: 1;
@@ -427,7 +588,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .how-step-mock__chart--a { height: 45%; }
-.how-step-mock__chart--b { height: 78%; background: color-mix(in oklab, #ffb300 70%, #94a3b8); }
+.how-step-mock__chart--b { height: 78%; background: color-mix(in oklab, var(--brand-tertiary) 70%, #94a3b8); }
 .how-step-mock__chart--c { height: 58%; }
 
 .how-step-mock__lines span {
@@ -454,7 +615,7 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--brand-primary);
 }
 
-.how-step-mock__palette span:nth-child(2) { background: #ffb300; }
+.how-step-mock__palette span:nth-child(2) { background: var(--brand-primary-light); }
 .how-step-mock__palette span:nth-child(3) { background: #6366f1; }
 .how-step-mock__palette span:nth-child(4) { background: #22c55e; }
 
@@ -508,7 +669,7 @@ h1, h2, h3, h4, h5, h6 {
 .how-step-mock__growth span:nth-child(1) { height: 35%; }
 .how-step-mock__growth span:nth-child(2) { height: 48%; }
 .how-step-mock__growth span:nth-child(3) { height: 42%; }
-.how-step-mock__growth span:nth-child(4) { height: 68%; background: color-mix(in oklab, #ffb300 65%, #94a3b8); }
+.how-step-mock__growth span:nth-child(4) { height: 68%; background: color-mix(in oklab, var(--brand-tertiary) 55%, #94a3b8); }
 .how-step-mock__growth span:nth-child(5) { height: 88%; background: var(--brand-primary); }
 
 .how-step-mock__metric-row {
@@ -563,6 +724,7 @@ h1, h2, h3, h4, h5, h6 {
   gap: 6px;
   padding: 5px 14px;
   border-radius: 999px;
+  font-family: var(--font-body);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -604,8 +766,9 @@ h1, h2, h3, h4, h5, h6 {
   transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 .landing-btn-primary:hover:not(:disabled) {
-  transform: scale(1.02);
+  transform: translateY(-1px) scale(1.01);
   background: var(--brand-primary-dark);
+  box-shadow: var(--shadow-brand);
 }
 .landing-btn-primary:disabled {
   opacity: 0.7;
@@ -622,7 +785,7 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 14px;
   outline: none;
   box-sizing: border-box;
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03);
+  box-shadow: inset 0 1px 2px rgba(var(--brand-neutral-rgb), 0.04);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .landing-input:focus {
@@ -787,7 +950,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .driver-popover.afhub-driver-popover .driver-popover-title {
-  font-family: 'Clash Display', 'Satoshi', system-ui, sans-serif;
+  font-family: var(--font-display);
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -3213,7 +3376,7 @@ button.dashboard-sidebar-link:hover {
   flex: 1;
   min-width: 0;
   font-size: 0.6875rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   color: #c7d2fe;
   overflow: hidden;
   text-overflow: ellipsis;

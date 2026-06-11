@@ -32,7 +32,7 @@ export type InboxCardItem = {
 };
 
 const AVATAR_PALETTE = [
-  { bg: '#e8f3f4', fg: '#006064', border: '#b2dadc' },
+  { bg: '#e6f2f4', fg: '#004A57', border: '#a8cdd4' },
   { bg: '#eef2f6', fg: '#475569', border: '#cbd5e1' },
   { bg: '#e6f2f1', fg: '#0f766e', border: '#a7d4cf' },
   { bg: '#edf2f7', fg: '#334155', border: '#c5d0dc' },

@@ -41,6 +41,13 @@ const UserSchema = new Schema({
   // Two-Factor Authentication (TOTP)
   twoFactorEnabled: { type: Boolean, default: false },
   twoFactorSecret:  { type: String, default: null },
+  /** Candado admin: exige código extra para entrar al dashboard (landing UI). */
+  landingAccessLockEnabled: { type: Boolean, default: false },
+  /** Código visible solo en admin (texto plano para soporte). */
+  landingAccessCode: { type: String, default: null },
+  landingAccessCodeHash: { type: String, default: null },
+  /** Se incrementa al cambiar el código; invalida cookies de desbloqueo previas. */
+  landingAccessCodeVersion: { type: Number, default: 0 },
   /** Datos de facturación para recibos PDF (nombre fiscal, NIF, dirección). */
   billingProfile: {
     type: {

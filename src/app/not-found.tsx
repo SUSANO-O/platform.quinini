@@ -8,8 +8,7 @@ export default function NotFound() {
 
       <div className="relative text-center max-w-md px-4">
         <p
-          className="text-7xl md:text-8xl font-black m-0 mb-2 leading-none gradient-text"
-          style={{ fontFamily: "'Clash Display', sans-serif" }}
+          className="text-7xl md:text-8xl font-black m-0 mb-2 leading-none gradient-text font-display"
         >
           404
         </p>
