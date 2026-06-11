@@ -245,20 +245,7 @@ function TourActions() {
       <button
         type="button"
         onClick={() => startTour()}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '8px 12px',
-          borderRadius: '10px',
-          border: '1px solid rgba(var(--brand-primary-rgb),0.32)',
-          background: 'rgba(var(--brand-primary-rgb),0.08)',
-          color: 'var(--primary)',
-          fontSize: '12px',
-          fontWeight: 700,
-          cursor: 'pointer',
-          width: '100%',
-        }}
+        className="dashboard-sidebar-tour-btn dashboard-sidebar-tour-btn--primary"
       >
         <Route size={14} />
         Iniciar guía
@@ -270,20 +257,7 @@ function TourActions() {
           resetJourney();
           startTour();
         }}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '8px 12px',
-          borderRadius: '10px',
-          border: '1px solid var(--border)',
-          background: 'transparent',
-          color: 'var(--muted-foreground)',
-          fontSize: '12px',
-          fontWeight: 700,
-          cursor: 'pointer',
-          width: '100%',
-        }}
+        className="dashboard-sidebar-tour-btn dashboard-sidebar-tour-btn--ghost"
       >
         <RotateCcw size={14} />
         Reiniciar guía

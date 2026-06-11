@@ -182,8 +182,8 @@ export function DashboardMobileNav({
                 setMenuOpen(false);
                 onLogout();
               }}
-              className="dashboard-mobile-nav__sheet-link"
-              style={{ width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', marginTop: 8 }}
+              className="dashboard-mobile-nav__sheet-link dashboard-sidebar-link"
+              style={{ width: '100%', marginTop: 8 }}
             >
               <LogOut size={20} strokeWidth={1.75} aria-hidden />
               <span>Cerrar sesión</span>
