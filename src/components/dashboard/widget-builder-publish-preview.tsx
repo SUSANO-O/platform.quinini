@@ -7,11 +7,13 @@ export function WidgetBuilderPublishPreview({
   welcome,
   title,
   avatarUrl,
+  fabAvatarSize = 86,
 }: {
   color: string;
   welcome: string;
   title: string;
   avatarUrl?: string | null;
+  fabAvatarSize?: number;
 }) {
   const displayTitle = title.trim() || 'Asistente';
   const message =
@@ -39,11 +41,25 @@ export function WidgetBuilderPublishPreview({
           <button
             type="button"
             className="widget-builder-publish-preview__fab"
-            style={{ background: color, boxShadow: `0 6px 20px ${color}55` }}
+            style={
+              avatarUrl
+                ? {
+                    width: fabAvatarSize,
+                    height: fabAvatarSize,
+                    background: 'transparent',
+                    boxShadow: '0 4px 14px rgba(15,23,42,0.18)',
+                  }
+                : { background: color, boxShadow: `0 6px 20px ${color}55` }
+            }
             aria-label={`Abrir chat ${displayTitle}`}
           >
             {avatarUrl ? (
-              <img src={avatarUrl} alt="" className="widget-builder-publish-preview__fab-img" />
+              <img
+                src={avatarUrl}
+                alt=""
+                className="widget-builder-publish-preview__fab-img"
+                style={{ objectFit: 'contain', objectPosition: 'center bottom' }}
+              />
             ) : (
               <Bot size={22} strokeWidth={1.75} aria-hidden />
             )}

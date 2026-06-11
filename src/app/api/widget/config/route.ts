@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   await connectDB();
 
   const widget = await Widget.findOne({ afhubToken: token })
-    .select('_id userId agentId color title subtitle welcome fabHint avatar position theme borderRadius autoOpen fabDismissible voiceEnabled humanSupportPhone humanSupportEnabled handoffEnabled handoffNotifyMode handoffTimeout shortcuts multiAgentEnabled multiAgentMode active feedbackEnabled feedbackTitle feedbackThanks feedbackQuestions conversationIdleTimeout policyEnabled policyText policyLinkLabel policyUrl')
+    .select('_id userId agentId color title subtitle welcome fabHint avatar fabAvatarSize position theme borderRadius autoOpen fabDismissible voiceEnabled humanSupportPhone humanSupportEnabled handoffEnabled handoffNotifyMode handoffTimeout shortcuts multiAgentEnabled multiAgentMode active feedbackEnabled feedbackTitle feedbackThanks feedbackQuestions conversationIdleTimeout policyEnabled policyText policyLinkLabel policyUrl')
     .lean() as Record<string, unknown> | null;
 
   if (!widget) {
@@ -78,6 +78,9 @@ export async function GET(req: NextRequest) {
         welcome:           widget.welcome,
         fabHint:           widget.fabHint,
         avatar:            widget.avatar,
+        fabAvatarSize:     typeof widget.fabAvatarSize === 'number'
+          ? Math.min(120, Math.max(56, Math.round(widget.fabAvatarSize)))
+          : 86,
         position:          widget.position,
         theme:             widget.theme,
         borderRadius:      widget.borderRadius,
