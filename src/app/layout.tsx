@@ -6,6 +6,9 @@ import { LandingWidgetScript } from '@/components/landing/landing-widget-script'
 import { CardProTracker } from '@/components/landing/card-pro-tracker';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 
+/** Evita SSG en rutas que dependen de providers cliente (auth, toasts, assist). */
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: `${BRAND_NAME} — AI Agents for Your App`,
   description: 'Integra agentes de IA especializados en tu producto. Chat Widget API, almacenamiento, embeddings y más — una sola API.',
