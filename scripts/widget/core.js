@@ -8,7 +8,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.6.4';
+  var VERSION = '1.6.5';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -5096,9 +5096,9 @@
       '#' + rootId + ' .afhub-header::after { display:none; }' +
       '#' + rootId + ' .afhub-header > * { position:relative; z-index:1; }' +
       '#' + rootId + ' .afhub-avatar { width:42px; height:42px; border-radius:50%; background:rgba(255,255,255,.2); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; box-shadow:0 0 0 2px rgba(255,255,255,.32),0 4px 12px rgba(0,0,0,.12); }' +
-      '#' + rootId + ' .afhub-avatar.afhub-avatar--silhouette { width:46px; height:46px; border-radius:0; background:transparent; overflow:visible; box-shadow:none; }' +
+      '#' + rootId + ' .afhub-avatar.afhub-avatar--silhouette { width:42px; height:42px; border-radius:50%; background:rgba(255,255,255,.2); overflow:hidden; box-shadow:0 0 0 2px rgba(255,255,255,.32),0 4px 12px rgba(0,0,0,.12); }' +
       '#' + rootId + ' .afhub-avatar img { width:100%; height:100%; object-fit:cover; }' +
-      '#' + rootId + ' .afhub-avatar.afhub-avatar--silhouette img { object-fit:contain; object-position:center bottom; filter:drop-shadow(0 2px 6px rgba(15,23,42,.28)); }' +
+      '#' + rootId + ' .afhub-avatar.afhub-avatar--silhouette img { object-fit:cover; object-position:center 18%; filter:none; }' +
       '#' + rootId + ' .afhub-avatar svg { width:22px; height:22px; }' +
       '#' + rootId + ' .afhub-header-info { flex:1; min-width:0; }' +
       '#' + rootId + ' .afhub-header-info h3 { font-size:15px; font-weight:700; letter-spacing:-.01em; line-height:1.25; }' +
