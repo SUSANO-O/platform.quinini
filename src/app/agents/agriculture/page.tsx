@@ -23,7 +23,7 @@ const USE_CASES = [
 
 export default function AgricultureAgentPage() {
   return (
-    <div style={{ background: '#fff', color: '#111827', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ background: '#fff', color: '#111827' }}>
       <section style={{ background: `linear-gradient(135deg, ${C}10, ${G}08)`, borderBottom: '1px solid #d1fae5', padding: '80px 24px 60px' }}>
         <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#d1fae5', color: G, padding: '6px 16px', borderRadius: 99, fontSize: 13, fontWeight: 600, marginBottom: 24 }}>

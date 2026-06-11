@@ -80,7 +80,7 @@ export default function ShareChatPage() {
 
   if (error) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', fontFamily: 'system-ui, sans-serif' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a' }}>
         <div style={{ textAlign: 'center', color: '#94a3b8' }}>
           <p style={{ fontSize: 18, marginBottom: 12 }}>⚠️ {error}</p>
           <button

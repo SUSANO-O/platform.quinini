@@ -23,7 +23,7 @@ const USE_CASES = [
 
 export default function CybersecurityAgentPage() {
   return (
-    <div style={{ background: '#fff', color: '#111827', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ background: '#fff', color: '#111827' }}>
       <section style={{ background: `linear-gradient(135deg, ${R}10, ${D}05)`, borderBottom: '1px solid #fecaca', padding: '80px 24px 60px' }}>
         <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#fecaca', color: D, padding: '6px 16px', borderRadius: 99, fontSize: 13, fontWeight: 600, marginBottom: 24 }}>

@@ -17,6 +17,8 @@ export type InternalAssistBootConfig = {
   welcome: string;
   fabHint: string;
   avatar?: string;
+  /** Si true, muestra el avatar dentro del orbe animado (FAB del dashboard). */
+  fabOrbAvatar?: boolean;
   position: string;
   edgeInset: number;
   offsetBottom: number;
@@ -57,14 +59,14 @@ export function resolveInternalAssistBoot(
     return {
       agentId: envStr('INTERNAL_MARKETING_ASSIST_AGENT_ID', 'math'),
       host,
-      color: envStr('INTERNAL_MARKETING_ASSIST_COLOR', '#00838f'),
+      color: envStr('INTERNAL_MARKETING_ASSIST_COLOR', '#006B7D'),
       title: envStr('INTERNAL_MARKETING_ASSIST_TITLE', 'Math'),
       subtitle: envStr('INTERNAL_MARKETING_ASSIST_SUBTITLE', 'En linea'),
       welcome: envStr('INTERNAL_MARKETING_ASSIST_WELCOME', 'Hola! Como puedo ayudarte hoy?'),
       fabHint: envStr('INTERNAL_MARKETING_ASSIST_FAB_HINT', 'Hola! Como puedo ayudarte hoy?'),
       avatar: envStr(
         'INTERNAL_MARKETING_ASSIST_AVATAR',
-        'https://img.freepik.com/premium-photo/bright-blue-orb_303714-30852.jpg',
+        '/assets/marketing/math-avatar-cutout.webp',
       ),
       // Solo WhatsApp por ahora: sin "Hablar con una persona" (inbox/canales).
       humanSupportEnabled: true,
@@ -84,11 +86,16 @@ export function resolveInternalAssistBoot(
   return {
     agentId: envStr('INTERNAL_APP_ASSIST_AGENT_ID', 'math-ais'),
     host,
-    color: envStr('INTERNAL_APP_ASSIST_COLOR', '#00838f'),
+    color: envStr('INTERNAL_APP_ASSIST_COLOR', '#006B7D'),
     title: envStr('INTERNAL_APP_ASSIST_TITLE', 'Math-ais'),
     subtitle: envStr('INTERNAL_APP_ASSIST_SUBTITLE', 'En linea'),
     welcome: envStr('INTERNAL_APP_ASSIST_WELCOME', 'Hola! Como puedo ayudarte hoy?'),
     fabHint: envStr('INTERNAL_APP_ASSIST_FAB_HINT', '¿tienes duda en el uso?'),
+    avatar: envStr(
+      'INTERNAL_APP_ASSIST_AVATAR',
+      '/assets/assist/engineer-fab-orb.png',
+    ),
+    fabOrbAvatar: true,
     // Solo WhatsApp por ahora: sin "Hablar con una persona" (inbox/canales).
     humanSupportEnabled: true,
     handoffEnabled: false,

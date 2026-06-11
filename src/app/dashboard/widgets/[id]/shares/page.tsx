@@ -129,7 +129,7 @@ export default function SharesPage() {
   const expiredCount = shares.filter(s => s.expired || !s.active).length;
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>

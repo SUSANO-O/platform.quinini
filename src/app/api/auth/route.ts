@@ -14,7 +14,10 @@ import {
   generateSecureToken,
   validatePasswordStrength,
   createTwoFactorPendingToken,
+  createLandingAccessPendingToken,
   IMPERSONATOR_COOKIE,
+  LANDING_UNLOCK_COOKIE,
+  landingUnlockMatchesUser,
 } from '@/lib/auth';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 import { sendVerificationEmail } from '@/lib/email';
@@ -82,6 +85,7 @@ export async function POST(req: NextRequest) {
       const res = noCache(NextResponse.json({ ok: true }));
       res.cookies.set(COOKIE, '', { maxAge: 0, path: '/' });
       res.cookies.set(IMPERSONATOR_COOKIE, '', { maxAge: 0, path: '/' });
+      res.cookies.set(LANDING_UNLOCK_COOKIE, '', { maxAge: 0, path: '/' });
       return res;
     }
 
@@ -313,6 +317,11 @@ export async function POST(req: NextRequest) {
         return noCache(NextResponse.json({ requires2FA: true, tempToken }));
       }
 
+      if (user.landingAccessLockEnabled && user.role !== 'admin') {
+        const tempToken = createLandingAccessPendingToken(user._id.toString());
+        return noCache(NextResponse.json({ requiresLandingAccessCode: true, tempToken }));
+      }
+
       const token = createSessionToken(user._id.toString());
       await recordAudit({
         userId: user._id.toString(),
@@ -382,6 +391,12 @@ export async function GET(req: NextRequest) {
         pendingEmail: user.pendingEmail ?? null,
         ...(impersonation ? { impersonation } : {}),
       },
+      landingAccessLockRequired: Boolean(
+        user.landingAccessLockEnabled
+        && user.role !== 'admin'
+        && !impersonation
+        && !landingUnlockMatchesUser(req.cookies, user._id.toString(), user.landingAccessCodeVersion ?? 0),
+      ),
     }));
   } catch {
     return noCache(NextResponse.json({ user: null }));

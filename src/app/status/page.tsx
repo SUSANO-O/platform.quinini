@@ -144,7 +144,6 @@ export default function StatusPage() {
     <div style={{
       minHeight: '100vh',
       background: '#f8fafc',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
       color: '#0f172a',
     }}>
       {/* Header */}

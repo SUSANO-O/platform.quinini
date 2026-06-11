@@ -19,6 +19,7 @@ import {
   Route,
   RotateCcw,
 } from 'lucide-react';
+import { LandingAccessGate } from '@/components/auth/landing-access-gate';
 
 import { CHECKOUT_UPGRADE_PLAN_IDS, PLAN_DISPLAY } from '@/lib/plan-catalog';
 import { buildTrialExpiredWhatsAppUrl } from '@/lib/sales-whatsapp';
@@ -292,7 +293,7 @@ function TourActions() {
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading, logout, stopImpersonating } = useAuth();
+  const { user, loading, logout, stopImpersonating, landingAccessLockRequired, clearLandingAccessLock, refreshUser } = useAuth();
   const showSplash = useAuthSplashLoading(loading);
   const router = useRouter();
   const pathname = usePathname();
@@ -327,6 +328,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   if (!user) return null;
+
+  if (landingAccessLockRequired) {
+    return (
+      <LandingAccessGate
+        mode="session"
+        onVerified={async () => {
+          clearLandingAccessLock();
+          await refreshUser();
+        }}
+      />
+    );
+  }
 
   const handleLogout = async () => {
     await logout();

@@ -43,7 +43,7 @@ export function LandingSectionNav({ labels }: LandingSectionNavProps) {
     <div
       className="sticky top-16 z-40 border-b backdrop-blur-md"
       style={{
-        background: 'rgba(250,251,252,0.92)',
+        background: 'rgba(244, 247, 248, 0.92)',
         borderColor: 'var(--border)',
       }}
     >

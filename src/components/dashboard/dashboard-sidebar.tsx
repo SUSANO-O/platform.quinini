@@ -487,7 +487,7 @@ export function DashboardSidebar({
                 className="h-8 w-auto object-contain rounded-full shrink-0 bg-white"
                 style={{ boxShadow: '0 2px 8px rgba(15, 23, 42, 0.08)' }}
               />
-              <span className="text-base font-bold text-black truncate">{BRAND_NAME}</span>
+              <span className="text-base font-bold text-black truncate font-display">{BRAND_NAME}</span>
             </Link>
             {isDesktop && onToggleCollapse ? (
               <button

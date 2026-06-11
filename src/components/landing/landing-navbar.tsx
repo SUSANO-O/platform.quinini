@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
-import { Menu, X } from 'lucide-react';
+import { LandingIcon } from '@/components/landing/landing-icon';
 import { useAuth } from '@/hooks/use-auth';
 import { useTranslations } from 'next-intl';
 import { LanguageSwitcher } from './language-switcher';
@@ -19,7 +19,7 @@ export function LandingNavbar() {
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5">
           <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={120} height={36} className="h-9 w-auto object-contain rounded-xl" priority />
-          <span className="text-lg font-bold text-black">
+          <span className="landing-nav-brand text-black">
             {BRAND_NAME}
           </span>
         </Link>
@@ -28,7 +28,7 @@ export function LandingNavbar() {
         <div className="hidden md:flex items-center gap-6">
           <Link
             href="#agents"
-            className="text-sm font-medium transition-colors"
+            className="landing-btn text-sm font-medium transition-colors"
             style={{ color: 'var(--muted-foreground)' }}
             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
@@ -37,7 +37,7 @@ export function LandingNavbar() {
           </Link>
           <Link
             href="#training"
-            className="text-sm font-medium transition-colors"
+            className="landing-btn text-sm font-medium transition-colors"
             style={{ color: 'var(--muted-foreground)' }}
             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
@@ -46,7 +46,7 @@ export function LandingNavbar() {
           </Link>
           <Link
             href="/pricing"
-            className="text-sm font-medium transition-colors"
+            className="landing-btn text-sm font-medium transition-colors"
             style={{ color: 'var(--muted-foreground)' }}
             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
@@ -55,7 +55,7 @@ export function LandingNavbar() {
           </Link>
           <Link
             href="/preguntas-frecuentes"
-            className="text-sm font-medium transition-colors"
+            className="landing-btn text-sm font-medium transition-colors"
             style={{ color: 'var(--muted-foreground)' }}
             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
@@ -102,7 +102,7 @@ export function LandingNavbar() {
           onClick={() => setOpen(!open)}
           aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
         >
-          {open ? <X size={18} /> : <Menu size={18} />}
+          {open ? <LandingIcon name="close" size="lg" aria-hidden={false} /> : <LandingIcon name="menu" size="lg" aria-hidden={false} />}
         </button>
       </div>
 

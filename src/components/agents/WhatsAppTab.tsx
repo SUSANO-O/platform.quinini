@@ -146,7 +146,7 @@ export default function WhatsAppTab({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* HEADER */}
       <div style={{
         background: `linear-gradient(135deg, ${WA}15, ${WA}05)`,

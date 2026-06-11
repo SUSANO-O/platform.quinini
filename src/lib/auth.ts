@@ -189,6 +189,79 @@ export function verifyTwoFactorPendingToken(token: string): string | null {
   }
 }
 
+// ── Landing access lock (código admin por cuenta) ───────────────────────────
+
+export const LANDING_UNLOCK_COOKIE = 'afhub_landing_unlock';
+const LANDING_UNLOCK_MAX_AGE_MS = 60 * 60 * 12 * 1000; // 12 h, alineado con sesión
+
+/** Token entre password/2FA OK y código de acceso landing OK. */
+export function createLandingAccessPendingToken(userId: string): string {
+  const secret = getSessionSecret();
+  const expiry = Date.now() + 10 * 60 * 1000;
+  const payload = `landing:${userId}:${expiry}`;
+  const hmac = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  return Buffer.from(`${payload}:${hmac}`).toString('base64url');
+}
+
+export function verifyLandingAccessPendingToken(token: string): string | null {
+  try {
+    const secret = getSessionSecret();
+    const decoded = Buffer.from(token, 'base64url').toString('utf8');
+    const parts = decoded.split(':');
+    if (parts.length < 4 || parts[0] !== 'landing') return null;
+    const hmac = parts[parts.length - 1];
+    const payload = parts.slice(0, -1).join(':');
+    const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+    if (hmac.length !== expected.length) return null;
+    const valid = crypto.timingSafeEqual(Buffer.from(hmac, 'hex'), Buffer.from(expected, 'hex'));
+    if (!valid) return null;
+    const expiry = parseInt(parts[2]!, 10);
+    if (Date.now() > expiry) return null;
+    return parts[1]!;
+  } catch {
+    return null;
+  }
+}
+
+export function createLandingUnlockToken(userId: string, codeVersion: number): string {
+  const secret = getSessionSecret();
+  const expiry = Date.now() + LANDING_UNLOCK_MAX_AGE_MS;
+  const payload = `landing-unlock:${userId}:${codeVersion}:${expiry}`;
+  const hmac = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  return Buffer.from(`${payload}:${hmac}`).toString('base64url');
+}
+
+export function verifyLandingUnlockToken(token: string): { userId: string; codeVersion: number } | null {
+  try {
+    const secret = getSessionSecret();
+    const decoded = Buffer.from(token, 'base64url').toString('utf8');
+    const parts = decoded.split(':');
+    if (parts.length < 5 || parts[0] !== 'landing-unlock') return null;
+    const hmac = parts[parts.length - 1];
+    const payload = parts.slice(0, -1).join(':');
+    const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+    if (hmac.length !== expected.length) return null;
+    const valid = crypto.timingSafeEqual(Buffer.from(hmac, 'hex'), Buffer.from(expected, 'hex'));
+    if (!valid) return null;
+    const expiry = parseInt(parts[3]!, 10);
+    if (Date.now() > expiry) return null;
+    return { userId: parts[1]!, codeVersion: parseInt(parts[2]!, 10) || 0 };
+  } catch {
+    return null;
+  }
+}
+
+export function landingUnlockMatchesUser(
+  cookies: CookieGetter,
+  userId: string,
+  codeVersion: number,
+): boolean {
+  const token = cookies.get(LANDING_UNLOCK_COOKIE)?.value;
+  if (!token) return false;
+  const parsed = verifyLandingUnlockToken(token);
+  return parsed?.userId === userId && parsed.codeVersion === codeVersion;
+}
+
 /** Hash del código de 6 dígitos para cambio de email (comparación segura en servidor). */
 export function hashEmailChangeCode(code: string, userId: string): string {
   const secret = getSessionSecret();

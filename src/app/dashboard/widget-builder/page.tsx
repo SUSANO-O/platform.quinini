@@ -1647,7 +1647,17 @@ export default function WidgetBuilderPage() {
         <div data-tour="widget-builder-look">
         <div style={fieldStyle}>
           <label style={labelStyle}>URL de avatar / orbe</label>
-          <input style={inputStyle} value={cfg.avatar} onChange={(e) => update({ avatar: e.target.value })} placeholder="https://..." />
+          <input
+            style={inputStyle}
+            value={cfg.avatar}
+            onChange={(e) => update({ avatar: e.target.value })}
+            placeholder="https://..."
+          />
+          {cfg.avatar.trim().startsWith('file://') ? (
+            <p style={{ fontSize: 11, color: '#ef4444', margin: '6px 0 0', lineHeight: 1.45 }}>
+              Las rutas locales (file://) no funcionan en la web. Usa «Generar AI» o sube con el editor, o pega una URL https.
+            </p>
+          ) : null}
           <AvatarEditor
             currentUrl={cfg.avatar}
             agentContext={{ name: cfg.title, purpose: cfg.title }}

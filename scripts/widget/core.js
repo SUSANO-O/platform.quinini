@@ -53,12 +53,18 @@
   /** Orbe con avatar en el centro (misma URL que cabecera) o núcleo luminoso por defecto */
   function orbHtmlForCfg(cfg) {
     var url = cfg.avatar && String(cfg.avatar).trim();
+    if (url && cfg.fabOrbAvatar) {
+      return (
+        '<span class="afhub-fab-inner" aria-hidden="true"><span class="afhub-orb afhub-orb--embedded-avatar">' +
+        '<span class="afhub-orb-wave"></span><span class="afhub-orb-wave afhub-orb-wave-b"></span>' +
+        '<img class="afhub-orb-embedded-img" src="' + escapeAttr(url) + '" alt="" width="64" height="64" decoding="async" loading="eager">' +
+        '</span></span>'
+      );
+    }
     if (url) {
       return (
-        '<span class="afhub-fab-inner" aria-hidden="true"><span class="afhub-orb afhub-orb--avatar">' +
-        '<span class="afhub-orb-avatar-halo" aria-hidden="true"></span>' +
-        '<img class="afhub-orb-avatar-img" src="' + escapeAttr(url) + '" alt="" decoding="async">' +
-        '<span class="afhub-orb-avatar-shine" aria-hidden="true"></span>' +
+        '<span class="afhub-fab-inner" aria-hidden="true"><span class="afhub-orb afhub-orb--avatar afhub-orb--avatar-silhouette">' +
+        '<img class="afhub-orb-avatar-img" src="' + escapeAttr(url) + '" alt="" width="128" height="128" decoding="async" loading="eager">' +
         '</span></span>'
       );
     }
@@ -69,8 +75,12 @@
     return Boolean(cfg.avatar && String(cfg.avatar).trim());
   }
 
+  function usesFabSilhouetteAvatar(cfg) {
+    return hasFabAvatar(cfg) && !cfg.fabOrbAvatar;
+  }
+
   function syncFabAvatarMode(fab, cfg) {
-    if (hasFabAvatar(cfg)) fab.classList.add('afhub-fab--avatar');
+    if (usesFabSilhouetteAvatar(cfg)) fab.classList.add('afhub-fab--avatar');
     else fab.classList.remove('afhub-fab--avatar');
   }
 
@@ -133,6 +143,8 @@
     /** Arrastrar el orbe (FAB) para fijar posición; se recuerda en sessionStorage por agente/widget. */
     fabDraggable: true,
     fabDismissible: true,
+    /** Avatar dentro del orbe animado (ondas + imagen). Si false y hay avatar → silueta grande. */
+    fabOrbAvatar: false,
     /** Si false, el chat se muestra pero no acepta mensajes (widget desactivado en el panel). */
     active: true,
     onOpen: null,
@@ -370,6 +382,7 @@
     merged.debug = Boolean(merged.debug);
     merged.theme = merged.theme === 'dark' ? 'dark' : 'light';
     merged.fabHint = String(merged.fabHint == null ? '' : merged.fabHint).trim().substring(0, 200);
+    merged.fabOrbAvatar = input && input.fabOrbAvatar === true;
     merged.orbLight = String(merged.orbLight == null ? '' : merged.orbLight).trim();
     merged.orbDeep = String(merged.orbDeep == null ? '' : merged.orbDeep).trim();
     merged.widgetId = String(merged.widgetId == null ? '' : merged.widgetId).trim();
@@ -1071,7 +1084,7 @@
     header.className = 'afhub-header';
 
     var avatarEl = document.createElement('div');
-    avatarEl.className = 'afhub-avatar';
+    avatarEl.className = 'afhub-avatar' + (cfg.avatar ? ' afhub-avatar--silhouette' : '');
     avatarEl.innerHTML = cfg.avatar ? ('<img src="' + escapeAttr(cfg.avatar) + '" alt="avatar">') : ICON_BOT;
     header.appendChild(avatarEl);
 
@@ -5048,18 +5061,24 @@
       '#' + rootId + ' .afhub-orb-core { position:relative; z-index:2; width:12px; height:12px; border-radius:50%; background:radial-gradient(circle at 50% 48%,#fff,rgba(255,255,255,.92)); box-shadow:0 0 14px rgba(255,255,255,.85),inset 0 1px 2px rgba(255,255,255,.5); }' +
       '#' + rootId + ' .afhub-orb-wave { pointer-events:none; position:absolute; left:50%; top:50%; width:26px; height:26px; margin:-13px 0 0 -13px; border-radius:50%; border:2px solid rgba(255,255,255,.42); animation:afhub-wave 2.5s cubic-bezier(.22,1,.36,1) infinite; }' +
       '#' + rootId + ' .afhub-orb-wave-b { animation-delay:1.2s; border-width:1px; border-color:rgba(255,255,255,.28); }' +
+      '#' + rootId + ' .afhub-orb--embedded-avatar { width:34px; height:34px; }' +
+      '#' + rootId + ' .afhub-orb-embedded-img { position:relative; z-index:2; width:28px; height:28px; border-radius:50%; object-fit:cover; object-position:center 12%; display:block; background:#fff; border:1.5px solid rgba(255,255,255,.92); box-shadow:0 2px 10px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.45); filter:contrast(1.04) saturate(1.05); -webkit-backface-visibility:hidden; backface-visibility:hidden; transform:translateZ(0); }' +
+      '#' + rootId + ' .afhub-fab:hover .afhub-orb-embedded-img { box-shadow:0 3px 14px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.5); }' +
       '#' + rootId + ' .afhub-orb--avatar { width:36px; height:36px; display:flex; align-items:center; justify-content:center; position:relative; border-radius:50%; }' +
       '#' + rootId + ' .afhub-orb-avatar-halo { position:absolute; inset:-22%; border-radius:50%; pointer-events:none; z-index:0; background:radial-gradient(circle at 50% 42%,rgba(255,255,255,.55) 0%,rgba(212,175,55,.22) 42%,transparent 72%); filter:blur(11px); opacity:.9; animation:afhub-avatar-halo 5.2s ease-in-out infinite; }' +
       '#' + rootId + ' .afhub-orb-avatar-img { width:36px; height:36px; border-radius:50%; object-fit:cover; object-position:center 18%; position:relative; z-index:2; display:block; border:2px solid rgba(255,255,255,.94); box-shadow:inset 0 2px 10px rgba(0,0,0,.16),inset 0 -1px 0 rgba(255,255,255,.28),0 4px 14px rgba(0,0,0,.18); filter:contrast(1.06) saturate(1.08); -webkit-backface-visibility:hidden; backface-visibility:hidden; transform:translateZ(0); }' +
       '#' + rootId + ' .afhub-orb-avatar-shine { position:absolute; inset:0; border-radius:50%; pointer-events:none; z-index:3; background:linear-gradient(145deg,rgba(255,255,255,.48) 0%,rgba(255,255,255,.12) 34%,transparent 56%,rgba(255,255,255,.06) 100%); mix-blend-mode:soft-light; }' +
-      '#' + rootId + ' .afhub-fab.afhub-fab--avatar { width:66px; height:66px; background:transparent; background-blend-mode:normal; filter:none; padding:0; overflow:visible; box-shadow:none; transition:transform .34s cubic-bezier(.22,1,.36,1),filter .34s ease; }' +
+      '#' + rootId + ' .afhub-orb-avatar-halo,#' + rootId + ' .afhub-orb-avatar-shine { display:none; }' +
+      '#' + rootId + ' .afhub-orb--avatar-silhouette { border-radius:0; overflow:visible; background:transparent; box-shadow:none; }' +
+      '#' + rootId + ' .afhub-orb--avatar-silhouette .afhub-orb-avatar-img { border-radius:0; object-fit:contain; object-position:center bottom; background:transparent; border:none; box-shadow:none; filter:drop-shadow(0 4px 10px rgba(15,23,42,.22)); }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar { width:72px; height:72px; background:transparent; background-blend-mode:normal; filter:none; padding:0; overflow:visible; box-shadow:none; transition:transform .34s cubic-bezier(.22,1,.36,1); }' +
       '#' + rootId + ' .afhub-fab.afhub-fab--avatar::before,#' + rootId + ' .afhub-fab.afhub-fab--avatar::after { display:none; }' +
       '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-fab-inner { width:100%; height:100%; }' +
-      '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-orb--avatar { width:100%; height:100%; padding:3px; background:linear-gradient(148deg,rgba(255,255,255,.98) 0%,rgba(236,220,178,.96) 18%,rgba(201,162,39,.92) 38%,rgba(255,251,240,.97) 58%,rgba(232,213,163,.94) 78%,rgba(255,255,255,.98) 100%); box-shadow:0 1px 0 rgba(255,255,255,.85) inset,0 14px 34px rgba(0,0,0,.24),0 4px 12px rgba(0,0,0,.12),0 0 0 1px rgba(255,255,255,.28); }' +
-      '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-orb-avatar-img { width:100%; height:100%; border-radius:50%; object-fit:cover; object-position:center 18%; box-shadow:inset 0 2px 12px rgba(0,0,0,.18),inset 0 -1px 0 rgba(255,255,255,.3),0 2px 8px rgba(0,0,0,.12); display:block; }' +
-      '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-orb-avatar-shine { inset:3px; }' +
-      '#' + rootId + ' .afhub-fab.afhub-fab--avatar:hover { transform:scale(1.06); filter:drop-shadow(0 16px 32px rgba(0,0,0,.28)) drop-shadow(0 0 20px rgba(212,175,55,.24)); }' +
-      '#' + rootId + ' .afhub-fab.afhub-fab--avatar:hover .afhub-orb--avatar { box-shadow:0 1px 0 rgba(255,255,255,.92) inset,0 18px 40px rgba(0,0,0,.3),0 0 0 1px rgba(255,255,255,.42); }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-orb--avatar { width:100%; height:100%; padding:0; background:transparent; box-shadow:none; border-radius:0; overflow:visible; }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-orb-avatar-img { width:100%; height:100%; border-radius:0; object-fit:contain; object-position:center bottom; box-shadow:none; display:block; image-rendering:auto; border:none; filter:drop-shadow(0 4px 12px rgba(15,23,42,.24)); background:transparent; }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar:hover { transform:scale(1.06); filter:none; }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar:hover .afhub-orb-avatar-img { filter:drop-shadow(0 8px 18px rgba(15,23,42,.3)); }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar:hover .afhub-orb--avatar { box-shadow:none; }' +
       '#' + rootId + ' .afhub-fab.afhub-fab--avatar:active { transform:scale(1.02); }' +
       '#' + rootId + ' .afhub-fab.afhub-fab--avatar.afhub-fab--dragging { filter:drop-shadow(0 12px 24px rgba(0,0,0,.26)); }' +
       '@media (prefers-reduced-motion:reduce){ #' + rootId + ' .afhub-orb-wave { animation:none; opacity:.35; transform:scale(1.15); } }' +
@@ -5079,7 +5098,9 @@
       '#' + rootId + ' .afhub-header::after { display:none; }' +
       '#' + rootId + ' .afhub-header > * { position:relative; z-index:1; }' +
       '#' + rootId + ' .afhub-avatar { width:42px; height:42px; border-radius:50%; background:rgba(255,255,255,.2); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; box-shadow:0 0 0 2px rgba(255,255,255,.32),0 4px 12px rgba(0,0,0,.12); }' +
+      '#' + rootId + ' .afhub-avatar.afhub-avatar--silhouette { width:46px; height:46px; border-radius:0; background:transparent; overflow:visible; box-shadow:none; }' +
       '#' + rootId + ' .afhub-avatar img { width:100%; height:100%; object-fit:cover; }' +
+      '#' + rootId + ' .afhub-avatar.afhub-avatar--silhouette img { object-fit:contain; object-position:center bottom; filter:drop-shadow(0 2px 6px rgba(15,23,42,.28)); }' +
       '#' + rootId + ' .afhub-avatar svg { width:22px; height:22px; }' +
       '#' + rootId + ' .afhub-header-info { flex:1; min-width:0; }' +
       '#' + rootId + ' .afhub-header-info h3 { font-size:15px; font-weight:700; letter-spacing:-.01em; line-height:1.25; }' +

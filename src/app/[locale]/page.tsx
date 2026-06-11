@@ -3,44 +3,61 @@ import { getTranslations } from 'next-intl/server';
 import { LandingNavbar } from '@/components/landing/landing-navbar';
 import { LandingFooter } from '@/components/landing/landing-footer';
 import { LandingSectionNav } from '@/components/landing/landing-section-nav';
+import { LandingIcon } from '@/components/landing/landing-icon';
 import Link from 'next/link';
-import {
-  Zap, Shield, BarChart3, MessageSquare, Database,
-  ArrowRight, Terminal, Globe, Sparkles, Check,
-  HeartPulse, Sprout,
-  GraduationCap, TrendingUp, Lock, Wrench,
-  UserPlus, Palette, Rocket, Brain,
-  Users, BookOpen, PlayCircle, BadgeCheck, Star,
-} from 'lucide-react';
 import { FaqDetails } from '@/components/ui/faq-details';
 import { HowStepMock } from '@/components/landing/how-step-mock';
+import type { LandingIconName } from '@/lib/landing-icons';
+import { PREMIUM, R, B, Rd, BRAND } from '@/lib/brand-colors';
 
-import { PREMIUM, R, O, B, Rd } from '@/lib/brand-colors';
+/** Mezcla Cognitive Nexus: teal + bronce (sin amarillo) */
+const C = BRAND.primaryLight;
+const W = BRAND.tertiary;
 
 export default async function LandingPage() {
   const t = await getTranslations('landing');
 
-  const AGENTS = [
-    { name: 'Health Monitor',    desc: t('agents.health'),       Icon: HeartPulse,    color: R,  focus: 'Salud',       slug: 'health' },
-    { name: 'Smart Agriculture', desc: t('agents.agriculture'),   Icon: Sprout,        color: O,  focus: 'Agro',        slug: 'agriculture' },
-    { name: 'Education AI',      desc: t('agents.education'),     Icon: GraduationCap, color: O,  focus: 'Educacion',   slug: 'education' },
-    { name: 'Geoeconomics',      desc: t('agents.geoeconomics'),  Icon: TrendingUp,    color: B,  focus: 'Economia',    slug: 'geoeconomics' },
-    { name: 'Cybersecurity',     desc: t('agents.cybersecurity'), Icon: Lock,          color: R,  focus: 'Seguridad',   slug: 'cybersecurity' },
-    { name: 'Maximo',            desc: t('agents.maximo'),        Icon: Wrench,        color: Rd, focus: 'Industria',   slug: 'maximo' },
+  const AGENTS: {
+    name: string;
+    desc: string;
+    icon: LandingIconName;
+    color: string;
+    focus: string;
+    slug: string;
+  }[] = [
+    { name: 'Health Monitor',    desc: t('agents.health'),       icon: 'health-pulse',    color: R,  focus: 'Salud',       slug: 'health' },
+    { name: 'Smart Agriculture', desc: t('agents.agriculture'),   icon: 'sprout',        color: C,  focus: 'Agro',        slug: 'agriculture' },
+    { name: 'Education AI',      desc: t('agents.education'),     icon: 'graduation-cap', color: W,  focus: 'Educacion',   slug: 'education' },
+    { name: 'Geoeconomics',      desc: t('agents.geoeconomics'),  icon: 'trending-up',    color: B,  focus: 'Economia',    slug: 'geoeconomics' },
+    { name: 'Cybersecurity',     desc: t('agents.cybersecurity'), icon: 'lock',          color: R,  focus: 'Seguridad',   slug: 'cybersecurity' },
+    { name: 'Maximo',            desc: t('agents.maximo'),        icon: 'wrench',        color: Rd, focus: 'Industria',   slug: 'maximo' },
   ];
 
-  const FEATURES = [
-    { icon: Shield,    title: t('features.secureTitle'),      desc: t('features.secureDesc'),      color: Rd, metric: t('features.secureMetric')      },
-    { icon: BarChart3, title: t('features.analyticsTitle'),   desc: t('features.analyticsDesc'),   color: B,  metric: t('features.analyticsMetric')   },
-    { icon: Globe,     title: t('features.multitenantTitle'), desc: t('features.multitenantDesc'), color: B,  metric: t('features.multitenantMetric') },
+  const FEATURES: {
+    icon: LandingIconName;
+    title: string;
+    desc: string;
+    color: string;
+    metric: string;
+  }[] = [
+    { icon: 'shield',    title: t('features.secureTitle'),      desc: t('features.secureDesc'),      color: Rd, metric: t('features.secureMetric')      },
+    { icon: 'bar-chart', title: t('features.analyticsTitle'),   desc: t('features.analyticsDesc'),   color: B,  metric: t('features.analyticsMetric')   },
+    { icon: 'globe',     title: t('features.multitenantTitle'), desc: t('features.multitenantDesc'), color: B,  metric: t('features.multitenantMetric') },
   ];
 
-  const HOW = [
-    { step: 1, title: t('how.step1Title'), desc: t('how.step1Desc'), Icon: UserPlus, accent: R, variant: 1 as const },
-    { step: 2, title: t('how.step2Title'), desc: t('how.step2Desc'), Icon: Brain,    accent: O, variant: 2 as const },
-    { step: 3, title: t('how.step3Title'), desc: t('how.step3Desc'), Icon: Palette,  accent: R, variant: 3 as const },
-    { step: 4, title: t('how.step4Title'), desc: t('how.step4Desc'), Icon: Terminal, accent: O, variant: 4 as const },
-    { step: 5, title: t('how.step5Title'), desc: t('how.step5Desc'), Icon: Rocket,   accent: R, variant: 5 as const },
+  const HOW: {
+    step: number;
+    title: string;
+    desc: string;
+    icon: LandingIconName;
+    accent: string;
+    variant: 1 | 2 | 3 | 4 | 5;
+  }[] = [
+    { step: 1, title: t('how.step1Title'), desc: t('how.step1Desc'), icon: 'user-plus', accent: R, variant: 1 },
+    { step: 2, title: t('how.step2Title'), desc: t('how.step2Desc'), icon: 'brain',    accent: C, variant: 2 },
+    { step: 3, title: t('how.step3Title'), desc: t('how.step3Desc'), icon: 'palette',  accent: R, variant: 3 },
+    { step: 4, title: t('how.step4Title'), desc: t('how.step4Desc'), icon: 'terminal', accent: C, variant: 4 },
+    { step: 5, title: t('how.step5Title'), desc: t('how.step5Desc'), icon: 'rocket',   accent: R, variant: 5 },
   ];
 
   const FAQ_ITEMS = t.raw('faq.items') as { q: string; a: string }[];
@@ -49,74 +66,83 @@ export default async function LandingPage() {
 
   const WIDGET_BENEFITS = [
     { color: R,  title: t('widget.b1Title'), desc: t('widget.b1Desc') },
-    { color: O,  title: t('widget.b2Title'), desc: t('widget.b2Desc') },
+    { color: C,  title: t('widget.b2Title'), desc: t('widget.b2Desc') },
     { color: B,  title: t('widget.b3Title'), desc: t('widget.b3Desc') },
     { color: Rd, title: t('widget.b4Title'), desc: t('widget.b4Desc') },
     { color: Rd, title: t('widget.b5Title'), desc: t('widget.b5Desc') },
   ];
 
-  const TRAINING_STEPS = [
-    { step: '01', Icon: Users,       color: R, title: t('training.step1Title'), desc: t('training.step1Desc'), grad: R },
-    { step: '02', Icon: BookOpen,    color: O, title: t('training.step2Title'), desc: t('training.step2Desc'), grad: O },
-    { step: '03', Icon: Rocket,      color: B, title: t('training.step3Title'), desc: t('training.step3Desc'), grad: B },
-    { step: '04', Icon: PlayCircle,  color: Rd, title: t('training.step4Title'), desc: t('training.step4Desc'), grad: Rd },
+  const TRAINING_STEPS: {
+    step: string;
+    icon: LandingIconName;
+    color: string;
+    title: string;
+    desc: string;
+    grad: string;
+  }[] = [
+    { step: '01', icon: 'users',       color: R, title: t('training.step1Title'), desc: t('training.step1Desc'), grad: R },
+    { step: '02', icon: 'book-open',    color: C, title: t('training.step2Title'), desc: t('training.step2Desc'), grad: C },
+    { step: '03', icon: 'rocket',      color: B, title: t('training.step3Title'), desc: t('training.step3Desc'), grad: B },
+    { step: '04', icon: 'play-circle',  color: Rd, title: t('training.step4Title'), desc: t('training.step4Desc'), grad: Rd },
   ];
 
   return (
-    <div style={{ background: 'var(--background)', color: 'var(--foreground)', position: 'relative' }}>
+    <div className="landing-page">
+      <div className="landing-page__bg" aria-hidden>
+        <div className="ai-mesh ai-mesh--full" />
+        <div className="hero-glow-strong" style={{ background: R, top: '-8%', left: '5%' }} />
+        <div className="hero-glow-strong" style={{ background: C, top: '2%', right: '3%' }} />
+        <div className="hero-glow-strong" style={{ background: B, top: '28%', left: '38%', opacity: 0.16 }} />
+        <div className="hero-glow-strong" style={{ background: R, top: '52%', right: '8%', opacity: 0.17 }} />
+        <div className="hero-glow-strong" style={{ background: C, top: '72%', left: '6%', opacity: 0.15 }} />
+        <div className="hero-glow-strong" style={{ background: W, top: '38%', right: '5%', opacity: 0.08 }} />
+        <div className="hero-glow-strong" style={{ background: B, bottom: '-6%', right: '12%', opacity: 0.14 }} />
+      </div>
+
       <LandingNavbar />
       <LandingSectionNav />
 
       {/* ── HERO ─────────────────────────────────────────────────────────────── */}
       <section className="relative pt-36 pb-24 overflow-hidden">
-        <div className="ai-mesh" />
-        <div className="hero-glow-strong" style={{ background: R, top: '-200px', left: '5%' }} />
-        <div className="hero-glow-strong" style={{ background: O, top: '-100px', right: '3%' }} />
-        <div className="hero-glow-strong" style={{ background: B, top: '200px',  left: '40%', opacity: 0.18 }} />
-
         <div className="relative max-w-5xl mx-auto px-6 text-center">
-          <div className="badge-primary mb-8 mx-auto w-fit">
-            <Sparkles size={13} />
+          <div className="landing-eyebrow mb-8 mx-auto w-fit">
+            <LandingIcon name="sparkles" size="sm" />
             {t('badge')}
           </div>
 
-          <h1
-            style={{ fontFamily: "'Clash Display', sans-serif", fontWeight: 700, letterSpacing: '-0.03em' }}
-            className="text-5xl md:text-7xl leading-[1.05]"
-          >
+          <h1 className="text-5xl md:text-7xl">
             {t('hero.title1')}
             <br />
             <span className="gradient-text">{t('hero.title2')}</span>
           </h1>
 
-          <p className="mt-6 text-lg md:text-xl max-w-2xl mx-auto" style={{ color: 'var(--muted-foreground)' }}>
+          <p className="landing-lead mt-6 max-w-2xl mx-auto">
             {t('hero.description')}
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/register"
-              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl text-white font-semibold text-sm transition-all hover:scale-[1.03]"
+              className="landing-btn inline-flex items-center gap-2 px-7 py-3.5 rounded-xl text-white transition-all hover:scale-[1.03]"
               style={{ background: R, boxShadow: `0 4px 20px rgba(var(--brand-primary-rgb),0.28)` }}
             >
-              {t('hero.ctaPrimary')} <ArrowRight size={16} />
+              {t('hero.ctaPrimary')} <LandingIcon name="arrow-right" size="md" className="text-white" />
             </Link>
             <Link
               href="/login"
-              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl font-semibold text-sm transition-all hover:bg-slate-50"
+              className="landing-btn inline-flex items-center gap-2 px-7 py-3.5 rounded-xl transition-all hover:bg-slate-50"
               style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
             >
               {t('hero.ctaAccount')}
             </Link>
             <Link
               href="/pricing"
-              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl font-semibold text-sm transition-all hover:bg-slate-50"
+              className="landing-btn inline-flex items-center gap-2 px-7 py-3.5 rounded-xl transition-all hover:bg-slate-50"
               style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
             >
               {t('hero.ctaDocs')}
             </Link>
           </div>
-
         </div>
       </section>
 
@@ -124,17 +150,14 @@ export default async function LandingPage() {
       <section className="how-steps-section py-24 px-6 relative overflow-hidden">
         <div className="max-w-7xl mx-auto relative">
           <div className="text-center mb-14 max-w-3xl mx-auto">
-            <div className="how-steps-badge mx-auto w-fit">
-              <Zap size={13} strokeWidth={2.5} />
+            <div className="landing-eyebrow mx-auto w-fit">
+              <LandingIcon name="zap" size="sm" />
               {t('how.badge')}
             </div>
-            <h2
-              className="text-3xl md:text-4xl font-bold mt-5"
-              style={{ fontFamily: "'Clash Display', sans-serif", letterSpacing: '-0.02em' }}
-            >
+            <h2 className="landing-section-title mt-5">
               {t('how.title')}
             </h2>
-            <p className="mt-4 text-base md:text-lg leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
+            <p className="landing-lead mt-4">
               {t('how.subtitle')}
             </p>
           </div>
@@ -147,7 +170,7 @@ export default async function LandingPage() {
                 style={{ '--step-accent': s.accent } as React.CSSProperties}
               >
                 <div className="how-step-card__icon">
-                  <s.Icon size={18} strokeWidth={2.25} />
+                  <LandingIcon name={s.icon} size="lg" />
                 </div>
                 <h3 className="how-step-card__title">{s.title}</h3>
                 <p className="how-step-card__desc">{s.desc}</p>
@@ -163,19 +186,18 @@ export default async function LandingPage() {
 
       {/* ── AGENTS ───────────────────────────────────────────────────────────── */}
       <section id="agents" className="py-24 px-6 relative overflow-hidden">
-        <div className="ai-mesh" />
         <div className="max-w-7xl mx-auto relative">
           <div className="text-center mb-14">
-            <h2 className="text-3xl md:text-4xl font-bold">
+            <h2 className="landing-section-title">
               <span className="gradient-text">{t('agents.title')}</span>
             </h2>
-            <p className="mt-4 text-lg max-w-3xl mx-auto" style={{ color: 'var(--muted-foreground)' }}>
+            <p className="landing-lead mt-4 max-w-3xl mx-auto">
               {t('agents.subtitle')}
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-2">
-              <span className="px-3 py-1 rounded-full text-xs font-semibold" style={{ background: `${R}12`, color: R, border: `1px solid ${R}30` }}>Especializados por dominio</span>
-              <span className="px-3 py-1 rounded-full text-xs font-semibold" style={{ background: `${O}12`, color: O, border: `1px solid ${O}30` }}>Ejemplos ilustrativos</span>
-              <span className="px-3 py-1 rounded-full text-xs font-semibold" style={{ background: `${B}12`, color: B, border: `1px solid ${B}30` }}>Crea el tuyo en minutos</span>
+              <span className="landing-label px-3 py-1 rounded-full" style={{ background: `${R}12`, color: R, border: `1px solid ${R}30` }}>Especializados por dominio</span>
+              <span className="landing-label px-3 py-1 rounded-full" style={{ background: `${W}12`, color: W, border: `1px solid ${W}30` }}>Ejemplos ilustrativos</span>
+              <span className="landing-label px-3 py-1 rounded-full" style={{ background: `${B}12`, color: B, border: `1px solid ${B}30` }}>Crea el tuyo en minutos</span>
             </div>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -202,7 +224,6 @@ export default async function LandingPage() {
                 <div className="p-6 relative flex-1 flex flex-col">
                   <div className="flex items-start justify-between gap-3">
                     <div style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
-                      {/* outer ring halo */}
                       <div style={{
                         position: 'absolute', inset: -8, borderRadius: 28,
                         border: `1px solid ${a.color}20`,
@@ -219,19 +240,19 @@ export default async function LandingPage() {
                           color: a.color,
                         }}
                       >
-                        <a.Icon size={30} style={{ color: a.color }} strokeWidth={1.5} />
+                        <LandingIcon name={a.icon} size="2xl" style={{ color: a.color }} />
                       </div>
                     </div>
                     <span
-                      className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md"
+                      className="landing-label px-2.5 py-1 rounded-md"
                       style={{ background: `${a.color}12`, color: a.color, border: `1px solid ${a.color}30` }}
                     >
                       {a.focus}
                     </span>
                   </div>
 
-                  <h3 className="text-lg font-bold mt-5 mb-2" style={{ letterSpacing: '-0.01em' }}>{a.name}</h3>
-                  <p className="text-sm leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>{a.desc}</p>
+                  <h3 className="landing-card-title mt-5 mb-2">{a.name}</h3>
+                  <p className="landing-body-sm landing-muted">{a.desc}</p>
                 </div>
               </Link>
             ))}
@@ -240,15 +261,11 @@ export default async function LandingPage() {
       </section>
 
       {/* ── FEATURES ─────────────────────────────────────────────────────────── */}
-      <section className="py-24 px-6 relative overflow-hidden" style={{ background: 'var(--muted)' }}>
-        <div className="ai-mesh" />
-        <div style={{ position: 'absolute', top: -80, left: -80, width: 360, height: 360, borderRadius: '50%', background: `radial-gradient(circle, ${R}10, transparent 70%)`, pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', bottom: -80, right: -80, width: 360, height: 360, borderRadius: '50%', background: `radial-gradient(circle, ${B}10, transparent 70%)`, pointerEvents: 'none' }} />
-
+      <section className="py-24 px-6 relative overflow-hidden">
         <div className="max-w-7xl mx-auto relative">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold">{t('features.title')}</h2>
-            <p className="mt-4 text-lg" style={{ color: 'var(--muted-foreground)' }}>
+            <h2 className="landing-section-title">{t('features.title')}</h2>
+            <p className="landing-lead mt-4">
               {t('features.subtitle')}
             </p>
           </div>
@@ -286,19 +303,17 @@ export default async function LandingPage() {
                           color: f.color,
                         }}
                       >
-                        <f.icon size={24} style={{ color: f.color }} strokeWidth={1.5} />
+                        <LandingIcon name={f.icon} size="xl" style={{ color: f.color }} />
                       </div>
                     </div>
-                    <span style={{
-                      fontSize: 11, fontWeight: 700, letterSpacing: '0.03em',
-                      padding: '3px 9px', borderRadius: 6,
+                    <span className="landing-label px-2 py-0.5 rounded-md" style={{
                       background: `${f.color}10`, color: f.color, border: `1px solid ${f.color}28`, whiteSpace: 'nowrap',
                     }}>
                       {f.metric}
                     </span>
                   </div>
-                  <h3 className="text-base font-bold mb-2" style={{ letterSpacing: '-0.01em' }}>{f.title}</h3>
-                  <p className="text-sm leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>{f.desc}</p>
+                  <h3 className="landing-card-title mb-2">{f.title}</h3>
+                  <p className="landing-body-sm landing-muted">{f.desc}</p>
                   <div style={{ marginTop: 18, height: 1, background: `linear-gradient(90deg, ${f.color}45, transparent)` }} />
                 </div>
               </div>
@@ -311,11 +326,11 @@ export default async function LandingPage() {
       <section className="py-24 px-6">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <span className="inline-block text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4" style={{ background: `rgba(var(--brand-primary-rgb),0.08)`, color: R }}>
+            <span className="landing-eyebrow mb-4">
               {t('widget.badge')}
             </span>
-            <h2 className="text-3xl md:text-4xl font-bold">{t('widget.title')}</h2>
-            <p className="mt-4 max-w-xl mx-auto" style={{ color: 'var(--muted-foreground)' }}>
+            <h2 className="landing-section-title">{t('widget.title')}</h2>
+            <p className="landing-lead mt-4 max-w-xl mx-auto">
               {t('widget.subtitle')}
             </p>
           </div>
@@ -325,13 +340,13 @@ export default async function LandingPage() {
               <div className="w-3 h-3 rounded-full" style={{ background: '#ef4444' }} />
               <div className="w-3 h-3 rounded-full" style={{ background: '#f59e0b' }} />
               <div className="w-3 h-3 rounded-full" style={{ background: '#22c55e' }} />
-              <span className="ml-2 text-xs font-mono" style={{ color: 'var(--muted-foreground)' }}>{t('widget.windowTitle')}</span>
+              <span className="ml-2 text-xs font-mono landing-muted">{t('widget.windowTitle')}</span>
               <div className="ml-auto flex items-center gap-3">
-                <span className="text-xs font-medium flex items-center gap-1.5" style={{ color: '#22c55e' }}>
+                <span className="landing-body-sm font-medium flex items-center gap-1.5" style={{ color: '#22c55e' }}>
                   <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#22c55e' }} />
                   {t('widget.live')}
                 </span>
-                <Link href="/register" className="text-xs font-bold px-3 py-1 rounded-lg text-white" style={{ background: R }}>
+                <Link href="/register" className="landing-btn text-xs px-3 py-1 rounded-lg text-white" style={{ background: R }}>
                   {t('widget.startFree')}
                 </Link>
               </div>
@@ -340,25 +355,25 @@ export default async function LandingPage() {
             <div className="p-6 md:p-8" style={{ background: 'var(--card)' }}>
               <div className="grid md:grid-cols-2 gap-8 items-start">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest mb-5" style={{ color: 'var(--muted-foreground)' }}>{t('widget.whyTitle')}</p>
+                  <p className="landing-label landing-muted mb-5">{t('widget.whyTitle')}</p>
                   {WIDGET_BENEFITS.map(({ color, title, desc }) => (
                     <div key={title} className="flex items-start gap-3 mb-4">
-                      <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${color}20` }}>
-                        <Check size={11} style={{ color }} strokeWidth={3} />
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${color}20`, color }}>
+                        <LandingIcon name="check" size="xs" strokeWidth={2.5} />
                       </div>
                       <div>
-                        <span className="text-sm font-semibold">{title}</span>
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{desc}</p>
+                        <span className="landing-body-sm font-semibold">{title}</span>
+                        <p className="text-xs mt-0.5 landing-muted">{desc}</p>
                       </div>
                     </div>
                   ))}
                 </div>
 
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest mb-5" style={{ color: 'var(--muted-foreground)' }}>{t('widget.chatSampleTitle')}</p>
+                  <p className="landing-label landing-muted mb-5">{t('widget.chatSampleTitle')}</p>
                   <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
                     <div className="flex items-center gap-3 px-4 py-3" style={{ background: R }}>
-                      <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-sm">M</div>
+                      <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white landing-btn text-sm">M</div>
                       <div>
                         <p className="text-xs font-bold text-white">{t('widget.assistantName')}</p>
                         <p className="text-xs text-white/70 flex items-center gap-1">
@@ -369,7 +384,7 @@ export default async function LandingPage() {
                     </div>
                     <div className="p-4 space-y-3" style={{ background: 'var(--background)', minHeight: 200 }}>
                       <div className="flex gap-2 items-end">
-                        <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-white text-xs font-bold" style={{ background: R }}>M</div>
+                        <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-white text-xs landing-btn" style={{ background: R }}>M</div>
                         <div className="text-xs px-3 py-2 rounded-2xl rounded-bl-none max-w-[80%]" style={{ background: 'var(--muted)', color: 'var(--foreground)' }}>
                           {t('widget.msg1')}
                         </div>
@@ -380,20 +395,20 @@ export default async function LandingPage() {
                         </div>
                       </div>
                       <div className="flex gap-2 items-end">
-                        <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-white text-xs font-bold" style={{ background: R }}>M</div>
+                        <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-white text-xs landing-btn" style={{ background: R }}>M</div>
                         <div className="text-xs px-3 py-2 rounded-2xl rounded-bl-none max-w-[80%]" style={{ background: 'var(--muted)', color: 'var(--foreground)' }}>
                           {t.rich('widget.msg3', { strong: (chunks) => <strong>{chunks}</strong> })}
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 px-3 py-2.5" style={{ borderTop: '1px solid var(--border)', background: 'var(--card)' }}>
-                      <div className="flex-1 text-xs px-3 py-1.5 rounded-xl" style={{ background: 'var(--muted)', color: 'var(--muted-foreground)' }}>{t('widget.inputPlaceholder')}</div>
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: R }}>
-                        <ArrowRight size={13} className="text-white" />
+                      <div className="flex-1 text-xs px-3 py-1.5 rounded-xl landing-muted" style={{ background: 'var(--muted)' }}>{t('widget.inputPlaceholder')}</div>
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-white" style={{ background: R }}>
+                        <LandingIcon name="arrow-right" size="sm" className="text-white" />
                       </div>
                     </div>
                   </div>
-                  <p className="mt-3 text-center text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                  <p className="mt-3 text-center text-xs landing-muted">
                     {t.rich('widget.socialProof', { red: (chunks) => <span style={{ color: R, fontWeight: 700 }}>{chunks}</span> })}
                   </p>
                 </div>
@@ -404,18 +419,18 @@ export default async function LandingPage() {
       </section>
 
       {/* ── TESTIMONIOS ──────────────────────────────────────────────────────── */}
-      <section className="py-24 px-6" style={{ background: 'var(--muted)' }}>
+      <section className="py-24 px-6 relative">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <h2 className="text-3xl md:text-4xl font-bold">{t('testimonials.title')}</h2>
-            <p className="mt-4 text-lg" style={{ color: 'var(--muted-foreground)' }}>
+            <h2 className="landing-section-title">{t('testimonials.title')}</h2>
+            <p className="landing-lead mt-4">
               {t('testimonials.subtitle')}
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
             {TESTIMONIALS.map((item, i) => {
-              const accentColor = [R, B, O][i % 3];
+              const accentColor = [R, B, W][i % 3];
               return (
                 <div
                   key={item.author}
@@ -427,31 +442,35 @@ export default async function LandingPage() {
                     background: `radial-gradient(circle, ${accentColor}12, transparent 70%)`,
                     pointerEvents: 'none',
                   }} />
-                  <div style={{
-                    fontSize: 64, lineHeight: 1, fontFamily: 'Georgia, serif',
-                    color: accentColor, opacity: 0.18, position: 'absolute', top: 12, left: 20,
-                    userSelect: 'none', pointerEvents: 'none',
-                  }}>
-                    "
+                  <div
+                    className="landing-display"
+                    style={{
+                      fontSize: 64, lineHeight: 1,
+                      color: accentColor, opacity: 0.18, position: 'absolute', top: 12, left: 20,
+                      userSelect: 'none', pointerEvents: 'none',
+                    }}
+                    aria-hidden
+                  >
+                    &ldquo;
                   </div>
                   <div className="flex gap-0.5 relative">
-                    {[1,2,3,4,5].map((s) => (
-                      <Star key={s} size={13} fill={accentColor} style={{ color: accentColor }} />
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <LandingIcon key={s} name="star" size="sm" filled style={{ color: accentColor }} />
                     ))}
                   </div>
-                  <p className="text-sm leading-relaxed relative" style={{ color: 'var(--foreground)' }}>
+                  <p className="landing-body-sm relative">
                     &ldquo;{item.quote}&rdquo;
                   </p>
                   <div className="flex items-center gap-3 mt-auto pt-4 relative" style={{ borderTop: `1px solid ${accentColor}20` }}>
                     <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-white landing-btn text-sm shrink-0"
                       style={{ background: accentColor }}
                     >
                       {item.author.charAt(0)}
                     </div>
                     <div>
-                      <p className="text-sm font-bold">{item.author}</p>
-                      <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{item.role} · {item.company}</p>
+                      <p className="landing-body-sm font-bold">{item.author}</p>
+                      <p className="text-xs landing-muted">{item.role} · {item.company}</p>
                     </div>
                   </div>
                 </div>
@@ -463,16 +482,13 @@ export default async function LandingPage() {
 
       {/* ── CAPACITACIÓN Y ACOMPAÑAMIENTO ───────────────────────────────────── */}
       <section id="training" className="py-24 px-6 relative overflow-hidden">
-        <div style={{ position: 'absolute', top: -60, right: -60, width: 320, height: 320, borderRadius: '50%', background: `radial-gradient(circle, ${B}08, transparent 70%)`, pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', bottom: -60, left: -60, width: 320, height: 320, borderRadius: '50%', background: `radial-gradient(circle, ${O}08, transparent 70%)`, pointerEvents: 'none' }} />
-
         <div className="max-w-5xl mx-auto relative">
           <div className="text-center mb-14">
-            <span className="inline-block text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4" style={{ background: `rgba(var(--brand-primary-rgb),0.08)`, color: 'var(--foreground)' }}>
+            <span className="landing-eyebrow mb-4">
               {t('training.badge')}
             </span>
-            <h2 className="text-3xl md:text-4xl font-bold">{t('training.title')}</h2>
-            <p className="mt-4 max-w-2xl mx-auto text-lg" style={{ color: 'var(--muted-foreground)' }}>
+            <h2 className="landing-section-title">{t('training.title')}</h2>
+            <p className="landing-lead mt-4 max-w-2xl mx-auto">
               {t('training.subtitle')}
             </p>
           </div>
@@ -492,12 +508,16 @@ export default async function LandingPage() {
                   maskImage: 'radial-gradient(ellipse 80% 80% at 95% 5%, black 30%, transparent 70%)',
                   WebkitMaskImage: 'radial-gradient(ellipse 80% 80% at 95% 5%, black 30%, transparent 70%)',
                 }} />
-                <div style={{
-                  position: 'absolute', right: 14, bottom: -10,
-                  fontSize: 80, fontWeight: 900, lineHeight: 1,
-                  color: s.color, opacity: 0.045,
-                  fontFamily: 'monospace', userSelect: 'none', pointerEvents: 'none',
-                }}>
+                <div
+                  className="landing-display"
+                  style={{
+                    position: 'absolute', right: 14, bottom: -10,
+                    fontSize: 80, lineHeight: 1,
+                    color: s.color, opacity: 0.045,
+                    userSelect: 'none', pointerEvents: 'none',
+                  }}
+                  aria-hidden
+                >
                   {s.step}
                 </div>
                 <div className="p-6 relative flex gap-4 items-start">
@@ -515,12 +535,12 @@ export default async function LandingPage() {
                         color: 'white',
                       }}
                     >
-                      <s.Icon size={24} color="white" strokeWidth={1.5} />
+                      <LandingIcon name={s.icon} size="xl" className="text-white" />
                     </div>
                   </div>
                   <div>
-                    <h3 className="text-base font-bold mb-1.5" style={{ letterSpacing: '-0.01em' }}>{s.title}</h3>
-                    <p className="text-sm leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>{s.desc}</p>
+                    <h3 className="landing-card-title mb-1.5">{s.title}</h3>
+                    <p className="landing-body-sm landing-muted">{s.desc}</p>
                   </div>
                 </div>
               </div>
@@ -528,27 +548,25 @@ export default async function LandingPage() {
           </div>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold" style={{ background: `${PREMIUM.accent}10`, color: PREMIUM.accent, border: `1px solid ${PREMIUM.border}` }}>
-              <BadgeCheck size={15} />
+            <div className="landing-btn flex items-center gap-2 px-4 py-2 rounded-full text-sm" style={{ background: `${PREMIUM.accent}10`, color: PREMIUM.accent, border: `1px solid ${PREMIUM.border}` }}>
+              <LandingIcon name="badge-check" size="md" />
               {t('training.included')}
             </div>
             <Link
               href="/register"
-              className="inline-flex items-center gap-2 px-7 py-3 rounded-xl text-white font-semibold text-sm transition-all hover:scale-[1.03]"
+              className="landing-btn inline-flex items-center gap-2 px-7 py-3 rounded-xl text-white transition-all hover:scale-[1.03]"
               style={{ background: R, boxShadow: `0 4px 20px rgba(var(--brand-primary-rgb),0.22)` }}
             >
-              {t('training.cta')} <ArrowRight size={16} />
+              {t('training.cta')} <LandingIcon name="arrow-right" size="md" className="text-white" />
             </Link>
           </div>
         </div>
       </section>
 
-      {/* ── PRICING (eliminado de la landing — ver /pricing) ─────────────────── */}
-
       {/* ── FAQ ──────────────────────────────────────────────────────────────── */}
       <section className="py-24 px-6">
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">{t('faq.title')}</h2>
+          <h2 className="landing-section-title text-center mb-12">{t('faq.title')}</h2>
           {FAQ_ITEMS.map((faq) => (
             <FaqDetails key={faq.q} question={faq.q} answer={faq.a} accent={R} />
           ))}
@@ -556,31 +574,26 @@ export default async function LandingPage() {
       </section>
 
       {/* ── CTA ──────────────────────────────────────────────────────────────── */}
-      <section className="py-28 px-6 text-center relative overflow-hidden" style={{ background: 'var(--muted)' }}>
-        <div className="ai-mesh" />
-        <div className="hero-glow-strong" style={{ background: R, bottom: '-220px', left: '15%' }} />
-        <div className="hero-glow-strong" style={{ background: O, bottom: '-120px', right: '15%' }} />
-        <div className="hero-glow-strong" style={{ background: B, top: '-100px', left: '50%', opacity: 0.18 }} />
-
+      <section className="py-28 px-6 text-center relative overflow-hidden">
         <div className="relative max-w-2xl mx-auto">
-          <h2 className="text-4xl md:text-5xl font-extrabold mb-6">
+          <h2 className="text-4xl md:text-5xl mb-6">
             {t('cta.title1')}<br />
             <span className="gradient-text">{t('cta.title2')}</span>
           </h2>
-          <p className="text-lg mb-10" style={{ color: 'var(--muted-foreground)' }}>
+          <p className="landing-lead mb-10">
             {t('cta.subtitle')}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/register"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white font-semibold transition-all hover:scale-[1.03]"
+              className="landing-btn inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white transition-all hover:scale-[1.03]"
               style={{ background: R, boxShadow: `0 4px 24px rgba(var(--brand-primary-rgb),0.28)` }}
             >
-              {t('cta.primary')} <ArrowRight size={18} />
+              {t('cta.primary')} <LandingIcon name="arrow-right" size="md" className="text-white" />
             </Link>
             <Link
               href="/login"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl font-semibold text-sm transition-all hover:bg-white"
+              className="landing-btn inline-flex items-center gap-2 px-8 py-4 rounded-xl transition-all hover:bg-white"
               style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
             >
               {t('cta.secondary')}

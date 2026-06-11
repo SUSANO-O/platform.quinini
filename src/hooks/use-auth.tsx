@@ -20,29 +20,34 @@ export interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
-  login: (email: string, password: string, cfToken?: string) => Promise<{ error?: string; code?: string; user?: AuthUser; requires2FA?: boolean; tempToken?: string }>;
-  complete2FA: (tempToken: string, code: string) => Promise<{ error?: string; user?: AuthUser }>;
+  landingAccessLockRequired: boolean;
+  login: (email: string, password: string, cfToken?: string) => Promise<{ error?: string; code?: string; user?: AuthUser; requires2FA?: boolean; tempToken?: string; requiresLandingAccessCode?: boolean }>;
+  complete2FA: (tempToken: string, code: string) => Promise<{ error?: string; user?: AuthUser; requiresLandingAccessCode?: boolean; tempToken?: string }>;
+  completeLandingAccess: (tempToken: string, code: string) => Promise<{ error?: string; user?: AuthUser }>;
   register: (email: string, password: string, displayName?: string, registrationCode?: string, cfToken?: string) => Promise<{ error?: string; user?: AuthUser }>;
   logout: () => Promise<void>;
-  /** Recarga usuario desde la sesi?n (tras cambiar email o nombre en Ajustes). */
   refreshUser: () => Promise<void>;
-  /** Termina suplantaci?n y restaura sesi?n de admin (solo con impersonation activa). */
   stopImpersonating: () => Promise<{ ok: boolean }>;
+  clearLandingAccessLock: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
+  landingAccessLockRequired: false,
   login: async () => ({}),
   complete2FA: async () => ({}),
+  completeLandingAccess: async () => ({}),
   register: async () => ({}),
   logout: async () => {},
   refreshUser: async () => {},
   stopImpersonating: async () => ({ ok: false }),
+  clearLandingAccessLock: () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [landingAccessLockRequired, setLandingAccessLockRequired] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const refreshUser = useCallback(async () => {
@@ -50,8 +55,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const r = await fetch('/api/auth');
       const data = await r.json();
       setUser(data.user || null);
+      setLandingAccessLockRequired(Boolean(data.landingAccessLockRequired));
     } catch {
       setUser(null);
+      setLandingAccessLockRequired(false);
     }
   }, []);
 
@@ -61,8 +68,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((r) => r.json())
       .then((data) => {
         setUser(data.user || null);
+        setLandingAccessLockRequired(Boolean(data.landingAccessLockRequired));
       })
-      .catch(() => setUser(null))
+      .catch(() => {
+        setUser(null);
+        setLandingAccessLockRequired(false);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -84,7 +95,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await res.json();
     if (!res.ok) return { error: data.error || 'Error al iniciar sesi?n.', code: data.code as string | undefined };
     if (data.requires2FA) return { requires2FA: true, tempToken: data.tempToken as string };
+    if (data.requiresLandingAccessCode) {
+      return { requiresLandingAccessCode: true, tempToken: data.tempToken as string };
+    }
     setUser(data.user);
+    setLandingAccessLockRequired(false);
     return { user: data.user as AuthUser };
   }, []);
 
@@ -96,7 +111,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     const data = await res.json();
     if (!res.ok) return { error: data.error || 'C?digo incorrecto.' };
+    if (data.requiresLandingAccessCode) {
+      return { requiresLandingAccessCode: true, tempToken: data.tempToken as string };
+    }
     setUser(data.user);
+    setLandingAccessLockRequired(false);
+    return { user: data.user as AuthUser };
+  }, []);
+
+  const completeLandingAccess = useCallback(async (tempToken: string, code: string) => {
+    const res = await fetch('/api/auth/landing-access/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ tempToken, code }),
+    });
+    const data = await res.json();
+    if (!res.ok) return { error: data.error || 'C?digo incorrecto.' };
+    setUser(data.user);
+    setLandingAccessLockRequired(false);
     return { user: data.user as AuthUser };
   }, []);
 
@@ -119,6 +152,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ action: 'logout' }),
     });
     setUser(null);
+    setLandingAccessLockRequired(false);
+  }, []);
+
+  const clearLandingAccessLock = useCallback(() => {
+    setLandingAccessLockRequired(false);
   }, []);
 
   const stopImpersonating = useCallback(async () => {
@@ -129,7 +167,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshUser]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, complete2FA, register, logout, refreshUser, stopImpersonating }}>
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      landingAccessLockRequired,
+      login,
+      complete2FA,
+      completeLandingAccess,
+      register,
+      logout,
+      refreshUser,
+      stopImpersonating,
+      clearLandingAccessLock,
+    }}>
       {children}
     </AuthContext.Provider>
   );

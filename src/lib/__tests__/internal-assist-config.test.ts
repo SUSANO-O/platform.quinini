@@ -15,7 +15,7 @@ describe('resolveInternalAssistBoot', () => {
     expect(cfg.agentId).toBe('math');
     expect(cfg.host).toBe('https://app.example.com');
     expect(cfg.fabHint).toBe('Hola! Como puedo ayudarte hoy?');
-    expect(cfg.avatar).toContain('freepik');
+    expect(cfg.avatar).toBe('/assets/marketing/math-avatar-cutout.webp');
   });
 
   it('prefers request origin over NEXT_PUBLIC_APP_URL for widget host', () => {

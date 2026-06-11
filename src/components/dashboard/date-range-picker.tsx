@@ -76,7 +76,6 @@ export function DateRangePicker({ value, onChange }: Props) {
             boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
             padding: 6,
             zIndex: 100,
-            fontFamily: 'system-ui, sans-serif',
           }}
         >
           {PRESETS.map((p) => (

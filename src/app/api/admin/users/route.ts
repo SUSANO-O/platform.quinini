@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   }
 
   const [users, total] = await Promise.all([
-    User.find(userQuery).sort({ createdAt: -1 }).skip(skip).limit(limit).lean() as Promise<Array<{ _id: unknown; email: string; displayName?: string; role?: string; createdAt: Date; allowedModelProviders?: string[] }>>,
+    User.find(userQuery).sort({ createdAt: -1 }).skip(skip).limit(limit).lean() as Promise<Array<{ _id: unknown; email: string; displayName?: string; role?: string; createdAt: Date; allowedModelProviders?: string[]; landingAccessLockEnabled?: boolean; landingAccessCode?: string | null }>>,
     User.countDocuments(userQuery),
   ]);
 
@@ -89,6 +89,8 @@ export async function GET(req: NextRequest) {
       trialDaysRemaining,
       periodEnd:           sub?.currentPeriodEnd || 0,
       allowedModelProviders: normalizeAllowedProviders(u.allowedModelProviders),
+      landingAccessLockEnabled: Boolean(u.landingAccessLockEnabled),
+      landingAccessCode: u.landingAccessLockEnabled ? (u.landingAccessCode ?? null) : null,
     };
   });
 
