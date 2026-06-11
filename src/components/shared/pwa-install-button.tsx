@@ -71,21 +71,7 @@ export function PwaInstallButton({ collapsed = false }: { collapsed?: boolean })
           type="button"
           onClick={() => setShowIosHint((v) => !v)}
           title="Instalar como app"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: collapsed ? 'center' : 'flex-start',
-            gap: collapsed ? 0 : 8,
-            padding: collapsed ? '10px 8px' : '8px 12px',
-            borderRadius: 10,
-            border: '1px solid rgba(var(--brand-primary-rgb),0.32)',
-            background: 'rgba(var(--brand-primary-rgb),0.08)',
-            color: 'var(--primary)',
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: 'pointer',
-            width: '100%',
-          }}
+          className={`pwa-install-btn${collapsed ? ' pwa-install-btn--collapsed' : ''}`}
         >
           <Share size={18} style={{ flexShrink: 0 }} aria-hidden />
           {!collapsed ? 'Instalar app' : null}
@@ -113,22 +99,8 @@ export function PwaInstallButton({ collapsed = false }: { collapsed?: boolean })
       type="button"
       onClick={handleAndroidInstall}
       title="Instalar como app"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: collapsed ? 'center' : 'flex-start',
-        gap: collapsed ? 0 : 8,
-        padding: collapsed ? '10px 8px' : '8px 12px',
-        borderRadius: 10,
-        border: '1px solid rgba(var(--brand-primary-rgb),0.32)',
-        background: 'rgba(var(--brand-primary-rgb),0.08)',
-        color: 'var(--primary)',
-        fontSize: 13,
-        fontWeight: 700,
-        cursor: 'pointer',
-        width: '100%',
-        marginBottom: 8,
-      }}
+      className={`pwa-install-btn${collapsed ? ' pwa-install-btn--collapsed' : ''}`}
+      style={{ marginBottom: 8 }}
     >
       <Download size={18} style={{ flexShrink: 0 }} aria-hidden />
       {!collapsed ? 'Instalar app' : null}

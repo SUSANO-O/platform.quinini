@@ -33,10 +33,6 @@ export const SIDEBAR_EXPANDED_PX = 252;
 export const SIDEBAR_COLLAPSED_PX = 72;
 
 const SIDEBAR_SURFACE = '#f5f6f8';
-const SIDEBAR_ACTIVE = 'rgba(var(--brand-primary-rgb), 0.12)';
-const ASSISTANT_HELP_BG = 'rgba(239, 68, 68, 0.08)';
-const ASSISTANT_HELP_BORDER = 'rgba(239, 68, 68, 0.14)';
-const ASSISTANT_HELP_COLOR = '#dc2626';
 
 function useWidgetLauncherHidden() {
   const [hidden, setHidden] = useState(false);
@@ -104,7 +100,7 @@ function AssistantHelpRestoreItem({
         onNavigate?.();
       }}
       title="Ayuda asistente"
-      className="dashboard-sidebar-link"
+      className="dashboard-sidebar-link dashboard-sidebar-link--assistant-help"
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -113,15 +109,9 @@ function AssistantHelpRestoreItem({
         padding: collapsed ? '11px 0' : '10px 12px',
         marginTop: 2,
         borderRadius: 12,
-        border: `1px solid ${ASSISTANT_HELP_BORDER}`,
-        background: ASSISTANT_HELP_BG,
-        color: ASSISTANT_HELP_COLOR,
         fontSize: 14,
-        fontWeight: 600,
-        cursor: 'pointer',
         width: '100%',
         textAlign: 'left',
-        transition: 'background 0.15s ease, border-color 0.15s ease',
       }}
     >
       <CircleHelp size={20} strokeWidth={1.75} style={{ flexShrink: 0 }} aria-hidden />
@@ -294,12 +284,7 @@ function SidebarNavLink({
         gap: collapsed ? 0 : 12,
         padding: collapsed ? '11px 0' : '10px 12px',
         borderRadius: 12,
-        textDecoration: 'none',
         fontSize: 14,
-        fontWeight: active ? 600 : 500,
-        background: active ? SIDEBAR_ACTIVE : 'transparent',
-        color: active ? 'var(--foreground)' : 'var(--muted-foreground)',
-        transition: 'background 0.15s ease, color 0.15s ease',
         width: collapsed ? '100%' : undefined,
       }}
     >
@@ -570,14 +555,8 @@ export function DashboardSidebar({
             padding: rail ? '11px 0' : '10px 12px',
             marginTop: 8,
             borderRadius: 12,
-            border: 'none',
-            background: 'transparent',
-            color: 'var(--muted-foreground)',
             fontSize: 14,
-            fontWeight: 500,
-            cursor: 'pointer',
             width: '100%',
-            transition: 'background 0.15s ease',
           }}
           className="dashboard-sidebar-link"
         >
