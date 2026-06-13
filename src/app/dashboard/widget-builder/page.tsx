@@ -21,7 +21,6 @@ import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/use-subscription';
 import { AvatarEditor } from '@/components/ui/AvatarEditor';
 import { BuilderRail } from '@/components/dashboard/builder-rail';
-import { WidgetBuilderPreviewPanel } from '@/components/dashboard/widget-builder-preview-panel';
 import { WidgetBuilderTrustBadges } from '@/components/dashboard/widget-builder-trust-badges';
 import { WidgetBuilderPublishStep } from '@/components/dashboard/widget-builder-publish-step';
 import {
@@ -38,66 +37,6 @@ import { HANDOFF_NOTIFY_MODE_LABELS } from '@/lib/handoff-notify';
 import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 import { applySoloWidgetDefaults } from '@/lib/solo-plan-limits';
 import { PipelineEditor } from '@/components/dashboard/pipeline-editor';
-
-// ── Orb gradient (port of orb-gradient.ts) ───────────────────────────────────
-
-function hexToRgb(hex: string) {
-  let h = hex.replace('#', '');
-  if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
-  const n = parseInt(h, 16);
-  if (!isFinite(n) || h.length !== 6) return null;
-  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
-}
-function rgbToHex(r: number, g: number, b: number) {
-  const c = (v: number) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
-  return `#${c(r)}${c(g)}${c(b)}`;
-}
-function rgbToHsl(r: number, g: number, b: number) {
-  r /= 255; g /= 255; b /= 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b);
-  let h = 0, s = 0;
-  const l = (max + min) / 2;
-  if (max !== min) {
-    const d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
-    else if (max === g) h = (b - r) / d + 2;
-    else h = (r - g) / d + 4;
-    h /= 6;
-  }
-  return { h: h * 360, s: s * 100, l: l * 100 };
-}
-function hue2rgb(p: number, q: number, t: number) {
-  let u = t;
-  if (u < 0) u += 1;
-  if (u > 1) u -= 1;
-  if (u < 1/6) return p + (q - p) * 6 * u;
-  if (u < 1/2) return q;
-  if (u < 2/3) return p + (q - p) * (2/3 - u) * 6;
-  return p;
-}
-function hslToRgb(h: number, s: number, l: number) {
-  h /= 360; s /= 100; l /= 100;
-  if (s === 0) { const v = Math.round(l * 255); return { r: v, g: v, b: v }; }
-  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-  const p = 2 * l - q;
-  return {
-    r: Math.round(hue2rgb(p, q, h + 1/3) * 255),
-    g: Math.round(hue2rgb(p, q, h) * 255),
-    b: Math.round(hue2rgb(p, q, h - 1/3) * 255),
-  };
-}
-function clamp(n: number, min: number, max: number) { return Math.max(min, Math.min(max, n)); }
-function computeOrbGradient(hex: string) {
-  const rgb = hexToRgb(hex);
-  if (!rgb) return `radial-gradient(circle, ${hex}, ${hex})`;
-  const { h, s, l } = rgbToHsl(rgb.r, rgb.g, rgb.b);
-  const light = hslToRgb(h + 10, clamp(s + 8, 0, 100), clamp(l + 15, 10, 94));
-  const deep  = hslToRgb(h - 12, clamp(s - 3, 12, 100), clamp(l - 20, 8, 88));
-  const lHex = rgbToHex(light.r, light.g, light.b);
-  const dHex = rgbToHex(deep.r, deep.g, deep.b);
-  return `linear-gradient(155deg, rgba(255,255,255,.22) 0%, transparent 42%), linear-gradient(148deg, ${lHex} 0%, ${hex} 46%, ${dHex} 100%)`;
-}
 
 // ── Agent list (from API; widget.agentId = id estable del ClientAgent en landing) ──
 
@@ -303,268 +242,6 @@ const DEFAULT: WidgetConfig = {
   pipelineConfig: null,
 };
 
-// ── Mock preview ─────────────────────────────────────────────────────────────
-
-function MockPreview({
-  cfg,
-  shortcuts = [],
-  publishTeaser = false,
-}: {
-  cfg: WidgetConfig;
-  shortcuts?: WidgetShortcut[];
-  /** Paso publicar: burbuja con mensaje de bienvenida visible. */
-  publishTeaser?: boolean;
-}) {
-  const [chatOpen, setChatOpen] = useState(false);
-  /** Evita mutar el DOM con innerHTML en onError (rompe a React). */
-  const [fabAvatarFailed, setFabAvatarFailed] = useState(false);
-  const [headerAvatarFailed, setHeaderAvatarFailed] = useState(false);
-  /** Preview del builder: gradiente simple del color elegido (sin orbe iridiscente). */
-  const brandGradient = computeOrbGradient(cfg.color);
-
-  useEffect(() => {
-    setFabAvatarFailed(false);
-    setHeaderAvatarFailed(false);
-  }, [cfg.avatar]);
-
-  const pos: Record<string, React.CSSProperties> = {
-    'bottom-right': { bottom: 20, right: 20 },
-    'bottom-left':  { bottom: 20, left: 20 },
-    'bottom':       { bottom: 20, left: '50%', transform: 'translateX(-50%)' },
-    'top-right':    { top: 20, right: 20 },
-    'top-left':     { top: 20, left: 20 },
-    'top':          { top: 20, left: '50%', transform: 'translateX(-50%)' },
-    'left':         { top: '50%', left: 20, transform: 'translateY(-50%)' },
-    'right':        { top: '50%', right: 20, transform: 'translateY(-50%)' },
-    'center':       { top: '50%', left: '50%', transform: 'translate(-50%,-50%)' },
-  };
-
-  const fabPos = pos[cfg.position] || pos['bottom-right'];
-
-  return (
-    <div style={{
-      position: 'relative', width: '100%', height: '380px', minHeight: '380px',
-      background: cfg.theme === 'dark' ? '#1a1a2e' : '#f8fafc',
-      overflow: 'hidden',
-    }}>
-      {/* Mock page content — la barra del navegador la pinta WidgetBuilderPreviewPanel */}
-      <div style={{ padding: '16px', color: cfg.theme === 'dark' ? '#e2e8f0' : '#1e293b' }}>
-        {[60, 80, 45, 70].map((w, i) => (
-          <div key={i} style={{ height: 8, background: cfg.theme === 'dark' ? '#2d2d4e' : '#e2e8f0', borderRadius: 4, marginBottom: 8, width: `${w}%` }} />
-        ))}
-      </div>
-
-      {/* Chat panel */}
-      {chatOpen && (
-        <div style={{
-          position: 'absolute', ...fabPos,
-          width: 260, height: 300,
-          background: cfg.theme === 'dark' ? '#1e1e3a' : '#fff',
-          borderRadius: cfg.borderRadius,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-          display: 'flex', flexDirection: 'column', overflow: 'hidden',
-          border: '1px solid rgba(0,0,0,0.08)',
-          // Offset up from FAB
-          ...(cfg.position.includes('bottom') ? { bottom: 72, right: fabPos.right, left: fabPos.left, top: 'auto', transform: fabPos.left === '50%' ? 'translateX(-50%)' : undefined } : {}),
-        }}>
-          <div
-            style={{
-              background: brandGradient,
-              padding: '12px',
-              color: '#fff',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {cfg.avatar && !headerAvatarFailed ? (
-                <img
-                  src={cfg.avatar}
-                  alt="avatar"
-                  style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }}
-                  onError={() => setHeaderAvatarFailed(true)}
-                />
-              ) : null}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontWeight: 700, fontSize: 11, margin: 0 }}>{cfg.title || 'BotIvA'}</p>
-                <p style={{ fontSize: 9, opacity: 0.85, margin: 0 }}>{cfg.subtitle || ''}</p>
-              </div>
-              <button onClick={() => setChatOpen(false)} style={{ marginLeft: 'auto', flexShrink: 0, background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>✕</button>
-            </div>
-          </div>
-          <div style={{ flex: 1, minHeight: 0, padding: '10px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', gap: 6, overflowY: 'auto' }}>
-            <div style={{ background: cfg.color + '22', borderRadius: '10px 10px 10px 2px', padding: '7px 10px', fontSize: 10, maxWidth: '85%' }}>
-              {cfg.welcome || '¡Hola! ¿En qué puedo ayudarte?'}
-            </div>
-            <div style={{ alignSelf: 'flex-end', maxWidth: '88%' }}>
-              <div style={{ background: cfg.color, color: '#fff', borderRadius: '10px 10px 2px 10px', padding: '6px 9px', fontSize: 10 }}>
-                ¿Hay atención humana?
-              </div>
-            </div>
-            {(() => {
-              if (!cfg.humanSupportEnabled) {
-                return (
-                  <p style={{ fontSize: 9, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.35 }}>
-                    WhatsApp desactivado en este widget.
-                  </p>
-                );
-              }
-              const d = String(cfg.humanSupportPhone ?? '').replace(/\D/g, '');
-              const ok = d.length >= 8;
-              if (!ok) {
-                return (
-                  <p style={{ fontSize: 9, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.35 }}>
-                    Si el visitante escribe p. ej. «persona» o «atención humana» y hay número válido, aparece aquí un enlace a WhatsApp.
-                  </p>
-                );
-              }
-              return (
-                <div
-                  style={{
-                    alignSelf: 'stretch',
-                    fontSize: 9,
-                    padding: '6px 8px',
-                    borderRadius: 8,
-                    border: '1px solid rgba(0,0,0,0.08)',
-                    background: cfg.theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                    color: 'var(--muted-foreground)',
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
-                  <span>Atención humana por WhatsApp</span>
-                  <a
-                    href={`https://wa.me/${d}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      fontSize: 8,
-                      fontWeight: 800,
-                      textTransform: 'uppercase',
-                      padding: '2px 8px',
-                      borderRadius: 999,
-                      border: `1px solid ${cfg.color}44`,
-                      color: cfg.color,
-                      textDecoration: 'none',
-                    }}
-                  >
-                    WhatsApp
-                  </a>
-                </div>
-              );
-            })()}
-            {shortcuts.filter((s) => s.enabled !== false).length > 0 && (
-              <div style={{ borderTop: `1px solid ${cfg.color}18`, marginTop: 4 }}>
-                <div style={{ padding: '4px 6px 2px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 7, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: cfg.color }}>Accesos rápidos</span>
-                  <span style={{ fontSize: 11, color: cfg.color, lineHeight: 1 }}>‹</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '0 6px 6px' }}>
-                  {shortcuts.filter((s) => s.enabled !== false).slice(0, 3).map((sc) => (
-                    <div
-                      key={sc.id}
-                      style={{
-                        display: 'flex', alignItems: 'flex-start', gap: 5,
-                        padding: '5px 8px', borderRadius: 7,
-                        border: `1px solid ${cfg.color}28`,
-                        background: `${cfg.color}0a`,
-                        fontSize: 8, fontWeight: 500,
-                        color: cfg.theme === 'dark' ? '#e2e8f0' : '#1e293b',
-                      }}
-                    >
-                      <span style={{ fontSize: 9, flexShrink: 0, width: 14, textAlign: 'center' }}>{sc.emoji || '💬'}</span>
-                      <span style={{ flex: 1, lineHeight: 1.35, whiteSpace: 'normal', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                        {sc.message || sc.label}
-                      </span>
-                      <span style={{ fontSize: 11, color: cfg.color, flexShrink: 0 }}>›</span>
-                    </div>
-                  ))}
-                  {shortcuts.filter((s) => s.enabled !== false).length > 3 && (
-                    <div style={{ textAlign: 'center', fontSize: 7, color: cfg.color, opacity: 0.7 }}>
-                      +{shortcuts.filter((s) => s.enabled !== false).length - 3} más
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
-              <div style={{ flex: 1, height: 26, background: cfg.theme === 'dark' ? '#2d2d4e' : '#f1f5f9', borderRadius: 8 }} />
-              <div style={{ width: 26, height: 26, background: cfg.color, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>➤</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* FAB */}
-      <div style={{ position: 'absolute', ...fabPos, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-        {!chatOpen && (publishTeaser ? cfg.welcome : cfg.fabHint) ? (
-          <div
-            style={{
-              background: '#fff',
-              color: '#334155',
-              fontSize: publishTeaser ? 9 : 10,
-              padding: publishTeaser ? '8px 10px' : '4px 8px',
-              borderRadius: publishTeaser ? 12 : 20,
-              boxShadow: '0 4px 14px rgba(0,0,0,0.1)',
-              maxWidth: publishTeaser ? 200 : undefined,
-              lineHeight: 1.4,
-              textAlign: publishTeaser ? 'left' : 'center',
-              whiteSpace: publishTeaser ? 'normal' : 'nowrap',
-              border: '1px solid #e2e8f0',
-            }}
-          >
-            {publishTeaser ? cfg.welcome || cfg.fabHint : cfg.fabHint}
-          </div>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => setChatOpen((v) => !v)}
-          className="relative overflow-hidden rounded-full border-0 shadow-lg"
-          style={{
-            width: cfg.avatar && !fabAvatarFailed ? cfg.fabAvatarSize : 44,
-            height: cfg.avatar && !fabAvatarFailed ? cfg.fabAvatarSize : 44,
-            cursor: 'pointer',
-            boxShadow: cfg.avatar && !fabAvatarFailed ? '0 4px 14px rgba(15,23,42,0.18)' : `0 4px 16px ${cfg.color}66`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: cfg.avatar && !fabAvatarFailed ? 'transparent' : undefined,
-          }}
-        >
-          {cfg.avatar && !fabAvatarFailed ? (
-            <img
-              src={cfg.avatar}
-              alt=""
-              className="relative z-10 h-full w-full object-contain object-bottom"
-              style={{ filter: 'drop-shadow(0 4px 10px rgba(15,23,42,0.22))' }}
-              onError={() => setFabAvatarFailed(true)}
-            />
-          ) : (
-            <>
-              <div
-                className="absolute inset-0 rounded-full"
-                style={{ background: brandGradient }}
-                aria-hidden
-              />
-              <div
-                className="pointer-events-none absolute inset-0 z-[1] rounded-full"
-                style={{
-                  boxShadow:
-                    'inset 0 2px 8px rgba(255,255,255,0.35), inset 0 -4px 10px rgba(0,0,0,0.15)',
-                }}
-                aria-hidden
-              />
-              <span className="relative z-[2] text-[20px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]">
-                {chatOpen ? '✕' : '💬'}
-              </span>
-            </>
-          )}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ── Snippet generator ─────────────────────────────────────────────────────────
 
 function generateSnippet(
@@ -620,7 +297,6 @@ export default function WidgetBuilderPage() {
   const [feedbackQuestions, setFeedbackQuestions] = useState<FeedbackQuestion[]>([]);
   const [shortcutSuggestErr, setShortcutSuggestErr] = useState('');
   const [wizardStep, setWizardStep] = useState(0);
-  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
 
   const plan = subscription?.plan ?? 'free';
   const planActive =
@@ -1170,9 +846,7 @@ export default function WidgetBuilderPage() {
     <div className="widget-builder-page dashboard-shell relative overflow-hidden min-h-full">
       <div className="hero-glow pointer-events-none" style={{ background: BRAND_R, top: '-200px', right: '-80px' }} />
 
-      <div
-        className={`widget-builder-page__grid relative${wizardStep === 3 ? ' widget-builder-page__grid--publish' : ''}`}
-      >
+      <div className="widget-builder-page__grid relative">
         <BuilderRail
           mode="steps"
           ariaLabel="Pasos del widget"
@@ -1230,7 +904,7 @@ export default function WidgetBuilderPage() {
                 <p className="text-[13px] m-0 mb-6" style={{ color: 'var(--muted-foreground)' }}>
                   {editWidgetId
                     ? 'Cambios guardados con el mismo token de integración.'
-                    : 'Diseña tu chat widget. El preview se actualiza en tiempo real — misma estética que la landing.'}
+                    : 'Diseña tu chat widget paso a paso y publícalo en tu sitio.'}
                 </p>
                 {editWidgetId ? (
                   <p className="mb-6 m-0">
@@ -2218,19 +1892,6 @@ export default function WidgetBuilderPage() {
 
           </div>
         </div>
-
-        {wizardStep !== 3 ? (
-          <div className="widget-builder-page__aside flex flex-col gap-3 min-w-0">
-            <WidgetBuilderPreviewPanel
-              mobilePreviewOpen={mobilePreviewOpen}
-              onMobilePreviewOpenChange={setMobilePreviewOpen}
-            >
-              <div data-tour="widget-builder-preview">
-                <MockPreview cfg={cfg} shortcuts={shortcuts} />
-              </div>
-            </WidgetBuilderPreviewPanel>
-          </div>
-        ) : null}
       </div>
 
     </div>

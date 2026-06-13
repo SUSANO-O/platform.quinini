@@ -3934,14 +3934,10 @@ button.dashboard-sidebar-link:hover {
 @media (min-width: 1280px) {
   .widget-builder-page__grid {
     display: grid;
-    grid-template-columns: 13rem minmax(0, 1fr) minmax(280px, 360px);
+    grid-template-columns: 13rem minmax(0, 1fr);
     gap: 1.5rem;
     align-items: start;
     padding-bottom: 2rem;
-  }
-
-  .widget-builder-page__grid--publish {
-    grid-template-columns: 13rem minmax(0, 1fr);
   }
 
   .widget-builder-page__grid > .builder-rail {
@@ -3951,11 +3947,6 @@ button.dashboard-sidebar-link:hover {
 
   .widget-builder-page__main {
     grid-column: 2;
-  }
-
-  .widget-builder-page__aside {
-    grid-column: 3;
-    min-width: 0;
   }
 }
 
