@@ -51,7 +51,6 @@ export function WidgetBuilderPreviewPanel({
             <Smartphone size={16} aria-hidden />
           </button>
         </div>
-        ) : null}
       </aside>
 
       {controlled ? (
