@@ -72,19 +72,17 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   let rawBody = params.rawBody;
   if (params.visionEnrichment?.analyses?.length) {
     try {
-      const peek = JSON.parse(rawBody) as { visionEnriched?: boolean };
-      if (peek.visionEnriched !== true) {
-        rawBody = await finalizeWidgetChatBodyWithVision({
-          rawBody,
-          enrichment: params.visionEnrichment,
-          agentId: params.parsedAgentId,
-          ownerUserId: params.ownerUserId,
-          strictPurposeSuffix: params.strictPurposeSuffix,
-        });
-        logWidgetFlow('👁️', 'direct:vision', 'contexto OCR/visión aplicado antes de MCP', {
-          agentId: params.parsedAgentId,
-        });
-      }
+      rawBody = await finalizeWidgetChatBodyWithVision({
+        rawBody,
+        enrichment: params.visionEnrichment,
+        agentId: params.parsedAgentId,
+        ownerUserId: params.ownerUserId,
+        strictPurposeSuffix: params.strictPurposeSuffix,
+        force: true,
+      });
+      logWidgetFlow('👁️', 'direct:vision', 'contexto OCR/visión aplicado antes de MCP', {
+        agentId: params.parsedAgentId,
+      });
     } catch (visionErr) {
       logWidgetFlow('⚠️', 'direct:visionErr', visionErr instanceof Error ? visionErr.message : String(visionErr));
     }
