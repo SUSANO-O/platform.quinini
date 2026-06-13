@@ -16,7 +16,9 @@ import { agentHasAnyWebhook } from '@/lib/agent-webhooks';
 import { agentHasAnySheet } from '@/lib/agent-sheets';
 import {
   buildUserPromptWithSessionContext,
+  buildVisionSessionBlock,
   finalizeWidgetChatBodyWithVision,
+  VISION_SYSTEM_INSTRUCTIONS,
 } from '@/lib/widget-chat-vision-context';
 import type { WidgetImageEnrichment } from '@/lib/widget-chat-images';
 
@@ -107,10 +109,18 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     return null;
   }
 
-  const promptForModel = buildUserPromptWithSessionContext(
-    message.trim(),
-    parsed.sessionContextBlock,
-  );
+  let sessionBlock =
+    typeof parsed.sessionContextBlock === 'string' ? parsed.sessionContextBlock.trim() : '';
+  if (
+    params.visionEnrichment?.analyses?.length &&
+    (!sessionBlock || !sessionBlock.includes('Contenido detectado'))
+  ) {
+    sessionBlock = sessionBlock
+      ? `${buildVisionSessionBlock(params.visionEnrichment)}\n\n---\n\n${sessionBlock}`
+      : buildVisionSessionBlock(params.visionEnrichment);
+  }
+
+  const promptForModel = buildUserPromptWithSessionContext(message.trim(), sessionBlock);
 
   await connectDB();
   const id = params.parsedAgentId.trim();
@@ -175,8 +185,15 @@ export async function tryServeWidgetChatViaHubMcp(params: {
 
   const bodySystemOverride =
     typeof parsed.systemPromptOverride === 'string' ? parsed.systemPromptOverride.trim() : '';
-  const resolvedSystemPrompt =
+  let resolvedSystemPrompt =
     bodySystemOverride || (typeof ca.systemPrompt === 'string' ? ca.systemPrompt : '');
+  if (
+    params.visionEnrichment?.analyses?.length &&
+    !resolvedSystemPrompt.includes('[CAPACIDAD DE VISIÓN')
+  ) {
+    const visionBlock = buildVisionSessionBlock(params.visionEnrichment);
+    resolvedSystemPrompt = `${resolvedSystemPrompt.trim()}\n\n${VISION_SYSTEM_INSTRUCTIONS}\n\n${visionBlock}`.trim();
+  }
 
   const payload = {
     agentId: typeof parsed.agentId === 'string' && parsed.agentId.trim() ? parsed.agentId.trim() : id,
