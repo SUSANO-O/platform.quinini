@@ -2764,7 +2764,7 @@
       } catch (_bell) { /* noop */ }
     }
 
-    /** Gota de agua suave al abrir el chat desde el orbe. */
+    /** Apertura del chat: pop suave orgánico (no tono sinusoidal plano). */
     function playChatOpenSound() {
       try {
         if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -2775,35 +2775,67 @@
           ctx.resume().catch(function () { /* noop */ });
         }
         var t = ctx.currentTime;
-        var drop = ctx.createOscillator();
-        var dropGain = ctx.createGain();
-        drop.type = 'sine';
-        drop.frequency.setValueAtTime(1046.5, t);
-        drop.frequency.exponentialRampToValueAtTime(698.46, t + 0.055);
-        drop.frequency.exponentialRampToValueAtTime(523.25, t + 0.19);
-        dropGain.gain.setValueAtTime(0.0001, t);
-        dropGain.gain.exponentialRampToValueAtTime(0.085, t + 0.012);
-        dropGain.gain.exponentialRampToValueAtTime(0.022, t + 0.075);
-        dropGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
-        drop.connect(dropGain);
-        dropGain.connect(ctx.destination);
-        drop.start(t);
-        drop.stop(t + 0.42);
-        var ripple = ctx.createOscillator();
-        var rippleGain = ctx.createGain();
-        ripple.type = 'sine';
-        ripple.frequency.setValueAtTime(1567.98, t + 0.035);
-        ripple.frequency.exponentialRampToValueAtTime(987.77, t + 0.17);
-        rippleGain.gain.setValueAtTime(0.0001, t + 0.035);
-        rippleGain.gain.exponentialRampToValueAtTime(0.026, t + 0.05);
-        rippleGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.26);
-        ripple.connect(rippleGain);
-        rippleGain.connect(ctx.destination);
-        ripple.start(t + 0.035);
-        ripple.stop(t + 0.28);
+        var master = ctx.createGain();
+        master.gain.setValueAtTime(0.5, t);
+        master.connect(ctx.destination);
+
+        var lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.setValueAtTime(2400, t);
+        lp.frequency.exponentialRampToValueAtTime(520, t + 0.24);
+        lp.Q.setValueAtTime(0.55, t);
+        lp.connect(master);
+
+        function softTone(freqStart, freqEnd, startTime, duration, peak) {
+          var osc1 = ctx.createOscillator();
+          var osc2 = ctx.createOscillator();
+          var g = ctx.createGain();
+          osc1.type = 'triangle';
+          osc2.type = 'triangle';
+          osc1.frequency.setValueAtTime(freqStart, startTime);
+          osc1.frequency.exponentialRampToValueAtTime(Math.max(freqEnd, 40), startTime + duration);
+          osc2.frequency.setValueAtTime(freqStart * 1.004, startTime);
+          osc2.frequency.exponentialRampToValueAtTime(Math.max(freqEnd * 1.004, 40), startTime + duration);
+          g.gain.setValueAtTime(0.0001, startTime);
+          g.gain.exponentialRampToValueAtTime(peak, startTime + 0.016);
+          g.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+          osc1.connect(g);
+          osc2.connect(g);
+          g.connect(lp);
+          osc1.start(startTime);
+          osc2.start(startTime);
+          osc1.stop(startTime + duration + 0.02);
+          osc2.stop(startTime + duration + 0.02);
+        }
+
+        softTone(580, 360, t, 0.2, 0.042);
+        softTone(870, 480, t + 0.03, 0.15, 0.02);
+
+        var noiseDur = 0.055;
+        var bufferSize = Math.max(1, Math.floor(ctx.sampleRate * noiseDur));
+        var noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        var data = noiseBuffer.getChannelData(0);
+        for (var i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+        }
+        var noise = ctx.createBufferSource();
+        noise.buffer = noiseBuffer;
+        var noiseFilter = ctx.createBiquadFilter();
+        noiseFilter.type = 'bandpass';
+        noiseFilter.frequency.setValueAtTime(1600, t);
+        noiseFilter.Q.setValueAtTime(1.1, t);
+        var noiseGain = ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.0001, t);
+        noiseGain.gain.exponentialRampToValueAtTime(0.016, t + 0.003);
+        noiseGain.gain.exponentialRampToValueAtTime(0.0001, t + noiseDur);
+        noise.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(master);
+        noise.start(t);
+
         window.setTimeout(function () {
           try { ctx.close(); } catch (_e) { /* noop */ }
-        }, 500);
+        }, 420);
       } catch (_openSound) { /* noop */ }
     }
 
