@@ -14,7 +14,11 @@ import {
 import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
 import { agentHasAnyWebhook } from '@/lib/agent-webhooks';
 import { agentHasAnySheet } from '@/lib/agent-sheets';
-import { buildUserPromptWithSessionContext } from '@/lib/widget-chat-vision-context';
+import {
+  buildUserPromptWithSessionContext,
+  finalizeWidgetChatBodyWithVision,
+} from '@/lib/widget-chat-vision-context';
+import type { WidgetImageEnrichment } from '@/lib/widget-chat-images';
 
 export function clientAgentHasWebhookUrl(agent: {
   tools?: Array<{ toolId?: string; config?: unknown }>;
@@ -51,6 +55,9 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   parsedAgentId: string;
   rawBody: string;
   ownerUserId: string;
+  /** Última defensa: fusionar OCR/visión justo antes del POST a AIBackHub. */
+  visionEnrichment?: WidgetImageEnrichment | null;
+  strictPurposeSuffix?: string;
 }): Promise<DirectMcpWidgetChatResult | null> {
   if (!params.widgetTokenStartsWithWt || !params.parsedAgentId.trim()) {
     logWidgetFlow('🚫', 'direct:skip', 'sin wt_ o agentId', { agentId: params.parsedAgentId });
@@ -62,6 +69,27 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     return null;
   }
 
+  let rawBody = params.rawBody;
+  if (params.visionEnrichment?.analyses?.length) {
+    try {
+      const peek = JSON.parse(rawBody) as { visionEnriched?: boolean };
+      if (peek.visionEnriched !== true) {
+        rawBody = await finalizeWidgetChatBodyWithVision({
+          rawBody,
+          enrichment: params.visionEnrichment,
+          agentId: params.parsedAgentId,
+          ownerUserId: params.ownerUserId,
+          strictPurposeSuffix: params.strictPurposeSuffix,
+        });
+        logWidgetFlow('👁️', 'direct:vision', 'contexto OCR/visión aplicado antes de MCP', {
+          agentId: params.parsedAgentId,
+        });
+      }
+    } catch (visionErr) {
+      logWidgetFlow('⚠️', 'direct:visionErr', visionErr instanceof Error ? visionErr.message : String(visionErr));
+    }
+  }
+
   let parsed: {
     message?: string;
     history?: Array<{ role: string; content: string }>;
@@ -70,7 +98,7 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     systemPromptOverride?: string;
   };
   try {
-    parsed = JSON.parse(params.rawBody) as typeof parsed;
+    parsed = JSON.parse(rawBody) as typeof parsed;
   } catch {
     return null;
   }
