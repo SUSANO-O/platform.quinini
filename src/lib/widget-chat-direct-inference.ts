@@ -9,6 +9,7 @@ import { Types } from 'mongoose';
 import { getAibackhubBaseUrl, hubCreateHeaders, hubFetch } from '@/lib/aibackhub-sync';
 import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
 import { isTrivialMessage } from '@/lib/trivial-message';
+import { buildUserPromptWithSessionContext, VISION_SYSTEM_INSTRUCTIONS } from '@/lib/widget-chat-vision-context';
 
 export type DirectInferenceResult = {
   reply: string;
@@ -106,6 +107,8 @@ export async function tryServeWidgetChatViaDirectInference(params: {
   let parsed: {
     message?: string;
     history?: Array<{ role: string; content: string }>;
+    sessionContextBlock?: string;
+    systemPromptOverride?: string;
   };
   try {
     parsed = JSON.parse(params.rawBody) as typeof parsed;
@@ -115,6 +118,11 @@ export async function tryServeWidgetChatViaDirectInference(params: {
 
   const message = typeof parsed.message === 'string' ? parsed.message.trim() : '';
   if (!message) return null;
+
+  const promptForModel = buildUserPromptWithSessionContext(
+    message,
+    parsed.sessionContextBlock,
+  );
 
   await connectDB();
   const id = params.parsedAgentId.trim();
@@ -175,7 +183,10 @@ export async function tryServeWidgetChatViaDirectInference(params: {
     (typeof ca.agentHubId === 'string' && ca.agentHubId.trim()) ||
     (typeof ca.name === 'string' ? ca.name : 'widget-agent');
 
-  const baseSystemPrompt = typeof ca.systemPrompt === 'string' ? ca.systemPrompt : '';
+  const bodySystemOverride =
+    typeof parsed.systemPromptOverride === 'string' ? parsed.systemPromptOverride.trim() : '';
+  const baseSystemPrompt =
+    bodySystemOverride || (typeof ca.systemPrompt === 'string' ? ca.systemPrompt : '');
   const rawEnabledMcpToolIds = Array.isArray(ca.enabledMcpToolIds) ? ca.enabledMcpToolIds : [];
   const baseEnabledToolIds = rawEnabledMcpToolIds.filter(
     (id: unknown): id is string => typeof id === 'string' && id.trim().length > 0,
@@ -257,6 +268,18 @@ export async function tryServeWidgetChatViaDirectInference(params: {
     }
   }
 
+  if (
+    bodySystemOverride.includes(VISION_SYSTEM_INSTRUCTIONS) &&
+    !resolvedSystemPrompt.includes(VISION_SYSTEM_INSTRUCTIONS)
+  ) {
+    const visionTail = bodySystemOverride.slice(
+      bodySystemOverride.indexOf(VISION_SYSTEM_INSTRUCTIONS),
+    );
+    resolvedSystemPrompt = resolvedSystemPrompt.trim()
+      ? `${resolvedSystemPrompt.trim()}\n\n${visionTail}`
+      : visionTail;
+  }
+
   params.onStatus?.('model', 'Generando respuesta…');
 
   try {
@@ -269,7 +292,7 @@ export async function tryServeWidgetChatViaDirectInference(params: {
           'x-agent-name': agentName,
         },
         body: JSON.stringify({
-          prompt: message,
+          prompt: promptForModel,
           systemPrompt: resolvedSystemPrompt,
           provider: effProvider,
           model: effModel,

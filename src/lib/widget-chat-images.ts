@@ -65,38 +65,9 @@ export async function enrichWidgetChatBodyWithImages(
     analyses.push({ url: img.url, text });
   }
 
-  const imageBlock = analyses
-    .map((a, i) => {
-      const header = images.length > 1 ? `Imagen ${i + 1}` : 'Imagen adjunta';
-      return `[${header}]\nURL: ${a.url}\nContenido detectado:\n${a.text}`;
-    })
-    .join('\n\n---\n\n');
-
-  let enrichedMessage: string;
-
-  if (!userText) {
-    enrichedMessage = [
-      '[El usuario ha adjuntado una imagen.]',
-      '',
-      '---',
-      '[IMAGEN RECIBIDA]',
-      imageBlock,
-      '---',
-      'El usuario envió esta imagen. Confirma brevemente lo que ves y pregúntale en qué puedes ayudarle.',
-    ].join('\n');
-  } else {
-    enrichedMessage = [
-      userText,
-      '',
-      '---',
-      '[IMAGEN DEL USUARIO]',
-      imageBlock,
-      '---',
-      'Usa el contenido de la imagen para responder la pregunta del usuario según tu rol y conocimiento.',
-    ].join('\n');
-  }
-
-  parsed.message = enrichedMessage.slice(0, 12_000);
+  // Mantener el mensaje del usuario limpio; el OCR/visión se inyecta vía
+  // sessionContextBlock + systemPromptOverride en mergeVisionContextIntoBody().
+  parsed.message = userText || 'El usuario adjuntó una imagen.';
   delete parsed.userImages;
 
   const enrichment: WidgetImageEnrichment = {

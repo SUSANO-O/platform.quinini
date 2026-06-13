@@ -14,6 +14,7 @@ import {
 import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
 import { agentHasAnyWebhook } from '@/lib/agent-webhooks';
 import { agentHasAnySheet } from '@/lib/agent-sheets';
+import { buildUserPromptWithSessionContext } from '@/lib/widget-chat-vision-context';
 
 export function clientAgentHasWebhookUrl(agent: {
   tools?: Array<{ toolId?: string; config?: unknown }>;
@@ -65,6 +66,8 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     message?: string;
     history?: Array<{ role: string; content: string }>;
     agentId?: string;
+    sessionContextBlock?: string;
+    systemPromptOverride?: string;
   };
   try {
     parsed = JSON.parse(params.rawBody) as typeof parsed;
@@ -77,6 +80,11 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     logWidgetFlow('🚫', 'direct:skip', 'mensaje vacío');
     return null;
   }
+
+  const promptForModel = buildUserPromptWithSessionContext(
+    message.trim(),
+    parsed.sessionContextBlock,
+  );
 
   await connectDB();
   const id = params.parsedAgentId.trim();
@@ -139,9 +147,14 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     return 'vertex';
   }
 
+  const bodySystemOverride =
+    typeof parsed.systemPromptOverride === 'string' ? parsed.systemPromptOverride.trim() : '';
+  const resolvedSystemPrompt =
+    bodySystemOverride || (typeof ca.systemPrompt === 'string' ? ca.systemPrompt : '');
+
   const payload = {
     agentId: typeof parsed.agentId === 'string' && parsed.agentId.trim() ? parsed.agentId.trim() : id,
-    message,
+    message: promptForModel,
     history: Array.isArray(parsed.history)
       ? parsed.history.filter(
           (h): h is { role: 'user' | 'model'; content: string } =>
@@ -152,7 +165,7 @@ export async function tryServeWidgetChatViaHubMcp(params: {
         )
       : [],
     model: resolvedModel,
-    systemPrompt: typeof ca.systemPrompt === 'string' ? ca.systemPrompt : '',
+    systemPrompt: resolvedSystemPrompt,
     enabledToolIds: Array.isArray(ca.enabledMcpToolIds) ? ca.enabledMcpToolIds : [],
     replyProvider: inferReplyProvider(resolvedModel),
     ...(typeof ca.inferenceTemperature === 'number' ? { temperature: ca.inferenceTemperature } : {}),
