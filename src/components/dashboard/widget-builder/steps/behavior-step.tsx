@@ -17,6 +17,7 @@ import {
   WidgetBuilderInput,
   WidgetBuilderLabel,
   WidgetBuilderSections,
+  WidgetBuilderSection,
   WidgetBuilderSelect,
   WidgetBuilderSwitch,
   WidgetBuilderTogglePanel,
@@ -442,17 +443,23 @@ export function WidgetBuilderBehaviorStep({
         </div>
       </WidgetBuilderTogglePanel>
 
-      <div data-tour="widget-builder-embed-options">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+      <WidgetBuilderSection
+        tourId="widget-builder-embed-options"
+        title="Funcionalidades extra"
+        description="Activa u oculta opciones del launcher y del chat. Se aplican en vivo en todos los sitios donde esté instalado el widget."
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <input
-              type="checkbox"
-              id="autoOpen"
+            <WidgetBuilderSwitch
               checked={cfg.autoOpen}
-              onChange={(e) => onChange({ autoOpen: e.target.checked })}
-              style={{ width: 16, height: 16, cursor: 'pointer' }}
+              accentColor={cfg.color}
+              onChange={(autoOpen) => onChange({ autoOpen })}
+              ariaLabel="Abrir automáticamente"
             />
-            <label htmlFor="autoOpen" style={{ fontSize: '13px', cursor: 'pointer' }}>
+            <label
+              style={{ fontSize: '13px', cursor: 'pointer' }}
+              onClick={() => onChange({ autoOpen: !cfg.autoOpen })}
+            >
               Abrir automáticamente
             </label>
           </div>
@@ -562,7 +569,7 @@ export function WidgetBuilderBehaviorStep({
           el servidor — cualquier cambio aquí se refleja automáticamente en todos los sitios donde esté instalado el
           widget.
         </WidgetBuilderHint>
-      </div>
+      </WidgetBuilderSection>
         </>
       )}
 
