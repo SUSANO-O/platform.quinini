@@ -45,6 +45,7 @@ import {
   type WidgetMultiAgentConfig,
 } from '@/lib/widget-multi-agent';
 import { enrichWidgetChatBodyWithImages, type WidgetImageEnrichment } from '@/lib/widget-chat-images';
+import { mergeVisionContextIntoBody } from '@/lib/widget-chat-vision-context';
 import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-enrich';
 import { schedulePersistWidgetTranscript } from '@/lib/widget-transcript';
 import { agentHasAnyWebhook } from '@/lib/agent-webhooks';
@@ -610,6 +611,15 @@ export async function POST(req: NextRequest) {
             await connectDB();
             const agentDoc = await ClientAgent.findById(parsedAgentId, { strictPurposeOnly: 1, systemPrompt: 1 })
               .lean() as { strictPurposeOnly?: boolean; systemPrompt?: string } | null;
+
+            if (imageEnrichment) {
+              hubBody = mergeVisionContextIntoBody(
+                hubBody,
+                imageEnrichment,
+                agentDoc?.systemPrompt,
+              );
+            }
+
             if (agentDoc?.strictPurposeOnly === true) {
               const parsed = JSON.parse(hubBody) as Record<string, unknown>;
               const basePrompt = typeof parsed.systemPromptOverride === 'string'

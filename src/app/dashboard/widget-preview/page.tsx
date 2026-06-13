@@ -59,6 +59,13 @@ interface WidgetDoc {
   updatedAt?: string;
 }
 
+interface AgentVisionConfig {
+  enabled?: boolean;
+  model?: string;
+  ragOnImages?: boolean;
+  autoExtractText?: boolean;
+}
+
 interface AgentDoc {
   _id: string;
   name: string;
@@ -74,6 +81,7 @@ interface AgentDoc {
   enabledMcpToolIds?: string[];
   ragEnabled?: boolean;
   ragSources?: { type: string; name: string }[];
+  vision?: AgentVisionConfig;
   type?: string;
   subAgentIds?: string[];
   skills?: string[];
@@ -382,6 +390,7 @@ export default function WidgetPreviewPage() {
   const isMultiAgentWidget = widget?.multiAgentEnabled === true || subAgentCount > 0;
   const enabledShortcuts = widget?.shortcuts?.filter((s) => s.enabled !== false) ?? [];
   const agentRoleLabel = widget && agent ? resolveAgentRoleLabel(agent, widget) : 'Agente';
+  const visionSummary = formatAgentVisionSummary(agent?.vision);
 
   return (
     <div style={{ padding: '28px', maxWidth: 820 }}>
@@ -796,6 +805,7 @@ export default function WidgetPreviewPage() {
               {(agent.skills?.length ?? 0) > 0 && (
                 <Row label="Skills" value={agent.skills!.join(', ')} />
               )}
+              <Row label="Vision" value={visionSummary} />
             </InfoCard>
           )}
 
@@ -809,6 +819,7 @@ export default function WidgetPreviewPage() {
                   { label: 'MCP tools', value: String(totalMcpTools) },
                   { label: 'Built-in', value: String(builtInTools.length) },
                   { label: 'RAG', value: agent.ragEnabled ? `Sí (${agent.ragSources?.length ?? 0})` : 'No' },
+                  { label: 'Vision', value: visionSummary },
                   { label: 'Skills', value: String(agent.skills?.length ?? 0) },
                   { label: 'Sub-agentes', value: String(subAgentCount) },
                   { label: 'Atajos', value: String(enabledShortcuts.length) },
@@ -987,6 +998,23 @@ function Row({ label, value, mono }: { label: string; value: React.ReactNode; mo
       </span>
     </div>
   );
+}
+
+function formatVisionModelLabel(model?: string): string {
+  if (model === 'gemini-2.5-pro') return 'Gemini 2.5 Pro';
+  if (model === 'claude-vision') return 'Claude Vision';
+  if (model === 'gemini-2.5-flash') return 'Gemini 2.5 Flash';
+  return model?.trim() || 'Gemini 2.5 Flash';
+}
+
+function formatAgentVisionSummary(vision?: AgentVisionConfig | null): string {
+  if (vision?.enabled !== true) return 'No';
+  const model = formatVisionModelLabel(vision.model);
+  const extras: string[] = [];
+  if (vision.ragOnImages !== false) extras.push('RAG');
+  if (vision.autoExtractText !== false) extras.push('OCR');
+  const suffix = extras.length > 0 ? ` (${extras.join(', ')})` : '';
+  return `Sí · ${model}${suffix}`;
 }
 
 function inferProvider(model: string): string {

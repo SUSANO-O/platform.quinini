@@ -35,6 +35,7 @@ import {
   type MultiAgentRoutingMeta,
 } from '@/lib/widget-multi-agent';
 import { enrichWidgetChatBodyWithImages, type WidgetImageEnrichment } from '@/lib/widget-chat-images';
+import { mergeVisionContextIntoBody } from '@/lib/widget-chat-vision-context';
 import { schedulePersistWidgetTranscript } from '@/lib/widget-transcript';
 import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-enrich';
 import { logInferenceMetric, estimateTokens } from '@/lib/inference-metrics';
@@ -873,12 +874,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ── Strict purpose enforcement ───────────────────────────────────────────
+  // ── Vision context + strict purpose enforcement ───────────────────────────
   if (parsedAgentId) {
     try {
       await connectDB();
       const agentDoc = await ClientAgent.findById(parsedAgentId, { strictPurposeOnly: 1, systemPrompt: 1 })
         .lean() as { strictPurposeOnly?: boolean; systemPrompt?: string } | null;
+
+      if (imageEnrichment) {
+        bodyToForward = mergeVisionContextIntoBody(
+          bodyToForward,
+          imageEnrichment,
+          agentDoc?.systemPrompt,
+        );
+      }
+
       if (agentDoc?.strictPurposeOnly === true) {
         const parsed = JSON.parse(bodyToForward) as Record<string, unknown>;
         const base = typeof parsed.systemPromptOverride === 'string'
