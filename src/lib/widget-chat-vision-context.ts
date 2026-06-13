@@ -2,7 +2,17 @@
  * Inyecta análisis OCR/visión como contexto de sistema + sesión (no solo en el mensaje del usuario).
  */
 
+import { connectDB } from '@/lib/db/connection';
+import { ClientAgent } from '@/lib/db/models';
 import type { WidgetImageEnrichment } from '@/lib/widget-chat-images';
+
+const IMAGE_REFERENCE_RE =
+  /\b(la imagen|el de la imagen|esta imagen|esa imagen|la foto|esta foto|esa foto|lo de la foto|el veh[ií]culo de la imagen|en la captura|de la captura)\b/i;
+
+/** El usuario se refiere a una imagen enviada en un turno anterior. */
+export function messageReferencesPriorImage(message: string): boolean {
+  return IMAGE_REFERENCE_RE.test(message.trim());
+}
 
 const VISION_FAILURE_MARKERS = [
   '[No se pudo analizar la imagen.]',
@@ -93,8 +103,68 @@ export function mergeVisionContextIntoBody(
   } catch {
     return rawBody;
   }
+  if (parsed.visionEnriched === true) return rawBody;
   applyVisionContextToParsedBody(parsed, enrichment, agentSystemPrompt);
   return JSON.stringify(parsed);
+}
+
+async function resolveAgentSystemPrompt(
+  agentId: string,
+  ownerUserId: string,
+): Promise<{ systemPrompt: string; strictPurposeOnly: boolean } | null> {
+  const id = agentId.trim();
+  if (!id) return null;
+  await connectDB();
+  const filter = /^[a-f0-9]{24}$/i.test(id) ? { _id: id } : { agentHubId: id };
+  const doc = await ClientAgent.findOne({
+    $and: [filter, { $or: [{ userId: ownerUserId }, { isPlatform: true }] }],
+  })
+    .select({ systemPrompt: 1, strictPurposeOnly: 1 })
+    .lean() as { systemPrompt?: string; strictPurposeOnly?: boolean } | null;
+  if (!doc) return null;
+  return {
+    systemPrompt: typeof doc.systemPrompt === 'string' ? doc.systemPrompt : '',
+    strictPurposeOnly: doc.strictPurposeOnly === true,
+  };
+}
+
+/**
+ * Aplica OCR/visión al body ANTES de MCP directo, inferencia o proxy al hub.
+ * Debe llamarse tras enrichWidgetChatBody y antes de cualquier early-return de chat.
+ */
+export async function finalizeWidgetChatBodyWithVision(params: {
+  rawBody: string;
+  enrichment: WidgetImageEnrichment | null | undefined;
+  agentId: string;
+  ownerUserId: string;
+  strictPurposeSuffix?: string;
+}): Promise<string> {
+  if (!params.enrichment?.analyses?.length || !params.agentId.trim()) {
+    return params.rawBody;
+  }
+
+  const agent = await resolveAgentSystemPrompt(params.agentId, params.ownerUserId);
+  let body = mergeVisionContextIntoBody(
+    params.rawBody,
+    params.enrichment,
+    agent?.systemPrompt,
+  );
+
+  if (agent?.strictPurposeOnly && params.strictPurposeSuffix) {
+    try {
+      const parsed = JSON.parse(body) as Record<string, unknown>;
+      const base =
+        (typeof parsed.systemPromptOverride === 'string' && parsed.systemPromptOverride.trim()) ||
+        agent.systemPrompt ||
+        '';
+      parsed.systemPromptOverride = base + params.strictPurposeSuffix;
+      body = JSON.stringify(parsed);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return body;
 }
 
 /** Prompt del usuario con bloque de sesión (OCR/visión, facts, etc.). */
