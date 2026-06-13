@@ -287,16 +287,15 @@ const s = (sel: string) => `[data-tour="${sel}"]`;
 /** Pasos del builder (sin intro de sidebar); reutilizado en etapa `widget-builder` y en `mis-widgets` vacío. */
 function buildWidgetBuilderFormSteps(): AfhubDriveStep[] {
   return [
-    mk(s('widget-builder-header'), 'Resumen', 'Título del builder y descripción. El panel izquierdo es la configuración; a la derecha, preview y snippet.', 'bottom', 'start'),
+    mk(s('widget-builder-header'), 'Resumen', 'Título del builder y descripción. Completa los pasos del asistente para configurar tu widget.', 'bottom', 'start'),
     mk(s('widget-builder-name'), 'Nombre del widget', 'Identifica este widget en tu lista (Mis widgets).', 'bottom', 'start'),
     mk(s('widget-builder-agent'), 'Agente vinculado', 'El chat usará este agente. El ID es el de la landing (ObjectId o slug según corresponda).', 'bottom', 'start'),
-    mk(s('widget-builder-branding'), 'Color y tema', 'Color de acento y modo claro u oscuro; se reflejan al instante en la vista previa.', 'bottom', 'start'),
+    mk(s('widget-builder-branding'), 'Color y tema', 'Color de acento y modo claro u oscuro del widget.', 'bottom', 'start'),
     mk(s('widget-builder-chat-texts'), 'Textos del chat', 'Título, subtítulo, bienvenida y hint del FAB que ve el visitante.', 'bottom', 'start'),
     mk(s('widget-builder-support'), 'WhatsApp opcional', 'Si configuras número, el visitante puede pedir atención humana y ver el acceso a WhatsApp.', 'bottom', 'start'),
     mk(s('widget-builder-look'), 'Avatar y bordes', 'URL del avatar en cabecera/FAB y radio de esquinas del widget.', 'bottom', 'start'),
     mk(s('widget-builder-position'), 'Posición en pantalla', 'Esquina o borde donde aparece el botón flotante del chat.', 'bottom', 'start'),
     mk(s('widget-builder-embed-options'), 'Comportamiento del embed', 'Abrir al cargar la página y si el snippet incluye el token de widget.', 'bottom', 'start'),
-    mk(s('widget-builder-preview'), 'Vista previa', 'Prueba el FAB y el chat con la configuración actual sin publicar.', 'left', 'start'),
     mk(s('widget-builder-snippet-panel'), 'Código incrustable', 'HTML generado según tu config; revisa antes de copiar o guardar.', 'left', 'start'),
     mk(s('widget-builder-save'), 'Guardar widget', 'Persiste en el servidor; si es nuevo, obtendrás token y podrás seguir editando.', 'top', 'center'),
     mk(s('widget-builder-copy'), 'Copiar código', 'Lleva el snippet al portapapeles para pegarlo en tu web.', 'top', 'center'),
@@ -393,7 +392,7 @@ function journeyStepsFor(stage: JourneyStageId, counts: TourCountsState): AfhubD
       ];
     case 'widget-builder':
       return [
-        intro('Widget Builder', 'Recorre el formulario: nombre, agente, apariencia, textos y opciones del embed; luego vista previa y código.'),
+        intro('Widget Builder', 'Recorre el formulario: nombre, agente, apariencia, textos y opciones del embed; luego publica con el código.'),
         ...buildWidgetBuilderFormSteps(),
       ];
     case 'mis-widgets':
@@ -471,7 +470,6 @@ function postJourneyPageSteps(pathname: string): AfhubDriveStep[] | null {
       mk('[data-tour="widget-builder-agent"]', 'Agente', 'Agente asociado al chat.', 'bottom', 'start'),
       mk('[data-tour="widget-builder-branding"]', 'Marca', 'Color y tema.', 'bottom', 'start'),
       mk('[data-tour="widget-builder-chat-texts"]', 'Textos', 'Título, subtítulo y mensajes.', 'bottom', 'start'),
-      mk('[data-tour="widget-builder-preview"]', 'Preview', 'Vista previa en vivo.', 'left', 'start'),
       mk('[data-tour="widget-builder-save"]', 'Guardar', 'Persiste el diseño.', 'top', 'center'),
       mk('[data-tour="widget-builder-copy"]', 'Snippet', 'Copia el script.', 'top', 'center'),
     ];
