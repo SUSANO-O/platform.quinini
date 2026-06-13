@@ -13,6 +13,14 @@ type AssistBootResponse = {
   config: Record<string, unknown>;
 };
 
+type AssistContext = 'app' | 'marketing' | null;
+
+function resolveAssistContext(pathname: string | null): AssistContext {
+  if (isLandingMarketingPath(pathname)) return 'marketing';
+  if (isAppBotIvAWidgetPath(pathname)) return 'app';
+  return null;
+}
+
 function removeAssistDom() {
   document.querySelector('.biv-launcher')?.remove();
   document.querySelector('.afhub-launcher')?.remove();
@@ -26,12 +34,16 @@ function removeAssistDom() {
  * Asistente interno BotIvA: carga `/assist.js` (bundle distinto al embed público).
  * - marketing → agente math
  * - dashboard → agente math-ais
+ *
+ * No destruye el widget al navegar entre páginas del mismo contexto (p. ej. /dashboard → /dashboard/inbox).
  */
 export function LandingWidgetScript() {
   const pathname = usePathname();
+  const context = resolveAssistContext(pathname);
   const timeoutIdsRef = useRef<number[]>([]);
   const instanceRef = useRef<{ destroy?: () => void } | null>(null);
   const bootRef = useRef<AssistBootResponse | null>(null);
+  const activeContextRef = useRef<AssistContext>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -40,29 +52,6 @@ export function LandingWidgetScript() {
       timeoutIdsRef.current.forEach((id) => window.clearTimeout(id));
       timeoutIdsRef.current = [];
     };
-
-    const onLanding = isLandingMarketingPath(pathname);
-    const onApp = isAppBotIvAWidgetPath(pathname);
-    if (!onLanding && !onApp) {
-      clearPollTimeouts();
-      try {
-        instanceRef.current?.destroy?.();
-      } catch {
-        /* noop */
-      }
-      instanceRef.current = null;
-      removeAssistDom();
-      document
-        .querySelector<HTMLScriptElement>(`script[data-biv-sdk="${SCRIPT_DATA_ATTR}"]`)
-        ?.remove();
-      return;
-    }
-
-    const context = onLanding ? 'marketing' : 'app';
-    const pathOk = () =>
-      onLanding ? isLandingMarketingPath(window.location.pathname) : isAppBotIvAWidgetPath(window.location.pathname);
-
-    let cancelled = false;
 
     const destroyInstance = () => {
       clearPollTimeouts();
@@ -74,11 +63,23 @@ export function LandingWidgetScript() {
       instanceRef.current = null;
     };
 
+    if (!context) {
+      destroyInstance();
+      bootRef.current = null;
+      activeContextRef.current = null;
+      removeAssistDom();
+      document
+        .querySelector<HTMLScriptElement>(`script[data-biv-sdk="${SCRIPT_DATA_ATTR}"]`)
+        ?.remove();
+      return;
+    }
+
+    let cancelled = false;
     let bootTries = 0;
 
     function initWhenReady() {
-      if (cancelled || !pathOk()) return;
-      if (instanceRef.current || !bootRef.current) return;
+      if (cancelled || !bootRef.current || resolveAssistContext(window.location.pathname) !== context) return;
+      if (instanceRef.current) return;
 
       if (window.__BIV && typeof window.__BIV.init === 'function') {
         const api = window.__BIV.init(bootRef.current.config);
@@ -96,7 +97,7 @@ export function LandingWidgetScript() {
     }
 
     async function loadAssist() {
-      if (cancelled || !pathOk()) return;
+      if (cancelled || resolveAssistContext(window.location.pathname) !== context) return;
 
       try {
         const res = await fetch(`/api/internal/assist/boot?context=${context}`, {
@@ -117,10 +118,13 @@ export function LandingWidgetScript() {
 
       const onScriptLoaded = () => {
         if (cancelled) return;
-        destroyInstance();
-        bootTries = 0;
-        clearPollTimeouts();
-        initWhenReady();
+        if (resolveAssistContext(window.location.pathname) !== context) return;
+        if (!instanceRef.current) {
+          bootTries = 0;
+          clearPollTimeouts();
+          initWhenReady();
+          return;
+        }
       };
 
       const onScriptError = () => {
@@ -149,13 +153,25 @@ export function LandingWidgetScript() {
       document.body.appendChild(script);
     }
 
+    const sameContext = activeContextRef.current === context && instanceRef.current;
+    activeContextRef.current = context;
+
+    if (sameContext) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    destroyInstance();
     void loadAssist();
 
     return () => {
       cancelled = true;
-      destroyInstance();
+      if (resolveAssistContext(window.location.pathname) !== context) {
+        destroyInstance();
+      }
     };
-  }, [pathname]);
+  }, [context]);
 
   return null;
 }
