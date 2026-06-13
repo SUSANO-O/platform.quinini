@@ -744,6 +744,7 @@ export async function POST(req: NextRequest) {
               agentId: parsedAgentId,
               ownerUserId: w.userId,
               strictPurposeSuffix: STRICT_PURPOSE_SUFFIX,
+              force: true,
             });
             rawBody = bodyToForward;
           } catch (visionLateErr) {

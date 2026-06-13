@@ -20,6 +20,13 @@ const VISION_FAILURE_MARKERS = [
   '[Formato de imagen no válido.]',
 ];
 
+const VISION_SESSION_MARKER = 'ANÁLISIS DE IMAGEN DEL USUARIO';
+
+export function bodyHasVisionSessionContext(parsed: Record<string, unknown>): boolean {
+  const block = typeof parsed.sessionContextBlock === 'string' ? parsed.sessionContextBlock : '';
+  return block.includes(VISION_SESSION_MARKER) && block.includes('Contenido detectado');
+}
+
 export function isVisionAnalysisFailure(text: string): boolean {
   const t = text.trim();
   if (!t) return true;
@@ -75,11 +82,9 @@ export function applyVisionContextToParsedBody(
     : visionBlock;
 
   const hasFailure = enrichment.analyses.some((a) => isVisionAnalysisFailure(a.text));
-  let visionSystem = VISION_SYSTEM_INSTRUCTIONS;
+  let visionSystem = `${VISION_SYSTEM_INSTRUCTIONS}\n\n${visionBlock}`;
   if (hasFailure) {
-    visionSystem += `\n\n[NOTA] El análisis automático no fue concluyente. Pide una descripción breve; no rechaces por imágenes.`;
-  } else {
-    visionSystem += `\n\n${visionBlock}`;
+    visionSystem += `\n\n[NOTA] El análisis automático no fue concluyente. Usa lo disponible arriba; si falta detalle, pide una descripción breve sin mencionar limitaciones del sistema.`;
   }
 
   const basePrompt =
@@ -95,6 +100,7 @@ export function mergeVisionContextIntoBody(
   rawBody: string,
   enrichment: WidgetImageEnrichment | null | undefined,
   agentSystemPrompt?: string | null,
+  options?: { force?: boolean },
 ): string {
   if (!enrichment?.analyses?.length) return rawBody;
   let parsed: Record<string, unknown>;
@@ -103,7 +109,26 @@ export function mergeVisionContextIntoBody(
   } catch {
     return rawBody;
   }
-  if (parsed.visionEnriched === true) return rawBody;
+  if (!options?.force && parsed.visionEnriched === true && bodyHasVisionSessionContext(parsed)) {
+    return rawBody;
+  }
+  delete parsed.visionEnriched;
+  if (typeof parsed.sessionContextBlock === 'string') {
+    parsed.sessionContextBlock = parsed.sessionContextBlock
+      .split('\n')
+      .filter((line) => !line.includes(VISION_SESSION_MARKER))
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    if (!parsed.sessionContextBlock) delete parsed.sessionContextBlock;
+  }
+  if (typeof parsed.systemPromptOverride === 'string') {
+    const idx = parsed.systemPromptOverride.indexOf(VISION_SYSTEM_INSTRUCTIONS);
+    if (idx >= 0) {
+      parsed.systemPromptOverride = parsed.systemPromptOverride.slice(0, idx).trim();
+      if (!parsed.systemPromptOverride) delete parsed.systemPromptOverride;
+    }
+  }
   applyVisionContextToParsedBody(parsed, enrichment, agentSystemPrompt);
   return JSON.stringify(parsed);
 }
@@ -138,6 +163,8 @@ export async function finalizeWidgetChatBodyWithVision(params: {
   agentId: string;
   ownerUserId: string;
   strictPurposeSuffix?: string;
+  /** Re-aplica OCR aunque visionEnriched ya esté en el body (p. ej. tras triaje multi-agente). */
+  force?: boolean;
 }): Promise<string> {
   if (!params.enrichment?.analyses?.length || !params.agentId.trim()) {
     return params.rawBody;
@@ -148,6 +175,7 @@ export async function finalizeWidgetChatBodyWithVision(params: {
     params.rawBody,
     params.enrichment,
     agent?.systemPrompt,
+    { force: params.force === true },
   );
 
   if (agent?.strictPurposeOnly && params.strictPurposeSuffix) {

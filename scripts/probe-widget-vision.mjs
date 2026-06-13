@@ -16,7 +16,7 @@ const RED_JPEG_B64 =
 const dataUrl = `data:image/jpeg;base64,${RED_JPEG_B64}`;
 
 const FAIL_RE =
-  /limitaci[oó]n t[eé]cnica|no puedo visualizar|no me es posible visualizar|no tengo la capacidad t[eé]cnica|\[No se pudo analizar|VERTEX_GEMINI_API_KEY/i;
+  /limitaci[oó]n t[eé]cnica|no puedo visualizar|no logro visualizar|no me es posible visualizar|no tengo la capacidad t[eé]cnica|debido a una limitaci[oó]n|\[No se pudo analizar|VERTEX_GEMINI_API_KEY/i;
 
 function log(title, obj) {
   console.log(`\n=== ${title} ===`);
