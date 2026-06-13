@@ -8,7 +8,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.6.6';
+  var VERSION = '1.6.7';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -754,6 +754,28 @@
     return chatSessionStorageKey(cfg) + ':hist';
   }
 
+  function chatUiOpenStorageKey(cfg) {
+    return chatSessionStorageKey(cfg) + ':ui-open';
+  }
+
+  function persistChatUiOpen(cfg, open) {
+    try {
+      var key = chatUiOpenStorageKey(cfg);
+      if (open) sessionStorage.setItem(key, '1');
+      else sessionStorage.removeItem(key);
+    } catch (_e) {
+      /* noop */
+    }
+  }
+
+  function shouldRestoreChatUiOpen(cfg) {
+    try {
+      return sessionStorage.getItem(chatUiOpenStorageKey(cfg)) === '1';
+    } catch (_e) {
+      return false;
+    }
+  }
+
   function sanitizeHistoryEntries(raw) {
     if (!Array.isArray(raw)) return [];
     var out = [];
@@ -813,6 +835,7 @@
   function clearPersistedChatState(cfg) {
     try {
       sessionStorage.removeItem(chatHistoryStorageKey(cfg));
+      sessionStorage.removeItem(chatUiOpenStorageKey(cfg));
     } catch (_e) {
       /* noop */
     }
@@ -3452,6 +3475,7 @@
       checkIdleFeedback();
       Object.keys(humanShownIds).forEach(function (id) { ackHumanRead(id); });
       if (!widgetDisabled) input.focus();
+      persistChatUiOpen(cfg, true);
       playChatOpenSound();
       notify('onOpen');
       emitEvent('widget_opened');
@@ -3481,6 +3505,7 @@
       fab.innerHTML = orbHtmlForCfg(cfg);
       syncFabAvatarMode(fab, cfg);
       fab.setAttribute('aria-label', 'Abrir chat');
+      persistChatUiOpen(cfg, false);
       notify('onClose');
       emitEvent('widget_closed');
     }
@@ -4680,7 +4705,7 @@
       input.style.height = Math.min(input.scrollHeight, 88) + 'px';
     });
 
-    if (cfg.autoOpen) setTimeout(open, 80);
+    if (cfg.autoOpen || shouldRestoreChatUiOpen(cfg)) setTimeout(open, 80);
     else setTimeout(function () { checkHumanModeOnOpen({ skipReconnectBanner: true }); }, 400);
     emitEvent('widget_loaded');
 

@@ -3941,11 +3941,7 @@ button.dashboard-sidebar-link:hover {
   }
 
   .widget-builder-page__grid--publish {
-    grid-template-columns: 13rem minmax(0, 1fr) minmax(320px, 420px);
-  }
-
-  .widget-builder-page__grid--publish .widget-builder-page__aside {
-    min-width: 320px;
+    grid-template-columns: 13rem minmax(0, 1fr);
   }
 
   .widget-builder-page__grid > .builder-rail {

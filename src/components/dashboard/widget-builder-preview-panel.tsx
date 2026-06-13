@@ -7,51 +7,32 @@ export function WidgetBuilderPreviewPanel({
   children,
   mobilePreviewOpen,
   onMobilePreviewOpenChange,
-  publishMode = false,
 }: {
   children: ReactNode;
   mobilePreviewOpen?: boolean;
   onMobilePreviewOpenChange?: (open: boolean) => void;
-  /** Paso Publicar: marco móvil y badge «Vista previa en vivo». */
-  publishMode?: boolean;
 }) {
-  const [viewport, setViewport] = useState<'desktop' | 'mobile'>(publishMode ? 'mobile' : 'desktop');
+  const [viewport, setViewport] = useState<'desktop' | 'mobile'>('desktop');
   const controlled = onMobilePreviewOpenChange !== undefined;
   const sheetOpen = controlled ? Boolean(mobilePreviewOpen) : false;
 
   return (
     <>
-      <aside
-        className={`widget-builder-preview hidden xl:flex xl:flex-col${publishMode ? ' widget-builder-preview--publish' : ''}`}
-      >
-        {publishMode ? (
-          <div className="widget-builder-preview__live-badge">
-            <span className="widget-builder-preview__live-dot" aria-hidden />
-            Vista previa en vivo
-          </div>
-        ) : (
-          <p className="widget-builder-preview__label">Vista previa</p>
-        )}
+      <aside className="widget-builder-preview hidden xl:flex xl:flex-col">
+        <p className="widget-builder-preview__label">Vista previa</p>
         <div
           className={`widget-builder-preview__frame${
-            publishMode
-              ? ' widget-builder-preview__frame--phone'
-              : viewport === 'mobile'
-                ? ' widget-builder-preview__frame--mobile'
-                : ''
+            viewport === 'mobile' ? ' widget-builder-preview__frame--mobile' : ''
           }`}
         >
-          {!publishMode ? (
-            <div className="widget-builder-preview__browser-bar" aria-hidden>
-              <span className="widget-builder-preview__dot widget-builder-preview__dot--red" />
-              <span className="widget-builder-preview__dot widget-builder-preview__dot--yellow" />
-              <span className="widget-builder-preview__dot widget-builder-preview__dot--green" />
-              <span className="widget-builder-preview__url">tusitio.com</span>
-            </div>
-          ) : null}
+          <div className="widget-builder-preview__browser-bar" aria-hidden>
+            <span className="widget-builder-preview__dot widget-builder-preview__dot--red" />
+            <span className="widget-builder-preview__dot widget-builder-preview__dot--yellow" />
+            <span className="widget-builder-preview__dot widget-builder-preview__dot--green" />
+            <span className="widget-builder-preview__url">tusitio.com</span>
+          </div>
           <div className="widget-builder-preview__canvas">{children}</div>
         </div>
-        {!publishMode ? (
         <div className="widget-builder-preview__viewport-toggle" role="group" aria-label="Modo de vista previa">
           <button
             type="button"
@@ -98,16 +79,12 @@ export function WidgetBuilderPreviewPanel({
                     Cerrar
                   </button>
                 </div>
-                <div
-                  className={`widget-builder-preview__frame${publishMode ? ' widget-builder-preview__frame--phone' : ' widget-builder-preview__frame--mobile'}`}
-                >
-                  {!publishMode ? (
-                    <div className="widget-builder-preview__browser-bar" aria-hidden>
-                      <span className="widget-builder-preview__dot widget-builder-preview__dot--red" />
-                      <span className="widget-builder-preview__dot widget-builder-preview__dot--yellow" />
-                      <span className="widget-builder-preview__dot widget-builder-preview__dot--green" />
-                    </div>
-                  ) : null}
+                <div className="widget-builder-preview__frame widget-builder-preview__frame--mobile">
+                  <div className="widget-builder-preview__browser-bar" aria-hidden>
+                    <span className="widget-builder-preview__dot widget-builder-preview__dot--red" />
+                    <span className="widget-builder-preview__dot widget-builder-preview__dot--yellow" />
+                    <span className="widget-builder-preview__dot widget-builder-preview__dot--green" />
+                  </div>
                   <div className="widget-builder-preview__canvas">{children}</div>
                 </div>
               </div>

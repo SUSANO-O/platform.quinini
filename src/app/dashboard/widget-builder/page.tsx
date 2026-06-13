@@ -24,7 +24,6 @@ import { BuilderRail } from '@/components/dashboard/builder-rail';
 import { WidgetBuilderPreviewPanel } from '@/components/dashboard/widget-builder-preview-panel';
 import { WidgetBuilderTrustBadges } from '@/components/dashboard/widget-builder-trust-badges';
 import { WidgetBuilderPublishStep } from '@/components/dashboard/widget-builder-publish-step';
-import { WidgetBuilderPublishPreview } from '@/components/dashboard/widget-builder-publish-preview';
 import {
   createDefaultPipelineConfig,
   isContentCapableAgent,
@@ -2220,27 +2219,18 @@ export default function WidgetBuilderPage() {
           </div>
         </div>
 
-        <div className="widget-builder-page__aside flex flex-col gap-3 min-w-0">
-          <WidgetBuilderPreviewPanel
-            mobilePreviewOpen={mobilePreviewOpen}
-            onMobilePreviewOpenChange={setMobilePreviewOpen}
-            publishMode={wizardStep === 3}
-          >
-            {wizardStep === 3 ? (
-              <WidgetBuilderPublishPreview
-                color={cfg.color}
-                welcome={cfg.welcome}
-                title={cfg.title}
-                avatarUrl={cfg.avatar}
-                fabAvatarSize={cfg.fabAvatarSize}
-              />
-            ) : (
+        {wizardStep !== 3 ? (
+          <div className="widget-builder-page__aside flex flex-col gap-3 min-w-0">
+            <WidgetBuilderPreviewPanel
+              mobilePreviewOpen={mobilePreviewOpen}
+              onMobilePreviewOpenChange={setMobilePreviewOpen}
+            >
               <div data-tour="widget-builder-preview">
                 <MockPreview cfg={cfg} shortcuts={shortcuts} />
               </div>
-            )}
-          </WidgetBuilderPreviewPanel>
-        </div>
+            </WidgetBuilderPreviewPanel>
+          </div>
+        ) : null}
       </div>
 
     </div>
