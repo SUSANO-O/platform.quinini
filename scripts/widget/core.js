@@ -107,8 +107,12 @@
     theme: 'light',
     orbLight: '',
     orbDeep: '',
-    /** Habilita micrófono, STT y lectura en voz alta (opt-in). */
+    /** Habilita lectura en voz alta (TTS) en el menú de ajustes. */
     voiceEnabled: false,
+    /** Botón adjuntar en el input del chat. */
+    imageUploadEnabled: true,
+    /** Botón micrófono (STT) en el input del chat. */
+    micEnabled: true,
     /** Idioma BCP-47 para STT/TTS, por defecto detecta del navegador */
     voiceLang: '',
     /** Nombre exacto de la voz SpeechSynthesis; vacío = auto */
@@ -386,6 +390,12 @@
     merged.humanSupportEnabled = input && input.humanSupportEnabled === false ? false : true;
     merged.handoffEnabled = input && input.handoffEnabled === false ? false : true;
     merged.voiceEnabled = input && input.voiceEnabled === true ? true : false;
+    merged.imageUploadEnabled = !(input && input.imageUploadEnabled === false);
+    if (input && Object.prototype.hasOwnProperty.call(input, 'micEnabled')) {
+      merged.micEnabled = input.micEnabled === true;
+    } else {
+      merged.micEnabled = merged.voiceEnabled;
+    }
     merged.handoffTimeout = (input && typeof input.handoffTimeout === 'number') ? Math.max(0, input.handoffTimeout) : 5;
     merged.feedbackEnabled = input && input.feedbackEnabled === true ? true : false;
     merged.feedbackTitle = String((input && input.feedbackTitle) || '¿Cómo fue tu experiencia?');
@@ -1433,7 +1443,7 @@
     var voiceBar = null;
     var hasSpeechAPI = typeof window !== 'undefined' &&
       (typeof window.SpeechRecognition !== 'undefined' || typeof window.webkitSpeechRecognition !== 'undefined');
-    if (cfg.voiceEnabled === true && hasSpeechAPI) {
+    if (cfg.micEnabled === true && hasSpeechAPI) {
       micBtn = document.createElement('button');
       micBtn.className = 'afhub-mic';
       micBtn.innerHTML = ICON_MIC;
@@ -2230,7 +2240,14 @@
             if (typeof uUrl === 'string' && (/^data:image\//i.test(uUrl) || /^https?:\/\//i.test(uUrl))) {
               var uWrap = document.createElement('div');
               uWrap.className = 'afhub-img-wrap afhub-img-wrap--user';
-              appendGeneratedImage(uWrap, uUrl, uItem, ui);
+              var uLink = document.createElement('a');
+              uLink.href = uUrl;
+              uLink.target = '_blank';
+              uLink.rel = 'noopener noreferrer';
+              uLink.setAttribute('aria-label', 'Ver imagen en tamaño completo');
+              uLink.style.cssText = 'display:block;line-height:0;';
+              appendGeneratedImage(uLink, uUrl, uItem, ui);
+              uWrap.appendChild(uLink);
               el.appendChild(uWrap);
             }
           }
@@ -2871,7 +2888,7 @@
         a.setAttribute('download', att.name || '');
         var img = document.createElement('img');
         img.src = att.url; img.alt = att.name || 'imagen';
-        img.style.cssText = 'max-width:100%;border-radius:8px;display:block;';
+        img.style.cssText = 'max-width:100%;max-height:160px;object-fit:contain;border-radius:8px;display:block;';
         a.appendChild(img);
         box.appendChild(a);
       } else if (att.type === 'video') {
@@ -5357,7 +5374,10 @@
       '#' + rootId + ' .afhub-attach-preview-img { width:40px; height:40px; object-fit:cover; border-radius:8px; border:1px solid #e2e8f0; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-attach-preview-label { flex:1; font-size:12px; color:#64748b; font-weight:500; }' +
       '#' + rootId + ' .afhub-attach-preview-remove { width:26px; height:26px; border-radius:50%; border:none; background:#fee2e2; color:#dc2626; font-size:18px; line-height:1; cursor:pointer; flex-shrink:0; }' +
-      '#' + rootId + ' .afhub-img-wrap--user { margin-top:8px; }' +
+      '#' + rootId + ' .afhub-img-wrap--user { margin-top:8px; max-width:min(220px,100%); }' +
+      '#' + rootId + ' .afhub-img-wrap--user .afhub-img-frame { display:inline-block; max-width:100%; vertical-align:top; }' +
+      '#' + rootId + ' .afhub-img-wrap--user .afhub-widget-img { width:auto; max-width:100%; max-height:160px; object-fit:contain; background:rgba(255,255,255,.08); cursor:pointer; }' +
+      '#' + rootId + ' .afhub-img-wrap--user .afhub-img-download-btn { display:none; }' +
       '#' + rootId + ' .afhub-input-wrap { flex:1; min-width:0; position:relative; display:flex; align-items:center; }' +
       '#' + rootId + ' .afhub-input-wrap .afhub-input { width:100%; padding-right:8px; }' +
       '#' + rootId + ' .afhub-input-wrap:has(.afhub-mic) .afhub-input { padding-right:40px; }' +

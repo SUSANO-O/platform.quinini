@@ -9,14 +9,6 @@ import {
 
 describe('parseSpreadsheetTabsFromHtml', () => {
   it('extrae pestañas con nombres personalizados', () => {
-    const html = `
-      bootstrapData = {"sheets":[
-        {"sheetId":0,"title":"Resumen"},
-        {"sheetId":1847293,"title":"Inventario Repuestos"},
-        {"sheetId":9928374,"title":"Precios 2025"}
-      ]}
-    `.replace(/"sheetId"/g, '"sheetId"');
-
     const fakeBootstrap = [
       '"sheetId":0,"title":"Resumen"',
       '"sheetId":1847293,"title":"Inventario Repuestos"',
@@ -26,6 +18,17 @@ describe('parseSpreadsheetTabsFromHtml', () => {
     const tabs = parseSpreadsheetTabsFromHtml(fakeBootstrap);
     expect(tabs).toHaveLength(3);
     expect(tabs[1]).toEqual({ gid: '1847293', title: 'Inventario Repuestos' });
+  });
+
+  it('extrae pestañas del formato htmlview (items.push)', () => {
+    const html = [
+      'items.push({name: "inventario ventas", pageUrl: "https://docs.google.com/...", gid: "0",initialSheet: true});',
+      'items.push({name: "test drive ", pageUrl: "https://docs.google.com/...", gid: "870266515",initialSheet: false});',
+    ].join('');
+    const tabs = parseSpreadsheetTabsFromHtml(html);
+    expect(tabs).toHaveLength(2);
+    expect(tabs[0]).toEqual({ gid: '0', title: 'inventario ventas' });
+    expect(tabs[1]).toEqual({ gid: '870266515', title: 'test drive' });
   });
 });
 

@@ -49,6 +49,10 @@ export interface WidgetConfig {
   autoOpen: boolean;
   fabDismissible: boolean;
   voiceEnabled: boolean;
+  /** Botón 📎 en el input del chat. */
+  imageUploadEnabled: boolean;
+  /** Botón micrófono (STT) en el input del chat. */
+  micEnabled: boolean;
   multiAgentEnabled: boolean;
   multiAgentMode: 'triage' | 'parallel' | 'pipeline';
   agentIds: string[];

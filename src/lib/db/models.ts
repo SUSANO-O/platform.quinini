@@ -146,6 +146,10 @@ const WidgetSchema = new Schema({
   fabDismissible: { type: Boolean, default: true },
   /** Si false, oculta el botón de lectura en voz alta (speaker) en el header del chat. */
   voiceEnabled: { type: Boolean, default: false },
+  /** Si false, oculta el botón adjuntar (📎) en el input del chat. */
+  imageUploadEnabled: { type: Boolean, default: true },
+  /** Si false, oculta el botón micrófono (STT) en el input del chat. */
+  micEnabled: { type: Boolean, default: true },
   /** Teléfono WhatsApp (con código de país); el SDK ofrece enlace si humanSupportEnabled. */
   humanSupportPhone: { type: String, default: '' },
   /** Si false, no se muestra oferta WhatsApp por palabras clave ni enlaces wa.me. */
