@@ -1,288 +1,54 @@
 'use client';
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import Link from 'next/link';
-import {
-  Copy,
-  Check,
-  Save,
-  ExternalLink,
-  Plus,
-  Trash2,
-  Sparkles,
-  Loader2,
-  Fingerprint,
-  Paintbrush,
-  Settings2,
-  Send,
-  Lightbulb,
-} from 'lucide-react';
 import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/use-subscription';
-import { AvatarEditor } from '@/components/ui/AvatarEditor';
-import { BuilderRail } from '@/components/dashboard/builder-rail';
 import { WidgetBuilderTrustBadges } from '@/components/dashboard/widget-builder-trust-badges';
-import { WidgetBuilderPublishStep } from '@/components/dashboard/widget-builder-publish-step';
+import {
+  WidgetBuilderAppearanceStep,
+  WidgetBuilderBehaviorStep,
+  WidgetBuilderFormActions,
+  WidgetBuilderFormHeader,
+  WidgetBuilderIdentityStep,
+  WidgetBuilderMobileStepper,
+  WidgetBuilderPublishStep,
+  WidgetBuilderShell,
+} from '@/components/dashboard/widget-builder';
 import {
   createDefaultPipelineConfig,
-  isContentCapableAgent,
-  isCreativeCapableAgent,
   normalizePipelineConfig,
   validatePipelineConfig,
   validatePipelineWidgetSetup,
-  type PipelineConfig,
 } from '@/lib/widget-pipeline-ui';
-import type { HandoffNotifyMode } from '@/lib/handoff-notify';
-import { HANDOFF_NOTIFY_MODE_LABELS } from '@/lib/handoff-notify';
 import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 import { applySoloWidgetDefaults } from '@/lib/solo-plan-limits';
-import { PipelineEditor } from '@/components/dashboard/pipeline-editor';
-
-// ── Agent list (from API; widget.agentId = id estable del ClientAgent en landing) ──
-
-const AGENT_ICONS = ['🤖', '🧠', '💬', '✨', '📎', '🔮', '🛡️', '🌱', '📊'];
-
 import { BRAND } from '@/lib/brand-colors';
-import { UI_SURFACE_SECONDARY } from '@/lib/brand';
+import type {
+  ClientAgentRow,
+  FeedbackQuestion,
+  FeedbackQuestionType,
+  OrchestratorSubAgent,
+  WidgetConfig,
+  WidgetShortcut,
+} from '@/lib/widget-builder';
+import {
+  DEFAULT_WIDGET_CONFIG,
+  WIDGET_STEP_DESCRIPTIONS,
+  WIDGET_WIZARD_STEPS,
+  agentProfileFromRow,
+  effectiveWidgetAgentId,
+  firstSelectableWidgetAgentId,
+  generateWidgetSnippet,
+  resolveAgentProfileByWidgetId,
+  resolveStoredWidgetAgentId,
+  sortAgentsForWidgetPicker,
+} from '@/lib/widget-builder';
 
 const BRAND_R = BRAND.primary;
-const BRAND_O = BRAND.warm;
-const BRAND_B = BRAND.cool;
-
-interface ClientAgentRow {
-  _id: string;
-  name: string;
-  description?: string;
-  type: 'agent' | 'sub-agent';
-  status: 'active' | 'disabled';
-  agentHubId?: string | null;
-  syncStatus?: string;
-  model?: string;
-  enabledMcpToolIds?: string[];
-  /** Agente de plataforma: si aún no hay slug en hub, el widget puede usar el ObjectId (24 hex) y el hub resuelve por landingClientAgentId. */
-  isPlatform?: boolean;
-}
-
-/**
- * Id para el SDK y Mongo del widget: el `_id` hex del ClientAgent en landing.
- * AIBackHub resuelve `GET /api/agents/:id` por `landingClientAgentId`; coincide con la URL
- * `/dashboard/agents/[id]` y con MCP / `enabledMcpToolIds` guardados en ese agente.
- * Si no hay `_id` válido, se usa `agentHubId` (slug) como respaldo.
- */
-function effectiveWidgetAgentId(a: ClientAgentRow): string {
-  if (/^[a-fA-F0-9]{24}$/.test(a._id)) return a._id;
-  const hub = typeof a.agentHubId === 'string' ? a.agentHubId.trim() : '';
-  if (hub) return hub;
-  return '';
-}
-
-/** Normaliza `widget.agentId` antiguo (slug hub) al `_id` landing actual cuando coincide un agente. */
-function resolveStoredWidgetAgentId(stored: string, list: ClientAgentRow[]): string {
-  const s = stored.trim();
-  if (!s) return '';
-  for (const a of list) {
-    const eff = effectiveWidgetAgentId(a);
-    if (eff && (eff === s || eff.toLowerCase() === s.toLowerCase())) return eff;
-    const hub = typeof a.agentHubId === 'string' ? a.agentHubId.trim() : '';
-    if (hub && (hub === s || hub.toLowerCase() === s.toLowerCase())) return eff;
-    if (a._id === s || a._id.toLowerCase() === s.toLowerCase()) return eff;
-  }
-  return s;
-}
-
-function sortAgentsForWidgetPicker(list: ClientAgentRow[]): ClientAgentRow[] {
-  return [...list].sort((x, y) => {
-    const px = x.isPlatform ? 1 : 0;
-    const py = y.isPlatform ? 1 : 0;
-    if (py !== px) return py - px;
-    return x.name.localeCompare(y.name, 'es');
-  });
-}
-
-function firstSelectableWidgetAgentId(list: ClientAgentRow[]): string | null {
-  for (const a of sortAgentsForWidgetPicker(list)) {
-    const id = effectiveWidgetAgentId(a);
-    if (id) return id;
-  }
-  return null;
-}
-
-function agentProfileFromRow(a: ClientAgentRow) {
-  return {
-    name: a.name,
-    description: a.description,
-    model: a.model,
-    enabledMcpToolIds: a.enabledMcpToolIds,
-  };
-}
-
-function resolveAgentProfileByWidgetId(
-  list: ClientAgentRow[],
-  widgetAgentId: string,
-) {
-  for (const a of list) {
-    const eff = effectiveWidgetAgentId(a);
-    if (eff === widgetAgentId || a._id === widgetAgentId) return agentProfileFromRow(a);
-  }
-  return undefined;
-}
-
-const POSITIONS = [
-  ['top-left',    'top',    'top-right'   ],
-  ['left',        'center', 'right'       ],
-  ['bottom-left', 'bottom', 'bottom-right'],
-];
-
-// ── Config type ───────────────────────────────────────────────────────────────
-
-interface WidgetShortcut {
-  id: string;
-  label: string;
-  message: string;
-  emoji: string;
-  enabled: boolean;
-}
-
-type FeedbackQuestionType = 'rating' | 'choice' | 'text' | 'yesno';
-interface FeedbackQuestion {
-  id: string;
-  text: string;
-  type: FeedbackQuestionType;
-  options: string[];
-  required: boolean;
-  enabled: boolean;
-}
-
-interface WidgetConfig {
-  name: string;
-  agentId: string;
-  color: string;
-  title: string;
-  subtitle: string;
-  welcome: string;
-  fabHint: string;
-  /** WhatsApp / teléfono con código de país (solo dígitos y símbolos al pegar). */
-  humanSupportPhone: string;
-  /** Oferta WhatsApp por palabras clave en el chat */
-  humanSupportEnabled: boolean;
-  /** Destino externo al escalar: inbox | webhook | slack | both */
-  handoffNotifyMode: HandoffNotifyMode;
-  /** Minutos sin respuesta del agente antes de ofrecer WhatsApp. 0 = sin timeout. */
-  handoffTimeout: number;
-  /** Muestra el botón «Hablar con una persona» y permite enviar escalaciones. */
-  handoffEnabled: boolean;
-  /** Encuesta de satisfacción al final de la conversación. */
-  feedbackEnabled: boolean;
-  feedbackTitle: string;
-  feedbackThanks: string;
-  /** Minutos de inactividad para dar la conversación por finalizada. 0 = off. */
-  conversationIdleTimeout: number;
-  /** Aviso de privacidad en el pie del chat (siempre visible si está activo). */
-  policyEnabled: boolean;
-  policyText: string;
-  policyLinkLabel: string;
-  policyUrl: string;
-  avatar: string;
-  /** Tamaño del FAB cuando hay avatar (px). */
-  fabAvatarSize: number;
-  position: string;
-  theme: 'light' | 'dark';
-  borderRadius: string;
-  autoOpen: boolean;
-  fabDismissible: boolean;
-  voiceEnabled: boolean;
-  multiAgentEnabled: boolean;
-  multiAgentMode: 'triage' | 'parallel' | 'pipeline';
-  agentIds: string[];
-  orchestratorAgentIds: string[];
-  pipelineConfig: PipelineConfig | null;
-}
-
-interface OrchestratorSubAgent {
-  _id: string;
-  name: string;
-  description?: string;
-  status?: string;
-  parentName?: string;
-}
-
-const DEFAULT: WidgetConfig = {
-  name: 'Mi Widget',
-  agentId: '',
-  color: BRAND_R,
-  title: 'BotIvA Assistant',
-  subtitle: 'Siempre aquí para ayudarte',
-  welcome: '¡Hola! ¿En qué puedo ayudarte?',
-  fabHint: '¿Necesitas ayuda?',
-  avatar: '',
-  fabAvatarSize: 86,
-  position: 'bottom-right',
-  theme: 'light',
-  borderRadius: '16px',
-  autoOpen: false,
-  fabDismissible: true,
-  voiceEnabled: true,
-  humanSupportPhone: '',
-  humanSupportEnabled: true,
-  handoffNotifyMode: 'both',
-  handoffEnabled: true,
-  handoffTimeout: 5,
-  feedbackEnabled: false,
-  feedbackTitle: '¿Cómo fue tu experiencia?',
-  feedbackThanks: '¡Gracias por tu feedback!',
-  conversationIdleTimeout: 15,
-  policyEnabled: true,
-  policyText: '',
-  policyLinkLabel: 'Política de Privacidad',
-  policyUrl: '',
-  multiAgentEnabled: false,
-  multiAgentMode: 'triage',
-  agentIds: [],
-  orchestratorAgentIds: [],
-  pipelineConfig: null,
-};
-
-// ── Snippet generator ─────────────────────────────────────────────────────────
-
-function generateSnippet(
-  _cfg: WidgetConfig,
-  token: string = 'YOUR_TOKEN',
-) {
-  const host =
-    typeof window !== 'undefined' ? window.location.origin : 'https://tudominio.com';
-  return [
-    `<script src="${host}/widget.js"></script>`,
-    `<script>`,
-    `  window.AgentFlowhub.init({`,
-    `    token: '${token}',`,
-    `    host:  '${host}',`,
-    `  });`,
-    `</script>`,
-  ].join('\n');
-}
-
-// ── Main component ────────────────────────────────────────────────────────────
-
-const WIDGET_WIZARD_STEPS = [
-  { id: 'identity', label: 'Identidad', icon: Fingerprint },
-  { id: 'appearance', label: 'Apariencia', icon: Paintbrush },
-  { id: 'behavior', label: 'Comportamiento', icon: Settings2 },
-  { id: 'publish', label: 'Publicar', icon: Send },
-] as const;
-
-const WIDGET_STEP_TIPS: Record<(typeof WIDGET_WIZARD_STEPS)[number]['id'], string> = {
-  identity:
-    'Elige un nombre claro y un agente activo. El token de integración se genera al publicar.',
-  appearance:
-    'El color y la posición del botón definen la primera impresión en tu sitio.',
-  behavior:
-    'Ajusta mensajes, escalación y privacidad antes de exponer el widget.',
-  publish: 'Copia el snippet y pégalo antes de </body> en tu web.',
-};
 
 export default function WidgetBuilderPage() {
   const { subscription } = useSubscription();
-  const [cfg, setCfg] = useState<WidgetConfig>(DEFAULT);
+  const [cfg, setCfg] = useState<WidgetConfig>(DEFAULT_WIDGET_CONFIG);
   const [agents, setAgents] = useState<ClientAgentRow[]>([]);
   const [orchestratorSubs, setOrchestratorSubs] = useState<OrchestratorSubAgent[]>([]);
   const [loadingSubs, setLoadingSubs] = useState(false);
@@ -540,10 +306,10 @@ export default function WidgetBuilderPage() {
             const th = widget.theme === 'dark' ? 'dark' : 'light';
             const rawAgent = String(widget.agentId ?? '');
             setCfg({
-              name: String(widget.name ?? DEFAULT.name),
+              name: String(widget.name ?? DEFAULT_WIDGET_CONFIG.name),
               agentId: resolveStoredWidgetAgentId(rawAgent, list) || rawAgent,
-              color: String(widget.color ?? DEFAULT.color),
-              title: String(widget.title ?? DEFAULT.title),
+              color: String(widget.color ?? DEFAULT_WIDGET_CONFIG.color),
+              title: String(widget.title ?? DEFAULT_WIDGET_CONFIG.title),
               subtitle: String(widget.subtitle ?? ''),
               welcome: String(widget.welcome ?? ''),
               fabHint: String(widget.fabHint ?? ''),
@@ -563,14 +329,14 @@ export default function WidgetBuilderPage() {
               feedbackThanks: String((widget as { feedbackThanks?: string }).feedbackThanks ?? '¡Gracias por tu feedback!'),
               conversationIdleTimeout: typeof (widget as { conversationIdleTimeout?: number }).conversationIdleTimeout === 'number' ? (widget as { conversationIdleTimeout?: number }).conversationIdleTimeout! : 15,
               policyEnabled: (widget as { policyEnabled?: boolean }).policyEnabled !== false,
-              policyText: String((widget as { policyText?: string }).policyText ?? DEFAULT.policyText),
-              policyLinkLabel: String((widget as { policyLinkLabel?: string }).policyLinkLabel ?? DEFAULT.policyLinkLabel),
+              policyText: String((widget as { policyText?: string }).policyText ?? DEFAULT_WIDGET_CONFIG.policyText),
+              policyLinkLabel: String((widget as { policyLinkLabel?: string }).policyLinkLabel ?? DEFAULT_WIDGET_CONFIG.policyLinkLabel),
               policyUrl: String((widget as { policyUrl?: string }).policyUrl ?? ''),
               avatar: String(widget.avatar ?? ''),
               fabAvatarSize:
                 typeof (widget as { fabAvatarSize?: number }).fabAvatarSize === 'number'
                   ? Math.min(120, Math.max(56, Math.round((widget as { fabAvatarSize?: number }).fabAvatarSize!)))
-                  : DEFAULT.fabAvatarSize,
+                  : DEFAULT_WIDGET_CONFIG.fabAvatarSize,
               position: String(widget.position ?? 'bottom-right'),
               theme: th,
               borderRadius: String(widget.borderRadius ?? '16px'),
@@ -702,7 +468,7 @@ export default function WidgetBuilderPage() {
   }
 
   function copySnippet() {
-    const code = generateSnippet(cfg, snippetToken);
+    const code = generateWidgetSnippet(cfg, snippetToken);
     navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -793,47 +559,6 @@ export default function WidgetBuilderPage() {
     setSaving(false);
   }
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '8px 12px', borderRadius: '8px',
-    border: '1px solid var(--border)', background: 'var(--background)',
-    color: 'var(--foreground)', fontSize: '13px', boxSizing: 'border-box', outline: 'none',
-  };
-  const labelStyle: React.CSSProperties = { display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '5px', color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' };
-  const fieldStyle: React.CSSProperties = { marginBottom: '14px' };
-  const fieldClass = 'widget-builder-field';
-
-  /** Card para agrupar una subsección (WhatsApp, Escalación, Privacidad, etc.) */
-  const subSectionCard: React.CSSProperties = {
-    background: 'var(--muted)',
-    border: '1px solid var(--border)',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  };
-  /** Subsección activa — borde más vivo con color brand */
-  const subSectionCardActive: React.CSSProperties = {
-    ...subSectionCard,
-    background: 'var(--card)',
-    borderColor: 'var(--primary)',
-    boxShadow: '0 1px 6px rgba(0,0,0,0.04)',
-  };
-  /** Header de subsección: icono + título grande + descripción */
-  const subSectionHeader: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: 12,
-    paddingBottom: 12,
-    marginBottom: 12,
-    borderBottom: '1px solid var(--border)',
-  };
-  const subSectionHeaderNoBorder: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: 12,
-  };
-  const subSectionTitle: React.CSSProperties = { margin: 0, fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em' };
-  const subSectionDesc: React.CSSProperties = { margin: '2px 0 0', fontSize: 11, color: 'var(--muted-foreground)', lineHeight: 1.45 };
-
   const activeStep = WIDGET_WIZARD_STEPS[wizardStep];
   const railItems = WIDGET_WIZARD_STEPS.map((s, i) => ({
     id: s.id,
@@ -843,1058 +568,98 @@ export default function WidgetBuilderPage() {
   }));
 
   return (
-    <div className="widget-builder-page dashboard-shell relative overflow-hidden min-h-full">
-      <div className="hero-glow pointer-events-none" style={{ background: BRAND_R, top: '-200px', right: '-80px' }} />
+    <WidgetBuilderShell
+      wizardStep={wizardStep}
+      accentColor={BRAND_R}
+      railItems={railItems}
+      onStepSelect={(id) => {
+        const idx = WIDGET_WIZARD_STEPS.findIndex((s) => s.id === id);
+        if (idx >= 0) setWizardStep(idx);
+      }}
+    >
+      <WidgetBuilderMobileStepper wizardStep={wizardStep} />
 
-      <div className="widget-builder-page__grid relative">
-        <BuilderRail
-          mode="steps"
-          ariaLabel="Pasos del widget"
-          title={activeStep.label}
-          subtitle={`Paso ${wizardStep + 1} de ${WIDGET_WIZARD_STEPS.length}`}
-          items={railItems}
-          activeId={activeStep.id}
-          onSelect={(id) => {
-            const idx = WIDGET_WIZARD_STEPS.findIndex((s) => s.id === id);
-            if (idx >= 0) setWizardStep(idx);
-          }}
-          footer={
-            <div className="dashboard-builder-rail__tip">
-              <p className="dashboard-builder-rail__tip-label">
-                <Lightbulb size={12} className="inline mr-1" aria-hidden />
-                Tip de diseño
-              </p>
-              <p className="dashboard-builder-rail__tip-text">{WIDGET_STEP_TIPS[activeStep.id]}</p>
-            </div>
-          }
-        />
-
-        <div className="widget-builder-page__main w-full min-w-0 xl:max-h-[calc(100vh-5rem)] xl:overflow-y-auto">
-          {wizardStep !== 3 ? (
-          <div className="widget-builder-stepper md:hidden" aria-hidden>
-            {WIDGET_WIZARD_STEPS.map((s, i) => (
-              <span
-                key={s.id}
-                className={`widget-builder-stepper__dot${i === wizardStep ? ' is-active' : ''}${i < wizardStep ? ' is-done' : ''}`}
-              >
-                {i < wizardStep ? '✓' : i + 1}
-              </span>
-            ))}
-          </div>
-          ) : null}
-
-          <div
-            className={`widget-builder-form-card${wizardStep === 3 ? ' widget-builder-form-card--publish' : ''}`}
-            data-tour="widget-builder-form"
-          >
+      <div
+        className={`widget-builder-form-card${wizardStep === 3 ? ' widget-builder-form-card--publish' : ''}`}
+        data-tour="widget-builder-form"
+      >
             {wizardStep !== 3 ? (
-              <>
-                <div className="badge-primary mb-3 w-fit">Widget</div>
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight m-0 mb-1" data-tour="widget-builder-header">
-                  {editWidgetId ? (
-                    <>
-                      Editar <span className="gradient-text">widget</span>
-                    </>
-                  ) : (
-                    <>
-                      Widget <span className="gradient-text">Builder</span>
-                    </>
-                  )}
-                </h1>
-                <p className="text-[13px] m-0 mb-6" style={{ color: 'var(--muted-foreground)' }}>
-                  {editWidgetId
-                    ? 'Cambios guardados con el mismo token de integración.'
-                    : 'Diseña tu chat widget paso a paso y publícalo en tu sitio.'}
-                </p>
-                {editWidgetId ? (
-                  <p className="mb-6 m-0">
-                    <Link href="/dashboard/widgets" className="text-xs font-semibold landing-link-accent no-underline">
-                      ← Volver a Mis widgets
-                    </Link>
-                  </p>
-                ) : null}
-              </>
+              <WidgetBuilderFormHeader
+                wizardStep={wizardStep}
+                totalSteps={WIDGET_WIZARD_STEPS.length}
+                editWidgetId={editWidgetId}
+                stepIcon={activeStep.icon}
+                stepLabel={activeStep.label}
+                stepDescription={WIDGET_STEP_DESCRIPTIONS[activeStep.id]}
+                accentColor={cfg.color}
+              />
             ) : null}
 
-        {wizardStep === 3 ? (
-          <WidgetBuilderPublishStep
-            widgetName={cfg.name}
-            snippet={generateSnippet(cfg, snippetToken)}
-            snippetToken={snippetToken}
-            copied={copied}
-            saving={saving}
-            saved={saved}
-            loadingInitial={loadingInitial}
-            editWidgetId={editWidgetId}
-            onCopy={copySnippet}
-            onSave={() => void saveWidget()}
-            onBack={() => setWizardStep(2)}
-          />
-        ) : null}
-
-        {wizardStep === 0 && (
-        <>
-        {/* Widget name */}
-        <div className={fieldClass} style={fieldStyle} data-tour="widget-builder-name">
-          <label style={labelStyle}>Nombre del widget</label>
-          <input style={inputStyle} value={cfg.name} onChange={(e) => update({ name: e.target.value })} placeholder="Mi widget" />
-        </div>
-
-        {multiAgentEligible && (
-          <div className="widget-builder-feature-card" data-tour="widget-builder-multi-agent">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <input
-                type="checkbox"
-                id="multiAgentEnabled"
-                checked={cfg.multiAgentEnabled}
-                onChange={(e) =>
-                  update({
-                    multiAgentEnabled: e.target.checked,
-                    ...(e.target.checked
-                      ? {}
-                      : {
-                          agentIds: [],
-                          orchestratorAgentIds: [],
-                          multiAgentMode: 'triage',
-                          pipelineConfig: null,
-                        }),
-                  })
-                }
-                style={{ width: 16, height: 16, cursor: 'pointer' }}
+            {wizardStep === 3 ? (
+              <WidgetBuilderPublishStep
+                widgetName={cfg.name}
+                snippet={generateWidgetSnippet(cfg, snippetToken)}
+                snippetToken={snippetToken}
+                copied={copied}
+                saving={saving}
+                saved={saved}
+                loadingInitial={loadingInitial}
+                editWidgetId={editWidgetId}
+                onCopy={copySnippet}
+                onSave={() => void saveWidget()}
+                onBack={() => setWizardStep(2)}
               />
-              <label htmlFor="multiAgentEnabled" style={{ fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                Widget multiagente avanzado
-              </label>
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  padding: '2px 6px',
-                  borderRadius: 6,
-                  background: 'rgba(99,102,241,0.15)',
-                  color: '#6366f1',
-                }}
-              >
-                Business · Enterprise
-              </span>
-            </div>
-            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.45 }}>
-              {cfg.multiAgentEnabled
-                ? 'Selecciona varios agentes en la grilla de abajo. Cada uno aporta su equipo al triaje.'
-                : 'Sin activar esto, un solo agente en la grilla; sus sub-agentes se enrutan solos si existen.'}
-            </p>
-          </div>
-        )}
-
-        {/* Agent selector (widget.agentId = ObjectId landing; el hub resuelve por landingClientAgentId) */}
-        <div className={fieldClass} style={fieldStyle} data-tour="widget-builder-agent">
-          <label style={labelStyle}>
-            {cfg.multiAgentEnabled ? 'Agentes orquestadores' : 'Agente'}
-          </label>
-          {cfg.multiAgentEnabled ? (
-            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '0 0 8px', lineHeight: 1.45 }}>
-              Selecciona uno o más agentes. Cada uno aporta su equipo de sub-agentes al triaje.
-            </p>
-          ) : null}
-          {loadingInitial ? (
-            <p className="flex items-center gap-2 text-[13px] m-0" style={{ color: 'var(--muted-foreground)' }}>
-              <Loader2 size={14} className="animate-spin shrink-0" aria-hidden />
-              Cargando…
-            </p>
-          ) : agents.length === 0 ? (
-            <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', margin: 0 }}>
-              No tienes agentes activos.{' '}
-              <Link href="/dashboard/agents/new" className="font-semibold landing-link-accent text-[13px]">
-                Crear agente
-              </Link>
-            </p>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              {agents.map((a, i) => {
-                const agentIdForWidget = effectiveWidgetAgentId(a);
-                const selectable = agentIdForWidget.length > 0;
-                const selected = selectable && isOrchestratorSelected(agentIdForWidget);
-                const icon = AGENT_ICONS[i % AGENT_ICONS.length];
-                const profile = agentProfileFromRow(a);
-                const pipelineCreative =
-                  cfg.multiAgentEnabled &&
-                  cfg.multiAgentMode === 'pipeline' &&
-                  selected &&
-                  isCreativeCapableAgent(profile);
-                const pipelineContent =
-                  cfg.multiAgentEnabled &&
-                  cfg.multiAgentMode === 'pipeline' &&
-                  selected &&
-                  isContentCapableAgent(profile);
-                return (
-                  <button
-                    key={a._id}
-                    type="button"
-                    disabled={!selectable}
-                    onClick={() => selectable && toggleOrchestratorAgent(agentIdForWidget)}
-                    title={
-                      selectable
-                        ? `${a.description || a.name}${a.isPlatform ? ' · Agente de plataforma' : ''}`
-                        : 'ID de agente no válido. Revisa que el agente exista y esté activo.'
-                    }
-                    className={[
-                      'rounded-2xl border card-texture overflow-hidden w-full text-left transition-all',
-                      selectable ? 'cursor-pointer hover:shadow-md' : 'cursor-not-allowed opacity-55',
-                    ].join(' ')}
-                    style={{
-                      borderColor: selected ? cfg.color : 'var(--border)',
-                      boxShadow: selected
-                        ? `0 0 0 1px ${cfg.color}44, var(--shadow-surface-sm)`
-                        : undefined,
-                    }}
-                  >
-                    <div className="p-3">
-                      <div className="flex items-start justify-between gap-1.5 mb-2">
-                        <div
-                          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-base"
-                          style={{
-                            background: selected ? `${cfg.color}14` : 'rgba(var(--brand-primary-rgb), 0.06)',
-                            border: `1px solid ${selected ? `${cfg.color}30` : 'var(--border)'}`,
-                          }}
-                        >
-                          {icon}
-                        </div>
-                        {a.isPlatform ? (
-                          <span
-                            className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
-                            style={UI_SURFACE_SECONDARY}
-                          >
-                            Plataforma
-                          </span>
-                        ) : null}
-                      </div>
-                      <p
-                        className="text-xs font-bold m-0 truncate leading-snug"
-                        style={{ color: selected ? cfg.color : 'var(--foreground)' }}
-                      >
-                        {a.name}
-                      </p>
-                      {pipelineCreative || pipelineContent ? (
-                        <div className="flex gap-1 justify-start flex-wrap mt-2">
-                          {pipelineContent ? (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-700">
-                              Contenido
-                            </span>
-                          ) : null}
-                          {pipelineCreative ? (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-700">
-                              Creativo
-                            </span>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          {!loadingInitial &&
-            agents.some((a) => !effectiveWidgetAgentId(a)) && (
-            <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '8px', marginBottom: 0 }}>
-              Los agentes atenuados no tienen un <code style={{ fontSize: '10px' }}>_id</code> Mongo válido (24 hex) ni <code style={{ fontSize: '10px' }}>agentHubId</code>. Si acabas de crear el agente, abre{' '}
-              <Link href="/dashboard/agents" className="font-semibold landing-link-accent text-[11px]">Mis agentes</Link>
-              {' '}y pulsa sincronizar con el hub, o espera a que pase de estado pendiente a sincronizado.
-            </p>
-          )}
-          {!loadingInitial && agents.length > 0 && (
-            <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '8px', marginBottom: 0, lineHeight: 1.45 }}>
-              El snippet usará el <strong>ID de este agente en la landing</strong> (misma clave que en la URL al editarlo). El chat y el MCP del hub siguen resolviendo al catálogo vía <code style={{ fontSize: '10px' }}>landingClientAgentId</code>.
-            </p>
-          )}
-          {!cfg.multiAgentEnabled && orchestratorSubs.length > 0 ? (
-            <p
-              style={{
-                fontSize: 11,
-                color: 'var(--muted-foreground)',
-                margin: '8px 0 0',
-                lineHeight: 1.45,
-                padding: '8px 10px',
-                borderRadius: 8,
-                border: '1px solid rgba(34,197,94,0.25)',
-                background: 'rgba(34,197,94,0.06)',
-              }}
-            >
-              Este agente tiene {orchestratorSubs.length} sub-agente{orchestratorSubs.length !== 1 ? 's' : ''}.
-              El chat los usará automáticamente (triaje) sin activar el modo multiagente avanzado.
-            </p>
-          ) : null}
-        </div>
-
-        {multiAgentEligible && cfg.multiAgentEnabled && (
-          <div
-            style={{
-              marginBottom: 20,
-              padding: 14,
-              borderRadius: 12,
-              border: '1px solid rgba(99,102,241,0.25)',
-              background: 'rgba(99,102,241,0.06)',
-            }}
-          >
-            <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-              {([
-                ['triage', 'Triaje (rápido)', 'Deriva a un especialista y responde con una llamada.'],
-                ['pipeline', 'Pipeline contenido→creativo', 'Primero datos del catálogo (vendedor), luego banner/imagen (creativo). Requiere 2+ agentes en la grilla.'],
-                ['parallel', 'Paralelo + síntesis', 'Consulta orquestador y especialista en paralelo; una respuesta unificada.'],
-              ] as const).map(([mode, label, hint]) => {
-                const selected = cfg.multiAgentMode === mode;
-                return (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => {
-                      if (mode === 'pipeline') {
-                        const resolve = (id: string) => resolveAgentProfileByWidgetId(agents, id);
-                        const orchIds = selectedOrchestratorIds;
-                        update({
-                          multiAgentMode: mode,
-                          pipelineConfig:
-                            cfg.pipelineConfig ??
-                            (orchIds.length >= 2
-                              ? createDefaultPipelineConfig(orchIds, resolve)
-                              : null),
-                        });
-                        return;
-                      }
-                      update({ multiAgentMode: mode, pipelineConfig: null });
-                    }}
-                    title={hint}
-                    style={{
-                      flex: '1 1 140px',
-                      textAlign: 'left',
-                      padding: '8px 10px',
-                      borderRadius: 8,
-                      border: selected ? '1px solid rgba(99,102,241,0.45)' : '1px solid var(--border)',
-                      background: selected ? 'rgba(99,102,241,0.12)' : 'var(--background)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <span style={{ display: 'block', fontSize: 12, fontWeight: 700 }}>{label}</span>
-                    <span style={{ display: 'block', fontSize: 10, color: 'var(--muted-foreground)', marginTop: 3, lineHeight: 1.35 }}>
-                      {hint}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            {cfg.multiAgentMode === 'pipeline' &&
-            cfg.pipelineConfig &&
-            orchestratorOptions.length >= 2 ? (
-              <div style={{ marginBottom: 12 }}>
-                <PipelineEditor
-                  config={cfg.pipelineConfig}
-                  orchestratorOptions={orchestratorOptions}
-                  onChange={(pipelineConfig) => update({ pipelineConfig })}
-                  resolveAgentProfile={(id) => resolveAgentProfileByWidgetId(agents, id)}
-                />
-              </div>
-            ) : cfg.multiAgentMode === 'pipeline' && pipelineSetup ? (
-              <div
-                style={{
-                  marginBottom: 12,
-                  padding: '10px 12px',
-                  borderRadius: 8,
-                  border: '1px solid rgba(245,158,11,0.45)',
-                  background: 'rgba(245,158,11,0.1)',
-                }}
-              >
-                <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: 'rgb(180,83,9)' }}>
-                  Selecciona al menos 2 agentes orquestadores para configurar el pipeline.
-                </p>
-                {pipelineSetup.warnings.length > 0 ? (
-                  <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 11, lineHeight: 1.45 }}>
-                    {pipelineSetup.warnings.map((w) => (
-                      <li key={w}>{w}</li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
             ) : null}
-            {loadingSubs ? (
-              <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0 }}>Cargando equipo…</p>
-            ) : orchestratorSubs.length === 0 ? (
-              <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.45 }}>
-                Ningún orquestador seleccionado tiene sub-agentes.{' '}
-                <Link href={`/dashboard/agents/${cfg.agentId}`} className="font-semibold landing-link-accent">
-                  Configura sub-agentes
-                </Link>{' '}
-                para activar el triaje.
-              </p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <p style={{ fontSize: 11, fontWeight: 600, margin: '0 0 4px', color: 'var(--foreground)' }}>
-                  Especialistas del equipo (opcional — vacío = todos los sub-agentes de cada orquestador)
-                </p>
-                {orchestratorSubs.map((sub) => {
-                  const checked = cfg.agentIds.includes(sub._id);
-                  return (
-                    <label
-                      key={sub._id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: 8,
-                        fontSize: 12,
-                        cursor: 'pointer',
-                        padding: '6px 8px',
-                        borderRadius: 8,
-                        border: checked ? '1px solid rgba(99,102,241,0.35)' : '1px solid var(--border)',
-                        background: checked ? 'rgba(99,102,241,0.08)' : 'var(--background)',
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleTeamAgent(sub._id)}
-                        style={{ marginTop: 2, cursor: 'pointer' }}
-                      />
-                      <span>
-                        <strong>{sub.name}</strong>
-                        {sub.parentName ? (
-                          <span style={{ fontSize: 10, color: 'var(--muted-foreground)', marginLeft: 6 }}>
-                            · {sub.parentName}
-                          </span>
-                        ) : null}
-                        {sub.description ? (
-                          <span style={{ display: 'block', color: 'var(--muted-foreground)', marginTop: 2 }}>
-                            {sub.description.slice(0, 120)}
-                          </span>
-                        ) : null}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-        </>
-        )}
 
-        {wizardStep === 1 && (
-        <>
-        {/* Branding */}
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '14px' }} data-tour="widget-builder-branding">
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Color</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input type="color" value={cfg.color} onChange={(e) => update({ color: e.target.value })}
-                style={{ width: 36, height: 36, border: 'none', borderRadius: '50%', cursor: 'pointer', padding: 2, overflow: 'hidden' }} />
-              <input style={{ ...inputStyle, flex: 1 }} value={cfg.color} onChange={(e) => update({ color: e.target.value })} />
-            </div>
-          </div>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Tema</label>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              {(['light','dark'] as const).map((t) => (
-                <button key={t} onClick={() => update({ theme: t })} style={{
-                  flex: 1, padding: '7px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
-                  border: `1px solid ${cfg.theme === t ? cfg.color : 'var(--border)'}`,
-                  background: cfg.theme === t ? cfg.color + '18' : 'var(--background)',
-                  color: cfg.theme === t ? cfg.color : 'var(--foreground)', cursor: 'pointer',
-                }}>
-                  {t === 'light' ? '☀️' : '🌙'} {t}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Texts */}
-        <div data-tour="widget-builder-chat-texts">
-        <div style={fieldStyle}>
-          <label style={labelStyle}>Título</label>
-          <input style={inputStyle} value={cfg.title} onChange={(e) => update({ title: e.target.value })} placeholder="BotIvA Assistant" />
-        </div>
-        <div style={fieldStyle}>
-          <label style={labelStyle}>Subtítulo</label>
-          <input style={inputStyle} value={cfg.subtitle} onChange={(e) => update({ subtitle: e.target.value })} placeholder="Siempre aquí para ayudarte" />
-        </div>
-        <div style={fieldStyle}>
-          <label style={labelStyle}>Mensaje de bienvenida</label>
-          <input style={inputStyle} value={cfg.welcome} onChange={(e) => update({ welcome: e.target.value })} placeholder="¡Hola! ¿En qué puedo ayudarte?" />
-        </div>
-        <div style={fieldStyle}>
-          <label style={labelStyle}>Mensaje FAB (hint)</label>
-          <input style={inputStyle} value={cfg.fabHint} onChange={(e) => update({ fabHint: e.target.value })} placeholder="¿Necesitas ayuda?" />
-        </div>
-        </div>
-        <div data-tour="widget-builder-look">
-        <div style={fieldStyle}>
-          <label style={labelStyle}>URL de avatar / orbe</label>
-          <input
-            style={inputStyle}
-            value={cfg.avatar}
-            onChange={(e) => update({ avatar: e.target.value })}
-            placeholder="https://..."
-          />
-          {cfg.avatar.trim().startsWith('file://') ? (
-            <p style={{ fontSize: 11, color: '#ef4444', margin: '6px 0 0', lineHeight: 1.45 }}>
-              Las rutas locales (file://) no funcionan en la web. Usa «Generar AI» o sube con el editor, o pega una URL https.
-            </p>
-          ) : null}
-          <AvatarEditor
-            currentUrl={cfg.avatar}
-            agentContext={{ name: cfg.title, purpose: cfg.title }}
-            onResult={(url) => update({ avatar: url })}
-          />
-        </div>
-        {cfg.avatar.trim() ? (
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Tamaño del avatar en el botón ({cfg.fabAvatarSize}px)</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button
-                type="button"
-                aria-label="Reducir avatar"
-                onClick={() => update({ fabAvatarSize: Math.max(56, cfg.fabAvatarSize - 4) })}
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 8,
-                  border: '1px solid var(--border)',
-                  background: 'var(--background)',
-                  cursor: 'pointer',
-                  fontSize: 18,
-                  lineHeight: 1,
-                }}
-              >
-                −
-              </button>
-              <input
-                type="range"
-                min={56}
-                max={120}
-                step={4}
-                value={cfg.fabAvatarSize}
-                onChange={(e) =>
-                  update({ fabAvatarSize: Math.min(120, Math.max(56, parseInt(e.target.value, 10) || 86)) })
-                }
-                style={{ flex: 1, accentColor: cfg.color }}
+            {wizardStep === 0 ? (
+              <WidgetBuilderIdentityStep
+                cfg={cfg}
+                onChange={update}
+                agents={agents}
+                orchestratorSubs={orchestratorSubs}
+                loadingInitial={loadingInitial}
+                loadingSubs={loadingSubs}
+                multiAgentEligible={multiAgentEligible}
+                selectedOrchestratorIds={selectedOrchestratorIds}
+                orchestratorOptions={orchestratorOptions}
+                pipelineSetup={pipelineSetup}
+                isOrchestratorSelected={isOrchestratorSelected}
+                onToggleOrchestrator={toggleOrchestratorAgent}
+                onToggleTeamAgent={toggleTeamAgent}
               />
-              <button
-                type="button"
-                aria-label="Aumentar avatar"
-                onClick={() => update({ fabAvatarSize: Math.min(120, cfg.fabAvatarSize + 4) })}
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 8,
-                  border: '1px solid var(--border)',
-                  background: 'var(--background)',
-                  cursor: 'pointer',
-                  fontSize: 18,
-                  lineHeight: 1,
-                }}
-              >
-                +
-              </button>
-            </div>
-            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '6px 0 0', lineHeight: 1.45 }}>
-              Solo aplica cuando hay imagen. Sin avatar se muestra el orbe animado.
-            </p>
-          </div>
-        ) : null}
-        <div style={fieldStyle}>
-          <label style={labelStyle}>Border radius</label>
-          <input style={inputStyle} value={cfg.borderRadius} onChange={(e) => update({ borderRadius: e.target.value })} placeholder="16px" />
-        </div>
-        </div>
+            ) : null}
 
-        {/* Position grid */}
-        <div style={fieldStyle} data-tour="widget-builder-position">
-          <label style={labelStyle}>Posición</label>
-          <div style={{ display: 'inline-grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px' }}>
-            {POSITIONS.flat().map((p) => (
-              <button
-                key={p}
-                onClick={() => update({ position: p })}
-                title={p}
-                style={{
-                  width: 34, height: 34, borderRadius: '6px', fontSize: 9, fontWeight: 600,
-                  border: `1px solid ${cfg.position === p ? cfg.color : 'var(--border)'}`,
-                  background: cfg.position === p ? cfg.color : 'var(--background)',
-                  color: cfg.position === p ? '#fff' : 'var(--muted-foreground)',
-                  cursor: 'pointer',
-                }}
-              >
-                {p.split('-').map((w) => w[0].toUpperCase()).join('')}
-              </button>
-            ))}
-          </div>
-        </div>
-        </>
-        )}
+            {wizardStep === 1 ? (
+              <WidgetBuilderAppearanceStep cfg={cfg} onChange={update} />
+            ) : null}
 
-        {wizardStep === 2 && (
-        <>
-        {soloChatOnly ? (
-          <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', margin: '0 0 16px', lineHeight: 1.5 }}>
-            Plan <strong>Solo</strong>: widget de chat básico. WhatsApp, escalación, voz y apertura automática están disponibles desde Basic.
-          </p>
-        ) : (
-        <>
-        {/* ── 1) Atención humana por WhatsApp ──────────────────────────────── */}
-        <div style={cfg.humanSupportEnabled ? subSectionCardActive : subSectionCard} data-tour="widget-builder-support">
-          <div style={cfg.humanSupportEnabled ? subSectionHeader : subSectionHeaderNoBorder}>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={cfg.humanSupportEnabled}
-              onClick={() => update({ humanSupportEnabled: !cfg.humanSupportEnabled })}
-              style={{
-                position: 'relative', flexShrink: 0, marginTop: 2,
-                width: 36, height: 20, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 0,
-                background: cfg.humanSupportEnabled ? cfg.color : 'var(--border)',
-                transition: 'background 0.2s',
-              }}
-            >
-              <span style={{
-                position: 'absolute', top: 3, left: cfg.humanSupportEnabled ? 19 : 3,
-                width: 14, height: 14, borderRadius: '50%', background: '#fff',
-                transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-              }} />
-            </button>
-            <div style={{ flex: 1, minWidth: 0 }} onClick={() => update({ humanSupportEnabled: !cfg.humanSupportEnabled })}>
-              <p style={{ ...subSectionTitle, cursor: 'pointer' }}>📱 WhatsApp para atención humana</p>
-              <p style={subSectionDesc}>
-                {cfg.humanSupportEnabled
-                  ? 'El widget ofrece un enlace a WhatsApp cuando el visitante pide hablar con una persona.'
-                  : 'Desactivado: no se mostrarán enlaces a WhatsApp.'}
-              </p>
-            </div>
-          </div>
-          {cfg.humanSupportEnabled && (
-            <>
-              <label style={labelStyle}>📥 Número que RECIBE (operador / WhatsApp humano)</label>
-              <input
-                style={inputStyle}
-                value={cfg.humanSupportPhone ?? ''}
-                onChange={(e) => update({ humanSupportPhone: e.target.value.slice(0, 48) })}
-                placeholder="+57 313 3174629 (celular del operador, NO el de Meta)"
+            {wizardStep === 2 ? (
+              <WidgetBuilderBehaviorStep
+                cfg={cfg}
+                onChange={update}
+                soloChatOnly={soloChatOnly}
+                shortcuts={shortcuts}
+                onShortcutsChange={setShortcuts}
+                feedbackQuestions={feedbackQuestions}
+                onFeedbackQuestionsChange={setFeedbackQuestions}
+                suggestingShortcuts={suggestingShortcuts}
+                shortcutSuggestErr={shortcutSuggestErr}
+                onSuggestShortcuts={() => void suggestShortcuts()}
               />
-              <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 6, marginBottom: 0, lineHeight: 1.45 }}>
-                Alertas de handoff y enlace wa.me van a este número. El Business Meta que <strong>envía</strong> se configura en el agente → pestaña WhatsApp.
-                <br />Se activa el enlace cuando el visitante escribe «persona», «humano», etc.
-              </p>
-            </>
-          )}
-        </div>
-        {/* ── 2) Escalación a un humano (Inbox + opcionales) ──────────────── */}
-        <div style={cfg.handoffEnabled ? subSectionCardActive : subSectionCard}>
-          <div style={cfg.handoffEnabled ? subSectionHeader : subSectionHeaderNoBorder}>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={cfg.handoffEnabled}
-              onClick={() => update({ handoffEnabled: !cfg.handoffEnabled })}
-              style={{
-                position: 'relative', flexShrink: 0, marginTop: 2,
-                width: 36, height: 20, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 0,
-                background: cfg.handoffEnabled ? cfg.color : 'var(--border)',
-                transition: 'background 0.2s',
-              }}
-            >
-              <span style={{
-                position: 'absolute', top: 3, left: cfg.handoffEnabled ? 19 : 3,
-                width: 14, height: 14, borderRadius: '50%', background: '#fff',
-                transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-              }} />
-            </button>
-            <div style={{ flex: 1, minWidth: 0 }} onClick={() => update({ handoffEnabled: !cfg.handoffEnabled })}>
-              <p style={{ ...subSectionTitle, cursor: 'pointer' }}>🙋 Botón «Hablar con una persona»</p>
-              <p style={subSectionDesc}>
-                {cfg.handoffEnabled
-                  ? 'El visitante puede solicitar atención humana. La solicitud entra al Inbox.'
-                  : 'Desactivado: el visitante no verá el botón de escalación.'}
-              </p>
-            </div>
-          </div>
-          {cfg.handoffEnabled && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-              <div>
-                <label style={labelStyle}>Destino al escalar</label>
-                <select
-                  style={{ ...inputStyle, cursor: 'pointer' }}
-                  value={cfg.handoffNotifyMode}
-                  onChange={(e) => update({ handoffNotifyMode: e.target.value as HandoffNotifyMode })}
-                >
-                  {(Object.keys(HANDOFF_NOTIFY_MODE_LABELS) as HandoffNotifyMode[]).map((mode) => (
-                    <option key={mode} value={mode}>
-                      {HANDOFF_NOTIFY_MODE_LABELS[mode]}
-                    </option>
-                  ))}
-                </select>
-                <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 6, marginBottom: 0, lineHeight: 1.45 }}>
-                  El <strong>Inbox</strong> siempre recibe la solicitud.{' '}
-                  <Link href="/dashboard/compliance" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>
-                    Configurar webhook/Slack
-                  </Link>
-                  .
-                </p>
-              </div>
-              <div>
-                <label style={labelStyle}>Espera antes de ofrecer WhatsApp (min)</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={60}
-                  style={inputStyle}
-                  value={cfg.handoffTimeout}
-                  onChange={(e) => update({ handoffTimeout: Math.max(0, parseInt(e.target.value, 10) || 0) })}
-                />
-                <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 6, marginBottom: 0, lineHeight: 1.45 }}>
-                  <strong>0</strong> = sin límite. Si el agente no responde en ese tiempo, se ofrece WhatsApp.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
+            ) : null}
 
-        {/* ── 3) Aviso de privacidad / política ────────────────────────────── */}
-        <div style={cfg.policyEnabled ? subSectionCardActive : subSectionCard}>
-          <div style={cfg.policyEnabled ? subSectionHeader : subSectionHeaderNoBorder}>
-            <input
-              type="checkbox"
-              id="policyEnabled"
-              checked={cfg.policyEnabled}
-              onChange={(e) => update({ policyEnabled: e.target.checked })}
-              style={{ width: 18, height: 18, cursor: 'pointer', marginTop: 1, accentColor: cfg.color }}
-            />
-            <label htmlFor="policyEnabled" style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}>
-              <p style={subSectionTitle}>📄 Aviso de privacidad en el pie del chat</p>
-              <p style={subSectionDesc}>
-                {cfg.policyEnabled
-                  ? 'Texto + enlace opcional a tu política, visible bajo cada conversación.'
-                  : 'Desactivado: no se muestra ningún aviso en el chat.'}
-              </p>
-            </label>
-          </div>
+            {wizardStep < 3 ? (
+              <WidgetBuilderFormActions
+                showBack={wizardStep > 0}
+                soloPrimary={wizardStep === 0}
+                onBack={() => setWizardStep((s) => Math.max(0, s - 1))}
+                onNext={goNextStep}
+              />
+            ) : null}
 
-          {cfg.policyEnabled && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={labelStyle}>Texto del aviso</label>
-                  <input style={inputStyle} value={cfg.policyText} maxLength={200} onChange={(e) => update({ policyText: e.target.value })} placeholder="Las conversaciones pueden registrarse de acuerdo con nuestra" />
-                </div>
-                <div>
-                  <label style={labelStyle}>Texto del enlace</label>
-                  <input style={inputStyle} value={cfg.policyLinkLabel} maxLength={60} onChange={(e) => update({ policyLinkLabel: e.target.value })} placeholder="Política de Privacidad" />
-                </div>
-              </div>
-              <div>
-                <label style={labelStyle}>URL de tu política</label>
-                <input style={inputStyle} type="url" value={cfg.policyUrl} onChange={(e) => update({ policyUrl: e.target.value })} placeholder="https://tusitio.com/privacidad" />
-                <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 6, marginBottom: 0, lineHeight: 1.45 }}>
-                  Debe empezar por <strong>https://</strong>. Si lo dejas vacío, el texto del enlace se muestra sin enlace.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ── 4) Encuesta de satisfacción ─────────────────────────────────── */}
-        <div style={cfg.feedbackEnabled ? subSectionCardActive : subSectionCard}>
-          <div style={cfg.feedbackEnabled ? subSectionHeader : subSectionHeaderNoBorder}>
-            <input
-              type="checkbox"
-              id="feedbackEnabled"
-              checked={cfg.feedbackEnabled}
-              onChange={(e) => update({ feedbackEnabled: e.target.checked })}
-              style={{ width: 18, height: 18, cursor: 'pointer', marginTop: 1, accentColor: cfg.color }}
-            />
-            <label htmlFor="feedbackEnabled" style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}>
-              <p style={subSectionTitle}>⭐ Encuesta de satisfacción al cerrar el chat</p>
-              <p style={subSectionDesc}>
-                {cfg.feedbackEnabled
-                  ? 'Al final de cada conversación se muestra un breve formulario con tus preguntas.'
-                  : 'Desactivado: no se pide feedback al visitante.'}
-              </p>
-            </label>
-          </div>
-
-          {cfg.feedbackEnabled && feedbackQuestions.filter((q) => q.text.trim()).length === 0 && (
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, padding: '8px 10px', marginBottom: 12, borderRadius: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
-              <span style={{ fontSize: 13 }}>⚠️</span>
-              <span style={{ fontSize: 11, color: '#dc2626', lineHeight: 1.45 }}>
-                Agrega al menos una pregunta <strong>con texto</strong> para que la encuesta funcione. Sin preguntas, no se le mostrará nada al visitante.
-              </span>
-            </div>
-          )}
-
-          {cfg.feedbackEnabled && (
-            <>
-              <div style={fieldStyle}>
-                <label style={labelStyle}>Título de la encuesta</label>
-                <input style={inputStyle} value={cfg.feedbackTitle} onChange={(e) => update({ feedbackTitle: e.target.value })} placeholder="¿Cómo fue tu experiencia?" />
-              </div>
-              <div style={fieldStyle}>
-                <label style={labelStyle}>Mensaje de agradecimiento</label>
-                <input style={inputStyle} value={cfg.feedbackThanks} onChange={(e) => update({ feedbackThanks: e.target.value })} placeholder="¡Gracias por tu feedback!" />
-              </div>
-              <div style={fieldStyle}>
-                <label style={labelStyle}>Finalizar conversación por inactividad (minutos)</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={1440}
-                  style={inputStyle}
-                  value={cfg.conversationIdleTimeout}
-                  onChange={(e) => update({ conversationIdleTimeout: Math.max(0, parseInt(e.target.value, 10) || 0) })}
-                />
-                <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: 4, marginBottom: 0, lineHeight: 1.45 }}>
-                  Si el visitante reabre el chat tras este tiempo sin actividad, se da por finalizada y se le ofrece la encuesta antes de iniciar otra. <strong>0</strong> = desactivado.
-                </p>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <label style={labelStyle}>Preguntas ({feedbackQuestions.length}/10)</label>
-                {feedbackQuestions.length < 10 && (
-                  <button
-                    type="button"
-                    onClick={() => setFeedbackQuestions((prev) => [...prev, { id: crypto.randomUUID(), text: '', type: 'rating', options: [], required: false, enabled: true }])}
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--foreground)', cursor: 'pointer' }}
-                  >
-                    <Plus size={11} /> Agregar pregunta
-                  </button>
-                )}
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {feedbackQuestions.map((q, i) => (
-                  <div key={q.id} style={{ padding: '10px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--background)' }}>
-                    <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-                      <select
-                        value={q.type}
-                        onChange={(e) => setFeedbackQuestions((p) => p.map((x, j) => j === i ? { ...x, type: e.target.value as FeedbackQuestionType } : x))}
-                        style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '5px 8px', fontSize: 12, background: 'var(--card)', cursor: 'pointer' }}
-                      >
-                        <option value="rating">⭐ Estrellas (1-5)</option>
-                        <option value="choice">☑ Opción múltiple</option>
-                        <option value="yesno">Sí / No</option>
-                        <option value="text">✍ Comentario libre</option>
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => setFeedbackQuestions((p) => p.filter((_, j) => j !== i))}
-                        style={{ marginLeft: 'auto', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444', padding: 4, display: 'flex' }}
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                    <input
-                      value={q.text}
-                      onChange={(e) => setFeedbackQuestions((p) => p.map((x, j) => j === i ? { ...x, text: e.target.value } : x))}
-                      placeholder="Texto de la pregunta (ej. ¿Resolvimos tu duda?)"
-                      style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 8px', fontSize: 12, background: 'var(--card)' }}
-                    />
-                    {q.type === 'choice' && (
-                      <div style={{ marginTop: 6, paddingLeft: 8 }}>
-                        {q.options.map((opt, oi) => (
-                          <div key={oi} style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
-                            <input
-                              value={opt}
-                              onChange={(e) => setFeedbackQuestions((p) => p.map((x, j) => j === i ? { ...x, options: x.options.map((o, k) => k === oi ? e.target.value : o) } : x))}
-                              placeholder={`Opción ${oi + 1}`}
-                              style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 6, padding: '4px 8px', fontSize: 12, background: 'var(--card)' }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setFeedbackQuestions((p) => p.map((x, j) => j === i ? { ...x, options: x.options.filter((_, k) => k !== oi) } : x))}
-                              style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--muted-foreground)', fontSize: 16, lineHeight: 1, padding: '0 4px' }}
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                        {q.options.length < 8 && (
-                          <button
-                            type="button"
-                            onClick={() => setFeedbackQuestions((p) => p.map((x, j) => j === i ? { ...x, options: [...x.options, ''] } : x))}
-                            style={{ fontSize: 11, fontWeight: 600, color: 'var(--primary)', background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 0' }}
-                          >
-                            + opción
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 11, color: 'var(--muted-foreground)', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={q.required}
-                        onChange={(e) => setFeedbackQuestions((p) => p.map((x, j) => j === i ? { ...x, required: e.target.checked } : x))}
-                      />
-                      Obligatoria
-                    </label>
-                  </div>
-                ))}
-                {feedbackQuestions.length === 0 && (
-                  <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0 }}>
-                    Agrega preguntas para tu encuesta: estrellas (dan el score), opción múltiple, sí/no o comentario libre.
-                  </p>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-
-        <div data-tour="widget-builder-embed-options">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <input type="checkbox" id="autoOpen" checked={cfg.autoOpen} onChange={(e) => update({ autoOpen: e.target.checked })}
-              style={{ width: 16, height: 16, cursor: 'pointer' }} />
-            <label htmlFor="autoOpen" style={{ fontSize: '13px', cursor: 'pointer' }}>Abrir automáticamente</label>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={cfg.fabDismissible}
-              onClick={() => update({ fabDismissible: !cfg.fabDismissible })}
-              style={{
-                position: 'relative', flexShrink: 0,
-                width: 36, height: 20, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 0,
-                background: cfg.fabDismissible ? cfg.color : 'var(--border)',
-                transition: 'background 0.2s',
-              }}
-            >
-              <span style={{
-                position: 'absolute', top: 3, left: cfg.fabDismissible ? 19 : 3,
-                width: 14, height: 14, borderRadius: '50%', background: '#fff',
-                transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-              }} />
-            </button>
-            <label
-              style={{ fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-              onClick={() => update({ fabDismissible: !cfg.fabDismissible })}
-            >
-              Mostrar botón X para ocultar launcher
-            </label>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={cfg.voiceEnabled}
-              onClick={() => update({ voiceEnabled: !cfg.voiceEnabled })}
-              style={{
-                position: 'relative', flexShrink: 0,
-                width: 36, height: 20, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 0,
-                background: cfg.voiceEnabled ? cfg.color : 'var(--border)',
-                transition: 'background 0.2s',
-              }}
-            >
-              <span style={{
-                position: 'absolute', top: 3, left: cfg.voiceEnabled ? 19 : 3,
-                width: 14, height: 14, borderRadius: '50%', background: '#fff',
-                transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-              }} />
-            </button>
-            <label
-              style={{ fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-              onClick={() => update({ voiceEnabled: !cfg.voiceEnabled })}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: cfg.voiceEnabled ? 1 : 0.4 }}>
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-              </svg>
-              Lectura en voz alta
-            </label>
-          </div>
-        </div>
-
-        <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '0 0 18px', lineHeight: 1.5 }}>
-          El código embed solo contiene el token. El color, título, avatar y demás ajustes se cargan en tiempo real desde el servidor — cualquier cambio aquí se refleja automáticamente en todos los sitios donde esté instalado el widget.
-        </p>
-        </div>
-        </>
-        )}
-
-        {/* Shortcuts */}
-        <div style={{ marginBottom: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {!soloChatOnly && <Sparkles size={13} style={{ color: '#6366f1' }} />}
-              <label style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: soloChatOnly ? 'var(--muted-foreground)' : '#6366f1' }}>
-                Shortcuts del widget
-              </label>
-            </div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {!soloChatOnly && (
-              <button type="button" onClick={suggestShortcuts} disabled={suggestingShortcuts || !cfg.agentId}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 8, border: 'none', background: cfg.agentId && !suggestingShortcuts ? 'rgba(99,102,241,0.1)' : 'var(--border)', color: cfg.agentId && !suggestingShortcuts ? '#6366f1' : 'var(--muted-foreground)', cursor: cfg.agentId && !suggestingShortcuts ? 'pointer' : 'not-allowed' }}>
-                {suggestingShortcuts ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
-                {suggestingShortcuts ? 'Generando...' : 'Sugerir con AI'}
-              </button>
-              )}
-              <button type="button"
-                onClick={() => setShortcuts((prev) => [...prev, { id: crypto.randomUUID(), label: '', message: '', emoji: '', enabled: true }])}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--foreground)', cursor: 'pointer' }}>
-                <Plus size={11} /> Agregar
-              </button>
-            </div>
-          </div>
-          {shortcutSuggestErr && (
-            <p style={{ fontSize: 11, color: '#ef4444', margin: '0 0 8px', padding: '6px 10px', background: 'rgba(239,68,68,0.07)', borderRadius: 7, lineHeight: 1.4 }}>
-              {shortcutSuggestErr}
-            </p>
-          )}
-          {shortcuts.length === 0 ? (
-            <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0 }}>
-              Sin shortcuts. Agrega acciones rápidas que aparecerán como pills en el chat.
-            </p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {shortcuts.map((sc, i) => (
-                <div key={sc.id} style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--background)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                    <input value={sc.emoji} onChange={(e) => setShortcuts((p) => p.map((x, j) => j === i ? { ...x, emoji: e.target.value } : x))}
-                      placeholder="🚀" style={{ width: 34, textAlign: 'center', border: '1px solid var(--border)', borderRadius: 6, padding: '4px', fontSize: 14, background: 'var(--card)', flexShrink: 0 }} />
-                    <input value={sc.label} onChange={(e) => setShortcuts((p) => p.map((x, j) => j === i ? { ...x, label: e.target.value } : x))}
-                      placeholder="Etiqueta" style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 6, padding: '5px 8px', fontSize: 12, background: 'var(--card)' }} />
-                    <button type="button" onClick={() => setShortcuts((p) => p.filter((_, j) => j !== i))}
-                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444', padding: 4, display: 'flex', flexShrink: 0 }}>
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                  <input value={sc.message} onChange={(e) => setShortcuts((p) => p.map((x, j) => j === i ? { ...x, message: e.target.value } : x))}
-                    placeholder="Mensaje que se envía al hacer clic" style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 8px', fontSize: 12, background: 'var(--card)' }} />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        </>
-        )}
-
-        {wizardStep < 3 && (
-          <div className={`flex gap-2 mt-2${wizardStep > 0 ? '' : ' flex-col'}`}>
-            {wizardStep > 0 && (
-              <button type="button" onClick={() => setWizardStep((s) => Math.max(0, s - 1))} className="widget-builder-btn-secondary">
-                Anterior
-              </button>
-            )}
-            <button type="button" onClick={goNextStep} className="widget-builder-btn-primary">
-              Siguiente
-            </button>
-          </div>
-        )}
-
-        {wizardStep === 0 ? <WidgetBuilderTrustBadges /> : null}
-
-          </div>
-        </div>
+            {wizardStep === 0 ? <WidgetBuilderTrustBadges /> : null}
       </div>
-
-    </div>
+    </WidgetBuilderShell>
   );
 }
 

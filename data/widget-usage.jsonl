@@ -490,3 +490,4 @@
 {"t":"2026-06-13T00:53:00.667Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_3"}
 {"t":"2026-06-13T00:53:00.668Z","event":"widget_opened","agentId":"math-ais","instanceId":"biv_3"}
 {"t":"2026-06-13T00:53:05.336Z","event":"widget_closed","agentId":"math-ais","instanceId":"biv_3"}
+{"t":"2026-06-13T16:55:00.615Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_1"}
