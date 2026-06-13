@@ -17,6 +17,8 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig = {
   autoOpen: false,
   fabDismissible: true,
   voiceEnabled: true,
+  imageUploadEnabled: true,
+  micEnabled: true,
   humanSupportPhone: '',
   humanSupportEnabled: true,
   handoffNotifyMode: 'both',

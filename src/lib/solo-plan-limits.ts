@@ -10,6 +10,8 @@ export const SOLO_WIDGET_LOCKED = {
   handoffNotifyMode: 'inbox' as const,
   autoOpen: false,
   voiceEnabled: false,
+  imageUploadEnabled: false,
+  micEnabled: false,
   multiAgentEnabled: false,
   multiAgentMode: 'triage' as const,
   orchestratorAgentIds: [] as string[],

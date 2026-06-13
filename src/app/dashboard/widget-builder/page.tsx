@@ -343,6 +343,10 @@ export default function WidgetBuilderPage() {
               autoOpen: Boolean(widget.autoOpen),
               fabDismissible: widget.fabDismissible !== false,
               voiceEnabled: widget.voiceEnabled !== false,
+              imageUploadEnabled: (widget as { imageUploadEnabled?: boolean }).imageUploadEnabled !== false,
+              micEnabled: typeof (widget as { micEnabled?: boolean }).micEnabled === 'boolean'
+                ? (widget as { micEnabled?: boolean }).micEnabled !== false
+                : widget.voiceEnabled !== false,
               multiAgentEnabled: widget.multiAgentEnabled === true,
               multiAgentMode:
                 widget.multiAgentMode === 'parallel'

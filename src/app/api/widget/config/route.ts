@@ -87,6 +87,10 @@ export async function GET(req: NextRequest) {
         autoOpen:          widget.autoOpen,
         fabDismissible:    widget.fabDismissible !== false,
         voiceEnabled:      widget.voiceEnabled === true,
+        imageUploadEnabled: (widget as { imageUploadEnabled?: boolean }).imageUploadEnabled !== false,
+        micEnabled: typeof (widget as { micEnabled?: boolean }).micEnabled === 'boolean'
+          ? (widget as { micEnabled?: boolean }).micEnabled === true
+          : widget.voiceEnabled === true,
         humanSupportPhone: effectiveHumanSupportPhone,
         humanSupportEnabled: widget.humanSupportEnabled !== false,
         handoffEnabled:    widget.handoffEnabled !== false,

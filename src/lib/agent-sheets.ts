@@ -85,6 +85,22 @@ export function formatSheetToolDescription(
   return parts.join('\n\n') || `Hoja ${entry.name}`;
 }
 
+function decodeJsQuotedString(raw: string): string {
+  try {
+    return JSON.parse(`"${raw.replace(/\\/g, '\\\\')}"`) as string;
+  } catch {
+    return raw.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+  }
+}
+
+function pushUniqueTab(tabs: SheetTab[], seen: Set<string>, gid: string, title: string): void {
+  const g = gid.trim();
+  const t = title.trim();
+  if (!g || !t || seen.has(g)) return;
+  seen.add(g);
+  tabs.push({ gid: g, title: t });
+}
+
 /**
  * Parsea pestañas desde el HTML público de Google Sheets (sin API key).
  * Requiere que el archivo esté compartido como "Cualquiera con el link puede ver".
@@ -92,20 +108,28 @@ export function formatSheetToolDescription(
 export function parseSpreadsheetTabsFromHtml(html: string): SheetTab[] {
   const tabs: SheetTab[] = [];
   const seen = new Set<string>();
-  const re = /"sheetId":(\d+),"title":"((?:\\.|[^"\\])*)"/g;
+
+  // Formato bootstrap clásico en /edit
+  const legacyRe = /"sheetId":(\d+),"title":"((?:\\.|[^"\\])*)"/g;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(html)) !== null) {
-    const gid = m[1]!;
-    if (seen.has(gid)) continue;
-    seen.add(gid);
-    let title = m[2]!;
-    try {
-      title = JSON.parse(`"${title.replace(/\\/g, '\\\\')}"`) as string;
-    } catch {
-      title = title.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-    }
-    tabs.push({ gid, title });
+  while ((m = legacyRe.exec(html)) !== null) {
+    pushUniqueTab(tabs, seen, m[1]!, decodeJsQuotedString(m[2]!));
   }
+  if (tabs.length) return tabs;
+
+  // Formato htmlview (2024+): items.push({name: "...", gid: "123", ...})
+  const htmlViewRe = /items\.push\(\{name:\s*"((?:\\.|[^"\\])*)",[^}]*\bgid:\s*"(\d+)"/g;
+  while ((m = htmlViewRe.exec(html)) !== null) {
+    pushUniqueTab(tabs, seen, m[2]!, decodeJsQuotedString(m[1]!));
+  }
+  if (tabs.length) return tabs;
+
+  // Variante suelta name + gid en el mismo bloque JS
+  const looseRe = /name:\s*"((?:\\.|[^"\\])*)"[^}]*\bgid:\s*"(\d+)"/g;
+  while ((m = looseRe.exec(html)) !== null) {
+    pushUniqueTab(tabs, seen, m[2]!, decodeJsQuotedString(m[1]!));
+  }
+
   return tabs;
 }
 
@@ -113,26 +137,37 @@ export function parseSpreadsheetTabsFromHtml(html: string): SheetTab[] {
 export async function fetchPublicSpreadsheetTabs(
   spreadsheetId: string,
 ): Promise<{ tabs: SheetTab[]; error?: string }> {
-  const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit?usp=sharing`;
+  const fetchOpts = {
+    method: 'GET' as const,
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Botiva-SheetsTabList/2.0)' },
+    signal: AbortSignal.timeout(15_000),
+    redirect: 'follow' as const,
+  };
+  const candidates = [
+    `https://docs.google.com/spreadsheets/d/${spreadsheetId}/htmlview`,
+    `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit?usp=sharing`,
+  ];
+
+  let lastHttpError = '';
   try {
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: { 'User-Agent': 'Botiva-SheetsTabList/1.0' },
-      signal: AbortSignal.timeout(15_000),
-      redirect: 'follow',
-    });
-    if (!res.ok) {
+    for (const url of candidates) {
+      const res = await fetch(url, fetchOpts);
+      if (!res.ok) {
+        lastHttpError = `HTTP ${res.status}`;
+        continue;
+      }
+      const html = await res.text();
+      const tabs = parseSpreadsheetTabsFromHtml(html);
+      if (tabs.length > 0) return { tabs };
+    }
+
+    if (lastHttpError) {
       return {
         tabs: [],
-        error: `No accesible (HTTP ${res.status}). Comparte el archivo como "Cualquiera con el enlace puede ver".`,
+        error: `No accesible (${lastHttpError}). Comparte el archivo como "Cualquiera con el enlace puede ver".`,
       };
     }
-    const html = await res.text();
-    const tabs = parseSpreadsheetTabsFromHtml(html);
-    if (tabs.length === 0) {
-      return { tabs: [], error: 'No se detectaron pestañas. Verifica que el enlace sea público.' };
-    }
-    return { tabs };
+    return { tabs: [], error: 'No se detectaron pestañas. Verifica que el enlace sea público.' };
   } catch (e) {
     return { tabs: [], error: e instanceof Error ? e.message : 'Error al conectar con Google Sheets' };
   }
