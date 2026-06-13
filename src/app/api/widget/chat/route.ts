@@ -35,7 +35,11 @@ import {
   type MultiAgentRoutingMeta,
 } from '@/lib/widget-multi-agent';
 import { enrichWidgetChatBodyWithImages, type WidgetImageEnrichment } from '@/lib/widget-chat-images';
-import { mergeVisionContextIntoBody } from '@/lib/widget-chat-vision-context';
+import { finalizeWidgetChatBodyWithVision, messageReferencesPriorImage } from '@/lib/widget-chat-vision-context';
+import {
+  loadSessionVisionEnrichment,
+  persistSessionVisionAnalysis,
+} from '@/lib/widget-session-context';
 import { schedulePersistWidgetTranscript } from '@/lib/widget-transcript';
 import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-enrich';
 import { logInferenceMetric, estimateTokens } from '@/lib/inference-metrics';
@@ -215,6 +219,7 @@ export async function POST(req: NextRequest) {
   );
   let rawBody = imageEnriched.body;
   const imageEnrichment: WidgetImageEnrichment | null = imageEnriched.enrichment;
+  let activeVisionEnrichment: WidgetImageEnrichment | null = imageEnrichment;
 
   let bodyToForward = rawBody;
   let multiAgentMeta: MultiAgentRoutingMeta | null = null;
@@ -364,6 +369,48 @@ export async function POST(req: NextRequest) {
           parsedVisitorId = normalizeVisitorId(reparse.visitorId) ?? parsedVisitorId;
         } catch (enrichErr) {
           console.warn('[widget/chat] enrich body skipped:', enrichErr);
+        }
+
+        const visionWidgetId = resolvedWidgetId || w.id;
+        if (imageEnrichment && visionWidgetId && parsedSessionId) {
+          void persistSessionVisionAnalysis(
+            visionWidgetId,
+            parsedSessionId,
+            w.userId,
+            imageEnrichment,
+          ).catch(() => {});
+        } else if (
+          !imageEnrichment &&
+          visionWidgetId &&
+          parsedSessionId &&
+          messageReferencesPriorImage(guardResult.text || parsedMessage)
+        ) {
+          try {
+            activeVisionEnrichment = await loadSessionVisionEnrichment(
+              visionWidgetId,
+              parsedSessionId,
+              w.userId,
+              guardResult.text || parsedMessage,
+            );
+          } catch {
+            /* ignore */
+          }
+        }
+
+        if (activeVisionEnrichment && parsedAgentId) {
+          try {
+            const withVision = await finalizeWidgetChatBodyWithVision({
+              rawBody,
+              enrichment: activeVisionEnrichment,
+              agentId: parsedAgentId,
+              ownerUserId: w.userId,
+              strictPurposeSuffix: STRICT_PURPOSE_SUFFIX,
+            });
+            rawBody = withVision;
+            bodyToForward = withVision;
+          } catch (visionErr) {
+            console.warn('[widget/chat] vision context finalize skipped:', visionErr);
+          }
         }
 
         // ── Guard modo humano (defensa server-side) ──────────────────────────
@@ -872,32 +919,6 @@ export async function POST(req: NextRequest) {
     } catch {
       /* sin DB: el hub intentará validación remota si está configurada */
     }
-  }
-
-  // ── Vision context + strict purpose enforcement ───────────────────────────
-  if (parsedAgentId) {
-    try {
-      await connectDB();
-      const agentDoc = await ClientAgent.findById(parsedAgentId, { strictPurposeOnly: 1, systemPrompt: 1 })
-        .lean() as { strictPurposeOnly?: boolean; systemPrompt?: string } | null;
-
-      if (imageEnrichment) {
-        bodyToForward = mergeVisionContextIntoBody(
-          bodyToForward,
-          imageEnrichment,
-          agentDoc?.systemPrompt,
-        );
-      }
-
-      if (agentDoc?.strictPurposeOnly === true) {
-        const parsed = JSON.parse(bodyToForward) as Record<string, unknown>;
-        const base = typeof parsed.systemPromptOverride === 'string'
-          ? parsed.systemPromptOverride
-          : (agentDoc.systemPrompt ?? '');
-        parsed.systemPromptOverride = base + STRICT_PURPOSE_SUFFIX;
-        bodyToForward = JSON.stringify(parsed);
-      }
-    } catch { /* non-critical — no interrumpir el chat */ }
   }
 
   const init: RequestInit = {

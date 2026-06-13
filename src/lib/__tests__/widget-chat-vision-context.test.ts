@@ -5,6 +5,7 @@ import {
   buildVisionSessionBlock,
   isVisionAnalysisFailure,
   mergeVisionContextIntoBody,
+  messageReferencesPriorImage,
   VISION_SYSTEM_INSTRUCTIONS,
 } from '@/lib/widget-chat-vision-context';
 import type { WidgetImageEnrichment } from '@/lib/widget-chat-images';
@@ -53,5 +54,17 @@ describe('widget-chat-vision-context', () => {
     expect(prompt).toContain('OCR: auto rojo');
     expect(prompt).toContain('[MENSAJE DEL USUARIO]');
     expect(prompt).toContain('hola');
+  });
+
+  it('mergeVisionContextIntoBody es idempotente', () => {
+    const body = JSON.stringify({ message: 'hola' });
+    const once = mergeVisionContextIntoBody(body, sampleEnrichment, 'Prompt');
+    const twice = mergeVisionContextIntoBody(once, sampleEnrichment, 'Prompt');
+    expect(once).toBe(twice);
+  });
+
+  it('messageReferencesPriorImage detecta follow-ups', () => {
+    expect(messageReferencesPriorImage('el de la imagen')).toBe(true);
+    expect(messageReferencesPriorImage('busco un SUV')).toBe(false);
   });
 });

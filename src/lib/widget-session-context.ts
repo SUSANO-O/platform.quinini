@@ -4,6 +4,7 @@
 
 import { connectDB } from '@/lib/db/connection';
 import { WidgetSessionContext } from '@/lib/db/models';
+import type { WidgetImageEnrichment } from '@/lib/widget-chat-images';
 
 export type SessionFact = {
   key: string;
@@ -140,4 +141,57 @@ export async function mergeSessionFacts(
     facts: [...map.values()].slice(0, FACTS_MAX),
     lastRoutedAgentName: ctx?.lastRoutedAgentName,
   });
+}
+
+const VISION_OCR_FACT_KEY = 'vision_ocr';
+const VISION_URL_FACT_KEY = 'vision_url';
+
+/** Guarda el último análisis OCR/visión de la sesión para follow-ups ("el de la imagen"). */
+export async function persistSessionVisionAnalysis(
+  widgetId: string,
+  chatSessionId: string,
+  userId: string,
+  enrichment: WidgetImageEnrichment,
+): Promise<void> {
+  if (!widgetId || !chatSessionId || !userId || !enrichment.analyses.length) return;
+  const analysisText = enrichment.analyses
+    .map((a) => a.text.trim())
+    .filter(Boolean)
+    .join('\n---\n')
+    .slice(0, 2_000);
+  if (!analysisText) return;
+
+  const ctx = await loadWidgetSessionContext(widgetId, chatSessionId, userId);
+  const facts = (ctx?.facts ?? []).filter(
+    (f) => f.key !== VISION_OCR_FACT_KEY && f.key !== VISION_URL_FACT_KEY,
+  );
+  facts.push({ key: VISION_OCR_FACT_KEY, value: analysisText, source: 'extracted' });
+  const imageUrl = enrichment.images[0]?.url?.trim();
+  if (imageUrl) {
+    facts.push({ key: VISION_URL_FACT_KEY, value: imageUrl.slice(0, 500), source: 'extracted' });
+  }
+  await upsertWidgetSessionContext(widgetId, chatSessionId, userId, {
+    summary: ctx?.summary ?? '',
+    facts: facts.slice(0, FACTS_MAX),
+    lastRoutedAgentName: ctx?.lastRoutedAgentName,
+  });
+}
+
+/** Recupera el último OCR/visión de la sesión cuando el usuario alude a la imagen sin re-adjuntarla. */
+export async function loadSessionVisionEnrichment(
+  widgetId: string,
+  chatSessionId: string,
+  userId: string,
+  userMessage: string,
+): Promise<WidgetImageEnrichment | null> {
+  const ctx = await loadWidgetSessionContext(widgetId, chatSessionId, userId);
+  const ocrFact = ctx?.facts?.find((f) => f.key === VISION_OCR_FACT_KEY);
+  if (!ocrFact?.value?.trim()) return null;
+  const urlFact = ctx?.facts?.find((f) => f.key === VISION_URL_FACT_KEY);
+  const url = typeof urlFact?.value === 'string' ? urlFact.value.trim() : '';
+  return {
+    images: url ? [{ url }] : [],
+    analyses: [{ url, text: ocrFact.value.trim() }],
+    displayMessage: userMessage.trim(),
+  };
 }
