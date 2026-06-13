@@ -463,9 +463,10 @@ export async function POST(req: NextRequest) {
           })
             .select({ hubspotAutoCaptureContacts: 1 })
             .lean() as { hubspotAutoCaptureContacts?: boolean } | null;
-          const j = JSON.parse(rawBody) as Record<string, unknown>;
+          const j = JSON.parse(bodyToForward) as Record<string, unknown>;
           j.hubspotAutoCaptureContacts = ca?.hubspotAutoCaptureContacts === true;
           bodyToForward = JSON.stringify(j);
+          rawBody = bodyToForward;
         } catch (mergeErr) {
           console.warn('[widget/chat] merge hubspotAutoCaptureContacts skipped:', mergeErr);
         }
@@ -735,6 +736,21 @@ export async function POST(req: NextRequest) {
           console.warn('[widget/chat] multi-agent routing skipped:', routeErr);
         }
 
+        if (activeVisionEnrichment && parsedAgentId) {
+          try {
+            bodyToForward = await finalizeWidgetChatBodyWithVision({
+              rawBody: bodyToForward,
+              enrichment: activeVisionEnrichment,
+              agentId: parsedAgentId,
+              ownerUserId: w.userId,
+              strictPurposeSuffix: STRICT_PURPOSE_SUFFIX,
+            });
+            rawBody = bodyToForward;
+          } catch (visionLateErr) {
+            console.warn('[widget/chat] vision context re-merge skipped:', visionLateErr);
+          }
+        }
+
         const secret = process.env.HUB_TO_LANDING_SECRET?.trim();
         if (!secret) {
           return NextResponse.json(
@@ -763,6 +779,8 @@ export async function POST(req: NextRequest) {
               parsedAgentId,
               rawBody: bodyToForward,
               ownerUserId: w.userId,
+              visionEnrichment: activeVisionEnrichment,
+              strictPurposeSuffix: STRICT_PURPOSE_SUFFIX,
             }),
           );
           if (!direct) {
