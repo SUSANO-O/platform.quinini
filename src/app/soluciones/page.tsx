@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { Metadata } from 'next';
+import { buildContactWhatsAppUrl, buildPricingInquiryWhatsAppUrl, SALES_WHATSAPP_LINK_PROPS } from '@/lib/sales-whatsapp';
 
 export const metadata: Metadata = {
   title: 'Soluciones por sector | BotIvA',
@@ -327,8 +328,9 @@ export default function SolucionesPage() {
             Cuéntanos el proceso, no la tecnología. A partir de ahí definimos un piloto con métricas claras.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              href="/register"
+            <a
+              href={buildContactWhatsAppUrl('un piloto')}
+              {...SALES_WHATSAPP_LINK_PROPS}
               className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl text-white font-semibold transition-all hover:shadow-xl hover:scale-[1.02]"
               style={{
                 background: 'var(--brand-primary)',
@@ -336,14 +338,15 @@ export default function SolucionesPage() {
               }}
             >
               Crear cuenta y probar <ArrowRight size={16} />
-            </Link>
-            <Link
-              href="/pricing"
+            </a>
+            <a
+              href={buildPricingInquiryWhatsAppUrl()}
+              {...SALES_WHATSAPP_LINK_PROPS}
               className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-semibold text-sm transition-all"
               style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
             >
               Ver precios
-            </Link>
+            </a>
           </div>
         </div>
       </section>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { FlowsBetaBadge } from '@/components/flows/flows-beta-badge';
 import { toast } from 'sonner';
 import {
   ReactFlow,
@@ -226,7 +227,10 @@ function FlowEditorInner({ initialFlow }: { initialFlow: FlowDocument }) {
           <Link href={`/dashboard/flows/${flowId}`} className="flow-editor-btn flow-editor-btn--back">
             ← Volver
           </Link>
-          <div className="flow-editor-title">Editor de flujos</div>
+          <div className="flow-editor-title">
+            Editor de flujos
+            <FlowsBetaBadge className="flow-editor-beta-badge" />
+          </div>
           <input
             className="flow-editor-name-input"
             value={name}

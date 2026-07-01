@@ -9,6 +9,11 @@ import { FaqDetails } from '@/components/ui/faq-details';
 import { HowStepMock } from '@/components/landing/how-step-mock';
 import type { LandingIconName } from '@/lib/landing-icons';
 import { PREMIUM, R, B, Rd, BRAND } from '@/lib/brand-colors';
+import {
+  buildPricingInquiryWhatsAppUrl,
+  buildTrainingWhatsAppUrl,
+  SALES_WHATSAPP_LINK_PROPS,
+} from '@/lib/sales-whatsapp';
 
 /** Mezcla Cognitive Nexus: teal + bronce (sin amarillo) */
 const C = BRAND.primaryLight;
@@ -92,64 +97,66 @@ export default async function LandingPage() {
         <div className="ai-mesh ai-mesh--full" />
         <div className="hero-glow-strong" style={{ background: R, top: '-8%', left: '5%' }} />
         <div className="hero-glow-strong" style={{ background: C, top: '2%', right: '3%' }} />
-        <div className="hero-glow-strong" style={{ background: B, top: '28%', left: '38%', opacity: 0.16 }} />
-        <div className="hero-glow-strong" style={{ background: R, top: '52%', right: '8%', opacity: 0.17 }} />
-        <div className="hero-glow-strong" style={{ background: C, top: '72%', left: '6%', opacity: 0.15 }} />
-        <div className="hero-glow-strong" style={{ background: W, top: '38%', right: '5%', opacity: 0.08 }} />
-        <div className="hero-glow-strong" style={{ background: B, bottom: '-6%', right: '12%', opacity: 0.14 }} />
+        <div className="hero-glow-strong" style={{ background: B, top: '28%', left: '38%' }} />
+        <div className="hero-glow-strong" style={{ background: R, top: '52%', right: '8%' }} />
+        <div className="hero-glow-strong" style={{ background: C, top: '72%', left: '6%' }} />
+        <div className="hero-glow-strong" style={{ background: W, top: '38%', right: '5%' }} />
+        <div className="hero-glow-strong" style={{ background: B, bottom: '-6%', right: '12%' }} />
       </div>
 
       <LandingNavbar />
       <LandingSectionNav />
 
       {/* ── HERO ─────────────────────────────────────────────────────────────── */}
-      <section className="relative pt-36 pb-24 overflow-hidden">
-        <div className="relative max-w-5xl mx-auto px-6 text-center">
-          <div className="landing-eyebrow mb-8 mx-auto w-fit">
+      <section className="relative pt-24 pb-14 overflow-hidden">
+        <div className="relative max-w-5xl mx-auto px-5 text-center">
+          <div className="landing-eyebrow mb-5 mx-auto w-fit">
             <LandingIcon name="sparkles" size="sm" />
             {t('badge')}
           </div>
 
-          <h1 className="text-5xl md:text-7xl">
+          <h1>
             {t('hero.title1')}
             <br />
             <span className="gradient-text">{t('hero.title2')}</span>
           </h1>
 
-          <p className="landing-lead mt-6 max-w-2xl mx-auto">
+          <p className="landing-lead mt-5 max-w-2xl mx-auto">
             {t('hero.description')}
           </p>
 
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              href="/register"
-              className="landing-btn inline-flex items-center gap-2 px-7 py-3.5 rounded-xl text-white transition-all hover:scale-[1.03]"
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-2.5">
+            <a
+              href={buildPricingInquiryWhatsAppUrl()}
+              {...SALES_WHATSAPP_LINK_PROPS}
+              className="landing-btn inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white transition-all hover:scale-[1.03]"
               style={{ background: R, boxShadow: `0 4px 20px rgba(var(--brand-primary-rgb),0.28)` }}
             >
               {t('hero.ctaPrimary')} <LandingIcon name="arrow-right" size="md" className="text-white" />
-            </Link>
+            </a>
             <Link
               href="/login"
-              className="landing-btn inline-flex items-center gap-2 px-7 py-3.5 rounded-xl transition-all hover:bg-slate-50"
+              className="landing-btn inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all hover:bg-slate-50"
               style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
             >
               {t('hero.ctaAccount')}
             </Link>
-            <Link
-              href="/pricing"
-              className="landing-btn inline-flex items-center gap-2 px-7 py-3.5 rounded-xl transition-all hover:bg-slate-50"
+            <a
+              href={buildPricingInquiryWhatsAppUrl()}
+              {...SALES_WHATSAPP_LINK_PROPS}
+              className="landing-btn inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all hover:bg-slate-50"
               style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
             >
               {t('hero.ctaDocs')}
-            </Link>
+            </a>
           </div>
         </div>
       </section>
 
       {/* ── HOW IT WORKS ─────────────────────────────────────────────────────── */}
-      <section className="how-steps-section py-24 px-6 relative overflow-hidden">
+      <section className="how-steps-section py-14 px-5 relative overflow-hidden">
         <div className="max-w-7xl mx-auto relative">
-          <div className="text-center mb-14 max-w-3xl mx-auto">
+          <div className="text-center mb-8 max-w-3xl mx-auto">
             <div className="landing-eyebrow mx-auto w-fit">
               <LandingIcon name="zap" size="sm" />
               {t('how.badge')}
@@ -185,9 +192,9 @@ export default async function LandingPage() {
       </section>
 
       {/* ── AGENTS ───────────────────────────────────────────────────────────── */}
-      <section id="agents" className="py-24 px-6 relative overflow-hidden">
+      <section id="agents" className="py-14 px-5 relative overflow-hidden">
         <div className="max-w-7xl mx-auto relative">
-          <div className="text-center mb-14">
+          <div className="text-center mb-8">
             <h2 className="landing-section-title">
               <span className="gradient-text">{t('agents.title')}</span>
             </h2>
@@ -200,7 +207,7 @@ export default async function LandingPage() {
               <span className="landing-label px-3 py-1 rounded-full" style={{ background: `${B}12`, color: B, border: `1px solid ${B}30` }}>Crea el tuyo en minutos</span>
             </div>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {AGENTS.map((a) => (
               <Link
                 key={a.name}
@@ -221,7 +228,7 @@ export default async function LandingPage() {
                   pointerEvents: 'none',
                 }} />
                 <div style={{ height: 3, background: `linear-gradient(90deg, ${a.color}, ${a.color}33)`, position: 'relative' }} />
-                <div className="p-6 relative flex-1 flex flex-col">
+                <div className="p-4 relative flex-1 flex flex-col">
                   <div className="flex items-start justify-between gap-3">
                     <div style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
                       <div style={{
@@ -233,7 +240,7 @@ export default async function LandingPage() {
                       <div
                         className="icon-pro"
                         style={{
-                          width: 72, height: 72,
+                          width: 58, height: 58,
                           background: `linear-gradient(145deg, ${a.color}1c, ${a.color}08)`,
                           border: `1.5px solid ${a.color}38`,
                           boxShadow: `0 0 0 8px ${a.color}07, 0 0 32px ${a.color}25, inset 0 1px 0 ${a.color}20`,
@@ -251,7 +258,7 @@ export default async function LandingPage() {
                     </span>
                   </div>
 
-                  <h3 className="landing-card-title mt-5 mb-2">{a.name}</h3>
+                  <h3 className="landing-card-title mt-4 mb-1.5">{a.name}</h3>
                   <p className="landing-body-sm landing-muted">{a.desc}</p>
                 </div>
               </Link>
@@ -261,16 +268,16 @@ export default async function LandingPage() {
       </section>
 
       {/* ── FEATURES ─────────────────────────────────────────────────────────── */}
-      <section className="py-24 px-6 relative overflow-hidden">
+      <section className="py-14 px-5 relative overflow-hidden">
         <div className="max-w-7xl mx-auto relative">
-          <div className="text-center mb-16">
+          <div className="text-center mb-8">
             <h2 className="landing-section-title">{t('features.title')}</h2>
             <p className="landing-lead mt-4">
               {t('features.subtitle')}
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-4">
             {FEATURES.map((f) => (
               <div
                 key={f.title}
@@ -286,8 +293,8 @@ export default async function LandingPage() {
                   WebkitMaskImage: 'linear-gradient(135deg, black 0%, transparent 55%)',
                 }} />
                 <div style={{ position: 'absolute', top: -30, left: -30, width: 160, height: 160, pointerEvents: 'none', background: `radial-gradient(circle, ${f.color}18 0%, transparent 70%)` }} />
-                <div className="p-7 relative">
-                  <div className="flex items-start justify-between mb-6">
+                <div className="p-5 relative">
+                  <div className="flex items-start justify-between mb-4">
                     <div style={{ position: 'relative', display: 'inline-flex' }}>
                       <div style={{
                         position: 'absolute', inset: -6, borderRadius: 22,
@@ -296,7 +303,7 @@ export default async function LandingPage() {
                       <div
                         className="icon-pro"
                         style={{
-                          width: 56, height: 56,
+                          width: 46, height: 46,
                           background: `linear-gradient(145deg, ${f.color}18, ${f.color}08)`,
                           border: `1.5px solid ${f.color}35`,
                           boxShadow: `0 0 0 6px ${f.color}07, 0 0 28px ${f.color}22, inset 0 1px 0 ${f.color}22`,
@@ -323,9 +330,9 @@ export default async function LandingPage() {
       </section>
 
       {/* ── WIDGET BUILDER PREVIEW ──────────────────────────────────────────── */}
-      <section className="py-24 px-6">
+      <section className="py-14 px-5">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
+          <div className="text-center mb-8">
             <span className="landing-eyebrow mb-4">
               {t('widget.badge')}
             </span>
@@ -346,13 +353,18 @@ export default async function LandingPage() {
                   <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#22c55e' }} />
                   {t('widget.live')}
                 </span>
-                <Link href="/register" className="landing-btn text-xs px-3 py-1 rounded-lg text-white" style={{ background: R }}>
+                <a
+                  href={buildPricingInquiryWhatsAppUrl()}
+                  {...SALES_WHATSAPP_LINK_PROPS}
+                  className="landing-btn text-xs px-3 py-1 rounded-lg text-white"
+                  style={{ background: R }}
+                >
                   {t('widget.startFree')}
-                </Link>
+                </a>
               </div>
             </div>
 
-            <div className="p-6 md:p-8" style={{ background: 'var(--card)' }}>
+            <div className="p-4 md:p-5" style={{ background: 'var(--card)' }}>
               <div className="grid md:grid-cols-2 gap-8 items-start">
                 <div>
                   <p className="landing-label landing-muted mb-5">{t('widget.whyTitle')}</p>
@@ -419,22 +431,22 @@ export default async function LandingPage() {
       </section>
 
       {/* ── TESTIMONIOS ──────────────────────────────────────────────────────── */}
-      <section className="py-24 px-6 relative">
+      <section className="py-14 px-5 relative">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-14">
+          <div className="text-center mb-8">
             <h2 className="landing-section-title">{t('testimonials.title')}</h2>
             <p className="landing-lead mt-4">
               {t('testimonials.subtitle')}
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-4">
             {TESTIMONIALS.map((item, i) => {
               const accentColor = [R, B, W][i % 3];
               return (
                 <div
                   key={item.author}
-                  className="card-pro p-7 flex flex-col gap-5 relative overflow-hidden"
+                  className="card-pro p-5 flex flex-col gap-4 relative overflow-hidden"
                   style={{ border: `1px solid ${accentColor}25`, boxShadow: '0 4px 24px rgba(0,0,0,0.04)' }}
                 >
                   <div style={{
@@ -481,9 +493,9 @@ export default async function LandingPage() {
       </section>
 
       {/* ── CAPACITACIÓN Y ACOMPAÑAMIENTO ───────────────────────────────────── */}
-      <section id="training" className="py-24 px-6 relative overflow-hidden">
+      <section id="training" className="py-14 px-5 relative overflow-hidden">
         <div className="max-w-5xl mx-auto relative">
-          <div className="text-center mb-14">
+          <div className="text-center mb-8">
             <span className="landing-eyebrow mb-4">
               {t('training.badge')}
             </span>
@@ -520,7 +532,7 @@ export default async function LandingPage() {
                 >
                   {s.step}
                 </div>
-                <div className="p-6 relative flex gap-4 items-start">
+                <div className="p-5 relative flex gap-3.5 items-start">
                   <div style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
                     <div style={{
                       position: 'absolute', inset: -5, borderRadius: 22,
@@ -547,26 +559,27 @@ export default async function LandingPage() {
             ))}
           </div>
 
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-2.5">
             <div className="landing-btn flex items-center gap-2 px-4 py-2 rounded-full text-sm" style={{ background: `${PREMIUM.accent}10`, color: PREMIUM.accent, border: `1px solid ${PREMIUM.border}` }}>
               <LandingIcon name="badge-check" size="md" />
               {t('training.included')}
             </div>
-            <Link
-              href="/register"
-              className="landing-btn inline-flex items-center gap-2 px-7 py-3 rounded-xl text-white transition-all hover:scale-[1.03]"
+            <a
+              href={buildTrainingWhatsAppUrl()}
+              {...SALES_WHATSAPP_LINK_PROPS}
+              className="landing-btn inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white transition-all hover:scale-[1.03]"
               style={{ background: R, boxShadow: `0 4px 20px rgba(var(--brand-primary-rgb),0.22)` }}
             >
               {t('training.cta')} <LandingIcon name="arrow-right" size="md" className="text-white" />
-            </Link>
+            </a>
           </div>
         </div>
       </section>
 
       {/* ── FAQ ──────────────────────────────────────────────────────────────── */}
-      <section className="py-24 px-6">
+      <section className="py-14 px-5">
         <div className="max-w-3xl mx-auto">
-          <h2 className="landing-section-title text-center mb-12">{t('faq.title')}</h2>
+          <h2 className="landing-section-title text-center mb-8">{t('faq.title')}</h2>
           {FAQ_ITEMS.map((faq) => (
             <FaqDetails key={faq.q} question={faq.q} answer={faq.a} accent={R} />
           ))}
@@ -574,26 +587,27 @@ export default async function LandingPage() {
       </section>
 
       {/* ── CTA ──────────────────────────────────────────────────────────────── */}
-      <section className="py-28 px-6 text-center relative overflow-hidden">
+      <section className="py-14 px-5 text-center relative overflow-hidden">
         <div className="relative max-w-2xl mx-auto">
-          <h2 className="text-4xl md:text-5xl mb-6">
+          <h2 className="landing-section-title mb-4">
             {t('cta.title1')}<br />
             <span className="gradient-text">{t('cta.title2')}</span>
           </h2>
-          <p className="landing-lead mb-10">
+          <p className="landing-lead mb-6">
             {t('cta.subtitle')}
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              href="/register"
-              className="landing-btn inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white transition-all hover:scale-[1.03]"
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a
+              href={buildPricingInquiryWhatsAppUrl()}
+              {...SALES_WHATSAPP_LINK_PROPS}
+              className="landing-btn inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white transition-all hover:scale-[1.03]"
               style={{ background: R, boxShadow: `0 4px 24px rgba(var(--brand-primary-rgb),0.28)` }}
             >
               {t('cta.primary')} <LandingIcon name="arrow-right" size="md" className="text-white" />
-            </Link>
+            </a>
             <Link
               href="/login"
-              className="landing-btn inline-flex items-center gap-2 px-8 py-4 rounded-xl transition-all hover:bg-white"
+              className="landing-btn inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all hover:bg-white"
               style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
             >
               {t('cta.secondary')}

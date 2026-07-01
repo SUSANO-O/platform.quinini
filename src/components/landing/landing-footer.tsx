@@ -2,28 +2,35 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { getTranslations } from 'next-intl/server';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
+import {
+  buildContactWhatsAppUrl,
+  buildPricingInquiryWhatsAppUrl,
+  SALES_WHATSAPP_DISPLAY,
+  SALES_WHATSAPP_LINK_PROPS,
+} from '@/lib/sales-whatsapp';
 
 export async function LandingFooter() {
   const t = await getTranslations('footer');
 
   return (
     <footer style={{ borderColor: 'var(--border)' }} className="border-t">
-      <div className="max-w-7xl mx-auto px-6 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
+      <div className="max-w-7xl mx-auto px-5 py-12">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
           <div className="col-span-2 md:col-span-2">
-            <div className="flex items-center gap-2.5 mb-4">
-              <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={100} height={30} className="h-8 w-auto object-contain rounded-lg" />
+            <div className="flex items-center gap-2 mb-3">
+              <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={90} height={27} className="h-7 w-auto object-contain rounded-lg" />
               <span className="landing-nav-brand">{BRAND_NAME}</span>
             </div>
             <p className="landing-body-sm landing-muted mb-5">
               {t('tagline')}
             </p>
             <a
-              href={`mailto:${t('email')}`}
+              href={buildContactWhatsAppUrl()}
+              {...SALES_WHATSAPP_LINK_PROPS}
               className="landing-body-sm font-medium hover:underline"
               style={{ color: 'var(--foreground)' }}
             >
-              ✉ {t('email')}
+              WhatsApp {SALES_WHATSAPP_DISPLAY}
             </a>
           </div>
 
@@ -31,7 +38,7 @@ export async function LandingFooter() {
             <h4 className="landing-label mb-3">{t('product')}</h4>
             <ul className="space-y-2 landing-body-sm landing-muted">
               <li><Link href="/pricing#api" className="hover:underline">API</Link></li>
-              <li><Link href="/pricing" className="hover:underline">{t('plans')}</Link></li>
+              <li><a href={buildPricingInquiryWhatsAppUrl()} {...SALES_WHATSAPP_LINK_PROPS} className="hover:underline">{t('plans')}</a></li>
               <li><Link href="#agents" className="hover:underline">Agentes</Link></li>
             </ul>
           </div>
@@ -39,7 +46,7 @@ export async function LandingFooter() {
           <div>
             <h4 className="landing-label mb-3">{t('contact')}</h4>
             <ul className="space-y-2 landing-body-sm landing-muted">
-              <li><a href={`mailto:${t('email')}`} className="hover:underline">{t('email')}</a></li>
+              <li><a href={buildContactWhatsAppUrl()} {...SALES_WHATSAPP_LINK_PROPS} className="hover:underline">WhatsApp</a></li>
               <li><Link href="#training" className="hover:underline">Capacitación</Link></li>
               <li><Link href="/preguntas-frecuentes" className="hover:underline">FAQ</Link></li>
             </ul>

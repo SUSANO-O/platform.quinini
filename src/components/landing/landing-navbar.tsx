@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useTranslations } from 'next-intl';
 import { LanguageSwitcher } from './language-switcher';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
+import { buildPricingInquiryWhatsAppUrl, SALES_WHATSAPP_LINK_PROPS } from '@/lib/sales-whatsapp';
 
 export function LandingNavbar() {
   const [open, setOpen] = useState(false);
@@ -16,19 +17,19 @@ export function LandingNavbar() {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass border-b" style={{ borderColor: 'var(--border)' }}>
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2.5">
-          <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={120} height={36} className="h-9 w-auto object-contain rounded-xl" priority />
+      <div className="max-w-7xl mx-auto px-5 h-14 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2">
+          <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={100} height={30} className="h-7 w-auto object-contain rounded-lg" priority />
           <span className="landing-nav-brand text-black">
             {BRAND_NAME}
           </span>
         </Link>
 
         {/* Desktop */}
-        <div className="hidden md:flex items-center gap-6">
+        <div className="hidden md:flex items-center gap-4">
           <Link
             href="#agents"
-            className="landing-btn text-sm font-medium transition-colors"
+            className="landing-btn text-xs font-medium transition-colors"
             style={{ color: 'var(--muted-foreground)' }}
             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
@@ -37,25 +38,26 @@ export function LandingNavbar() {
           </Link>
           <Link
             href="#training"
-            className="landing-btn text-sm font-medium transition-colors"
+            className="landing-btn text-xs font-medium transition-colors"
             style={{ color: 'var(--muted-foreground)' }}
             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
           >
             {t('training')}
           </Link>
-          <Link
-            href="/pricing"
-            className="landing-btn text-sm font-medium transition-colors"
+          <a
+            href={buildPricingInquiryWhatsAppUrl()}
+            {...SALES_WHATSAPP_LINK_PROPS}
+            className="landing-btn text-xs font-medium transition-colors"
             style={{ color: 'var(--muted-foreground)' }}
             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
           >
             {t('pricing')}
-          </Link>
+          </a>
           <Link
             href="/preguntas-frecuentes"
-            className="landing-btn text-sm font-medium transition-colors"
+            className="landing-btn text-xs font-medium transition-colors"
             style={{ color: 'var(--muted-foreground)' }}
             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
@@ -69,7 +71,7 @@ export function LandingNavbar() {
             user ? (
               <Link
                 href="/dashboard"
-                className="text-sm font-semibold px-5 py-2.5 rounded-xl text-white transition-all hover:shadow-lg"
+                className="text-xs font-semibold px-4 py-2 rounded-lg text-white transition-all hover:shadow-lg"
                 style={{ background: 'var(--brand-primary)' }}
               >
                 {t('dashboard')}
@@ -78,18 +80,19 @@ export function LandingNavbar() {
               <div className="flex items-center gap-3">
                 <Link
                   href="/login"
-                  className="text-sm font-semibold"
+                  className="text-xs font-semibold"
                   style={{ color: 'var(--foreground)' }}
                 >
                   {t('signIn')}
                 </Link>
-                <Link
-                  href="/pricing"
-                  className="text-sm font-semibold px-5 py-2.5 rounded-xl text-white transition-all hover:shadow-lg"
+                <a
+                  href={buildPricingInquiryWhatsAppUrl()}
+                  {...SALES_WHATSAPP_LINK_PROPS}
+                  className="text-xs font-semibold px-4 py-2 rounded-lg text-white transition-all hover:shadow-lg"
                   style={{ background: 'var(--brand-primary)' }}
                 >
                   {t('startFree')}
-                </Link>
+                </a>
               </div>
             )
           )}
@@ -97,7 +100,7 @@ export function LandingNavbar() {
 
         {/* Mobile toggle */}
         <button
-          className="md:hidden flex items-center justify-center w-9 h-9 rounded-xl transition-colors"
+          className="md:hidden flex items-center justify-center w-8 h-8 rounded-lg transition-colors"
           style={{ border: '1px solid var(--border)', background: open ? 'rgba(var(--brand-primary-rgb),0.07)' : 'transparent', color: open ? 'var(--primary)' : 'var(--foreground)' }}
           onClick={() => setOpen(!open)}
           aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
@@ -121,7 +124,7 @@ export function LandingNavbar() {
         >
           <Link
             href="#agents"
-            className="flex items-center text-sm font-medium px-3 py-2.5 rounded-xl transition-colors"
+            className="flex items-center text-xs font-medium px-3 py-2 rounded-lg transition-colors"
             style={{ color: 'var(--foreground)' }}
             onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
@@ -131,7 +134,7 @@ export function LandingNavbar() {
           </Link>
           <Link
             href="#training"
-            className="flex items-center text-sm font-medium px-3 py-2.5 rounded-xl transition-colors"
+            className="flex items-center text-xs font-medium px-3 py-2 rounded-lg transition-colors"
             style={{ color: 'var(--foreground)' }}
             onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
@@ -139,19 +142,20 @@ export function LandingNavbar() {
           >
             {t('training')}
           </Link>
-          <Link
-            href="/pricing"
-            className="flex items-center text-sm font-medium px-3 py-2.5 rounded-xl transition-colors"
+          <a
+            href={buildPricingInquiryWhatsAppUrl()}
+            {...SALES_WHATSAPP_LINK_PROPS}
+            className="flex items-center text-xs font-medium px-3 py-2 rounded-lg transition-colors"
             style={{ color: 'var(--foreground)' }}
             onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             onClick={() => setOpen(false)}
           >
             {t('pricing')}
-          </Link>
+          </a>
           <Link
             href="/preguntas-frecuentes"
-            className="flex items-center text-sm font-medium px-3 py-2.5 rounded-xl transition-colors"
+            className="flex items-center text-xs font-medium px-3 py-2 rounded-lg transition-colors"
             style={{ color: 'var(--foreground)' }}
             onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
@@ -185,14 +189,15 @@ export function LandingNavbar() {
                   >
                     {t('signIn')}
                   </Link>
-                  <Link
-                    href="/pricing"
+                  <a
+                    href={buildPricingInquiryWhatsAppUrl()}
+                    {...SALES_WHATSAPP_LINK_PROPS}
                     className="text-center text-sm font-bold px-5 py-2.5 rounded-xl text-white"
                     style={{ background: 'var(--brand-primary)', boxShadow: '0 4px 14px rgba(var(--brand-primary-rgb),0.25)' }}
                     onClick={() => setOpen(false)}
                   >
                     {t('startFree')}
-                  </Link>
+                  </a>
                 </>
               )
             )}
