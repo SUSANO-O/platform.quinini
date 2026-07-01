@@ -16,7 +16,7 @@ import {
   planHasAgentWebhookFeature,
   planHasOutboundWebhookFeature,
   planHasApiAccessFeature,
-  API_REST_COMING_SOON_LABEL,
+  formatApiAccessFeature,
   planHasEscalationTicketFeature,
   planHasCustomIntegrationFeature,
   planHasWhatsAppFeature,
@@ -40,6 +40,7 @@ export { GEMINI_API_USD_PER_1M, TOKENS_PER_MESSAGE, geminiCostPerMessage };
 export const PLAN_ASSUMED_MODEL_TIER: Record<PlanId, ModelTier> = {
   free:       'flash',
   solo:       'flash',
+  api_develop:        'default',
   team:       'default',
   plus:       'default',
   business:   'premium',
@@ -151,6 +152,7 @@ export function formatHistoryDays(days: number): string {
 const SUPPORT_BY_PLAN: Record<PlanId, string> = {
   free:       'Comunidad',
   solo:       'Email 72 h',
+  api_develop:        'Email 48 h',
   team:       'Email 48 h',
   plus:       'Email 90 h',
   business:   'Dedicado + SLA',
@@ -158,7 +160,7 @@ const SUPPORT_BY_PLAN: Record<PlanId, string> = {
 };
 
 export function buildPlanComparisonRows(): PlanComparisonRow[] {
-  const ids: PlanId[] = ['free', 'solo', 'team', 'plus', 'business'];
+  const ids: PlanId[] = ['solo', 'team', 'plus', 'business', 'api_develop'];
   return ids.map((id) => {
     const rag = PLAN_RAG_LIMITS[id];
     return {
@@ -172,7 +174,7 @@ export function buildPlanComparisonRows(): PlanComparisonRow[] {
       support: SUPPORT_BY_PLAN[id],
       agentWebhook: planHasAgentWebhookFeature(id) ? 'Incluido' : '—',
       outboundWebhook: planHasOutboundWebhookFeature(id) ? 'Incluido' : '—',
-      apiAccess: planHasApiAccessFeature(id) ? API_REST_COMING_SOON_LABEL : '—',
+      apiAccess: formatApiAccessFeature(id),
       customIntegration: planHasCustomIntegrationFeature(id) ? 'Incluido' : '—',
       escalationTickets: planHasEscalationTicketFeature(id) ? 'Incluido' : '—',
       whatsapp: planHasWhatsAppFeature(id) ? 'Incluido' : '—',

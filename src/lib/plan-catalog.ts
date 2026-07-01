@@ -9,6 +9,7 @@
 export const PLAN_ORDER = [
   'free',
   'solo',
+  'api_develop',
   'team',
   'plus',
   'business',
@@ -17,7 +18,22 @@ export const PLAN_ORDER = [
 
 export type PlanId = (typeof PLAN_ORDER)[number];
 
-export type PaidPlanId = 'solo' | 'team' | 'plus' | 'business';
+export type PaidPlanId = 'solo' | 'api_develop' | 'team' | 'plus' | 'business';
+
+/** Plan solo API REST — sin panel de widgets ni builder. */
+export const API_ONLY_PLAN_ID = 'api_develop' as const;
+
+export const API_ONLY_DASHBOARD_PATHS = ['/dashboard/api', '/dashboard/settings'] as const;
+
+export function isApiOnlyPlan(plan: string): boolean {
+  return plan === API_ONLY_PLAN_ID;
+}
+
+export function isApiOnlyDashboardPath(pathname: string): boolean {
+  return API_ONLY_DASHBOARD_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
 
 /**
  * Planes retirados — vacío. Los planes 'basic', 'starter', 'growth' fueron
@@ -30,6 +46,7 @@ export type LegacyPlanId = never;
 /** Planes de pago disponibles para checkout y pricing público. */
 export const PAID_PLAN_IDS: PaidPlanId[] = [
   'solo',
+  'api_develop',
   'team',
   'plus',
   'business',
@@ -38,25 +55,33 @@ export const PAID_PLAN_IDS: PaidPlanId[] = [
 /** Planes visibles en la landing (conversión). */
 export const LANDING_PLAN_IDS: PaidPlanId[] = ['team', 'plus', 'business'];
 
-/** Grid principal en /pricing. */
+/** Grid principal en /pricing (Team se mantiene; API Develop se añade). */
 export const PRICING_GRID_PLAN_IDS: PaidPlanId[] = [
   'solo',
   'team',
   'plus',
   'business',
+  'api_develop',
 ];
 
 /**
  * Planes en modal de trial expirado y botones de upgrade.
  * Deben coincidir con LEMONSQUEEZY_VARIANT_* en .env.
  */
-export const CHECKOUT_UPGRADE_PLAN_IDS: PaidPlanId[] = ['plus', 'business'];
+export const CHECKOUT_UPGRADE_PLAN_IDS: PaidPlanId[] = [
+  'solo',
+  'api_develop',
+  'team',
+  'plus',
+  'business',
+];
 
-/** Precios revisados may 2026 — LLM + RAG + infra externa mínima. */
+/** Precios jun 2026 — Team/Plus +19%; API al precio histórico de Team ($29). */
 export const PLAN_PRICES_USD: Record<PaidPlanId, number> = {
   solo: 7,
-  team: 29,
-  plus: 42,
+  api_develop: 29,
+  team: 35,
+  plus: 50,
   business: 749,
 };
 
@@ -79,6 +104,7 @@ export function isPaidProductPlan(plan: string): boolean {
 const PLAN_LABELS: Record<PlanId, string> = {
   free: 'Free',
   solo: 'Solo',
+  api_develop: 'API Develop',
   team: 'Team',
   plus: 'Plus',
   business: 'Business',
@@ -126,6 +152,7 @@ export const PLAN_DISPLAY: Record<
 export const PLAN_CONVERSATION_LIMITS: Record<string, number> = {
   free:       50,
   solo:       300,
+  api_develop:        2_000,
   team:       2_000,
   plus:       3_000,
   business:   45_000,
@@ -135,9 +162,10 @@ export const PLAN_CONVERSATION_LIMITS: Record<string, number> = {
 /** Agentes principales por plan (límite realista para PME). `-1` = ilimitado. */
 export const PLAN_AGENT_LIMITS: Record<string, number> = {
   free:       1,
-  solo:       3,
-  team:       5,
-  plus:       10,
+  solo:       4,   // +15% desde 3
+  api_develop:        7,   // +15% desde 6
+  team:       6,   // +15% desde 5
+  plus:       12,  // +15% desde 10
   business:   -1,
   enterprise: 999,
 };
@@ -155,15 +183,17 @@ export function isAgentLimitReached(used: number, limit: number): boolean {
 export const PLAN_SUBAGENT_LIMITS: Record<string, number> = {
   free:       0,
   solo:       0,
-  team:       2,
-  plus:       5,
-  business:   50,
+  api_develop:        0,
+  team:       3,   // +15% desde 2
+  plus:       6,   // +15% desde 5
+  business:   58,  // +15% desde 50
   enterprise: 999,
 };
 
 export const PLAN_TOOLS_LIMITS: Record<string, number> = {
   free:       2,
   solo:       0,
+  api_develop:        0,
   team:       6,
   plus:       8,
   business:   999,
@@ -185,6 +215,7 @@ export const SHEET_SYNC_USD_PER_GB = 1;
 export const PLAN_SCHEDULED_TASK_LIMITS: Record<string, number> = {
   free:       0,
   solo:       0,
+  api_develop:        0,
   team:       3,
   plus:       5,
   business:   100,
@@ -195,6 +226,7 @@ export const PLAN_SCHEDULED_TASK_LIMITS: Record<string, number> = {
 export const PLAN_SCHEDULED_TASK_MIN_INTERVAL_MIN: Record<string, number> = {
   free:       60,
   solo:       60,
+  api_develop:        60,
   team:       60,
   plus:       30,
   business:   1,
@@ -268,6 +300,7 @@ export function getScheduledTaskMinIntervalMin(plan: string): number {
 export const PLAN_RATE_LIMITS_PER_MIN: Record<string, number> = {
   free:       10,
   solo:       20,
+  api_develop:        35,
   team:       35,
   plus:       40,
   business:   300,
@@ -278,6 +311,7 @@ export const PLAN_RATE_LIMITS_PER_MIN: Record<string, number> = {
 export const PLAN_HISTORY_RETENTION_DAYS: Record<string, number> = {
   free:       7,
   solo:       30,
+  api_develop:        45,
   team:       45,
   plus:       60,
   business:   -1,
@@ -288,6 +322,7 @@ export const PLAN_HISTORY_RETENTION_DAYS: Record<string, number> = {
 export const PLAN_RAG_LIMITS: Record<string, { mb: number; sources: number } | null> = {
   free:       null,
   solo:       null,
+  api_develop:        null,
   team:       { mb: 128,     sources: 15   },
   plus:       { mb: 256,     sources: 20   },
   business:   { mb: 102_400, sources: 2_000 },
@@ -328,7 +363,7 @@ export const OUTBOUND_SAAS_WEBHOOK_MIN_PLAN: PlanId = 'plus';
 /** Plan mínimo para avisar en Slack al escalar (Incoming Webhook en Cumplimiento). */
 export const ESCALATION_SLACK_MIN_PLAN: PlanId = 'team';
 
-/** Plan mínimo para acceso API REST (widgets, agentes, export). */
+/** Plan mínimo para acceso API REST en planes con panel (Team+). */
 export const API_ACCESS_MIN_PLAN: PlanId = 'team';
 
 /** Etiqueta pública en landing mientras la API no está disponible en producción. */
@@ -375,7 +410,7 @@ export const FEATURE_OVERRIDES: { key: string; label: string; description: strin
   { key: OUTBOUND_WEBHOOK_FEATURE,  label: 'Webhook saliente (HMAC)', description: 'Eventos firmados a tu backend. Incluido desde Plus por defecto.' },
   { key: ESCALATION_SLACK_FEATURE,  label: 'Slack al escalar',     description: 'Aviso a Slack en handoff. Incluido desde Team por defecto.' },
   { key: ESCALATION_TICKET_FEATURE, label: 'Tickets al escalar',   description: 'Zendesk/Freshdesk en handoff. Incluido desde Business por defecto.' },
-  { key: API_ACCESS_FEATURE,        label: 'Acceso API REST',      description: 'Acceso a la API REST. Incluido desde Team por defecto.' },
+  { key: API_ACCESS_FEATURE,        label: 'Acceso API REST',      description: 'Acceso a la API REST. Incluido desde Team por defecto (API Develop es solo REST).' },
   { key: CUSTOM_INTEGRATION_FEATURE, label: 'Integraciones custom (MCP)', description: 'Conectores MCP de plan superior (MongoDB, Postgres…). Incluido desde Business por defecto.' },
 ];
 
@@ -443,10 +478,11 @@ export function planHasEscalationSlackFeature(planId: PlanId): boolean {
 }
 
 export function planHasApiAccessFeature(planId: PlanId): boolean {
+  if (isApiOnlyPlan(planId)) return true;
   return planRank(planId) >= planRank(API_ACCESS_MIN_PLAN);
 }
 
-/** Acceso API REST con suscripción activa (Team+), o por override de admin. */
+/** Acceso API REST con suscripción activa (API+), o por override de admin. */
 export function canUseApiAccess(
   plan: string,
   status: string,
@@ -454,6 +490,7 @@ export function canUseApiAccess(
 ): boolean {
   if (hasFeatureOverride(subscriptionFeatures, API_ACCESS_FEATURE)) return true;
   const effective = effectiveProductPlan(plan, status);
+  if (isApiOnlyPlan(effective)) return true;
   return planRank(effective) >= planRank(API_ACCESS_MIN_PLAN);
 }
 
@@ -485,6 +522,13 @@ export function canUseEscalationTickets(
 
 export function apiAccessUpgradeLabel(): string {
   return PLAN_DISPLAY[API_ACCESS_MIN_PLAN]?.label ?? 'Team';
+}
+
+/** Etiqueta API en tablas comparativas. */
+export function formatApiAccessFeature(planId: PlanId): string {
+  if (!planHasApiAccessFeature(planId)) return '—';
+  if (isApiOnlyPlan(planId)) return 'Incluido';
+  return API_REST_COMING_SOON_LABEL;
 }
 
 /** Etiqueta para tabla comparativa: — | Básico | Avanzado | Completo */
@@ -564,21 +608,28 @@ export function isSoloChatOnlyPlan(plan: string): boolean {
 export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
   solo: [
     '300 conversaciones al mes (~10/día)',
-    '3 agentes · solo chat (sin herramientas ni almacenamiento)',
+    '4 agentes · solo chat (sin herramientas ni almacenamiento)',
     'Widgets básicos · historial 30 días',
     'Autoguiado: documentación y videos en YouTube',
     'Soporte por email (72 h, sin onboarding dedicado)',
   ],
+  api_develop: [
+    '2.000 conversaciones al mes vía API REST',
+    '7 agentes · sin panel, widgets ni builder',
+    'Auth con API key · documentación interactiva',
+    'Endpoints de agentes, chat y claves ya disponibles',
+    'Soporte por email (48 h)',
+  ],
   team: [
     '2.000 conversaciones al mes (~65/día)',
-    '5 agentes · 2 sub-agentes · Webhook incluido',
+    '6 agentes · 3 sub-agentes · Webhook incluido',
     'Almacenamiento: 128 MB · 15 fuentes por agente',
     'Acceso API REST (próximamente) · Gmail y Slack · widgets ilimitados',
     'Capacitación grupal · soporte email (48 h)',
   ],
   plus: [
     '3.000 conversaciones al mes (~100/día)',
-    '10 agentes · 5 sub-agentes · Webhook incluido',
+    '12 agentes · 6 sub-agentes · Webhook incluido',
     'Almacenamiento: 256 MB · 20 fuentes · búsqueda vectorial',
     'Webhook saliente (HMAC) · analytics de conversaciones (básico)',
     'Tareas programadas · historial 60 días · soporte email (48 h)',
@@ -604,6 +655,7 @@ export const PLAN_PRICING_FEATURES: Record<PlanId, string[]> = {
     'Comunidad y documentación',
   ],
   solo: PLAN_FEATURE_BULLETS.solo,
+  api_develop: PLAN_FEATURE_BULLETS.api_develop,
   team: PLAN_FEATURE_BULLETS.team,
   plus: PLAN_FEATURE_BULLETS.plus,
   business: PLAN_FEATURE_BULLETS.business,
@@ -635,14 +687,6 @@ function fmtPrice(usd: number): string {
 export function buildAllPricingPlans(): PlanInfo[] {
   const paidHighlighted: PaidPlanId = 'plus';
   const entries: PlanInfo[] = [
-    {
-      id: 'free',
-      name: 'Free',
-      price: '$0',
-      rateLimit: PLAN_RATE_LIMITS_PER_MIN.free,
-      monthlyRequests: PLAN_CONVERSATION_LIMITS.free,
-      features: PLAN_PRICING_FEATURES.free,
-    },
     ...PAID_PLAN_IDS.map((id) => ({
       id,
       name: PLAN_DISPLAY[id].label,

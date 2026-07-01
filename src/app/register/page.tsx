@@ -120,7 +120,7 @@ export default function RegisterPage() {
             <span className="text-2xl font-bold text-black">{BRAND_NAME}</span>
           </Link>
           <p className="mt-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-            Prueba gratuita de 7 días — requiere código de invitación
+            Requiere código de invitación y plan de pago activo
           </p>
         </div>
 

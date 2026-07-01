@@ -2,7 +2,7 @@ import { Navbar } from '@/components/shared/navbar';
 import { Footer } from '@/components/shared/footer';
 import { PLANS, buildPricingGridPlans } from '@/lib/gateway';
 import { PLAN_DISPLAY, CONVERSATION_PACKS, API_REST_COMING_SOON_LABEL } from '@/lib/plan-catalog';
-import { Check, ArrowRight, Zap, Gift, Rocket, Smartphone, Wallet, Landmark, type LucideIcon } from 'lucide-react';
+import { Check, ArrowRight, Zap, Smartphone, Wallet, Landmark, type LucideIcon } from 'lucide-react';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { PricingComparisonTable } from '@/components/landing/pricing-comparison-table';
@@ -34,9 +34,7 @@ function planWhatsAppUrl(planName: string, priceLabel?: string) {
   return buildPlanWhatsAppUrl(planName, priceLabel);
 }
 
-const FREE_PLAN       = PLANS.find((p) => p.id === 'free');
 const PAID_PLANS      = buildPricingGridPlans();
-const SOLO_PLAN       = PLANS.find((p) => p.id === 'solo');
 const ENTERPRISE_PLAN = PLANS.find((p) => p.id === 'enterprise');
 
 function fmt(n: number) {
@@ -63,74 +61,12 @@ export default function PricingPage() {
               Precios <span className="gradient-text">simples y claros</span>
             </h1>
             <p className="mt-3 md:mt-4 text-base md:text-lg max-w-2xl mx-auto px-1" style={{ color: 'var(--muted-foreground)' }}>
-              Empieza gratis y escala según tu volumen. Una métrica principal: conversaciones al mes.
+              Elige el plan que se ajuste a tu volumen. Una métrica principal: conversaciones al mes.
             </p>
           </div>
 
-          {/* Free + Solo entry */}
-          <div className="mb-6 md:mb-8 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-            {FREE_PLAN && (
-              <div
-                className="rounded-2xl px-5 py-5 md:px-6 md:py-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4"
-                style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
-              >
-                <div className="flex items-center gap-4">
-                  <div
-                    className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
-                    style={{ background: 'rgba(var(--brand-primary-rgb),0.08)' }}
-                  >
-                    <Gift size={26} style={{ color: 'var(--primary)' }} />
-                  </div>
-                  <div>
-                    <p className="font-extrabold text-xl md:text-sm m-0">Plan Gratis</p>
-                    <p className="text-2xl md:text-sm font-bold m-0 mt-0.5" style={{ color: 'var(--primary)' }}>$0</p>
-                    <p className="text-sm md:text-xs mt-1 m-0" style={{ color: 'var(--muted-foreground)' }}>
-                      {FREE_PLAN.features[0]}
-                    </p>
-                  </div>
-                </div>
-                <Link
-                  href="/register"
-                  className="shrink-0 flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl text-base md:text-sm font-bold transition-all min-h-[48px]"
-                  style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
-                >
-                  Empezar gratis <ArrowRight size={16} />
-                </Link>
-              </div>
-            )}
-            {SOLO_PLAN && (
-              <div
-                className="rounded-2xl px-5 py-5 md:px-6 md:py-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4"
-                style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
-              >
-                <div className="flex items-center gap-4">
-                  <div
-                    className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
-                    style={{ background: 'rgba(var(--brand-cool-rgb),0.08)' }}
-                  >
-                    <Rocket size={26} style={{ color: 'var(--foreground)' }} />
-                  </div>
-                  <div>
-                    <p className="font-extrabold text-xl md:text-sm m-0">Solo</p>
-                    <p className="text-2xl md:text-sm font-bold m-0 mt-0.5">{PLAN_DISPLAY.solo.priceLabel}</p>
-                    <p className="text-sm md:text-xs mt-1 m-0" style={{ color: 'var(--muted-foreground)' }}>
-                      {SOLO_PLAN.features[0]}
-                    </p>
-                  </div>
-                </div>
-                <Link
-                  href="/register"
-                  className="shrink-0 flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl text-base md:text-sm font-bold transition-all min-h-[48px]"
-                  style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
-                >
-                  Probar 7 días <ArrowRight size={16} />
-                </Link>
-              </div>
-            )}
-          </div>
-
-          {/* Paid plans — 4 columnas en una fila en desktop */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 items-stretch lg:items-end">
+          {/* Paid plans */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-4 items-stretch lg:items-end">
             {PAID_PLANS.map((plan) => (
               <PricingPlanCard
                 key={plan.id}

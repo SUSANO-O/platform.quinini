@@ -1,6 +1,7 @@
 import {
   ArrowRight,
   Bot,
+  Braces,
   Check,
   Crown,
   HardDrive,
@@ -57,6 +58,7 @@ function planHighlights(planId: string): Highlight[] {
 
 const PLAN_ICONS: Record<string, typeof Crown> = {
   solo: Sparkles,
+  api_develop: Braces,
   team: Bot,
   plus: Sparkles,
   business: Crown,
@@ -74,6 +76,7 @@ export function PricingPlanCard({
 
   return (
     <div
+      id={plan.id === 'api_develop' ? 'api-develop' : undefined}
       className={[
         'relative rounded-2xl flex flex-col transition-all hover:shadow-lg',
         plan.highlighted

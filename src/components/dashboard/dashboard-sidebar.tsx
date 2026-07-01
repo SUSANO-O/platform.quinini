@@ -20,6 +20,7 @@ import {
   FileText,
   Braces,
   MessageSquare,
+  GitBranch,
 } from 'lucide-react';
 import { BRAND_LOGO_SRC, BRAND_NAME, BRAND_TEXT_COLOR } from '@/lib/brand';
 import { PwaInstallButton } from '@/components/shared/pwa-install-button';
@@ -27,7 +28,7 @@ import { UserAvatar } from '@/components/shared/user-avatar';
 import { useInboxOpenCount } from '@/hooks/use-inbox-open-count';
 import { useDashboardPrefetch } from '@/hooks/dashboard/use-dashboard-prefetch';
 import { useSubscription } from '@/hooks/use-subscription';
-import { canUseApiAccess, isSoloChatOnlyPlan } from '@/lib/plan-catalog';
+import { canUseApiAccess, effectiveProductPlan, isApiOnlyPlan, isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 
 export const SIDEBAR_EXPANDED_PX = 252;
 export const SIDEBAR_COLLAPSED_PX = 72;
@@ -150,6 +151,7 @@ export const NAV_GROUPS: { title: string; items: { href: string; label: string; 
       { href: '/dashboard/agents', label: 'Mis Agentes', icon: Bot },
       { href: '/dashboard/widgets', label: 'Mis Widgets', icon: Boxes },
       { href: '/dashboard/widget-builder', label: 'Widget Builder', icon: Cpu },
+      { href: '/dashboard/flows', label: 'Flujos', icon: GitBranch },
     ],
   },
   {
@@ -166,10 +168,24 @@ export const NAV_GROUPS: { title: string; items: { href: string; label: string; 
 export function buildDashboardNavGroups({
   showApiLink,
   hideQuickStart,
+  apiOnly = false,
 }: {
   showApiLink: boolean;
   hideQuickStart: boolean;
+  apiOnly?: boolean;
 }) {
+  if (apiOnly) {
+    return [
+      {
+        title: 'Desarrolladores',
+        items: [
+          { href: '/dashboard/api', label: 'API REST', icon: Braces },
+          { href: '/dashboard/settings', label: 'Ajustes', icon: Settings },
+        ],
+      },
+    ];
+  }
+
   return NAV_GROUPS.map((group) => {
     let items = group.items;
 
@@ -192,6 +208,7 @@ export const SIDEBAR_TOUR_KEY_BY_HREF: Record<string, string> = {
   '/dashboard/agents': 'sidebar-agentes',
   '/dashboard/widget-builder': 'sidebar-widget-builder',
   '/dashboard/widgets': 'sidebar-widgets',
+  '/dashboard/flows': 'sidebar-flows',
   '/dashboard/compliance': 'sidebar-cumplimiento',
   '/dashboard/facturas': 'sidebar-facturas',
   '/dashboard/api': 'sidebar-api',
@@ -302,6 +319,7 @@ function SidebarNav({
   inboxOpenCount,
   showApiLink,
   hideQuickStart,
+  apiOnly,
 }: {
   pathname: string;
   collapsed: boolean;
@@ -309,9 +327,10 @@ function SidebarNav({
   inboxOpenCount: number;
   showApiLink: boolean;
   hideQuickStart: boolean;
+  apiOnly: boolean;
 }) {
   const prefetchRoute = useDashboardPrefetch();
-  const groups = buildDashboardNavGroups({ showApiLink, hideQuickStart });
+  const groups = buildDashboardNavGroups({ showApiLink, hideQuickStart, apiOnly });
 
   return (
     <nav
@@ -393,12 +412,14 @@ export function DashboardSidebar({
   const rail = isDesktop && collapsed;
   const { openCount: inboxOpenCount } = useInboxOpenCount(true);
   const { subscription } = useSubscription();
+  const plan = effectiveProductPlan(subscription?.plan ?? 'free', subscription?.status ?? 'free');
+  const apiOnly = isApiOnlyPlan(plan);
   const showApiLink = canUseApiAccess(
     subscription?.plan ?? 'free',
     subscription?.status ?? 'free',
     subscription?.features,
   );
-  const hideQuickStart = isSoloChatOnlyPlan(subscription?.plan ?? 'free');
+  const hideQuickStart = isSoloChatOnlyPlan(subscription?.plan ?? 'free') || apiOnly;
 
   return (
     <aside
@@ -408,16 +429,17 @@ export function DashboardSidebar({
         width: isDesktop ? (collapsed ? SIDEBAR_COLLAPSED_PX : SIDEBAR_EXPANDED_PX) : SIDEBAR_EXPANDED_PX,
         flexShrink: 0,
         minHeight: 0,
-        height: isDesktop ? 'calc(100% - 24px)' : '100%',
-        margin: isDesktop ? '12px 0 12px 12px' : 0,
+        height: '100%',
+        margin: 0,
         background: SIDEBAR_SURFACE,
         border: 'none',
-        borderRadius: isDesktop ? 20 : 0,
+        borderRight: isDesktop ? '1px solid var(--border)' : 'none',
+        borderRadius: 0,
         flexDirection: 'column',
         padding: rail ? '16px 10px' : '18px 14px',
         overflow: 'hidden',
-        transition: 'width 0.22s ease, padding 0.22s ease, box-shadow 0.22s ease',
-        boxShadow: isDesktop ? 'var(--shadow-surface-lg)' : undefined,
+        transition: 'width 0.22s ease, padding 0.22s ease',
+        boxShadow: undefined,
       }}
     >
       {/* Cabecera */}
@@ -532,7 +554,7 @@ export function DashboardSidebar({
 
       {footer}
 
-      <SidebarNav pathname={pathname} collapsed={rail} onNavigate={onNavigate} inboxOpenCount={inboxOpenCount} showApiLink={showApiLink} hideQuickStart={hideQuickStart} />
+      <SidebarNav pathname={pathname} collapsed={rail} onNavigate={onNavigate} inboxOpenCount={inboxOpenCount} showApiLink={showApiLink} hideQuickStart={hideQuickStart} apiOnly={apiOnly} />
 
       {/* Pie */}
       <SoftDivider margin="12px 0 0" />

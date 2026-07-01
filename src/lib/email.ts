@@ -289,7 +289,7 @@ export async function sendVerificationEmail(
       ${p(`Hola <strong style="color:#f1f5f9;">${escapeHtml(safeName)}</strong>,`)}
       ${p('Gracias por crear tu cuenta en BotIvA. Estamos encantados de tenerte con nosotros.')}
       ${p(
-        'Para confirmar que este correo es real y es tuyo, solo tienes que pulsar el botón de abajo. Así activamos tu cuenta por completo y podrás disfrutar del <strong style="color:#f1f5f9;">periodo de prueba</strong> y del resto de funciones sin trabas.',
+        'Para confirmar que este correo es real y es tuyo, solo tienes que pulsar el botón de abajo. Así activamos tu cuenta por completo y podrás acceder al dashboard.',
       )}
       ${p('El enlace caduca en <strong style="color:#f1f5f9;">24 horas</strong>.')}
       ${btn('Confirmar mi correo', url, '#0d9488')}

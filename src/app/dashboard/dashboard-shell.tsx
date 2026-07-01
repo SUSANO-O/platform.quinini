@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { LandingAccessGate } from '@/components/auth/landing-access-gate';
 
-import { CHECKOUT_UPGRADE_PLAN_IDS, PLAN_DISPLAY } from '@/lib/plan-catalog';
+import { CHECKOUT_UPGRADE_PLAN_IDS, PLAN_DISPLAY, effectiveProductPlan, isApiOnlyDashboardPath, isApiOnlyPlan } from '@/lib/plan-catalog';
 import { buildTrialExpiredWhatsAppUrl } from '@/lib/sales-whatsapp';
 
 const SIDEBAR_COLLAPSED_KEY = 'dashboard-sidebar-collapsed';
@@ -77,16 +77,16 @@ function SubscriptionExpiryGate() {
         }}
       >
         <p style={{ margin: 0, fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.78 }}>
-          Trial finalizado
+          Suscripción inactiva
         </p>
         <h3 id="trial-expired-title" style={{ margin: '8px 0 12px', fontSize: '22px', lineHeight: 1.18 }}>
-          Tu período de prueba expiró
+          Tu plan de pago no está activo
         </h3>
 
         <p style={{ margin: '0 0 20px', color: 'rgba(241,245,249,0.96)', lineHeight: 1.5 }}>
           {expiredAt
-            ? `Tu prueba gratuita terminó el ${expiredAt}.`
-            : 'Tu prueba gratuita ya terminó.'}{' '}
+            ? `Tu suscripción terminó el ${expiredAt}.`
+            : 'Necesitas una suscripción activa para usar el dashboard.'}{' '}
           Elige un plan y contáctanos por WhatsApp para activarlo, o cierra sesión.
         </p>
 
@@ -153,7 +153,7 @@ function SidebarExpiryBadge() {
       boxShadow: '0 2px 12px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
     }}>
       <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: 'var(--foreground)', marginBottom: '8px' }}>
-        Período de prueba finalizado
+        Suscripción inactiva
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
         {CHECKOUT_UPGRADE_PLAN_IDS.map((planId) => {
@@ -266,11 +266,38 @@ function TourActions() {
   );
 }
 
+function ApiOnlyDashboardGate({
+  pathname,
+  children,
+}: {
+  pathname: string;
+  children: React.ReactNode;
+}) {
+  const router = useRouter();
+  const { subscription, loading } = useSubscription();
+  const plan = effectiveProductPlan(subscription?.plan ?? 'free', subscription?.status ?? 'free');
+  const apiOnly = isApiOnlyPlan(plan);
+
+  useEffect(() => {
+    if (loading || !apiOnly) return;
+    if (!isApiOnlyDashboardPath(pathname)) {
+      router.replace('/dashboard/api');
+    }
+  }, [loading, apiOnly, pathname, router]);
+
+  if (!loading && apiOnly && !isApiOnlyDashboardPath(pathname)) {
+    return null;
+  }
+
+  return <>{children}</>;
+}
+
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const { user, loading, logout, stopImpersonating, landingAccessLockRequired, clearLandingAccessLock, refreshUser } = useAuth();
   const showSplash = useAuthSplashLoading(loading);
   const router = useRouter();
   const pathname = usePathname();
+  const isFlowEditorRoute = /^\/dashboard\/flows\/[^/]+\/edit$/.test(pathname);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
@@ -380,8 +407,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           </div>
         )}
         <div style={{ display: 'flex', flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
-
         {/* Topbar móvil — solo marca */}
+        {!isFlowEditorRoute && (
         <header className="flex md:hidden" style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 40,
           height: 52, alignItems: 'center', justifyContent: 'center',
@@ -394,7 +421,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             <span className="text-base font-bold text-black">{BRAND_NAME}</span>
           </Link>
         </header>
+        )}
 
+        {!isFlowEditorRoute && (
         <DashboardSidebar
           variant="desktop"
           pathname={pathname}
@@ -412,12 +441,16 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             ) : null
           }
         />
+        )}
 
-        {/* Main content — única columna que crece con el documento; scroll vertical aquí */}
-        <main className="dashboard-main">
-          {children}
+        {/* Main content */}
+        <main className={isFlowEditorRoute ? 'dashboard-main dashboard-main--flow-editor' : 'dashboard-main'}>
+          <ApiOnlyDashboardGate pathname={pathname}>
+            {children}
+          </ApiOnlyDashboardGate>
         </main>
 
+        {!isFlowEditorRoute && (
         <DashboardMobileNav
           pathname={pathname}
           user={user}
@@ -430,6 +463,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             </>
           }
         />
+        )}
         </div>
       </div>
       </TourProvider>

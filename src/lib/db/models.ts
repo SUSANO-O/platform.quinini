@@ -88,7 +88,7 @@ const SubscriptionSchema = new Schema({
   status:               {
     type: String,
     enum: ['trialing', 'active', 'canceled', 'past_due', 'incomplete'],
-    default: 'trialing',
+    default: 'active',
   },
   plan: {
     type: String,
@@ -606,6 +606,49 @@ const OrganizationSchema = new Schema({
 OrganizationSchema.index({ ownerId: 1 });
 OrganizationSchema.index({ 'members.userId': 1 });
 
+// ── CONVERSATION FLOWS (editor visual) ────────────────────────────────────────
+
+const ConversationFlowSchema = new Schema({
+  userId:    { type: String, required: true },
+  orgId:     { type: String, default: null },
+  workspaceId: { type: String, required: true },
+  name:      { type: String, default: 'Flujo sin título' },
+  status:    { type: String, enum: ['draft', 'published'], default: 'draft' },
+  description: { type: String, default: '' },
+  tags:      { type: String, default: '' },
+  generatesLeads: { type: Boolean, default: false },
+  enabledChannels: { type: [String], default: ['widget'] },
+  completionMessage: { type: String, default: '' },
+  tooltipEnabled: { type: Boolean, default: false },
+  tooltipMessage: { type: String, default: '' },
+  tooltipDelay: { type: Number, default: 3000 },
+  tooltipDuration: { type: Number, default: 5000 },
+  nodes:     { type: [Schema.Types.Mixed], default: [] },
+  connections: { type: [Schema.Types.Mixed], default: [] },
+  embedToken: { type: String, default: null },
+}, { timestamps: true });
+
+ConversationFlowSchema.index({ userId: 1, workspaceId: 1, updatedAt: -1 });
+
+const FlowConversationSchema = new Schema({
+  flowId:       { type: String, required: true },
+  userId:       { type: String, required: true },
+  sessionId:    { type: String, required: true, unique: true },
+  widgetId:     { type: String, default: '' },
+  visitorId:    { type: String, default: '' },
+  status:       { type: String, enum: ['active', 'completed', 'abandoned'], default: 'active' },
+  startedAt:    { type: Date, required: true },
+  endedAt:      { type: Date, default: null },
+  durationSec:  { type: Number, default: null },
+  messageCount: { type: Number, default: 0 },
+  currentNodeId:{ type: String, default: '' },
+  answers:      { type: [Schema.Types.Mixed], default: [] },
+  month:        { type: String, default: '' },
+}, { timestamps: true });
+
+FlowConversationSchema.index({ flowId: 1, startedAt: -1 });
+FlowConversationSchema.index({ userId: 1, flowId: 1, startedAt: -1 });
+
 // ── REFERRALS ─────────────────────────────────────────────────────────────────
 
 const ReferralSchema = new Schema({
@@ -790,6 +833,8 @@ export const ConversationSession  = mongoose.models.ConversationSession  || mong
 export const WidgetSessionContext = mongoose.models.WidgetSessionContext || mongoose.model('WidgetSessionContext', WidgetSessionContextSchema);
 export const RagBulkJob           = mongoose.models.RagBulkJob           || mongoose.model('RagBulkJob', RagBulkJobSchema);
 export const Organization         = mongoose.models.Organization         || mongoose.model('Organization', OrganizationSchema);
+export const ConversationFlow     = mongoose.models.ConversationFlow     || mongoose.model('ConversationFlow', ConversationFlowSchema);
+export const FlowConversation       = mongoose.models.FlowConversation       || mongoose.model('FlowConversation', FlowConversationSchema);
 export const Referral             = mongoose.models.Referral             || mongoose.model('Referral', ReferralSchema);
 export const AbTest               = mongoose.models.AbTest               || mongoose.model('AbTest', AbTestSchema);
 export const WidgetMessage        = mongoose.models.WidgetMessage        || mongoose.model('WidgetMessage', WidgetMessageSchema);

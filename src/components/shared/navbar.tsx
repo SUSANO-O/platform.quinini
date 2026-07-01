@@ -58,11 +58,11 @@ export function Navbar() {
                   Iniciar sesión
                 </Link>
                 <Link
-                  href="/register"
+                  href="/pricing"
                   className="text-sm font-semibold px-5 py-2.5 rounded-xl text-white transition-all hover:shadow-lg"
                   style={{ background: 'var(--brand-primary)' }}
                 >
-                  Empezar gratis
+                  Ver precios
                 </Link>
               </div>
             )
@@ -111,12 +111,12 @@ export function Navbar() {
                   Iniciar sesión
                 </Link>
                 <Link
-                  href="/register"
+                  href="/pricing"
                   className="block text-center text-sm font-semibold px-5 py-2.5 rounded-xl text-white"
                   style={{ background: 'var(--brand-primary)' }}
                   onClick={() => setOpen(false)}
                 >
-                  Empezar gratis
+                  Ver precios
                 </Link>
               </>
             )
