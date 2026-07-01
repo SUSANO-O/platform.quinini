@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Bot, CheckCircle, AlertTriangle, ChevronRight, Loader2, Save, RefreshCw, ShieldAlert, Layers } from 'lucide-react';
 import { AdminCollapsibleSection } from '@/components/admin/admin-collapsible-section';
+import { PLAN_ORDER } from '@/lib/plan-catalog';
 
 // ── Plan model tiers ──────────────────────────────────────────────────────────
 type ModelTier = 'lite' | 'flash' | 'default' | 'premium';
@@ -14,7 +15,7 @@ const TIER_OPTIONS: { value: ModelTier; label: string; color: string; bg: string
   { value: 'premium', label: 'Pro / Todos', color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   desc: '>$5/M tokens' },
 ];
 
-const PLANS = ['free','solo','api_develop','team','plus','business','enterprise'];
+const PLANS_ORDER = PLAN_ORDER;
 
 const PLAN_LABELS: Record<string, string> = {
   free: 'Free', solo: 'Solo', api_develop: 'API Develop', team: 'Team', plus: 'Plus',
