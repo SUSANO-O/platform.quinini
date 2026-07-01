@@ -17,6 +17,6 @@ export function buildPlanWhatsAppUrl(planName: string, priceLabel?: string): str
 export function buildTrialExpiredWhatsAppUrl(planName: string, priceLabel?: string): string {
   const pricePart = priceLabel ? ` (${priceLabel})` : '';
   return waMeUrl(
-    `Hola, mi prueba gratuita de BotIvA expiró y quiero contratar el plan ${planName}${pricePart}. ¿Me ayudan a activarlo?`,
+    `Hola, mi suscripción de BotIvA expiró y quiero contratar el plan ${planName}${pricePart}. ¿Me ayudan a activarlo?`,
   );
 }

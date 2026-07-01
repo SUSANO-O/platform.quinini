@@ -33,8 +33,9 @@ const SYNC_ENV_ONLY = process.argv.includes('--sync-env');
 const PLANS = {
   subscriptions: [
     { key: 'solo',     name: 'BotIvA Solo',     usd: 7,   interval: 'month', aliases: ['solo'] },
-    { key: 'team',     name: 'BotIvA Team',     usd: 29,  interval: 'month', aliases: ['team'] },
-    { key: 'plus',     name: 'BotIvA Plus',     usd: 42,  interval: 'month', aliases: ['plus'] },
+    { key: 'api_develop', name: 'BotIvA API Develop', usd: 29, interval: 'month', aliases: ['api develop', 'api dev', 'desarrolladores'] },
+    { key: 'team',     name: 'BotIvA Team',     usd: 35,  interval: 'month', aliases: ['team'] },
+    { key: 'plus',     name: 'BotIvA Plus',     usd: 50,  interval: 'month', aliases: ['plus'] },
     { key: 'business', name: 'BotIvA Business', usd: 749, interval: 'month', aliases: ['business'] },
   ],
   packs: [

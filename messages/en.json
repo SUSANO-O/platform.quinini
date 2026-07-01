@@ -6,7 +6,7 @@
     "faq": "FAQ",
     "docs": "Documentation",
     "signIn": "Sign in",
-    "startFree": "Start free",
+    "startFree": "View pricing",
     "dashboard": "Dashboard →"
   },
   "footer": {
@@ -25,19 +25,19 @@
     "rights": "All rights reserved."
   },
   "landing": {
-    "badge": "7 days free",
+    "badge": "Plans from $7/mo",
     "hero": {
       "title1": "AI Agents for",
       "title2": "any industry",
       "description": "Deploy an AI agent on your website in less than 10 minutes. No code, no servers — just paste the widget and start serving customers around the clock.",
-      "ctaPrimary": "Start free — 7-day trial",
+      "ctaPrimary": "View pricing",
       "ctaAccount": "I already have an account",
       "ctaDocs": "View Pricing"
     },
     "stats": {
-      "trialValue": "7 days",
-      "trial": "Free trial",
-      "trialHint": "No credit card required",
+      "trialValue": "$7",
+      "trial": "From Solo",
+      "trialHint": "/mo",
       "setupValue": "< 10 min",
       "setup": "Your first live widget",
       "setupHint": "Multi-agent included",
@@ -50,7 +50,7 @@
       "title": "Configure your AI in minutes",
       "subtitle": "Our platform is built so you can deploy intelligent agents without technical hassle. Follow these five steps and transform your customer support today.",
       "step1Title": "Create your account",
-      "step1Desc": "Sign up in seconds and access our intuitive control panel. No credit card required to get started.",
+      "step1Desc": "Sign up with your authorization code and access the dashboard once you have an active plan.",
       "step2Title": "Train your agent",
       "step2Desc": "Upload your documents or connect your knowledge base. Our AI learns from your content in real time.",
       "step3Title": "Design your widget",
@@ -89,7 +89,7 @@
       "subtitle": "Deploy an intelligent chat on your site in less than 5 minutes. Answer questions, qualify leads and close sales — 24 hours a day.",
       "windowTitle": "BotIvA — Widget Builder",
       "live": "Live",
-      "startFree": "Start free →",
+      "startFree": "View pricing →",
       "whyTitle": "Why sales teams choose it",
       "b1Title": "Responds instantly",
       "b1Desc": "No waiting. The customer receives a response in less than 1 second.",
@@ -106,7 +106,7 @@
       "available": "Available now",
       "msg1": "Hi! 👋 I'm your assistant. Are you looking for information about our plans?",
       "msg2": "Yes, what's included in the Growth plan?",
-      "msg3": "Growth includes unlimited agents, storage with files/URLs and advanced analytics. Start with <strong>7 days free</strong>. 🚀",
+      "msg3": "Growth includes unlimited agents, storage with files/URLs and advanced analytics. <strong>Choose the plan you need</strong>. 🚀",
       "inputPlaceholder": "Type your message…",
       "socialProof": "<red>+320 companies</red> already use BotIvA to convert more visitors into customers"
     },
@@ -122,17 +122,17 @@
     },
     "pricing": {
       "title": "Transparent pricing",
-      "subtitle": "7-day free trial. No contracts. Cancel anytime.",
+      "subtitle": "No contracts. Cancel anytime.",
       "period": "/mo",
       "popular": "Most popular",
-      "cta": "Start free — 7 days",
+      "cta": "Subscribe",
       "ragNotIncluded": "No context & memory — available from Team",
       "ragTechnical": "Context & memory: {mb} MB · {sources} sources per agent",
       "solo": {
         "requests": "300 conv/mo",
         "features": [
           "300 conversations per month (~10/day)",
-          "1 agent · Agent webhook · Web Search, Gmail",
+          "4 agents · Agent webhook · Web Search, Gmail",
           "Unlimited widgets",
           "Self-guided: docs and YouTube training videos",
           "Email support (72h, no dedicated onboarding)"
@@ -152,17 +152,27 @@
         "requests": "2,000 conv/mo",
         "features": [
           "2,000 conversations per month (~65/day)",
-          "5 agents · 2 sub-agents · Webhook included",
+          "6 agents · 3 sub-agents · Webhook included",
           "Storage: 128 MB · 15 sources",
-          "REST API access (coming soon) · Gmail & Slack · unlimited widgets",
+          "Full dashboard · Gmail & Slack · unlimited widgets",
           "Group training · email support (48h)"
+        ]
+      },
+      "api_develop": {
+        "requests": "2,000 conv/mo",
+        "features": [
+          "2,000 conversations per month via REST API",
+          "7 agents · no dashboard or widgets",
+          "API key auth · interactive docs",
+          "Agents, chat and keys endpoints",
+          "Email support (48h)"
         ]
       },
       "plus": {
         "requests": "3,000 conv/mo",
         "features": [
           "3,000 conversations per month (~100/day)",
-          "10 agents · 5 sub-agents · Webhook included",
+          "12 agents · 6 sub-agents · Webhook included",
           "Storage: 256 MB · 20 sources",
           "Conversation analytics (basic) · 60-day history",
           "Group training · email support (48h)"
@@ -238,12 +248,12 @@
       "title": "Frequently asked questions",
       "items": [
         {
-          "q": "What's included in the 7-day trial?",
-          "a": "Full access to the Widget Builder, all agents and the SDK. No limits during the trial period."
+          "q": "Do I need to pay to use BotIvA?",
+          "a": "Yes. Dashboard and agent access require an active paid plan. See pricing and subscribe from the plans page."
         },
         {
           "q": "Do I need a credit card to sign up?",
-          "a": "No. Just email and password. A card is only required when you choose a paid plan."
+          "a": "Registration requires an authorization code. A card is required when you subscribe to a paid plan."
         },
         {
           "q": "Can I cancel at any time?",
@@ -275,10 +285,10 @@
       "cta": "Start with accompaniment"
     },
     "cta": {
-      "title1": "Start today.",
-      "title2": "7 days free.",
-      "subtitle": "Cancel anytime. Your first widget live in minutes.",
-      "primary": "Create free account",
+      "title1": "Subscribe today.",
+      "title2": "No lock-in.",
+      "subtitle": "Cancel anytime. Your first widget live in minutes after subscribing.",
+      "primary": "View pricing",
       "secondary": "I already have an account"
     }
   }

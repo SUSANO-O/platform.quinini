@@ -20,9 +20,23 @@ import {
 
 export { mapLSStatusToDb, planFromLSVariantId };
 
-const TRIAL_DAYS = 7;
+export async function ensureTrial(userId: string) {
+  await connectDB();
 
-// ── helpers de periodo para mantener compatibilidad con billing/webhook ──────
+  let sub = await SubscriptionModel.findOne({ userId });
+
+  if (!sub) {
+    sub = await SubscriptionModel.create({
+      userId,
+      status: 'incomplete',
+      plan: 'free',
+      trialStartedAt: null,
+      trialEndsAt: null,
+    });
+  }
+
+  return sub;
+}
 
 export function readCancelAtPeriodEnd(sub: unknown): boolean {
   return readLSCancelAtPeriodEnd(sub);
@@ -103,25 +117,6 @@ export async function syncSubscriptionFromLS(userId: string) {
 export const syncSubscriptionFromPaddle = syncSubscriptionFromLS;
 export const syncSubscriptionFromStripe = syncSubscriptionFromLS;
 
-export async function ensureTrial(userId: string) {
-  await connectDB();
-
-  let sub = await SubscriptionModel.findOne({ userId });
-
-  if (!sub) {
-    const trialStartedAt = new Date();
-    const trialEndsAt = new Date(trialStartedAt.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
-    sub = await SubscriptionModel.create({
-      userId,
-      status: 'trialing',
-      plan: 'free',
-      trialStartedAt,
-      trialEndsAt,
-    });
-  }
-
-  return sub;
-}
 
 export async function getSubscription(userId: string) {
   await connectDB();
@@ -143,32 +138,26 @@ type SubscriptionDoc = {
   updatedAt?: Date;
 };
 
-/** Acceso y premium desde MongoDB — fuente de verdad (admin o webhook LS, no sync en lectura). */
+/** Acceso solo con plan de pago vigente (sin plan Free ni trials de producto). */
 export function resolveSubscriptionAccess(doc: SubscriptionDoc, nowMs = Date.now()) {
   const nowSec = nowMs / 1000;
-  const trialEndsAt = doc.trialEndsAt ? new Date(doc.trialEndsAt).getTime() : 0;
   const hasBillingProvider = Boolean(doc.lsSubscriptionId || doc.paddleSubscriptionId);
   const paidPlan = isPaidProductPlan(doc.plan);
   const periodExpired = doc.currentPeriodEnd > 0 && doc.currentPeriodEnd <= nowSec;
-
-  const isTrialActive = doc.status === 'trialing' && trialEndsAt > nowMs;
 
   const isPaidActive =
     paidPlan &&
     !periodExpired &&
     (doc.status === 'active' ||
+      (doc.status === 'trialing' && hasBillingProvider) ||
       doc.status === 'past_due' ||
-      (doc.status === 'incomplete' && paidPlan));
-
-  const trialDaysRemaining = isTrialActive
-    ? Math.max(0, Math.ceil((trialEndsAt - nowMs) / (1000 * 60 * 60 * 24)))
-    : 0;
+      (doc.status === 'incomplete' && paidPlan && hasBillingProvider));
 
   return {
-    hasAccess: isPaidActive || isTrialActive,
+    hasAccess: isPaidActive,
     isPremium: isPaidActive,
-    isTrialActive,
-    trialDaysRemaining,
+    isTrialActive: false,
+    trialDaysRemaining: 0,
     hasStripeSubscription: hasBillingProvider,
   };
 }

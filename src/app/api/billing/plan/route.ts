@@ -1,5 +1,5 @@
 /**
- * POST /api/billing/plan  { plan: 'solo' | 'team' | 'plus' | 'business' }
+ * POST /api/billing/plan  { plan: 'solo' | 'api_develop' | 'team' | 'plus' | 'business' }
  * Suscripción nueva (Checkout) o cambio con proration si ya hay suscripción activa en Stripe.
  */
 

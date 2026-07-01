@@ -6,7 +6,7 @@
     "faq": "Preguntas frecuentes",
     "docs": "Documentación",
     "signIn": "Iniciar sesión",
-    "startFree": "Empezar gratis",
+    "startFree": "Ver precios",
     "dashboard": "Dashboard →"
   },
   "footer": {
@@ -25,19 +25,19 @@
     "rights": "Todos los derechos reservados."
   },
   "landing": {
-    "badge": "7 días gratis",
+    "badge": "Planes desde $7/mes",
     "hero": {
       "title1": "Agentes de IA para",
       "title2": "cualquier industria",
       "description": "Despliega un agente de IA en tu sitio web en menos de 10 minutos. Sin código, sin servidores — solo pega el widget y empieza a atender clientes las 24 horas.",
-      "ctaPrimary": "Empezar gratis — 7 días de trial",
+      "ctaPrimary": "Ver precios",
       "ctaAccount": "Ya tengo cuenta",
       "ctaDocs": "Ver Precios"
     },
     "stats": {
-      "trialValue": "7 días",
-      "trial": "Prueba gratuita",
-      "trialHint": "Sin tarjeta de crédito",
+      "trialValue": "$7",
+      "trial": "Desde Solo",
+      "trialHint": "/mes",
       "setupValue": "< 10 min",
       "setup": "Tu primer widget en vivo",
       "setupHint": "Multi-agente incluido",
@@ -50,7 +50,7 @@
       "title": "Configura tu IA en minutos",
       "subtitle": "Nuestra plataforma está diseñada para que despliegues agentes inteligentes sin complicaciones técnicas. Sigue estos cinco pasos y transforma tu atención al cliente hoy mismo.",
       "step1Title": "Crea tu cuenta",
-      "step1Desc": "Regístrate en segundos y accede a nuestro panel de control intuitivo. No se requiere tarjeta de crédito para comenzar.",
+      "step1Desc": "Regístrate con tu código de autorización y accede al panel de control cuando tengas un plan activo.",
       "step2Title": "Entrena tu agente",
       "step2Desc": "Sube tus documentos o conecta tu base de conocimientos. Nuestra IA aprenderá de tu contenido en tiempo real.",
       "step3Title": "Diseña tu widget",
@@ -89,7 +89,7 @@
       "subtitle": "Despliega un chat inteligente en tu sitio en menos de 5 minutos. Responde dudas, califica leads y cierra ventas — las 24 horas.",
       "windowTitle": "BotIvA — Widget Builder",
       "live": "En vivo",
-      "startFree": "Empezar gratis →",
+      "startFree": "Ver precios →",
       "whyTitle": "Por qué los equipos de ventas lo eligen",
       "b1Title": "Responde al instante",
       "b1Desc": "Sin tiempos de espera. El cliente recibe respuesta en menos de 1 segundo.",
@@ -106,7 +106,7 @@
       "available": "Disponible ahora",
       "msg1": "¡Hola! 👋 Soy tu asistente. ¿Estás buscando información sobre nuestros planes?",
       "msg2": "Sí, ¿qué incluye el plan Growth?",
-      "msg3": "Growth incluye agentes ilimitados, almacenamiento con archivos/URLs y analítica avanzada. Empieza con <strong>7 días gratis</strong>. 🚀",
+      "msg3": "Growth incluye agentes ilimitados, almacenamiento con archivos/URLs y analítica avanzada. <strong>Contrata el plan que necesites</strong>. 🚀",
       "inputPlaceholder": "Escribe tu mensaje…",
       "socialProof": "<red>+320 empresas</red> ya usan BotIvA para convertir más visitantes en clientes"
     },
@@ -122,17 +122,17 @@
     },
     "pricing": {
       "title": "Precios transparentes",
-      "subtitle": "7 días de prueba gratuita. Sin contratos. Cancela cuando quieras.",
+      "subtitle": "Sin contratos. Cancela cuando quieras.",
       "period": "/mes",
       "popular": "Más popular",
-      "cta": "Empezar gratis — 7 días",
+      "cta": "Contratar",
       "ragNotIncluded": "Sin contexto y memoria — disponible desde Team",
       "ragTechnical": "Contexto y memoria: {mb} MB · {sources} fuentes por agente",
       "solo": {
         "requests": "300 conv/mes",
         "features": [
           "300 conversaciones al mes (~10/día)",
-          "1 agente · Webhook del agente · Web Search, Gmail",
+          "4 agentes · Webhook del agente · Web Search, Gmail",
           "Widgets ilimitados",
           "Autoguiado: documentación y videos en YouTube",
           "Soporte por email (72 h, sin onboarding dedicado)"
@@ -152,17 +152,27 @@
         "requests": "2.000 conv/mes",
         "features": [
           "2.000 conversaciones al mes (~65/día)",
-          "5 agentes · 2 sub-agentes · Webhook incluido",
+          "6 agentes · 3 sub-agentes · Webhook incluido",
           "Almacenamiento: 128 MB · 15 fuentes",
-          "Acceso API REST (próximamente) · Gmail y Slack · widgets ilimitados",
+          "Panel completo · Gmail y Slack · widgets ilimitados",
           "Capacitación grupal · soporte email (48 h)"
+        ]
+      },
+      "api_develop": {
+        "requests": "2.000 conv/mes",
+        "features": [
+          "2.000 conversaciones al mes vía API REST",
+          "7 agentes · sin panel ni widgets",
+          "Auth con API key · documentación interactiva",
+          "Endpoints de agentes, chat y claves",
+          "Soporte por email (48 h)"
         ]
       },
       "plus": {
         "requests": "3.000 conv/mes",
         "features": [
           "3.000 conversaciones al mes (~100/día)",
-          "10 agentes · 5 sub-agentes · Webhook incluido",
+          "12 agentes · 6 sub-agentes · Webhook incluido",
           "Almacenamiento: 256 MB · 20 fuentes",
           "Analytics de conversaciones (básico) · historial 60 días",
           "Capacitación grupal · soporte email (48 h)"
@@ -238,12 +248,12 @@
       "title": "Preguntas frecuentes",
       "items": [
         {
-          "q": "¿Qué incluye el trial de 7 días?",
-          "a": "Acceso completo al Widget Builder, todos los agentes y el código. Sin límites en el período de prueba."
+          "q": "¿Necesito pagar para usar BotIvA?",
+          "a": "Sí. El acceso al dashboard y a los agentes requiere un plan de pago activo. Consulta precios y contrata desde la página de planes."
         },
         {
           "q": "¿Necesito tarjeta de crédito para registrarme?",
-          "a": "No. Solo email y contraseña. La tarjeta solo se solicita cuando eliges un plan de pago."
+          "a": "El registro requiere un código de autorización. La tarjeta se solicita al contratar un plan de pago."
         },
         {
           "q": "¿Puedo cancelar en cualquier momento?",
@@ -275,10 +285,10 @@
       "cta": "Empezar con acompañamiento"
     },
     "cta": {
-      "title1": "Empieza hoy.",
-      "title2": "7 días gratis.",
-      "subtitle": "Cancela cuando quieras. Tu primer widget activo en minutos.",
-      "primary": "Crear cuenta gratis",
+      "title1": "Contrata hoy.",
+      "title2": "Sin permanencia.",
+      "subtitle": "Cancela cuando quieras. Tu primer widget activo en minutos tras contratar.",
+      "primary": "Ver precios",
       "secondary": "Ya tengo cuenta"
     }
   }

@@ -184,6 +184,7 @@ const ALL_TOOL_IDS = TOOLS.map((t) => t.id);
 const TOOLS_BY_PLAN: Record<string, string[]> = {
   free: ['web-search'],
   solo: ['web-search', 'google-sheets'],
+  api_develop: [],
   team: ['web-search', 'webhook', 'gmail', 'slack', 'google-sheets'],
   plus: ['web-search', 'webhook', 'gmail', 'slack', 'google-sheets', 'file-upload', 'google-calendar', 'hubspot', 'notion'],
   business: ALL_TOOL_IDS,
@@ -206,6 +207,7 @@ function buildAgentLimits(planId: string): AgentPlanLimits {
 export const AGENT_PLAN_LIMITS: Record<string, AgentPlanLimits> = {
   free: buildAgentLimits('free'),
   solo: buildAgentLimits('solo'),
+  api_develop: buildAgentLimits('api_develop'),
   team: buildAgentLimits('team'),
   plus: buildAgentLimits('plus'),
   business: buildAgentLimits('business'),
@@ -222,10 +224,11 @@ export { formatAgentLimit, isAgentLimitReached } from '@/lib/plan-catalog';
 const PLAN_RANK: Record<string, number> = {
   free: 0,
   solo: 1,
-  team: 2,
-  plus: 3,
-  business: 4,
-  enterprise: 5,
+  api_develop: 2,
+  team: 3,
+  plus: 4,
+  business: 5,
+  enterprise: 6,
 };
 
 /** True si el plan del usuario cumple el mínimo exigido por el modelo. */

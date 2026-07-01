@@ -4,9 +4,10 @@
  */
 
 const PLANS = [
-  { id: 'solo',    price: 7,   conv: 300,    tier: 'flash',   rag: null, agents: 1,  history: 30 },
-  { id: 'team',    price: 29,  conv: 2000,   tier: 'default', rag: { mb: 128, cap: 5 }, agents: 5, history: 45 },
-  { id: 'plus',    price: 42,  conv: 3000,   tier: 'default', rag: { mb: 256, cap: 5 }, agents: 10, history: 60 },
+  { id: 'solo',    price: 7,   conv: 300,    tier: 'flash',   rag: null, agents: 4,  history: 30 },
+  { id: 'api_develop', price: 29, conv: 2000, tier: 'default', rag: null, agents: 7, history: 45 },
+  { id: 'team',    price: 35,  conv: 2000,   tier: 'default', rag: { mb: 128, cap: 5 }, agents: 6, history: 45 },
+  { id: 'plus',    price: 50,  conv: 3000,   tier: 'default', rag: { mb: 256, cap: 5 }, agents: 12, history: 60 },
   { id: 'business',price: 749, conv: 45_000, tier: 'premium', rag: { mb: 102400, cap: 10 }, agents: -1, history: -1 },
 ];
 

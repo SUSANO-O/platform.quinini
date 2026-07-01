@@ -12,6 +12,7 @@ import {
   planHasWhatsAppFeature,
   canUseWhatsApp,
   formatConversationAnalyticsFeature,
+  formatApiAccessFeature,
   effectiveProductPlan,
   AGENT_WEBHOOK_MIN_PLAN,
   OUTBOUND_SAAS_WEBHOOK_MIN_PLAN,
@@ -88,6 +89,14 @@ describe('webhook entitlements (plan-catalog)', () => {
     expect(VALID_FEATURE_OVERRIDES).toHaveLength(7);
   });
 
+  it('api_develop plan: REST sí, webhooks de producto no', () => {
+    expect(canUseApiAccess('api_develop', 'active')).toBe(true);
+    expect(canUseAgentWebhookTool('api_develop')).toBe(false);
+    expect(planHasApiAccessFeature('api_develop')).toBe(true);
+    expect(formatApiAccessFeature('api_develop')).toBe('Incluido');
+    expect(formatApiAccessFeature('team')).not.toBe('Incluido');
+  });
+
   it('agent webhook: Team+ only (legacy Basic still entitled)', () => {
     expect(canUseAgentWebhookTool('free')).toBe(false);
     expect(canUseAgentWebhookTool('solo')).toBe(false);
@@ -135,7 +144,7 @@ describe('webhook entitlements (plan-catalog)', () => {
   });
 
   it('sellable paid plans exclude legacy tiers', () => {
-    expect(PAID_PLAN_IDS).toEqual(['solo', 'team', 'plus', 'business']);
+    expect(PAID_PLAN_IDS).toEqual(['solo', 'api_develop', 'team', 'plus', 'business']);
     // Legacy plans fully removed — isLegacyPlan always returns false
     expect(isLegacyPlan('basic')).toBe(false);
     expect(isLegacyPlan('plus')).toBe(false);
@@ -161,7 +170,7 @@ describe('agent tool limits (agent-plans)', () => {
     const limits = getAgentLimits('solo');
     expect(limits.availableToolIds).toEqual([]);
     expect(limits.toolsPerAgent).toBe(0);
-    expect(limits.agents).toBe(3);
+    expect(limits.agents).toBe(4);
   });
 
   it('webhook tool minPlan matches Team gate', () => {
@@ -172,7 +181,7 @@ describe('agent tool limits (agent-plans)', () => {
 describe('pricing comparison rows', () => {
   it('includes webhook and platform feature columns for sellable plans', () => {
     const rows = buildPlanComparisonRows();
-    expect(rows.map((r) => r.id)).toEqual(['free', 'solo', 'team', 'plus', 'business']);
+    expect(rows.map((r) => r.id)).toEqual(['solo', 'team', 'plus', 'business', 'api_develop']);
     const plus = rows.find((r) => r.id === 'plus');
     const business = rows.find((r) => r.id === 'business');
     expect(plus?.conversationAnalytics).toBe('Básico');

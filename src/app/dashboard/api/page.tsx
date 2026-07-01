@@ -121,7 +121,7 @@ export default function DashboardApiPage() {
             <strong>{effective}</strong>.
           </p>
           <Link
-            href="/pricing#api"
+            href="/pricing#api-develop"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
             style={{ background: 'var(--brand-primary)' }}
           >

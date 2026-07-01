@@ -84,7 +84,7 @@ export function LandingNavbar() {
                   {t('signIn')}
                 </Link>
                 <Link
-                  href="/register"
+                  href="/pricing"
                   className="text-sm font-semibold px-5 py-2.5 rounded-xl text-white transition-all hover:shadow-lg"
                   style={{ background: 'var(--brand-primary)' }}
                 >
@@ -186,7 +186,7 @@ export function LandingNavbar() {
                     {t('signIn')}
                   </Link>
                   <Link
-                    href="/register"
+                    href="/pricing"
                     className="text-center text-sm font-bold px-5 py-2.5 rounded-xl text-white"
                     style={{ background: 'var(--brand-primary)', boxShadow: '0 4px 14px rgba(var(--brand-primary-rgb),0.25)' }}
                     onClick={() => setOpen(false)}

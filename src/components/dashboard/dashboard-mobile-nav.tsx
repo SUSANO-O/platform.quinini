@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { LucideIcon } from 'lucide-react';
-import { Bot, Boxes, LayoutDashboard, LogOut, Menu, X } from 'lucide-react';
+import { Bot, Boxes, Braces, LayoutDashboard, LogOut, Menu, Settings, X } from 'lucide-react';
 import {
   buildDashboardNavGroups,
   SIDEBAR_TOUR_KEY_BY_HREF,
@@ -14,7 +14,7 @@ import { UserAvatar } from '@/components/shared/user-avatar';
 import { PwaInstallButton } from '@/components/shared/pwa-install-button';
 import { useInboxOpenCount } from '@/hooks/use-inbox-open-count';
 import { useSubscription } from '@/hooks/use-subscription';
-import { canUseApiAccess, isSoloChatOnlyPlan } from '@/lib/plan-catalog';
+import { canUseApiAccess, effectiveProductPlan, isApiOnlyPlan, isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 import { BRAND_TEXT_COLOR } from '@/lib/brand';
 
 /** Accesos directos en la barra inferior (estilo app móvil). */
@@ -48,13 +48,21 @@ export function DashboardMobileNav({
   const [menuOpen, setMenuOpen] = useState(false);
   const { openCount: inboxOpenCount } = useInboxOpenCount(true);
   const { subscription } = useSubscription();
+  const plan = effectiveProductPlan(subscription?.plan ?? 'free', subscription?.status ?? 'free');
+  const apiOnly = isApiOnlyPlan(plan);
   const showApiLink = canUseApiAccess(
     subscription?.plan ?? 'free',
     subscription?.status ?? 'free',
     subscription?.features,
   );
-  const hideQuickStart = isSoloChatOnlyPlan(subscription?.plan ?? 'free');
-  const navGroups = buildDashboardNavGroups({ showApiLink, hideQuickStart });
+  const hideQuickStart = isSoloChatOnlyPlan(subscription?.plan ?? 'free') || apiOnly;
+  const navGroups = buildDashboardNavGroups({ showApiLink, hideQuickStart, apiOnly });
+  const bottomTabs = apiOnly
+    ? [
+        { href: '/dashboard/api', label: 'API', icon: Braces },
+        { href: '/dashboard/settings', label: 'Ajustes', icon: Settings },
+      ]
+    : BOTTOM_TABS;
 
   useEffect(() => {
     setMenuOpen(false);
@@ -193,7 +201,7 @@ export function DashboardMobileNav({
       ) : null}
 
       <nav className="dashboard-mobile-nav md:hidden" aria-label="Navegación móvil">
-        {BOTTOM_TABS.map(({ href, label, icon: Icon }) => {
+        {bottomTabs.map(({ href, label, icon: Icon }) => {
           const active = isActive(pathname, href);
           return (
             <Link
@@ -207,6 +215,7 @@ export function DashboardMobileNav({
             </Link>
           );
         })}
+        {!apiOnly ? (
         <button
           type="button"
           onClick={() => setMenuOpen(true)}
@@ -215,6 +224,7 @@ export function DashboardMobileNav({
           <Menu size={22} strokeWidth={1.75} aria-hidden />
           <span>Menú</span>
         </button>
+        ) : null}
       </nav>
     </>
   );

@@ -38,7 +38,9 @@
     "stress:landing:widget": "node --env-file=.env scripts/stress-landing.mjs --mode widget",
     "stress:landing:multiagent": "node --env-file=.env scripts/stress-landing.mjs --mode multiagent --concurrency 5 --duration 20",
     "stress:landing:all": "node --env-file=.env scripts/stress-landing.mjs --mode all",
-    "test:webhook-gating": "node --env-file=.env scripts/webhook-gating-smoke.mjs"
+    "test:webhook-gating": "node --env-file=.env scripts/webhook-gating-smoke.mjs",
+    "test:flows": "node --env-file=.env scripts/test-flows-smoke.mjs",
+    "test:flows:integration": "node --env-file=.env scripts/test-flows-integration.mjs"
   },
   "dependencies": {
     "@lemonsqueezy/lemonsqueezy.js": "^4.0.0",
@@ -54,6 +56,7 @@
     "@types/web-push": "^3.6.4",
     "@upstash/redis": "^1.38.0",
     "@vercel/blob": "^2.4.0",
+    "@xyflow/react": "^12.11.1",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.10.0",
     "clsx": "^2.1.1",

@@ -1,6 +1,27 @@
+import dns from 'dns';
 import mongoose from 'mongoose';
 
 const MONGODB_URI = process.env.MONGODB_URI ?? '';
+
+/** En Windows algunos DNS del ISP rechazan querySrv (mongodb+srv://). */
+function configureMongoDns(): void {
+  const custom = process.env.MONGODB_DNS_SERVERS?.trim();
+  if (custom) {
+    dns.setServers(custom.split(',').map((s) => s.trim()).filter(Boolean));
+    return;
+  }
+  if (process.platform === 'win32') {
+    dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
+  }
+}
+
+const MONGO_OPTIONS = {
+  bufferCommands: false,
+  maxPoolSize: 10,
+  minPoolSize: 2,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+} as const;
 
 interface MongooseCache {
   conn: typeof mongoose | null;
@@ -20,13 +41,8 @@ export async function connectDB(): Promise<typeof mongoose> {
   if (cached.conn) return cached.conn;
 
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI, {
-      bufferCommands: false,
-      maxPoolSize: 10,
-      minPoolSize: 2,
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-    });
+    configureMongoDns();
+    cached.promise = mongoose.connect(MONGODB_URI, MONGO_OPTIONS);
   }
 
   cached.conn = await cached.promise;

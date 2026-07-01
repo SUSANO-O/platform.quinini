@@ -23,8 +23,9 @@ const envPath = path.join(root, '.env');
 const CATALOG = {
   subscriptions: {
     solo:    { usd: 7,   env: 'LEMONSQUEEZY_VARIANT_SOLO',    name: 'Solo' },
-    team:    { usd: 29,  env: 'LEMONSQUEEZY_VARIANT_TEAM',    name: 'Team' },
-    plus:    { usd: 42,  env: 'LEMONSQUEEZY_VARIANT_PLUS',    name: 'Plus' },
+    api_develop: { usd: 29, env: 'LEMONSQUEEZY_VARIANT_API_DEVELOP', name: 'API Develop' },
+    team:    { usd: 35,  env: 'LEMONSQUEEZY_VARIANT_TEAM',    name: 'Team' },
+    plus:    { usd: 50,  env: 'LEMONSQUEEZY_VARIANT_PLUS',    name: 'Plus' },
     business:{ usd: 749, env: 'LEMONSQUEEZY_VARIANT_BUSINESS', name: 'Business' },
   },
   packs: {

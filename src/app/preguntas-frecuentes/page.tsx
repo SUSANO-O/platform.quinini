@@ -11,13 +11,13 @@ type FaqItem = {
 const FAQS: FaqItem[] = [
   {
     source: 'Landing principal',
-    question: '¿Qué incluye el trial de 7 días?',
-    answer: 'Incluye acceso completo al Widget Builder, todos los agentes y el codigo durante el periodo de prueba.',
+    question: '¿Necesito pagar para usar BotIvA?',
+    answer: 'Sí. El acceso al dashboard y a los agentes requiere un plan de pago activo. Puedes ver precios y contratar desde la página de planes.',
   },
   {
     source: 'Landing principal',
     question: '¿Necesito tarjeta de crédito para registrarme?',
-    answer: 'No. Puedes crear cuenta con email y contraseña. La tarjeta solo se solicita al elegir un plan de pago.',
+    answer: 'El registro requiere un código de autorización. La tarjeta se solicita al contratar un plan de pago.',
   },
   {
     source: 'Landing principal',

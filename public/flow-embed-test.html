@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Probar embed de flujo — BotIvA</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 720px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      line-height: 1.5;
+    }
+    code, pre {
+      background: #f1f5f9;
+      border-radius: 8px;
+      padding: 0.15rem 0.4rem;
+      font-size: 0.9em;
+    }
+    pre {
+      padding: 1rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .hint { color: #64748b; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <h1>Probar embed de flujo</h1>
+  <p class="hint">
+    Copia el código desde el dashboard → Flujos → tu flujo → <strong>Obtener código</strong>,
+    o pasa los parámetros en la URL:
+  </p>
+  <pre id="url-example"></pre>
+  <p>Snippet activo en esta página:</p>
+  <pre id="snippet">Cargando parámetros…</pre>
+  <p class="hint" id="status"></p>
+  <div id="mount"></div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const flowId = params.get('flowId') || '';
+    const flowToken = params.get('flowToken') || '';
+    const widgetToken = params.get('widgetToken') || '';
+    const origin = params.get('origin') || location.origin;
+
+    const example = `${location.origin}${location.pathname}?flowId=TU_FLOW_ID&flowToken=ft_...&widgetToken=wt_...`;
+    document.getElementById('url-example').textContent = example;
+
+    if (!flowId || !flowToken) {
+      document.getElementById('snippet').textContent =
+        'Faltan flowId y flowToken en la URL.\n\nEjemplo:\n' + example;
+      document.getElementById('status').textContent =
+        'Abre el detalle del flujo en el dashboard y usa «Obtener código».';
+    } else {
+      const wt = widgetToken ? ` data-widget-token="${widgetToken}"` : '';
+      const html = `<!-- BotIvA Flow Widget -->\n<script${wt} data-flow-id="${flowId}" data-flow-token="${flowToken}" src="${origin}/widget.js"><\/script>`;
+      document.getElementById('snippet').textContent = html;
+
+      const s = document.createElement('script');
+      if (widgetToken) s.setAttribute('data-widget-token', widgetToken);
+      s.setAttribute('data-flow-id', flowId);
+      s.setAttribute('data-flow-token', flowToken);
+      s.src = `${origin}/widget.js`;
+      document.getElementById('mount').appendChild(s);
+
+      document.getElementById('status').textContent =
+        'Widget cargado. Nota: el runtime del flujo guiado aún se está integrando; verás el chat del widget.';
+    }
+  </script>
+</body>
+</html>
