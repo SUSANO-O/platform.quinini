@@ -254,7 +254,15 @@
     var hasInlineAgent = typeof localInput.agentId === 'string' && localInput.agentId.trim().length > 0;
     function onConfigFailed() {
       if (hasInlineAgent) finishInit({});
-      else warnConfigFailed(tempHost, token, debug);
+      else if (localInput.flowId && localInput.flowToken) {
+        finishInit({
+          agentId: 'flow-embed',
+          color: localInput.color || '#006B7D',
+          title: localInput.title || 'Flujo',
+          subtitle: localInput.subtitle || '',
+          welcome: '',
+        });
+      } else warnConfigFailed(tempHost, token, debug);
     }
 
     fetchWidgetConfig(tempHost, token, function (remoteCfg) {
@@ -444,7 +452,8 @@
 
   function validateConfig(cfg) {
     var errors = [];
-    if (!cfg.agentId || !String(cfg.agentId).trim()) {
+    var isFlowEmbed = Boolean(cfg.flowId && cfg.flowToken);
+    if (!isFlowEmbed && (!cfg.agentId || !String(cfg.agentId).trim())) {
       errors.push('[AgentFlowhub Widget] "agentId" es requerido.');
     }
     if (!isHexColor(cfg.color)) {

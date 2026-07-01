@@ -60,7 +60,10 @@
       document.getElementById('snippet').textContent = html;
 
       const s = document.createElement('script');
-      if (widgetToken) s.setAttribute('data-widget-token', widgetToken);
+      if (widgetToken) {
+        s.setAttribute('data-token', widgetToken);
+        s.setAttribute('data-widget-token', widgetToken);
+      }
       s.setAttribute('data-flow-id', flowId);
       s.setAttribute('data-flow-token', flowToken);
       s.src = `${origin}/widget.js`;
