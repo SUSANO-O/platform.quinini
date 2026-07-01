@@ -397,6 +397,35 @@
   background: rgba(255, 255, 255, 0.22);
 }
 
+.flows-beta-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(var(--brand-primary-rgb), 0.1);
+  color: var(--brand-primary);
+  border: 1px solid rgba(var(--brand-primary-rgb), 0.22);
+}
+
+.dashboard-sidebar-link .flows-beta-badge {
+  margin-left: auto;
+  font-size: 0.5rem;
+  padding: 2px 5px;
+}
+
+.dashboard-sidebar-link--active .flows-beta-badge {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
 /* Modal embed */
 .flows-admin-modal-overlay {
   position: fixed;

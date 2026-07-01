@@ -8,6 +8,7 @@ import {
   Scale, Landmark, Ship, AlertTriangle, LineChart, Target
 } from 'lucide-react';
 import { useEffect } from 'react';
+import { buildPricingInquiryWhatsAppUrl, SALES_WHATSAPP_LINK_PROPS } from '@/lib/sales-whatsapp';
 
 const CAPABILITIES = [
   {
@@ -311,13 +312,14 @@ export default function GeoeconomicsLandingPage() {
             >
               Obtener API Key <ArrowRight size={18} />
             </Link>
-            <Link
-              href="/pricing"
+            <a
+              href={buildPricingInquiryWhatsAppUrl()}
+              {...SALES_WHATSAPP_LINK_PROPS}
               className="inline-flex items-center gap-2 px-8 py-4 rounded-xl font-semibold transition-all"
               style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
             >
               Ver precios
-            </Link>
+            </a>
           </div>
         </div>
       </section>

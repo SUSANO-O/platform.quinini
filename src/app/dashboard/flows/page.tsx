@@ -183,6 +183,7 @@ export default function FlowsPage() {
       <DashboardPageHeader
         badge="Flujos"
         badgeIcon={GitBranch}
+        beta
         title="Flujos"
         titleAccent="conversacionales"
         description="Diseña, publica y embebe flujos guiados en tu widget."
@@ -207,7 +208,7 @@ export default function FlowsPage() {
                 >
                   <Sparkles size={16} />
                   Plantilla soporte
-                  <span className="flows-admin-btn__badge">NUEVO</span>
+                  <span className="flows-admin-btn__badge">BETA</span>
                 </DashboardButton>
                 <DashboardButton
                   variant="primary"

@@ -7,6 +7,7 @@ import { Menu, X } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 import { SITE_NAV_LINKS } from '@/lib/site-nav';
+import { buildPricingInquiryWhatsAppUrl, SALES_WHATSAPP_LINK_PROPS } from '@/lib/sales-whatsapp';
 
 const NAV_LINKS = SITE_NAV_LINKS;
 
@@ -26,18 +27,32 @@ export function Navbar() {
 
         {/* Desktop */}
         <div className="hidden md:flex items-center gap-8">
-          {NAV_LINKS.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="text-sm font-medium transition-colors"
-              style={{ color: 'var(--muted-foreground)' }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
-            >
-              {l.label}
-            </Link>
-          ))}
+          {NAV_LINKS.map((l) =>
+            'external' in l && l.external ? (
+              <a
+                key={l.href}
+                href={l.href}
+                {...SALES_WHATSAPP_LINK_PROPS}
+                className="text-sm font-medium transition-colors"
+                style={{ color: 'var(--muted-foreground)' }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
+              >
+                {l.label}
+              </a>
+            ) : (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="text-sm font-medium transition-colors"
+                style={{ color: 'var(--muted-foreground)' }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
+              >
+                {l.label}
+              </Link>
+            ),
+          )}
 
           {!loading && (
             user ? (
@@ -57,13 +72,14 @@ export function Navbar() {
                 >
                   Iniciar sesión
                 </Link>
-                <Link
-                  href="/pricing"
+                <a
+                  href={buildPricingInquiryWhatsAppUrl()}
+                  {...SALES_WHATSAPP_LINK_PROPS}
                   className="text-sm font-semibold px-5 py-2.5 rounded-xl text-white transition-all hover:shadow-lg"
                   style={{ background: 'var(--brand-primary)' }}
                 >
                   Ver precios
-                </Link>
+                </a>
               </div>
             )
           )}
@@ -84,17 +100,30 @@ export function Navbar() {
       {/* Mobile menu */}
       {open && (
         <div className="md:hidden px-6 pb-4 space-y-3" style={{ background: 'var(--background)' }}>
-          {NAV_LINKS.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="block text-sm font-medium py-2"
-              style={{ color: 'var(--muted-foreground)' }}
-              onClick={() => setOpen(false)}
-            >
-              {l.label}
-            </Link>
-          ))}
+          {NAV_LINKS.map((l) =>
+            'external' in l && l.external ? (
+              <a
+                key={l.href}
+                href={l.href}
+                {...SALES_WHATSAPP_LINK_PROPS}
+                className="block text-sm font-medium py-2"
+                style={{ color: 'var(--muted-foreground)' }}
+                onClick={() => setOpen(false)}
+              >
+                {l.label}
+              </a>
+            ) : (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="block text-sm font-medium py-2"
+                style={{ color: 'var(--muted-foreground)' }}
+                onClick={() => setOpen(false)}
+              >
+                {l.label}
+              </Link>
+            ),
+          )}
           {!loading && (
             user ? (
               <Link
@@ -110,14 +139,15 @@ export function Navbar() {
                 <Link href="/login" className="block text-sm font-medium py-2" style={{ color: 'var(--muted-foreground)' }} onClick={() => setOpen(false)}>
                   Iniciar sesión
                 </Link>
-                <Link
-                  href="/pricing"
+                <a
+                  href={buildPricingInquiryWhatsAppUrl()}
+                  {...SALES_WHATSAPP_LINK_PROPS}
                   className="block text-center text-sm font-semibold px-5 py-2.5 rounded-xl text-white"
                   style={{ background: 'var(--brand-primary)' }}
                   onClick={() => setOpen(false)}
                 >
                   Ver precios
-                </Link>
+                </a>
               </>
             )
           )}

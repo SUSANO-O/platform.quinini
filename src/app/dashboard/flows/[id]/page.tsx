@@ -157,6 +157,7 @@ export default function FlowDetailPage() {
 
       <DashboardPageHeader
         badge={flowStatusLabel(flow.status)}
+        beta
         title={flow.name}
         description={flow.description || 'Sin descripción'}
         actions={(

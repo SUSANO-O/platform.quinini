@@ -256,11 +256,11 @@ label {
 /* ── Landing: fondo unificado (mesh + halos en toda la página) ── */
 .landing-page {
   position: relative;
-  background: var(--background);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafb 42%, #f1f5f6 100%);
   color: var(--foreground);
   font-family: var(--font-body);
-  font-size: 1rem;
-  line-height: 1.5;
+  font-size: 0.875rem;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -273,12 +273,13 @@ label {
 
 .landing-page h1 {
   letter-spacing: -0.03em;
-  line-height: 1.05;
+  line-height: 1.08;
+  font-size: clamp(1.75rem, 3.8vw, 2.75rem) !important;
 }
 
 .landing-page .landing-lead {
-  font-size: clamp(1.0625rem, 2vw, 1.25rem);
-  line-height: 1.55;
+  font-size: clamp(0.9375rem, 1.8vw, 1.0625rem);
+  line-height: 1.5;
   color: var(--muted-foreground);
 }
 
@@ -289,11 +290,11 @@ label {
 .landing-page .landing-eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 14px;
+  gap: 5px;
+  padding: 4px 11px;
   border-radius: 999px;
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -304,22 +305,22 @@ label {
 }
 
 .landing-page .landing-section-title {
-  font-size: clamp(1.875rem, 4vw, 2.25rem);
-  line-height: 1.15;
+  font-size: clamp(1.375rem, 2.8vw, 1.625rem);
+  line-height: 1.2;
 }
 
 .landing-page .landing-card-title {
-  font-size: 1.0625rem;
+  font-size: 0.9375rem;
   letter-spacing: -0.01em;
 }
 
 .landing-page .landing-body-sm {
-  font-size: 0.875rem;
-  line-height: 1.55;
+  font-size: 0.8125rem;
+  line-height: 1.5;
 }
 
 .landing-page .landing-label {
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -328,12 +329,12 @@ label {
 .landing-page .landing-btn {
   font-family: var(--font-body);
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
 }
 
 .landing-page .landing-nav-brand {
   font-family: var(--font-display);
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -349,6 +350,21 @@ label {
   pointer-events: none;
   z-index: 0;
   overflow: hidden;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbfc 50%, #f3f6f7 100%);
+}
+
+.landing-page__bg .ai-mesh {
+  opacity: 0.35;
+  background-image:
+    linear-gradient(rgba(var(--brand-primary-rgb), 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--brand-cool-rgb), 0.012) 1px, transparent 1px),
+    linear-gradient(rgba(0, 0, 0, 0.01) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.01) 1px, transparent 1px);
+}
+
+.landing-page__bg .hero-glow-strong {
+  opacity: 0.07;
+  filter: blur(120px);
 }
 
 .landing-page > :not(.landing-page__bg) {
@@ -409,8 +425,8 @@ label {
   display: flex;
   flex-direction: column;
   min-height: 100%;
-  padding: 1.15rem 1.1rem 0;
-  border-radius: 1.1rem;
+  padding: 0.9rem 0.85rem 0;
+  border-radius: 0.95rem;
   overflow: hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -424,19 +440,19 @@ label {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.35rem;
-  height: 2.35rem;
-  border-radius: 0.7rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.6rem;
   color: var(--step-accent);
   background: color-mix(in oklab, var(--step-accent) 12%, transparent);
   border: 1px solid color-mix(in oklab, var(--step-accent) 20%, transparent);
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.65rem;
 }
 
 .how-step-card__title {
-  margin: 0 0 0.45rem;
+  margin: 0 0 0.35rem;
   font-family: var(--font-display);
-  font-size: 0.95rem;
+  font-size: 0.875rem;
   font-weight: 700;
   line-height: 1.3;
   letter-spacing: -0.02em;
@@ -446,8 +462,8 @@ label {
 .how-step-card__desc {
   margin: 0;
   font-family: var(--font-body);
-  font-size: 0.8125rem;
-  line-height: 1.55;
+  font-size: 0.75rem;
+  line-height: 1.5;
   color: var(--muted-foreground);
   flex: 1;
 }
@@ -1468,10 +1484,10 @@ svg.lucide.lucide-code-xml {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   flex-shrink: 0;
-  border-radius: 10px;
+  border-radius: 8px;
   border: none;
   background: transparent;
   color: var(--muted-foreground);
@@ -1487,8 +1503,8 @@ svg.lucide.lucide-code-xml {
 .dashboard-sidebar-link__icon {
   flex-shrink: 0;
   display: block;
-  width: 20px;
-  height: 20px;
+  width: 17px;
+  height: 17px;
 }
 
 .dashboard-sidebar-link {
@@ -1537,10 +1553,10 @@ button.dashboard-sidebar-link:hover {
 .dashboard-sidebar-tour-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 12px;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
   width: 100%;

@@ -62,8 +62,28 @@
 }
 
 .flow-editor-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 18px;
   font-weight: 600;
+}
+
+.flow-editor-title .flows-beta-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  padding: 3px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(40, 164, 184, 0.32);
+  background: rgba(40, 164, 184, 0.14);
+  color: #7dd3fc;
 }
 
 .flow-editor-name-input {

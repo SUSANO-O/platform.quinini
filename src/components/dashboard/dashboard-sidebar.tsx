@@ -29,9 +29,10 @@ import { useInboxOpenCount } from '@/hooks/use-inbox-open-count';
 import { useDashboardPrefetch } from '@/hooks/dashboard/use-dashboard-prefetch';
 import { useSubscription } from '@/hooks/use-subscription';
 import { canUseApiAccess, effectiveProductPlan, isApiOnlyPlan, isSoloChatOnlyPlan } from '@/lib/plan-catalog';
+import { FlowsBetaBadge } from '@/components/flows/flows-beta-badge';
 
-export const SIDEBAR_EXPANDED_PX = 252;
-export const SIDEBAR_COLLAPSED_PX = 72;
+export const SIDEBAR_EXPANDED_PX = 220;
+export const SIDEBAR_COLLAPSED_PX = 60;
 
 const SIDEBAR_SURFACE = '#f5f6f8';
 
@@ -107,15 +108,15 @@ function AssistantHelpRestoreItem({
         alignItems: 'center',
         justifyContent: collapsed ? 'center' : 'flex-start',
         gap: collapsed ? 0 : 12,
-        padding: collapsed ? '11px 0' : '10px 12px',
+        padding: collapsed ? '9px 0' : '8px 10px',
         marginTop: 2,
-        borderRadius: 12,
-        fontSize: 14,
+        borderRadius: 10,
+        fontSize: 13,
         width: '100%',
         textAlign: 'left',
       }}
     >
-      <CircleHelp size={20} strokeWidth={1.75} style={{ flexShrink: 0 }} aria-hidden />
+      <CircleHelp size={17} strokeWidth={1.75} style={{ flexShrink: 0 }} aria-hidden />
       {!collapsed ? <span className="truncate">Ayuda asistente</span> : null}
     </button>
   );
@@ -135,7 +136,7 @@ function SoftDivider({ margin }: { margin?: string }) {
   );
 }
 
-export const NAV_GROUPS: { title: string; items: { href: string; label: string; icon: LucideIcon }[] }[] = [
+export const NAV_GROUPS: { title: string; items: { href: string; label: string; icon: LucideIcon; tag?: 'BETA' }[] }[] = [
   {
     title: 'Panel',
     items: [
@@ -151,7 +152,7 @@ export const NAV_GROUPS: { title: string; items: { href: string; label: string; 
       { href: '/dashboard/agents', label: 'Mis Agentes', icon: Bot },
       { href: '/dashboard/widgets', label: 'Mis Widgets', icon: Boxes },
       { href: '/dashboard/widget-builder', label: 'Widget Builder', icon: Cpu },
-      { href: '/dashboard/flows', label: 'Flujos', icon: GitBranch },
+      { href: '/dashboard/flows', label: 'Flujos', icon: GitBranch, tag: 'BETA' },
     ],
   },
   {
@@ -272,6 +273,7 @@ function SidebarNavLink({
   collapsed,
   onNavigate,
   badge,
+  navTag,
   onPrefetch,
 }: {
   href: string;
@@ -281,6 +283,7 @@ function SidebarNavLink({
   collapsed: boolean;
   onNavigate?: () => void;
   badge?: number;
+  navTag?: 'BETA';
   onPrefetch?: (href: string) => void;
 }) {
   return (
@@ -291,22 +294,23 @@ function SidebarNavLink({
       onFocus={() => onPrefetch?.(href)}
       onClick={onNavigate}
       data-tour={SIDEBAR_TOUR_KEY_BY_HREF[href]}
-      title={badge && badge > 0 ? `${label} (${badge} pendientes)` : label}
+      title={badge && badge > 0 ? `${label} (${badge} pendientes)` : navTag ? `${label} (${navTag})` : label}
       className={`dashboard-sidebar-link${active ? ' dashboard-sidebar-link--active' : ''}`}
       style={{
         position: 'relative',
         display: 'flex',
         alignItems: 'center',
         justifyContent: collapsed ? 'center' : 'flex-start',
-        gap: collapsed ? 0 : 12,
-        padding: collapsed ? '11px 0' : '10px 12px',
-        borderRadius: 12,
-        fontSize: 14,
+        gap: collapsed ? 0 : 10,
+        padding: collapsed ? '8px 0' : '7px 10px',
+        borderRadius: 10,
+        fontSize: 13,
         width: collapsed ? '100%' : undefined,
       }}
     >
-      <Icon size={20} strokeWidth={1.75} className="dashboard-sidebar-link__icon" aria-hidden />
+      <Icon size={17} strokeWidth={1.75} className="dashboard-sidebar-link__icon" aria-hidden />
       {!collapsed ? <span className="truncate">{label}</span> : null}
+      {!collapsed && navTag === 'BETA' ? <FlowsBetaBadge /> : null}
       <InboxBadge count={badge ?? 0} collapsed={collapsed} />
     </Link>
   );
@@ -354,8 +358,8 @@ function SidebarNav({
             <p
               style={{
                 margin: 0,
-                padding: groupIndex === 0 ? '4px 12px 8px' : '4px 12px 8px',
-                fontSize: 11,
+                padding: groupIndex === 0 ? '2px 10px 6px' : '2px 10px 6px',
+                fontSize: 10,
                 fontWeight: 600,
                 color: 'var(--muted-foreground)',
                 letterSpacing: '0.01em',
@@ -374,6 +378,7 @@ function SidebarNav({
                   onNavigate={onNavigate}
                   onPrefetch={prefetchRoute}
                   badge={item.href === '/dashboard/inbox' ? inboxOpenCount : undefined}
+                  navTag={'tag' in item ? item.tag : undefined}
                 />
                 {item.href === '/dashboard/settings' ? (
                   <AssistantHelpRestoreItem collapsed={collapsed} onNavigate={onNavigate} />
@@ -436,7 +441,7 @@ export function DashboardSidebar({
         borderRight: isDesktop ? '1px solid var(--border)' : 'none',
         borderRadius: 0,
         flexDirection: 'column',
-        padding: rail ? '16px 10px' : '18px 14px',
+        padding: rail ? '12px 8px' : '14px 11px',
         overflow: 'hidden',
         transition: 'width 0.22s ease, padding 0.22s ease',
         boxShadow: undefined,
@@ -451,7 +456,7 @@ export function DashboardSidebar({
           alignItems: rail ? 'center' : 'center',
           justifyContent: rail ? 'center' : 'space-between',
           gap: rail ? 10 : 8,
-          marginBottom: rail ? 14 : 16,
+          marginBottom: rail ? 10 : 12,
         }}
       >
         {rail ? (
@@ -464,7 +469,7 @@ export function DashboardSidebar({
               title="Expandir menú"
               className="dashboard-sidebar-toggle"
             >
-              <ChevronRight size={18} aria-hidden />
+              <ChevronRight size={16} aria-hidden />
             </button>
             <Link href="/" className="flex items-center justify-center no-underline" title={BRAND_NAME}>
               <Image
@@ -472,7 +477,7 @@ export function DashboardSidebar({
                 alt={BRAND_NAME}
                 width={36}
                 height={36}
-                className="h-9 w-auto object-contain rounded-full shrink-0 bg-white"
+                className="h-8 w-auto object-contain rounded-full shrink-0 bg-white"
                 style={{ boxShadow: '0 2px 8px rgba(15, 23, 42, 0.08)' }}
               />
             </Link>
@@ -480,21 +485,21 @@ export function DashboardSidebar({
               displayName={user.displayName}
               email={user.email}
               avatarUrl={user.avatarUrl}
-              size={36}
+              size={32}
             />
           </>
         ) : (
           <>
-            <Link href="/" className="flex items-center gap-2.5 no-underline min-w-0" title="Ir al inicio">
+            <Link href="/" className="flex items-center gap-2 no-underline min-w-0" title="Ir al inicio">
               <Image
                 src={BRAND_LOGO_SRC}
                 alt={BRAND_NAME}
-                width={32}
-                height={32}
-                className="h-8 w-auto object-contain rounded-full shrink-0 bg-white"
+                width={26}
+                height={26}
+                className="h-6 w-auto object-contain rounded-full shrink-0 bg-white"
                 style={{ boxShadow: '0 2px 8px rgba(15, 23, 42, 0.08)' }}
               />
-              <span className="text-base font-bold text-black truncate font-display">{BRAND_NAME}</span>
+              <span className="text-xs font-bold text-black truncate font-display">{BRAND_NAME}</span>
             </Link>
             {isDesktop && onToggleCollapse ? (
               <button
@@ -505,7 +510,7 @@ export function DashboardSidebar({
                 title="Solo iconos"
                 className="dashboard-sidebar-toggle"
               >
-                <ChevronLeft size={18} aria-hidden />
+                <ChevronLeft size={16} aria-hidden />
               </button>
             ) : null}
           </>
@@ -519,8 +524,8 @@ export function DashboardSidebar({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 12,
-              padding: '4px 4px 16px',
+              gap: 10,
+              padding: '2px 2px 12px',
               marginBottom: 4,
             }}
           >
@@ -533,7 +538,7 @@ export function DashboardSidebar({
               <p
                 style={{
                   margin: 0,
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: 700,
                   color: 'var(--foreground)',
                   overflow: 'hidden',
@@ -543,7 +548,7 @@ export function DashboardSidebar({
               >
                 {user.displayName || user.email.split('@')[0]}
               </p>
-              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--muted-foreground)' }}>
+              <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--muted-foreground)' }}>
                 {userRoleLabel(user.role)}
               </p>
             </div>
@@ -574,15 +579,15 @@ export function DashboardSidebar({
             alignItems: 'center',
             justifyContent: rail ? 'center' : 'flex-start',
             gap: rail ? 0 : 10,
-            padding: rail ? '11px 0' : '10px 12px',
+            padding: rail ? '9px 0' : '8px 10px',
             marginTop: 8,
-            borderRadius: 12,
-            fontSize: 14,
+            borderRadius: 10,
+            fontSize: 13,
             width: '100%',
           }}
           className="dashboard-sidebar-link"
         >
-          <LogOut size={20} strokeWidth={1.75} aria-hidden />
+          <LogOut size={17} strokeWidth={1.75} aria-hidden />
           {!rail ? 'Cerrar sesión' : null}
         </button>
       </div>

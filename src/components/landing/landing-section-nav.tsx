@@ -41,18 +41,18 @@ export function LandingSectionNav({ labels }: LandingSectionNavProps) {
 
   return (
     <div
-      className="sticky top-16 z-40 border-b backdrop-blur-md"
+      className="sticky top-14 z-40 border-b backdrop-blur-md"
       style={{
         background: 'rgba(244, 247, 248, 0.92)',
         borderColor: 'var(--border)',
       }}
     >
-      <div className="max-w-7xl mx-auto px-6 py-2 flex gap-2 overflow-x-auto">
+      <div className="max-w-7xl mx-auto px-5 py-1.5 flex gap-1.5 overflow-x-auto">
         {SECTIONS.map(({ id, label }) => (
           <a
             key={id}
             href={`#${id}`}
-            className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold no-underline transition-colors"
+            className="shrink-0 px-2.5 py-1 rounded-md text-[11px] font-semibold no-underline transition-colors"
             style={{
               background: activeId === id ? 'rgba(var(--brand-primary-rgb),0.1)' : 'transparent',
               color: activeId === id ? 'var(--primary)' : 'var(--muted-foreground)',
@@ -64,7 +64,7 @@ export function LandingSectionNav({ labels }: LandingSectionNavProps) {
         ))}
         <a
           href="/preguntas-frecuentes"
-          className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold no-underline ml-auto"
+          className="shrink-0 px-2.5 py-1 rounded-md text-[11px] font-semibold no-underline ml-auto"
           style={{ color: 'var(--muted-foreground)' }}
         >
           FAQ →

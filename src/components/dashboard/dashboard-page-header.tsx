@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { FlowsBetaBadge } from '@/components/flows/flows-beta-badge';
 
 export function DashboardPageHeader({
   badge,
@@ -9,6 +10,7 @@ export function DashboardPageHeader({
   titleAccent,
   description,
   actions,
+  beta,
 }: {
   badge: string;
   badgeIcon?: LucideIcon;
@@ -17,6 +19,7 @@ export function DashboardPageHeader({
   titleAccent?: string;
   description?: string;
   actions?: ReactNode;
+  beta?: boolean;
 }) {
   const HeadingIcon = TitleIcon ?? BadgeIcon;
 
@@ -26,6 +29,7 @@ export function DashboardPageHeader({
         <div className="badge-primary mb-3 w-fit">
           {BadgeIcon ? <BadgeIcon size={13} /> : null}
           {badge}
+          {beta ? <FlowsBetaBadge style={{ marginLeft: 4 }} /> : null}
         </div>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight m-0 flex items-center gap-2 flex-wrap">
           <span className="dashboard-page-header__icon" aria-hidden>

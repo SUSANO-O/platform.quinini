@@ -2,6 +2,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { SITE_COMPANY_LINKS, SITE_LEGAL_LINKS, SITE_PRODUCT_LINKS } from '@/lib/site-nav';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
+import {
+  buildContactWhatsAppUrl,
+  SALES_WHATSAPP_DISPLAY,
+  SALES_WHATSAPP_LINK_PROPS,
+} from '@/lib/sales-whatsapp';
 
 export function Footer() {
   return (
@@ -18,11 +23,12 @@ export function Footer() {
               API REST full, integración en minutos.
             </p>
             <a
-              href="mailto:business.botiva@gmail.com"
+              href={buildContactWhatsAppUrl()}
+              {...SALES_WHATSAPP_LINK_PROPS}
               className="inline-block mt-4 text-sm font-medium hover:underline"
               style={{ color: 'var(--foreground)' }}
             >
-              business.botiva@gmail.com
+              WhatsApp {SALES_WHATSAPP_DISPLAY}
             </a>
           </div>
 
@@ -30,7 +36,13 @@ export function Footer() {
             <h4 className="font-semibold text-sm mb-3">Producto</h4>
             <ul className="space-y-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
               {SITE_PRODUCT_LINKS.map((l) => (
-                <li key={l.href}><Link href={l.href} className="hover:underline">{l.label}</Link></li>
+                <li key={l.href}>
+                  {'external' in l && l.external ? (
+                    <a href={l.href} {...SALES_WHATSAPP_LINK_PROPS} className="hover:underline">{l.label}</a>
+                  ) : (
+                    <Link href={l.href} className="hover:underline">{l.label}</Link>
+                  )}
+                </li>
               ))}
             </ul>
           </div>
