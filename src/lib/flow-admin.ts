@@ -38,7 +38,7 @@ export function buildFlowEmbedSnippet(opts: {
   widgetToken?: string | null;
 }): string {
   const { origin, flowId, embedToken, widgetToken } = opts;
-  const wt = widgetToken?.trim() ? ` data-widget-token="${widgetToken.trim()}"` : '';
+  const wt = widgetToken?.trim() ? ` data-token="${widgetToken.trim()}"` : '';
   return [
     `<!-- BotIvA Flow Widget -->`,
     `<script${wt} data-flow-id="${flowId}" data-flow-token="${embedToken}" src="${origin}/widget.js"></script>`,

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { ConversationFlow } from '@/lib/db/models';
 import { upsertFlowConversation } from '@/lib/flow-stats';
+import { getCorsHeaders, handlePreflight, withCors } from '@/lib/cors';
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -17,26 +18,37 @@ type Body = {
   answers?: unknown[];
 };
 
+export async function OPTIONS(req: NextRequest) {
+  const preflight = handlePreflight(req);
+  if (preflight) return preflight;
+  return new NextResponse(null, { status: 204, headers: getCorsHeaders(req) });
+}
+
 export async function POST(req: NextRequest, ctx: RouteCtx) {
   const { id } = await ctx.params;
-  const body = await req.json() as Body;
+  let body: Body;
+  try {
+    body = await req.json() as Body;
+  } catch {
+    return withCors(req, NextResponse.json({ error: 'JSON inválido.' }, { status: 400 }));
+  }
 
   const flowToken = body.flowToken?.trim()
     || req.headers.get('x-flow-token')?.trim()
     || '';
 
   if (!flowToken) {
-    return NextResponse.json({ error: 'Token de flujo requerido.' }, { status: 401 });
+    return withCors(req, NextResponse.json({ error: 'Token de flujo requerido.' }, { status: 401 }));
   }
 
   await connectDB();
   const flow = await ConversationFlow.findOne({ _id: id, embedToken: flowToken }).lean();
   if (!flow) {
-    return NextResponse.json({ error: 'Flujo no encontrado o token inválido.' }, { status: 404 });
+    return withCors(req, NextResponse.json({ error: 'Flujo no encontrado o token inválido.' }, { status: 404 }));
   }
 
   if (flow.status !== 'published') {
-    return NextResponse.json({ error: 'El flujo no está publicado.' }, { status: 403 });
+    return withCors(req, NextResponse.json({ error: 'El flujo no está publicado.' }, { status: 403 }));
   }
 
   const sessionId = body.sessionId?.trim() || `fc_${randomUUID()}`;
@@ -54,5 +66,8 @@ export async function POST(req: NextRequest, ctx: RouteCtx) {
     answers: body.answers,
   });
 
-  return NextResponse.json({ ok: true, sessionId }, { status: body.sessionId ? 200 : 201 });
+  return withCors(
+    req,
+    NextResponse.json({ ok: true, sessionId }, { status: body.sessionId ? 200 : 201 }),
+  );
 }

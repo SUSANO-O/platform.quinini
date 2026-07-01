@@ -143,6 +143,8 @@
     fabDismissible: true,
     /** Si false, el chat se muestra pero no acepta mensajes (widget desactivado en el panel). */
     active: true,
+    flowId: '',
+    flowToken: '',
     onOpen: null,
     onClose: null,
     onMessageSent: null,
@@ -422,6 +424,8 @@
     var policyUrl = String(merged.policyUrl == null ? '' : merged.policyUrl).trim();
     if (policyUrl && !/^[a-z][a-z0-9+.-]*:/i.test(policyUrl)) policyUrl = 'https://' + policyUrl;
     merged.policyUrl = /^https?:\/\//i.test(policyUrl) ? policyUrl.substring(0, 300) : '';
+    merged.flowId = String(merged.flowId == null ? '' : merged.flowId).trim();
+    merged.flowToken = String(merged.flowToken == null ? '' : merged.flowToken).trim();
     return merged;
   }
 
@@ -1017,10 +1021,12 @@
       chatLayout = 'sidebar'; sidebarSize = 'compact';
     }
     var suppressFabClick = false;
+    var flowCtrl = null;
     var fabDrag = null;
     var history = [];
     var chatSessionId = getOrCreateChatSessionId(cfg);
-    var persistedChat = loadPersistedChatState(cfg, chatSessionId);
+    var isFlowEmbed = Boolean(cfg.flowId && cfg.flowToken);
+    var persistedChat = isFlowEmbed ? null : loadPersistedChatState(cfg, chatSessionId);
     if (persistedChat) {
       history = persistedChat.history;
     }
@@ -1045,6 +1051,7 @@
         return;
       }
       if (!history.length) {
+        if (flowCtrl && flowCtrl.onEmptyHistory()) return;
         addMessage('bot', cfg.welcome);
         return;
       }
@@ -3585,7 +3592,12 @@
       input.value = '';
       input.style.height = 'auto';
       sendBtn.disabled = true;
-      addMessage('bot', cfg.welcome);
+      if (flowCtrl) {
+        flowCtrl.reset();
+        flowCtrl.onEmptyHistory();
+      } else {
+        addMessage('bot', cfg.welcome);
+      }
       historyDomReady = true;
       saveChatToSession();
       emitEvent('widget_opened');
@@ -4732,6 +4744,33 @@
         if (ok) startNewConversation();
       });
     }
+    if (cfg.flowId && cfg.flowToken && typeof createFlowController === 'function') {
+      flowCtrl = createFlowController({
+        cfg: cfg,
+        chat: chat,
+        inputArea: inputArea,
+        input: input,
+        addMessage: function (type, text, imgOpts) { return addMessage(type, text, imgOpts); },
+        historyPush: function (entry) {
+          history.push(entry);
+          saveChatToSession();
+        },
+        getInputValue: function () { return input.value; },
+        clearInput: function () {
+          input.value = '';
+          input.style.height = 'auto';
+          syncSendButtonState();
+        },
+        syncSendButtonState: syncSendButtonState,
+      });
+    }
+
+    var baseSend = send;
+    send = function (textArg) {
+      if (flowCtrl && flowCtrl.onSend(textArg, baseSend)) return;
+      return baseSend(textArg);
+    };
+
     sendBtn.addEventListener('click', function () { send(); });
     if (attachBtn && attachInput) {
       attachBtn.addEventListener('click', function () {
@@ -4837,11 +4876,14 @@
     var script = document.currentScript || findScriptTag();
     if (!script) return;
     var hasAgentId = script.getAttribute('data-agent-id');
-    var hasToken   = script.getAttribute('data-token');
-    if (!hasAgentId && !hasToken) return;
+    var hasToken   = script.getAttribute('data-token') || script.getAttribute('data-widget-token');
+    var hasFlow    = script.getAttribute('data-flow-id') && script.getAttribute('data-flow-token');
+    if (!hasAgentId && !hasToken && !hasFlow) return;
     var config = {
       agentId: attr(script, 'data-agent-id', ''),
-      token: attr(script, 'data-token', ''),
+      token: attr(script, 'data-token', '') || attr(script, 'data-widget-token', ''),
+      flowId: attr(script, 'data-flow-id', ''),
+      flowToken: attr(script, 'data-flow-token', ''),
       host: attr(script, 'data-host', getOriginFromScript(script)),
       color: attr(script, 'data-color', DEFAULTS.color),
       title: attr(script, 'data-title', DEFAULTS.title),
@@ -4867,6 +4909,9 @@
       policyLinkLabel: attr(script, 'data-policy-link-label', DEFAULTS.policyLinkLabel),
       policyUrl: attr(script, 'data-policy-url', DEFAULTS.policyUrl)
     };
+    if (hasFlow && !hasToken) {
+      log({ debug: true }, 'warn', '[AgentFlowhub] Flujo embebido sin data-token del widget; añade data-token="wt_..." al script.');
+    }
     try {
       init(config);
     } catch (e) {
@@ -5395,6 +5440,9 @@
       '#' + rootId + ' a.afhub-policy-link { cursor:pointer; }' +
       '#' + rootId + ' a.afhub-policy-link:hover { filter:brightness(0.9); }' +
       '#' + rootId + ' .afhub-input-area { padding:6px 10px 8px; border-top:1px solid #e8ecf0; display:flex; gap:6px; flex-shrink:0; background:#fff; align-items:flex-end; }' +
+      '#' + rootId + ' .afhub-flow-options { display:none; flex-wrap:wrap; gap:6px; padding:8px 12px 4px; border-top:1px solid #e8ecf0; background:#f8fafc; flex-shrink:0; }' +
+      '#' + rootId + ' .afhub-flow-opt-btn { flex:1 1 calc(50% - 6px); min-width:120px; padding:8px 10px; border-radius:10px; border:1px solid #e2e8f0; background:#fff; color:#0f172a; font-size:13px; font-weight:500; cursor:pointer; transition:background .15s,border-color .15s,box-shadow .15s; text-align:left; line-height:1.35; }' +
+      '#' + rootId + ' .afhub-flow-opt-btn:hover { border-color:' + cfg.color + '66; background:' + cfg.color + '0a; box-shadow:0 2px 8px rgba(15,23,42,.06); }' +
       '#' + rootId + ' .afhub-input-composer { flex:1; min-width:0; display:flex; align-items:flex-end; gap:2px; padding:4px 5px 4px 3px; border-radius:22px; background:#f8fafc; border:1px solid #e2e8f0; transition:border-color .15s ease,box-shadow .15s ease,background .15s ease; }' +
       '#' + rootId + ' .afhub-input-composer:focus-within { border-color:' + cfg.color + '55; box-shadow:0 0 0 3px ' + cfg.color + '14; background:#fff; }' +
       '#' + rootId + ' .afhub-attach-input { position:absolute; width:0; height:0; opacity:0; pointer-events:none; overflow:hidden; }' +

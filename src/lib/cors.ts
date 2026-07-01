@@ -18,7 +18,7 @@ export function getCorsHeaders(req: NextRequest): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': allowOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-widget-token',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-widget-token, X-Widget-Token, x-flow-token, X-Flow-Token',
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin',

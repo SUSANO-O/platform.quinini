@@ -11,6 +11,7 @@ import esbuild from 'esbuild';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '../..');
 const corePath = path.join(__dirname, 'core.js');
+const flowModePath = path.join(__dirname, 'flow-mode.js');
 const outPublic = path.join(root, 'public', 'widget.js');
 const outInternal = path.join(root, 'public', 'assist.js');
 
@@ -71,8 +72,13 @@ async function main() {
     console.error('[build:widget] Falta scripts/widget/core.js');
     process.exit(1);
   }
+  if (!fs.existsSync(flowModePath)) {
+    console.error('[build:widget] Falta scripts/widget/flow-mode.js');
+    process.exit(1);
+  }
 
-  const core = fs.readFileSync(corePath, 'utf8');
+  const flowMode = fs.readFileSync(flowModePath, 'utf8');
+  const core = flowMode + '\n' + fs.readFileSync(corePath, 'utf8');
   const tmpDir = path.join(__dirname, '.tmp');
   fs.mkdirSync(tmpDir, { recursive: true });
 
