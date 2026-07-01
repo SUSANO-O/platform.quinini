@@ -1,12 +1,8 @@
 /** Enlaces compartidos entre navbar/footer de marketing (locale y páginas estáticas). */
 
-import { buildPricingInquiryWhatsAppUrl } from '@/lib/sales-whatsapp';
-
-const PRICING_WHATSAPP_URL = buildPricingInquiryWhatsAppUrl();
-
 export const SITE_PRODUCT_LINKS = [
   { href: '/pricing#api-develop', label: 'API' },
-  { href: PRICING_WHATSAPP_URL, label: 'Precios', external: true },
+  { href: '/pricing', label: 'Precios' },
 ] as const;
 
 export const SITE_COMPANY_LINKS = [
@@ -24,6 +20,6 @@ export const SITE_LEGAL_LINKS = [
 ] as const;
 
 export const SITE_NAV_LINKS = [
-  { href: PRICING_WHATSAPP_URL, label: 'Precios', external: true },
+  { href: '/pricing', label: 'Precios' },
   { href: '/preguntas-frecuentes', label: 'Preguntas frecuentes' },
 ] as const;

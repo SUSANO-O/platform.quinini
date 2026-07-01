@@ -532,3 +532,6 @@
 {"t":"2026-07-01T19:06:02.726Z","event":"widget_loaded","agentId":"math","instanceId":"biv_1"}
 {"t":"2026-07-01T19:06:21.901Z","event":"widget_loaded","agentId":"math","instanceId":"biv_1"}
 {"t":"2026-07-01T20:24:07.823Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_1"}
+{"t":"2026-07-01T21:08:51.513Z","event":"widget_loaded","agentId":"math-ais","instanceId":"biv_1"}
+{"t":"2026-07-01T22:48:35.560Z","event":"widget_loaded","agentId":"math","instanceId":"biv_1"}
+{"t":"2026-07-01T22:50:51.450Z","event":"widget_loaded","agentId":"math","instanceId":"biv_1"}

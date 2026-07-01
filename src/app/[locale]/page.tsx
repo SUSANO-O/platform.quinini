@@ -10,7 +10,6 @@ import { HowStepMock } from '@/components/landing/how-step-mock';
 import type { LandingIconName } from '@/lib/landing-icons';
 import { PREMIUM, R, B, Rd, BRAND } from '@/lib/brand-colors';
 import {
-  buildPricingInquiryWhatsAppUrl,
   buildTrainingWhatsAppUrl,
   SALES_WHATSAPP_LINK_PROPS,
 } from '@/lib/sales-whatsapp';
@@ -126,14 +125,13 @@ export default async function LandingPage() {
           </p>
 
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-2.5">
-            <a
-              href={buildPricingInquiryWhatsAppUrl()}
-              {...SALES_WHATSAPP_LINK_PROPS}
+            <Link
+              href="/pricing"
               className="landing-btn inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white transition-all hover:scale-[1.03]"
               style={{ background: R, boxShadow: `0 4px 20px rgba(var(--brand-primary-rgb),0.28)` }}
             >
               {t('hero.ctaPrimary')} <LandingIcon name="arrow-right" size="md" className="text-white" />
-            </a>
+            </Link>
             <Link
               href="/login"
               className="landing-btn inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all hover:bg-slate-50"
@@ -141,14 +139,6 @@ export default async function LandingPage() {
             >
               {t('hero.ctaAccount')}
             </Link>
-            <a
-              href={buildPricingInquiryWhatsAppUrl()}
-              {...SALES_WHATSAPP_LINK_PROPS}
-              className="landing-btn inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all hover:bg-slate-50"
-              style={{ border: '1px solid var(--border)', color: 'var(--foreground)' }}
-            >
-              {t('hero.ctaDocs')}
-            </a>
           </div>
         </div>
       </section>
@@ -353,14 +343,13 @@ export default async function LandingPage() {
                   <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#22c55e' }} />
                   {t('widget.live')}
                 </span>
-                <a
-                  href={buildPricingInquiryWhatsAppUrl()}
-                  {...SALES_WHATSAPP_LINK_PROPS}
+                <Link
+                  href="/pricing"
                   className="landing-btn text-xs px-3 py-1 rounded-lg text-white"
                   style={{ background: R }}
                 >
                   {t('widget.startFree')}
-                </a>
+                </Link>
               </div>
             </div>
 
@@ -597,14 +586,13 @@ export default async function LandingPage() {
             {t('cta.subtitle')}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <a
-              href={buildPricingInquiryWhatsAppUrl()}
-              {...SALES_WHATSAPP_LINK_PROPS}
+            <Link
+              href="/pricing"
               className="landing-btn inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white transition-all hover:scale-[1.03]"
               style={{ background: R, boxShadow: `0 4px 24px rgba(var(--brand-primary-rgb),0.28)` }}
             >
               {t('cta.primary')} <LandingIcon name="arrow-right" size="md" className="text-white" />
-            </a>
+            </Link>
             <Link
               href="/login"
               className="landing-btn inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all hover:bg-white"

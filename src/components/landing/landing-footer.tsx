@@ -4,7 +4,6 @@ import { getTranslations } from 'next-intl/server';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 import {
   buildContactWhatsAppUrl,
-  buildPricingInquiryWhatsAppUrl,
   SALES_WHATSAPP_DISPLAY,
   SALES_WHATSAPP_LINK_PROPS,
 } from '@/lib/sales-whatsapp';
@@ -38,7 +37,7 @@ export async function LandingFooter() {
             <h4 className="landing-label mb-3">{t('product')}</h4>
             <ul className="space-y-2 landing-body-sm landing-muted">
               <li><Link href="/pricing#api" className="hover:underline">API</Link></li>
-              <li><a href={buildPricingInquiryWhatsAppUrl()} {...SALES_WHATSAPP_LINK_PROPS} className="hover:underline">{t('plans')}</a></li>
+              <li><Link href="/pricing" className="hover:underline">{t('plans')}</Link></li>
               <li><Link href="#agents" className="hover:underline">Agentes</Link></li>
             </ul>
           </div>
