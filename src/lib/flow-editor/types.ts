@@ -74,8 +74,13 @@ export interface FlowDocument {
   updatedAt: string;
 }
 
-import type { FlowConversationItem } from '@/lib/flow-stats';
-
-export type { FlowConversationItem };
-
 export interface FlowListItem {
+  id: string;
+  name: string;
+  description: string;
+  tags: string;
+  status: 'draft' | 'published';
+  stepCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
