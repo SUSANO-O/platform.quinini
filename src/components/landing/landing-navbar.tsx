@@ -8,7 +8,6 @@ import { useAuth } from '@/hooks/use-auth';
 import { useTranslations } from 'next-intl';
 import { LanguageSwitcher } from './language-switcher';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
-import { buildPricingInquiryWhatsAppUrl, SALES_WHATSAPP_LINK_PROPS } from '@/lib/sales-whatsapp';
 
 export function LandingNavbar() {
   const [open, setOpen] = useState(false);
@@ -45,16 +44,15 @@ export function LandingNavbar() {
           >
             {t('training')}
           </Link>
-          <a
-            href={buildPricingInquiryWhatsAppUrl()}
-            {...SALES_WHATSAPP_LINK_PROPS}
+          <Link
+            href="/pricing"
             className="landing-btn text-xs font-medium transition-colors"
             style={{ color: 'var(--muted-foreground)' }}
             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
           >
             {t('pricing')}
-          </a>
+          </Link>
           <Link
             href="/preguntas-frecuentes"
             className="landing-btn text-xs font-medium transition-colors"
@@ -85,14 +83,13 @@ export function LandingNavbar() {
                 >
                   {t('signIn')}
                 </Link>
-                <a
-                  href={buildPricingInquiryWhatsAppUrl()}
-                  {...SALES_WHATSAPP_LINK_PROPS}
+                <Link
+                  href="/pricing"
                   className="text-xs font-semibold px-4 py-2 rounded-lg text-white transition-all hover:shadow-lg"
                   style={{ background: 'var(--brand-primary)' }}
                 >
                   {t('startFree')}
-                </a>
+                </Link>
               </div>
             )
           )}
@@ -142,9 +139,8 @@ export function LandingNavbar() {
           >
             {t('training')}
           </Link>
-          <a
-            href={buildPricingInquiryWhatsAppUrl()}
-            {...SALES_WHATSAPP_LINK_PROPS}
+          <Link
+            href="/pricing"
             className="flex items-center text-xs font-medium px-3 py-2 rounded-lg transition-colors"
             style={{ color: 'var(--foreground)' }}
             onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted)')}
@@ -152,7 +148,7 @@ export function LandingNavbar() {
             onClick={() => setOpen(false)}
           >
             {t('pricing')}
-          </a>
+          </Link>
           <Link
             href="/preguntas-frecuentes"
             className="flex items-center text-xs font-medium px-3 py-2 rounded-lg transition-colors"
@@ -189,15 +185,14 @@ export function LandingNavbar() {
                   >
                     {t('signIn')}
                   </Link>
-                  <a
-                    href={buildPricingInquiryWhatsAppUrl()}
-                    {...SALES_WHATSAPP_LINK_PROPS}
+                  <Link
+                    href="/pricing"
                     className="text-center text-sm font-bold px-5 py-2.5 rounded-xl text-white"
                     style={{ background: 'var(--brand-primary)', boxShadow: '0 4px 14px rgba(var(--brand-primary-rgb),0.25)' }}
                     onClick={() => setOpen(false)}
                   >
                     {t('startFree')}
-                  </a>
+                  </Link>
                 </>
               )
             )}

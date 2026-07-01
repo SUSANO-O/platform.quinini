@@ -31,8 +31,7 @@
       "title2": "for any industry",
       "description": "Deploy an AI agent on your website in less than 10 minutes. No code, no servers — just paste the widget and start serving customers around the clock.",
       "ctaPrimary": "View pricing",
-      "ctaAccount": "I already have an account",
-      "ctaDocs": "View Pricing"
+      "ctaAccount": "I already have an account"
     },
     "stats": {
       "trialValue": "$7",
