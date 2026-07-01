@@ -84,3 +84,13 @@ export interface FlowListItem {
   createdAt: string;
   updatedAt: string;
 }
+
+export type FlowConversationItem = {
+  sessionId: string;
+  status: 'active' | 'completed' | 'abandoned';
+  startedAt: string;
+  endedAt: string | null;
+  durationSec: number | null;
+  messageCount: number;
+  visitorId: string;
+};

@@ -1,15 +1,8 @@
 import { FlowConversation } from '@/lib/db/models';
 import type { FlowStats } from '@/lib/flow-admin';
+import type { FlowConversationItem } from '@/lib/flow-editor/types';
 
-export type FlowConversationItem = {
-  sessionId: string;
-  status: 'active' | 'completed' | 'abandoned';
-  startedAt: string;
-  endedAt: string | null;
-  durationSec: number | null;
-  messageCount: number;
-  visitorId: string;
-};
+export type { FlowConversationItem };
 
 function monthKey(d: Date): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
