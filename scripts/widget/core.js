@@ -8,7 +8,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.6.25';
+  var VERSION = '1.6.26';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -1114,6 +1114,7 @@
     root.style.zIndex = String(2147483000 + INSTANCE_COUNT);
     root.style.fontFamily = AFHUB_FONT_STACK;
     root.setAttribute('data-afhub-theme', cfg.theme);
+    if (cfg.debug) root.classList.add('afhub-widget--debug');
 
     var styleEl = document.createElement('style');
     styleEl.textContent = cssForRoot(rootId, cfg);
@@ -2541,6 +2542,59 @@
       return { title: 'Pensando…', sub: s };
     }
 
+    function thinkingPhaseKey(statusPhase, statusLabel) {
+      var phase = String(statusPhase || '').trim();
+      if (phase) return phase;
+      var lower = String(statusLabel || '').toLowerCase();
+      if (lower.indexOf('captura') >= 0 || lower.indexOf('imagen') >= 0) return 'vision';
+      if (lower.indexOf('documentos') >= 0 || lower.indexOf('conocimiento') >= 0) return 'rag';
+      if (lower.indexOf('integraciones') >= 0 || lower.indexOf('herramienta') >= 0) return 'tools';
+      if (lower.indexOf('especialist') >= 0 || lower.indexOf('paralelo') >= 0) return 'parallel';
+      if (lower.indexOf('recopil') >= 0) return 'pipeline';
+      if (lower.indexOf('sintet') >= 0 || lower.indexOf('unificando') >= 0) return 'synthesize';
+      if (lower.indexOf('generando') >= 0 || lower.indexOf('redactando') >= 0) return 'model';
+      return 'prepare';
+    }
+
+    function thinkingStepsFromPhase(statusPhase, statusLabel) {
+      var phase = thinkingPhaseKey(statusPhase, statusLabel);
+      var steps = ['Preparando', 'Contexto', 'Respuesta'];
+      var current = 0;
+      if (phase === 'vision') {
+        steps = ['Imagen', 'Contexto', 'Respuesta'];
+        current = 0;
+      } else if (phase === 'enrich' || phase === 'rag') {
+        steps = ['Preparando', phase === 'rag' ? 'Documentos' : 'Contexto', 'Respuesta'];
+        current = 1;
+      } else if (phase === 'mcp' || phase === 'tools' || phase === 'skills' || phase === 'skill') {
+        steps = ['Contexto', phase === 'skills' || phase === 'skill' ? 'Habilidades' : 'Herramientas', 'Respuesta'];
+        current = 1;
+      } else if (phase === 'triage' || phase === 'resolve' || phase === 'handoff') {
+        steps = ['Analizando', 'Asignando agente', 'Respuesta'];
+        current = phase === 'triage' ? 0 : 1;
+      } else if (phase === 'parallel' || phase === 'pipeline' || phase === 'content') {
+        steps = ['Analizando', 'Especialistas', 'Síntesis'];
+        current = 1;
+      } else if (phase === 'synthesize') {
+        steps = ['Especialistas', 'Síntesis', 'Respuesta'];
+        current = 1;
+      } else if (phase === 'model' || phase === 'hub' || phase === 'creative') {
+        steps = ['Contexto', phase === 'creative' ? 'Creativo' : 'Redacción', 'Entregando'];
+        current = 1;
+      }
+      return { steps: steps, current: current };
+    }
+
+    function renderThinkingSteps(statusPhase, statusLabel) {
+      var data = thinkingStepsFromPhase(statusPhase, statusLabel);
+      var html = '';
+      for (var i = 0; i < data.steps.length; i++) {
+        var cls = i < data.current ? 'done' : (i === data.current ? 'current' : 'next');
+        html += '<span class="afhub-thinking-step afhub-thinking-step--' + cls + '">' + escapeHtml(data.steps[i]) + '</span>';
+      }
+      return html;
+    }
+
     function clearTypingTimer() {
       if (typingTimerHandle) {
         clearInterval(typingTimerHandle);
@@ -2559,6 +2613,10 @@
         }
         var elapsedEl = el.querySelector('.afhub-thinking-elapsed');
         if (!elapsedEl) return;
+        if (!cfg.debug) {
+          elapsedEl.textContent = '';
+          return;
+        }
         var sec = Math.floor((Date.now() - typingStartedAt) / 1000);
         if (sec < 3) {
           elapsedEl.textContent = '';
@@ -2581,9 +2639,11 @@
         '<div class="afhub-thinking-head">' +
           '<span class="afhub-thinking-pulse" aria-hidden="true"></span>' +
           '<div class="afhub-thinking-titles">' +
+            '<span class="afhub-thinking-title">' + escapeHtml(copy.title) + '</span>' +
             '<span class="afhub-thinking-sub">' + escapeHtml(copy.sub) + '</span>' +
           '</div>' +
         '</div>' +
+        '<div class="afhub-thinking-steps" aria-hidden="true">' + renderThinkingSteps(statusPhase, statusLabel) + '</div>' +
         '<div class="afhub-thinking-meta">' +
           '<span class="afhub-thinking-elapsed"></span>' +
           '<span class="afhub-thinking-dots" aria-hidden="true"><span></span><span></span><span></span></span>' +
@@ -2629,6 +2689,8 @@
         subEl.removeAttribute('data-slow');
         subEl.textContent = copy.sub;
       }
+      var stepsEl = el.querySelector('.afhub-thinking-steps');
+      if (stepsEl) stepsEl.innerHTML = renderThinkingSteps(statusPhase, statusLabel);
       messages.scrollTop = messages.scrollHeight;
     }
 
@@ -5200,8 +5262,11 @@
           '#' + rootId + ' .afhub-powered a { color:#9a9aaa; }' +
           '#' + rootId + ' .afhub-dot { background:#777; }' +
           '#' + rootId + ' .afhub-thinking-card { background:transparent; border:none; }' +
-          '#' + rootId + ' .afhub-thinking-title { display:none; }' +
+          '#' + rootId + ' .afhub-thinking-title { color:#f1f5f9; }' +
           '#' + rootId + ' .afhub-thinking-sub { color:#9ca3af; display:block; }' +
+          '#' + rootId + ' .afhub-thinking-step { background:rgba(255,255,255,.07); color:#9ca3af; }' +
+          '#' + rootId + ' .afhub-thinking-step--current { background:' + cfg.color + '22; color:#f1f5f9; }' +
+          '#' + rootId + ' .afhub-thinking-step--done { background:' + cfg.color + '14; color:#cbd5e1; }' +
           '#' + rootId + ' .afhub-thinking-elapsed { color:#6b7280; }' +
           '#' + rootId + ' .afhub-skel-line { display:none; }' +
           '#' + rootId + ' .afhub-thinking-dots span { background:#6b7280; }' +
@@ -5646,19 +5711,25 @@
       '#' + rootId + ' .afhub-tool-tag { font-size:10px; line-height:1.25; letter-spacing:.02em; padding:2px 6px; border-radius:6px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:rgba(0,0,0,.06); color:#5a5a6e; border:1px solid rgba(0,0,0,.08); }' +
       '#' + rootId + ' .afhub-img-wrap { margin-top:10px; max-width:100%; display:flex; flex-direction:column; gap:8px; }' +
       '#' + rootId + ' .afhub-widget-img { display:block; width:100%; max-width:100%; height:auto; vertical-align:middle; }' +
-      '#' + rootId + ' .afhub-thinking-card { display:flex; flex-direction:column; gap:8px; padding:8px 10px; max-width:88%; align-self:flex-start; border-radius:14px; border:none; background:transparent; animation:afhub-thinking-in .28s ease-out; }' +
+      '#' + rootId + ' .afhub-thinking-card { display:flex; flex-direction:column; gap:8px; padding:10px 12px; max-width:92%; align-self:flex-start; border-radius:14px; border:1px solid rgba(15,23,42,.06); background:rgba(255,255,255,.68); animation:afhub-thinking-in .28s ease-out; }' +
       '#' + rootId + ' .afhub-thinking-head { display:flex; align-items:flex-start; gap:10px; }' +
-      '#' + rootId + ' .afhub-thinking-pulse { flex-shrink:0; width:10px; height:10px; margin-top:4px; border-radius:50%; background:' + cfg.color + '; box-shadow:0 0 0 0 ' + cfg.color + '55; animation:afhub-thinking-pulse 1.6s ease-out infinite; }' +
+      '#' + rootId + ' .afhub-thinking-pulse { flex-shrink:0; width:9px; height:9px; margin-top:5px; border-radius:50%; background:' + cfg.color + '; box-shadow:0 0 0 0 ' + cfg.color + '55; animation:afhub-thinking-pulse 1.6s ease-out infinite; }' +
       '#' + rootId + ' .afhub-thinking-titles { display:flex; flex-direction:column; gap:2px; min-width:0; }' +
-      '#' + rootId + ' .afhub-thinking-title { display:none; }' +
-      '#' + rootId + ' .afhub-thinking-sub { font-size:12px; line-height:1.4; color:#6b7280; font-weight:500; display:block; }' +
+      '#' + rootId + ' .afhub-thinking-title { display:block; font-size:12px; line-height:1.25; color:#111827; font-weight:750; letter-spacing:-.01em; }' +
+      '#' + rootId + ' .afhub-thinking-sub { font-size:11px; line-height:1.35; color:#6b7280; font-weight:500; display:block; }' +
       '#' + rootId + ' .afhub-thinking-skeleton { display:none; }' +
       '#' + rootId + ' .afhub-skel-line { display:none; }' +
       '#' + rootId + ' .afhub-skel-line--lg { display:none; }' +
       '#' + rootId + ' .afhub-skel-line--md { display:none; }' +
       '#' + rootId + ' .afhub-skel-line--sm { display:none; }' +
-      '#' + rootId + ' .afhub-thinking-meta { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:14px; }' +
-      '#' + rootId + ' .afhub-thinking-elapsed { font-size:10px; font-weight:600; letter-spacing:.03em; color:#9ca3af; font-variant-numeric:tabular-nums; }' +
+      '#' + rootId + ' .afhub-thinking-steps { display:flex; flex-wrap:wrap; gap:5px; padding-left:19px; }' +
+      '#' + rootId + ' .afhub-thinking-step { display:inline-flex; align-items:center; min-height:18px; padding:3px 7px; border-radius:999px; font-size:9px; line-height:1; font-weight:750; letter-spacing:.04em; text-transform:uppercase; color:#94a3b8; background:rgba(15,23,42,.04); }' +
+      '#' + rootId + ' .afhub-thinking-step--done { color:' + cfg.color + '; background:' + cfg.color + '0d; }' +
+      '#' + rootId + ' .afhub-thinking-step--current { color:' + cfg.color + '; background:' + cfg.color + '18; box-shadow:inset 0 0 0 1px ' + cfg.color + '20; }' +
+      '#' + rootId + ' .afhub-thinking-step--next { color:#9ca3af; }' +
+      '#' + rootId + ' .afhub-thinking-meta { display:flex; align-items:center; justify-content:flex-end; gap:8px; min-height:10px; padding-left:19px; }' +
+      '#' + rootId + ' .afhub-thinking-elapsed { display:none; font-size:10px; font-weight:600; letter-spacing:.03em; color:#9ca3af; font-variant-numeric:tabular-nums; }' +
+      '#' + rootId + '.afhub-widget--debug .afhub-thinking-elapsed { display:inline; }' +
       '#' + rootId + ' .afhub-thinking-dots { display:inline-flex; gap:3px; align-items:center; margin-left:auto; }' +
       '#' + rootId + ' .afhub-thinking-dots span { width:5px; height:5px; border-radius:50%; background:#9ca3af; animation:afhub-thinking-dot 1.5s ease-in-out infinite; }' +
       '#' + rootId + ' .afhub-thinking-dots span:nth-child(2) { animation-delay:.25s; }' +

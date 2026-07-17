@@ -4,7 +4,7 @@
  */
 
 /** Mantener en sync con `VERSION` en scripts/widget/core.js (cache-bust de assist.js). */
-export const WIDGET_SDK_VERSION = '1.6.25';
+export const WIDGET_SDK_VERSION = '1.6.26';
 
 export type InternalAssistContext = 'app' | 'marketing';
 
