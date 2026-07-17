@@ -31,7 +31,12 @@ export const NODE_PALETTE: {
   {
     section: 'Control de flujo',
     items: [
+      { type: 'message', icon: '💬', name: 'Mensaje', desc: 'Texto del bot' },
+      { type: 'delay', icon: '⏱️', name: 'Espera', desc: 'Pausa temporal' },
+      { type: 'set_variable', icon: '📌', name: 'Variable', desc: 'Guardar valor' },
       { type: 'condition', icon: '🔀', name: 'Condición', desc: 'Ramificación' },
+      { type: 'random', icon: '🎲', name: 'Aleatorio', desc: 'Ruta al azar' },
+      { type: 'goto', icon: '↩️', name: 'Saltar', desc: 'Ir a otro nodo' },
       { type: 'end', icon: '🏁', name: 'Fin', desc: 'Completar flujo' },
     ],
   },
@@ -46,15 +51,20 @@ export const NODE_PALETTE: {
 
 export const NODE_TYPE_LABELS: Record<FlowNodeType, string> = {
   start: 'Inicio',
-  text: 'texto',
-  multiple_choice: 'opción múltiple',
-  number: 'número',
-  email: 'email',
-  phone: 'teléfono',
-  condition: 'condición',
-  end: 'fin',
-  calendar_booking: 'calendario',
-  calendly_booking: 'calendly',
+  text: 'Texto',
+  multiple_choice: 'Opción múltiple',
+  number: 'Número',
+  email: 'Email',
+  phone: 'Teléfono',
+  message: 'Mensaje',
+  delay: 'Espera',
+  set_variable: 'Variable',
+  goto: 'Saltar',
+  random: 'Aleatorio',
+  condition: 'Condición',
+  end: 'Fin',
+  calendar_booking: 'Calendario',
+  calendly_booking: 'Calendly',
 };
 
 export const NODE_TYPE_ICONS: Record<FlowNodeType, string> = {
@@ -64,6 +74,11 @@ export const NODE_TYPE_ICONS: Record<FlowNodeType, string> = {
   number: '🔢',
   email: '📧',
   phone: '📱',
+  message: '💬',
+  delay: '⏱️',
+  set_variable: '📌',
+  goto: '↩️',
+  random: '🎲',
   condition: '🔀',
   end: '🏁',
   calendar_booking: '📅',
@@ -82,7 +97,7 @@ export function createStartNode(): FlowNode {
 
 export function createFlowNode(type: FlowNodeType, x: number, y: number, id?: string): FlowNode {
   const nodeId = id ?? `node_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-  const base: FlowNode = { id: nodeId, type, x, y };
+  const base: FlowNode = { id: nodeId, type, x, y, config: { required: true } };
 
   switch (type) {
     case 'multiple_choice':
@@ -93,21 +108,145 @@ export function createFlowNode(type: FlowNodeType, x: number, y: number, id?: st
           { label: 'Opción A', value: 'a' },
           { label: 'Opción B', value: 'b' },
         ],
+        config: { required: true, variableKey: 'choice' },
       };
     case 'end':
-      return { ...base, question: '¡Gracias! Hemos recibido tu información.' };
+      return {
+        ...base,
+        question: '¡Gracias! Hemos recibido tu información.',
+        config: { buttonLabel: 'Cerrar', required: false },
+      };
     case 'email':
-      return { ...base, question: '¿Cuál es tu correo electrónico?' };
+      return {
+        ...base,
+        question: '¿Cuál es tu correo electrónico?',
+        config: {
+          required: true,
+          placeholder: 'correo@empresa.com',
+          helpText: 'Usaremos este email para contactarte.',
+          variableKey: 'email',
+        },
+      };
     case 'phone':
-      return { ...base, question: '¿Cuál es tu número de teléfono?' };
+      return {
+        ...base,
+        question: '¿Cuál es tu número de teléfono?',
+        config: {
+          required: true,
+          placeholder: '+34 600 000 000',
+          helpText: 'Incluye el código de país.',
+          variableKey: 'phone',
+        },
+      };
     case 'number':
-      return { ...base, question: 'Introduce un número:' };
+      return {
+        ...base,
+        question: 'Introduce un número:',
+        config: {
+          required: true,
+          placeholder: '0',
+          min: 0,
+          step: 1,
+          variableKey: 'number',
+        },
+      };
     case 'condition':
-      return { ...base, question: 'Condición de ramificación' };
+      return {
+        ...base,
+        question: 'Condición de ramificación',
+        config: {
+          required: false,
+          sourceVariable: '',
+          operator: 'eq',
+          compareValue: '',
+        },
+      };
+    case 'message':
+      return {
+        ...base,
+        question: 'Aquí va un mensaje informativo para el usuario.',
+        config: {
+          required: false,
+          autoContinue: false,
+          buttonLabel: 'Continuar',
+          helpText: '',
+        },
+      };
+    case 'delay':
+      return {
+        ...base,
+        question: 'Un momento…',
+        config: {
+          required: false,
+          delayMs: 1500,
+          autoContinue: true,
+        },
+      };
+    case 'set_variable':
+      return {
+        ...base,
+        question: 'Asignar variable',
+        config: {
+          required: false,
+          variableKey: 'estado',
+          setValue: 'activo',
+        },
+      };
+    case 'goto':
+      return {
+        ...base,
+        question: 'Saltar a otro paso',
+        config: {
+          required: false,
+          targetNodeId: '',
+        },
+      };
+    case 'random':
+      return {
+        ...base,
+        question: 'Ruta aleatoria',
+        options: [
+          { label: 'Ruta A', value: 'a' },
+          { label: 'Ruta B', value: 'b' },
+        ],
+        config: { required: false, variableKey: 'random_path' },
+      };
     case 'calendar_booking':
-      return { ...base, question: 'Selecciona una fecha en el calendario' };
+      return {
+        ...base,
+        question: 'Selecciona una fecha en el calendario',
+        config: {
+          required: true,
+          bookingUrl: '',
+          durationMinutes: 30,
+          timezone: 'Europe/Madrid',
+          buttonLabel: 'Reservar cita',
+          variableKey: 'booking',
+        },
+      };
     case 'calendly_booking':
-      return { ...base, question: 'Reserva tu cita con Calendly' };
+      return {
+        ...base,
+        question: 'Reserva tu cita con Calendly',
+        config: {
+          required: true,
+          bookingUrl: '',
+          buttonLabel: 'Abrir Calendly',
+          variableKey: 'calendly',
+        },
+      };
+    case 'text':
+      return {
+        ...base,
+        question: 'Escribe tu pregunta aquí',
+        config: {
+          required: true,
+          placeholder: 'Escribe tu respuesta…',
+          minLength: 1,
+          maxLength: 500,
+          variableKey: 'text',
+        },
+      };
     default:
       return { ...base, question: 'Escribe tu pregunta aquí' };
   }

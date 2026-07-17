@@ -45,6 +45,10 @@ interface WidgetDoc {
   handoffEnabled?: boolean;
   handoffNotifyMode?: string;
   avatar?: string;
+  fabAvatarSize?: number;
+  imageUploadEnabled?: boolean;
+  voiceEnabled?: boolean;
+  micEnabled?: boolean;
   position: string;
   theme: string;
   borderRadius?: string;
@@ -184,7 +188,7 @@ function loadWidgetScript(origin: string): Promise<void> {
 
   return new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = `${origin}/widget.js?v=${Math.floor(Date.now() / 60000)}`; // cache 1 min
+    s.src = `${origin}/widget.js?v=${Date.now()}`;
     s.async = true;
     s.setAttribute('data-afhub-widget-preview', '1');
     s.onload = () => resolve();
@@ -267,6 +271,9 @@ export default function WidgetPreviewPage() {
               typeof (w as { fabAvatarSize?: number }).fabAvatarSize === 'number'
                 ? (w as { fabAvatarSize?: number }).fabAvatarSize
                 : 86,
+            imageUploadEnabled: w.imageUploadEnabled !== false,
+            voiceEnabled: w.voiceEnabled === true,
+            micEnabled: typeof w.micEnabled === 'boolean' ? w.micEnabled === true : w.voiceEnabled === true,
             position:  w.position || 'bottom-right',
             theme:     w.theme === 'dark' ? 'dark' : 'light',
             borderRadius: parseBorderRadius(w.borderRadius),

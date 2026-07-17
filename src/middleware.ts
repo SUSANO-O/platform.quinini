@@ -14,7 +14,8 @@ export function middleware(request: NextRequest) {
     const token = request.cookies.get('afhub_session')?.value;
     if (!token) {
       const loginUrl = new URL('/login', request.url);
-      loginUrl.searchParams.set('from', pathname);
+      // Conserva query (p. ej. ?id=… en widget-preview) para volver tras el login.
+      loginUrl.searchParams.set('from', `${pathname}${request.nextUrl.search}`);
       return NextResponse.redirect(loginUrl);
     }
     return NextResponse.next();

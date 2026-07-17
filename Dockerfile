@@ -45,6 +45,11 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
+# Next.js escribe caché de imágenes y el uso del widget en runtime;
+# el USER nextjs necesita poder escribir (los COPY quedan owned por root).
+RUN mkdir -p /app/.next/cache /app/data \
+  && chown -R nextjs:nextjs /app/.next /app/data
+
 USER nextjs
 EXPOSE 3201
 
