@@ -3,7 +3,7 @@
  * - marketing / aterrizaje → Math (hub: math)
  * - app / usuario (dashboard) → Math-ais (hub: math-ais)
  *
- * Ambos son isPlatform + widgets wt_* del admin (no consumen cupo de clientes).
+ * Ambos viven bajo el perfil admin (widgets wt_*); ya no usan isPlatform.
  */
 
 import { randomBytes } from 'crypto';
@@ -101,6 +101,14 @@ async function resolveAdminOwnerId(preferredAdminId?: string): Promise<string | 
     } | null;
     if (me?.role === 'admin') return preferredAdminId;
   }
+  // Preferir cuenta de plataforma explícita (email admin) si está configurada.
+  const ownerEmail = (process.env.INTERNAL_ASSIST_OWNER_EMAIL || '').trim().toLowerCase();
+  if (ownerEmail) {
+    const byEmail = (await User.findOne({ email: ownerEmail, role: 'admin' })
+      .select({ _id: 1 })
+      .lean()) as { _id?: { toString(): string } } | null;
+    if (byEmail?._id) return byEmail._id.toString();
+  }
   const admin = (await User.findOne({ role: 'admin' }).sort({ createdAt: 1 }).select({ _id: 1 }).lean()) as {
     _id?: { toString(): string };
   } | null;
@@ -118,7 +126,7 @@ export async function getLandingAssistStatus(adminUserId?: string): Promise<{
 
   for (const slot of slots) {
     const agent = (await ClientAgent.findOne({
-      $or: [{ agentHubId: slot.hubId }, { name: slot.name, isPlatform: true }],
+      $or: [{ agentHubId: slot.hubId }, { name: slot.name, agentHubId: slot.hubId }],
     })
       .select({ _id: 1, name: 1, agentHubId: 1, isPlatform: 1, userId: 1, status: 1, syncStatus: 1 })
       .lean()) as {
@@ -212,7 +220,7 @@ export async function ensureLandingAssistAgents(options?: {
   for (const slot of landingAssistSlots()) {
     let agent = await ClientAgent.findOne({ agentHubId: slot.hubId });
     if (!agent) {
-      agent = await ClientAgent.findOne({ name: slot.name, isPlatform: true, type: 'agent' });
+      agent = await ClientAgent.findOne({ name: slot.name, type: 'agent' });
     }
 
     const enableHubspot = slot.context === 'app';
@@ -228,7 +236,7 @@ export async function ensureLandingAssistAgents(options?: {
         status: 'active',
         tools: [],
         agentHubId: slot.hubId,
-        isPlatform: true,
+        isPlatform: false,
         syncStatus: 'pending',
         ragEnabled: false,
         strictPurposeOnly: true,
@@ -242,7 +250,7 @@ export async function ensureLandingAssistAgents(options?: {
       created.agents.push(String(agent._id));
     } else {
       const $set: Record<string, unknown> = {
-        isPlatform: true,
+        isPlatform: false,
         status: 'active',
         userId: ownerId,
         description: slot.description,
