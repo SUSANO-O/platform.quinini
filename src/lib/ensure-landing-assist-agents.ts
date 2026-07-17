@@ -60,10 +60,15 @@ export function landingAssistSlots(): LandingAssistSlot[] {
       fabHint: (process.env.INTERNAL_APP_ASSIST_FAB_HINT || '¿Tienes dudas?').trim(),
       avatar: (process.env.INTERNAL_APP_ASSIST_AVATAR || '/assets/assist/botivaorbe.webp').trim(),
       systemPrompt:
-        'Eres Math-ais, el asistente de la plataforma BotIvA dentro del dashboard. Ayudas a usuarios autenticados con agentes, widgets, flujos, planes y configuración. Sé práctico y orientado a pasos concretos.',
+        'Eres Math-ais, el asistente de la plataforma BotIvA dentro del dashboard. Ayudas al usuario autenticado (ya conoces su nombre y email de sesión) con agentes, widgets, flujos, planes y configuración. Sé práctico y orientado a pasos concretos. El CRM HubSpot sincroniza automáticamente el contacto del cliente logueado; no pidas de nuevo email/nombre salvo que falten.',
     },
   ];
 }
+
+const HUBSPOT_ASSIST_TOOL_IDS = [
+  'mcp:hubspot:hubspot_search_contacts',
+  'mcp:hubspot:hubspot_create_contact',
+] as const;
 
 export type LandingAssistStatusItem = {
   context: InternalAssistContext;
@@ -210,6 +215,8 @@ export async function ensureLandingAssistAgents(options?: {
       agent = await ClientAgent.findOne({ name: slot.name, isPlatform: true, type: 'agent' });
     }
 
+    const enableHubspot = slot.context === 'app';
+
     if (!agent) {
       agent = await ClientAgent.create({
         userId: ownerId,
@@ -225,6 +232,12 @@ export async function ensureLandingAssistAgents(options?: {
         syncStatus: 'pending',
         ragEnabled: false,
         strictPurposeOnly: true,
+        ...(enableHubspot
+          ? {
+              hubspotAutoCaptureContacts: true,
+              enabledMcpToolIds: [...HUBSPOT_ASSIST_TOOL_IDS],
+            }
+          : {}),
       });
       created.agents.push(String(agent._id));
     } else {
@@ -233,8 +246,17 @@ export async function ensureLandingAssistAgents(options?: {
         status: 'active',
         userId: ownerId,
         description: slot.description,
+        systemPrompt: slot.systemPrompt,
       };
       if (!agent.agentHubId) $set.agentHubId = slot.hubId;
+      if (enableHubspot) {
+        $set.hubspotAutoCaptureContacts = true;
+        const existing = Array.isArray(agent.enabledMcpToolIds)
+          ? (agent.enabledMcpToolIds as string[])
+          : [];
+        const merged = [...new Set([...existing, ...HUBSPOT_ASSIST_TOOL_IDS])];
+        $set.enabledMcpToolIds = merged;
+      }
       await ClientAgent.updateOne({ _id: agent._id }, { $set });
       updated.agents.push(String(agent._id));
       agent = await ClientAgent.findById(agent._id);

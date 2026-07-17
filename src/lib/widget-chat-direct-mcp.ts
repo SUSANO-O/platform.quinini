@@ -98,6 +98,8 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     agentId?: string;
     sessionContextBlock?: string;
     systemPromptOverride?: string;
+    visitorEmail?: string;
+    visitorName?: string;
   };
   try {
     parsed = JSON.parse(rawBody) as typeof parsed;
@@ -224,17 +226,25 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     resolvedSystemPrompt = `${resolvedSystemPrompt.trim()}\n\n${VISION_SYSTEM_INSTRUCTIONS}\n\n${visionBlock}`.trim();
   }
 
+  const visitorEmail =
+    typeof parsed.visitorEmail === 'string' ? parsed.visitorEmail.trim().toLowerCase() : '';
+  const visitorName = typeof parsed.visitorName === 'string' ? parsed.visitorName.trim() : '';
+
   const payload = {
     agentId: typeof parsed.agentId === 'string' && parsed.agentId.trim() ? parsed.agentId.trim() : id,
     message: promptForModel,
     history: Array.isArray(parsed.history)
-      ? parsed.history.filter(
-          (h): h is { role: 'user' | 'model'; content: string } =>
-            Boolean(h) &&
-            typeof h === 'object' &&
-            (h.role === 'user' || h.role === 'model') &&
-            typeof h.content === 'string',
-        )
+      ? parsed.history
+          .map((h) => {
+            if (!h || typeof h !== 'object') return null;
+            const roleRaw = String((h as { role?: unknown }).role || '');
+            const role =
+              roleRaw === 'user' ? 'user' : roleRaw === 'model' || roleRaw === 'assistant' ? 'model' : '';
+            const content = (h as { content?: unknown }).content;
+            if (!role || typeof content !== 'string') return null;
+            return { role: role as 'user' | 'model', content };
+          })
+          .filter((h): h is { role: 'user' | 'model'; content: string } => Boolean(h))
       : [],
     model: resolvedModel,
     systemPrompt: resolvedSystemPrompt,
@@ -242,7 +252,10 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     replyProvider: inferReplyProvider(resolvedModel),
     ...(typeof ca.inferenceTemperature === 'number' ? { temperature: ca.inferenceTemperature } : {}),
     ...(typeof ca.inferenceMaxTokens === 'number' ? { maxTokens: ca.inferenceMaxTokens } : {}),
-    hubspotAutoCaptureContacts: ca.hubspotAutoCaptureContacts === true,
+    hubspotAutoCaptureContacts:
+      ca.hubspotAutoCaptureContacts === true || Boolean(visitorEmail && visitorName),
+    ...(visitorEmail ? { visitorEmail } : {}),
+    ...(visitorName ? { visitorName } : {}),
   };
 
   const url = `${hubBase.replace(/\/$/, '')}/api/mcp/widget-chat`;
