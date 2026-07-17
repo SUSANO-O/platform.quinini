@@ -506,13 +506,20 @@ export type CreateHubAgentFromLandingInput = {
   description?: string;
   systemPrompt: string;
   model: string;
+  inferenceTemperature?: number | null;
+  inferenceMaxTokens?: number | null;
   ragEnabled?: boolean;
   ragSources?: unknown[];
   type?: 'agent' | 'sub-agent' | string;
   parentAgentId?: unknown;
   widgetPublicToken?: string | null;
+  persistConversationHistory?: boolean;
   isPlatform?: boolean;
+  enabledMcpToolIds?: string[];
   tools?: LandingToolConfig[];
+  skills?: string[];
+  skillsConfig?: LandingAgentDocLike['skillsConfig'];
+  fallbackModels?: string[];
   strictPurposeOnly?: boolean;
   hubspotAutoCaptureContacts?: boolean;
 };
@@ -562,6 +569,27 @@ export async function postCreateLandingAgentOnHubCatalog(
   }
   if (Array.isArray(agent.tools)) {
     payload.tools = normalizeLandingTools(agent.tools);
+  }
+  if (typeof agent.inferenceTemperature === 'number') {
+    payload.inferenceTemperature = agent.inferenceTemperature;
+  }
+  if (typeof agent.inferenceMaxTokens === 'number') {
+    payload.inferenceMaxTokens = agent.inferenceMaxTokens;
+  }
+  if (typeof agent.persistConversationHistory === 'boolean') {
+    payload.persistConversationHistory = agent.persistConversationHistory;
+  }
+  if (Array.isArray(agent.enabledMcpToolIds)) {
+    payload.enabledToolIds = agent.enabledMcpToolIds;
+  }
+  if (Array.isArray(agent.skills)) {
+    payload.skills = agent.skills;
+  }
+  if (Array.isArray(agent.skillsConfig)) {
+    payload.skillsConfig = agent.skillsConfig;
+  }
+  if (Array.isArray(agent.fallbackModels)) {
+    payload.fallbackModels = agent.fallbackModels;
   }
 
   try {
@@ -646,8 +674,15 @@ export async function ensureClientAgentHubSynced(
     agent as CreateHubAgentFromLandingInput,
   );
   if (success && hubId?.trim()) {
-    await ClientAgent.updateOne({ _id: id }, { agentHubId: hubId.trim(), syncStatus: 'synced' });
-    return hubId.trim();
+    const trimmedHubId = hubId.trim();
+    await ClientAgent.updateOne({ _id: id }, { agentHubId: trimmedHubId, syncStatus: 'synced' });
+    const refreshed = await ClientAgent.findOne({ _id: id }).lean() as LandingAgentDocLike | null;
+    if (refreshed) {
+      await syncHubCatalogFromLandingAgentDoc({ ...refreshed, agentHubId: trimmedHubId }).catch(
+        () => {},
+      );
+    }
+    return trimmedHubId;
   }
 
   await ClientAgent.updateOne({ _id: id }, { syncStatus: 'failed' }).catch(() => {});

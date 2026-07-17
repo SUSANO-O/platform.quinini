@@ -28,3 +28,5 @@ Thumbs.db
 next-env.d.ts
 
 .vercel
+
+# Keep BotIvA Cursor skill/rules trackable (do not ignore .cursor/skills or .cursor/rules)

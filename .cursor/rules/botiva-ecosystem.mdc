@@ -1,0 +1,16 @@
+---
+description: BotIvA — este repo es la landing/dashboard (platform.quinini)
+alwaysApply: true
+---
+
+# Este repo: platform.quinini (agent-flow-landing)
+
+**INTERNO — NO PUBLICAR secretos.**
+
+Rol: SaaS público BotIvA — landing, dashboard, widget embed, billing. Prod: `https://botiva.space` (Vercel `platform-quinini`).
+
+Ecosistema hermano (mismo workspace `agentes/`):
+- AgentFlowhub · matias-backend (AIBackHub) · API-REST-AGENT-FLOW (+ CLI)
+
+Lee siempre: `.cursor/skills/botiva-ecosystem/SKILL.md`  
+Chat: widget → **esta landing** → hub → AIBackHub. Puerto local `3201`.

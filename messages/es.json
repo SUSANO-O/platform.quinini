@@ -25,13 +25,13 @@
     "rights": "Todos los derechos reservados."
   },
   "landing": {
-    "badge": "Planes desde $7/mes",
+    "badge": "BotIvA · agentes en tu web",
     "hero": {
-      "title1": "Automatiza tus procesos",
-      "title2": "para cualquier industria",
-      "description": "Despliega un agente de IA en tu sitio web en menos de 10 minutos. Sin código, sin servidores — solo pega el widget y empieza a atender clientes las 24 horas.",
+      "title1": "Tu negocio, atendido",
+      "title2": "por agentes BotIvA",
+      "description": "Crea agentes, entrégalos con un widget y opera todo desde el panel. La plataforma de BotIvA para ventas, soporte y operaciones — sin montar infraestructura.",
       "ctaPrimary": "Ver precios",
-      "ctaAccount": "Ya tengo cuenta"
+      "ctaAccount": "Entrar a BotIvA"
     },
     "stats": {
       "trialValue": "$7",
@@ -46,7 +46,7 @@
     },
     "how": {
       "badge": "Implementación rápida",
-      "title": "Configura tu IA en minutos",
+      "title": "De la cuenta BotIvA al widget en vivo",
       "subtitle": "Nuestra plataforma está diseñada para que despliegues agentes inteligentes sin complicaciones técnicas. Sigue estos cinco pasos y transforma tu atención al cliente hoy mismo.",
       "step1Title": "Crea tu cuenta",
       "step1Desc": "Regístrate con tu código de autorización y accede al panel de control cuando tengas un plan activo.",
@@ -60,7 +60,7 @@
       "step5Desc": "Actualiza al plan que necesites, añade multi-agente o más capacidad. Sin contratos, cancela cuando quieras."
     },
     "agents": {
-      "title": "Crea agentes especializados",
+      "title": "Agentes BotIvA por dominio",
       "subtitle": "Cada agente está entrenado para su dominio. Elige uno, envía datos, recibe insights.",
       "health": "Análisis de signos vitales en tiempo real",
       "agriculture": "Análisis de suelo, optimización de cultivos",
@@ -70,7 +70,7 @@
       "maximo": "Mantenimiento industrial y gestión de activos"
     },
     "features": {
-      "title": "Todo lo que necesitas para integrar IA",
+      "title": "La plataforma BotIvA incluye",
       "subtitle": "Desde contexto y memoria hasta facturación — manejamos la infraestructura para que te enfoques en tu producto.",
       "secureTitle": "Seguro por defecto",
       "secureDesc": "Auth por API key, rate limiting por plan, datos aislados por tenant.",
@@ -86,7 +86,7 @@
       "badge": "Convierte más, sin esfuerzo",
       "title": "Tu agente de ventas que nunca duerme",
       "subtitle": "Despliega un chat inteligente en tu sitio en menos de 5 minutos. Responde dudas, califica leads y cierra ventas — las 24 horas.",
-      "windowTitle": "BotIvA — Widget Builder",
+      "windowTitle": "BotIvA — Widget",
       "live": "En vivo",
       "startFree": "Ver precios →",
       "whyTitle": "Por qué los equipos de ventas lo eligen",
@@ -284,11 +284,21 @@
       "cta": "Empezar con acompañamiento"
     },
     "cta": {
-      "title1": "Contrata hoy.",
-      "title2": "Sin permanencia.",
-      "subtitle": "Cancela cuando quieras. Tu primer widget activo en minutos tras contratar.",
+      "title1": "Activa BotIvA",
+      "title2": "en tu sitio",
+      "subtitle": "Panel, agentes, widget y panel. Cancela cuando quieras.",
       "primary": "Ver precios",
       "secondary": "Ya tengo cuenta"
+    },
+    "productStrip": {
+      "agents": "Agentes",
+      "agentsDesc": "Entrena y opera con tu conocimiento",
+      "widget": "Widget",
+      "widgetDesc": "Embed en cualquier sitio en minutos",
+      "panel": "Panel",
+      "panelDesc": "Inbox, analytics y configuración",
+      "api": "API",
+      "apiDesc": "Integraciones Team+ con claves afapi_"
     }
   }
 }

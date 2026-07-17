@@ -25,13 +25,13 @@
     "rights": "All rights reserved."
   },
   "landing": {
-    "badge": "Plans from $7/mo",
+    "badge": "BotIvA · agents on your site",
     "hero": {
-      "title1": "Automate your processes",
-      "title2": "for any industry",
-      "description": "Deploy an AI agent on your website in less than 10 minutes. No code, no servers — just paste the widget and start serving customers around the clock.",
+      "title1": "Your business, powered",
+      "title2": "by BotIvA agents",
+      "description": "Build agents, ship them with a widget, and run everything from the dashboard. BotIvA for sales, support, and ops — without standing up infrastructure.",
       "ctaPrimary": "View pricing",
-      "ctaAccount": "I already have an account"
+      "ctaAccount": "Sign in to BotIvA"
     },
     "stats": {
       "trialValue": "$7",
@@ -46,7 +46,7 @@
     },
     "how": {
       "badge": "Fast setup",
-      "title": "Configure your AI in minutes",
+      "title": "From BotIvA account to live widget",
       "subtitle": "Our platform is built so you can deploy intelligent agents without technical hassle. Follow these five steps and transform your customer support today.",
       "step1Title": "Create your account",
       "step1Desc": "Sign up with your authorization code and access the dashboard once you have an active plan.",
@@ -60,7 +60,7 @@
       "step5Desc": "Upgrade to the plan you need, add multi-agent or more capacity. No contracts — cancel anytime."
     },
     "agents": {
-      "title": "6 Specialized Agents",
+      "title": "BotIvA agents by domain",
       "subtitle": "Each agent is trained for its domain. Choose one, send data, receive insights.",
       "health": "Real-time vital signs analysis",
       "agriculture": "Soil analysis, crop optimization",
@@ -70,7 +70,7 @@
       "maximo": "Industrial maintenance and asset management"
     },
     "features": {
-      "title": "Everything you need to integrate AI",
+      "title": "The BotIvA platform includes",
       "subtitle": "From embeddings to billing — we handle the infrastructure so you can focus on your product.",
       "secureTitle": "Secure by default",
       "secureDesc": "API key auth, rate limiting per plan, tenant-isolated data.",
@@ -86,7 +86,7 @@
       "badge": "Convert more, effortlessly",
       "title": "Your sales agent that never sleeps",
       "subtitle": "Deploy an intelligent chat on your site in less than 5 minutes. Answer questions, qualify leads and close sales — 24 hours a day.",
-      "windowTitle": "BotIvA — Widget Builder",
+      "windowTitle": "BotIvA — Widget",
       "live": "Live",
       "startFree": "View pricing →",
       "whyTitle": "Why sales teams choose it",
@@ -284,11 +284,21 @@
       "cta": "Start with accompaniment"
     },
     "cta": {
-      "title1": "Subscribe today.",
-      "title2": "No lock-in.",
-      "subtitle": "Cancel anytime. Your first widget live in minutes after subscribing.",
+      "title1": "Put BotIvA",
+      "title2": "on your site",
+      "subtitle": "Plan, agents, widget, and dashboard. Cancel anytime.",
       "primary": "View pricing",
       "secondary": "I already have an account"
+    },
+    "productStrip": {
+      "agents": "Agents",
+      "agentsDesc": "Train and run on your knowledge",
+      "widget": "Widget",
+      "widgetDesc": "Embed on any site in minutes",
+      "panel": "Dashboard",
+      "panelDesc": "Inbox, analytics, and setup",
+      "api": "API",
+      "apiDesc": "Team+ integrations with afapi_ keys"
     }
   }
 }
