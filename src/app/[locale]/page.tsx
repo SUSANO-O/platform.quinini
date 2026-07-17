@@ -144,9 +144,10 @@ export default async function LandingPage() {
       </section>
 
       {/* ── HOW IT WORKS ─────────────────────────────────────────────────────── */}
-      <section className="how-steps-section py-14 px-5 relative overflow-hidden">
+      <section className="how-steps-section py-16 px-5 relative overflow-hidden">
+        <div className="how-steps-section__glow" aria-hidden />
         <div className="max-w-7xl mx-auto relative">
-          <div className="text-center mb-8 max-w-3xl mx-auto">
+          <div className="text-center mb-10 max-w-3xl mx-auto">
             <div className="landing-eyebrow mx-auto w-fit">
               <LandingIcon name="zap" size="sm" />
               {t('how.badge')}
@@ -163,14 +164,18 @@ export default async function LandingPage() {
             {HOW.map((s) => (
               <article
                 key={s.step}
-                className="how-step-card card-texture"
+                className="how-step-card"
                 style={{ '--step-accent': s.accent } as React.CSSProperties}
               >
+                <div className="how-step-card__sheen" aria-hidden />
                 <div className="how-step-card__icon">
                   <LandingIcon name={s.icon} size="lg" />
                 </div>
-                <h3 className="how-step-card__title">{s.title}</h3>
-                <p className="how-step-card__desc">{s.desc}</p>
+                <div className="how-step-card__body">
+                  <span className="how-step-card__step">0{s.step}</span>
+                  <h3 className="how-step-card__title">{s.title}</h3>
+                  <p className="how-step-card__desc">{s.desc}</p>
+                </div>
                 <div className="how-step-card__visual">
                   <span className="how-step-card__watermark" aria-hidden>{s.step}</span>
                   <HowStepMock variant={s.variant} />
