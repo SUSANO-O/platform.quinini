@@ -8,7 +8,10 @@ export function nodeHeight(node: FlowNode): number {
   if (node.type === 'start') return 120;
   if (node.type === 'end') return 130;
   const options = node.options?.length ?? 0;
-  const optionsBlock = node.type === 'multiple_choice' ? Math.ceil(options / 2) * NODE_OPTION_H + 20 : 0;
+  const optionsBlock =
+    node.type === 'multiple_choice' || node.type === 'random'
+      ? Math.ceil(options / 2) * NODE_OPTION_H + 20
+      : 0;
   return NODE_HEADER + optionsBlock + 60;
 }
 
@@ -23,7 +26,14 @@ export function getHandlePosition(
     return { x: cx, y: node.y + h - 7 };
   }
 
-  if (handle.startsWith('option:')) {
+  if (handle === 'true') {
+    return { x: node.x + NODE_WIDTH * 0.25, y: node.y + h - 7 };
+  }
+  if (handle === 'false') {
+    return { x: node.x + NODE_WIDTH * 0.75, y: node.y + h - 7 };
+  }
+
+  if (typeof handle === 'string' && handle.startsWith('option:')) {
     const idx = Number(handle.split(':')[1]);
     const row = Math.floor(idx / 2);
     const col = idx % 2;

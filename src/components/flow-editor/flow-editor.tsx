@@ -7,23 +7,31 @@ import {
   ArrowLeft,
   Calendar,
   CalendarDays,
+  CornerDownRight,
+  Dices,
   Flag,
   GitBranch,
   GripVertical,
   Hash,
   ListChecks,
   Mail,
+  MessageSquareText,
   Phone,
+  Pin,
   Save,
   Settings2,
   SlidersHorizontal,
+  Timer,
+  Trash2,
   Type,
 } from 'lucide-react';
 import { FlowsBetaBadge } from '@/components/flows/flows-beta-badge';
+import { FlowNodePropsPanel } from '@/components/flow-editor/flow-node-props';
 import { toast } from 'sonner';
 import {
   ReactFlow,
   Background,
+  BackgroundVariant,
   Controls,
   MiniMap,
   Panel,
@@ -34,12 +42,12 @@ import {
   useReactFlow,
   type Connection,
   type Node,
-  type Edge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
 import {
   NODE_PALETTE,
+  NODE_TYPE_LABELS,
   createFlowNode,
 } from '@/lib/flow-editor/constants';
 import type { FlowNodeType } from '@/lib/flow-editor/types';
@@ -48,7 +56,7 @@ import {
   reactFlowToFlow,
   type FlowNodeData,
 } from '@/lib/flow-editor/serialization';
-import type { FlowDocument, FlowNode, FlowSettings } from '@/lib/flow-editor/types';
+import type { FlowDocument, FlowSettings } from '@/lib/flow-editor/types';
 import { flowNodeTypes } from './flow-nodes';
 import './flow-editor.css';
 
@@ -59,6 +67,11 @@ const PALETTE_ICONS: Record<FlowNodeType, LucideIcon> = {
   number: Hash,
   email: Mail,
   phone: Phone,
+  message: MessageSquareText,
+  delay: Timer,
+  set_variable: Pin,
+  goto: CornerDownRight,
+  random: Dices,
   condition: GitBranch,
   end: Flag,
   calendar_booking: Calendar,
@@ -169,7 +182,8 @@ function FlowEditorInner({ initialFlow }: { initialFlow: FlowDocument }) {
           {
             ...connection,
             type: 'smoothstep',
-            style: { stroke: '#006b7d', strokeWidth: 2 },
+            animated: false,
+            style: { stroke: 'var(--brand-primary)', strokeWidth: 2 },
           },
           eds,
         ),
@@ -191,7 +205,12 @@ function FlowEditorInner({ initialFlow }: { initialFlow: FlowDocument }) {
 
       const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
       const flowNode = createFlowNode(type, position.x, position.y);
-      const rfType = type === 'multiple_choice' ? 'flowChoice' : 'flowStep';
+      const rfType =
+        type === 'multiple_choice' || type === 'random'
+          ? 'flowChoice'
+          : type === 'condition'
+            ? 'flowCondition'
+            : 'flowStep';
 
       const newNode: Node<FlowNodeData> = {
         id: flowNode.id,
@@ -201,6 +220,7 @@ function FlowEditorInner({ initialFlow }: { initialFlow: FlowDocument }) {
           flowType: flowNode.type,
           question: flowNode.question,
           options: flowNode.options,
+          config: flowNode.config,
         },
       };
 
@@ -234,9 +254,13 @@ function FlowEditorInner({ initialFlow }: { initialFlow: FlowDocument }) {
   const saveStatusLabel = {
     saved: 'Guardado',
     saving: 'Guardando…',
-    dirty: 'Cambios sin guardar',
+    dirty: 'Sin guardar',
     error: 'Error al guardar',
   }[saveStatus];
+
+  const selectedType = selectedNode?.data.flowType;
+  const SelectedTypeIcon =
+    selectedType && selectedType !== 'start' ? PALETTE_ICONS[selectedType] : SlidersHorizontal;
 
   const onPaletteDragStart = (e: React.DragEvent, type: FlowNodeType) => {
     e.dataTransfer.setData('application/flow-node-type', type);
@@ -249,11 +273,11 @@ function FlowEditorInner({ initialFlow }: { initialFlow: FlowDocument }) {
         <div className="flow-editor-header-left">
           <Link href={`/dashboard/flows/${flowId}`} className="flow-editor-btn flow-editor-btn--back">
             <ArrowLeft size={15} strokeWidth={2} aria-hidden />
-            Volver
+            <span className="flow-editor-btn__label">Volver</span>
           </Link>
           <div className="flow-editor-header-brand">
             <div className="flow-editor-title">
-              Editor de flujos
+              Editor
               <FlowsBetaBadge />
             </div>
             <input
@@ -264,12 +288,12 @@ function FlowEditorInner({ initialFlow }: { initialFlow: FlowDocument }) {
               aria-label="Nombre del flujo"
             />
           </div>
-          <button type="button" className="flow-editor-btn" onClick={() => setSettingsOpen(true)}>
-            <Settings2 size={15} strokeWidth={1.75} aria-hidden />
-            Ajustes
-          </button>
         </div>
         <div className="flow-editor-header-right">
+          <button type="button" className="flow-editor-btn" onClick={() => setSettingsOpen(true)}>
+            <Settings2 size={15} strokeWidth={1.75} aria-hidden />
+            <span className="flow-editor-btn__label">Ajustes</span>
+          </button>
           <span
             className={`flow-editor-save-status flow-editor-save-status--${saveStatus}`}
             role="status"
@@ -297,7 +321,7 @@ function FlowEditorInner({ initialFlow }: { initialFlow: FlowDocument }) {
             </span>
             <div className="flow-editor-sidebar__head-text">
               <span className="flow-editor-sidebar__title">Componentes</span>
-              <span className="flow-editor-sidebar__hint">Arrastra al lienzo para añadir</span>
+              <span className="flow-editor-sidebar__hint">Arrastra al lienzo</span>
             </div>
           </div>
           <nav className="flow-editor-sidebar__nav" aria-label="Paleta de nodos">
@@ -342,26 +366,40 @@ function FlowEditorInner({ initialFlow }: { initialFlow: FlowDocument }) {
             nodeTypes={flowNodeTypes}
             defaultEdgeOptions={{
               type: 'smoothstep',
-              style: { stroke: '#006b7d', strokeWidth: 2 },
+              style: { stroke: 'var(--brand-primary)', strokeWidth: 2 },
             }}
             onNodeClick={(_, node) => setSelectedNodeId(node.id)}
             onPaneClick={() => setSelectedNodeId(null)}
             fitView
-            fitViewOptions={{ padding: 0.2 }}
+            fitViewOptions={{ padding: 0.22 }}
             minZoom={0.2}
             maxZoom={1.5}
             deleteKeyCode={['Backspace', 'Delete']}
             proOptions={{ hideAttribution: true }}
           >
-            <Background gap={22} size={1} color="rgba(0, 107, 125, 0.12)" />
-            <Controls className="flow-rf-controls" />
+            <Background
+              id="flow-dots"
+              variant={BackgroundVariant.Dots}
+              gap={20}
+              size={1.25}
+              color="rgba(var(--brand-primary-rgb), 0.16)"
+            />
+            <Controls className="flow-rf-controls" showInteractive={false} />
             <MiniMap
               className="flow-rf-minimap"
-              maskColor="rgba(244, 247, 248, 0.75)"
-              nodeColor={(n) => (n.type === 'flowStart' ? '#006b7d' : '#94a3b8')}
+              maskColor="rgba(15, 23, 42, 0.06)"
+              nodeColor={(n) =>
+                n.type === 'flowStart'
+                  ? 'var(--brand-primary)'
+                  : n.selected
+                    ? 'var(--brand-primary-dark)'
+                    : '#94a3b8'
+              }
+              pannable
+              zoomable
             />
-            <Panel position="top-left" className="flow-rf-hint">
-              Arrastra nodos · Conecta los puntos · Auto-guardado cada 2,5 s
+            <Panel position="top-center" className="flow-rf-hint">
+              Arrastra · Conecta · Auto-guarda cada 2,5 s
             </Panel>
           </ReactFlow>
         </div>
@@ -370,46 +408,25 @@ function FlowEditorInner({ initialFlow }: { initialFlow: FlowDocument }) {
           {selectedNode && selectedNode.data.flowType !== 'start' ? (
             <>
               <div className="flow-editor-props-head">
-                <h3>Propiedades</h3>
-                <p>Edita el nodo seleccionado en el lienzo.</p>
-              </div>
-              <div className="flow-editor-props-body">
-                <div className="flow-editor-field">
-                  <label>Pregunta / mensaje</label>
-                  <textarea
-                    value={selectedNode.data.question ?? ''}
-                    onChange={(e) => updateSelectedNode({ question: e.target.value })}
-                  />
-                </div>
-                {selectedNode.data.flowType === 'multiple_choice' && (
-                  <div className="flow-editor-field">
-                    <label>Opciones (etiqueta|valor por línea)</label>
-                    <textarea
-                      value={(selectedNode.data.options ?? [])
-                        .map((o) => `${o.label}|${o.value}`)
-                        .join('\n')}
-                      onChange={(e) => {
-                        const options = e.target.value
-                          .split('\n')
-                          .map((line) => line.trim())
-                          .filter(Boolean)
-                          .map((line) => {
-                            const [label, value] = line.split('|');
-                            const l = (label ?? '').trim();
-                            const v = (value ?? l).trim().toLowerCase().replace(/\s+/g, '_');
-                            return { label: l, value: v || 'opt' };
-                          });
-                        updateSelectedNode({ options });
-                      }}
-                    />
+                <div className="flow-editor-props-head__row">
+                  <span className="flow-editor-props-type" aria-hidden>
+                    <SelectedTypeIcon size={15} strokeWidth={1.75} />
+                  </span>
+                  <div>
+                    <h3>{NODE_TYPE_LABELS[selectedNode.data.flowType] ?? 'Nodo'}</h3>
+                    <p>Personaliza este paso · <code className="flow-editor-node-id">{selectedNode.id}</code></p>
                   </div>
-                )}
+                </div>
+              </div>
+              <FlowNodePropsPanel data={selectedNode.data} onChange={updateSelectedNode} />
+              <div className="flow-editor-props-footer">
                 <button
                   type="button"
                   className="flow-editor-btn flow-editor-btn--danger"
                   style={{ width: '100%' }}
                   onClick={deleteSelectedNode}
                 >
+                  <Trash2 size={14} strokeWidth={2} aria-hidden />
                   Eliminar nodo
                 </button>
               </div>
@@ -421,7 +438,7 @@ function FlowEditorInner({ initialFlow }: { initialFlow: FlowDocument }) {
               </div>
               <p className="flow-editor-empty__title">Sin selección</p>
               <p className="flow-editor-empty__desc">
-                Haz clic en un nodo del lienzo para ver y editar sus propiedades.
+                Haz clic en un nodo del lienzo o arrastra un componente desde la izquierda.
               </p>
             </div>
           )}

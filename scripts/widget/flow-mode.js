@@ -22,8 +22,14 @@ function createFlowController(deps) {
   flowBar.style.display = 'none';
   deps.chat.insertBefore(flowBar, deps.inputArea);
 
+  var defaultPlaceholder = (deps.input && deps.input.placeholder) || 'Escribe un mensaje...';
+
   function host() {
     return String(cfg.host || '').replace(/\/$/, '');
+  }
+
+  function nodeConfig(node) {
+    return (node && node.config) || {};
   }
 
   function buildGraph(nodes, connections) {
@@ -59,6 +65,33 @@ function createFlowController(deps) {
     flowBar.style.display = 'none';
   }
 
+  function setInputPlaceholder(text) {
+    if (!deps.input) return;
+    deps.input.placeholder = text || defaultPlaceholder;
+  }
+
+  function answerKey(node) {
+    var c = nodeConfig(node);
+    return c.variableKey || node.id;
+  }
+
+  function getAnswerValue(key) {
+    if (!key) return '';
+    for (var i = state.answers.length - 1; i >= 0; i--) {
+      if (state.answers[i].key === key) return String(state.answers[i].value ?? '');
+    }
+    return '';
+  }
+
+  function pushAnswer(node, value, label) {
+    state.answers.push({
+      nodeId: node.id,
+      key: answerKey(node),
+      value: value,
+      label: label || value,
+    });
+  }
+
   function record(status) {
     state.messageCount += 1;
     return fetch(host() + '/api/flows/' + encodeURIComponent(cfg.flowId) + '/conversations/record', {
@@ -80,11 +113,27 @@ function createFlowController(deps) {
       .catch(function () { /* noop */ });
   }
 
+  function shufflePairs(pairs) {
+    var a = pairs.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i];
+      a[i] = a[j];
+      a[j] = t;
+    }
+    return a;
+  }
+
   function showOptions(node) {
     clearOptions();
     if (!node.options || !node.options.length) return;
     flowBar.style.display = 'flex';
+    var pairs = [];
     for (var i = 0; i < node.options.length; i++) {
+      pairs.push({ opt: node.options[i], idx: i });
+    }
+    if (nodeConfig(node).randomizeOptions) pairs = shufflePairs(pairs);
+    for (var k = 0; k < pairs.length; k++) {
       (function (opt, idx) {
         var btn = document.createElement('button');
         btn.type = 'button';
@@ -94,13 +143,100 @@ function createFlowController(deps) {
           pickOption(node, opt, idx);
         });
         flowBar.appendChild(btn);
-      })(node.options[i], i);
+      })(pairs[k].opt, pairs[k].idx);
     }
   }
 
-  function validateInput(nodeType, text) {
+  function showBooking(node) {
+    clearOptions();
+    var c = nodeConfig(node);
+    var url = String(c.bookingUrl || '').trim();
+    var label = c.buttonLabel || (node.type === 'calendly_booking' ? 'Abrir Calendly' : 'Reservar cita');
+    flowBar.style.display = 'flex';
+
+    if (url) {
+      var openBtn = document.createElement('button');
+      openBtn.type = 'button';
+      openBtn.className = 'afhub-flow-opt-btn';
+      openBtn.textContent = label;
+      openBtn.addEventListener('click', function () {
+        try { window.open(url, '_blank', 'noopener,noreferrer'); } catch (e) { /* noop */ }
+        if (c.required === false) return;
+        deps.addMessage('user', label);
+        deps.historyPush({ role: 'user', content: label });
+        pushAnswer(node, url, label);
+        clearOptions();
+        setInputPlaceholder(defaultPlaceholder);
+        var nextId = nextNodeId(node.id, 'output');
+        void record('active');
+        if (nextId) goToNode(nextId);
+        else state.done = true;
+        deps.syncSendButtonState();
+      });
+      flowBar.appendChild(openBtn);
+    } else {
+      var hint = document.createElement('button');
+      hint.type = 'button';
+      hint.className = 'afhub-flow-opt-btn';
+      hint.textContent = 'Continuar';
+      hint.addEventListener('click', function () {
+        pushAnswer(node, 'skipped', 'Continuar');
+        clearOptions();
+        var nextId = nextNodeId(node.id, 'output');
+        void record('active');
+        if (nextId) goToNode(nextId);
+        else state.done = true;
+        deps.syncSendButtonState();
+      });
+      flowBar.appendChild(hint);
+    }
+
+    if (c.required === false && url) {
+      var skip = document.createElement('button');
+      skip.type = 'button';
+      skip.className = 'afhub-flow-opt-btn';
+      skip.textContent = 'Continuar sin reservar';
+      skip.addEventListener('click', function () {
+        deps.addMessage('user', 'Continuar sin reservar');
+        deps.historyPush({ role: 'user', content: 'Continuar sin reservar' });
+        pushAnswer(node, 'skipped', 'Continuar sin reservar');
+        clearOptions();
+        setInputPlaceholder(defaultPlaceholder);
+        var nextId = nextNodeId(node.id, 'output');
+        void record('active');
+        if (nextId) goToNode(nextId);
+        else state.done = true;
+        deps.syncSendButtonState();
+      });
+      flowBar.appendChild(skip);
+    }
+  }
+
+  function evalCondition(node) {
+    var c = nodeConfig(node);
+    var left = getAnswerValue(c.sourceVariable || '');
+    var right = String(c.compareValue ?? '');
+    var op = c.operator || 'eq';
+    if (op === 'empty') return !String(left).trim();
+    if (op === 'not_empty') return Boolean(String(left).trim());
+    if (op === 'contains') return String(left).toLowerCase().indexOf(right.toLowerCase()) !== -1;
+    if (op === 'gt') return Number(left) > Number(right);
+    if (op === 'lt') return Number(left) < Number(right);
+    if (op === 'neq') return String(left) !== right;
+    return String(left) === right;
+  }
+
+  function validateInput(node, text) {
+    var c = nodeConfig(node);
     var t = String(text || '').trim();
-    if (!t) return { ok: false, msg: 'Escribe una respuesta para continuar.' };
+    var required = c.required !== false;
+
+    if (!t) {
+      if (!required) return { ok: true, value: '' };
+      return { ok: false, msg: 'Escribe una respuesta para continuar.' };
+    }
+
+    var nodeType = node.type;
     if (nodeType === 'email') {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) {
         return { ok: false, msg: 'Introduce un email válido.' };
@@ -114,6 +250,21 @@ function createFlowController(deps) {
     if (nodeType === 'number') {
       if (!/^-?\d+(\.\d+)?$/.test(t)) {
         return { ok: false, msg: 'Introduce un número válido.' };
+      }
+      var num = Number(t);
+      if (typeof c.min === 'number' && num < c.min) {
+        return { ok: false, msg: 'El número debe ser al menos ' + c.min + '.' };
+      }
+      if (typeof c.max === 'number' && num > c.max) {
+        return { ok: false, msg: 'El número no puede ser mayor que ' + c.max + '.' };
+      }
+    }
+    if (nodeType === 'text') {
+      if (typeof c.minLength === 'number' && t.length < c.minLength) {
+        return { ok: false, msg: 'Escribe al menos ' + c.minLength + ' caracteres.' };
+      }
+      if (typeof c.maxLength === 'number' && t.length > c.maxLength) {
+        return { ok: false, msg: 'Máximo ' + c.maxLength + ' caracteres.' };
       }
     }
     return { ok: true, value: t };
@@ -131,18 +282,133 @@ function createFlowController(deps) {
       return;
     }
 
-    if (node.type === 'end') {
-      var endMsg = node.question || state.flow.completionMessage || '¡Gracias!';
-      deps.addMessage('bot', endMsg);
-      state.done = true;
-      void record('completed');
+    if (node.type === 'condition') {
+      var passed = evalCondition(node);
+      var branch = nextNodeId(nodeId, passed ? 'true' : 'false');
+      if (!branch) branch = nextNodeId(nodeId, 'output');
+      if (branch) goToNode(branch);
+      else state.done = true;
       return;
     }
 
-    deps.addMessage('bot', node.question || '…');
-    if (node.type === 'multiple_choice') {
-      showOptions(node);
+    if (node.type === 'set_variable') {
+      var setCfg = nodeConfig(node);
+      pushAnswer(node, setCfg.setValue != null ? String(setCfg.setValue) : '');
+      var afterSet = nextNodeId(nodeId, 'output');
+      if (afterSet) goToNode(afterSet);
+      else state.done = true;
+      return;
     }
+
+    if (node.type === 'goto') {
+      var gotoCfg = nodeConfig(node);
+      var target = String(gotoCfg.targetNodeId || '').trim() || 'start';
+      if (!state.graph.nodeMap[target]) target = 'start';
+      goToNode(target);
+      return;
+    }
+
+    if (node.type === 'random') {
+      var opts = node.options || [];
+      if (!opts.length) {
+        var afterEmpty = nextNodeId(nodeId, 'output');
+        if (afterEmpty) goToNode(afterEmpty);
+        else state.done = true;
+        return;
+      }
+      var rIdx = Math.floor(Math.random() * opts.length);
+      var rOpt = opts[rIdx];
+      pushAnswer(node, rOpt.value, rOpt.label || rOpt.value);
+      var rNext = null;
+      var rEdges = state.graph.outEdges[node.id] || [];
+      for (var ri = 0; ri < rEdges.length; ri++) {
+        if (rEdges[ri].fromHandle === 'option:' + rIdx) {
+          rNext = rEdges[ri].toNodeId;
+          break;
+        }
+      }
+      if (!rNext) rNext = nextNodeId(node.id, 'output');
+      if (rNext) goToNode(rNext);
+      else state.done = true;
+      return;
+    }
+
+    if (node.type === 'end') {
+      var endCfg = nodeConfig(node);
+      var endMsg = node.question || state.flow.completionMessage || '¡Gracias!';
+      deps.addMessage('bot', endMsg);
+      state.done = true;
+      setInputPlaceholder(defaultPlaceholder);
+      void record('completed');
+      if (endCfg.redirectUrl) {
+        try { window.open(String(endCfg.redirectUrl), '_blank', 'noopener,noreferrer'); } catch (e) { /* noop */ }
+      }
+      return;
+    }
+
+    var c = nodeConfig(node);
+    deps.addMessage('bot', node.question || '…');
+    if (c.helpText) deps.addMessage('bot', c.helpText);
+
+    if (node.type === 'multiple_choice') {
+      setInputPlaceholder(defaultPlaceholder);
+      showOptions(node);
+      return;
+    }
+
+    if (node.type === 'message') {
+      setInputPlaceholder(defaultPlaceholder);
+      if (c.autoContinue) {
+        var msgDelay = typeof c.delayMs === 'number' ? Math.max(0, c.delayMs) : 800;
+        setTimeout(function () {
+          if (state.currentNodeId !== node.id || state.done) return;
+          var nextMsg = nextNodeId(node.id, 'output');
+          void record('active');
+          if (nextMsg) goToNode(nextMsg);
+          else state.done = true;
+          deps.syncSendButtonState();
+        }, msgDelay);
+        return;
+      }
+      clearOptions();
+      flowBar.style.display = 'flex';
+      var contBtn = document.createElement('button');
+      contBtn.type = 'button';
+      contBtn.className = 'afhub-flow-opt-btn';
+      contBtn.textContent = c.buttonLabel || 'Continuar';
+      contBtn.addEventListener('click', function () {
+        clearOptions();
+        var nextMsg = nextNodeId(node.id, 'output');
+        void record('active');
+        if (nextMsg) goToNode(nextMsg);
+        else state.done = true;
+        deps.syncSendButtonState();
+      });
+      flowBar.appendChild(contBtn);
+      return;
+    }
+
+    if (node.type === 'delay') {
+      setInputPlaceholder(defaultPlaceholder);
+      var waitMs = typeof c.delayMs === 'number' ? Math.max(0, c.delayMs) : 1500;
+      setTimeout(function () {
+        if (state.currentNodeId !== node.id || state.done) return;
+        var nextDelay = nextNodeId(node.id, 'output');
+        void record('active');
+        if (nextDelay) goToNode(nextDelay);
+        else state.done = true;
+        deps.syncSendButtonState();
+      }, waitMs);
+      return;
+    }
+
+    if (node.type === 'calendar_booking' || node.type === 'calendly_booking') {
+      setInputPlaceholder(defaultPlaceholder);
+      showBooking(node);
+      return;
+    }
+
+    setInputPlaceholder(c.placeholder || defaultPlaceholder);
   }
 
   function pickOption(node, opt, idx) {
@@ -150,7 +416,7 @@ function createFlowController(deps) {
     var label = opt.label || opt.value;
     deps.addMessage('user', label);
     deps.historyPush({ role: 'user', content: label });
-    state.answers.push({ nodeId: node.id, value: opt.value, label: label });
+    pushAnswer(node, opt.value, label);
     clearOptions();
     var handle = 'option:' + idx;
     var edges = state.graph.outEdges[node.id] || [];
@@ -168,22 +434,40 @@ function createFlowController(deps) {
     deps.syncSendButtonState();
   }
 
-  function handleTextInput(text, origSend) {
+  function handleTextInput(text) {
     if (state.done || state.failed) return true;
     var node = state.graph && state.currentNodeId
       ? state.graph.nodeMap[state.currentNodeId]
       : null;
-    if (!node || node.type === 'multiple_choice' || node.type === 'start' || node.type === 'end') {
+    if (!node) return false;
+    if (
+      node.type === 'multiple_choice' ||
+      node.type === 'start' ||
+      node.type === 'end' ||
+      node.type === 'condition' ||
+      node.type === 'message' ||
+      node.type === 'delay' ||
+      node.type === 'set_variable' ||
+      node.type === 'goto' ||
+      node.type === 'random' ||
+      node.type === 'calendar_booking' ||
+      node.type === 'calendly_booking'
+    ) {
       return false;
     }
-    var v = validateInput(node.type, text);
+    var v = validateInput(node, text);
     if (!v.ok) {
       deps.addMessage('bot', v.msg);
       return true;
     }
-    deps.addMessage('user', v.value);
-    deps.historyPush({ role: 'user', content: v.value });
-    state.answers.push({ nodeId: node.id, value: v.value });
+    if (v.value === '' && nodeConfig(node).required === false) {
+      pushAnswer(node, '', '');
+    } else {
+      deps.addMessage('user', v.value);
+      deps.historyPush({ role: 'user', content: v.value });
+      pushAnswer(node, v.value);
+    }
+    setInputPlaceholder(defaultPlaceholder);
     var nextId = nextNodeId(node.id, 'output');
     void record('active');
     if (nextId) goToNode(nextId);
@@ -229,14 +513,14 @@ function createFlowController(deps) {
       if (!state.started) loadAndStart();
       return true;
     },
-    onSend: function (textArg, origSend) {
+    onSend: function (textArg) {
       if (state.failed) return true;
       if (!state.loaded) return true;
       if (state.done) return true;
       var text = typeof textArg === 'string' ? textArg.trim() : deps.getInputValue().trim();
       if (!text) return true;
       deps.clearInput();
-      if (handleTextInput(text, origSend)) return true;
+      if (handleTextInput(text)) return true;
       return false;
     },
     reset: function () {
@@ -251,6 +535,7 @@ function createFlowController(deps) {
       state.messageCount = 0;
       state.answers = [];
       state.started = false;
+      setInputPlaceholder(defaultPlaceholder);
       clearOptions();
     },
   };

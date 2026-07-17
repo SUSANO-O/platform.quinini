@@ -23,6 +23,7 @@ const NAV: Array<{ href: string; label: string; icon: typeof LayoutDashboard; hi
   { href: '/admin/registration-codes', label: 'Códigos acceso', icon: KeyRound },
   { href: '/admin/promote', label: 'Promover admin', icon: UserPlus },
   { href: '/admin/skills', label: 'Skills globales', icon: Sparkles, highlight: true },
+  { href: '/admin/landing-assist', label: 'Agentes landing', icon: Sparkles, highlight: true },
   { href: '/admin/ai-config', label: 'Asistente AI', icon: Bot },
   { href: '/admin/security-log', label: 'Log de seguridad', icon: Activity },
 ];

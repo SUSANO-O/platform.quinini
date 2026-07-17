@@ -5,16 +5,65 @@ export type FlowNodeType =
   | 'number'
   | 'email'
   | 'phone'
+  | 'message'
+  | 'delay'
+  | 'set_variable'
+  | 'goto'
+  | 'random'
   | 'condition'
   | 'end'
   | 'calendar_booking'
   | 'calendly_booking';
 
-export type FlowConnectionHandle = 'output' | `option:${number}`;
+export type FlowConnectionHandle = 'output' | 'true' | 'false' | `option:${number}`;
 
 export interface FlowNodeOption {
   label: string;
   value: string;
+}
+
+export type FlowConditionOperator =
+  | 'eq'
+  | 'neq'
+  | 'gt'
+  | 'lt'
+  | 'contains'
+  | 'empty'
+  | 'not_empty';
+
+/** Ajustes por nodo — se guardan en Mongo (Mixed) y se usan en runtime del widget. */
+export interface FlowNodeConfig {
+  placeholder?: string;
+  helpText?: string;
+  required?: boolean;
+  /** Clave con la que se guarda la respuesta (para condiciones). */
+  variableKey?: string;
+  minLength?: number;
+  maxLength?: number;
+  min?: number;
+  max?: number;
+  step?: number;
+  /** Condición */
+  sourceVariable?: string;
+  operator?: FlowConditionOperator;
+  compareValue?: string;
+  /** Reservas */
+  bookingUrl?: string;
+  durationMinutes?: number;
+  timezone?: string;
+  /** Fin / CTA */
+  buttonLabel?: string;
+  redirectUrl?: string;
+  /** Opción múltiple */
+  randomizeOptions?: boolean;
+  /** Mensaje: continuar automático sin botón */
+  autoContinue?: boolean;
+  /** Espera (ms) */
+  delayMs?: number;
+  /** set_variable: valor a guardar */
+  setValue?: string;
+  /** goto: id del nodo destino (vacío = reiniciar en start) */
+  targetNodeId?: string;
 }
 
 export interface FlowNode {
@@ -24,6 +73,7 @@ export interface FlowNode {
   y: number;
   question?: string;
   options?: FlowNodeOption[];
+  config?: FlowNodeConfig;
 }
 
 export interface FlowConnection {
