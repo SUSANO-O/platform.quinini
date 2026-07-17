@@ -7,6 +7,7 @@ import { connectDB } from '@/lib/db/connection';
 import { ClientAgent } from '@/lib/db/models';
 import { Types } from 'mongoose';
 import { getAibackhubBaseUrl, hubCreateHeaders, hubFetch } from '@/lib/aibackhub-sync';
+import { agentSkillsNeedMcpTools } from '@/lib/agent-skills-mcp';
 import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
 import { isTrivialMessage } from '@/lib/trivial-message';
 import { buildUserPromptWithSessionContext, VISION_SYSTEM_INSTRUCTIONS } from '@/lib/widget-chat-vision-context';
@@ -41,11 +42,17 @@ function isImageModel(model: string): boolean {
   );
 }
 
-/** Agente con MCP (Mongo, HubSpot, etc.) debe ir por /api/mcp/widget-chat, no /api/models plano. */
+/** Agente con MCP (Mongo, HubSpot, skills con tools, etc.) debe ir por /api/mcp/widget-chat. */
 async function agentNeedsMcpWidgetChat(ca: {
   enabledMcpToolIds?: unknown;
   agentHubId?: unknown;
   tools?: Array<{ toolId?: string }>;
+  skills?: string[] | null;
+  skillsConfig?: Array<{
+    id?: string;
+    enabled?: boolean;
+    config?: { active_tools?: string[] };
+  }> | null;
 }): Promise<boolean> {
   const ids = Array.isArray(ca.enabledMcpToolIds) ? ca.enabledMcpToolIds : [];
   if (
@@ -56,6 +63,8 @@ async function agentNeedsMcpWidgetChat(ca: {
     return true;
   }
   if (ca.tools?.some((t) => t.toolId === 'webhook')) return true;
+  // Skills con tools: detección en memoria (sin Mongo extra).
+  if (agentSkillsNeedMcpTools(ca)) return true;
 
   const hubId = typeof ca.agentHubId === 'string' ? ca.agentHubId.trim() : '';
   if (!hubId) return false;
@@ -143,19 +152,21 @@ export async function tryServeWidgetChatViaDirectInference(params: {
     (typeof ca.model === 'string' && ca.model.trim()) || 'vx/gemini-2.5-flash';
   if (isImageModel(storedModel)) return null;
 
-  if (await agentNeedsMcpWidgetChat(ca)) {
-    logWidgetFlow('⏭️', 'infer:skip', 'agente con MCP — requiere /api/mcp/widget-chat vía hub', {
+  // Fast-path de saludos: barato por /api/models aunque el agente tenga skills MCP.
+  // AIBackHub también vacía tools en trivial; evitamos el pipeline MCP pesado.
+  const trivial = isTrivialMessage(message, parsed.history);
+
+  if (!trivial && (await agentNeedsMcpWidgetChat(ca))) {
+    logWidgetFlow('⏭️', 'infer:skip', 'agente con MCP/skills-tools — requiere /api/mcp/widget-chat', {
       agentId: id,
       agentHubId: ca.agentHubId,
+      skillsNeedMcp: agentSkillsNeedMcpTools(ca),
     });
     return null;
   }
 
   const { provider, model } = normalizeModel(storedModel);
 
-  // Fast-path: saludos / cortesías triviales → forzar el modelo más barato
-  // (gemini-2.5-flash-lite), sin importar el modelo configurado del agente.
-  const trivial = isTrivialMessage(message, parsed.history);
   const effProvider = trivial ? 'vertex' : provider;
   const effModel = trivial ? 'gemini-2.5-flash-lite' : model;
 

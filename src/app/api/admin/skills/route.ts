@@ -39,6 +39,8 @@ export async function POST(req: NextRequest) {
         color: typeof body.color === 'string' ? body.color : '#94a3b8',
         icon: typeof body.icon === 'string' ? body.icon : '✨',
         kind: body.kind === 'profile' ? 'profile' : 'capability',
+        category: typeof body.category === 'string' ? body.category : 'general',
+        tags: Array.isArray(body.tags) ? body.tags.filter((t): t is string => typeof t === 'string') : [],
         defaultPriority: typeof body.defaultPriority === 'number' ? body.defaultPriority : 60,
         catalogEnabled: body.catalogEnabled !== false,
         sortOrder: typeof body.sortOrder === 'number' ? body.sortOrder : 0,

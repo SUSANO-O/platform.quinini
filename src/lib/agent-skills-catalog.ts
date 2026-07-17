@@ -14,6 +14,40 @@ export type SkillRuntimeConfig = {
   llm_settings?: SkillLlmSettings;
 };
 
+/** Categorías de negocio para filtrar/agrupar en UI (no afectan runtime). */
+export type SkillCategory =
+  | 'ventas'
+  | 'soporte'
+  | 'operaciones'
+  | 'finanzas'
+  | 'rrhh'
+  | 'legal'
+  | 'marketing'
+  | 'producto'
+  | 'conocimiento'
+  | 'productividad'
+  | 'integraciones'
+  | 'analisis'
+  | 'desarrollo'
+  | 'general';
+
+export const SKILL_CATEGORY_LABELS: Record<SkillCategory, string> = {
+  ventas: 'Ventas',
+  soporte: 'Soporte',
+  operaciones: 'Operaciones',
+  finanzas: 'Finanzas',
+  rrhh: 'RRHH',
+  legal: 'Legal y compliance',
+  marketing: 'Marketing',
+  producto: 'Producto',
+  conocimiento: 'Conocimiento',
+  productividad: 'Productividad',
+  integraciones: 'Integraciones',
+  analisis: 'Análisis',
+  desarrollo: 'Desarrollo',
+  general: 'General',
+};
+
 export type AgentSkillCatalogEntry = {
   id: string;
   label: string;
@@ -21,6 +55,10 @@ export type AgentSkillCatalogEntry = {
   color: string;
   icon: string;
   kind: 'capability' | 'profile';
+  /** Agrupación de negocio (UI / catálogo). */
+  category?: SkillCategory | string;
+  /** Etiquetas libres para búsqueda y composición sugerida. */
+  tags?: string[];
   defaultPriority: number;
   config: SkillRuntimeConfig;
   /** Solo admin: si false, no aparece en el editor de agentes. */

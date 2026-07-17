@@ -21,6 +21,7 @@ const INTEGRATION_ICONS: Record<string, string> = {
   webSearch: '🔍',
   mongodb: '🍃',
   postgres: '🐘',
+  jira: '🎫',
 };
 
 export function McpAvailablePanel({ compact, onConnectRequest }: Props) {

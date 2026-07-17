@@ -26,4 +26,22 @@ describe('widget-chat-status', () => {
     expect(hints.hasMcpTools).toBe(true);
     expect(hints.hasWebhookTools).toBe(true);
   });
+
+  it('hintsFromAgentDoc marca MCP solo por skill web_search (sin enabledMcpToolIds)', () => {
+    const hints = hintsFromAgentDoc({
+      skills: ['web_search'],
+      ragEnabled: false,
+    });
+    expect(hints.hasSkills).toBe(true);
+    expect(hints.hasMcpTools).toBe(true);
+  });
+
+  it('hintsFromAgentDoc no marca MCP por skills solo prompt', () => {
+    const hints = hintsFromAgentDoc({
+      skills: ['customer_service', 'knowledge_base'],
+    });
+    expect(hints.hasSkills).toBe(true);
+    expect(hints.hasMcpTools).toBe(false);
+  });
 });
+

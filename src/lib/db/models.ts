@@ -941,6 +941,8 @@ const SkillCatalogSchema = new Schema({
   color:            { type: String, default: '#94a3b8' },
   icon:             { type: String, default: '✨' },
   kind:             { type: String, enum: ['capability', 'profile'], default: 'capability' },
+  category:         { type: String, default: 'general', trim: true, index: true },
+  tags:             { type: [String], default: [] },
   defaultPriority:  { type: Number, default: 60 },
   config: {
     prompt_extension: { type: String, default: '' },
@@ -957,6 +959,7 @@ const SkillCatalogSchema = new Schema({
 }, { timestamps: true });
 
 SkillCatalogSchema.index({ kind: 1, sortOrder: 1 });
+SkillCatalogSchema.index({ category: 1, kind: 1 });
 
 export const SkillCatalog = mongoose.models.SkillCatalog || mongoose.model('SkillCatalog', SkillCatalogSchema);
 

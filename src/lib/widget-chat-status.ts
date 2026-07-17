@@ -3,6 +3,8 @@
  * El widget muestra estos textos en la tarjeta de pensamiento (Fase 1+2).
  */
 
+import { agentSkillsNeedMcpTools } from '@/lib/agent-skills-mcp';
+
 export type WidgetChatStatusPhase =
   | 'prepare'
   | 'validate'
@@ -82,7 +84,11 @@ export type WidgetChatStreamHints = {
 
 export function hintsFromAgentDoc(doc: {
   skills?: string[];
-  skillsConfig?: Array<{ id?: string; enabled?: boolean }>;
+  skillsConfig?: Array<{
+    id?: string;
+    enabled?: boolean;
+    config?: { active_tools?: string[] };
+  }>;
   ragEnabled?: boolean;
   enabledMcpToolIds?: string[];
   tools?: Array<{ toolId?: string }>;
@@ -111,9 +117,10 @@ export function hintsFromAgentDoc(doc: {
   }
 
   const mcpIds = Array.isArray(doc.enabledMcpToolIds) ? doc.enabledMcpToolIds : [];
-  const hasMcpTools = mcpIds.some(
+  const hasExplicitMcp = mcpIds.some(
     (id) => typeof id === 'string' && (id.startsWith('mcp:') || id.startsWith('std:')),
   );
+  const hasMcpTools = hasExplicitMcp || agentSkillsNeedMcpTools(doc);
   const toolIds = (doc.tools ?? []).map((t) => t.toolId).filter(Boolean);
   const hasWebhookTools = toolIds.includes('webhook') || toolIds.some((t) => t === 'google-sheets');
 

@@ -11,9 +11,11 @@ import {
   hubCreateHeaders,
   syncHubCatalogFromLandingAgentDoc,
 } from '@/lib/aibackhub-sync';
+import { agentSkillsNeedMcpTools } from '@/lib/agent-skills-mcp';
 import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
 import { agentHasAnyWebhook } from '@/lib/agent-webhooks';
 import { agentHasAnySheet } from '@/lib/agent-sheets';
+import { isTrivialMessage } from '@/lib/trivial-message';
 import {
   buildUserPromptWithSessionContext,
   buildVisionSessionBlock,
@@ -142,10 +144,37 @@ export async function tryServeWidgetChatViaHubMcp(params: {
       { $or: [{ userId: params.ownerUserId }, { isPlatform: true }] },
     ],
   }).lean();
-  if (!ca || (!clientAgentHasWebhookUrl(ca) && !clientAgentWantsHubspotWidgetAutoCapture(ca))) {
-    logWidgetFlow('🚫', 'direct:skip', 'agente sin webhook URL ni captura HubSpot auto con tools requeridas', {
+  const skillsNeedMcp = Boolean(ca && agentSkillsNeedMcpTools(ca));
+  const hasExplicitMcpIds = Array.isArray(ca?.enabledMcpToolIds)
+    ? ca.enabledMcpToolIds.some(
+        (t) => typeof t === 'string' && (t.startsWith('mcp:') || t.startsWith('std:')),
+      )
+    : false;
+  const eligible =
+    Boolean(ca) &&
+    (clientAgentHasWebhookUrl(ca) ||
+      clientAgentWantsHubspotWidgetAutoCapture(ca) ||
+      skillsNeedMcp ||
+      hasExplicitMcpIds);
+  if (!ca || !eligible) {
+    logWidgetFlow('🚫', 'direct:skip', 'agente sin webhook/HubSpot/skills-MCP/tools explícitas', {
       agentId: id,
       foundAgent: Boolean(ca),
+      skillsNeedMcp,
+      hasExplicitMcpIds,
+    });
+    return null;
+  }
+
+  // Saludos: no pagar pipeline MCP; el caller puede usar /api/models barato.
+  if (
+    (skillsNeedMcp || hasExplicitMcpIds) &&
+    !clientAgentHasWebhookUrl(ca) &&
+    !clientAgentWantsHubspotWidgetAutoCapture(ca) &&
+    isTrivialMessage(message, Array.isArray(parsed.history) ? parsed.history : undefined)
+  ) {
+    logWidgetFlow('⚡', 'direct:skip', 'mensaje trivial — omitir MCP (fast-path models)', {
+      agentId: id,
     });
     return null;
   }

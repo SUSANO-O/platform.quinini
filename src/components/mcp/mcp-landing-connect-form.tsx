@@ -53,6 +53,7 @@ const INTEGRATION_ICONS: Record<string, string> = {
   web_search: '🔍',
   mongodb: '🍃',
   postgres: '🐘',
+  jira: '🎫',
 };
 
 /** Integraciones con prueba de URI en la landing (`/api/mcp/data-sources/test`). */
