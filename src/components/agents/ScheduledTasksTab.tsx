@@ -44,13 +44,24 @@ const ACTION_LABELS: Record<ActionType, { label: string; desc: string; emoji: st
   email: { label: 'Enviar correo', desc: 'Envía un email (puede ir después de otro paso)', emoji: '📧' },
 };
 
-type FlowRecipeId = 'webhook_email_chat' | 'webhook_email' | 'single';
+type FlowRecipeId =
+  | 'webhook_email_chat'
+  | 'webhook_email'
+  | 'webhook_chat'
+  | 'email_chat'
+  | 'single';
 
 const DEFAULT_EMAIL_BODY =
   'Hola,\n\nAquí va el resultado personalizado:\n\n{{prev.output}}\n\n— BotIvA';
 
 const DEFAULT_CHAT_FOLLOWUP =
   'Acabo de enviarte el resultado por correo. ¿Quieres que te lo resuma o te ayude con el siguiente paso?';
+
+const DEFAULT_CHAT_AFTER_WEBHOOK =
+  'Resultado del webhook:\n\n{{prev.output}}\n\n¿Quieres que lo revise contigo?';
+
+const DEFAULT_CHAT_AFTER_EMAIL =
+  'Te envié un correo. ¿Lo recibiste? ¿Quieres que te ayude con el siguiente paso?';
 
 const FLOW_RECIPES: Array<{
   id: FlowRecipeId;
@@ -71,6 +82,18 @@ const FLOW_RECIPES: Array<{
     title: 'Webhook → Email',
     desc: 'Llama un endpoint y envía el resultado por correo personalizado.',
     emoji: '🔗→📧',
+  },
+  {
+    id: 'webhook_chat',
+    title: 'Webhook → Chat',
+    desc: 'Llama un endpoint y publica el resultado (o una pregunta) en el widget.',
+    emoji: '🔗→💬',
+  },
+  {
+    id: 'email_chat',
+    title: 'Email → Chat',
+    desc: 'Envía un correo personalizado y luego pregunta en el chat del widget.',
+    emoji: '📧→💬',
   },
   {
     id: 'single',
@@ -94,8 +117,14 @@ function detectRecipe(action?: ScheduledTask['action']): FlowRecipeId {
   if (action.type === 'webhook' && then.length === 1 && then[0]?.type === 'email') {
     return 'webhook_email';
   }
+  if (action.type === 'webhook' && then.length === 1 && then[0]?.type === 'chat_message') {
+    return 'webhook_chat';
+  }
+  if (action.type === 'email' && then.length === 1 && then[0]?.type === 'chat_message') {
+    return 'email_chat';
+  }
   if (!then.length) return 'single';
-  return 'single'; // custom chain se edita como single + then manual
+  return 'single';
 }
 
 function applyRecipe(id: FlowRecipeId): {
@@ -135,6 +164,34 @@ function applyRecipe(id: FlowRecipeId): {
             subject: 'Resultado de tu automatización',
             body: DEFAULT_EMAIL_BODY,
           },
+        },
+      ],
+    };
+  }
+  if (id === 'webhook_chat') {
+    return {
+      actionType: 'webhook',
+      config: { method: 'POST', url: '', bodyTemplate: '' },
+      thenSteps: [
+        {
+          type: 'chat_message',
+          config: { message: DEFAULT_CHAT_AFTER_WEBHOOK },
+        },
+      ],
+    };
+  }
+  if (id === 'email_chat') {
+    return {
+      actionType: 'email',
+      config: {
+        to: '',
+        subject: 'Mensaje personalizado',
+        body: 'Hola,\n\nEste es tu mensaje personalizado.\n\n— BotIvA',
+      },
+      thenSteps: [
+        {
+          type: 'chat_message',
+          config: { message: DEFAULT_CHAT_AFTER_EMAIL },
         },
       ],
     };
@@ -644,7 +701,11 @@ function TaskWizard({
     actionType === 'chat_message' ||
     actionType === 'agent_run' ||
     thenSteps.some((s) => s.type === 'chat_message');
-  const isGuidedRecipe = recipe === 'webhook_email_chat' || recipe === 'webhook_email';
+  const isGuidedRecipe =
+    recipe === 'webhook_email_chat' ||
+    recipe === 'webhook_email' ||
+    recipe === 'webhook_chat' ||
+    recipe === 'email_chat';
 
   const submit = async () => {
     setSaving(true);
@@ -771,9 +832,14 @@ function TaskWizard({
 
             {isGuidedRecipe && (
               <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0 }}>
-                En el siguiente paso eliges horario. Luego configuras: URL del webhook → a quién llega el correo
-                (el body incluye la respuesta con <code>{'{{prev.output}}'}</code>)
-                {recipe === 'webhook_email_chat' ? ' → qué pregunta al chat.' : '.'}
+                Luego eliges horario y en el último paso configuras cada capa del flow
+                {recipe.includes('email') ? (
+                  <>
+                    {' '}
+                    (en el email puedes usar <code>{'{{prev.output}}'}</code>)
+                  </>
+                ) : null}
+                .
               </p>
             )}
           </div>
@@ -839,30 +905,54 @@ function TaskWizard({
 
             {isGuidedRecipe ? (
               <>
-                <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>1. Webhook (de dónde salen los datos)</p>
-                <ActionConfigFields actionType="webhook" config={config} setCfg={setCfg} />
+                {(recipe === 'webhook_email_chat' ||
+                  recipe === 'webhook_email' ||
+                  recipe === 'webhook_chat') && (
+                  <>
+                    <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>1. Webhook</p>
+                    <ActionConfigFields actionType="webhook" config={config} setCfg={setCfg} />
+                  </>
+                )}
 
-                <div className="flex flex-col gap-2 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
-                  <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>2. Email personalizado</p>
-                  <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0 }}>
-                    Indica a quién se envía. En el cuerpo, <code>{'{{prev.output}}'}</code> se reemplaza por lo que
-                    devolvió el webhook.
-                  </p>
-                  <ActionConfigFields
-                    actionType="email"
-                    config={thenSteps[0]?.config ?? {}}
-                    setCfg={(k, v) => setThenCfg(0, k, v)}
-                    isThenStep
-                  />
-                </div>
+                {recipe === 'email_chat' && (
+                  <>
+                    <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>1. Email personalizado</p>
+                    <ActionConfigFields actionType="email" config={config} setCfg={setCfg} />
+                  </>
+                )}
 
-                {recipe === 'webhook_email_chat' && (
+                {(recipe === 'webhook_email_chat' || recipe === 'webhook_email') && (
                   <div className="flex flex-col gap-2 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
-                    <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>3. Pregunta al chat (widget)</p>
+                    <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>2. Email personalizado</p>
+                    <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0 }}>
+                      A quién se envía. En el cuerpo, <code>{'{{prev.output}}'}</code> = respuesta del webhook.
+                    </p>
+                    <ActionConfigFields
+                      actionType="email"
+                      config={thenSteps[0]?.config ?? {}}
+                      setCfg={(k, v) => setThenCfg(0, k, v)}
+                      isThenStep
+                    />
+                  </div>
+                )}
+
+                {(recipe === 'webhook_email_chat' ||
+                  recipe === 'webhook_chat' ||
+                  recipe === 'email_chat') && (
+                  <div className="flex flex-col gap-2 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                    <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>
+                      {recipe === 'webhook_email_chat' ? '3' : '2'}. Pregunta al chat (widget)
+                    </p>
                     <ActionConfigFields
                       actionType="chat_message"
-                      config={thenSteps[1]?.config ?? {}}
-                      setCfg={(k, v) => setThenCfg(1, k, v)}
+                      config={
+                        recipe === 'webhook_email_chat'
+                          ? thenSteps[1]?.config ?? {}
+                          : thenSteps[0]?.config ?? {}
+                      }
+                      setCfg={(k, v) =>
+                        setThenCfg(recipe === 'webhook_email_chat' ? 1 : 0, k, v)
+                      }
                       isThenStep
                     />
                     <Field label="Widget ID (dónde aparece la pregunta)">
