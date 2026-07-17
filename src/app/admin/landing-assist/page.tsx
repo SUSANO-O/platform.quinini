@@ -36,13 +36,42 @@ type AssistItem = {
   ready: boolean;
 };
 
+type AssistMongoStatus = {
+  mathAisAgentId: string | null;
+  hubAgentId: string | null;
+  mongoToolsEnabled: boolean;
+  connection: {
+    id: string;
+    label: string;
+    syncStatus: string;
+    lastSyncError: string | null;
+    hasUri: boolean;
+    allowedDatabases: string;
+  } | null;
+};
+
 export default function LandingAssistAdminPage() {
   const [items, setItems] = useState<AssistItem[]>([]);
   const [adminUserId, setAdminUserId] = useState<string | null>(null);
+  const [mongoStatus, setMongoStatus] = useState<AssistMongoStatus | null>(null);
+  const [mongoUri, setMongoUri] = useState('');
+  const [mongoDb, setMongoDb] = useState('agentflowhub_landing');
+  const [mongoSaving, setMongoSaving] = useState(false);
+  const [mongoMsg, setMongoMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
+
+  const loadMongo = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/landing-assist/mongo-mcp', { credentials: 'include' });
+      const data = await res.json();
+      if (res.ok && data.status) setMongoStatus(data.status as AssistMongoStatus);
+    } catch {
+      /* silencioso */
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -53,16 +82,43 @@ export default function LandingAssistAdminPage() {
       if (!res.ok) throw new Error(data.error || 'Error al cargar');
       setItems(Array.isArray(data.items) ? data.items : []);
       setAdminUserId(typeof data.adminUserId === 'string' ? data.adminUserId : null);
+      await loadMongo();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadMongo]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function saveMongoMcp() {
+    setMongoSaving(true);
+    setMongoMsg(null);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/landing-assist/mongo-mcp', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          connectionUri: mongoUri.trim(),
+          allowedDatabases: mongoDb.trim() || 'agentfarm',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.message || 'Error al conectar Mongo');
+      setMongoMsg(data.message || 'MongoDB conectado.');
+      if (data.status) setMongoStatus(data.status as AssistMongoStatus);
+      setMongoUri('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error Mongo MCP');
+    } finally {
+      setMongoSaving(false);
+    }
+  }
 
   async function ensure() {
     setSaving(true);
@@ -336,6 +392,118 @@ export default function LandingAssistAdminPage() {
           ))}
         </div>
       )}
+
+      <section
+        style={{
+          marginTop: 28,
+          padding: '18px 20px',
+          borderRadius: 14,
+          border: '1px solid var(--border)',
+          background: 'var(--card)',
+        }}
+      >
+        <h2 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 800 }}>
+          Math-ais · MCP MongoDB (contexto del cliente)
+        </h2>
+        <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--muted-foreground)', lineHeight: 1.5 }}>
+          Conexión de <strong>solo lectura</strong> sobre la base <code>agentflowhub_landing</code>{' '}
+          (usuarios, agentes, widgets). <strong>No uses agentfarm</strong> — esa es del motor IA.
+        </p>
+
+        {mongoStatus && (
+          <div
+            style={{
+              fontSize: 12,
+              padding: '10px 12px',
+              borderRadius: 8,
+              background: 'var(--muted)',
+              marginBottom: 14,
+              lineHeight: 1.6,
+            }}
+          >
+            <div>
+              Tools Mongo:{' '}
+              <strong>{mongoStatus.mongoToolsEnabled ? 'activas' : 'pendientes'}</strong>
+            </div>
+            {mongoStatus.connection ? (
+              <>
+                <div>
+                  Sync: <code>{mongoStatus.connection.syncStatus}</code>
+                  {mongoStatus.connection.allowedDatabases && (
+                    <> · DB: <code>{mongoStatus.connection.allowedDatabases}</code></>
+                  )}
+                </div>
+                {mongoStatus.connection.lastSyncError && (
+                  <div style={{ color: '#b91c1c' }}>{mongoStatus.connection.lastSyncError}</div>
+                )}
+              </>
+            ) : (
+              <div style={{ color: '#b45309' }}>Sin conexión Mongo — pega la URI abajo.</div>
+            )}
+          </div>
+        )}
+
+        {mongoMsg && (
+          <p style={{ fontSize: 13, color: '#15803d', marginBottom: 12 }}>{mongoMsg}</p>
+        )}
+
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+          MongoDB URI (mongodb+srv://…)
+        </label>
+        <input
+          type="password"
+          autoComplete="off"
+          value={mongoUri}
+          onChange={(e) => setMongoUri(e.target.value)}
+          placeholder="mongodb+srv://usuario:****@cluster…/agentfarm"
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            borderRadius: 8,
+            border: '1px solid var(--border)',
+            fontSize: 13,
+            marginBottom: 10,
+            boxSizing: 'border-box',
+          }}
+        />
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+          Base permitida
+        </label>
+        <input
+          type="text"
+          value={mongoDb}
+          onChange={(e) => setMongoDb(e.target.value)}
+          placeholder="agentflowhub_landing"
+          style={{
+            width: 200,
+            padding: '8px 10px',
+            borderRadius: 8,
+            border: '1px solid var(--border)',
+            fontSize: 13,
+            marginBottom: 14,
+          }}
+        />
+        <div>
+          <button
+            type="button"
+            onClick={() => void saveMongoMcp()}
+            disabled={mongoSaving || !mongoUri.trim()}
+            style={{
+              padding: '10px 16px',
+              borderRadius: 10,
+              border: 'none',
+              background: '#006B7D',
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: mongoSaving || !mongoUri.trim() ? 'not-allowed' : 'pointer',
+              opacity: mongoSaving || !mongoUri.trim() ? 0.6 : 1,
+            }}
+          >
+            {mongoSaving ? 'Conectando…' : 'Guardar y sincronizar Mongo MCP'}
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

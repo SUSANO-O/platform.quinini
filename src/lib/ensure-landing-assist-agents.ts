@@ -11,6 +11,8 @@ import { connectDB } from '@/lib/db/connection';
 import { ClientAgent, User, Widget } from '@/lib/db/models';
 import type { InternalAssistContext } from '@/lib/internal-assist-config';
 import { canAttemptHubSync, ensureClientAgentHubSynced, syncHubCatalogFromLandingAgentDoc } from '@/lib/aibackhub-sync';
+import { MATH_AIS_SYSTEM_PROMPT } from '@/lib/math-ais-content';
+import { mathAisMongoToolIds } from '@/lib/math-ais-mcp';
 
 export type LandingAssistSlot = {
   context: InternalAssistContext;
@@ -59,8 +61,7 @@ export function landingAssistSlots(): LandingAssistSlot[] {
       welcome: (process.env.INTERNAL_APP_ASSIST_WELCOME || 'Hola! Como puedo ayudarte hoy?').trim(),
       fabHint: (process.env.INTERNAL_APP_ASSIST_FAB_HINT || '¿Tienes dudas?').trim(),
       avatar: (process.env.INTERNAL_APP_ASSIST_AVATAR || '/assets/assist/botivaorbe.webp').trim(),
-      systemPrompt:
-        'Eres Math-ais, el asistente de la plataforma BotIvA dentro del dashboard. Ayudas al usuario autenticado (ya conoces su nombre y email de sesión) con agentes, widgets, flujos, planes y configuración. Sé práctico y orientado a pasos concretos. El CRM HubSpot sincroniza automáticamente el contacto del cliente logueado; no pidas de nuevo email/nombre salvo que falten.',
+      systemPrompt: MATH_AIS_SYSTEM_PROMPT,
     },
   ];
 }
@@ -69,6 +70,8 @@ const HUBSPOT_ASSIST_TOOL_IDS = [
   'mcp:hubspot:hubspot_search_contacts',
   'mcp:hubspot:hubspot_create_contact',
 ] as const;
+
+/** @deprecated Math-ais usa solo MCP Mongo; HubSpot desactivado en app assist. */
 
 export type LandingAssistStatusItem = {
   context: InternalAssistContext;
@@ -223,7 +226,7 @@ export async function ensureLandingAssistAgents(options?: {
       agent = await ClientAgent.findOne({ name: slot.name, type: 'agent' });
     }
 
-    const enableHubspot = slot.context === 'app';
+    const isMathAis = slot.context === 'app';
 
     if (!agent) {
       agent = await ClientAgent.create({
@@ -240,10 +243,10 @@ export async function ensureLandingAssistAgents(options?: {
         syncStatus: 'pending',
         ragEnabled: false,
         strictPurposeOnly: true,
-        ...(enableHubspot
+        ...(isMathAis
           ? {
-              hubspotAutoCaptureContacts: true,
-              enabledMcpToolIds: [...HUBSPOT_ASSIST_TOOL_IDS],
+              hubspotAutoCaptureContacts: false,
+              enabledMcpToolIds: mathAisMongoToolIds(),
             }
           : {}),
       });
@@ -257,13 +260,9 @@ export async function ensureLandingAssistAgents(options?: {
         systemPrompt: slot.systemPrompt,
       };
       if (!agent.agentHubId) $set.agentHubId = slot.hubId;
-      if (enableHubspot) {
-        $set.hubspotAutoCaptureContacts = true;
-        const existing = Array.isArray(agent.enabledMcpToolIds)
-          ? (agent.enabledMcpToolIds as string[])
-          : [];
-        const merged = [...new Set([...existing, ...HUBSPOT_ASSIST_TOOL_IDS])];
-        $set.enabledMcpToolIds = merged;
+      if (isMathAis) {
+        $set.hubspotAutoCaptureContacts = false;
+        $set.enabledMcpToolIds = mathAisMongoToolIds();
       }
       await ClientAgent.updateOne({ _id: agent._id }, { $set });
       updated.agents.push(String(agent._id));

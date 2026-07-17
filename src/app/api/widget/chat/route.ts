@@ -470,11 +470,11 @@ export async function POST(req: NextRequest) {
           let j = JSON.parse(bodyToForward) as Record<string, unknown>;
           j.hubspotAutoCaptureContacts = ca?.hubspotAutoCaptureContacts === true;
 
-          // Assist dashboard (Math-ais): inyectar email/nombre del usuario logueado → HubSpot.
+          // Assist dashboard (Math-ais): contexto del usuario logueado (sin HubSpot).
           try {
             const {
               identityFromSessionCookie,
-              injectVisitorIdentityIntoChatBody,
+              injectAssistContextIntoChatBody,
               isInternalAppAssistWidget,
             } = await import('@/lib/assist-session-identity');
             const isAssist = await isInternalAppAssistWidget({
@@ -482,12 +482,14 @@ export async function POST(req: NextRequest) {
               agentId: parsedAgentId,
             });
             if (isAssist) {
+              j.hubspotAutoCaptureContacts = false;
               const identity = await identityFromSessionCookie(
                 req.cookies.get('afhub_session')?.value,
               );
               if (identity) {
-                j = injectVisitorIdentityIntoChatBody(j, identity);
-                j.hubspotAutoCaptureContacts = true;
+                const pagePath =
+                  typeof j.pagePath === 'string' ? j.pagePath : undefined;
+                j = await injectAssistContextIntoChatBody(j, identity, pagePath);
               }
             }
           } catch (idErr) {
