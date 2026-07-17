@@ -265,7 +265,27 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({ servers, agentHubLink });
+  // Catálogo vivo del hub (sin listas quemadas en la landing): integraciones MCP
+  // + conteo unified (mcp vs builtin farm) para que la UI muestre la diferencia.
+  const mcpIntegrations = integrationCatalog.map((c) => ({
+    key: c.key,
+    name: c.name,
+    description: c.description || '',
+    toolIdPrefix: c.toolIdPrefix,
+    needsCredentials: Array.isArray(c.credentialFields) && c.credentialFields.length > 0,
+  }));
+
+  const unifiedMcpCount = mcpTools.length;
+  const unifiedBuiltinCount = allTools.filter(
+    (t) => t.category === 'builtin' || (typeof t.id === 'string' && !t.id.startsWith('mcp:') && !t.id.startsWith('std:')),
+  ).length;
+
+  return NextResponse.json({
+    servers,
+    agentHubLink,
+    mcpIntegrations,
+    unifiedCounts: { mcp: unifiedMcpCount, builtin: unifiedBuiltinCount },
+  });
 }
 
 function humanToolName(raw: string): string {
