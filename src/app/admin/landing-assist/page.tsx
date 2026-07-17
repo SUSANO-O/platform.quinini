@@ -282,12 +282,11 @@ export default function LandingAssistAdminPage() {
                     border: '1px solid var(--border)',
                   }}
                 >
-                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Agente (plataforma)</div>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Agente (admin)</div>
                   {item.agent ? (
                     <>
                       <div>ID: <code>{item.agent.id}</code></div>
                       <div>Hub: <code>{item.agent.agentHubId || '—'}</code></div>
-                      <div>isPlatform: {item.agent.isPlatform ? 'sí' : 'no'}</div>
                       <div style={{ marginTop: 8 }}>
                         <Link href={`/dashboard/agents/${item.agent.id}`} style={{ color: '#006B7D' }}>
                           Abrir ficha →

@@ -10,6 +10,8 @@ import { LayoutDashboard, Users, LogOut, Shield, UserPlus, BarChart3, Wallet, Bo
 
 const NAV: Array<{ href: string; label: string; icon: typeof LayoutDashboard; highlight?: boolean }> = [
   { href: '/admin', label: 'Resumen', icon: LayoutDashboard },
+  { href: '/admin/landing-assist', label: 'Math / Math-ais', icon: Bot, highlight: true },
+  { href: '/admin/skills', label: 'Skills globales', icon: Sparkles, highlight: true },
   { href: '/admin/inference-metrics', label: 'Tokens & Costo LLM', icon: Zap, highlight: true },
   { href: '/admin/widget-latency', label: 'Latencia widget', icon: Clock, highlight: true },
   { href: '/admin/user-margins', label: 'Margen por usuario', icon: Wallet, highlight: true },
@@ -22,8 +24,6 @@ const NAV: Array<{ href: string; label: string; icon: typeof LayoutDashboard; hi
   { href: '/admin/users', label: 'Usuarios', icon: Users },
   { href: '/admin/registration-codes', label: 'Códigos acceso', icon: KeyRound },
   { href: '/admin/promote', label: 'Promover admin', icon: UserPlus },
-  { href: '/admin/skills', label: 'Skills globales', icon: Sparkles, highlight: true },
-  { href: '/admin/landing-assist', label: 'Agentes landing', icon: Sparkles, highlight: true },
   { href: '/admin/ai-config', label: 'Asistente AI', icon: Bot },
   { href: '/admin/security-log', label: 'Log de seguridad', icon: Activity },
 ];
@@ -87,13 +87,14 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         width: '200px', flexShrink: 0, background: 'var(--card)',
         borderRight: '1px solid var(--border)', flexDirection: 'column',
         padding: '20px 12px', position: 'sticky', top: 0, height: '100vh',
+        overflowY: 'auto',
       }} className="hidden md:flex">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px', marginBottom: '24px', flexShrink: 0 }}>
           <Shield size={16} style={{ color: '#6366f1' }} />
           <span style={{ fontSize: '16px', fontWeight: 800, color: '#6366f1' }}>Admin</span>
         </div>
 
-        <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px', minHeight: 0 }}>
           {navLinks}
         </nav>
 

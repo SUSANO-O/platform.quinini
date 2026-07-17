@@ -71,7 +71,7 @@ export async function isInternalAppAssistWidget(params: {
       { agentHubId: hubId },
     ];
     const ca = await ClientAgent.findOne({
-      $and: [{ $or: agentOr }, { isPlatform: true }],
+      $or: agentOr,
     })
       .select({ agentHubId: 1 })
       .lean();
@@ -81,11 +81,9 @@ export async function isInternalAppAssistWidget(params: {
     const w = await Widget.findById(params.widgetId).select({ agentId: 1 }).lean();
     const agentId = w ? String((w as { agentId?: string }).agentId || '') : '';
     if (!agentId) return false;
-    const ca = await ClientAgent.findById(agentId).select({ agentHubId: 1, isPlatform: 1 }).lean();
+    const ca = await ClientAgent.findById(agentId).select({ agentHubId: 1 }).lean();
     return Boolean(
-      ca &&
-        (ca as { isPlatform?: boolean }).isPlatform === true &&
-        String((ca as { agentHubId?: string }).agentHubId || '') === hubId,
+      ca && String((ca as { agentHubId?: string }).agentHubId || '') === hubId,
     );
   }
   return false;
