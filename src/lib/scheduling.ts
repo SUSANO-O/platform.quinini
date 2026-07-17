@@ -9,7 +9,14 @@ import { parseExpression } from 'cron-parser';
 
 export const DEFAULT_TIMEZONE = 'America/Bogota';
 
-/** Tipos de acción soportados (extensible: añadir aquí + handler en el worker). */
+/**
+ * Tipos de acción soportados (extensible: añadir aquí + handler en el worker).
+ *
+ * Contrato worker `cron-schedule` (repo aparte):
+ * - Ejecutar `action.type` + `action.config`
+ * - Si hay `action.then[]`, tras éxito ejecutar cada paso en serie
+ * - En plantillas de pasos then: `{{prev.output}}` = resumen del paso anterior
+ */
 export const ACTION_TYPES = ['webhook', 'agent_run', 'chat_message', 'email'] as const;
 export type ActionType = (typeof ACTION_TYPES)[number];
 

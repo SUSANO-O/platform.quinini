@@ -101,7 +101,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const actionCheck = sanitizeAction(body.action);
     if (!actionCheck.ok) return NextResponse.json({ error: actionCheck.error }, { status: 400 });
     task.action = actionCheck.value;
-    task.markModified('action.config'); // Mixed: cambios anidados requieren markModified
+    task.markModified('action'); // Mixed + then[]: markModified del subdoc completo
   }
 
   if ('retryPolicy' in body) {

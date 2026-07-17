@@ -176,7 +176,11 @@ export async function GET(req: NextRequest, { params }: Params) {
               name?: string;
               enabled?: boolean;
               priority?: number;
-              config?: unknown;
+              config?: {
+                prompt_extension?: string;
+                active_tools?: string[];
+                llm_settings?: { temperature?: number; maxOutputTokens?: number };
+              };
             } =>
               Boolean(x) &&
               typeof x === 'object' &&
