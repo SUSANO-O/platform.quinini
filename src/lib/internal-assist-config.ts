@@ -88,7 +88,7 @@ export function resolveInternalAssistBoot(
     title: envStr('INTERNAL_APP_ASSIST_TITLE', 'Math-ais'),
     subtitle: envStr('INTERNAL_APP_ASSIST_SUBTITLE', 'En linea'),
     welcome: envStr('INTERNAL_APP_ASSIST_WELCOME', 'Hola! Como puedo ayudarte hoy?'),
-    fabHint: envStr('INTERNAL_APP_ASSIST_FAB_HINT', '¿Tienes dudas plataforma?'),
+    fabHint: envStr('INTERNAL_APP_ASSIST_FAB_HINT', '¿Tienes dudas?'),
     avatar: envStr(
       'INTERNAL_APP_ASSIST_AVATAR',
       '/assets/assist/botivaorbe.webp',

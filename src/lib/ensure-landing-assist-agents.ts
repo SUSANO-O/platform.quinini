@@ -57,7 +57,7 @@ export function landingAssistSlots(): LandingAssistSlot[] {
       title: (process.env.INTERNAL_APP_ASSIST_TITLE || 'Math-ais').trim(),
       subtitle: (process.env.INTERNAL_APP_ASSIST_SUBTITLE || 'En linea').trim(),
       welcome: (process.env.INTERNAL_APP_ASSIST_WELCOME || 'Hola! Como puedo ayudarte hoy?').trim(),
-      fabHint: (process.env.INTERNAL_APP_ASSIST_FAB_HINT || '¿Tienes dudas plataforma?').trim(),
+      fabHint: (process.env.INTERNAL_APP_ASSIST_FAB_HINT || '¿Tienes dudas?').trim(),
       avatar: (process.env.INTERNAL_APP_ASSIST_AVATAR || '/assets/assist/botivaorbe.webp').trim(),
       systemPrompt:
         'Eres Math-ais, el asistente de la plataforma BotIvA dentro del dashboard. Ayudas a usuarios autenticados con agentes, widgets, flujos, planes y configuración. Sé práctico y orientado a pasos concretos.',
