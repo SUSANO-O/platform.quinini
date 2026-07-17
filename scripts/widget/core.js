@@ -8,7 +8,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.6.26';
+  var VERSION = '1.6.27';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -2508,38 +2508,38 @@
     function thinkingCopyFromStatus(statusLabel, statusPhase) {
       var s = String(statusLabel || '').trim();
       var phase = String(statusPhase || '').trim();
-      if (phase === 'prepare') return { title: 'Preparando…', sub: s || 'Organizando tu solicitud' };
-      if (phase === 'enrich') return { title: 'Cargando contexto…', sub: s || 'Recuperando la conversación' };
-      if (phase === 'vision') return { title: 'Analizando imagen…', sub: s || 'Procesando la captura' };
-      if (phase === 'resolve') return { title: 'Identificando agente…', sub: s || 'Conectando con tu asistente' };
-      if (phase === 'skills' || phase === 'skill') return { title: 'Aplicando habilidades…', sub: s || 'Configurando el agente' };
-      if (phase === 'rag') return { title: 'Consultando documentos…', sub: s || 'Buscando en la base de conocimiento' };
-      if (phase === 'mcp' || phase === 'tools') return { title: 'Usando integraciones…', sub: s || 'Ejecutando herramientas conectadas' };
-      if (phase === 'model') return { title: 'Generando respuesta…', sub: s || 'El modelo está redactando' };
-      if (phase === 'hub') return { title: 'Consultando al asistente…', sub: s || 'Procesando en el servidor' };
-      if (phase === 'triage') return { title: 'Analizando tu consulta…', sub: s || 'Determinando el mejor enfoque' };
-      if (phase === 'handoff') return { title: 'Derivando a especialista…', sub: s || 'Transfiriendo la consulta' };
-      if (phase === 'parallel') return { title: 'Consultando especialistas…', sub: s || 'Varios agentes en paralelo' };
-      if (phase === 'pipeline' || phase === 'content') return { title: 'Recopilando información…', sub: s || 'Pipeline multiagente' };
-      if (phase === 'creative') return { title: 'Generando creativo…', sub: s || 'Agente creativo en acción' };
-      if (phase === 'synthesize') return { title: 'Unificando respuesta…', sub: s || 'Sintetizando resultados' };
-      if (!s) return { title: 'Pensando…', sub: 'Preparando tu respuesta' };
+      if (phase === 'prepare') return 'Preparando tu solicitud…';
+      if (phase === 'enrich') return 'Cargando el contexto…';
+      if (phase === 'vision') return 'Analizando la imagen…';
+      if (phase === 'resolve') return 'Identificando al agente…';
+      if (phase === 'skills' || phase === 'skill') return 'Aplicando habilidades…';
+      if (phase === 'rag') return 'Consultando documentos…';
+      if (phase === 'mcp' || phase === 'tools') return 'Usando herramientas…';
+      if (phase === 'model') return 'Generando respuesta…';
+      if (phase === 'hub') return 'Consultando al asistente…';
+      if (phase === 'triage') return 'Analizando tu consulta…';
+      if (phase === 'handoff') return 'Derivando a especialista…';
+      if (phase === 'parallel') return 'Consultando especialistas…';
+      if (phase === 'pipeline' || phase === 'content') return 'Recopilando información…';
+      if (phase === 'creative') return 'Generando creativo…';
+      if (phase === 'synthesize') return 'Unificando la respuesta…';
+      if (!s) return 'Pensando…';
       var lower = s.toLowerCase();
-      if (lower.indexOf('subiendo') >= 0) return { title: 'Subiendo archivo…', sub: s };
-      if (lower.indexOf('captura') >= 0 || lower.indexOf('analizando captura') >= 0) return { title: 'Analizando imagen…', sub: s };
-      if (lower.indexOf('habilidad') >= 0 || lower.indexOf('skills') >= 0) return { title: 'Aplicando habilidades…', sub: s };
-      if (lower.indexOf('documentos') >= 0 || lower.indexOf('indexados') >= 0) return { title: 'Consultando documentos…', sub: s };
-      if (lower.indexOf('integraciones') >= 0 || lower.indexOf('herramienta') >= 0) return { title: 'Usando integraciones…', sub: s };
-      if (lower.indexOf('especialist') >= 0 || lower.indexOf('paralelo') >= 0) return { title: 'Consultando especialistas…', sub: s };
-      if (lower.indexOf('recopil') >= 0) return { title: 'Recopilando información…', sub: s };
-      if (lower.indexOf('consultando al asistente') >= 0) return { title: 'Consultando al asistente…', sub: s };
-      if (lower.indexOf('analizando tu consulta') >= 0) return { title: 'Analizando tu consulta…', sub: s };
-      if (lower.indexOf('derivando') >= 0 || lower.indexOf('conectando con') >= 0) return { title: 'Derivando a especialista…', sub: s };
-      if (lower.indexOf('unificada') >= 0 || lower.indexOf('síntesis') >= 0 || lower.indexOf('sintesis') >= 0) return { title: 'Redactando respuesta…', sub: s };
-      if (lower.indexOf('preparando') >= 0) return { title: 'Preparando…', sub: s };
-      if (lower.indexOf('contexto') >= 0) return { title: 'Cargando contexto…', sub: s };
-      if (lower.indexOf('generando') >= 0) return { title: 'Generando respuesta…', sub: s };
-      return { title: 'Pensando…', sub: s };
+      if (lower.indexOf('subiendo') >= 0) return 'Subiendo archivo…';
+      if (lower.indexOf('captura') >= 0 || lower.indexOf('imagen') >= 0) return 'Analizando la imagen…';
+      if (lower.indexOf('habilidad') >= 0 || lower.indexOf('skills') >= 0) return 'Aplicando habilidades…';
+      if (lower.indexOf('documentos') >= 0 || lower.indexOf('indexados') >= 0) return 'Consultando documentos…';
+      if (lower.indexOf('integraciones') >= 0 || lower.indexOf('herramienta') >= 0) return 'Usando herramientas…';
+      if (lower.indexOf('especialist') >= 0 || lower.indexOf('paralelo') >= 0) return 'Consultando especialistas…';
+      if (lower.indexOf('recopil') >= 0) return 'Recopilando información…';
+      if (lower.indexOf('consultando al asistente') >= 0) return 'Consultando al asistente…';
+      if (lower.indexOf('analizando tu consulta') >= 0) return 'Analizando tu consulta…';
+      if (lower.indexOf('derivando') >= 0 || lower.indexOf('conectando con') >= 0) return 'Derivando a especialista…';
+      if (lower.indexOf('unificada') >= 0 || lower.indexOf('síntesis') >= 0 || lower.indexOf('sintesis') >= 0) return 'Unificando la respuesta…';
+      if (lower.indexOf('preparando') >= 0) return 'Preparando tu solicitud…';
+      if (lower.indexOf('contexto') >= 0) return 'Cargando el contexto…';
+      if (lower.indexOf('generando') >= 0) return 'Generando respuesta…';
+      return s.charAt(s.length - 1) === '…' || s.charAt(s.length - 1) === '.' ? s : s + '…';
     }
 
     function thinkingPhaseKey(statusPhase, statusLabel) {
@@ -2553,46 +2553,24 @@
       if (lower.indexOf('recopil') >= 0) return 'pipeline';
       if (lower.indexOf('sintet') >= 0 || lower.indexOf('unificando') >= 0) return 'synthesize';
       if (lower.indexOf('generando') >= 0 || lower.indexOf('redactando') >= 0) return 'model';
+      if (lower.indexOf('contexto') >= 0) return 'enrich';
       return 'prepare';
     }
 
-    function thinkingStepsFromPhase(statusPhase, statusLabel) {
+    /** Progreso 0–3 para la barra de etapas (mínimo, sin chips). */
+    function thinkingProgressIndex(statusPhase, statusLabel) {
       var phase = thinkingPhaseKey(statusPhase, statusLabel);
-      var steps = ['Preparando', 'Contexto', 'Respuesta'];
-      var current = 0;
-      if (phase === 'vision') {
-        steps = ['Imagen', 'Contexto', 'Respuesta'];
-        current = 0;
-      } else if (phase === 'enrich' || phase === 'rag') {
-        steps = ['Preparando', phase === 'rag' ? 'Documentos' : 'Contexto', 'Respuesta'];
-        current = 1;
-      } else if (phase === 'mcp' || phase === 'tools' || phase === 'skills' || phase === 'skill') {
-        steps = ['Contexto', phase === 'skills' || phase === 'skill' ? 'Habilidades' : 'Herramientas', 'Respuesta'];
-        current = 1;
-      } else if (phase === 'triage' || phase === 'resolve' || phase === 'handoff') {
-        steps = ['Analizando', 'Asignando agente', 'Respuesta'];
-        current = phase === 'triage' ? 0 : 1;
-      } else if (phase === 'parallel' || phase === 'pipeline' || phase === 'content') {
-        steps = ['Analizando', 'Especialistas', 'Síntesis'];
-        current = 1;
-      } else if (phase === 'synthesize') {
-        steps = ['Especialistas', 'Síntesis', 'Respuesta'];
-        current = 1;
-      } else if (phase === 'model' || phase === 'hub' || phase === 'creative') {
-        steps = ['Contexto', phase === 'creative' ? 'Creativo' : 'Redacción', 'Entregando'];
-        current = 1;
-      }
-      return { steps: steps, current: current };
+      if (phase === 'prepare' || phase === 'triage' || phase === 'vision') return 0;
+      if (phase === 'enrich' || phase === 'resolve' || phase === 'skills' || phase === 'skill' || phase === 'rag' || phase === 'mcp' || phase === 'tools' || phase === 'handoff' || phase === 'parallel' || phase === 'pipeline' || phase === 'content') return 1;
+      if (phase === 'model' || phase === 'hub' || phase === 'creative' || phase === 'synthesize') return 2;
+      return 1;
     }
 
-    function renderThinkingSteps(statusPhase, statusLabel) {
-      var data = thinkingStepsFromPhase(statusPhase, statusLabel);
-      var html = '';
-      for (var i = 0; i < data.steps.length; i++) {
-        var cls = i < data.current ? 'done' : (i === data.current ? 'current' : 'next');
-        html += '<span class="afhub-thinking-step afhub-thinking-step--' + cls + '">' + escapeHtml(data.steps[i]) + '</span>';
-      }
-      return html;
+    function thinkingNextHint(statusPhase, statusLabel) {
+      var idx = thinkingProgressIndex(statusPhase, statusLabel);
+      if (idx <= 0) return 'Luego: contexto';
+      if (idx === 1) return 'Luego: respuesta';
+      return 'Casi listo';
     }
 
     function clearTypingTimer() {
@@ -2611,12 +2589,9 @@
           clearTypingTimer();
           return;
         }
+        if (!cfg.debug) return;
         var elapsedEl = el.querySelector('.afhub-thinking-elapsed');
         if (!elapsedEl) return;
-        if (!cfg.debug) {
-          elapsedEl.textContent = '';
-          return;
-        }
         var sec = Math.floor((Date.now() - typingStartedAt) / 1000);
         if (sec < 3) {
           elapsedEl.textContent = '';
@@ -2624,30 +2599,32 @@
         }
         elapsedEl.textContent = sec + ' s';
         if (sec >= 20) {
-          var subEl = el.querySelector('.afhub-thinking-sub');
-          if (subEl && subEl.getAttribute('data-slow') !== '1') {
-            subEl.setAttribute('data-slow', '1');
-            subEl.textContent = 'Está tardando más de lo habitual. Seguimos trabajando en tu respuesta…';
+          var titleEl = el.querySelector('.afhub-thinking-title');
+          if (titleEl && titleEl.getAttribute('data-slow') !== '1') {
+            titleEl.setAttribute('data-slow', '1');
+            titleEl.textContent = 'Todavía trabajando en tu respuesta…';
           }
         }
       }, 1000);
     }
 
     function renderThinkingCard(el, statusLabel, statusPhase) {
-      var copy = thinkingCopyFromStatus(statusLabel, statusPhase);
+      var title = thinkingCopyFromStatus(statusLabel, statusPhase);
+      var idx = thinkingProgressIndex(statusPhase, statusLabel);
+      var next = thinkingNextHint(statusPhase, statusLabel);
+      var segs = '';
+      for (var i = 0; i < 3; i++) {
+        var cls = i < idx ? 'done' : (i === idx ? 'current' : 'next');
+        segs += '<span class="afhub-thinking-seg afhub-thinking-seg--' + cls + '"></span>';
+      }
       el.innerHTML =
         '<div class="afhub-thinking-head">' +
           '<span class="afhub-thinking-pulse" aria-hidden="true"></span>' +
-          '<div class="afhub-thinking-titles">' +
-            '<span class="afhub-thinking-title">' + escapeHtml(copy.title) + '</span>' +
-            '<span class="afhub-thinking-sub">' + escapeHtml(copy.sub) + '</span>' +
-          '</div>' +
+          '<span class="afhub-thinking-title">' + escapeHtml(title) + '</span>' +
+          (cfg.debug ? '<span class="afhub-thinking-elapsed"></span>' : '') +
         '</div>' +
-        '<div class="afhub-thinking-steps" aria-hidden="true">' + renderThinkingSteps(statusPhase, statusLabel) + '</div>' +
-        '<div class="afhub-thinking-meta">' +
-          '<span class="afhub-thinking-elapsed"></span>' +
-          '<span class="afhub-thinking-dots" aria-hidden="true"><span></span><span></span><span></span></span>' +
-        '</div>';
+        '<div class="afhub-thinking-track" aria-hidden="true">' + segs + '</div>' +
+        '<div class="afhub-thinking-hint">' + escapeHtml(next) + '</div>';
     }
 
     function showTyping(statusLabel, statusPhase) {
@@ -2679,18 +2656,10 @@
         showTyping(statusLabel, statusPhase);
         return;
       }
-      var subEl = el.querySelector('.afhub-thinking-sub');
-      if (subEl && subEl.getAttribute('data-slow') === '1') return;
-      if (statusPhase) el.setAttribute('data-phase', String(statusPhase));
-      var copy = thinkingCopyFromStatus(statusLabel, statusPhase);
       var titleEl = el.querySelector('.afhub-thinking-title');
-      if (titleEl) titleEl.textContent = copy.title;
-      if (subEl) {
-        subEl.removeAttribute('data-slow');
-        subEl.textContent = copy.sub;
-      }
-      var stepsEl = el.querySelector('.afhub-thinking-steps');
-      if (stepsEl) stepsEl.innerHTML = renderThinkingSteps(statusPhase, statusLabel);
+      if (titleEl && titleEl.getAttribute('data-slow') === '1') return;
+      if (statusPhase) el.setAttribute('data-phase', String(statusPhase));
+      renderThinkingCard(el, statusLabel, statusPhase);
       messages.scrollTop = messages.scrollHeight;
     }
 
@@ -5261,15 +5230,13 @@
           '#' + rootId + ' .afhub-powered { color:#6b6b78; }' +
           '#' + rootId + ' .afhub-powered a { color:#9a9aaa; }' +
           '#' + rootId + ' .afhub-dot { background:#777; }' +
-          '#' + rootId + ' .afhub-thinking-card { background:transparent; border:none; }' +
-          '#' + rootId + ' .afhub-thinking-title { color:#f1f5f9; }' +
-          '#' + rootId + ' .afhub-thinking-sub { color:#9ca3af; display:block; }' +
-          '#' + rootId + ' .afhub-thinking-step { background:rgba(255,255,255,.07); color:#9ca3af; }' +
-          '#' + rootId + ' .afhub-thinking-step--current { background:' + cfg.color + '22; color:#f1f5f9; }' +
-          '#' + rootId + ' .afhub-thinking-step--done { background:' + cfg.color + '14; color:#cbd5e1; }' +
+          '#' + rootId + ' .afhub-thinking-card { background:transparent; border:none; box-shadow:none; }' +
+          '#' + rootId + ' .afhub-thinking-title { color:#e5e7eb; }' +
+          '#' + rootId + ' .afhub-thinking-hint { color:#9ca3af; }' +
+          '#' + rootId + ' .afhub-thinking-seg { background:rgba(255,255,255,.12); }' +
+          '#' + rootId + ' .afhub-thinking-seg--done,' +
+          '#' + rootId + ' .afhub-thinking-seg--current { background:' + cfg.color + '; }' +
           '#' + rootId + ' .afhub-thinking-elapsed { color:#6b7280; }' +
-          '#' + rootId + ' .afhub-skel-line { display:none; }' +
-          '#' + rootId + ' .afhub-thinking-dots span { background:#6b7280; }' +
           '#' + rootId + ' .afhub-msg-time { color:#6b7280; }' +
           '#' + rootId + ' .afhub-fab-hint { background:#252530; color:#ececf1; border-color:rgba(255,255,255,.06); }' +
           '#' + rootId + ' .afhub-fab-hint::after { border-top-color:#252530 !important; }' +
@@ -5711,29 +5678,27 @@
       '#' + rootId + ' .afhub-tool-tag { font-size:10px; line-height:1.25; letter-spacing:.02em; padding:2px 6px; border-radius:6px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:rgba(0,0,0,.06); color:#5a5a6e; border:1px solid rgba(0,0,0,.08); }' +
       '#' + rootId + ' .afhub-img-wrap { margin-top:10px; max-width:100%; display:flex; flex-direction:column; gap:8px; }' +
       '#' + rootId + ' .afhub-widget-img { display:block; width:100%; max-width:100%; height:auto; vertical-align:middle; }' +
-      '#' + rootId + ' .afhub-thinking-card { display:flex; flex-direction:column; gap:8px; padding:10px 12px; max-width:92%; align-self:flex-start; border-radius:14px; border:1px solid rgba(15,23,42,.06); background:rgba(255,255,255,.68); animation:afhub-thinking-in .28s ease-out; }' +
-      '#' + rootId + ' .afhub-thinking-head { display:flex; align-items:flex-start; gap:10px; }' +
-      '#' + rootId + ' .afhub-thinking-pulse { flex-shrink:0; width:9px; height:9px; margin-top:5px; border-radius:50%; background:' + cfg.color + '; box-shadow:0 0 0 0 ' + cfg.color + '55; animation:afhub-thinking-pulse 1.6s ease-out infinite; }' +
-      '#' + rootId + ' .afhub-thinking-titles { display:flex; flex-direction:column; gap:2px; min-width:0; }' +
-      '#' + rootId + ' .afhub-thinking-title { display:block; font-size:12px; line-height:1.25; color:#111827; font-weight:750; letter-spacing:-.01em; }' +
-      '#' + rootId + ' .afhub-thinking-sub { font-size:11px; line-height:1.35; color:#6b7280; font-weight:500; display:block; }' +
+      '#' + rootId + ' .afhub-thinking-card { display:flex; flex-direction:column; gap:7px; padding:2px 0 4px; max-width:min(280px,88%); align-self:flex-start; border:none; background:transparent; box-shadow:none; animation:afhub-thinking-in .28s ease-out; }' +
+      '#' + rootId + ' .afhub-thinking-head { display:flex; align-items:center; gap:8px; min-width:0; }' +
+      '#' + rootId + ' .afhub-thinking-pulse { flex-shrink:0; width:8px; height:8px; border-radius:50%; background:' + cfg.color + '; box-shadow:0 0 0 0 ' + cfg.color + '55; animation:afhub-thinking-pulse 1.6s ease-out infinite; }' +
+      '#' + rootId + ' .afhub-thinking-title { display:block; font-size:13px; line-height:1.3; color:#334155; font-weight:600; letter-spacing:-.01em; min-width:0; }' +
+      '#' + rootId + ' .afhub-thinking-sub { display:none; }' +
+      '#' + rootId + ' .afhub-thinking-titles { display:contents; }' +
       '#' + rootId + ' .afhub-thinking-skeleton { display:none; }' +
       '#' + rootId + ' .afhub-skel-line { display:none; }' +
       '#' + rootId + ' .afhub-skel-line--lg { display:none; }' +
       '#' + rootId + ' .afhub-skel-line--md { display:none; }' +
       '#' + rootId + ' .afhub-skel-line--sm { display:none; }' +
-      '#' + rootId + ' .afhub-thinking-steps { display:flex; flex-wrap:wrap; gap:5px; padding-left:19px; }' +
-      '#' + rootId + ' .afhub-thinking-step { display:inline-flex; align-items:center; min-height:18px; padding:3px 7px; border-radius:999px; font-size:9px; line-height:1; font-weight:750; letter-spacing:.04em; text-transform:uppercase; color:#94a3b8; background:rgba(15,23,42,.04); }' +
-      '#' + rootId + ' .afhub-thinking-step--done { color:' + cfg.color + '; background:' + cfg.color + '0d; }' +
-      '#' + rootId + ' .afhub-thinking-step--current { color:' + cfg.color + '; background:' + cfg.color + '18; box-shadow:inset 0 0 0 1px ' + cfg.color + '20; }' +
-      '#' + rootId + ' .afhub-thinking-step--next { color:#9ca3af; }' +
-      '#' + rootId + ' .afhub-thinking-meta { display:flex; align-items:center; justify-content:flex-end; gap:8px; min-height:10px; padding-left:19px; }' +
-      '#' + rootId + ' .afhub-thinking-elapsed { display:none; font-size:10px; font-weight:600; letter-spacing:.03em; color:#9ca3af; font-variant-numeric:tabular-nums; }' +
-      '#' + rootId + '.afhub-widget--debug .afhub-thinking-elapsed { display:inline; }' +
-      '#' + rootId + ' .afhub-thinking-dots { display:inline-flex; gap:3px; align-items:center; margin-left:auto; }' +
-      '#' + rootId + ' .afhub-thinking-dots span { width:5px; height:5px; border-radius:50%; background:#9ca3af; animation:afhub-thinking-dot 1.5s ease-in-out infinite; }' +
-      '#' + rootId + ' .afhub-thinking-dots span:nth-child(2) { animation-delay:.25s; }' +
-      '#' + rootId + ' .afhub-thinking-dots span:nth-child(3) { animation-delay:.5s; }' +
+      '#' + rootId + ' .afhub-thinking-steps { display:none; }' +
+      '#' + rootId + ' .afhub-thinking-track { display:flex; gap:4px; width:100%; max-width:148px; padding-left:16px; }' +
+      '#' + rootId + ' .afhub-thinking-seg { flex:1; height:3px; border-radius:999px; background:rgba(15,23,42,.08); transition:background .25s ease, opacity .25s ease; }' +
+      '#' + rootId + ' .afhub-thinking-seg--done { background:' + cfg.color + '; opacity:.45; }' +
+      '#' + rootId + ' .afhub-thinking-seg--current { background:' + cfg.color + '; opacity:1; }' +
+      '#' + rootId + ' .afhub-thinking-seg--next { background:rgba(15,23,42,.08); opacity:1; }' +
+      '#' + rootId + ' .afhub-thinking-hint { padding-left:16px; font-size:11px; line-height:1.3; color:#94a3b8; font-weight:500; }' +
+      '#' + rootId + ' .afhub-thinking-meta { display:none; }' +
+      '#' + rootId + ' .afhub-thinking-elapsed { margin-left:auto; font-size:10px; font-weight:600; letter-spacing:.03em; color:#9ca3af; font-variant-numeric:tabular-nums; }' +
+      '#' + rootId + ' .afhub-thinking-dots { display:none; }' +
       '#' + rootId + ' .afhub-multi-agent-tag { display:inline-flex; align-items:center; margin-bottom:8px; font-size:10px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; padding:3px 8px; border-radius:999px; color:' + cfg.color + '; background:' + cfg.color + '14; border:1px solid ' + cfg.color + '33; }' +
       '#' + rootId + ' .afhub-feedback-row { align-self:stretch; display:flex; gap:0; margin:0; align-items:center; max-width:100%; width:100%; padding-left:2px; }' +
       '#' + rootId + ' .afhub-feedback-btn { width:24px; height:24px; border-radius:999px; border:none; background:transparent; color:#6b7280; font-size:12px; line-height:1; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:background .12s ease,color .12s ease; padding:0; }' +
