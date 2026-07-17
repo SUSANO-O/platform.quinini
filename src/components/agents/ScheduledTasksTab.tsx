@@ -44,8 +44,107 @@ const ACTION_LABELS: Record<ActionType, { label: string; desc: string; emoji: st
   email: { label: 'Enviar correo', desc: 'Envía un email (puede ir después de otro paso)', emoji: '📧' },
 };
 
-/** Pasos que se pueden encadenar después del principal. */
-const THEN_ACTION_TYPES: ActionType[] = ['email', 'webhook', 'chat_message'];
+type FlowRecipeId = 'webhook_email_chat' | 'webhook_email' | 'single';
+
+const DEFAULT_EMAIL_BODY =
+  'Hola,\n\nAquí va el resultado personalizado:\n\n{{prev.output}}\n\n— BotIvA';
+
+const DEFAULT_CHAT_FOLLOWUP =
+  'Acabo de enviarte el resultado por correo. ¿Quieres que te lo resuma o te ayude con el siguiente paso?';
+
+const FLOW_RECIPES: Array<{
+  id: FlowRecipeId;
+  title: string;
+  desc: string;
+  emoji: string;
+  recommended?: boolean;
+}> = [
+  {
+    id: 'webhook_email_chat',
+    title: 'Webhook → Email → Chat',
+    desc: 'Llama un endpoint, manda un correo personalizado con la respuesta y pregunta en el widget.',
+    emoji: '🔗→📧→💬',
+    recommended: true,
+  },
+  {
+    id: 'webhook_email',
+    title: 'Webhook → Email',
+    desc: 'Llama un endpoint y envía el resultado por correo personalizado.',
+    emoji: '🔗→📧',
+  },
+  {
+    id: 'single',
+    title: 'Una sola acción',
+    desc: 'Solo webhook, agente, chat o email (sin cadena).',
+    emoji: '•',
+  },
+];
+
+function detectRecipe(action?: ScheduledTask['action']): FlowRecipeId {
+  if (!action) return 'webhook_email_chat';
+  const then = action.then ?? [];
+  if (
+    action.type === 'webhook' &&
+    then.length === 2 &&
+    then[0]?.type === 'email' &&
+    then[1]?.type === 'chat_message'
+  ) {
+    return 'webhook_email_chat';
+  }
+  if (action.type === 'webhook' && then.length === 1 && then[0]?.type === 'email') {
+    return 'webhook_email';
+  }
+  if (!then.length) return 'single';
+  return 'single'; // custom chain se edita como single + then manual
+}
+
+function applyRecipe(id: FlowRecipeId): {
+  actionType: ActionType;
+  thenSteps: FlowStep[];
+  config: Record<string, string>;
+} {
+  if (id === 'webhook_email_chat') {
+    return {
+      actionType: 'webhook',
+      config: { method: 'POST', url: '', bodyTemplate: '' },
+      thenSteps: [
+        {
+          type: 'email',
+          config: {
+            to: '',
+            subject: 'Resultado de tu automatización',
+            body: DEFAULT_EMAIL_BODY,
+          },
+        },
+        {
+          type: 'chat_message',
+          config: { message: DEFAULT_CHAT_FOLLOWUP },
+        },
+      ],
+    };
+  }
+  if (id === 'webhook_email') {
+    return {
+      actionType: 'webhook',
+      config: { method: 'POST', url: '', bodyTemplate: '' },
+      thenSteps: [
+        {
+          type: 'email',
+          config: {
+            to: '',
+            subject: 'Resultado de tu automatización',
+            body: DEFAULT_EMAIL_BODY,
+          },
+        },
+      ],
+    };
+  }
+  return {
+    actionType: 'webhook',
+    config: { method: 'POST' },
+    thenSteps: [],
+  };
+}
 
 function flowEmojiChain(action: ScheduledTask['action']): string {
   const parts = [ACTION_LABELS[action.type]?.emoji ?? '•'];
@@ -488,14 +587,20 @@ function TaskWizard({
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
-  // Paso 1 — acción principal + pasos then (flow)
-  const [actionType, setActionType] = useState<ActionType>(task?.action.type ?? 'webhook');
-  const [thenSteps, setThenSteps] = useState<FlowStep[]>(() =>
-    (task?.action.then ?? []).map((s) => ({
-      type: s.type,
-      config: flatConfig(s.config),
-    })),
+  // Paso 1 — plantilla de flow (recomendado: webhook → email → chat)
+  const [recipe, setRecipe] = useState<FlowRecipeId>(() => detectRecipe(task?.action));
+  const [actionType, setActionType] = useState<ActionType>(() =>
+    task ? task.action.type : applyRecipe('webhook_email_chat').actionType,
   );
+  const [thenSteps, setThenSteps] = useState<FlowStep[]>(() => {
+    if (task) {
+      return (task.action.then ?? []).map((s) => ({
+        type: s.type,
+        config: flatConfig(s.config),
+      }));
+    }
+    return applyRecipe('webhook_email_chat').thenSteps;
+  });
   // Paso 2
   const [name, setName] = useState(task?.name ?? '');
   const [frequency, setFrequency] = useState<Frequency>(sched?.frequency ?? 'daily');
@@ -504,7 +609,9 @@ function TaskWizard({
   const [dow, setDow] = useState(sched?.dow ?? 1);
   const [dom, setDom] = useState(sched?.dom ?? 1);
   // Paso 3 — configs + reintentos + código
-  const [config, setConfig] = useState<Record<string, string>>(() => flatConfig(task?.action.config));
+  const [config, setConfig] = useState<Record<string, string>>(() =>
+    task ? flatConfig(task.action.config) : applyRecipe('webhook_email_chat').config,
+  );
   const [widgetId, setWidgetId] = useState((task as unknown as { widgetId?: string })?.widgetId ?? '');
   const [maxRetries, setMaxRetries] = useState(task?.retryPolicy?.maxRetries ?? 3);
   const [retryDelayMinutes, setRetryDelayMinutes] = useState(task?.retryPolicy?.retryDelayMinutes ?? 5);
@@ -515,18 +622,29 @@ function TaskWizard({
   const setThenCfg = (idx: number, k: string, v: string) =>
     setThenSteps((prev) => prev.map((s, i) => (i === idx ? { ...s, config: { ...s.config, [k]: v } } : s)));
 
-  const addThenStep = (type: ActionType) => {
-    if (thenSteps.length >= 3) return;
-    setThenSteps((prev) => [...prev, { type, config: {} }]);
+  const pickRecipe = (id: FlowRecipeId) => {
+    setRecipe(id);
+    // Al cambiar de plantilla, cargar defaults (en edición también, si el usuario elige otra).
+    const next = applyRecipe(id);
+    setActionType(next.actionType);
+    if (id === 'single' && task && detectRecipe(task.action) === 'single') {
+      setActionType(task.action.type);
+      setThenSteps(
+        (task.action.then ?? []).map((s) => ({ type: s.type, config: flatConfig(s.config) })),
+      );
+      setConfig(flatConfig(task.action.config));
+      return;
+    }
+    setThenSteps(next.thenSteps);
+    setConfig(next.config);
   };
-  const removeThenStep = (idx: number) =>
-    setThenSteps((prev) => prev.filter((_, i) => i !== idx));
 
   const flowDesc = describeActionFlow({ type: actionType, then: thenSteps });
   const needsWidget =
     actionType === 'chat_message' ||
     actionType === 'agent_run' ||
     thenSteps.some((s) => s.type === 'chat_message');
+  const isGuidedRecipe = recipe === 'webhook_email_chat' || recipe === 'webhook_email';
 
   const submit = async () => {
     setSaving(true);
@@ -590,83 +708,74 @@ function TaskWizard({
         {step === 1 && (
           <div className="flex flex-col gap-3">
             <FlowPreview primary={actionType} thenTypes={thenSteps.map((s) => s.type)} />
-            <p
-              className="m-0 px-3 py-2 rounded-xl text-xs font-bold"
-              style={{ background: 'rgba(13,148,136,0.1)', border: '1px solid rgba(13,148,136,0.35)' }}
-            >
-              Encadena pasos: ej. Webhook → Email. Baja a «Luego (opcional)» para añadir el siguiente.
-            </p>
-            <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>1. Acción principal</p>
+            <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>¿Qué quieres automatizar?</p>
             <div className="flex flex-col gap-2">
-              {(Object.keys(ACTION_LABELS) as ActionType[]).map((t) => (
+              {FLOW_RECIPES.map((r) => (
                 <button
-                  key={t}
+                  key={r.id}
                   type="button"
-                  onClick={() => setActionType(t)}
-                  className="flex items-center gap-3 p-3 rounded-xl text-left"
+                  onClick={() => pickRecipe(r.id)}
+                  className="flex items-start gap-3 p-3 rounded-xl text-left"
                   style={{
-                    border: `1px solid ${actionType === t ? 'var(--brand-primary, #0d9488)' : 'var(--border)'}`,
-                    background: actionType === t ? 'rgba(13,148,136,0.06)' : 'transparent',
+                    border: `1px solid ${recipe === r.id ? 'var(--brand-primary, #0d9488)' : 'var(--border)'}`,
+                    background: recipe === r.id ? 'rgba(13,148,136,0.06)' : 'transparent',
                     cursor: 'pointer',
                   }}
                 >
-                  <span style={{ fontSize: 20 }}>{ACTION_LABELS[t].emoji}</span>
+                  <span style={{ fontSize: 16, lineHeight: 1.2, marginTop: 2 }}>{r.emoji}</span>
                   <div>
-                    <p className="font-bold m-0 text-sm">{ACTION_LABELS[t].label}</p>
-                    <p style={{ color: 'var(--muted-foreground)', fontSize: 12, margin: 0 }}>{ACTION_LABELS[t].desc}</p>
+                    <p className="font-bold m-0 text-sm">
+                      {r.title}
+                      {r.recommended ? (
+                        <span
+                          className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold"
+                          style={{ background: 'rgba(13,148,136,0.15)', color: 'var(--brand-primary, #0d9488)' }}
+                        >
+                          Ideal
+                        </span>
+                      ) : null}
+                    </p>
+                    <p style={{ color: 'var(--muted-foreground)', fontSize: 12, margin: '2px 0 0' }}>{r.desc}</p>
                   </div>
                 </button>
               ))}
             </div>
 
-            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-              <p style={{ fontSize: 12, fontWeight: 700, margin: '0 0 6px' }}>2. Luego (opcional)</p>
-              <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '0 0 10px' }}>
-                Encadena hasta 3 pasos tras el éxito. En el cuerpo puedes usar{' '}
-                <code style={{ fontSize: 11 }}>{'{{prev.output}}'}</code> para el resultado anterior.
-              </p>
-
-              {thenSteps.length > 0 && (
-                <div className="flex flex-col gap-1.5 mb-2">
-                  {thenSteps.map((s, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl"
-                      style={{ border: '1px solid var(--border)' }}
-                    >
-                      <span className="text-sm font-bold">
-                        {ACTION_LABELS[s.type].emoji} Luego: {ACTION_LABELS[s.type].label}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removeThenStep(i)}
-                        className="p-1 rounded-lg"
-                        style={{ border: '1px solid var(--border)', cursor: 'pointer', color: '#ef4444' }}
-                        title="Quitar paso"
-                      >
-                        <Trash2 size={13} />
-                      </button>
+            {recipe === 'single' && (
+              <div className="flex flex-col gap-2 pt-1">
+                <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>Acción</p>
+                {(Object.keys(ACTION_LABELS) as ActionType[]).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => {
+                      setActionType(t);
+                      setThenSteps([]);
+                    }}
+                    className="flex items-center gap-3 p-3 rounded-xl text-left"
+                    style={{
+                      border: `1px solid ${actionType === t ? 'var(--brand-primary, #0d9488)' : 'var(--border)'}`,
+                      background: actionType === t ? 'rgba(13,148,136,0.06)' : 'transparent',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span style={{ fontSize: 20 }}>{ACTION_LABELS[t].emoji}</span>
+                    <div>
+                      <p className="font-bold m-0 text-sm">{ACTION_LABELS[t].label}</p>
+                      <p style={{ color: 'var(--muted-foreground)', fontSize: 12, margin: 0 }}>{ACTION_LABELS[t].desc}</p>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </button>
+                ))}
+              </div>
+            )}
 
-              {thenSteps.length < 3 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {THEN_ACTION_TYPES.map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => addThenStep(t)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold"
-                      style={{ border: '1px dashed var(--border)', cursor: 'pointer', background: 'transparent' }}
-                    >
-                      <Plus size={12} /> {ACTION_LABELS[t].emoji} {ACTION_LABELS[t].label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {isGuidedRecipe && (
+              <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0 }}>
+                En el siguiente paso eliges horario. Luego configuras: URL del webhook → a quién llega el correo
+                (el body incluye la respuesta con <code>{'{{prev.output}}'}</code>)
+                {recipe === 'webhook_email_chat' ? ' → qué pregunta al chat.' : '.'}
+              </p>
+            )}
           </div>
         )}
 
@@ -728,34 +837,76 @@ function TaskWizard({
           <div className="flex flex-col gap-3">
             <FlowPreview primary={actionType} thenTypes={thenSteps.map((s) => s.type)} />
 
-            <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>
-              {ACTION_LABELS[actionType].emoji} {ACTION_LABELS[actionType].label}
-            </p>
-            <ActionConfigFields actionType={actionType} config={config} setCfg={setCfg} />
+            {isGuidedRecipe ? (
+              <>
+                <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>1. Webhook (de dónde salen los datos)</p>
+                <ActionConfigFields actionType="webhook" config={config} setCfg={setCfg} />
 
-            {thenSteps.map((s, i) => (
-              <div
-                key={i}
-                className="flex flex-col gap-2 pt-3"
-                style={{ borderTop: '1px solid var(--border)' }}
-              >
+                <div className="flex flex-col gap-2 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>2. Email personalizado</p>
+                  <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0 }}>
+                    Indica a quién se envía. En el cuerpo, <code>{'{{prev.output}}'}</code> se reemplaza por lo que
+                    devolvió el webhook.
+                  </p>
+                  <ActionConfigFields
+                    actionType="email"
+                    config={thenSteps[0]?.config ?? {}}
+                    setCfg={(k, v) => setThenCfg(0, k, v)}
+                    isThenStep
+                  />
+                </div>
+
+                {recipe === 'webhook_email_chat' && (
+                  <div className="flex flex-col gap-2 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                    <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>3. Pregunta al chat (widget)</p>
+                    <ActionConfigFields
+                      actionType="chat_message"
+                      config={thenSteps[1]?.config ?? {}}
+                      setCfg={(k, v) => setThenCfg(1, k, v)}
+                      isThenStep
+                    />
+                    <Field label="Widget ID (dónde aparece la pregunta)">
+                      <input
+                        className="landing-input"
+                        value={widgetId}
+                        onChange={(e) => setWidgetId(e.target.value)}
+                        placeholder="ID del widget destino"
+                      />
+                    </Field>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
                 <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>
-                  Luego {i + 1}: {ACTION_LABELS[s.type].emoji} {ACTION_LABELS[s.type].label}
+                  {ACTION_LABELS[actionType].emoji} {ACTION_LABELS[actionType].label}
                 </p>
-                <ActionConfigFields
-                  actionType={s.type}
-                  config={s.config}
-                  setCfg={(k, v) => setThenCfg(i, k, v)}
-                  isThenStep
-                />
-              </div>
-            ))}
-
-            {needsWidget && (
-              <Field label="Widget ID (dónde aparece el mensaje)">
-                <input className="landing-input" value={widgetId} onChange={(e) => setWidgetId(e.target.value)} placeholder="ID del widget destino" />
-              </Field>
+                <ActionConfigFields actionType={actionType} config={config} setCfg={setCfg} />
+                {thenSteps.map((s, i) => (
+                  <div
+                    key={i}
+                    className="flex flex-col gap-2 pt-3"
+                    style={{ borderTop: '1px solid var(--border)' }}
+                  >
+                    <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>
+                      Luego {i + 1}: {ACTION_LABELS[s.type].emoji} {ACTION_LABELS[s.type].label}
+                    </p>
+                    <ActionConfigFields
+                      actionType={s.type}
+                      config={s.config}
+                      setCfg={(k, v) => setThenCfg(i, k, v)}
+                      isThenStep
+                    />
+                  </div>
+                ))}
+                {needsWidget && (
+                  <Field label="Widget ID (dónde aparece el mensaje)">
+                    <input className="landing-input" value={widgetId} onChange={(e) => setWidgetId(e.target.value)} placeholder="ID del widget destino" />
+                  </Field>
+                )}
+              </>
             )}
+
             <div className="flex gap-2">
               <Field label="Reintentos máx.">
                 <input className="landing-input" type="number" min={0} max={10} value={maxRetries} onChange={(e) => setMaxRetries(Number(e.target.value))} />
