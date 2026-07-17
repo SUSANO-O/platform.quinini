@@ -5,6 +5,8 @@ import { LandingFooter } from '@/components/landing/landing-footer';
 import { LandingSectionNav } from '@/components/landing/landing-section-nav';
 import { LandingIcon } from '@/components/landing/landing-icon';
 import Link from 'next/link';
+import Image from 'next/image';
+import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 import { FaqDetails } from '@/components/ui/faq-details';
 import { HowStepMock } from '@/components/landing/how-step-mock';
 import type { LandingIconName } from '@/lib/landing-icons';
@@ -106,11 +108,33 @@ export default async function LandingPage() {
       <LandingNavbar />
       <LandingSectionNav />
 
-      {/* ── HERO ─────────────────────────────────────────────────────────────── */}
+      {/* ── HERO BotIvA ──────────────────────────────────────────────────────── */}
       <section className="relative pt-24 pb-14 overflow-hidden">
         <div className="relative max-w-5xl mx-auto px-5 text-center">
+          <div className="flex flex-col items-center mb-6">
+            <Image
+              src={BRAND_LOGO_SRC}
+              alt={BRAND_NAME}
+              width={160}
+              height={48}
+              className="h-12 w-auto object-contain rounded-xl mb-3"
+              priority
+            />
+            <p
+              className="landing-display"
+              style={{
+                fontSize: 'clamp(2.5rem, 7vw, 4rem)',
+                lineHeight: 1,
+                letterSpacing: '-0.04em',
+                color: R,
+                margin: 0,
+              }}
+            >
+              {BRAND_NAME}
+            </p>
+          </div>
+
           <div className="landing-eyebrow mb-5 mx-auto w-fit">
-            <LandingIcon name="sparkles" size="sm" />
             {t('badge')}
           </div>
 
@@ -139,6 +163,27 @@ export default async function LandingPage() {
             >
               {t('hero.ctaAccount')}
             </Link>
+          </div>
+
+          <div
+            className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto text-left"
+            aria-label="Capacidades BotIvA"
+          >
+            {[
+              { k: t('productStrip.agents'), d: t('productStrip.agentsDesc') },
+              { k: t('productStrip.widget'), d: t('productStrip.widgetDesc') },
+              { k: t('productStrip.panel'), d: t('productStrip.panelDesc') },
+              { k: t('productStrip.api'), d: t('productStrip.apiDesc') },
+            ].map((item) => (
+              <div
+                key={item.k}
+                className="px-3 py-3 rounded-xl"
+                style={{ background: 'rgba(var(--brand-primary-rgb),0.06)', border: `1px solid ${R}22` }}
+              >
+                <p className="landing-card-title mb-1" style={{ color: R }}>{item.k}</p>
+                <p className="landing-body-sm landing-muted m-0">{item.d}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>

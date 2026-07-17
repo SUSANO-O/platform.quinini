@@ -168,6 +168,23 @@ export async function GET(req: NextRequest, { params }: Params) {
           .map((x) => x.trim())
           .slice(0, 20);
       }
+      if (Array.isArray(hub.skillsConfig)) {
+        $set.skillsConfig = hub.skillsConfig
+          .filter(
+            (x): x is {
+              id: string;
+              name?: string;
+              enabled?: boolean;
+              priority?: number;
+              config?: unknown;
+            } =>
+              Boolean(x) &&
+              typeof x === 'object' &&
+              typeof (x as { id?: unknown }).id === 'string' &&
+              (x as { id: string }).id.trim().length > 0,
+          )
+          .slice(0, 50);
+      }
       const hex = /^[a-f0-9]{24}$/i;
       const parent = hub.landingParentClientAgentId;
       if (parent === null || hub.catalogAgentType === 'agent') {
