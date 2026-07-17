@@ -10,6 +10,8 @@ export type SkillCatalogDocInput = {
   color: string;
   icon: string;
   kind: 'capability' | 'profile';
+  category?: string;
+  tags?: string[];
   defaultPriority: number;
   config: {
     prompt_extension: string;
@@ -20,6 +22,15 @@ export type SkillCatalogDocInput = {
   sortOrder?: number;
 };
 
+function normalizeTags(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return [...new Set(
+    raw
+      .map((t) => (typeof t === 'string' ? t.trim().toLowerCase().slice(0, 40) : ''))
+      .filter(Boolean),
+  )].slice(0, 20);
+}
+
 function docToEntry(doc: {
   skillId: string;
   label?: string;
@@ -27,6 +38,8 @@ function docToEntry(doc: {
   color?: string;
   icon?: string;
   kind?: string;
+  category?: string;
+  tags?: string[];
   defaultPriority?: number;
   config?: {
     prompt_extension?: string;
@@ -42,6 +55,8 @@ function docToEntry(doc: {
     color: String(doc.color || '#94a3b8'),
     icon: String(doc.icon || '✨'),
     kind: doc.kind === 'profile' ? 'profile' : 'capability',
+    category: String(doc.category || 'general').trim() || 'general',
+    tags: normalizeTags(doc.tags),
     defaultPriority: typeof doc.defaultPriority === 'number' ? doc.defaultPriority : 60,
     catalogEnabled: doc.catalogEnabled !== false,
     config: {
@@ -56,18 +71,16 @@ function docToEntry(doc: {
   };
 }
 
-export async function ensureSkillCatalogSeeded(): Promise<void> {
-  await connectDB();
-  const n = await SkillCatalog.countDocuments();
-  if (n > 0) return;
-
-  const docs = DEFAULT_AGENT_SKILLS_CATALOG.map((s, i) => ({
+function seedDocFromDefault(s: AgentSkillCatalogEntry, i: number, updatedBy?: string) {
+  return {
     skillId: s.id,
     label: s.label,
     description: s.description,
     color: s.color,
     icon: s.icon,
     kind: s.kind,
+    category: s.category || 'general',
+    tags: normalizeTags(s.tags),
     defaultPriority: s.defaultPriority,
     config: {
       prompt_extension: s.config.prompt_extension,
@@ -76,20 +89,75 @@ export async function ensureSkillCatalogSeeded(): Promise<void> {
     },
     catalogEnabled: true,
     sortOrder: i,
-  }));
-  await SkillCatalog.insertMany(docs);
+    ...(updatedBy ? { updatedBy } : {}),
+  };
+}
+
+/** Inserta skills de la semilla que aún no existen (no borra custom). */
+export async function syncMissingSkillsFromDefaults(updatedBy?: string): Promise<number> {
+  await connectDB();
+  const existing = await SkillCatalog.find({}, { skillId: 1 }).lean();
+  const have = new Set(existing.map((d) => String((d as { skillId?: string }).skillId || '')));
+  const missing = DEFAULT_AGENT_SKILLS_CATALOG
+    .map((s, i) => ({ s, i }))
+    .filter(({ s }) => !have.has(s.id));
+  if (missing.length === 0) return 0;
+  await SkillCatalog.insertMany(
+    missing.map(({ s, i }) => seedDocFromDefault(s, i, updatedBy)),
+  );
+  return missing.length;
+}
+
+/** Rellena category/tags en docs existentes de la semilla sin tocar prompt/tools. */
+async function syncCatalogMetaFromDefaults(): Promise<void> {
+  await connectDB();
+  for (const s of DEFAULT_AGENT_SKILLS_CATALOG) {
+    await SkillCatalog.updateOne(
+      {
+        skillId: s.id,
+        $or: [
+          { category: { $exists: false } },
+          { category: null },
+          { category: '' },
+          { tags: { $exists: false } },
+          { tags: { $size: 0 } },
+        ],
+      },
+      {
+        $set: {
+          category: s.category || 'general',
+          tags: normalizeTags(s.tags),
+        },
+      },
+    );
+  }
+}
+
+export async function ensureSkillCatalogSeeded(): Promise<void> {
+  await connectDB();
+  const n = await SkillCatalog.countDocuments();
+  if (n === 0) {
+    await SkillCatalog.insertMany(
+      DEFAULT_AGENT_SKILLS_CATALOG.map((s, i) => seedDocFromDefault(s, i)),
+    );
+    return;
+  }
+  await syncMissingSkillsFromDefaults();
+  await syncCatalogMetaFromDefaults();
 }
 
 export async function listSkillCatalog(opts?: {
   includeDisabled?: boolean;
   kind?: 'capability' | 'profile';
+  category?: string;
 }): Promise<AgentSkillCatalogEntry[]> {
   await ensureSkillCatalogSeeded();
   const filter: Record<string, unknown> = {};
   if (!opts?.includeDisabled) filter.catalogEnabled = { $ne: false };
   if (opts?.kind) filter.kind = opts.kind;
+  if (opts?.category?.trim()) filter.category = opts.category.trim();
 
-  const docs = await SkillCatalog.find(filter).sort({ kind: 1, sortOrder: 1, defaultPriority: 1 }).lean();
+  const docs = await SkillCatalog.find(filter).sort({ kind: 1, category: 1, sortOrder: 1, defaultPriority: 1 }).lean();
   return docs.map((d) => docToEntry(d as Parameters<typeof docToEntry>[0]));
 }
 
@@ -122,6 +190,8 @@ function sanitizeInput(input: SkillCatalogDocInput): SkillCatalogDocInput {
     color: input.color.trim().slice(0, 32) || '#94a3b8',
     icon: input.icon.trim().slice(0, 8) || '✨',
     kind: input.kind === 'profile' ? 'profile' : 'capability',
+    category: (input.category || 'general').trim().toLowerCase().slice(0, 40) || 'general',
+    tags: normalizeTags(input.tags),
     defaultPriority: Math.max(0, Math.min(1000, Math.floor(input.defaultPriority ?? 60))),
     catalogEnabled: input.catalogEnabled !== false,
     sortOrder: typeof input.sortOrder === 'number' ? input.sortOrder : 0,
@@ -155,6 +225,8 @@ export async function createSkillCatalogEntry(
     color: data.color,
     icon: data.icon,
     kind: data.kind,
+    category: data.category || 'general',
+    tags: data.tags || [],
     defaultPriority: data.defaultPriority,
     config: data.config,
     catalogEnabled: data.catalogEnabled !== false,
@@ -179,6 +251,10 @@ export async function updateSkillCatalogEntry(
   if (patch.color !== undefined) existing.color = patch.color.trim().slice(0, 32);
   if (patch.icon !== undefined) existing.icon = patch.icon.trim().slice(0, 8);
   if (patch.kind !== undefined) existing.kind = patch.kind === 'profile' ? 'profile' : 'capability';
+  if (patch.category !== undefined) {
+    existing.category = patch.category.trim().toLowerCase().slice(0, 40) || 'general';
+  }
+  if (patch.tags !== undefined) existing.tags = normalizeTags(patch.tags);
   if (patch.defaultPriority !== undefined) {
     existing.defaultPriority = Math.max(0, Math.min(1000, Math.floor(patch.defaultPriority)));
   }
@@ -212,23 +288,7 @@ export async function deleteSkillCatalogEntry(skillId: string): Promise<boolean>
 export async function reseedSkillCatalogFromDefaults(updatedBy?: string): Promise<number> {
   await connectDB();
   await SkillCatalog.deleteMany({});
-  const docs = DEFAULT_AGENT_SKILLS_CATALOG.map((s, i) => ({
-    skillId: s.id,
-    label: s.label,
-    description: s.description,
-    color: s.color,
-    icon: s.icon,
-    kind: s.kind,
-    defaultPriority: s.defaultPriority,
-    config: {
-      prompt_extension: s.config.prompt_extension,
-      active_tools: [...s.config.active_tools],
-      ...(s.config.llm_settings ? { llm_settings: { ...s.config.llm_settings } } : {}),
-    },
-    catalogEnabled: true,
-    sortOrder: i,
-    updatedBy: updatedBy || null,
-  }));
+  const docs = DEFAULT_AGENT_SKILLS_CATALOG.map((s, i) => seedDocFromDefault(s, i, updatedBy));
   const inserted = await SkillCatalog.insertMany(docs);
   return inserted.length;
 }

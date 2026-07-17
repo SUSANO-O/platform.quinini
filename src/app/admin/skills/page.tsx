@@ -25,6 +25,8 @@ type SkillForm = {
   color: string;
   icon: string;
   kind: 'capability' | 'profile';
+  category: string;
+  tags: string;
   defaultPriority: number;
   catalogEnabled: boolean;
   prompt_extension: string;
@@ -39,6 +41,8 @@ const EMPTY_FORM: SkillForm = {
   color: '#6366f1',
   icon: '✨',
   kind: 'capability',
+  category: 'general',
+  tags: '',
   defaultPriority: 60,
   catalogEnabled: true,
   prompt_extension: '',
@@ -54,6 +58,8 @@ function formFromSkill(s: SkillRow): SkillForm {
     color: s.color,
     icon: s.icon,
     kind: s.kind,
+    category: s.category || 'general',
+    tags: Array.isArray(s.tags) ? s.tags.join(', ') : '',
     defaultPriority: s.defaultPriority,
     catalogEnabled: s.catalogEnabled !== false,
     prompt_extension: s.config.prompt_extension,
@@ -68,6 +74,10 @@ function formFromSkill(s: SkillRow): SkillForm {
 function payloadFromForm(form: SkillForm, isEdit: boolean) {
   const tools = form.active_tools
     .split(/[\n,]/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+  const tags = form.tags
+    .split(/[,\n]/)
     .map((t) => t.trim())
     .filter(Boolean);
   const temp = form.temperature.trim() ? Number(form.temperature) : undefined;
@@ -89,6 +99,8 @@ function payloadFromForm(form: SkillForm, isEdit: boolean) {
     color: form.color.trim(),
     icon: form.icon.trim(),
     kind: form.kind,
+    category: form.category.trim() || 'general',
+    tags,
     defaultPriority: form.defaultPriority,
     catalogEnabled: form.catalogEnabled,
     config,
@@ -242,7 +254,7 @@ export default function AdminSkillsPage() {
       <ConfirmDialog
         open={reseedOpen}
         title="Restaurar catálogo por defecto"
-        description="Se borrarán todas las skills personalizadas y se cargarán las 17 skills de la semilla. Los agentes que ya tenían skills guardadas conservan su config hasta que las editen."
+        description="Se borrarán todas las skills personalizadas y se cargarán las skills de la semilla (perfiles + capacidades con categorías/tags y tools MCP). Los agentes que ya tenían skills guardadas conservan su config hasta que las editen."
         confirmLabel="Restaurar"
         variant="danger"
         loading={reseeding}
@@ -346,15 +358,28 @@ export default function AdminSkillsPage() {
                       }}>
                         {skill.kind === 'profile' ? 'Perfil' : 'Capacidad'}
                       </span>
+                      {skill.category ? (
+                        <span style={{
+                          fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                          background: 'rgba(100,116,139,0.12)', color: '#64748b',
+                        }}>
+                          {skill.category}
+                        </span>
+                      ) : null}
                       {hidden ? (
                         <span style={{ fontSize: 10, color: 'var(--muted-foreground)' }}>Oculta</span>
                       ) : null}
                     </div>
                     <p style={{ margin: '0 0 4px', fontSize: 11, color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{skill.id}</p>
                     <p style={{ margin: 0, fontSize: 12, color: 'var(--muted-foreground)', lineHeight: 1.45 }}>{skill.description}</p>
+                    {Array.isArray(skill.tags) && skill.tags.length > 0 ? (
+                      <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--muted-foreground)' }}>
+                        tags: {skill.tags.join(', ')}
+                      </p>
+                    ) : null}
                     <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--muted-foreground)' }}>
                       Prioridad {skill.defaultPriority}
-                      {skill.config.active_tools.length > 0 ? ` · ${skill.config.active_tools.length} tool(s)` : ''}
+                      {skill.config.active_tools.length > 0 ? ` · ${skill.config.active_tools.length} MCP tool(s)` : ' · sin MCP'}
                       {typeof skill.config.llm_settings?.temperature === 'number'
                         ? ` · temp ${skill.config.llm_settings.temperature}`
                         : ''}
@@ -434,6 +459,16 @@ export default function AdminSkillsPage() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <label style={lbl}>
+                  Categoría
+                  <input className="landing-input" style={inp} value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} placeholder="ventas, soporte…" />
+                </label>
+                <label style={lbl}>
+                  Tags (coma)
+                  <input className="landing-input" style={inp} value={form.tags} onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))} placeholder="crm, rag, bant" />
+                </label>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <label style={lbl}>
                   Prioridad
                   <input className="landing-input" style={inp} type="number" min={0} max={1000} value={form.defaultPriority} onChange={(e) => setForm((f) => ({ ...f, defaultPriority: Number(e.target.value) || 60 }))} />
                 </label>
@@ -452,7 +487,7 @@ export default function AdminSkillsPage() {
                 />
               </label>
               <label style={lbl}>
-                Tools MCP (una por línea)
+                Tools MCP a activar (una por línea) — se unen al set del agente
                 <textarea
                   className="landing-input"
                   style={{ ...inp, minHeight: 72, resize: 'vertical', fontFamily: 'monospace', fontSize: 11 }}

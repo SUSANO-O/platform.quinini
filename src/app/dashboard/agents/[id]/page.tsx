@@ -29,6 +29,7 @@ import {
   isSkillEnabled,
   normalizeAgentSkillsState,
   skillsConfigForSave,
+  SKILL_CATEGORY_LABELS,
   type AgentSkillCatalogEntry,
   type SkillConfigRow,
 } from '@/lib/agent-skills-catalog';
@@ -1271,6 +1272,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     (skillId: string) => skillsConfig.find((s) => s?.id === skillId),
     [skillsConfig],
   );
+  const [skillCategoryFilter, setSkillCategoryFilter] = useState<string>('all');
+
   const profileSkills = useMemo(
     () => skillCatalog.filter((s) => s.kind === 'profile'),
     [skillCatalog],
@@ -1279,6 +1282,32 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     () => skillCatalog.filter((s) => s.kind === 'capability'),
     [skillCatalog],
   );
+  const skillCategoryOptions = useMemo(() => {
+    const cats = new Set<string>();
+    for (const s of skillCatalog) {
+      const c = (s.category || 'general').trim() || 'general';
+      cats.add(c);
+    }
+    return ['all', ...[...cats].sort()];
+  }, [skillCatalog]);
+  const filteredProfiles = useMemo(() => {
+    if (skillCategoryFilter === 'all') return profileSkills;
+    return profileSkills.filter((s) => (s.category || 'general') === skillCategoryFilter);
+  }, [profileSkills, skillCategoryFilter]);
+  const capabilitiesByCategory = useMemo(() => {
+    const map = new Map<string, AgentSkillCatalogEntry[]>();
+    for (const s of capabilitySkills) {
+      if (skillCategoryFilter !== 'all' && (s.category || 'general') !== skillCategoryFilter) continue;
+      const c = (s.category || 'general').trim() || 'general';
+      const list = map.get(c) ?? [];
+      list.push(s);
+      map.set(c, list);
+    }
+    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [capabilitySkills, skillCategoryFilter]);
+  const categoryLabel = useCallback((cat: string) => {
+    return SKILL_CATEGORY_LABELS[cat as keyof typeof SKILL_CATEGORY_LABELS] ?? cat;
+  }, []);
   const toggleSkill = useCallback((skillId: string, enabled: boolean, defaultPriority: number) => {
     setSkillsConfig((prev) => {
       const idx = prev.findIndex((s) => s?.id === skillId);
@@ -1807,52 +1836,88 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           <AgentEditorSection bar="cool">
             <p className={SECTION_TITLE}>Skills</p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
-              Catálogo único: perfiles y capacidades modifican prompt, tools sugeridas y ajustes del modelo en el chat. Al guardar se persiste la configuración completa en el hub.
+              Capas que se suman: system prompt + skills + RAG + MCP. Las skills activan tools; el motor las une.
             </p>
-            <div style={{ marginBottom: '14px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14, alignItems: 'center' }}>
               <span style={{
                 fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
                 background: 'rgba(var(--brand-primary-rgb),0.12)', color: B,
               }}>
                 {enabledSkillsCount} activa{enabledSkillsCount !== 1 ? 's' : ''}
               </span>
+              <span style={{ fontSize: 10, color: 'var(--muted-foreground)' }}>
+                {skillCatalog.length} en catálogo
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+              {skillCategoryOptions.map((cat) => {
+                const active = skillCategoryFilter === cat;
+                const label = cat === 'all' ? 'Todas' : categoryLabel(cat);
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setSkillCategoryFilter(cat)}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 999,
+                      border: `1px solid ${active ? `${B}66` : 'var(--border)'}`,
+                      background: active ? `rgba(var(--brand-primary-rgb),0.12)` : 'transparent',
+                      color: active ? B : 'var(--muted-foreground)',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
 
             <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--muted-foreground)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Perfiles de comportamiento
             </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
               {skillCatalogLoading ? (
                 <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: '0 0 8px' }}>Cargando catálogo…</p>
               ) : null}
-              {profileSkills.map((skill) => {
+              {!skillCatalogLoading && filteredProfiles.length === 0 ? (
+                <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0 }}>No hay perfiles en esta categoría.</p>
+              ) : null}
+              {filteredProfiles.map((skill) => {
                 const enabled = isSkillEnabled(skillsConfig, skill.id);
                 const row = getSkillRow(skill.id);
                 const priority = row?.priority ?? skill.defaultPriority;
+                const mcpCount = skill.config?.active_tools?.length ?? 0;
                 return (
                   <div key={skill.id} style={{
                     border: `1px solid ${enabled ? `${skill.color}44` : 'var(--border)'}`,
                     borderRadius: '12px',
-                    padding: '12px',
+                    padding: '12px 14px',
                     background: enabled ? `${skill.color}10` : 'transparent',
                     transition: 'all .15s',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                      <div>
-                        <p style={{ margin: 0, fontSize: '12px', fontWeight: 700, color: enabled ? skill.color : 'var(--foreground)' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: enabled ? skill.color : 'var(--foreground)' }}>
                           <span style={{ marginRight: 6 }}>{skill.icon}</span>{skill.label}
                         </p>
-                        <p style={{ margin: 0, fontSize: '10px', color: 'var(--muted-foreground)' }}>{skill.id}</p>
+                        <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: 1.4 }}>
+                          {categoryLabel(skill.category || 'general')}
+                          {mcpCount > 0 ? ` · ${mcpCount} MCP` : ' · sin MCP'}
+                        </p>
                       </div>
                       <button
                         type="button"
                         disabled={readOnly}
                         onClick={() => !readOnly && toggleSkill(skill.id, !enabled, skill.defaultPriority)}
                         style={{
-                          padding: '5px 10px', borderRadius: '999px', border: '1px solid var(--border)',
+                          padding: '5px 12px', borderRadius: '999px', border: '1px solid var(--border)',
                           background: enabled ? skill.color : 'transparent',
                           color: enabled ? '#fff' : 'var(--muted-foreground)', cursor: readOnly ? 'default' : 'pointer',
-                          fontSize: '11px', fontWeight: 700,
+                          fontSize: '11px', fontWeight: 700, flexShrink: 0,
                         }}
                       >
                         {enabled ? 'Activo' : 'Inactivo'}
@@ -1864,6 +1929,9 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       </summary>
                       <p style={{ margin: '8px 0 6px', fontSize: 11, color: 'var(--muted-foreground)', lineHeight: 1.45 }}>
                         {skill.description}
+                      </p>
+                      <p style={{ margin: '0 0 8px', fontSize: 10, color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>
+                        {skill.id}
                       </p>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <label style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>Prioridad</label>
@@ -1884,37 +1952,75 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               })}
             </div>
 
-            <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--muted-foreground)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--muted-foreground)', margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Capacidades
             </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {capabilitySkills.map((skill) => {
-                const active = isSkillEnabled(skillsConfig, skill.id);
-                return (
-                  <button
-                    key={skill.id}
-                    type="button"
-                    title={skill.description}
-                    disabled={readOnly}
-                    onClick={() => !readOnly && toggleSkill(skill.id, !active, skill.defaultPriority)}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: '20px',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      border: `1px solid ${active ? `${skill.color}66` : 'var(--border)'}`,
-                      background: active ? `${skill.color}18` : 'transparent',
-                      color: active ? skill.color : 'var(--muted-foreground)',
-                      cursor: readOnly ? 'default' : 'pointer',
-                      transition: 'all 0.15s',
-                      opacity: readOnly ? 0.7 : 1,
-                    }}
-                  >
-                    <span style={{ marginRight: 4 }}>{skill.icon}</span>
-                    {active ? '✓ ' : ''}{skill.label}
-                  </button>
-                );
-              })}
+            {capabilitiesByCategory.length === 0 && !skillCatalogLoading ? (
+              <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0 }}>No hay capacidades en esta categoría.</p>
+            ) : null}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {capabilitiesByCategory.map(([cat, skills]) => (
+                <div key={cat}>
+                  <p style={{
+                    margin: '0 0 8px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: 'var(--muted-foreground)',
+                  }}>
+                    {categoryLabel(cat)}
+                  </p>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                    gap: 8,
+                  }}>
+                    {skills.map((skill) => {
+                      const active = isSkillEnabled(skillsConfig, skill.id);
+                      const mcpCount = skill.config?.active_tools?.length ?? 0;
+                      return (
+                        <button
+                          key={skill.id}
+                          type="button"
+                          title={skill.description}
+                          disabled={readOnly}
+                          onClick={() => !readOnly && toggleSkill(skill.id, !active, skill.defaultPriority)}
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'flex-start',
+                            gap: 4,
+                            textAlign: 'left',
+                            padding: '10px 12px',
+                            borderRadius: 12,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            border: `1px solid ${active ? `${skill.color}66` : 'var(--border)'}`,
+                            background: active ? `${skill.color}14` : 'var(--background)',
+                            color: active ? skill.color : 'var(--foreground)',
+                            cursor: readOnly ? 'default' : 'pointer',
+                            transition: 'all 0.15s',
+                            opacity: readOnly ? 0.7 : 1,
+                            minHeight: 72,
+                          }}
+                        >
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span>{skill.icon}</span>
+                            <span>{active ? '✓ ' : ''}{skill.label}</span>
+                          </span>
+                          <span style={{
+                            fontSize: 10,
+                            fontWeight: 600,
+                            color: 'var(--muted-foreground)',
+                            lineHeight: 1.35,
+                          }}>
+                            {mcpCount > 0 ? `${mcpCount} tools MCP` : 'Solo prompt'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           </AgentEditorSection>
           </>
