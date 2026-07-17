@@ -461,10 +461,39 @@ export async function POST(req: NextRequest) {
           const ca = await ClientAgent.findOne({
             $and: [{ $or: agentOr }, { $or: [{ userId: w.userId }, { isPlatform: true }] }],
           })
-            .select({ hubspotAutoCaptureContacts: 1 })
-            .lean() as { hubspotAutoCaptureContacts?: boolean } | null;
-          const j = JSON.parse(bodyToForward) as Record<string, unknown>;
+            .select({ hubspotAutoCaptureContacts: 1, agentHubId: 1, isPlatform: 1 })
+            .lean() as {
+            hubspotAutoCaptureContacts?: boolean;
+            agentHubId?: string;
+            isPlatform?: boolean;
+          } | null;
+          let j = JSON.parse(bodyToForward) as Record<string, unknown>;
           j.hubspotAutoCaptureContacts = ca?.hubspotAutoCaptureContacts === true;
+
+          // Assist dashboard (Math-ais): inyectar email/nombre del usuario logueado → HubSpot.
+          try {
+            const {
+              identityFromSessionCookie,
+              injectVisitorIdentityIntoChatBody,
+              isInternalAppAssistWidget,
+            } = await import('@/lib/assist-session-identity');
+            const isAssist = await isInternalAppAssistWidget({
+              widgetId: resolvedWidgetId || w.id,
+              agentId: parsedAgentId,
+            });
+            if (isAssist) {
+              const identity = await identityFromSessionCookie(
+                req.cookies.get('afhub_session')?.value,
+              );
+              if (identity) {
+                j = injectVisitorIdentityIntoChatBody(j, identity);
+                j.hubspotAutoCaptureContacts = true;
+              }
+            }
+          } catch (idErr) {
+            console.warn('[widget/chat] assist identity inject skipped:', idErr);
+          }
+
           bodyToForward = JSON.stringify(j);
           rawBody = bodyToForward;
         } catch (mergeErr) {
