@@ -52,7 +52,7 @@ type FlowRecipeId =
   | 'single';
 
 const DEFAULT_EMAIL_BODY =
-  'Hola,\n\nAquí va el resultado personalizado:\n\n{{prev.output}}\n\n— BotIvA';
+  'Hola,\n\nAquí va tu resumen personalizado:\n\n{{prev.output}}\n\n— BotIvA';
 
 const DEFAULT_CHAT_FOLLOWUP =
   'Acabo de enviarte el resultado por correo. ¿Quieres que te lo resuma o te ayude con el siguiente paso?';
