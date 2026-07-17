@@ -12,7 +12,7 @@ import {
   BarChart2, Users, UserCheck, Bot, X, Loader2,
 } from 'lucide-react';
 
-import { BRAND, METRIC, STATE, R, O, B } from '@/lib/brand-colors';
+import { BRAND, STATE, R } from '@/lib/brand-colors';
 import { countOwnedMainAgents } from '@/lib/agent-plans';
 import { resolveRange, type DateRange } from '@/lib/date-range';
 import { DateRangePicker } from '@/components/dashboard/date-range-picker';
@@ -201,8 +201,8 @@ export default function DashboardPage() {
 
   return (
     <div className="relative overflow-hidden" style={{ minHeight: '100%' }}>
-      <div className="hero-glow pointer-events-none" style={{ background: R, top: '-200px', right: '-80px' }} />
-      <div className="hero-glow pointer-events-none" style={{ background: B, top: '120px', left: '-100px' }} />
+      <div className="hero-glow pointer-events-none" style={{ background: R, top: '-200px', right: '-80px', opacity: 0.1 }} />
+      <div className="hero-glow pointer-events-none" style={{ background: BRAND.primaryLight, top: '120px', left: '-100px', opacity: 0.08 }} />
 
       <div className="relative px-4 py-4 max-w-5xl mx-auto">
 
@@ -250,7 +250,7 @@ export default function DashboardPage() {
               </div>
             ) : isTrialActive ? (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
-                style={{ background: `${O}12`, color: O, border: `1px solid ${O}30` }}>
+                style={{ background: `${R}12`, color: R, border: `1px solid ${R}30` }}>
                 <Clock size={12} />Trial — {trialDaysRemaining} días restantes
               </div>
             ) : (
@@ -266,19 +266,19 @@ export default function DashboardPage() {
         {/* ── METRICS ROW ──────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
           <MetricCard
-            accent={`linear-gradient(90deg,${R},${O})`}
+            accent={R}
             icon={<MessageSquare size={13} style={{ color: R }} />}
             label="Conversaciones"
             value={usage ? usage.used.toLocaleString('es') : '—'}
             sub={usage ? (usage.limit === -1 ? 'ilimitadas' : `/ ${usage.limit.toLocaleString('es')} este mes`) : '—'}
             bar={usage && usage.limit !== -1 ? {
               pct: Math.min(usage.percentUsed, 100),
-              color: usage.percentUsed >= 80 ? `linear-gradient(90deg,${STATE.warning},${STATE.error})` : `linear-gradient(90deg,${R},${O})`,
+              color: usage.percentUsed >= 80 ? STATE.error : R,
             } : undefined}
           />
           <MetricCard
-            accent={`linear-gradient(90deg,${O},${B})`}
-            icon={<Clock size={13} style={{ color: O }} />}
+            accent={R}
+            icon={<Clock size={13} style={{ color: R }} />}
             label={dateRange.preset === 'today' ? 'Mensajes hoy' : 'Mensajes en rango'}
             value={conversationsToday === null ? '—' : conversationsToday.toLocaleString('es')}
             sub={
@@ -294,15 +294,15 @@ export default function DashboardPage() {
             }
           />
           <MetricCard
-            accent={`linear-gradient(90deg,${B},${B}88)`}
-            icon={<Bot size={13} style={{ color: B }} />}
+            accent={R}
+            icon={<Bot size={13} style={{ color: R }} />}
             label="Agentes"
             value={agentCount === null ? '—' : String(agentCount)}
             sub={agentCount === null ? '—' : agentCount === 0 ? 'crea tu primer agente' : agentCount === 1 ? 'agente activo' : 'agentes creados'}
           />
           <MetricCard
-            accent={`linear-gradient(90deg,${B},${B}88)`}
-            icon={<BarChart2 size={13} style={{ color: METRIC.neutral }} />}
+            accent={R}
+            icon={<BarChart2 size={13} style={{ color: R }} />}
             label="Widgets"
             value={widgetCount === null ? '—' : String(widgetCount)}
             sub={widgetCount === null ? '—' : widgetCount === 0 ? 'crea tu primer widget' : widgetCount === 1 ? 'widget desplegado' : 'widgets desplegados'}
@@ -317,30 +317,26 @@ export default function DashboardPage() {
 
             {/* Usage analytics — siempre visible, skeleton cuando no hay datos */}
             <div
-              className="rounded-2xl border card-texture overflow-hidden"
-              style={{ borderColor: usage && usage.percentUsed >= 80 ? 'rgba(239,68,68,0.35)' : 'var(--border)' }}
+              className="rounded-2xl overflow-hidden"
+              style={{
+                background: 'var(--card)',
+                boxShadow: 'var(--shadow-surface)',
+                border: usage && usage.percentUsed >= 80 ? `1px solid ${STATE.errorBorder}` : '1px solid rgba(var(--brand-primary-rgb),0.08)',
+              }}
             >
-              <div
-                className={!usage ? 'metric-accent-loading' : undefined}
-                style={{
-                  height: 3,
-                  background: !usage
-                    ? `linear-gradient(90deg,${R}40,${R},${O},${B},${R}40)`
-                    : `linear-gradient(90deg,${R},${O},${B})`,
-                }}
-              />
               <div className="p-5 md:p-6">
                 <div className="flex items-center justify-between mb-5">
                   <div className="flex items-center gap-2">
-                    <TrendingUp size={15} style={{ color: R }} />
+                    <div className="flex items-center justify-center rounded-lg" style={{ width: 28, height: 28, background: `${R}12` }}>
+                      <TrendingUp size={14} style={{ color: R }} />
+                    </div>
                     <h3 className="text-[13px] font-bold m-0">Uso del mes actual</h3>
                   </div>
                   {usage ? (
-                    <span className="text-xs font-extrabold px-2.5 py-1 rounded-full"
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
                       style={{
-                        background: usage.percentUsed >= 80 ? STATE.errorBg : `${R}10`,
+                        background: usage.percentUsed >= 80 ? STATE.errorBg : `${R}0c`,
                         color: usage.percentUsed >= 80 ? STATE.error : R,
-                        border: `1px solid ${usage.percentUsed >= 80 ? STATE.errorBorder : R + '30'}`,
                       }}>
                       {usage.percentUsed}% usado
                     </span>
@@ -359,12 +355,12 @@ export default function DashboardPage() {
                         {usage.limit === -1 ? 'ilimitado' : `/ ${usage.limit.toLocaleString('es')} conv.`}
                       </span>
                     </div>
-                    <div className="h-3 rounded-full overflow-hidden mb-3"
-                      style={{ background: 'rgba(15,23,42,0.08)', border: '1px solid rgba(15,23,42,0.06)' }}>
+                    <div className="h-2 rounded-full overflow-hidden mb-3"
+                      style={{ background: 'rgba(var(--brand-primary-rgb),0.08)' }}>
                       <div style={{
                         height: '100%',
                         width: `${Math.min(usage.percentUsed, 100)}%`,
-                        background: usage.percentUsed >= 80 ? `linear-gradient(90deg,${STATE.warning},${STATE.error})` : `linear-gradient(90deg,${R},${O},${B})`,
+                        background: usage.percentUsed >= 80 ? STATE.error : `linear-gradient(90deg,${R},${BRAND.primaryLight})`,
                         borderRadius: 999,
                         transition: 'width 0.6s cubic-bezier(0.22,1,0.36,1)',
                       }} />
@@ -385,8 +381,8 @@ export default function DashboardPage() {
                       <Skel w="42%" h={40} />
                       <Skel w="28%" h={16} />
                     </div>
-                    <div className="h-3 rounded-full overflow-hidden"
-                      style={{ background: 'rgba(15,23,42,0.08)', border: '1px solid rgba(15,23,42,0.06)' }}>
+                    <div className="h-2 rounded-full overflow-hidden"
+                      style={{ background: 'rgba(var(--brand-primary-rgb),0.08)' }}>
                       <div className="metric-skeleton" style={{ height: '100%', width: '35%', borderRadius: 999 }} />
                     </div>
                     <div className="flex justify-between">
@@ -399,9 +395,9 @@ export default function DashboardPage() {
 
                 {/* Cuota de plataforma */}
                 {usage && typeof usage.platformFreeLimit === 'number' && usage.platformFreeLimit > 0 && (
-                  <div className="mt-3 flex items-center justify-between px-3 py-2 rounded-lg text-[11px]"
-                    style={{ background: `${B}06`, border: `1px solid ${B}15` }}>
-                    <span style={{ color: B, fontWeight: 600 }}>Plataforma</span>
+                  <div className="mt-4 flex items-center justify-between px-3 py-2.5 rounded-xl text-[11px]"
+                    style={{ background: 'rgba(var(--brand-primary-rgb),0.04)' }}>
+                    <span style={{ color: R, fontWeight: 600 }}>Plataforma</span>
                     <span style={{ color: 'var(--muted-foreground)' }}>
                       {(usage.platformFreeUsed ?? 0).toLocaleString('es')} / {usage.platformFreeLimit.toLocaleString('es')} conv.
                     </span>
@@ -413,18 +409,18 @@ export default function DashboardPage() {
                   <div className="mt-3 flex flex-col gap-2">
                     {usage.activePacks.map((pack) => (
                       <div key={pack.packId} className="rounded-xl px-4 py-3"
-                        style={{ background: `${O}08`, border: `1px solid ${O}20` }}>
+                        style={{ background: 'rgba(var(--brand-primary-rgb),0.04)' }}>
                         <div className="flex items-center justify-between text-xs mb-1.5">
-                          <span className="font-bold" style={{ color: O }}>Pack {pack.packId}</span>
+                          <span className="font-bold" style={{ color: R }}>Pack {pack.packId}</span>
                           <span style={{ color: 'var(--muted-foreground)' }}>
                             {pack.remaining.toLocaleString('es')} / {pack.total.toLocaleString('es')}
                           </span>
                         </div>
-                        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(15,23,42,0.08)' }}>
+                        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(var(--brand-primary-rgb),0.08)' }}>
                           <div style={{
                             height: '100%',
                             width: `${(pack.remaining / pack.total) * 100}%`,
-                            background: `linear-gradient(90deg,${O},${R})`,
+                            background: R,
                             borderRadius: 999,
                           }} />
                         </div>
@@ -441,19 +437,13 @@ export default function DashboardPage() {
           <div className="flex flex-col gap-4">
 
             {/* System status — carga al final, tras métricas principales */}
-            <div className="rounded-2xl border card-texture overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-              <div
-                className={!sysStatus && (loadingSysStatus || coreMetricsReady) ? 'metric-accent-loading' : undefined}
-                style={{
-                  height: 3,
-                  background: sysStatus
-                    ? `linear-gradient(90deg,${B},${B}99)`
-                    : `linear-gradient(90deg,${B}40,${B},${B}88,${B}40)`,
-                }}
-              />
+            <div className="rounded-2xl overflow-hidden"
+              style={{ background: 'var(--card)', boxShadow: 'var(--shadow-surface)', border: '1px solid rgba(var(--brand-primary-rgb),0.08)' }}>
               <div className="p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <Activity size={14} style={{ color: METRIC.neutral }} />
+                  <div className="flex items-center justify-center rounded-lg" style={{ width: 28, height: 28, background: `${R}12` }}>
+                    <Activity size={14} style={{ color: R }} />
+                  </div>
                   <h3 className="text-[13px] font-bold m-0">Estado del sistema</h3>
                   <button
                     onClick={refreshStatus}
@@ -469,12 +459,12 @@ export default function DashboardPage() {
                   <div className="metric-value-appear">
                     {sysStatus.status === 'operational' ? (
                       <p className="text-sm font-semibold m-0" style={{ color: STATE.success }}>
-                        ✅ Todo funciona correctamente
+                        Todo funciona correctamente
                       </p>
                     ) : sysStatus.status === 'degraded' ? (
                       <>
                         <p className="text-sm font-semibold m-0" style={{ color: STATE.warning }}>
-                          ⚠️ Estamos trabajando en ello
+                          Estamos trabajando en ello
                         </p>
                         <p className="text-[11px] mt-1 m-0" style={{ color: 'var(--muted-foreground)' }}>
                           Puede haber demoras. Vuelve a intentarlo en unos minutos.
@@ -483,7 +473,7 @@ export default function DashboardPage() {
                     ) : (
                       <>
                         <p className="text-sm font-semibold m-0" style={{ color: STATE.error }}>
-                          🔴 Servicio temporalmente no disponible
+                          Servicio temporalmente no disponible
                         </p>
                         <p className="text-[11px] mt-1 m-0" style={{ color: 'var(--muted-foreground)' }}>
                           Nuestro equipo ya está al tanto. Disculpa los inconvenientes.
@@ -502,8 +492,8 @@ export default function DashboardPage() {
 
             {/* Upgrade CTA — skeleton mientras carga, real cuando resuelve */}
             {loading ? (
-              <div className="rounded-2xl overflow-hidden border" style={{ borderColor: 'var(--border)' }}>
-                <div className="metric-accent-loading" style={{ height: 3, background: `linear-gradient(90deg,${R}40,${R},${O},${R}40)` }} />
+              <div className="rounded-2xl overflow-hidden"
+                style={{ background: 'var(--card)', boxShadow: 'var(--shadow-surface)', border: '1px solid rgba(var(--brand-primary-rgb),0.08)' }}>
                 <div className="p-5 flex flex-col gap-3">
                   <Skel w="60%" h={14} />
                   <Skel w="90%" h={11} />
@@ -512,9 +502,8 @@ export default function DashboardPage() {
                 </div>
               </div>
             ) : !isPremium ? (
-              <div className="rounded-2xl overflow-hidden border"
-                style={{ borderColor: `${R}30`, background: `linear-gradient(145deg,${R}08,${O}06)` }}>
-                <div style={{ height: 3, background: `linear-gradient(90deg,${R},${O})` }} />
+              <div className="rounded-2xl overflow-hidden"
+                style={{ border: `1px solid ${R}22`, background: `linear-gradient(145deg,${R}0a,${R}04)` }}>
                 <div className="p-5">
                   <div className="flex items-center gap-2 mb-2">
                     <Zap size={14} style={{ color: R }} />
@@ -538,8 +527,12 @@ export default function DashboardPage() {
 
             {/* Ajustes — siempre visible */}
             <Link href="/dashboard/settings"
-              className="rounded-2xl border p-4 no-underline text-inherit card-hover flex items-center justify-between gap-3"
-              style={{ borderColor: 'var(--border)', background: 'var(--card)' }}>
+              className="rounded-2xl p-4 no-underline text-inherit flex items-center justify-between gap-3"
+              style={{
+                border: '1px solid rgba(var(--brand-primary-rgb),0.08)',
+                background: 'var(--card)',
+                boxShadow: 'var(--shadow-surface-sm)',
+              }}>
               <div>
                 <p className="text-[13px] font-bold m-0">Suscripción y cuenta</p>
                 <p className="text-[11px] m-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
@@ -553,14 +546,16 @@ export default function DashboardPage() {
         </div>
         {/* ── WIDGET ANALYTICS ─────────────────────────────────────────────── */}
         {widgetCount !== null && (
-          <div className="rounded-2xl border card-texture overflow-hidden mb-8" style={{ borderColor: 'var(--border)' }}>
-            <div style={{ height: 3, background: `linear-gradient(90deg,${O},${B})` }} />
+          <div className="rounded-2xl overflow-hidden mb-8"
+            style={{ background: 'var(--card)', boxShadow: 'var(--shadow-surface)', border: '1px solid rgba(var(--brand-primary-rgb),0.08)' }}>
             <div className="p-5 md:p-6">
 
               {/* Header */}
               <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
                 <div className="flex items-center gap-2">
-                  <BarChart2 size={15} style={{ color: O }} />
+                  <div className="flex items-center justify-center rounded-lg" style={{ width: 28, height: 28, background: `${R}12` }}>
+                    <BarChart2 size={14} style={{ color: R }} />
+                  </div>
                   <h3 className="text-[13px] font-bold m-0">Analítica de widgets</h3>
                 </div>
                 {widgets.length > 1 && (
@@ -568,14 +563,14 @@ export default function DashboardPage() {
                     value={selectedWidget || ''}
                     onChange={e => { setSelectedWidget(e.target.value); }}
                     className="text-xs rounded-lg px-2.5 py-1.5"
-                    style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', outline: 'none' }}
+                    style={{ border: '1px solid rgba(var(--brand-primary-rgb),0.12)', background: 'rgba(var(--brand-primary-rgb),0.03)', color: 'var(--foreground)', outline: 'none' }}
                   >
                     {widgets.map(w => <option key={w._id} value={w._id}>{w.name}</option>)}
                   </select>
                 )}
                 {widgets.length === 1 && (
                   <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                    style={{ background: `${O}10`, color: O, border: `1px solid ${O}25` }}>
+                    style={{ background: `${R}10`, color: R }}>
                     {widgets[0].name}
                   </span>
                 )}
@@ -588,14 +583,14 @@ export default function DashboardPage() {
                   </p>
                   <Link href="/dashboard/widget-builder"
                     className="inline-flex items-center gap-1.5 mt-3 text-xs font-bold no-underline"
-                    style={{ color: O }}>
+                    style={{ color: R }}>
                     Crear widget <ArrowUpRight size={12} />
                   </Link>
                 </div>
               ) : loadingAnalytics || !widgetAnalytics ? (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {[...Array(4)].map((_, i) => (
-                    <div key={i} className="rounded-xl p-4" style={{ background: 'rgba(15,23,42,0.04)', border: '1px solid var(--border)' }}>
+                    <div key={i} className="rounded-xl p-4" style={{ background: 'rgba(var(--brand-primary-rgb),0.04)' }}>
                       <Skel w="50%" h={11} />
                       <div className="mt-2"><Skel w="65%" h={28} /></div>
                       <div className="mt-1"><Skel w="40%" h={11} /></div>
@@ -606,16 +601,20 @@ export default function DashboardPage() {
                 <div className="metric-value-appear">
                   {/* Stat tiles */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                    <AnalyticTile color={R} icon={<Users size={12} style={{ color: R }} />}
+                    <AnalyticTile
+                      icon={<Users size={12} style={{ color: R }} />}
                       label="Aperturas" value={widgetAnalytics.summary.totalSessions.toLocaleString('es')}
                       sub="sesiones en 3 meses" />
-                    <AnalyticTile color={B} icon={<MessageSquare size={12} style={{ color: B }} />}
+                    <AnalyticTile
+                      icon={<MessageSquare size={12} style={{ color: R }} />}
                       label="Mensajes / sesión" value={String(widgetAnalytics.summary.avgMessagesPerSession)}
                       sub="promedio por conversación" />
-                    <AnalyticTile color={O} icon={<UserCheck size={12} style={{ color: O }} />}
+                    <AnalyticTile
+                      icon={<UserCheck size={12} style={{ color: R }} />}
                       label="Leads (handoff)" value={`${widgetAnalytics.summary.escalationRate}%`}
                       sub="pidieron hablar con humano" />
-                    <AnalyticTile color={METRIC.neutral} icon={<TrendingUp size={12} style={{ color: METRIC.neutral }} />}
+                    <AnalyticTile
+                      icon={<TrendingUp size={12} style={{ color: R }} />}
                       label="Abandono" value={`${widgetAnalytics.summary.dropOffRate}%`}
                       sub="abrieron sin escribir" />
                   </div>
@@ -626,37 +625,37 @@ export default function DashboardPage() {
                       type="button"
                       onClick={() => void openFeedbackModal()}
                       className="w-full text-left rounded-xl p-4 mb-4 transition-opacity hover:opacity-90"
-                      style={{ background: 'rgba(245,179,1,0.07)', border: '1px solid rgba(245,179,1,0.3)', cursor: 'pointer' }}
+                      style={{ background: 'rgba(var(--brand-primary-rgb),0.05)', border: '1px solid rgba(var(--brand-primary-rgb),0.12)', cursor: 'pointer' }}
                     >
                       <div className="flex items-center justify-between gap-3 flex-wrap">
                         <div>
-                          <span className="text-[10px] font-bold uppercase" style={{ color: '#b58100', letterSpacing: '0.05em' }}>Satisfacción</span>
+                          <span className="text-[10px] font-bold uppercase" style={{ color: R, letterSpacing: '0.05em' }}>Satisfacción</span>
                           <p className="text-2xl font-extrabold m-0 mt-1">
                             {widgetAnalytics.satisfaction.avgScore != null
                               ? `${widgetAnalytics.satisfaction.avgScore.toFixed(1)} / 5`
                               : 'Sin datos'}
-                            <span style={{ color: '#f5b301', marginLeft: 8, fontSize: 18 }}>
+                            <span style={{ color: R, marginLeft: 8, fontSize: 18, opacity: 0.85 }}>
                               {'★'.repeat(Math.round(widgetAnalytics.satisfaction.avgScore || 0))}
-                              <span style={{ color: '#d9d9d9' }}>{'★'.repeat(5 - Math.round(widgetAnalytics.satisfaction.avgScore || 0))}</span>
+                              <span style={{ color: 'rgba(var(--brand-primary-rgb),0.2)' }}>{'★'.repeat(5 - Math.round(widgetAnalytics.satisfaction.avgScore || 0))}</span>
                             </span>
                           </p>
                           <p className="text-[11px] m-0 mt-1" style={{ color: 'var(--muted-foreground)' }}>
                             {widgetAnalytics.satisfaction.totalResponses} respuesta{widgetAnalytics.satisfaction.totalResponses === 1 ? '' : 's'} · {widgetAnalytics.satisfaction.responseRate}% de las sesiones respondió
                           </p>
                         </div>
-                        <span className="text-xs font-bold" style={{ color: '#b58100' }}>Ver respuestas →</span>
+                        <span className="text-xs font-bold" style={{ color: R }}>Ver respuestas →</span>
                       </div>
                     </button>
                   )}
 
                   {/* Peak hour + monthly bars */}
                   <div className="grid md:grid-cols-2 gap-4">
-                    <div className="rounded-xl p-4" style={{ background: 'rgba(15,23,42,0.03)', border: '1px solid var(--border)' }}>
+                    <div className="rounded-xl p-4" style={{ background: 'rgba(var(--brand-primary-rgb),0.03)' }}>
                       <div className="flex items-center gap-2 mb-2">
-                        <Clock size={12} style={{ color: O }} />
+                        <Clock size={12} style={{ color: R }} />
                         <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>Hora pico</span>
                       </div>
-                      <p className="text-3xl font-extrabold m-0" style={{ letterSpacing: '-0.03em', color: O }}>
+                      <p className="text-3xl font-extrabold m-0" style={{ letterSpacing: '-0.03em', color: R }}>
                         {widgetAnalytics.peakHour == null ? '—' : formatHour(widgetAnalytics.peakHour)}
                       </p>
                       <p className="text-[11px] m-0 mt-1" style={{ color: 'var(--muted-foreground)' }}>
@@ -664,9 +663,9 @@ export default function DashboardPage() {
                       </p>
                     </div>
 
-                    <div className="rounded-xl p-4" style={{ background: 'rgba(15,23,42,0.03)', border: '1px solid var(--border)' }}>
+                    <div className="rounded-xl p-4" style={{ background: 'rgba(var(--brand-primary-rgb),0.03)' }}>
                       <div className="flex items-center gap-2 mb-3">
-                        <BarChart2 size={12} style={{ color: B }} />
+                        <BarChart2 size={12} style={{ color: R }} />
                         <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>Sesiones por mes</span>
                       </div>
                       <div className="flex items-end gap-2" style={{ height: 56 }}>
@@ -678,7 +677,7 @@ export default function DashboardPage() {
                               <span className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>{m.sessions}</span>
                               <div className="w-full rounded-t-md" style={{
                                 height: `${pct}%`, minHeight: 4,
-                                background: `linear-gradient(180deg,${B},${B}88)`, opacity: 0.85,
+                                background: `linear-gradient(180deg,${BRAND.primaryLight},${R})`, opacity: 0.9,
                               }} />
                               <span className="text-[9px]" style={{ color: 'var(--muted-foreground)' }}>{m.month.slice(5)}</span>
                             </div>
@@ -726,9 +725,9 @@ export default function DashboardPage() {
                     <div key={f._id} className="rounded-xl p-3" style={{ border: '1px solid var(--border)' }}>
                       <div className="flex items-center justify-between mb-2">
                         {f.score != null ? (
-                          <span style={{ color: '#f5b301', fontSize: 15 }}>
+                          <span style={{ color: R, fontSize: 15, opacity: 0.9 }}>
                             {'★'.repeat(Math.round(f.score))}
-                            <span style={{ color: '#d9d9d9' }}>{'★'.repeat(5 - Math.round(f.score))}</span>
+                            <span style={{ color: 'rgba(var(--brand-primary-rgb),0.22)' }}>{'★'.repeat(5 - Math.round(f.score))}</span>
                           </span>
                         ) : <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Sin rating</span>}
                         <span className="text-[11px]" style={{ color: 'var(--muted-foreground)' }}>
@@ -758,14 +757,14 @@ export default function DashboardPage() {
 }
 
 /* ── Analytic tile ─────────────────────────────────────────────────────────── */
-function AnalyticTile({ color, icon, label, value, sub }: { color: string; icon: React.ReactNode; label: string; value: string; sub: string }) {
+function AnalyticTile({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub: string }) {
   return (
-    <div className="rounded-xl p-4" style={{ background: `${color}08`, border: `1px solid ${color}22` }}>
+    <div className="rounded-xl p-4" style={{ background: 'rgba(var(--brand-primary-rgb),0.04)' }}>
       <div className="flex items-center gap-1.5 mb-2">
         {icon}
         <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>{label}</span>
       </div>
-      <p className="text-2xl font-extrabold m-0" style={{ letterSpacing: '-0.03em', color }}>{value}</p>
+      <p className="text-2xl font-extrabold m-0" style={{ letterSpacing: '-0.03em', color: 'var(--foreground)' }}>{value}</p>
       <p className="text-[10px] m-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{sub}</p>
     </div>
   );
@@ -785,19 +784,22 @@ function MetricCard({
   const isLoading = value === '—';
 
   return (
-    <div className="rounded-2xl border card-texture overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-      <div
-        className={isLoading ? 'metric-accent-loading' : undefined}
-        style={{
-          height: 2,
-          background: isLoading
-            ? `linear-gradient(90deg,${accent}30,${accent},${accent}cc,${accent}30)`
-            : accent,
-        }}
-      />
+    <div
+      className="rounded-2xl overflow-hidden"
+      style={{
+        background: 'var(--card)',
+        boxShadow: 'var(--shadow-surface-sm)',
+        border: '1px solid rgba(var(--brand-primary-rgb),0.08)',
+      }}
+    >
       <div className="p-4">
         <div className="flex items-center gap-1.5 mb-3">
-          {icon}
+          <div
+            className="flex items-center justify-center rounded-md"
+            style={{ width: 22, height: 22, background: `${accent}14` }}
+          >
+            {icon}
+          </div>
           <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>
             {label}
           </span>
@@ -816,7 +818,7 @@ function MetricCard({
         )}
 
         {bar && (
-          <div className="mt-2.5 h-1 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+          <div className="mt-2.5 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(var(--brand-primary-rgb),0.08)' }}>
             {isLoading ? (
               <div className="metric-skeleton" style={{ height: '100%', width: '40%', borderRadius: 999 }} />
             ) : (

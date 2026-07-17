@@ -101,8 +101,8 @@ function LoginForm() {
   if (twoFAStep) {
     return (
       <div className="landing-auth-wrap">
-        <div className="hero-glow" style={{ background: 'var(--gradient-start)', top: '-200px', left: '8%' }} />
-        <div className="hero-glow" style={{ background: 'var(--accent-warm)', top: '-100px', right: '5%' }} />
+        <div className="hero-glow" style={{ background: 'var(--brand-primary)', top: '-200px', left: '8%' }} />
+        <div className="hero-glow" style={{ background: 'var(--brand-primary-light)', top: '-100px', right: '5%' }} />
 
         <div className="relative w-full max-w-[420px]">
           <div className="text-center mb-8">
@@ -112,7 +112,7 @@ function LoginForm() {
             </Link>
           </div>
 
-          <div className="landing-card p-8">
+          <div className="landing-card landing-auth-card p-8">
             <div className="flex items-center gap-3 mb-5">
               <div style={{ width: 40, height: 40, borderRadius: '10px', background: 'rgba(var(--brand-primary-rgb),0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <ShieldCheck size={20} style={{ color: 'var(--primary)' }} />
@@ -172,9 +172,9 @@ function LoginForm() {
 
   return (
     <div className="landing-auth-wrap">
-      <div className="hero-glow" style={{ background: 'var(--gradient-start)', top: '-200px', left: '8%' }} />
-      <div className="hero-glow" style={{ background: 'var(--accent-warm)', top: '-100px', right: '5%' }} />
-      <div className="hero-glow" style={{ background: 'var(--accent)', top: '40%', left: '45%' }} />
+      <div className="hero-glow" style={{ background: 'var(--brand-primary)', top: '-200px', left: '8%' }} />
+      <div className="hero-glow" style={{ background: 'var(--brand-primary-light)', top: '-100px', right: '5%' }} />
+      <div className="hero-glow" style={{ background: 'var(--brand-cool)', top: '45%', left: '48%', opacity: 0.1 }} />
 
       <div className="relative w-full max-w-[420px]">
         <div className="text-center mb-8">
@@ -192,7 +192,7 @@ function LoginForm() {
           )}
         </div>
 
-        <div className="landing-card p-8">
+        <div className="landing-card landing-auth-card p-8">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
               <label htmlFor="login-email" className="block text-[13px] font-semibold mb-1.5">Email</label>
