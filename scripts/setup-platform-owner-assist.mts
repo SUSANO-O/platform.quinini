@@ -22,6 +22,12 @@ import {
 } from '../src/lib/agent-skills-catalog.ts';
 import { VALID_FEATURE_OVERRIDES } from '../src/lib/plan-catalog.ts';
 import { canAttemptHubSync, syncHubCatalogFromLandingAgentDoc } from '../src/lib/aibackhub-sync.ts';
+import {
+  MATH_AIS_SYSTEM_PROMPT,
+  mathAisBehaviorRules,
+  mathAisFaqs,
+  mathAisRagSources,
+} from '../src/lib/math-ais-content.ts';
 
 const EMAIL = (process.env.PLATFORM_OWNER_EMAIL || 'admin@agentflowhub.com')
   .trim()
@@ -66,133 +72,6 @@ const HUBSPOT_TOOLS = [
   'mcp:webSearch:web_fetch_page',
   'mcp:weather:weather_current',
 ] as const;
-
-function faqsForMathAis() {
-  const rows = [
-    ['¿Cómo creo un agente?', 'Ve a Dashboard → Agentes → Nuevo agente. Define nombre, system prompt y modelo. Luego sincroniza con el hub si hace falta.'],
-    ['¿Dónde configuro el widget?', 'Dashboard → Widgets (o Widget builder). Elige el agente, colores, welcome y copia el embed.'],
-    ['¿Qué es MCP?', 'MCP son integraciones (Gmail, HubSpot, Calendar…). Primero conectas la cuenta (credenciales); luego activas las tools en el agente.'],
-    ['¿Por qué HubSpot no funciona?', 'El agente debe tener tools HubSpot habilitadas y una conexión MCP HubSpot sincronizada (OAuth o Private App). Sin cuenta MCP no hay llamadas reales.'],
-    ['¿Cuál es la diferencia entre tools del plan y MCP?', 'MCP = cuenta/credenciales en el hub. Tools del plan = capacidades guardadas en Mongo del agente. Para CRM/email necesitas ambos pasos.'],
-    ['¿Cómo subo conocimiento (RAG)?', 'En el agente → pestaña Almacenamiento/RAG. Sube PDF, texto o URL. Activa ragEnabled.'],
-    ['¿Qué planes hay?', 'Team, Plus y Business (y Enterprise en cuenta plataforma). Cada uno abre más tools, agentes, RAG y WhatsApp según catálogo.'],
-    ['¿Cómo veo conversaciones?', 'Dashboard → Inbox / Chats. Ahí respondes handoffs humanos.'],
-    ['¿Cómo escalo a humano?', 'El widget puede ofrecer WhatsApp o handoff a inbox según configuración del widget (humanSupport / handoff).'],
-    ['¿Dónde están las tareas programadas?', 'En el agente → Tareas programadas (plan Plus+ o feature override). El worker cron-schendule las ejecuta.'],
-    ['¿Math-ais vs Math?', 'Math es el assist de marketing/landing. Math-ais es el assist del dashboard para usuarios logueados.'],
-    ['¿Cómo sincronizo el agente al hub?', 'Al guardar el agente la landing intenta sync a AIBackHub. Si falla, revisa BACKEND_URL / API key y reintenta desde Mis agentes.'],
-    ['¿Puedo usar web search?', 'Sí: skill web_search y/o tool mcp:webSearch:web_search (sin OAuth).'],
-    ['¿Dónde cambio mi plan?', 'Billing en dashboard o, en cuentas plataforma, un admin puede asignar plan/features.'],
-    ['¿El assist conoce mi email?', 'Sí: con sesión abierta, Math-ais recibe identidad del usuario logueado para contexto y HubSpot (si MCP está conectado).'],
-  ] as const;
-  return rows.map(([question, answer], i) => ({
-    id: `faq-math-ais-${i + 1}`,
-    question,
-    answer,
-    enabled: true,
-    priority: (i + 1) * 10,
-  }));
-}
-
-function behaviorRules() {
-  return [
-    {
-      id: 'rule-identity',
-      title: 'Identidad',
-      enabled: true,
-      priority: 10,
-      text: 'Eres Math-ais, assist oficial de BotIvA en el dashboard. Habla en español claro y cercano. No inventes URLs ni precios; usa RAG/FAQ.',
-    },
-    {
-      id: 'rule-session',
-      title: 'Usuario logueado',
-      enabled: true,
-      priority: 20,
-      text: 'Ya tienes nombre/email de sesión. No pidas de nuevo datos de cuenta salvo que falten. Personaliza la ayuda a su contexto.',
-    },
-    {
-      id: 'rule-steps',
-      title: 'Pasos concretos',
-      enabled: true,
-      priority: 30,
-      text: 'Responde con pasos numerados cortos (máx. 5). Si hay varias rutas, pregunta cuál aplica antes de alargar.',
-    },
-    {
-      id: 'rule-mcp',
-      title: 'Integraciones',
-      enabled: true,
-      priority: 40,
-      text: 'Si falta OAuth/MCP, dilo explícitamente y indica: Agente → Herramientas → Paso 1 conectar cuenta. No digas que ya está conectado si no lo está.',
-    },
-    {
-      id: 'rule-rag',
-      title: 'Fuente de verdad',
-      enabled: true,
-      priority: 50,
-      text: 'Prioriza FAQ + RAG del agente. Si no está documentado, dilo y ofrece escalar a humano/WhatsApp.',
-    },
-    {
-      id: 'rule-safety',
-      title: 'Seguridad',
-      enabled: true,
-      priority: 60,
-      text: 'Nunca pidas ni muestres API keys, tokens ni contraseñas. No ejecutes acciones destructivas sin confirmación.',
-    },
-  ];
-}
-
-function ragSources() {
-  const body = `
-# BotIvA — guía rápida (Math-ais)
-
-## Producto
-BotIvA es la plataforma para crear agentes de IA, widgets embebibles, flujos, RAG e integraciones MCP (HubSpot, Gmail, Calendar, Slack, Maps, MongoDB, Postgres).
-
-## Stack (interno)
-- Landing/dashboard: platform.quinini (botiva.space)
-- Hub chat: AgentFlowhub
-- Motor: AIBackHub (matias-backend)
-- API REST Team+: API-REST-AGENT-FLOW + CLI botiva
-
-## Agentes
-Los agentes viven en Mongo de la landing (ClientAgent) y se sincronizan al hub (agentHubId). isPlatform=true son agentes de plataforma (Math / Math-ais).
-
-## Widget vs Assist
-- widget.js: clientes / embeds
-- assist.js: Math / Math-ais internos
-Boot app: /api/internal/assist/boot?context=app (requiere sesión)
-
-## MCP
-1) Conectar cuenta (credenciales) 2) Activar tools en el agente (enabledMcpToolIds)
-Sin paso 1, HubSpot/Gmail fallan con "no configurado".
-
-## Planes (resumen)
-Team / Plus / Business abren más cupos de agentes, tools, RAG y WhatsApp. Enterprise en cuentas plataforma.
-
-## Soporte
-Si el usuario está bloqueado: Inbox handoff o WhatsApp configurado en el widget.
-`.trim();
-
-  return [
-    {
-      type: 'text' as const,
-      name: 'BotIvA — guía Math-ais',
-      content: body,
-      charCount: body.length,
-      uploadedAt: new Date(),
-    },
-  ];
-}
-
-const SYSTEM_PROMPT_MATH_AIS = `Eres Math-ais, el asistente oficial de la plataforma BotIvA dentro del dashboard.
-
-Misión: ayudar al usuario autenticado a configurar agentes, widgets, skills, RAG, MCP, planes y troubleshooting con pasos concretos.
-
-Estilo: español, breve, accionable. Usa FAQ/RAG antes de inventar. Si falta una conexión MCP, indícalo sin rodeos.
-
-Identidad de sesión: ya conoces nombre y email del usuario logueado; úsalos para personalizar. HubSpot puede sincronizar el contacto si hay conexión MCP.
-
-No reveles secretos ni pidas contraseñas. Si no puedes resolverlo, ofrece escalar a humano/WhatsApp.`;
 
 async function upsertOwner(password: string) {
   let user = await User.findOne({ email: EMAIL });
@@ -273,10 +152,10 @@ async function enrichAgent(
     systemPrompt: opts.systemPrompt || agent.systemPrompt,
     skills: savedIds,
     skillsConfig,
-    behaviorRules: behaviorRules(),
-    agentFaqs: faqsForMathAis(),
+    behaviorRules: mathAisBehaviorRules(),
+    agentFaqs: mathAisFaqs(),
     ragEnabled: true,
-    ragSources: ragSources(),
+    ragSources: mathAisRagSources(),
     tools,
     enabledMcpToolIds: opts.hubspot ? [...HUBSPOT_TOOLS] : ['mcp:webSearch:web_search', 'mcp:webSearch:web_fetch_page'],
     hubspotAutoCaptureContacts: opts.hubspot,
@@ -295,7 +174,7 @@ async function enrichAgent(
     persistConversationHistory: true,
   });
   await agent.save();
-  console.log('ENRICHED', hubId, 'skills', savedIds.length, 'faqs', faqsForMathAis().length);
+  console.log('ENRICHED', hubId, 'skills', savedIds.length, 'faqs', mathAisFaqs().length);
 
   if (canAttemptHubSync()) {
     try {
@@ -346,7 +225,7 @@ async function main() {
   const catalog = await listSkillCatalog({ includeDisabled: false });
   await enrichAgent('math-ais', MATH_AIS_SKILLS, catalog, {
     hubspot: true,
-    systemPrompt: SYSTEM_PROMPT_MATH_AIS,
+    systemPrompt: MATH_AIS_SYSTEM_PROMPT,
   });
   await enrichAgent('math', MATH_MARKETING_SKILLS, catalog, { hubspot: false });
 

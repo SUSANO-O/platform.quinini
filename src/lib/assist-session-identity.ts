@@ -1,47 +1,29 @@
 /**
- * Identidad del usuario logueado para el asistente interno (Math-ais) + HubSpot.
- * Se inyecta en el transcript del widget para auto-capture y contexto del agente.
+ * Identidad y contexto del usuario logueado para Math-ais (dashboard assist).
  */
 import { connectDB } from '@/lib/db/connection';
-import { ClientAgent, Subscription, User, Widget } from '@/lib/db/models';
+import { ClientAgent, Widget } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
+import {
+  formatAssistSessionContextBlock,
+  loadAssistSessionContext,
+} from '@/lib/assist-session-context';
 
 export type AssistVisitorIdentity = {
   userId: string;
   email: string;
   name: string;
   plan: string;
-  /** Texto parseable por HubSpot auto-capture (nombre + email). */
-  hubspotSeedMessage: string;
 };
 
-export function buildHubspotSeedMessage(name: string, email: string, plan?: string): string {
-  const n = name.trim() || 'Cliente BotIvA';
-  const e = email.trim().toLowerCase();
-  const planBit = plan && plan !== 'free' ? ` Plan: ${plan}.` : '';
-  return `Me llamo ${n}. Mi email es ${e}.${planBit}`.trim();
-}
-
 export async function loadAssistVisitorIdentity(userId: string): Promise<AssistVisitorIdentity | null> {
-  if (!userId) return null;
-  await connectDB();
-  const user = (await User.findById(userId)
-    .select({ email: 1, displayName: 1 })
-    .lean()) as { email?: string; displayName?: string | null } | null;
-  if (!user?.email) return null;
-  const sub = (await Subscription.findOne({ userId })
-    .select({ plan: 1, status: 1 })
-    .lean()) as { plan?: string; status?: string } | null;
-  const plan =
-    sub?.status === 'active' || sub?.status === 'trialing' ? String(sub.plan || 'free') : 'free';
-  const email = String(user.email).trim().toLowerCase();
-  const name = (user.displayName || email.split('@')[0] || 'Cliente').trim();
+  const ctx = await loadAssistSessionContext(userId);
+  if (!ctx) return null;
   return {
-    userId,
-    email,
-    name,
-    plan,
-    hubspotSeedMessage: buildHubspotSeedMessage(name, email, plan),
+    userId: ctx.userId,
+    email: ctx.email,
+    name: ctx.name,
+    plan: ctx.plan,
   };
 }
 
@@ -90,32 +72,58 @@ export async function isInternalAppAssistWidget(params: {
 }
 
 /**
- * Inyecta identidad en el body del chat (history + visitor*) para HubSpot / prompt.
- * Idempotente si el seed ya está en history.
+ * Inyecta contexto del cliente logueado (nombre, plan, pantalla, scope Mongo).
+ * Idempotente: no duplica bloque si el email ya está en sessionContextBlock.
  */
-export function injectVisitorIdentityIntoChatBody(
+export async function injectAssistContextIntoChatBody(
   body: Record<string, unknown>,
   identity: AssistVisitorIdentity,
-): Record<string, unknown> {
-  const seed = identity.hubspotSeedMessage;
-  const history = Array.isArray(body.history) ? [...(body.history as unknown[])] : [];
-  const already = history.some((h) => {
-    if (!h || typeof h !== 'object') return false;
-    const c = String((h as { content?: unknown }).content || '');
-    return c.includes(identity.email) && /me\s+llamo/i.test(c);
-  });
-  if (!already) {
-    history.unshift({ role: 'user', content: seed });
-  }
-  const ctx = `Cliente logueado en BotIvA: ${identity.name} <${identity.email}> · plan ${identity.plan} · userId ${identity.userId}`;
+  pagePath?: string,
+): Promise<Record<string, unknown>> {
   const prevCtx = typeof body.sessionContextBlock === 'string' ? body.sessionContextBlock.trim() : '';
+  if (prevCtx.includes(identity.email) && prevCtx.includes('CONTEXTO DEL CLIENTE LOGUEADO')) {
+    return {
+      ...body,
+      visitorEmail: identity.email,
+      visitorName: identity.name,
+      visitorUserId: identity.userId,
+      visitorPlan: identity.plan,
+    };
+  }
+
+  const path =
+    (typeof body.pagePath === 'string' && body.pagePath.trim()) ||
+    (typeof pagePath === 'string' && pagePath.trim()) ||
+    '/dashboard';
+
+  const sessionCtx = await loadAssistSessionContext(identity.userId, path);
+  const block = sessionCtx
+    ? formatAssistSessionContextBlock(sessionCtx)
+    : `Cliente: ${identity.name} <${identity.email}> · plan ${identity.plan}`;
+
   return {
     ...body,
-    history,
     visitorEmail: identity.email,
     visitorName: identity.name,
     visitorUserId: identity.userId,
     visitorPlan: identity.plan,
-    sessionContextBlock: prevCtx ? `${prevCtx}\n\n${ctx}` : ctx,
+    sessionContextBlock: prevCtx ? `${block}\n\n${prevCtx}` : block,
+  };
+}
+
+/** @deprecated Usa injectAssistContextIntoChatBody */
+export function injectVisitorIdentityIntoChatBody(
+  body: Record<string, unknown>,
+  identity: AssistVisitorIdentity,
+): Record<string, unknown> {
+  const prevCtx = typeof body.sessionContextBlock === 'string' ? body.sessionContextBlock.trim() : '';
+  const short = `Cliente logueado: ${identity.name} <${identity.email}> · plan ${identity.plan}`;
+  return {
+    ...body,
+    visitorEmail: identity.email,
+    visitorName: identity.name,
+    visitorUserId: identity.userId,
+    visitorPlan: identity.plan,
+    sessionContextBlock: prevCtx ? `${prevCtx}\n\n${short}` : short,
   };
 }

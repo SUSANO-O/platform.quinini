@@ -4015,6 +4015,11 @@
       if (cfg.token && String(cfg.token).trim()) {
         payload.token = String(cfg.token).trim();
       }
+      try {
+        if (typeof window !== 'undefined' && window.location && window.location.pathname) {
+          payload.pagePath = String(window.location.pathname);
+        }
+      } catch (_pp) { /* noop */ }
 
       // ── Image-to-image: attach resized thumbnail when user asks to modify previous image ──
       if (lastGeneratedImageDataUrl && isImageModificationIntent(displayText)) {
