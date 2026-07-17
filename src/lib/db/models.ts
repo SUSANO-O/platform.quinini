@@ -735,6 +735,19 @@ const ScheduledTaskSchema = new Schema({
     type:   { type: String, enum: ['webhook', 'agent_run', 'chat_message', 'email'], required: true },
     /** Varía según `type`. Mixed: requiere markModified('action.config') al editar anidado. */
     config: { type: Schema.Types.Mixed, default: {} },
+    /**
+     * Pasos siguientes tras éxito del principal (flow corto).
+     * Worker: ejecutar en serie; plantillas pueden usar {{prev.output}}.
+     */
+    then: {
+      type: [
+        {
+          type: { type: String, enum: ['webhook', 'agent_run', 'chat_message', 'email'] },
+          config: { type: Schema.Types.Mixed, default: {} },
+        },
+      ],
+      default: undefined,
+    },
   },
   retryPolicy: {
     maxRetries:        { type: Number, default: 3, min: 0, max: 10 },

@@ -7,12 +7,14 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Clock, Plus, Trash2, Pause, Play, AlertTriangle, CheckCircle2, Loader2, Eye, X, ScrollText, Pencil, Zap, EyeOff } from 'lucide-react';
+import { Clock, Plus, Trash2, Pause, Play, AlertTriangle, CheckCircle2, Loader2, Eye, X, ScrollText, Pencil, Zap, EyeOff, ArrowRight } from 'lucide-react';
+import { describeActionFlow } from '@/lib/scheduled-task-validation';
 
 const TZ = 'America/Bogota';
 
 type ActionType = 'webhook' | 'agent_run' | 'chat_message' | 'email';
 type Frequency = 'hourly' | 'daily' | 'weekly' | 'monthly';
+type FlowStep = { type: ActionType; config: Record<string, string> };
 
 interface ScheduledTask {
   _id: string;
@@ -21,7 +23,11 @@ interface ScheduledTask {
   status: string;
   cron: string;
   timezone: string;
-  action: { type: ActionType; config: Record<string, unknown> };
+  action: {
+    type: ActionType;
+    config: Record<string, unknown>;
+    then?: Array<{ type: ActionType; config: Record<string, unknown> }>;
+  };
   retryPolicy: { maxRetries: number; backoff: 'fixed' | 'exponential'; retryDelayMinutes: number };
   nextRunAt: string | null;
   nextRetryAt: string | null;
@@ -35,8 +41,19 @@ const ACTION_LABELS: Record<ActionType, { label: string; desc: string; emoji: st
   webhook: { label: 'Llamar webhook', desc: 'POST a un endpoint HTTP (n8n, API, etc.)', emoji: '🔗' },
   agent_run: { label: 'Ejecutar agente', desc: 'Corre el agente con un prompt y guarda la respuesta', emoji: '🤖' },
   chat_message: { label: 'Mensaje al chat', desc: 'Inserta un mensaje en la conversación del widget', emoji: '💬' },
-  email: { label: 'Enviar correo', desc: 'Envía un email (próximamente)', emoji: '📧' },
+  email: { label: 'Enviar correo', desc: 'Envía un email (puede ir después de otro paso)', emoji: '📧' },
 };
+
+/** Pasos que se pueden encadenar después del principal. */
+const THEN_ACTION_TYPES: ActionType[] = ['email', 'webhook', 'chat_message'];
+
+function flowEmojiChain(action: ScheduledTask['action']): string {
+  const parts = [ACTION_LABELS[action.type]?.emoji ?? '•'];
+  for (const s of action.then ?? []) {
+    parts.push(ACTION_LABELS[s.type]?.emoji ?? '•');
+  }
+  return parts.join(' → ');
+}
 
 const DOW = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -171,7 +188,7 @@ export default function ScheduledTasksTab({
             <Clock size={15} /> Tareas Programadas ({tasks.length})
           </p>
           <p style={{ color: 'var(--muted-foreground)', fontSize: '12px', margin: 0 }}>
-            El agente ejecuta estas tareas automáticamente. Zona horaria: {TZ}.
+            Flows automáticos (ej. Webhook → Email). Zona horaria: {TZ}.
           </p>
         </div>
         {!readOnly && access?.hasAccess && (
@@ -317,8 +334,10 @@ function TaskRow({
       }}
     >
       <div className="min-w-0 cursor-pointer" onClick={onOpen} title="Ver detalle y logs">
-        <div className="flex items-center gap-2">
-          <span style={{ fontSize: 15 }}>{ACTION_LABELS[task.action.type]?.emoji}</span>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span style={{ fontSize: 14, letterSpacing: 1 }} title={describeActionFlow(task.action)}>
+            {flowEmojiChain(task.action)}
+          </span>
           <p className="font-bold m-0 truncate">{task.name}</p>
           <span
             className="px-2 py-0.5 rounded-full text-[11px] font-bold"
@@ -332,7 +351,7 @@ function TaskRow({
           )}
         </div>
         <p style={{ color: 'var(--muted-foreground)', fontSize: 12, margin: '4px 0 0' }}>
-          {ACTION_LABELS[task.action.type]?.label} · Próxima: {fmtDate(task.nextRunAt)} · Última:{' '}
+          {describeActionFlow(task.action)} · Próxima: {fmtDate(task.nextRunAt)} · Última:{' '}
           {task.lastRunAt ? (
             <>
               {task.lastStatus === 'success' ? (
@@ -408,11 +427,50 @@ function TaskRow({
   );
 }
 
-// ── Wizard (3 pasos) ──────────────────────────────────────────────────────────
+// ── Wizard (3 pasos + flow then) ──────────────────────────────────────────────
+
+function flatConfig(cfg: Record<string, unknown> | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!cfg) return out;
+  for (const [k, v] of Object.entries(cfg)) {
+    if (v != null && typeof v !== 'object') out[k] = String(v);
+  }
+  return out;
+}
+
+function FlowPreview({
+  primary,
+  thenTypes,
+}: {
+  primary: ActionType;
+  thenTypes: ActionType[];
+}) {
+  const nodes = [primary, ...thenTypes];
+  return (
+    <div
+      className="flex flex-wrap items-center gap-1.5 px-3 py-2.5 rounded-xl mb-3"
+      style={{ background: 'rgba(13,148,136,0.06)', border: '1px solid rgba(13,148,136,0.25)' }}
+    >
+      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted-foreground)', marginRight: 4 }}>Flow</span>
+      {nodes.map((t, i) => (
+        <span key={`${t}-${i}`} className="inline-flex items-center gap-1">
+          {i > 0 && <ArrowRight size={12} style={{ color: 'var(--brand-primary, #0d9488)' }} />}
+          <span
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold"
+            style={{ background: 'var(--background)', border: '1px solid var(--border)' }}
+          >
+            <span>{ACTION_LABELS[t].emoji}</span>
+            {ACTION_LABELS[t].label.replace(/^Llamar |^Ejecutar |^Enviar |^Mensaje al /, '')}
+          </span>
+        </span>
+      ))}
+    </div>
+  );
+}
 
 function TaskWizard({
   agentId,
-  plan,
+  plan: _plan,
   task,
   onClose,
   onCreated,
@@ -425,19 +483,19 @@ function TaskWizard({
 }) {
   const isEdit = Boolean(task);
   const sched = task ? parseCron(task.cron) : null;
-  const initCfg: Record<string, string> = {};
-  if (task) {
-    for (const [k, v] of Object.entries(task.action.config ?? {})) {
-      if (v != null && typeof v !== 'object') initCfg[k] = String(v);
-    }
-  }
 
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
-  // Paso 1
+  // Paso 1 — acción principal + pasos then (flow)
   const [actionType, setActionType] = useState<ActionType>(task?.action.type ?? 'webhook');
+  const [thenSteps, setThenSteps] = useState<FlowStep[]>(() =>
+    (task?.action.then ?? []).map((s) => ({
+      type: s.type,
+      config: flatConfig(s.config),
+    })),
+  );
   // Paso 2
   const [name, setName] = useState(task?.name ?? '');
   const [frequency, setFrequency] = useState<Frequency>(sched?.frequency ?? 'daily');
@@ -445,8 +503,8 @@ function TaskWizard({
   const [minute, setMinute] = useState(sched?.minute ?? 0);
   const [dow, setDow] = useState(sched?.dow ?? 1);
   const [dom, setDom] = useState(sched?.dom ?? 1);
-  // Paso 3 — config dinámica + reintentos + código de seguridad
-  const [config, setConfig] = useState<Record<string, string>>(initCfg);
+  // Paso 3 — configs + reintentos + código
+  const [config, setConfig] = useState<Record<string, string>>(() => flatConfig(task?.action.config));
   const [widgetId, setWidgetId] = useState((task as unknown as { widgetId?: string })?.widgetId ?? '');
   const [maxRetries, setMaxRetries] = useState(task?.retryPolicy?.maxRetries ?? 3);
   const [retryDelayMinutes, setRetryDelayMinutes] = useState(task?.retryPolicy?.retryDelayMinutes ?? 5);
@@ -454,21 +512,44 @@ function TaskWizard({
   const [showCode, setShowCode] = useState(false);
 
   const setCfg = (k: string, v: string) => setConfig((p) => ({ ...p, [k]: v }));
+  const setThenCfg = (idx: number, k: string, v: string) =>
+    setThenSteps((prev) => prev.map((s, i) => (i === idx ? { ...s, config: { ...s.config, [k]: v } } : s)));
+
+  const addThenStep = (type: ActionType) => {
+    if (thenSteps.length >= 3) return;
+    setThenSteps((prev) => [...prev, { type, config: {} }]);
+  };
+  const removeThenStep = (idx: number) =>
+    setThenSteps((prev) => prev.filter((_, i) => i !== idx));
+
+  const flowDesc = describeActionFlow({ type: actionType, then: thenSteps });
+  const needsWidget =
+    actionType === 'chat_message' ||
+    actionType === 'agent_run' ||
+    thenSteps.some((s) => s.type === 'chat_message');
 
   const submit = async () => {
     setSaving(true);
     setErr('');
     try {
       const cron = buildCron(frequency, hour, minute, dow, dom);
+      const action: Record<string, unknown> = {
+        type: actionType,
+        config: buildConfig(actionType, config),
+        // Siempre enviar then (incluso []) para poder limpiar la cadena al editar
+        then: thenSteps.map((s) => ({
+          type: s.type,
+          config: buildConfig(s.type, s.config),
+        })),
+      }
       const body: Record<string, unknown> = {
         name: name.trim(),
         cron,
         timezone: TZ,
-        action: { type: actionType, config: buildConfig(actionType, config) },
+        action,
         retryPolicy: { maxRetries, backoff: task?.retryPolicy?.backoff ?? 'fixed', retryDelayMinutes },
       };
       if (widgetId.trim()) body.widgetId = widgetId.trim();
-      // Solo enviar securityCode si el usuario escribió algo (vacío = eliminar código en edición).
       if (securityCode.trim() || isEdit) body.securityCode = securityCode.trim();
       const url = isEdit
         ? `/api/agents/${agentId}/scheduled-tasks/${task!._id}`
@@ -499,41 +580,105 @@ function TaskWizard({
         style={{ background: 'var(--background)', border: '1px solid var(--border)', maxHeight: '90vh', overflowY: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <p className="font-bold text-lg m-0 mb-1">{isEdit ? 'Editar tarea programada' : 'Nueva tarea programada'}</p>
-        <p style={{ color: 'var(--muted-foreground)', fontSize: 12, margin: '0 0 16px' }}>Paso {step} de 3</p>
+        <p className="font-bold text-lg m-0 mb-1">
+          {isEdit ? 'Editar flow programado' : 'Nuevo flow programado'}
+        </p>
+        <p style={{ color: 'var(--muted-foreground)', fontSize: 12, margin: '0 0 12px' }}>
+          Paso {step} de 3 · {flowDesc}
+        </p>
 
         {step === 1 && (
-          <div className="flex flex-col gap-2">
-            {(Object.keys(ACTION_LABELS) as ActionType[]).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setActionType(t)}
-                className="flex items-center gap-3 p-3 rounded-xl text-left"
-                style={{
-                  border: `1px solid ${actionType === t ? 'var(--brand-primary, #0d9488)' : 'var(--border)'}`,
-                  background: actionType === t ? 'rgba(13,148,136,0.06)' : 'transparent',
-                  cursor: 'pointer',
-                }}
-              >
-                <span style={{ fontSize: 20 }}>{ACTION_LABELS[t].emoji}</span>
-                <div>
-                  <p className="font-bold m-0 text-sm">{ACTION_LABELS[t].label}</p>
-                  <p style={{ color: 'var(--muted-foreground)', fontSize: 12, margin: 0 }}>{ACTION_LABELS[t].desc}</p>
+          <div className="flex flex-col gap-3">
+            <FlowPreview primary={actionType} thenTypes={thenSteps.map((s) => s.type)} />
+            <p
+              className="m-0 px-3 py-2 rounded-xl text-xs font-bold"
+              style={{ background: 'rgba(13,148,136,0.1)', border: '1px solid rgba(13,148,136,0.35)' }}
+            >
+              Encadena pasos: ej. Webhook → Email. Baja a «Luego (opcional)» para añadir el siguiente.
+            </p>
+            <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>1. Acción principal</p>
+            <div className="flex flex-col gap-2">
+              {(Object.keys(ACTION_LABELS) as ActionType[]).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setActionType(t)}
+                  className="flex items-center gap-3 p-3 rounded-xl text-left"
+                  style={{
+                    border: `1px solid ${actionType === t ? 'var(--brand-primary, #0d9488)' : 'var(--border)'}`,
+                    background: actionType === t ? 'rgba(13,148,136,0.06)' : 'transparent',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span style={{ fontSize: 20 }}>{ACTION_LABELS[t].emoji}</span>
+                  <div>
+                    <p className="font-bold m-0 text-sm">{ACTION_LABELS[t].label}</p>
+                    <p style={{ color: 'var(--muted-foreground)', fontSize: 12, margin: 0 }}>{ACTION_LABELS[t].desc}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+              <p style={{ fontSize: 12, fontWeight: 700, margin: '0 0 6px' }}>2. Luego (opcional)</p>
+              <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '0 0 10px' }}>
+                Encadena hasta 3 pasos tras el éxito. En el cuerpo puedes usar{' '}
+                <code style={{ fontSize: 11 }}>{'{{prev.output}}'}</code> para el resultado anterior.
+              </p>
+
+              {thenSteps.length > 0 && (
+                <div className="flex flex-col gap-1.5 mb-2">
+                  {thenSteps.map((s, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl"
+                      style={{ border: '1px solid var(--border)' }}
+                    >
+                      <span className="text-sm font-bold">
+                        {ACTION_LABELS[s.type].emoji} Luego: {ACTION_LABELS[s.type].label}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeThenStep(i)}
+                        className="p-1 rounded-lg"
+                        style={{ border: '1px solid var(--border)', cursor: 'pointer', color: '#ef4444' }}
+                        title="Quitar paso"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              </button>
-            ))}
+              )}
+
+              {thenSteps.length < 3 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {THEN_ACTION_TYPES.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => addThenStep(t)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold"
+                      style={{ border: '1px dashed var(--border)', cursor: 'pointer', background: 'transparent' }}
+                    >
+                      <Plus size={12} /> {ACTION_LABELS[t].emoji} {ACTION_LABELS[t].label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
         {step === 2 && (
           <div className="flex flex-col gap-3">
+            <FlowPreview primary={actionType} thenTypes={thenSteps.map((s) => s.type)} />
             <Field label="Nombre de la tarea">
               <input
                 className="landing-input"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ej. Reporte diario de ventas"
+                placeholder="Ej. Webhook diario + email"
               />
             </Field>
             <Field label="Frecuencia">
@@ -581,8 +726,32 @@ function TaskWizard({
 
         {step === 3 && (
           <div className="flex flex-col gap-3">
+            <FlowPreview primary={actionType} thenTypes={thenSteps.map((s) => s.type)} />
+
+            <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>
+              {ACTION_LABELS[actionType].emoji} {ACTION_LABELS[actionType].label}
+            </p>
             <ActionConfigFields actionType={actionType} config={config} setCfg={setCfg} />
-            {(actionType === 'chat_message' || actionType === 'agent_run') && (
+
+            {thenSteps.map((s, i) => (
+              <div
+                key={i}
+                className="flex flex-col gap-2 pt-3"
+                style={{ borderTop: '1px solid var(--border)' }}
+              >
+                <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>
+                  Luego {i + 1}: {ACTION_LABELS[s.type].emoji} {ACTION_LABELS[s.type].label}
+                </p>
+                <ActionConfigFields
+                  actionType={s.type}
+                  config={s.config}
+                  setCfg={(k, v) => setThenCfg(i, k, v)}
+                  isThenStep
+                />
+              </div>
+            ))}
+
+            {needsWidget && (
               <Field label="Widget ID (dónde aparece el mensaje)">
                 <input className="landing-input" value={widgetId} onChange={(e) => setWidgetId(e.target.value)} placeholder="ID del widget destino" />
               </Field>
@@ -596,7 +765,6 @@ function TaskWizard({
               </Field>
             </div>
 
-            {/* Código de seguridad */}
             <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 4 }}>
               <Field label="🔒 Código de seguridad (opcional)">
                 <div style={{ position: 'relative' }}>
@@ -671,10 +839,12 @@ function ActionConfigFields({
   actionType,
   config,
   setCfg,
+  isThenStep = false,
 }: {
   actionType: ActionType;
   config: Record<string, string>;
   setCfg: (k: string, v: string) => void;
+  isThenStep?: boolean;
 }) {
   if (actionType === 'webhook') {
     return (
@@ -691,7 +861,13 @@ function ActionConfigFields({
           </select>
         </Field>
         <Field label="Cuerpo (opcional)">
-          <textarea className="landing-input" rows={3} value={config.bodyTemplate ?? ''} onChange={(e) => setCfg('bodyTemplate', e.target.value)} placeholder="Texto o JSON a enviar" />
+          <textarea
+            className="landing-input"
+            rows={3}
+            value={config.bodyTemplate ?? ''}
+            onChange={(e) => setCfg('bodyTemplate', e.target.value)}
+            placeholder={isThenStep ? 'Puedes usar {{prev.output}}' : 'Texto o JSON a enviar'}
+          />
         </Field>
       </>
     );
@@ -706,7 +882,13 @@ function ActionConfigFields({
   if (actionType === 'chat_message') {
     return (
       <Field label="Mensaje a enviar al chat">
-        <textarea className="landing-input" rows={4} value={config.message ?? ''} onChange={(e) => setCfg('message', e.target.value)} placeholder="Ej. ¡Buenos días! Recuerda revisar tus pedidos." />
+        <textarea
+          className="landing-input"
+          rows={4}
+          value={config.message ?? ''}
+          onChange={(e) => setCfg('message', e.target.value)}
+          placeholder={isThenStep ? 'Ej. Resultado: {{prev.output}}' : 'Ej. ¡Buenos días! Recuerda revisar tus pedidos.'}
+        />
       </Field>
     );
   }
@@ -720,8 +902,19 @@ function ActionConfigFields({
         <input className="landing-input" value={config.subject ?? ''} onChange={(e) => setCfg('subject', e.target.value)} placeholder="Asunto del correo" />
       </Field>
       <Field label="Cuerpo">
-        <textarea className="landing-input" rows={4} value={config.body ?? ''} onChange={(e) => setCfg('body', e.target.value)} placeholder="Contenido del correo" />
+        <textarea
+          className="landing-input"
+          rows={4}
+          value={config.body ?? ''}
+          onChange={(e) => setCfg('body', e.target.value)}
+          placeholder={isThenStep ? 'Resultado del paso anterior:\n{{prev.output}}' : 'Contenido del correo'}
+        />
       </Field>
+      {isThenStep && (
+        <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0 }}>
+          Tip: usa <code>{'{{prev.output}}'}</code> para insertar la respuesta del webhook/agente.
+        </p>
+      )}
     </>
   );
 }
@@ -811,7 +1004,7 @@ function TaskDetailModal({
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="min-w-0">
             <p className="font-bold text-lg m-0 truncate flex items-center gap-2">
-              {task ? ACTION_LABELS[task.action.type]?.emoji : ''} {task?.name ?? 'Tarea'}
+              {task ? flowEmojiChain(task.action) : ''} {task?.name ?? 'Tarea'}
             </p>
             {task && (
               <span
@@ -837,13 +1030,21 @@ function TaskDetailModal({
         {task && (
           <>
             <div className="grid grid-cols-2 gap-2 mb-4 text-sm">
-              <Info label="Acción" value={ACTION_LABELS[task.action.type]?.label} />
+              <Info label="Flow" value={describeActionFlow(task.action)} />
               <Info label="Programación (cron)" value={`${task.cron} · ${task.timezone}`} />
               <Info label="Próxima ejecución" value={fmtDate(task.nextRunAt)} />
               <Info label="Última ejecución" value={task.lastRunAt ? `${fmtDate(task.lastRunAt)} (${task.lastStatus || '—'})` : 'nunca'} />
               <Info label="Reintentos" value={`máx ${task.retryPolicy?.maxRetries ?? 0}, cada ${task.retryPolicy?.retryDelayMinutes ?? 0} min`} />
               {task.nextRetryAt && <Info label="Próximo reintento" value={fmtDate(task.nextRetryAt)} />}
             </div>
+            {(task.action.then?.length ?? 0) > 0 && (
+              <div className="mb-4">
+                <FlowPreview
+                  primary={task.action.type}
+                  thenTypes={(task.action.then ?? []).map((s) => s.type)}
+                />
+              </div>
+            )}
 
             <p className="font-bold m-0 mb-2 flex items-center gap-1.5 text-sm">
               <ScrollText size={14} /> Historial de ejecuciones ({execs.length})

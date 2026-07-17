@@ -147,7 +147,7 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   const skillsNeedMcp = Boolean(ca && agentSkillsNeedMcpTools(ca));
   const hasExplicitMcpIds = Array.isArray(ca?.enabledMcpToolIds)
     ? ca.enabledMcpToolIds.some(
-        (t) => typeof t === 'string' && (t.startsWith('mcp:') || t.startsWith('std:')),
+        (t: unknown) => typeof t === 'string' && (t.startsWith('mcp:') || t.startsWith('std:')),
       )
     : false;
   const eligible =

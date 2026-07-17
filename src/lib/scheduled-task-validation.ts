@@ -1,31 +1,29 @@
 /**
- * Validación/saneamiento del `action.config` de una Tarea Programada según su tipo.
- * Usado por las rutas CRUD (POST/PATCH). Cada tipo de acción define su forma.
+ * Validación/saneamiento del `action` de una Tarea Programada.
+ * Soporta 1 acción principal + cadena opcional `then[]` (flow corto).
+ * El worker `cron-schedule` debe ejecutar: type → then[0] → then[1]… en serie.
  */
 import { ACTION_TYPES, type ActionType } from '@/lib/scheduling';
 
-export interface SanitizedAction {
+export interface SanitizedActionStep {
   type: ActionType;
   config: Record<string, unknown>;
 }
 
+export interface SanitizedAction extends SanitizedActionStep {
+  /** Pasos siguientes tras éxito del principal (máx. 3). */
+  then?: SanitizedActionStep[];
+}
+
 type Result = { ok: true; value: SanitizedAction } | { ok: false; error: string };
+
+const MAX_THEN_STEPS = 3;
 
 function str(v: unknown, max: number): string {
   return typeof v === 'string' ? v.trim().slice(0, max) : '';
 }
 
-export function sanitizeAction(input: unknown): Result {
-  if (!input || typeof input !== 'object') {
-    return { ok: false, error: 'action es requerido.' };
-  }
-  const a = input as { type?: unknown; config?: unknown };
-  const type = a.type as ActionType;
-  if (!ACTION_TYPES.includes(type)) {
-    return { ok: false, error: `Tipo de acción inválido. Permitidos: ${ACTION_TYPES.join(', ')}.` };
-  }
-  const cfg = (a.config && typeof a.config === 'object' ? a.config : {}) as Record<string, unknown>;
-
+function sanitizeStepConfig(type: ActionType, cfg: Record<string, unknown>): Result {
   switch (type) {
     case 'webhook': {
       const url = str(cfg.url, 2000);
@@ -39,7 +37,10 @@ export function sanitizeAction(input: unknown): Result {
         cfg.headers && typeof cfg.headers === 'object' && !Array.isArray(cfg.headers)
           ? (cfg.headers as Record<string, unknown>)
           : {};
-      return { ok: true, value: { type, config: { url, method, headers, bodyTemplate: str(cfg.bodyTemplate, 8000) } } };
+      return {
+        ok: true,
+        value: { type, config: { url, method, headers, bodyTemplate: str(cfg.bodyTemplate, 8000) } },
+      };
     }
     case 'agent_run': {
       const prompt = str(cfg.prompt, 8000);
@@ -67,6 +68,57 @@ export function sanitizeAction(input: unknown): Result {
   }
 }
 
+export function sanitizeAction(input: unknown): Result {
+  if (!input || typeof input !== 'object') {
+    return { ok: false, error: 'action es requerido.' };
+  }
+  const a = input as { type?: unknown; config?: unknown; then?: unknown };
+  const type = a.type as ActionType;
+  if (!ACTION_TYPES.includes(type)) {
+    return { ok: false, error: `Tipo de acción inválido. Permitidos: ${ACTION_TYPES.join(', ')}.` };
+  }
+  const cfg = (a.config && typeof a.config === 'object' ? a.config : {}) as Record<string, unknown>;
+  const primary = sanitizeStepConfig(type, cfg);
+  if (!primary.ok) return primary;
+
+  let then: SanitizedActionStep[] | undefined;
+  if (Array.isArray(a.then)) {
+    then = [];
+    for (let i = 0; i < Math.min(a.then.length, MAX_THEN_STEPS); i++) {
+      const raw = a.then[i];
+      if (!raw || typeof raw !== 'object') {
+        return { ok: false, error: `then[${i}] inválido.` };
+      }
+      const step = raw as { type?: unknown; config?: unknown };
+      const stepType = step.type as ActionType;
+      if (!ACTION_TYPES.includes(stepType)) {
+        return { ok: false, error: `then[${i}].type inválido.` };
+      }
+      // agent_run solo como paso principal (costoso / necesita widget).
+      if (stepType === 'agent_run') {
+        return { ok: false, error: 'agent_run solo puede ser la acción principal, no un paso then.' };
+      }
+      const stepCfg =
+        step.config && typeof step.config === 'object' ? (step.config as Record<string, unknown>) : {};
+      const sanitized = sanitizeStepConfig(stepType, stepCfg);
+      if (!sanitized.ok) {
+        return { ok: false, error: `then[${i}]: ${sanitized.error}` };
+      }
+      then.push({ type: sanitized.value.type, config: sanitized.value.config });
+    }
+  }
+
+  return {
+    ok: true,
+    value: {
+      type: primary.value.type,
+      config: primary.value.config,
+      // [] limpia la cadena al editar; omitir then si el cliente no lo envió (compat).
+      ...(then !== undefined ? { then } : {}),
+    },
+  };
+}
+
 export interface SanitizedRetryPolicy {
   maxRetries: number;
   backoff: 'fixed' | 'exponential';
@@ -85,4 +137,22 @@ function clampInt(v: unknown, min: number, max: number, fallback: number): numbe
   const n = typeof v === 'number' ? v : parseInt(String(v), 10);
   if (!Number.isFinite(n)) return fallback;
   return Math.max(min, Math.min(max, Math.floor(n)));
+}
+
+/** Etiqueta corta para UI: "Webhook → Email". */
+export function describeActionFlow(action: {
+  type?: string;
+  then?: Array<{ type?: string }>;
+}): string {
+  const labels: Record<string, string> = {
+    webhook: 'Webhook',
+    agent_run: 'Agente',
+    chat_message: 'Chat',
+    email: 'Email',
+  };
+  const primary = labels[action?.type || ''] || action?.type || '?';
+  const rest = (Array.isArray(action?.then) ? action.then : [])
+    .map((s) => labels[s?.type || ''] || s?.type)
+    .filter(Boolean);
+  return [primary, ...rest].join(' → ');
 }
