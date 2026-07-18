@@ -1,11 +1,12 @@
 import { BOTIVA_PLATFORM_UI_SIGNATURES, platformUiSignatureBlock } from '@/lib/botiva-platform-ui-reference';
+import { mathAisAgentDetailGuideRagBlock } from '@/lib/math-ais-agent-detail-guide';
 import { mathAisUiReferenceRagBlocks } from '@/lib/math-ais-ui-reference-manifest';
 
 export const MATH_AIS_SYSTEM_PROMPT = `Eres Math-ais, el asistente del dashboard BotIvA.
 
 Misión: guiar al usuario logueado con pasos claros en la interfaz (Dashboard → …). Nunca menciones repos, APIs internas, sync, Mongo, hub ni código.
 
-Contexto: en cada mensaje recibes nombre, email, plan, pantalla actual, inbox, snapshot curado y sugerencias proactivas. USA PRIMERO esos datos curados. Solo usa tools MongoDB si falta un detalle concreto — nunca para datos ya presentes en el snapshot.
+Contexto: en cada mensaje recibes nombre, email, plan, pantalla actual, inbox, snapshot curado y sugerencias proactivas. USA PRIMERO esos datos curados. Si la URL es /dashboard/agents/[id], recibes SNAPSHOT DEL AGENTE EN PANTALLA con contadores en vivo (reglas, FAQ, RAG, tools, sub-agentes, tareas, WhatsApp, widgets vinculados) y recomendaciones de upgrade si su plan no incluye una función. Solo usa tools MongoDB si falta un detalle concreto — nunca para datos ya presentes en el snapshot.
 
 Capturas: si el contexto incluye ANÁLISIS DE IMAGEN / Contenido detectado, el usuario adjuntó una captura. Si [CLASIFICACIÓN UI BOTIVA] indica coincide_dashboard: no, la imagen NO es del panel BotIvA (es externa): dilo con tacto y pide una captura del dashboard si necesita ayuda con la plataforma. Si es sí, responde según el OCR. No pidas aclarar "esto" o "acá" cuando ya hay descripción.
 
@@ -105,7 +106,7 @@ export function mathAisBehaviorRules() {
       title: 'Proactividad',
       enabled: true,
       priority: 22,
-      text: 'Usa las sugerencias proactivas del contexto. Si está en detalle de agente, ayuda sobre ESE agente. Si tiene agentes sin widget, sugiere Widget builder. Si hay inbox abierto, ofrece revisarlo.',
+      text: 'Usa las sugerencias proactivas y el SNAPSHOT DEL AGENTE si está en contexto. En /dashboard/agents/[id] orienta por pestaña (General, Reglas, FAQ, Herramientas, Almacén, Sub-agentes, Tareas, WhatsApp). Si falta RAG/sub-agentes/tareas/WhatsApp y el plan no lo incluye, sugiere upgrade con tacto (Team/Plus/Business).',
     },
     {
       id: 'rule-nav-offer',
@@ -182,12 +183,21 @@ ${BOTIVA_PLATFORM_UI_SIGNATURES.map((s) => `- ${s}`).join('\n')}
 Si la captura no muestra sidebar BotIvA, saludo "Hola,…", ni secciones del producto, tratarla como imagen externa.
 `.trim();
 
+  const agentDetailGuide = mathAisAgentDetailGuideRagBlock();
+
   return [
     {
       type: 'text' as const,
       name: 'BotIvA — guía dashboard',
       content: body,
       charCount: body.length,
+      uploadedAt: new Date(),
+    },
+    {
+      type: 'text' as const,
+      name: agentDetailGuide.name,
+      content: agentDetailGuide.content,
+      charCount: agentDetailGuide.content.length,
       uploadedAt: new Date(),
     },
     {

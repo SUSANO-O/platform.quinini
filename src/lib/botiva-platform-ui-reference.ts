@@ -22,6 +22,11 @@ export const BOTIVA_PLATFORM_UI_SIGNATURES = [
   'Burbuja Math-ais en esquina inferior (chat interno del dashboard).',
   'Textos de producto: BotIvA, Agentes, Mis widgets, Widget builder, Estado del sistema.',
   'Listados de agentes con badges/iniciales, builder de widget con pasos y preview.',
+  'Widget Builder (/dashboard/widget-builder): wizard 4 pasos (Identidad → Apariencia → Comportamiento → Publicar). Paso 1: nombre widget, toggle multiagente, grilla de agentes. Paso 2: color #006B7D, tema claro/oscuro, textos chat, posición launcher, toggles adjuntar/mic/TTS. Paso 3: WhatsApp humano, botón hablar con persona, privacidad, shortcuts. Vista previa en vivo a la derecha.',
+  'Formulario Crear agente (/dashboard/agents/new): nombre, sugerir con AI, catálogo de modelos, system prompt, solo propósito, integraciones MCP (Gmail, HubSpot, etc.).',
+  'Ficha agente (/dashboard/agents/[id]): sidebar 8 pestañas — General, Reglas, FAQ, Herramientas, Almacén, Sub-agentes, Tareas, WhatsApp. Cabecera con nombre, Activo, modelo, Hub sync.',
+  'Mis widgets: grilla de tarjetas, menú ⋮ (embed, compartir, historial), botón + Nuevo widget. Vista previa del widget con paneles de config y chat flotante.',
+  'Vista previa widget (/dashboard/widget-preview): Resumen de capacidades (grid), MCP Tools con badges Sincronizado, tarjeta Embed con snippet script widget.js y AgentFlowhub.init (agentId, widgetId, host, token).',
   'Marca "POWERED BY BOTIVA" solo en widgets embebidos, no en el panel principal.',
 ] as const;
 

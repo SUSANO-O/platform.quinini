@@ -11,6 +11,11 @@ import {
   type AssistInboxSummary,
   type AssistScreenContext,
 } from '@/lib/assist-session-screen';
+import {
+  formatAssistAgentDetailSnapshotBlock,
+  loadAssistAgentDetailSnapshot,
+  type AssistAgentDetailSnapshot,
+} from '@/lib/assist-agent-detail-snapshot';
 
 export type AssistSessionContext = {
   userId: string;
@@ -40,6 +45,8 @@ export type AssistSessionContext = {
     plan: string;
     subscriptionStatus: string;
   };
+  /** Datos en vivo del agente si está en /dashboard/agents/[id]. */
+  agentDetail: AssistAgentDetailSnapshot | null;
   /** Para tools Mongo: filtrar SIEMPRE por este userId (string ObjectId). */
   mongoScope: {
     userId: string;
@@ -138,6 +145,17 @@ export async function loadAssistSessionContext(
     loadAssistInboxSummary(userId),
   ]);
 
+  let agentDetail: AssistAgentDetailSnapshot | null = null;
+  const agentDetailMatch = page.match(/^\/dashboard\/agents\/([a-f0-9]{24})$/i);
+  if (agentDetailMatch) {
+    agentDetail = await loadAssistAgentDetailSnapshot(
+      userId,
+      agentDetailMatch[1],
+      plan,
+      features,
+    );
+  }
+
   const proactiveHints = buildProactiveHints({
     pageLabel: labelForDashboardPath(page),
     pagePath: page,
@@ -150,6 +168,7 @@ export async function loadAssistSessionContext(
     widgetsTotal,
     inbox,
     screen,
+    agentDetail,
   });
 
   return {
@@ -172,6 +191,7 @@ export async function loadAssistSessionContext(
       plan,
       subscriptionStatus: status,
     },
+    agentDetail,
     agents: {
       total: agentsTotal,
       names: agentRows.map((a) => String(a.name || '').trim()).filter(Boolean),
@@ -253,6 +273,7 @@ export function formatAssistSessionContextBlock(
     `Snapshot: ${ctx.curatedSnapshot.agentsTotal} agentes, ${ctx.curatedSnapshot.widgetsTotal} widgets, plan ${ctx.curatedSnapshot.plan}.`,
     `Agentes recientes: ${ctx.curatedSnapshot.recentAgentNames.join(', ') || '—'}`,
     `Widgets recientes: ${ctx.curatedSnapshot.recentWidgetNames.join(', ') || '—'}`,
+    ...(ctx.agentDetail ? ['', formatAssistAgentDetailSnapshotBlock(ctx.agentDetail)] : []),
     '',
     '[MONGO READ-ONLY — solo si el snapshot no alcanza]',
     `Filtra SIEMPRE por userId="${ctx.userId}" en clientagents/widgets/subscriptions.`,
@@ -274,6 +295,7 @@ export function assistContextToPublicJson(ctx: AssistSessionContext) {
     inbox: ctx.inbox,
     proactiveHints: ctx.proactiveHints,
     curatedSnapshot: ctx.curatedSnapshot,
+    agentDetail: ctx.agentDetail,
     agents: ctx.agents,
     widgets: ctx.widgets,
     onboarding: ctx.onboarding,
