@@ -10,6 +10,7 @@ import { PLAN_CONVERSATION_LIMITS } from '@/lib/plan-catalog';
 import { sendQuotaWarningEmail } from '@/lib/email';
 import { sendPushToUser } from '@/lib/push-notifications';
 import { getPlatformGiftCycleKey } from '@/lib/platform-agent-utils';
+import { isLocalDevLimitsBypass } from '@/lib/dev-limits';
 
 export interface QuotaResult {
   allowed: boolean;
@@ -25,6 +26,10 @@ async function shouldSendWarning(sub: { quotaWarningSentMonth?: string } | null,
 }
 
 export async function checkConversationQuota(userId: string): Promise<QuotaResult> {
+  if (isLocalDevLimitsBypass()) {
+    return { allowed: true, used: 0, baseLimit: -1, packLimit: 0, limit: -1, plan: 'development' };
+  }
+
   await connectDB();
 
   const [sub, activePacks] = await Promise.all([

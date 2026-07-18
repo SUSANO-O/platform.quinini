@@ -6,6 +6,8 @@
  * - Detección básica de prompt injection
  */
 
+import { isLocalDevLimitsBypass } from '@/lib/dev-limits';
+
 export const MAX_MESSAGE_CHARS   = 4_000;
 export const MAX_TURNS_PER_SESSION = 60;
 
@@ -110,7 +112,7 @@ export function extractAndGuardMessage(rawBody: string): GuardResult & { text?: 
 
     const turnCount = countWidgetUserTurns(parsed);
 
-    if (turnCount > MAX_TURNS_PER_SESSION) {
+    if (!isLocalDevLimitsBypass() && turnCount > MAX_TURNS_PER_SESSION) {
       return {
         ok: false,
         code: 'SESSION_TURN_LIMIT',
@@ -139,7 +141,7 @@ export function extractAndGuardMessage(rawBody: string): GuardResult & { text?: 
 
     const turnCount = userMsgs.length;
 
-    if (turnCount > MAX_TURNS_PER_SESSION) {
+    if (!isLocalDevLimitsBypass() && turnCount > MAX_TURNS_PER_SESSION) {
       return {
         ok: false,
         code: 'SESSION_TURN_LIMIT',

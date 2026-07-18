@@ -45,7 +45,10 @@ import {
   type WidgetMultiAgentConfig,
 } from '@/lib/widget-multi-agent';
 import { enrichWidgetChatBodyWithImages, type WidgetImageEnrichment } from '@/lib/widget-chat-images';
-import { mergeVisionContextIntoBody } from '@/lib/widget-chat-vision-context';
+import {
+  finalizeWidgetChatBodyWithVision,
+  mergeVisionContextIntoBody,
+} from '@/lib/widget-chat-vision-context';
 import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-enrich';
 import { schedulePersistWidgetTranscript } from '@/lib/widget-transcript';
 import { agentHasAnyWebhook } from '@/lib/agent-webhooks';
@@ -65,6 +68,7 @@ import {
 } from '@/lib/widget-chat-latency';
 import { friendlyWidgetChatError } from '@/lib/widget-chat-user-errors';
 import { attachAssistNavToPayload, buildAssistNavCtx } from '@/lib/assist-chat-reply';
+import { isLocalDevLimitsBypass } from '@/lib/dev-limits';
 
 export const maxDuration = 60; // Vercel: allow up to 60s for LLM + streaming
 
@@ -278,7 +282,7 @@ export async function POST(req: NextRequest) {
           const hasActivePlan =
             subDoc?.status === 'active' || subDoc?.status === 'trialing';
           const userTurnCount = guardResult.turnCount ?? 0;
-          if (!hasActivePlan && userTurnCount >= 2) {
+          if (!isLocalDevLimitsBypass() && !hasActivePlan && userTurnCount >= 2) {
             latencyTrace.mark('auth');
             finalizeWidgetChatTrace(latencyTrace, { ok: false, errorCode: 'WIDGET_PROVIDER_SUBSCRIPTION_REQUIRED' });
             return new Response(
@@ -365,12 +369,28 @@ export async function POST(req: NextRequest) {
             if (identity) {
               j.visitorUserId = identity.userId;
               const pagePath = typeof j.pagePath === 'string' ? j.pagePath : undefined;
-              j = await injectAssistContextIntoChatBody(j, identity, pagePath);
+              j = await injectAssistContextIntoChatBody(j, identity, pagePath, {
+                hasUserImage: Boolean(imageEnrichment?.images?.length),
+              });
             }
             rawBody = JSON.stringify(j);
           }
         } catch (idErr) {
           console.warn('[widget/chat/stream] assist identity inject skipped:', idErr);
+        }
+
+        if (imageEnrichment?.analyses?.length && parsedAgentId) {
+          try {
+            rawBody = await finalizeWidgetChatBodyWithVision({
+              rawBody,
+              enrichment: imageEnrichment,
+              agentId: parsedAgentId,
+              ownerUserId: w.userId,
+              strictPurposeSuffix: STRICT_PURPOSE_SUFFIX,
+            });
+          } catch (visionErr) {
+            console.warn('[widget/chat/stream] vision context finalize skipped:', visionErr);
+          }
         }
       }
       latencyTrace.mark('auth');
@@ -650,7 +670,10 @@ export async function POST(req: NextRequest) {
           try {
             await latencyTrace.span('strict_purpose', async () => {
             await connectDB();
-            const agentDoc = await ClientAgent.findById(parsedAgentId, { strictPurposeOnly: 1, systemPrompt: 1 })
+            const agentFilter = /^[a-f0-9]{24}$/i.test(parsedAgentId)
+              ? { _id: parsedAgentId }
+              : { agentHubId: parsedAgentId };
+            const agentDoc = await ClientAgent.findOne(agentFilter, { strictPurposeOnly: 1, systemPrompt: 1 })
               .lean() as { strictPurposeOnly?: boolean; systemPrompt?: string } | null;
 
             if (imageEnrichment) {

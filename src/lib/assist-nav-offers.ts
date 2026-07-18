@@ -16,17 +16,20 @@ export type AssistNavOffer = {
 const NAV_BLOCK_RE = /```assist-nav\s*\n([\s\S]*?)\n```/i;
 
 const ALLOWED_PATH =
-  /^(\/(?:es|en))?\/dashboard(?:\/(?:agents(?:\/[a-f0-9]{24})?|widgets(?:\/[a-f0-9]{24})?|widget-builder|widget-preview|inbox|chats|mcp|settings|finance|flows|agents\/new))?\/?$/i;
+  /^(\/(?:es|en))?\/dashboard(?:\/(?:agents(?:\/[a-f0-9]{24})?|widgets(?:\/[a-f0-9]{24})?|widget-builder|widget-preview|inbox|chats|quick-start|mcp|settings|finance|flows|agents\/new))?\/?$/i;
 
 export function isAllowedAssistNavPath(path: string): boolean {
-  const p = path.trim().split('?')[0].replace(/\/$/, '') || '/dashboard';
+  const p = path.trim().split('?')[0].split('#')[0].replace(/\/$/, '') || '/dashboard';
   return ALLOWED_PATH.test(p) || p === '/dashboard' || /^\/(?:es|en)\/dashboard$/i.test(p);
 }
 
 export function normalizeAssistNavPath(path: string): string {
-  const p = path.trim().split('?')[0];
-  if (!p.startsWith('/')) return `/dashboard/${p.replace(/^\//, '')}`;
-  return p.replace(/\/$/, '') || '/dashboard';
+  const raw = path.trim();
+  const hashIdx = raw.indexOf('#');
+  const hash = hashIdx >= 0 ? raw.slice(hashIdx) : '';
+  let base = (hashIdx >= 0 ? raw.slice(0, hashIdx) : raw).split('?')[0];
+  if (!base.startsWith('/')) base = `/dashboard/${base.replace(/^\//, '')}`;
+  return (base.replace(/\/$/, '') || '/dashboard') + hash;
 }
 
 export function parseAssistNavBlock(raw: string): AssistNavOffer | null {
@@ -123,7 +126,7 @@ function detectNavIntentFromText(
   }
 
   if (
-    /(\bcre(o|ar|a)\b.*\bagentes?\b|\bnuevo agente|\bprimer agente|\bcomo cre(o|ar).*\bagentes?\b)/.test(
+    /(\bcre(o|ar|a)\b.*\bagentes?\b|\bnuevo agente|\bprimer agente|\bcomo cre(o|ar).*\bagentes?\b|\bcontruyo.*agente|\bconstruyo.*agente)/.test(
       text,
     )
   ) {
@@ -171,7 +174,20 @@ function detectNavIntentFromText(
     );
   }
 
-  if (/(\bajustes|\bconfiguraci[oó]n de cuenta|\bfacturaci[oó]n|\bplan\b)/.test(text)) {
+  if (
+    /(\bsuscripci[oó]n|\bfacturaci[oó]n|\bfacturas|\bm[eé]todo de pago|\bplan\b|\bcuenta y plan)/.test(
+      text,
+    )
+  ) {
+    return mk(
+      '/dashboard/settings#settings-billing',
+      'Ve a Dashboard → Ajustes y baja hasta «Suscripción y facturación».',
+      'Aquí puedes revisar tu plan, facturas y método de pago.',
+      '¿Quieres que te lleve a Suscripción y cuenta?',
+    );
+  }
+
+  if (/(\bajustes|\bconfiguraci[oó]n de cuenta)/.test(text)) {
     return mk(
       '/dashboard/settings',
       'Ve a Dashboard → Ajustes en el menú lateral.',
@@ -193,7 +209,7 @@ function detectNavIntentFromText(
 }
 
 export function normalizeAssistPagePath(path?: string): string {
-  const p = String(path || '').split('?')[0].replace(/\/$/, '') || '/dashboard';
+  const p = String(path || '').split('?')[0].split('#')[0].replace(/\/$/, '') || '/dashboard';
   return p.replace(/^\/(es|en)(?=\/)/, '') || p;
 }
 

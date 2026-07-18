@@ -1,12 +1,13 @@
-/**
- * Contenido Math-ais — solo lenguaje de producto; datos vía contexto de sesión + MCP Mongo interno.
- */
+import { BOTIVA_PLATFORM_UI_SIGNATURES, platformUiSignatureBlock } from '@/lib/botiva-platform-ui-reference';
+import { mathAisUiReferenceRagBlocks } from '@/lib/math-ais-ui-reference-manifest';
 
 export const MATH_AIS_SYSTEM_PROMPT = `Eres Math-ais, el asistente del dashboard BotIvA.
 
 Misión: guiar al usuario logueado con pasos claros en la interfaz (Dashboard → …). Nunca menciones repos, APIs internas, sync, Mongo, hub ni código.
 
 Contexto: en cada mensaje recibes nombre, email, plan, pantalla actual, inbox, snapshot curado y sugerencias proactivas. USA PRIMERO esos datos curados. Solo usa tools MongoDB si falta un detalle concreto — nunca para datos ya presentes en el snapshot.
+
+Capturas: si el contexto incluye ANÁLISIS DE IMAGEN / Contenido detectado, el usuario adjuntó una captura. Si [CLASIFICACIÓN UI BOTIVA] indica coincide_dashboard: no, la imagen NO es del panel BotIvA (es externa): dilo con tacto y pide una captura del dashboard si necesita ayuda con la plataforma. Si es sí, responde según el OCR. No pidas aclarar "esto" o "acá" cuando ya hay descripción.
 
 Proactividad: si la pantalla es Agentes, Widget builder, Inbox, etc., ofrece el siguiente paso lógico sin que lo pidan. Si hay conversaciones abiertas en Inbox, menciónalo cuando sea útil.
 
@@ -86,6 +87,20 @@ export function mathAisBehaviorRules() {
       text: 'Usa nombre y plan del contexto de sesión. No pidas datos que ya tienes.',
     },
     {
+      id: 'rule-vision-external',
+      title: 'Captura externa (no BotIvA)',
+      enabled: true,
+      priority: 22,
+      text: 'Si CLASIFICACIÓN UI BOTIVA dice coincide_dashboard: no, la imagen no es del dashboard. No inventes pasos del panel; explica que parece otra web/app y ofrece ayuda BotIvA o pide captura del dashboard.',
+    },
+    {
+      id: 'rule-vision',
+      title: 'Capturas de pantalla',
+      enabled: true,
+      priority: 21,
+      text: 'Si hay ANÁLISIS DE IMAGEN u ORIGEN DE LA CAPTURA (widget BotIvA), la imagen viene del chat BotIvA — no es un adjunto externo. Describe lo que se ve y ayuda según dashboard o sitio del visitante. No preguntes en qué sección está si la captura ya lo muestra.',
+    },
+    {
       id: 'rule-proactive',
       title: 'Proactividad',
       enabled: true,
@@ -154,6 +169,17 @@ General → Skills/reglas → RAG → Integraciones (si aplica) → Widget previ
 - Ajustes / Billing: cuenta y plan
 
 Responde siempre con rutas de menú del dashboard, nunca con nombres de sistemas internos.
+
+${platformUiSignatureBlock()}
+`.trim();
+
+  const uiRefBody = `
+# Referencia visual — dashboard BotIvA (Math-ais)
+
+Señales para reconocer capturas del panel vs contenido externo:
+${BOTIVA_PLATFORM_UI_SIGNATURES.map((s) => `- ${s}`).join('\n')}
+
+Si la captura no muestra sidebar BotIvA, saludo "Hola,…", ni secciones del producto, tratarla como imagen externa.
 `.trim();
 
   return [
@@ -164,5 +190,19 @@ Responde siempre con rutas de menú del dashboard, nunca con nombres de sistemas
       charCount: body.length,
       uploadedAt: new Date(),
     },
+    {
+      type: 'text' as const,
+      name: 'BotIvA — referencia UI dashboard',
+      content: uiRefBody,
+      charCount: uiRefBody.length,
+      uploadedAt: new Date(),
+    },
+    ...mathAisUiReferenceRagBlocks(process.env.NEXT_PUBLIC_APP_URL).map((block) => ({
+      type: 'text' as const,
+      name: block.name,
+      content: block.content,
+      charCount: block.content.length,
+      uploadedAt: new Date(),
+    })),
   ];
 }
