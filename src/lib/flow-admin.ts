@@ -1,18 +1,28 @@
 import type { FlowNode } from '@/lib/flow-editor/types';
+import {
+  canUseConversationFlows,
+  effectiveProductPlan,
+} from '@/lib/plan-catalog';
 
-/** Máximo de flujos por plan (-1 = ilimitado). */
+/** Máximo de flujos por plan (-1 = ilimitado). Solo aplica si canUseConversationFlows. */
 export const FLOW_LIMITS_BY_PLAN: Record<string, number> = {
   free: 0,
-  solo: 1,
-  api_develop: 3,
-  team: 3,
+  solo: 0,
+  api_develop: 0,
+  team: 0,
   plus: 10,
   business: -1,
   enterprise: -1,
 };
 
-export function flowLimitForPlan(plan: string): number {
-  return FLOW_LIMITS_BY_PLAN[plan] ?? 1;
+export function flowLimitForPlan(
+  plan: string,
+  status = 'active',
+  subscriptionFeatures?: string[] | null,
+): number {
+  const effective = effectiveProductPlan(plan, status);
+  if (!canUseConversationFlows(plan, status, subscriptionFeatures)) return 0;
+  return FLOW_LIMITS_BY_PLAN[effective] ?? 0;
 }
 
 export function parseFlowTags(tags: string): string[] {

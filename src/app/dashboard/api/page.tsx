@@ -1,33 +1,50 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
-import { ExternalLink, Lock, Code2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ExternalLink, Code2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useSubscription } from '@/hooks/use-subscription';
+import { canUseApiAccess } from '@/lib/plan-catalog';
 import {
-  apiAccessUpgradeLabel,
-  canUseApiAccess,
-  effectiveProductPlan,
-} from '@/lib/plan-catalog';
-import { getAgentflowApiDocsUrl, getAgentflowApiUrl } from '@/lib/agentflow-api-url';
+  getAgentflowApiDocsEmbedUrl,
+  getAgentflowApiDocsUrl,
+  getAgentflowApiUrl,
+  resolveAgentflowApiUrl,
+} from '@/lib/agentflow-api-url';
+import { ApiReleasePanel } from '@/components/dashboard/api-release-panel';
 
 export default function DashboardApiPage() {
+  const router = useRouter();
   const { subscription, loading } = useSubscription();
   const plan = subscription?.plan ?? 'free';
   const status = subscription?.status ?? 'free';
-  const effective = effectiveProductPlan(plan, status);
   const hasAccess = canUseApiAccess(plan, status, subscription?.features);
-  const docsUrl = getAgentflowApiDocsUrl();
-  const apiBase = getAgentflowApiUrl();
+  const [apiBase, setApiBase] = useState(() => getAgentflowApiUrl());
+  const [docsUrl, setDocsUrl] = useState(() => getAgentflowApiDocsUrl());
+
+  useEffect(() => {
+    if (!loading && !hasAccess) {
+      router.replace('/dashboard');
+    }
+  }, [loading, hasAccess, router]);
+
+  useEffect(() => {
+    const base = resolveAgentflowApiUrl({
+      landingHostname: window.location.hostname,
+    });
+    setApiBase(base);
+    setDocsUrl(`${base}/docs/`);
+  }, []);
 
   // Comprueba si el servicio API responde antes de embeber el iframe: si está
   // caído mostramos un aviso claro en vez del icono de «documento roto».
   // Reintenta varias veces porque el primer acceso a Nuxt compila la ruta en
   // frío y puede tardar más que el timeout inicial.
   const [apiStatus, setApiStatus] = useState<'checking' | 'up' | 'down'>('checking');
+  const [apiVersion, setApiVersion] = useState<string | null>(null);
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
 
-  const checkHealth = useCallback(async (): Promise<boolean> => {
+  const checkHealth = useCallback(async (): Promise<{ ok: boolean; version?: string }> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 10000);
     try {
@@ -35,9 +52,11 @@ export default function DashboardApiPage() {
         signal: controller.signal,
         cache: 'no-store',
       });
-      return res.ok;
+      if (!res.ok) return { ok: false };
+      const data = (await res.json()) as { version?: string };
+      return { ok: true, version: typeof data.version === 'string' ? data.version : undefined };
     } catch {
-      return false;
+      return { ok: false };
     } finally {
       clearTimeout(timer);
     }
@@ -49,8 +68,12 @@ export default function DashboardApiPage() {
     setApiStatus('checking');
     (async () => {
       for (let attempt = 0; attempt < 3 && !cancelled; attempt++) {
-        if (await checkHealth()) {
-          if (!cancelled) setApiStatus('up');
+        const health = await checkHealth();
+        if (health.ok) {
+          if (!cancelled) {
+            setApiStatus('up');
+            setApiVersion(health.version ?? null);
+          }
           return;
         }
         if (attempt < 2 && !cancelled) await new Promise((r) => setTimeout(r, 2000));
@@ -74,89 +97,58 @@ export default function DashboardApiPage() {
         const data = (await res.json()) as { token?: string };
         if (cancelled) return;
         if (res.ok && data.token) {
-          const sep = docsUrl.includes('?') ? '&' : '?';
-          setIframeSrc(`${docsUrl}${sep}session=${encodeURIComponent(data.token)}`);
+          setIframeSrc(getAgentflowApiDocsEmbedUrl(data.token));
         } else {
-          setIframeSrc(docsUrl);
+          setIframeSrc(getAgentflowApiDocsEmbedUrl());
         }
       } catch {
-        if (!cancelled) setIframeSrc(docsUrl);
+        if (!cancelled) setIframeSrc(getAgentflowApiDocsEmbedUrl());
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [hasAccess, apiStatus, docsUrl]);
+  }, [hasAccess, apiStatus]);
 
   const retryHealth = useCallback(async () => {
     setApiStatus('checking');
-    setApiStatus((await checkHealth()) ? 'up' : 'down');
+    const health = await checkHealth();
+    setApiStatus(health.ok ? 'up' : 'down');
+    setApiVersion(health.version ?? null);
   }, [checkHealth]);
 
   if (loading) {
     return (
-      <div className="p-6 max-w-3xl">
+      <div className="p-6 w-full">
         <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Cargando…</p>
       </div>
     );
   }
 
   if (!hasAccess) {
-    return (
-      <div className="relative overflow-hidden min-h-full p-6 max-w-2xl">
-        <div
-          className="rounded-2xl p-8 card-texture"
-          style={{ border: '1px solid var(--border)', background: 'var(--card)' }}
-        >
-          <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
-            style={{ background: 'rgba(var(--brand-primary-rgb),0.1)' }}
-          >
-            <Lock size={22} style={{ color: 'var(--primary)' }} />
-          </div>
-          <h1 className="text-xl font-bold mb-2">API REST</h1>
-          <p className="text-sm leading-relaxed mb-6" style={{ color: 'var(--muted-foreground)' }}>
-            La documentación interactiva y las claves de API están disponibles desde el plan{' '}
-            <strong>{apiAccessUpgradeLabel()}</strong> en adelante. Tu plan actual:{' '}
-            <strong>{effective}</strong>.
-          </p>
-          <Link
-            href="/pricing#api-develop"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
-            style={{ background: 'var(--brand-primary)' }}
-          >
-            Ver planes con API
-          </Link>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
-    <div className="relative overflow-hidden min-h-full p-6 max-w-4xl">
+    <div className="relative overflow-hidden min-h-full p-4 md:p-6 w-full max-w-full lg:max-w-3xl lg:mx-auto">
       <div className="mb-6">
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-2">
           <Code2 size={20} style={{ color: 'var(--primary)' }} />
           <h1 className="text-2xl font-bold">API REST</h1>
         </div>
-        <p className="text-sm leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
-          Documentación y prueba de endpoints en el servicio dedicado. Autenticación con{' '}
-          <code className="text-xs">X-Api-Key</code> o{' '}
-          <code className="text-xs">Authorization: Bearer afapi_…</code>.
-        </p>
       </div>
+
+      <ApiReleasePanel liveVersion={apiVersion} />
 
       <div
         className="rounded-2xl overflow-hidden mb-6"
         style={{ border: '1px solid var(--border)', background: 'var(--card)' }}
       >
         <div
-          className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+          className="flex flex-wrap items-center justify-end gap-3 px-4 py-3"
           style={{ borderBottom: '1px solid var(--border)' }}
         >
-          <span className="text-xs font-mono truncate" style={{ color: 'var(--muted-foreground)' }}>
-            {docsUrl}
-          </span>
+          {/* iframeSrc (embed + session) solo en código — no mostrar URL interna al usuario */}
           <a
             href={docsUrl}
             target="_blank"
@@ -173,12 +165,12 @@ export default function DashboardApiPage() {
             title="Documentación API BotIvA"
             src={iframeSrc}
             className="w-full border-0"
-            style={{ height: 'min(72vh, 720px)', background: '#fff' }}
+            style={{ height: 'min(85vh, 960px)', background: '#fff' }}
           />
         ) : apiStatus === 'up' ? (
           <div
             className="flex items-center justify-center px-6 py-16"
-            style={{ height: 'min(72vh, 720px)' }}
+            style={{ height: 'min(85vh, 960px)' }}
           >
             <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
               Preparando sesión de documentación…
@@ -187,7 +179,7 @@ export default function DashboardApiPage() {
         ) : (
           <div
             className="flex flex-col items-center justify-center gap-3 text-center px-6 py-16"
-            style={{ height: 'min(72vh, 720px)' }}
+            style={{ height: 'min(85vh, 960px)' }}
           >
             {apiStatus === 'checking' ? (
               <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>

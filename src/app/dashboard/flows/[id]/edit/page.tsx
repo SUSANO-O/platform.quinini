@@ -1,19 +1,34 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { AiLoadingScreen } from '@/components/ui/ai-loading-screen';
 import { FlowEditor } from '@/components/flow-editor/flow-editor';
+import { useSubscription } from '@/hooks/use-subscription';
+import { canUseConversationFlows } from '@/lib/plan-catalog';
 import type { FlowDocument } from '@/lib/flow-editor/types';
 
 export default function FlowEditorPage() {
   const params = useParams();
+  const router = useRouter();
   const id = typeof params.id === 'string' ? params.id : '';
+  const { subscription, loading: subscriptionLoading } = useSubscription();
+  const hasAccess = canUseConversationFlows(
+    subscription?.plan ?? 'free',
+    subscription?.status ?? 'free',
+    subscription?.features,
+  );
   const [flow, setFlow] = useState<FlowDocument | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!id) return;
+    if (!subscriptionLoading && !hasAccess) {
+      router.replace('/dashboard');
+    }
+  }, [subscriptionLoading, hasAccess, router]);
+
+  useEffect(() => {
+    if (!id || !hasAccess || subscriptionLoading) return;
     let cancelled = false;
 
     (async () => {
@@ -34,7 +49,10 @@ export default function FlowEditorPage() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, hasAccess, subscriptionLoading]);
+
+  if (subscriptionLoading) return <AiLoadingScreen />;
+  if (!hasAccess) return null;
 
   if (error) {
     return (

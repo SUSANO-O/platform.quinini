@@ -2,6 +2,8 @@ import createNextIntlPlugin from 'next-intl/plugin';
 import type { NextConfig } from 'next';
 // @ts-ignore -- next-pwa still ships loose typings
 import withPWAInit from 'next-pwa';
+import { getAgentflowApiOriginsForCsp } from './src/lib/agentflow-api-url';
+import { AGENTFLOW_API_EMBED_CSP } from './src/lib/agentflow-api-embed-csp';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 const withPWA = withPWAInit({
@@ -33,47 +35,68 @@ const nextConfig: NextConfig = {
   },
 
   async headers() {
-    // Origen del servicio agent-flow-api (documentación embebida en iframe)
-    const agentflowApiOrigin = (() => {
-      const raw = process.env.NEXT_PUBLIC_AGENTFLOW_API_URL?.trim() || 'http://127.0.0.1:4000';
-      try { return new URL(raw).origin; } catch { return 'http://127.0.0.1:4000'; }
-    })();
+    const agentflowApiOrigins = getAgentflowApiOriginsForCsp().join(' ');
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    const globalSecurityHeaders = [
+      { key: 'X-DNS-Prefetch-Control', value: 'on' },
+      { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+      { key: 'X-Content-Type-Options', value: 'nosniff' },
+      { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+      { key: 'Permissions-Policy', value: 'camera=(), microphone=self, geolocation=()' },
+    ];
+
+    if (isProduction) {
+      globalSecurityHeaders.unshift({
+        key: 'Strict-Transport-Security',
+        value: 'max-age=63072000; includeSubDomains; preload',
+      });
+    }
+
+    const globalCspDirectives = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://control-BotIvA.vercel.app https://unpkg.com https://challenges.cloudflare.com",
+      "script-src-elem 'self' 'unsafe-inline' https://control-BotIvA.vercel.app https://unpkg.com https://challenges.cloudflare.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com https://unpkg.com",
+      "font-src 'self' data: https://fonts.gstatic.com https://api.fontshare.com https://cdn.fontshare.com",
+      "img-src 'self' data: blob: https:",
+      "connect-src 'self' https://api.lemonsqueezy.com https://api.stripe.com https://*.upstash.io https://control-BotIvA.vercel.app https://challenges.cloudflare.com wss: " + agentflowApiOrigins,
+      // 'self' incluye /api/embed/afapi/* (docs embebidas en /dashboard/api)
+      `frame-src 'self' https://app.lemonsqueezy.com https://checkout.lemonsqueezy.com https://js.stripe.com https://hooks.stripe.com https://challenges.cloudflare.com ${agentflowApiOrigins}`,
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self' https://checkout.lemonsqueezy.com https://billing.stripe.com",
+    ];
+
+    // En local HTTP, upgrade-insecure-requests rompe iframes same-origin (http→https).
+    if (isProduction) {
+      globalCspDirectives.push('upgrade-insecure-requests');
+    }
+
+    globalSecurityHeaders.push({
+      key: 'Content-Security-Policy',
+      value: globalCspDirectives.join('; '),
+    });
 
     return [
       {
         // Apply security headers to all routes
         source: '/:path*',
-        headers: [
-          { key: 'X-DNS-Prefetch-Control', value: 'on' },
-          { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
-          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-          { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=self, geolocation=()' },
-          {
-            key: 'Content-Security-Policy',
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://control-BotIvA.vercel.app https://unpkg.com https://challenges.cloudflare.com",
-              "script-src-elem 'self' 'unsafe-inline' https://control-BotIvA.vercel.app https://unpkg.com https://challenges.cloudflare.com",
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com https://unpkg.com",
-              "font-src 'self' data: https://fonts.gstatic.com https://api.fontshare.com https://cdn.fontshare.com",
-              "img-src 'self' data: blob: https:",
-              "connect-src 'self' https://api.lemonsqueezy.com https://api.stripe.com https://*.upstash.io https://control-BotIvA.vercel.app https://challenges.cloudflare.com wss:",
-              `frame-src https://app.lemonsqueezy.com https://checkout.lemonsqueezy.com https://js.stripe.com https://hooks.stripe.com https://challenges.cloudflare.com ${agentflowApiOrigin}`,
-              "object-src 'none'",
-              "base-uri 'self'",
-              "form-action 'self' https://checkout.lemonsqueezy.com https://billing.stripe.com",
-              "upgrade-insecure-requests",
-            ].join('; '),
-          },
-        ],
+        headers: globalSecurityHeaders,
       },
       {
         // Allow Widget API to be embedded in iframes on any origin
         source: '/widget/:path*',
         headers: [
           { key: 'X-Frame-Options', value: 'ALLOWALL' },
+        ],
+      },
+      {
+        // Scalar docs embebidas en /dashboard/api (cdn.jsdelivr.net + iframe same-origin)
+        source: '/api/embed/afapi/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Content-Security-Policy', value: AGENTFLOW_API_EMBED_CSP },
         ],
       },
     ];

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -24,6 +24,7 @@ import { DashboardEmptyState } from '@/components/dashboard/dashboard-empty-stat
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { flowStatusLabel, parseFlowTags } from '@/lib/flow-admin';
+import { canUseConversationFlows } from '@/lib/plan-catalog';
 import type { FlowListItem } from '@/lib/flow-editor/types';
 import '@/components/flows/flows-admin.css';
 
@@ -57,7 +58,12 @@ export default function FlowsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { subscription } = useSubscription();
+  const { subscription, loading: subscriptionLoading } = useSubscription();
+  const hasAccess = canUseConversationFlows(
+    subscription?.plan ?? 'free',
+    subscription?.status ?? 'free',
+    subscription?.features,
+  );
   const plan = subscription?.plan ?? 'free';
   const workspaceId = user?.uid ? personalWorkspaceId(user.uid) : null;
   const [creating, setCreating] = useState(false);
@@ -65,10 +71,16 @@ export default function FlowsPage() {
   const [deleting, setDeleting] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!subscriptionLoading && !hasAccess) {
+      router.replace('/dashboard');
+    }
+  }, [subscriptionLoading, hasAccess, router]);
+
   const { data, isLoading } = useQuery({
     queryKey: ['flows', workspaceId],
     queryFn: () => fetchFlows(workspaceId!),
-    enabled: Boolean(workspaceId),
+    enabled: Boolean(workspaceId) && hasAccess,
   });
 
   const flows = data?.flows ?? [];
@@ -177,6 +189,18 @@ export default function FlowsPage() {
   };
 
   const listLoading = !workspaceId || isLoading;
+
+  if (subscriptionLoading) {
+    return (
+      <DashboardShell>
+        <AiLoadingInline label="Cargando…" />
+      </DashboardShell>
+    );
+  }
+
+  if (!hasAccess) {
+    return null;
+  }
 
   return (
     <DashboardShell>

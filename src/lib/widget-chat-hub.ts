@@ -135,10 +135,9 @@ export async function resolveHubAgentIdInBody(
       typeof landingAgent.agentHubId === 'string' ? landingAgent.agentHubId.trim() : '';
     if (slug) {
       const inHub = await fetchCatalogAgentFromHub(slug);
-      if (inHub?.id) {
-        parsed.agentId = inHub.id;
-        return { ok: true, body: JSON.stringify(parsed), hubAgentId: inHub.id };
-      }
+      const hubAgentId = inHub?.id?.trim() || slug;
+      parsed.agentId = hubAgentId;
+      return { ok: true, body: JSON.stringify(parsed), hubAgentId };
     }
   } else {
     const inHub = await fetchCatalogAgentFromHub(aid);

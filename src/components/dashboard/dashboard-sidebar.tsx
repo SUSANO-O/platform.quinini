@@ -29,7 +29,7 @@ import { UserAvatar } from '@/components/shared/user-avatar';
 import { useInboxOpenCount } from '@/hooks/use-inbox-open-count';
 import { useDashboardPrefetch } from '@/hooks/dashboard/use-dashboard-prefetch';
 import { useSubscription } from '@/hooks/use-subscription';
-import { canUseApiAccess, effectiveProductPlan, isApiOnlyPlan, isSoloChatOnlyPlan } from '@/lib/plan-catalog';
+import { canUseApiAccess, canUseConversationFlows, effectiveProductPlan, isApiOnlyPlan, isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 import { FlowsBetaBadge } from '@/components/flows/flows-beta-badge';
 
 export const SIDEBAR_EXPANDED_PX = 220;
@@ -169,10 +169,12 @@ export const NAV_GROUPS: { title: string; items: { href: string; label: string; 
 
 export function buildDashboardNavGroups({
   showApiLink,
+  showFlowsLink,
   hideQuickStart,
   apiOnly = false,
 }: {
   showApiLink: boolean;
+  showFlowsLink: boolean;
   hideQuickStart: boolean;
   apiOnly?: boolean;
 }) {
@@ -193,6 +195,10 @@ export function buildDashboardNavGroups({
 
     if (group.title === 'Panel' && hideQuickStart) {
       items = items.filter((item) => item.href !== '/dashboard/quick-start');
+    }
+
+    if (group.title === 'Agentes y widgets' && !showFlowsLink) {
+      items = items.filter((item) => item.href !== '/dashboard/flows');
     }
 
     if (group.title === 'Cuenta' && !showApiLink) {
@@ -323,6 +329,7 @@ function SidebarNav({
   onNavigate,
   inboxOpenCount,
   showApiLink,
+  showFlowsLink,
   hideQuickStart,
   apiOnly,
 }: {
@@ -331,11 +338,12 @@ function SidebarNav({
   onNavigate?: () => void;
   inboxOpenCount: number;
   showApiLink: boolean;
+  showFlowsLink: boolean;
   hideQuickStart: boolean;
   apiOnly: boolean;
 }) {
   const prefetchRoute = useDashboardPrefetch();
-  const groups = buildDashboardNavGroups({ showApiLink, hideQuickStart, apiOnly });
+  const groups = buildDashboardNavGroups({ showApiLink, showFlowsLink, hideQuickStart, apiOnly });
 
   return (
     <nav
@@ -421,6 +429,11 @@ export function DashboardSidebar({
   const plan = effectiveProductPlan(subscription?.plan ?? 'free', subscription?.status ?? 'free');
   const apiOnly = isApiOnlyPlan(plan);
   const showApiLink = canUseApiAccess(
+    subscription?.plan ?? 'free',
+    subscription?.status ?? 'free',
+    subscription?.features,
+  );
+  const showFlowsLink = canUseConversationFlows(
     subscription?.plan ?? 'free',
     subscription?.status ?? 'free',
     subscription?.features,
@@ -560,7 +573,7 @@ export function DashboardSidebar({
 
       {footer}
 
-      <SidebarNav pathname={pathname} collapsed={rail} onNavigate={onNavigate} inboxOpenCount={inboxOpenCount} showApiLink={showApiLink} hideQuickStart={hideQuickStart} apiOnly={apiOnly} />
+      <SidebarNav pathname={pathname} collapsed={rail} onNavigate={onNavigate} inboxOpenCount={inboxOpenCount} showApiLink={showApiLink} showFlowsLink={showFlowsLink} hideQuickStart={hideQuickStart} apiOnly={apiOnly} />
 
       {/* Pie */}
       <SoftDivider margin="8px 0 0" />

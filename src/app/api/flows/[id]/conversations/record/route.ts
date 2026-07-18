@@ -4,6 +4,7 @@ import { connectDB } from '@/lib/db/connection';
 import { ConversationFlow } from '@/lib/db/models';
 import { upsertFlowConversation } from '@/lib/flow-stats';
 import { getCorsHeaders, handlePreflight, withCors } from '@/lib/cors';
+import { flowAccessDeniedMessage, resolveFlowAccessForUser } from '@/lib/flow-access';
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -49,6 +50,11 @@ export async function POST(req: NextRequest, ctx: RouteCtx) {
 
   if (flow.status !== 'published') {
     return withCors(req, NextResponse.json({ error: 'El flujo no está publicado.' }, { status: 403 }));
+  }
+
+  const ownerAccess = await resolveFlowAccessForUser(flow.userId);
+  if (!ownerAccess.hasAccess) {
+    return withCors(req, NextResponse.json({ error: flowAccessDeniedMessage(), code: 'FLOW_PLAN_REQUIRED' }, { status: 403 }));
   }
 
   const sessionId = body.sessionId?.trim() || `fc_${randomUUID()}`;

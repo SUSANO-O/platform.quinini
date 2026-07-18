@@ -43,6 +43,7 @@ export const ASSIST_DASHBOARD_NAV_STATES = [
   { id: 'widget-builder', path: '/dashboard/widget-builder', label: 'Widget builder' },
   { id: 'inbox', path: '/dashboard/inbox', label: 'Inbox' },
   { id: 'mcp', path: '/dashboard/mcp', label: 'Integraciones MCP' },
+  { id: 'api', path: '/dashboard/api', label: 'API REST' },
   { id: 'settings', path: '/dashboard/settings', label: 'Ajustes' },
 ] as const;
 
@@ -108,5 +109,5 @@ Puedes proponer cambiar la pantalla del dashboard (estado SPA), no recargar la w
 Flujo: explica breve → pregunta si rediriges → bloque oculto assist-nav (path, onDecline, afterNavigate).
 Prioriza el destino según lo que preguntó el usuario (crear widget → /dashboard/widget-builder, crear agente → /dashboard/agents/new, etc.).
 Si ya está en esa pantalla, no propongas ir otra vez; indica el siguiente paso en la UI actual.
-Rutas: /dashboard/agents, /dashboard/agents/new, /dashboard/widgets, /dashboard/widget-builder, /dashboard/inbox, /dashboard/mcp, /dashboard/settings.`;
+Rutas: /dashboard/agents, /dashboard/agents/new, /dashboard/widgets, /dashboard/widget-builder, /dashboard/inbox, /dashboard/mcp, /dashboard/api, /dashboard/settings.`;
 }

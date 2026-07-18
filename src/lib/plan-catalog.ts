@@ -372,6 +372,9 @@ export const API_REST_COMING_SOON_LABEL = 'Próximamente';
 /** Plan mínimo para analytics de conversaciones (dashboard widget). */
 export const CONVERSATION_ANALYTICS_MIN_PLAN: PlanId = 'plus';
 
+/** Plan mínimo para flujos conversacionales (editor visual + embed). */
+export const CONVERSATION_FLOWS_MIN_PLAN: PlanId = 'plus';
+
 /** Plan mínimo para analytics avanzado (export, histórico extendido). */
 export const CONVERSATION_ANALYTICS_ADVANCED_MIN_PLAN: PlanId = 'business';
 
@@ -396,6 +399,7 @@ export const OUTBOUND_WEBHOOK_FEATURE = 'outbound_webhook';
 export const ESCALATION_SLACK_FEATURE = 'escalation_slack';
 export const ESCALATION_TICKET_FEATURE = 'escalation_tickets';
 export const API_ACCESS_FEATURE = 'api_access';
+export const CONVERSATION_FLOWS_FEATURE = 'conversation_flows';
 export const CUSTOM_INTEGRATION_FEATURE = 'custom_integration';
 
 /**
@@ -411,6 +415,7 @@ export const FEATURE_OVERRIDES: { key: string; label: string; description: strin
   { key: ESCALATION_SLACK_FEATURE,  label: 'Slack al escalar',     description: 'Aviso a Slack en handoff. Incluido desde Team por defecto.' },
   { key: ESCALATION_TICKET_FEATURE, label: 'Tickets al escalar',   description: 'Zendesk/Freshdesk en handoff. Incluido desde Business por defecto.' },
   { key: API_ACCESS_FEATURE,        label: 'Acceso API REST',      description: 'Acceso a la API REST. Incluido desde Team por defecto (API Develop es solo REST).' },
+  { key: CONVERSATION_FLOWS_FEATURE, label: 'Flujos conversacionales', description: 'Editor visual de flujos guiados. Incluido desde Plus por defecto.' },
   { key: CUSTOM_INTEGRATION_FEATURE, label: 'Integraciones custom (MCP)', description: 'Conectores MCP de plan superior (MongoDB, Postgres…). Incluido desde Business por defecto.' },
 ];
 
@@ -492,6 +497,25 @@ export function canUseApiAccess(
   const effective = effectiveProductPlan(plan, status);
   if (isApiOnlyPlan(effective)) return true;
   return planRank(effective) >= planRank(API_ACCESS_MIN_PLAN);
+}
+
+/** Flujos conversacionales — Plus+ con suscripción activa, o por override de admin. */
+export function canUseConversationFlows(
+  plan: string,
+  status: string,
+  subscriptionFeatures?: string[] | null,
+): boolean {
+  if (hasFeatureOverride(subscriptionFeatures, CONVERSATION_FLOWS_FEATURE)) return true;
+  const effective = effectiveProductPlan(plan, status);
+  return planRank(effective) >= planRank(CONVERSATION_FLOWS_MIN_PLAN);
+}
+
+export function planHasConversationFlowsFeature(planId: PlanId): boolean {
+  return planRank(planId) >= planRank(CONVERSATION_FLOWS_MIN_PLAN);
+}
+
+export function conversationFlowsUpgradeLabel(): string {
+  return PLAN_DISPLAY[CONVERSATION_FLOWS_MIN_PLAN]?.label ?? 'Plus';
 }
 
 /** Notificaciones Slack al escalar con suscripción activa (Team+), o por override. */
@@ -631,7 +655,7 @@ export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
     '3.000 conversaciones al mes (~100/día)',
     '12 agentes · 6 sub-agentes · Webhook incluido',
     'Almacenamiento: 256 MB · 20 fuentes · búsqueda vectorial',
-    'Webhook saliente (HMAC) · analytics de conversaciones (básico)',
+    'Flujos conversacionales (BETA) · webhook saliente (HMAC)',
     'Tareas programadas · historial 60 días · soporte email (48 h)',
   ],
   business: [

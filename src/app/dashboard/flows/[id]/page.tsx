@@ -15,6 +15,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useSubscription } from '@/hooks/use-subscription';
 import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 import { DashboardPageHeader } from '@/components/dashboard/dashboard-page-header';
 import { DashboardButton } from '@/components/dashboard/dashboard-button';
@@ -24,6 +25,7 @@ import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { FlowEmbedModal } from '@/components/flows/flow-embed-modal';
 import { flowStatusLabel, parseFlowTags } from '@/lib/flow-admin';
+import { canUseConversationFlows } from '@/lib/plan-catalog';
 import { BRAND } from '@/lib/brand-colors';
 import type { FlowConversationItem, FlowDocument } from '@/lib/flow-editor/types';
 import '@/components/flows/flows-admin.css';
@@ -45,6 +47,18 @@ export default function FlowDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = typeof params.id === 'string' ? params.id : '';
+  const { subscription, loading: subscriptionLoading } = useSubscription();
+  const hasAccess = canUseConversationFlows(
+    subscription?.plan ?? 'free',
+    subscription?.status ?? 'free',
+    subscription?.features,
+  );
+
+  useEffect(() => {
+    if (!subscriptionLoading && !hasAccess) {
+      router.replace('/dashboard');
+    }
+  }, [subscriptionLoading, hasAccess, router]);
 
   const [data, setData] = useState<FlowDetailResponse | null>(null);
   const [error, setError] = useState('');
@@ -65,7 +79,7 @@ export default function FlowDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || !hasAccess || subscriptionLoading) return;
     let cancelled = false;
     (async () => {
       try {
@@ -75,10 +89,22 @@ export default function FlowDetailPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [id, load]);
+  }, [id, load, hasAccess, subscriptionLoading]);
 
   const flow = data?.flow;
   const stats = flow?.stats;
+
+  if (subscriptionLoading) {
+    return (
+      <DashboardShell>
+        <AiLoadingInline label="Cargando…" />
+      </DashboardShell>
+    );
+  }
+
+  if (!hasAccess) {
+    return null;
+  }
 
   const toggleStatus = async () => {
     if (!flow) return;
