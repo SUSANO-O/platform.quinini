@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { BRAND_LOGO_SRC, BRAND_NAME, BRAND_TEXT_COLOR } from '@/lib/brand';
 import { PwaInstallButton } from '@/components/shared/pwa-install-button';
+import { SidebarVersionLink } from '@/components/dashboard/sidebar-version-link';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { useInboxOpenCount } from '@/hooks/use-inbox-open-count';
 import { useDashboardPrefetch } from '@/hooks/dashboard/use-dashboard-prefetch';
@@ -562,11 +563,11 @@ export function DashboardSidebar({
       <SidebarNav pathname={pathname} collapsed={rail} onNavigate={onNavigate} inboxOpenCount={inboxOpenCount} showApiLink={showApiLink} hideQuickStart={hideQuickStart} apiOnly={apiOnly} />
 
       {/* Pie */}
-      <SoftDivider margin="12px 0 0" />
+      <SoftDivider margin="8px 0 0" />
       <div
         style={{
           flexShrink: 0,
-          paddingTop: rail ? 12 : 14,
+          paddingTop: rail ? 8 : 10,
         }}
       >
         <PwaInstallButton collapsed={rail} />
@@ -579,8 +580,8 @@ export function DashboardSidebar({
             alignItems: 'center',
             justifyContent: rail ? 'center' : 'flex-start',
             gap: rail ? 0 : 10,
-            padding: rail ? '9px 0' : '8px 10px',
-            marginTop: 8,
+            padding: rail ? '8px 0' : '7px 10px',
+            marginTop: 6,
             borderRadius: 10,
             fontSize: 13,
             width: '100%',
@@ -590,6 +591,7 @@ export function DashboardSidebar({
           <LogOut size={17} strokeWidth={1.75} aria-hidden />
           {!rail ? 'Cerrar sesión' : null}
         </button>
+        <SidebarVersionLink collapsed={rail} onNavigate={onNavigate} />
       </div>
     </aside>
   );
