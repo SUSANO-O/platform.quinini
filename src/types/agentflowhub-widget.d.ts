@@ -9,7 +9,7 @@ declare global {
       version?: string;
     };
     __BIV?: {
-      init: (cfg: Record<string, unknown>) => { destroy?: () => void; show?: () => void; hide?: () => void; updatePagePath?: (path: string) => void } | void;
+      init?: (cfg: Record<string, unknown>) => { destroy?: () => void; show?: () => void; hide?: () => void; updatePagePath?: (path: string) => void } | void;
       show?: () => void;
       isHidden?: () => boolean;
       updatePagePath?: (path: string) => void;
