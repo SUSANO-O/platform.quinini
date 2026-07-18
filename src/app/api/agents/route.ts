@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
-import { Subscription, ClientAgent, User } from '@/lib/db/models';
+import { Subscription, ClientAgent, User, ScheduledTask } from '@/lib/db/models';
 import { verifySessionToken, isUserEmailVerified, isImpersonationSession } from '@/lib/auth';
 import { getAgentLimits, isAgentLimitReached, formatAgentLimit } from '@/lib/agent-plans';
 import mongoose from 'mongoose';
@@ -30,6 +30,24 @@ async function getAuth(req: NextRequest) {
   const token = req.cookies.get('afhub_session')?.value;
   if (!token) return null;
   return verifySessionToken(token);
+}
+
+async function attachScheduledTaskCounts<T extends { _id: unknown }>(agents: T[]) {
+  const ids = agents.map((a) => String(a._id));
+  if (!ids.length) {
+    return agents.map((a) => ({ ...a, scheduledTaskCount: 0 }));
+  }
+
+  const rows = (await ScheduledTask.aggregate([
+    { $match: { agentId: { $in: ids } } },
+    { $group: { _id: '$agentId', count: { $sum: 1 } } },
+  ])) as Array<{ _id: string; count: number }>;
+
+  const countByAgent = new Map(rows.map((row) => [row._id, row.count]));
+  return agents.map((a) => ({
+    ...a,
+    scheduledTaskCount: countByAgent.get(String(a._id)) ?? 0,
+  }));
 }
 
 export async function GET(req: NextRequest) {
@@ -60,7 +78,7 @@ export async function GET(req: NextRequest) {
   const agents = [...own, ...platformExtra];
 
   if (!canAttemptHubSync()) {
-    return NextResponse.json({ agents });
+    return NextResponse.json({ agents: await attachScheduledTaskCounts(agents) });
   }
 
   const merged = await Promise.all(
@@ -151,7 +169,7 @@ export async function GET(req: NextRequest) {
     }),
   );
 
-  return NextResponse.json({ agents: merged });
+  return NextResponse.json({ agents: await attachScheduledTaskCounts(merged) });
 }
 
 export async function POST(req: NextRequest) {

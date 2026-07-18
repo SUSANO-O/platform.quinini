@@ -69,7 +69,13 @@ export interface ClientAgentRow {
   agentHubId?: string | null;
   syncStatus?: string;
   model?: string;
+  tools?: { toolId: string }[];
+  subAgentIds?: string[];
   enabledMcpToolIds?: string[];
+  ragEnabled?: boolean;
+  ragSources?: unknown[];
+  skills?: string[];
+  scheduledTaskCount?: number;
   isPlatform?: boolean;
 }
 

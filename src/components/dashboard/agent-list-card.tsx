@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  Bot,
   Calendar,
   ChevronRight,
   CircleOff,
@@ -16,6 +15,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { TOOL_MAP } from '@/lib/agent-plans';
+import { AgentInitialsBadge } from '@/components/dashboard/agent-initials-badge';
 import { AgentSkillsCount } from '@/components/dashboard/agent-skills-count';
 import { DashboardBadge } from '@/components/dashboard/dashboard-badge';
 import { DashboardButton, DashboardButtonLink } from '@/components/dashboard/dashboard-button';
@@ -113,16 +113,13 @@ export function AgentListCard({
     <DashboardResourceCard
       inactive={isDisabled}
       avatar={
-        <div
-          className={`dashboard-agent-avatar${isDisabled ? ' dashboard-agent-avatar--inactive' : ''}${isPlatform ? ' dashboard-agent-avatar--platform' : ''}`}
-          aria-hidden
-        >
-          {isPlatform ? (
-            <Globe2 size={22} strokeWidth={1.75} />
-          ) : (
-            <Bot size={22} strokeWidth={1.75} />
-          )}
-        </div>
+        <AgentInitialsBadge
+          name={agent.name}
+          seed={agent._id}
+          inactive={isDisabled}
+          platform={isPlatform}
+          size="md"
+        />
       }
       status={<DashboardStatusBadge active={!isDisabled} />}
       headerAction={

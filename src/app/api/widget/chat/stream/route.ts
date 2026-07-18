@@ -51,6 +51,7 @@ import { schedulePersistWidgetTranscript } from '@/lib/widget-transcript';
 import { agentHasAnyWebhook } from '@/lib/agent-webhooks';
 import { agentHasAnySheet } from '@/lib/agent-sheets';
 import { tryServeWidgetChatViaDirectInference } from '@/lib/widget-chat-direct-inference';
+import { tryServeWidgetChatViaHubMcp } from '@/lib/widget-chat-direct-mcp';
 import { normalizeVisitorId } from '@/lib/widget-visitor';
 import {
   emitWidgetChatStatus,
@@ -62,6 +63,8 @@ import {
   finalizeWidgetChatTrace,
   WidgetChatTrace,
 } from '@/lib/widget-chat-latency';
+import { friendlyWidgetChatError } from '@/lib/widget-chat-user-errors';
+import { attachAssistNavToPayload, buildAssistNavCtx } from '@/lib/assist-chat-reply';
 
 export const maxDuration = 60; // Vercel: allow up to 60s for LLM + streaming
 
@@ -152,6 +155,7 @@ export async function POST(req: NextRequest) {
   let resolvedWidgetId = '';
   let parsedSessionId = '';
   let parsedMessage = '';
+  let parsedPagePath = '';
   let parsedVisitorId: string | null = null;
   let tokenFromBody = '';
   try {
@@ -162,12 +166,14 @@ export async function POST(req: NextRequest) {
       sessionId?: string;
       message?: string;
       visitorId?: string;
+      pagePath?: string;
     };
     parsedAgentId = typeof j?.agentId === 'string' ? j.agentId.trim() : '';
     parsedWidgetId = typeof j?.widgetId === 'string' ? j.widgetId.trim() : '';
     resolvedWidgetId = parsedWidgetId;
     parsedSessionId = typeof j?.sessionId === 'string' ? j.sessionId.trim() : '';
     parsedMessage = typeof j?.message === 'string' ? j.message : '';
+    parsedPagePath = typeof j?.pagePath === 'string' ? j.pagePath : '';
     parsedVisitorId = normalizeVisitorId(j?.visitorId);
     tokenFromBody = typeof j?.token === 'string' ? j.token.trim() : '';
   } catch {
@@ -177,9 +183,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const assistNavCtx = buildAssistNavCtx(
+    userDisplayMessage || parsedMessage,
+    parsedPagePath || undefined,
+  );
+
   const widgetToken = ((req.headers.get('x-widget-token') || '').trim() || tokenFromBody).trim();
 
   let faqTrackOwnerId: string | null = null;
+  let isAssistWidget = false;
   let multiAgentCtx: {
     userId: string;
     config: WidgetMultiAgentConfig;
@@ -330,6 +342,35 @@ export async function POST(req: NextRequest) {
           if (typeof reparse.message === 'string') parsedMessage = reparse.message;
         } catch (enrichErr) {
           console.warn('[widget/chat/stream] enrich body skipped:', enrichErr);
+        }
+
+        // Assist dashboard (Math-ais): contexto del usuario logueado (sin HubSpot).
+        try {
+          const {
+            identityFromSessionCookie,
+            injectAssistContextIntoChatBody,
+            isInternalAppAssistWidget,
+          } = await import('@/lib/assist-session-identity');
+          const isAssist = await isInternalAppAssistWidget({
+            widgetId: resolvedWidgetId || w.id,
+            agentId: parsedAgentId,
+          });
+          if (isAssist) {
+            let j = JSON.parse(rawBody) as Record<string, unknown>;
+            j.hubspotAutoCaptureContacts = false;
+            isAssistWidget = true;
+            const identity = await identityFromSessionCookie(
+              req.cookies.get('afhub_session')?.value,
+            );
+            if (identity) {
+              j.visitorUserId = identity.userId;
+              const pagePath = typeof j.pagePath === 'string' ? j.pagePath : undefined;
+              j = await injectAssistContextIntoChatBody(j, identity, pagePath);
+            }
+            rawBody = JSON.stringify(j);
+          }
+        } catch (idErr) {
+          console.warn('[widget/chat/stream] assist identity inject skipped:', idErr);
         }
       }
       latencyTrace.mark('auth');
@@ -634,13 +675,156 @@ export async function POST(req: NextRequest) {
 
         emitWidgetChatStatus(enqueue, 'resolve');
 
+        // Misma cadena que /api/widget/chat: MCP directo → inferencia directa → hub (último recurso).
+        if (widgetToken.startsWith('wt_') && faqTrackOwnerId && parsedAgentIdLocal) {
+          try {
+            const directMcp = await latencyTrace.span('direct_mcp', () =>
+              tryServeWidgetChatViaHubMcp({
+                widgetTokenStartsWithWt: true,
+                parsedAgentId: parsedAgentIdLocal,
+                rawBody: hubBody,
+                ownerUserId: faqTrackOwnerId,
+                visionEnrichment: imageEnrichment,
+                strictPurposeSuffix: STRICT_PURPOSE_SUFFIX,
+              }),
+            );
+            if (directMcp?.reply) {
+              logWidgetFlow('✅', 'stream:directMcpOk', 'respuesta AIBackHub MCP', {
+                traceId,
+                replyLen: directMcp.reply.length,
+                toolsUsed: directMcp.toolsUsed ?? [],
+              });
+              emitWidgetChatStatus(enqueue, 'model');
+              await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, directMcp.reply));
+              enqueue(
+                attachAssistNavToPayload(
+                  {
+                    type: 'done',
+                    reply: directMcp.reply,
+                    agentId: parsedAgentIdLocal,
+                    streamed: true,
+                    ...(directMcp.toolsUsed?.length ? { toolsUsed: directMcp.toolsUsed } : {}),
+                    ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
+                  },
+                  isAssistWidget,
+                  directMcp.reply,
+                  assistNavCtx,
+                ),
+              );
+              void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true).catch(() => {});
+              if (faqTrackOwnerId) {
+                void trackWidgetUserMessageForFaqCandidates({
+                  ownerUserId: faqTrackOwnerId,
+                  agentIdOrHubId: parsedAgentIdLocal,
+                  rawBody: rawBodyInitial,
+                }).catch(() => {});
+                void afterWidgetChatSuccess({
+                  ownerUserId: faqTrackOwnerId,
+                  widgetId: resolvedWidgetId,
+                  chatSessionId: parsedSessionId || traceId,
+                  visitorId: parsedVisitorId,
+                  hubAgentId: parsedAgentIdLocal,
+                  userMessage: userDisplayMessage || parsedMessage,
+                  agentResponse: directMcp.reply,
+                  routingMeta: multiAgentMeta,
+                });
+                schedulePersistWidgetTranscript({
+                  widgetId: resolvedWidgetId,
+                  userId: faqTrackOwnerId,
+                  agentId: parsedAgentIdLocal,
+                  sessionId: parsedSessionId || traceId,
+                  traceId,
+                  userMessage: userDisplayMessage || parsedMessage,
+                  assistantMessage: directMcp.reply,
+                  enrichment: imageEnrichment,
+                  toolsUsed: directMcp.toolsUsed,
+                });
+              }
+              latencyTrace.setPath('stream-direct-mcp');
+              finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: directMcp.reply.length });
+              return;
+            }
+          } catch (mcpErr) {
+            logWidgetFlow('⚠️', 'stream:directMcpErr', mcpErr instanceof Error ? mcpErr.message : String(mcpErr));
+          }
+
+          try {
+            const inferredEarly = await latencyTrace.span('infer_direct', () =>
+              tryServeWidgetChatViaDirectInference({
+                parsedAgentId: parsedAgentIdLocal,
+                rawBody: hubBody,
+                ownerUserId: faqTrackOwnerId,
+                onStatus: (phase, message) => {
+                  enqueue({ type: 'status', phase, message });
+                },
+              }),
+            );
+            if (inferredEarly?.reply) {
+              logWidgetFlow('✅', 'stream:inferOkEarly', 'respuesta directa /api/models', {
+                traceId,
+                replyLen: inferredEarly.reply.length,
+                usedModel: inferredEarly.usedModel,
+              });
+              await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, inferredEarly.reply));
+              enqueue(
+                attachAssistNavToPayload(
+                  {
+                    type: 'done',
+                    reply: inferredEarly.reply,
+                    agentId: parsedAgentIdLocal,
+                    streamed: true,
+                    ...(inferredEarly.usedModel ? { usedModel: inferredEarly.usedModel } : {}),
+                    ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
+                  },
+                  isAssistWidget,
+                  inferredEarly.reply,
+                  assistNavCtx,
+                ),
+              );
+              void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true).catch(() => {});
+              if (faqTrackOwnerId) {
+                void trackWidgetUserMessageForFaqCandidates({
+                  ownerUserId: faqTrackOwnerId,
+                  agentIdOrHubId: parsedAgentIdLocal,
+                  rawBody: rawBodyInitial,
+                }).catch(() => {});
+                void afterWidgetChatSuccess({
+                  ownerUserId: faqTrackOwnerId,
+                  widgetId: resolvedWidgetId,
+                  chatSessionId: parsedSessionId || traceId,
+                  visitorId: parsedVisitorId,
+                  hubAgentId: parsedAgentIdLocal,
+                  userMessage: userDisplayMessage || parsedMessage,
+                  agentResponse: inferredEarly.reply,
+                  routingMeta: multiAgentMeta,
+                });
+                schedulePersistWidgetTranscript({
+                  widgetId: resolvedWidgetId,
+                  userId: faqTrackOwnerId,
+                  agentId: parsedAgentIdLocal,
+                  sessionId: parsedSessionId || traceId,
+                  traceId,
+                  userMessage: userDisplayMessage || parsedMessage,
+                  assistantMessage: inferredEarly.reply,
+                  enrichment: imageEnrichment,
+                });
+              }
+              latencyTrace.setPath('stream-infer-direct');
+              finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: inferredEarly.reply.length });
+              return;
+            }
+          } catch (inferEarlyErr) {
+            logWidgetFlow('⚠️', 'stream:inferEarlyErr', inferEarlyErr instanceof Error ? inferEarlyErr.message : String(inferEarlyErr));
+          }
+        }
+
         const hubAgentResolve = await latencyTrace.span('resolve', () =>
           resolveHubAgentIdInBody(hubBody, faqTrackOwnerId ?? undefined),
         );
         if (!hubAgentResolve.ok) {
           enqueue({
             type: 'error',
-            message: hubAgentResolve.message,
+            message: friendlyWidgetChatError(hubAgentResolve.code, hubAgentResolve.message),
             code: hubAgentResolve.code,
             ...(hubAgentResolve.hint ? { hint: hubAgentResolve.hint } : {}),
           });
@@ -675,6 +859,7 @@ export async function POST(req: NextRequest) {
         if (hubSecret && widgetToken.startsWith('wt_')) {
           headers['X-Landing-Wt-Valid'] = '1';
           headers[SIGNATURE_HEADER] = signRequest(hubBody, hubSecret);
+          headers['x-hub-sync-secret'] = hubSecret;
         }
 
         if (widgetToken.startsWith('wt_') && faqTrackOwnerId && parsedAgentIdLocal) {
@@ -696,14 +881,21 @@ export async function POST(req: NextRequest) {
                 usedModel: inferred.usedModel,
               });
               await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, inferred.reply));
-              enqueue({
-                type: 'done',
-                reply: inferred.reply,
-                agentId: parsedAgentIdLocal,
-                streamed: true,
-                ...(inferred.usedModel ? { usedModel: inferred.usedModel } : {}),
-                ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
-              });
+              enqueue(
+                attachAssistNavToPayload(
+                  {
+                    type: 'done',
+                    reply: inferred.reply,
+                    agentId: parsedAgentIdLocal,
+                    streamed: true,
+                    ...(inferred.usedModel ? { usedModel: inferred.usedModel } : {}),
+                    ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
+                  },
+                  isAssistWidget,
+                  inferred.reply,
+                  assistNavCtx,
+                ),
+              );
               void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true).catch(() => {});
               if (faqTrackOwnerId) {
                 void trackWidgetUserMessageForFaqCandidates({
@@ -785,7 +977,7 @@ export async function POST(req: NextRequest) {
         };
 
         if (!res.ok || json.code === 'AGENT_COOLDOWN' || json.error) {
-          const msg = json.error || json.reply || 'Error del agente.';
+          const msg = friendlyWidgetChatError(json.code, json.error || json.reply || undefined);
           enqueue({ type: 'error', message: msg, code: json.code || 'HUB_ERROR' });
           latencyTrace.setPath('stream-error');
           finalizeWidgetChatTrace(latencyTrace, { ok: false, errorCode: json.code || 'HUB_ERROR' });
@@ -814,17 +1006,24 @@ export async function POST(req: NextRequest) {
           typeof json.usedModel === 'string' && json.usedModel.trim() ? json.usedModel.trim() : undefined;
         emitWidgetChatStatus(enqueue, 'model');
         await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, fullReply));
-        enqueue({
-          type: 'done',
-          reply: fullReply,
-          agentId: json.agentId || hubAgentId || parsedAgentIdLocal,
-          toolsUsed: json.toolsUsed || [],
-          streamed: true,
-          ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
-          ...(mcpTag ? { mcpTag } : {}),
-          ...(images ? { images } : {}),
-          ...(usedModel ? { usedModel } : {}),
-        });
+        enqueue(
+          attachAssistNavToPayload(
+            {
+              type: 'done',
+              reply: fullReply,
+              agentId: json.agentId || hubAgentId || parsedAgentIdLocal,
+              toolsUsed: json.toolsUsed || [],
+              streamed: true,
+              ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
+              ...(mcpTag ? { mcpTag } : {}),
+              ...(images ? { images } : {}),
+              ...(usedModel ? { usedModel } : {}),
+            },
+            isAssistWidget,
+            fullReply,
+            assistNavCtx,
+          ),
+        );
 
         latencyTrace.setPath('stream-hub');
         finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: fullReply.length });

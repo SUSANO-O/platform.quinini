@@ -96,10 +96,12 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     message?: string;
     history?: Array<{ role: string; content: string }>;
     agentId?: string;
+    sessionId?: string;
     sessionContextBlock?: string;
     systemPromptOverride?: string;
     visitorEmail?: string;
     visitorName?: string;
+    visitorUserId?: string;
   };
   try {
     parsed = JSON.parse(rawBody) as typeof parsed;
@@ -229,6 +231,11 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   const visitorEmail =
     typeof parsed.visitorEmail === 'string' ? parsed.visitorEmail.trim().toLowerCase() : '';
   const visitorName = typeof parsed.visitorName === 'string' ? parsed.visitorName.trim() : '';
+  const sessionContextBlock =
+    typeof parsed.sessionContextBlock === 'string' ? parsed.sessionContextBlock.trim() : '';
+  const chatSessionId = typeof parsed.sessionId === 'string' ? parsed.sessionId.trim() : '';
+  const visitorUserId =
+    typeof parsed.visitorUserId === 'string' ? parsed.visitorUserId.trim() : '';
 
   const payload = {
     agentId: typeof parsed.agentId === 'string' && parsed.agentId.trim() ? parsed.agentId.trim() : id,
@@ -256,6 +263,9 @@ export async function tryServeWidgetChatViaHubMcp(params: {
       ca.hubspotAutoCaptureContacts === true || Boolean(visitorEmail && visitorName),
     ...(visitorEmail ? { visitorEmail } : {}),
     ...(visitorName ? { visitorName } : {}),
+    ...(sessionContextBlock ? { sessionContextBlock } : {}),
+    ...(chatSessionId ? { sessionId: chatSessionId } : {}),
+    ...(visitorUserId ? { visitorUserId } : {}),
   };
 
   const url = `${hubBase.replace(/\/$/, '')}/api/mcp/widget-chat`;

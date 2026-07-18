@@ -11,6 +11,7 @@ import type {
   WidgetConfigPatch,
   WidgetShortcut,
 } from '@/lib/widget-builder';
+import { WIDGET_BUILDER_UI_ACCENT } from '@/lib/widget-builder';
 import {
   WidgetBuilderField,
   WidgetBuilderHint,
@@ -61,7 +62,7 @@ export function WidgetBuilderBehaviorStep({
         <>
       <WidgetBuilderTogglePanel
         active={cfg.humanSupportEnabled}
-        accentColor={cfg.color}
+        accentColor={WIDGET_BUILDER_UI_ACCENT}
         title="📱 WhatsApp para atención humana"
         description={
           cfg.humanSupportEnabled
@@ -90,7 +91,7 @@ export function WidgetBuilderBehaviorStep({
 
       <WidgetBuilderTogglePanel
         active={cfg.handoffEnabled}
-        accentColor={cfg.color}
+        accentColor={WIDGET_BUILDER_UI_ACCENT}
         title="🙋 Botón «Hablar con una persona»"
         description={
           cfg.handoffEnabled
@@ -140,7 +141,7 @@ export function WidgetBuilderBehaviorStep({
 
       <WidgetBuilderTogglePanel
         active={cfg.policyEnabled}
-        accentColor={cfg.color}
+        accentColor={WIDGET_BUILDER_UI_ACCENT}
         control="checkbox"
         checkboxId="policyEnabled"
         title="📄 Aviso de privacidad en el pie del chat"
@@ -192,7 +193,7 @@ export function WidgetBuilderBehaviorStep({
 
       <WidgetBuilderTogglePanel
         active={cfg.feedbackEnabled}
-        accentColor={cfg.color}
+        accentColor={WIDGET_BUILDER_UI_ACCENT}
         control="checkbox"
         checkboxId="feedbackEnabled"
         title="⭐ Encuesta de satisfacción al cerrar el chat"
@@ -452,7 +453,7 @@ export function WidgetBuilderBehaviorStep({
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <WidgetBuilderSwitch
               checked={cfg.autoOpen}
-              accentColor={cfg.color}
+              accentColor={WIDGET_BUILDER_UI_ACCENT}
               onChange={(autoOpen) => onChange({ autoOpen })}
               ariaLabel="Abrir automáticamente"
             />
@@ -466,7 +467,7 @@ export function WidgetBuilderBehaviorStep({
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <WidgetBuilderSwitch
               checked={cfg.fabDismissible}
-              accentColor={cfg.color}
+              accentColor={WIDGET_BUILDER_UI_ACCENT}
               onChange={(fabDismissible) => onChange({ fabDismissible })}
               ariaLabel="Mostrar botón X para ocultar launcher"
             />
@@ -480,7 +481,7 @@ export function WidgetBuilderBehaviorStep({
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <WidgetBuilderSwitch
               checked={cfg.imageUploadEnabled}
-              accentColor={cfg.color}
+              accentColor={WIDGET_BUILDER_UI_ACCENT}
               onChange={(imageUploadEnabled) => onChange({ imageUploadEnabled })}
               ariaLabel="Mostrar botón adjuntar"
             />
@@ -507,7 +508,7 @@ export function WidgetBuilderBehaviorStep({
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <WidgetBuilderSwitch
               checked={cfg.micEnabled}
-              accentColor={cfg.color}
+              accentColor={WIDGET_BUILDER_UI_ACCENT}
               onChange={(micEnabled) => onChange({ micEnabled })}
               ariaLabel="Mostrar botón micrófono"
             />
@@ -536,7 +537,7 @@ export function WidgetBuilderBehaviorStep({
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <WidgetBuilderSwitch
               checked={cfg.voiceEnabled}
-              accentColor={cfg.color}
+              accentColor={WIDGET_BUILDER_UI_ACCENT}
               onChange={(voiceEnabled) => onChange({ voiceEnabled })}
               ariaLabel="Lectura en voz alta"
             />
@@ -576,14 +577,14 @@ export function WidgetBuilderBehaviorStep({
       <div style={{ marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {!soloChatOnly && <Sparkles size={13} style={{ color: '#6366f1' }} />}
+            {!soloChatOnly && <Sparkles size={13} style={{ color: WIDGET_BUILDER_UI_ACCENT }} />}
             <label
               style={{
                 fontSize: '11px',
                 fontWeight: 700,
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
-                color: soloChatOnly ? 'var(--muted-foreground)' : '#6366f1',
+                color: soloChatOnly ? 'var(--muted-foreground)' : WIDGET_BUILDER_UI_ACCENT,
               }}
             >
               Shortcuts del widget
@@ -604,8 +605,8 @@ export function WidgetBuilderBehaviorStep({
                 padding: '4px 10px',
                 borderRadius: 8,
                 border: 'none',
-                background: cfg.agentId && !suggestingShortcuts ? 'rgba(99,102,241,0.1)' : 'var(--border)',
-                color: cfg.agentId && !suggestingShortcuts ? '#6366f1' : 'var(--muted-foreground)',
+                background: cfg.agentId && !suggestingShortcuts ? 'rgba(var(--brand-primary-rgb), 0.1)' : 'var(--border)',
+                color: cfg.agentId && !suggestingShortcuts ? WIDGET_BUILDER_UI_ACCENT : 'var(--muted-foreground)',
                 cursor: cfg.agentId && !suggestingShortcuts ? 'pointer' : 'not-allowed',
               }}
             >

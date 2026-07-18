@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 import { isAppBotIvAWidgetPath, isLandingMarketingPath } from '@/lib/landing-widget-paths';
 
@@ -14,6 +14,21 @@ type AssistBootResponse = {
 };
 
 type AssistContext = 'app' | 'marketing' | null;
+
+function normalizeNavPath(path: string): string {
+  return path.split('?')[0].replace(/\/$/, '') || '/';
+}
+
+function stripLocalePrefix(path: string): string {
+  return path.replace(/^\/(es|en)(?=\/)/, '') || '/';
+}
+
+function navPathsMatch(target: string, current: string): boolean {
+  return (
+    normalizeNavPath(stripLocalePrefix(target)) ===
+    normalizeNavPath(stripLocalePrefix(current))
+  );
+}
 
 function resolveAssistContext(pathname: string | null): AssistContext {
   if (isLandingMarketingPath(pathname)) return 'marketing';
@@ -39,11 +54,16 @@ function removeAssistDom() {
  */
 export function LandingWidgetScript() {
   const pathname = usePathname();
+  const router = useRouter();
   const context = resolveAssistContext(pathname);
   const timeoutIdsRef = useRef<number[]>([]);
   const instanceRef = useRef<{ destroy?: () => void } | null>(null);
   const bootRef = useRef<AssistBootResponse | null>(null);
   const activeContextRef = useRef<AssistContext>(null);
+  const pathnameRef = useRef(pathname);
+  const pendingNavRef = useRef<{ target: string; resolve: (ok: boolean) => void } | null>(null);
+
+  pathnameRef.current = pathname;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -172,6 +192,74 @@ export function LandingWidgetScript() {
       }
     };
   }, [context]);
+
+  // Navegación SPA para Math-ais (Sí → redirigir sin recargar la burbuja).
+  useEffect(() => {
+    if (context !== 'app') return;
+
+    const runNavigate = (path: string): Promise<boolean> => {
+      const target = String(path || '').trim();
+      if (!target) return Promise.resolve(false);
+
+      window.dispatchEvent(
+        new CustomEvent('biv:navigate-start', { detail: { path: target } }),
+      );
+
+      const current = pathnameRef.current || '';
+      if (navPathsMatch(target, current)) {
+        window.dispatchEvent(
+          new CustomEvent('biv:navigate-done', { detail: { path: current } }),
+        );
+        return Promise.resolve(true);
+      }
+
+      return new Promise<boolean>((resolve) => {
+        pendingNavRef.current = { target, resolve };
+        router.push(target);
+      });
+    };
+
+    const navigate = (path: string) => runNavigate(path);
+
+    const onNavigateRequest = (ev: Event) => {
+      const detail = (ev as CustomEvent<{ path?: string }>).detail;
+      const path = detail?.path;
+      if (!path) return;
+      void runNavigate(path);
+    };
+
+    window.__BIV = window.__BIV ?? {};
+    window.__BIV.navigate = navigate;
+    window.addEventListener('biv:navigate-request', onNavigateRequest);
+
+    return () => {
+      window.removeEventListener('biv:navigate-request', onNavigateRequest);
+      if (window.__BIV?.navigate === navigate) {
+        delete window.__BIV.navigate;
+      }
+      pendingNavRef.current?.resolve(false);
+      pendingNavRef.current = null;
+    };
+  }, [context, router]);
+
+  // Actualizar pagePath al navegar dentro del dashboard (sin reiniciar la burbuja).
+  useEffect(() => {
+    if (!context || !pathname) return;
+    try {
+      window.__BIV?.updatePagePath?.(pathname);
+    } catch {
+      /* noop */
+    }
+
+    const pending = pendingNavRef.current;
+    if (pending && navPathsMatch(pending.target, pathname)) {
+      pending.resolve(true);
+      pendingNavRef.current = null;
+      window.dispatchEvent(
+        new CustomEvent('biv:navigate-done', { detail: { path: pathname } }),
+      );
+    }
+  }, [pathname, context]);
 
   return null;
 }

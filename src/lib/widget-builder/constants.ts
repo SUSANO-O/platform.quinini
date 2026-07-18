@@ -1,4 +1,8 @@
 import { Fingerprint, Paintbrush, Send, Settings2 } from 'lucide-react';
+import { BRAND } from '@/lib/brand-colors';
+
+/** Acento de la UI del builder (no del widget embebido en sitios externos). */
+export const WIDGET_BUILDER_UI_ACCENT = BRAND.primary;
 
 export const WIDGET_AGENT_ICONS = ['🤖', '🧠', '💬', '✨', '📎', '🔮', '🛡️', '🌱', '📊'] as const;
 

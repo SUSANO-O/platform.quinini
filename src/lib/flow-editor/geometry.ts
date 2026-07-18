@@ -59,11 +59,73 @@ export function buildConnectionPath(
   return `M ${from.x} ${from.y} C ${from.x} ${from.y + cp}, ${to.x} ${to.y - cp}, ${to.x} ${to.y}`;
 }
 
+const NAME_STOP_WORDS = new Set([
+  'a',
+  'al',
+  'de',
+  'del',
+  'e',
+  'el',
+  'en',
+  'la',
+  'las',
+  'lo',
+  'los',
+  'para',
+  'por',
+  'un',
+  'una',
+  'y',
+]);
+
+function cleanNameToken(token: string): string {
+  return token.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+}
+
+function significantNameParts(name: string): string[] {
+  return name
+    .trim()
+    .split(/\s+/)
+    .map(cleanNameToken)
+    .filter((part) => part.length > 0 && !NAME_STOP_WORDS.has(part.toLowerCase()));
+}
+
 export function initialsFromName(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '?';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  const parts = significantNameParts(name);
+  const fallback = name
+    .trim()
+    .split(/\s+/)
+    .map(cleanNameToken)
+    .filter(Boolean);
+
+  const words = parts.length > 0 ? parts : fallback;
+  if (!words.length) return '?';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  if (words.length === 2) return `${words[0][0]}${words[1][0]}`.toUpperCase();
+  const last = words[words.length - 1];
+  if (last.length === 2) return last.toUpperCase();
+  return `${words[0][0]}${last[0]}`.toUpperCase();
+}
+
+const AVATAR_PALETTE = [
+  { background: 'rgba(59, 130, 246, 0.12)', border: 'rgba(59, 130, 246, 0.28)', color: '#2563eb' },
+  { background: 'rgba(139, 92, 246, 0.12)', border: 'rgba(139, 92, 246, 0.28)', color: '#7c3aed' },
+  { background: 'rgba(236, 72, 153, 0.12)', border: 'rgba(236, 72, 153, 0.28)', color: '#db2777' },
+  { background: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.28)', color: '#059669' },
+  { background: 'rgba(245, 158, 11, 0.14)', border: 'rgba(245, 158, 11, 0.3)', color: '#d97706' },
+  { background: 'rgba(14, 165, 233, 0.12)', border: 'rgba(14, 165, 233, 0.28)', color: '#0284c7' },
+  { background: 'rgba(244, 63, 94, 0.12)', border: 'rgba(244, 63, 94, 0.28)', color: '#e11d48' },
+  { background: 'rgba(20, 184, 166, 0.12)', border: 'rgba(20, 184, 166, 0.28)', color: '#0d9488' },
+] as const;
+
+export function avatarStyleFromSeed(seed: string): {
+  background: string;
+  border: string;
+  color: string;
+} {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash + seed.charCodeAt(i) * (i + 1)) % 997;
+  return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
 }
 
 const WORKSPACE_COLORS = [
