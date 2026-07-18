@@ -829,3 +829,11 @@
 {"t":"2026-07-18T14:15:26.798Z","event":"widget_opened","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
 {"t":"2026-07-18T14:21:08.829Z","event":"widget_loaded","agentId":"6a5aac93438b8f1c73bc3b84","instanceId":"biv_2"}
 {"t":"2026-07-18T14:21:08.829Z","event":"widget_opened","agentId":"6a5aac93438b8f1c73bc3b84","instanceId":"biv_2"}
+{"t":"2026-07-18T14:56:46.540Z","event":"widget_loaded","agentId":"6a5aac93438b8f1c73bc3b84","instanceId":"biv_1"}
+{"t":"2026-07-18T14:56:46.540Z","event":"widget_opened","agentId":"6a5aac93438b8f1c73bc3b84","instanceId":"biv_1"}
+{"t":"2026-07-18T15:05:27.424Z","event":"widget_loaded","agentId":"6a5aac93438b8f1c73bc3b84","instanceId":"biv_1"}
+{"t":"2026-07-18T15:05:29.658Z","event":"widget_opened","agentId":"6a5aac93438b8f1c73bc3b84","instanceId":"biv_1"}
+{"t":"2026-07-18T15:05:29.925Z","event":"widget_closed","agentId":"6a5aac93438b8f1c73bc3b84","instanceId":"biv_1"}
+{"t":"2026-07-18T15:06:56.417Z","event":"widget_opened","agentId":"6a5aac93438b8f1c73bc3b84","instanceId":"biv_1"}
+{"t":"2026-07-18T15:07:01.976Z","event":"message_sent","agentId":"6a5aac93438b8f1c73bc3b84","instanceId":"biv_1"}
+{"t":"2026-07-18T15:07:12.264Z","event":"message_received","agentId":"6a5aac93438b8f1c73bc3b84","instanceId":"biv_1"}

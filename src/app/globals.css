@@ -1748,6 +1748,11 @@ button.dashboard-sidebar-link:hover {
   color: var(--foreground);
 }
 
+.dashboard-sidebar-version-link:hover {
+  background: rgba(var(--brand-primary-rgb), 0.06);
+  color: var(--foreground);
+}
+
 .dashboard-sidebar-tour-btn {
   display: flex;
   align-items: center;

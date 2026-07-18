@@ -12,6 +12,7 @@ import {
 } from '@/components/dashboard/dashboard-sidebar';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { PwaInstallButton } from '@/components/shared/pwa-install-button';
+import { SidebarVersionLink } from '@/components/dashboard/sidebar-version-link';
 import { useInboxOpenCount } from '@/hooks/use-inbox-open-count';
 import { useSubscription } from '@/hooks/use-subscription';
 import { canUseApiAccess, effectiveProductPlan, isApiOnlyPlan, isSoloChatOnlyPlan } from '@/lib/plan-catalog';
@@ -191,11 +192,16 @@ export function DashboardMobileNav({
                 onLogout();
               }}
               className="dashboard-mobile-nav__sheet-link dashboard-sidebar-link"
-              style={{ width: '100%', marginTop: 8 }}
+              style={{ width: '100%', marginTop: 6 }}
             >
               <LogOut size={20} strokeWidth={1.75} aria-hidden />
               <span>Cerrar sesión</span>
             </button>
+            <SidebarVersionLink
+              onNavigate={() => {
+                setMenuOpen(false);
+              }}
+            />
           </div>
         </div>
       ) : null}
