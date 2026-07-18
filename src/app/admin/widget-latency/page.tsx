@@ -62,6 +62,7 @@ const PATH_OPTIONS = [
   { value: 'stream-pipeline', label: 'stream-pipeline' },
   { value: 'stream-parallel', label: 'stream-parallel' },
   { value: 'stream-infer-direct', label: 'stream-infer-direct' },
+  { value: 'stream-direct-mcp', label: 'stream-direct-mcp' },
   { value: 'non-stream-hub', label: 'non-stream-hub' },
   { value: 'non-stream-direct-mcp', label: 'non-stream-direct-mcp' },
   { value: 'non-stream-pipeline', label: 'non-stream-pipeline' },
