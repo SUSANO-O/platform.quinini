@@ -3,6 +3,7 @@
  */
 import mongoose from 'mongoose';
 import { ClientAgent, ConversationSession, Widget } from '@/lib/db/models';
+import type { AssistAgentDetailSnapshot } from '@/lib/assist-agent-detail-snapshot';
 
 export type AssistScreenContext = {
   screenKind: string;
@@ -111,6 +112,7 @@ export function buildProactiveHints(input: {
   widgetsTotal: number;
   inbox: AssistInboxSummary;
   screen: AssistScreenContext | null;
+  agentDetail?: AssistAgentDetailSnapshot | null;
 }): string[] {
   const hints: string[] = [];
 
@@ -137,8 +139,11 @@ export function buildProactiveHints(input: {
 
   if (input.screen?.screenKind === 'agent_detail' && input.screen.resourceName) {
     hints.push(
-      `Está en el detalle del agente «${input.screen.resourceName}» — ayuda contextual sobre prompt, skills, RAG o widget.`,
+      `Está en el detalle del agente «${input.screen.resourceName}» — usa SNAPSHOT DEL AGENTE si está en contexto (reglas, FAQ, RAG, tools, WhatsApp).`,
     );
+    if (input.agentDetail?.recommendations.length) {
+      hints.push(input.agentDetail.recommendations[0]);
+    }
   }
   if (input.screen?.screenKind === 'agent_create') {
     hints.push('Está creando un agente — guiar nombre, prompt, modelo y guardar.');
