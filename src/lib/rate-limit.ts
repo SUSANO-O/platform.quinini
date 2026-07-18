@@ -17,6 +17,8 @@
  *   - Pon TRUSTED_PROXY_COUNT=0 solo si la app escucha directamente sin proxy.
  */
 
+import { isLocalDevLimitsBypass } from '@/lib/dev-limits';
+
 // ── Configuración ──────────────────────────────────────────────────────────
 
 const REDIS_URL   = process.env.REDIS_URL?.trim();
@@ -108,6 +110,9 @@ export async function checkRateLimitAsync(
   limit: number,
   windowMs = 60_000,
 ): Promise<{ success: boolean; remaining: number; retryAfter: number }> {
+  if (isLocalDevLimitsBypass()) {
+    return { success: true, remaining: limit, retryAfter: 0 };
+  }
   const key = `${namespace}:${identifier}`;
   if (USE_REDIS) return redisCheck(key, limit, windowMs);
   return inMemoryCheck(key, limit, windowMs);
@@ -120,6 +125,9 @@ export function checkRateLimit(
   limit: number,
   windowMs = 60_000,
 ): { success: boolean; remaining: number; retryAfter: number } {
+  if (isLocalDevLimitsBypass()) {
+    return { success: true, remaining: limit, retryAfter: 0 };
+  }
   return inMemoryCheck(`${namespace}:${identifier}`, limit, windowMs);
 }
 

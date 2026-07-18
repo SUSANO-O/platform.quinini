@@ -8,7 +8,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.6.28';
+  var VERSION = '1.6.30';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -33,8 +33,16 @@
     var fromCfg = cfg && cfg.pagePath != null ? String(cfg.pagePath).trim() : '';
     if (fromCfg) return fromCfg;
     try {
-      if (typeof window !== 'undefined' && window.location && window.location.pathname) {
-        return String(window.location.pathname);
+      if (typeof window !== 'undefined' && window.location) {
+        var host = String(window.location.hostname || '').toLowerCase();
+        var path = String(window.location.pathname || '');
+        var isBotivaHost = /(^|\.)botiva\.space$/i.test(host);
+        var isLocalDev = host === 'localhost' || host === '127.0.0.1';
+        // Sitio del cliente (widget embebido): URL completa para contexto BotIvA
+        if (host && !isBotivaHost && !isLocalDev && window.location.href) {
+          return String(window.location.href).split('#')[0];
+        }
+        return path;
       }
     } catch (_e) { /* noop */ }
     return '';
@@ -65,22 +73,89 @@
     }
   }
 
+  /** Fallback cliente si el SSE no trae navOffer (cache viejo / prod sin deploy). */
+  function inferClientNavOfferFromUserMessage(userMsg) {
+    var text = String(userMsg || '').trim().toLowerCase();
+    if (!text) return null;
+    var mk = function (path, onDecline, afterNavigate) {
+      return { path: path, onDecline: onDecline, afterNavigate: afterNavigate || '' };
+    };
+    if (/(\bwidget builder|\bcre(o|ar|a).*widget|\bcomo cre(o|ar).*widget)/.test(text)) {
+      return mk('/dashboard/widget-builder', 'Ve a Dashboard → Widget builder.', 'Elige agente, colores y copia el embed.');
+    }
+    if (/(\bcre(o|ar|a).*agente|\bnuevo agente|\bcontruyo.*agente|\bconstruyo.*agente|\bcomo cre(o|ar).*agente)/.test(text)) {
+      return mk('/dashboard/agents/new', 'Ve a Agentes → Nuevo agente.', 'Completa nombre, prompt y modelo.');
+    }
+    if (/(\bsuscripci[oó]n|\bfacturaci[oó]n|\bfacturas|\bplan\b)/.test(text)) {
+      return mk('/dashboard/settings#settings-billing', 'Ve a Ajustes → Suscripción y facturación.', 'Aquí ves plan, facturas y método de pago.');
+    }
+    if (/(\binbox|\bconversaciones|\bchats)/.test(text)) {
+      return mk('/dashboard/inbox', 'Ve a Inbox en el menú lateral.', 'Aquí ves conversaciones de tus widgets.');
+    }
+    if (/(\bmis widgets|\bver widgets)/.test(text)) {
+      return mk('/dashboard/widgets', 'Ve a Widgets en el menú lateral.', 'Aquí gestionas tus widgets.');
+    }
+    if (/(\bajustes|\bconfiguraci[oó]n)/.test(text)) {
+      return mk('/dashboard/settings', 'Ve a Ajustes en el menú lateral.', 'Ajustes de cuenta y preferencias.');
+    }
+    return null;
+  }
+
+  function resolveNavOfferForAssistant(doneEvt, rawText, userMsg) {
+    var offer = null;
+    if (doneEvt && doneEvt.navOffer && doneEvt.navOffer.path) offer = doneEvt.navOffer;
+    else if (doneEvt && doneEvt.data && doneEvt.data.navOffer && doneEvt.data.navOffer.path) {
+      offer = doneEvt.data.navOffer;
+    }
+    if (!offer) offer = parseAssistNavOfferFromRaw(rawText);
+    var replyText = String(rawText || '');
+    if (!offer && /¿quieres que te lleve|¿te llevo|¿te guíe/i.test(replyText)) {
+      offer = inferClientNavOfferFromUserMessage(userMsg);
+    }
+    if (offer && !offer.onDecline) {
+      offer.onDecline = 'Usa el menú lateral del dashboard para ir a esa sección.';
+    }
+    return offer;
+  }
+
+  function findBotMessageStack(bubbleEl) {
+    if (!bubbleEl) return null;
+    try {
+      var parent = bubbleEl.parentElement;
+      if (parent && parent.classList && parent.classList.contains('afhub-msg-stack')) return parent;
+      var row = bubbleEl.closest('.afhub-msg-row');
+      return row ? row.querySelector('.afhub-msg-stack') : null;
+    } catch (_fs) {
+      return null;
+    }
+  }
+
   function resolveAssistNavPath(path) {
     var target = String(path || '/dashboard').trim();
     if (!target.startsWith('/')) target = '/' + target;
     try {
       var loc = window.location && window.location.pathname ? window.location.pathname : '';
       var lm = /^\/(es|en)(\/|$)/.exec(loc);
-      if (lm && !/^\/(es|en)\//.test(target)) {
-        target = '/' + lm[1] + target;
+      var hashIdx = target.indexOf('#');
+      var hashPart = hashIdx >= 0 ? target.slice(hashIdx) : '';
+      var pathPart = hashIdx >= 0 ? target.slice(0, hashIdx) : target;
+      if (lm && !/^\/(es|en)\//.test(pathPart)) {
+        pathPart = '/' + lm[1] + pathPart;
       }
+      target = pathPart + hashPart;
     } catch (_e2) { /* noop */ }
     return target;
   }
 
   function normalizeAssistPathCompare(path) {
-    var p = String(path || '').split('?')[0].replace(/\/$/, '') || '/';
+    var p = String(path || '').split('?')[0].split('#')[0].replace(/\/$/, '') || '/';
     return p.replace(/^\/(es|en)(?=\/)/, '') || p;
+  }
+
+  function assistNavHashFromPath(path) {
+    var raw = String(path || '');
+    var idx = raw.indexOf('#');
+    return idx >= 0 ? raw.slice(idx + 1).trim() : '';
   }
 
   function isAssistInternalDashboard() {
@@ -136,26 +211,37 @@
         timer = setTimeout(function () {
           cleanup();
           onGiveUp();
-        }, 10000);
+        }, 3500);
         return cleanup;
       }
 
       function trySoftNav(fn) {
         var cleanup = attachDoneListener(
-          function () { finish(true); },
-          function () { finish(false); },
+          function () {
+            cleanup();
+            finish(true);
+          },
+          function () {
+            cleanup();
+            hardNav();
+          },
         );
         try {
           var ret = fn(target);
           if (ret && typeof ret.then === 'function') {
-            ret.catch(function () {
+            ret.then(function (ok) {
+              if (ok) {
+                cleanup();
+                finish(true);
+              }
+            }).catch(function () {
               cleanup();
-              finish(false);
+              hardNav();
             });
           }
         } catch (_navErr) {
           cleanup();
-          finish(false);
+          hardNav();
         }
       }
 
@@ -1246,12 +1332,12 @@
     return btn;
   }
 
-  function appendGeneratedImage(wrap, url, item, index) {
+  function appendGeneratedImage(wrap, url, item, index, altText) {
     var frame = document.createElement('div');
     frame.className = 'afhub-img-frame';
     var im = document.createElement('img');
     im.className = 'afhub-widget-img';
-    im.alt = 'Imagen generada';
+    im.alt = altText || 'Imagen generada';
     im.loading = 'lazy';
     im.referrerPolicy = 'no-referrer';
     im.src = url;
@@ -1269,6 +1355,7 @@
     var typingStartedAt = 0;
     var isOpen = false;
     var isLoading = false;
+    var lastAssistUserMessage = '';
     var widgetDisabled = cfg.active === false;
     var DISABLED_MSG = 'Este chat está desactivado temporalmente. Vuelve más tarde.';
     var chatLayout = 'floating';
@@ -2287,9 +2374,25 @@
         var hideLoading = showAssistNavLoading(chat);
         navigateAssistDashboard(target).then(function (ok) {
           hideLoading();
-          if (!ok) return;
+          if (!ok) {
+            yesBtn.disabled = false;
+            noBtn.disabled = false;
+            if (offer.onDecline) {
+              addMessage('bot', offer.onDecline, { noFeedback: true });
+            }
+            return;
+          }
           try {
-            cfg.pagePath = target;
+            var navHash = assistNavHashFromPath(target);
+            if (navHash) {
+              setTimeout(function () {
+                try {
+                  var el = document.getElementById(navHash);
+                  if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } catch (_sh) { /* noop */ }
+              }, 400);
+            }
+            cfg.pagePath = target.split('#')[0];
             if (window.__BIV && typeof window.__BIV.updatePagePath === 'function') {
               window.__BIV.updatePagePath(target);
             } else if (window.AgentFlowhub && typeof window.AgentFlowhub.updatePagePath === 'function') {
@@ -2310,6 +2413,14 @@
       actions.appendChild(noBtn);
       wrap.appendChild(actions);
       stackEl.appendChild(wrap);
+    }
+
+    function attachNavOfferToBubble(bubbleEl, offer) {
+      if (!offer || !offer.path || !bubbleEl) return;
+      var stack = findBotMessageStack(bubbleEl);
+      if (stack && !stack.querySelector('.afhub-nav-offer')) {
+        appendAssistNavOffer(stack, offer);
+      }
     }
 
     function deliverAssistPostNavFollowUp(autoOpen) {
@@ -2668,7 +2779,7 @@
               uLink.rel = 'noopener noreferrer';
               uLink.setAttribute('aria-label', 'Ver imagen en tamaño completo');
               uLink.style.cssText = 'display:block;line-height:0;';
-              appendGeneratedImage(uLink, uUrl, uItem, ui);
+              appendGeneratedImage(uLink, uUrl, uItem, ui, 'Captura adjunta');
               uWrap.appendChild(uLink);
               el.appendChild(uWrap);
             }
@@ -2812,7 +2923,7 @@
       if (type === 'bot') {
         var botRow = mountBotMessage(el, fbRow);
         var navOffer = imgOpts && imgOpts.navOffer ? imgOpts.navOffer : null;
-        if (!navOffer) navOffer = parseAssistNavOfferFromRaw(text);
+        if (!navOffer) navOffer = resolveNavOfferForAssistant(null, text, lastAssistUserMessage);
         if (navOffer && botRow) {
           var navStack = botRow.querySelector('.afhub-msg-stack');
           appendAssistNavOffer(navStack, navOffer);
@@ -2869,6 +2980,9 @@
       }
     }
 
+    /** Mensaje "tarda más de lo habitual" tras esta espera (segundos). */
+    var SLOW_TYPING_MESSAGE_AFTER_SEC = 360;
+
     function startTypingTimer() {
       clearTypingTimer();
       typingStartedAt = Date.now();
@@ -2878,25 +2992,27 @@
           clearTypingTimer();
           return;
         }
-        var elapsedEl = el.querySelector('.afhub-thinking-elapsed');
-        if (!elapsedEl) return;
-        if (!cfg.debug) {
-          elapsedEl.textContent = '';
-          return;
-        }
         var sec = Math.floor((Date.now() - typingStartedAt) / 1000);
-        if (sec < 3) {
-          elapsedEl.textContent = '';
-          return;
-        }
-        elapsedEl.textContent = sec + ' s';
-        if (sec >= 20) {
+
+        if (sec >= SLOW_TYPING_MESSAGE_AFTER_SEC) {
           var subEl = el.querySelector('.afhub-thinking-sub');
           if (subEl && subEl.getAttribute('data-slow') !== '1') {
             subEl.setAttribute('data-slow', '1');
             subEl.textContent = 'Está tardando más de lo habitual. Seguimos trabajando en tu respuesta…';
           }
         }
+
+        var elapsedEl = el.querySelector('.afhub-thinking-elapsed');
+        if (!elapsedEl) return;
+        if (!cfg.debug) {
+          elapsedEl.textContent = '';
+          return;
+        }
+        if (sec < 3) {
+          elapsedEl.textContent = '';
+          return;
+        }
+        elapsedEl.textContent = sec + ' s';
       }, 1000);
     }
 
@@ -4253,6 +4369,7 @@
       }
 
       var displayText = text || (hasHumanAttach ? '' : 'Analiza esta captura y ayúdame a resolver el problema.');
+      lastAssistUserMessage = displayText;
 
       var humanAttachForMsg = hasHumanAttach ? pendingHumanAttachments.slice() : null;
       var userMsgOpts = attachPreviewForMsg
@@ -4454,13 +4571,9 @@
               var te2 = streamBubble.querySelector('.afhub-msg-text');
               if (te2) te2.innerHTML = formatBotHtml(finalReply);
               streamBubble.classList.remove('afhub-msg--streaming');
-              var streamNavOffer = doneEvt.navOffer || parseAssistNavOfferFromRaw(finalRaw);
+              var streamNavOffer = resolveNavOfferForAssistant(doneEvt, finalRaw, lastAssistUserMessage);
               if (streamNavOffer) {
-                var streamRow = streamBubble.closest('.afhub-msg-row');
-                var streamStack = streamRow && streamRow.querySelector('.afhub-msg-stack');
-                if (streamStack && !streamStack.querySelector('.afhub-nav-offer')) {
-                  appendAssistNavOffer(streamStack, streamNavOffer);
-                }
+                attachNavOfferToBubble(streamBubble, streamNavOffer);
               }
               appendMultiAgentBadge(streamBubble, doneEvt.multiAgent);
               if (cfg.showMcpUi) {
@@ -4550,7 +4663,7 @@
           usedModel = data.data.usedModel.trim();
         }
         var cooldown = data.code === 'AGENT_COOLDOWN' || data.cooldown === true;
-        var navOffer = data.navOffer || parseAssistNavOfferFromRaw(replyRaw);
+        var navOffer = resolveNavOfferForAssistant(data, replyRaw, lastAssistUserMessage);
         var botOpts = undefined;
         var showTools = cfg.showMcpUi && toolsUsed && toolsUsed.length;
         var showMcpChip = cfg.showMcpUi && mcpTag;
@@ -5209,6 +5322,9 @@
     else setTimeout(function () { checkHumanModeOnOpen({ skipReconnectBanner: true }); }, 400);
     setTimeout(consumeAssistPostNavFollowUp, 600);
     emitEvent('widget_loaded');
+    try {
+      window.dispatchEvent(new CustomEvent('biv:assist-ready'));
+    } catch (_readyEv) { /* noop */ }
 
     var api = {
       id: id,

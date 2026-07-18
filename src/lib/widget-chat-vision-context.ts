@@ -5,6 +5,8 @@
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent } from '@/lib/db/models';
 import type { WidgetImageEnrichment } from '@/lib/widget-chat-images';
+import { formatPlatformUiClassificationHint } from '@/lib/botiva-platform-ui-reference';
+import { formatWidgetScreenshotOriginBlock } from '@/lib/widget-image-vision-context';
 
 const IMAGE_REFERENCE_RE =
   /\b(la imagen|el de la imagen|esta imagen|esa imagen|la foto|esta foto|esa foto|lo de la foto|el veh[ií]culo de la imagen|en la captura|de la captura)\b/i;
@@ -17,6 +19,7 @@ export function messageReferencesPriorImage(message: string): boolean {
 const VISION_FAILURE_MARKERS = [
   '[No se pudo analizar la imagen.]',
   '[Imagen adjunta — configura VERTEX_GEMINI_API_KEY',
+  '[Imagen adjunta — configura VERTEX_GEMINI_API_KEY o GEMINI_API_KEY',
   '[Formato de imagen no válido.]',
 ];
 
@@ -34,6 +37,10 @@ export function isVisionAnalysisFailure(text: string): boolean {
 }
 
 export function buildVisionSessionBlock(enrichment: WidgetImageEnrichment): string {
+  const originBlock = enrichment.screenshotContext
+    ? `${formatWidgetScreenshotOriginBlock(enrichment.screenshotContext)}\n\n`
+    : '[ORIGEN DE LA CAPTURA — widget BotIvA]\nCaptura enviada por el visitante desde el chat widget BotIvA.\n\n';
+
   const lines = enrichment.analyses.map((a, i) => {
     const header = enrichment.analyses.length > 1 ? `Imagen ${i + 1}` : 'Imagen adjunta';
     return `[${header}]\nContenido detectado (OCR/visión):\n${a.text.trim()}`;
@@ -41,15 +48,18 @@ export function buildVisionSessionBlock(enrichment: WidgetImageEnrichment): stri
   return [
     '[ANÁLISIS DE IMAGEN DEL USUARIO — generado por el servidor, usar como descripción fiel]',
     '',
+    originBlock.trimEnd(),
+    '',
     ...lines,
   ].join('\n');
 }
 
 export const VISION_SYSTEM_INSTRUCTIONS = `[CAPACIDAD DE VISIÓN — PRIORIDAD ALTA]
-El usuario adjuntó imagen(es). El servidor ya las procesó con OCR/visión automática.
+El usuario adjuntó imagen(es) desde el widget de chat BotIvA (canal oficial de capturas del producto).
+El servidor ya las procesó con OCR/visión automática e indicó el origen (dashboard BotIvA, web del visitante, etc.).
 - NO digas que no puedes ver, visualizar o leer imágenes.
 - NO menciones "limitación técnica" por imágenes: ya tienes el análisis en el contexto.
-- Trata "Contenido detectado" como lo que hay en la imagen y responde según tu rol.
+- Trata "Contenido detectado" y "ORIGEN DE LA CAPTURA" como hechos: responde según tu rol y la pantalla BotIvA o del sitio del cliente.
 - Si el análisis falló, pide amablemente que el usuario describa la imagen; no digas que el sistema no soporta imágenes.`;
 
 function appendToSystemPrompt(base: string, extra: string): string {
@@ -83,6 +93,12 @@ export function applyVisionContextToParsedBody(
 
   const hasFailure = enrichment.analyses.some((a) => isVisionAnalysisFailure(a.text));
   let visionSystem = `${VISION_SYSTEM_INSTRUCTIONS}\n\n${visionBlock}`;
+  const platformHint = enrichment.analyses
+    .map((a) => formatPlatformUiClassificationHint(a.text))
+    .find(Boolean);
+  if (platformHint) {
+    visionSystem += `\n\n${platformHint}`;
+  }
   if (hasFailure) {
     visionSystem += `\n\n[NOTA] El análisis automático no fue concluyente. Usa lo disponible arriba; si falta detalle, pide una descripción breve sin mencionar limitaciones del sistema.`;
   }

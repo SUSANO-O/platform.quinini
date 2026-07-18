@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { isAppBotIvAWidgetPath, isLandingMarketingPath } from '@/lib/landing-widget-paths';
 
 const SCRIPT_DATA_ATTR = 'biv-platform-sdk';
@@ -15,8 +15,14 @@ type AssistBootResponse = {
 
 type AssistContext = 'app' | 'marketing' | null;
 
+type PendingNav = {
+  target: string;
+  hash: string;
+  resolve: (ok: boolean) => void;
+};
+
 function normalizeNavPath(path: string): string {
-  return path.split('?')[0].replace(/\/$/, '') || '/';
+  return path.split('?')[0].split('#')[0].replace(/\/$/, '') || '/';
 }
 
 function stripLocalePrefix(path: string): string {
@@ -28,6 +34,29 @@ function navPathsMatch(target: string, current: string): boolean {
     normalizeNavPath(stripLocalePrefix(target)) ===
     normalizeNavPath(stripLocalePrefix(current))
   );
+}
+
+function splitNavTarget(raw: string): { path: string; hash: string } {
+  const trimmed = String(raw || '').trim();
+  const hashIdx = trimmed.indexOf('#');
+  if (hashIdx === -1) {
+    return { path: trimmed, hash: '' };
+  }
+  return {
+    path: trimmed.slice(0, hashIdx) || '/dashboard',
+    hash: trimmed.slice(hashIdx + 1).trim(),
+  };
+}
+
+function scrollToNavHash(hash: string) {
+  if (!hash) return;
+  window.setTimeout(() => {
+    try {
+      document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch {
+      /* noop */
+    }
+  }, 200);
 }
 
 function resolveAssistContext(pathname: string | null): AssistContext {
@@ -61,9 +90,44 @@ export function LandingWidgetScript() {
   const bootRef = useRef<AssistBootResponse | null>(null);
   const activeContextRef = useRef<AssistContext>(null);
   const pathnameRef = useRef(pathname);
-  const pendingNavRef = useRef<{ target: string; resolve: (ok: boolean) => void } | null>(null);
+  const pendingNavRef = useRef<PendingNav | null>(null);
+  const navigateRef = useRef<(path: string) => Promise<boolean>>(async () => false);
 
   pathnameRef.current = pathname;
+
+  const runNavigate = useCallback(
+    (rawPath: string): Promise<boolean> => {
+      const { path, hash } = splitNavTarget(rawPath);
+      const target = path.trim();
+      if (!target) return Promise.resolve(false);
+
+      window.dispatchEvent(
+        new CustomEvent('biv:navigate-start', { detail: { path: target } }),
+      );
+
+      const current = pathnameRef.current || '';
+      if (navPathsMatch(target, current)) {
+        scrollToNavHash(hash);
+        window.dispatchEvent(
+          new CustomEvent('biv:navigate-done', { detail: { path: current } }),
+        );
+        return Promise.resolve(true);
+      }
+
+      return new Promise<boolean>((resolve) => {
+        pendingNavRef.current = { target, hash, resolve };
+        router.push(target);
+      });
+    },
+    [router],
+  );
+
+  navigateRef.current = runNavigate;
+
+  const bindAssistNavigate = useCallback(() => {
+    window.__BIV = window.__BIV ?? {};
+    window.__BIV.navigate = (path: string) => navigateRef.current(path);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -106,6 +170,7 @@ export function LandingWidgetScript() {
         if (api && typeof api === 'object' && 'destroy' in api) {
           instanceRef.current = api as { destroy?: () => void };
         }
+        bindAssistNavigate();
         clearPollTimeouts();
         return;
       }
@@ -145,6 +210,7 @@ export function LandingWidgetScript() {
           initWhenReady();
           return;
         }
+        bindAssistNavigate();
       };
 
       const onScriptError = () => {
@@ -191,35 +257,13 @@ export function LandingWidgetScript() {
         destroyInstance();
       }
     };
-  }, [context]);
+  }, [bindAssistNavigate, context]);
 
   // Navegación SPA para Math-ais (Sí → redirigir sin recargar la burbuja).
   useEffect(() => {
     if (context !== 'app') return;
 
-    const runNavigate = (path: string): Promise<boolean> => {
-      const target = String(path || '').trim();
-      if (!target) return Promise.resolve(false);
-
-      window.dispatchEvent(
-        new CustomEvent('biv:navigate-start', { detail: { path: target } }),
-      );
-
-      const current = pathnameRef.current || '';
-      if (navPathsMatch(target, current)) {
-        window.dispatchEvent(
-          new CustomEvent('biv:navigate-done', { detail: { path: current } }),
-        );
-        return Promise.resolve(true);
-      }
-
-      return new Promise<boolean>((resolve) => {
-        pendingNavRef.current = { target, resolve };
-        router.push(target);
-      });
-    };
-
-    const navigate = (path: string) => runNavigate(path);
+    bindAssistNavigate();
 
     const onNavigateRequest = (ev: Event) => {
       const detail = (ev as CustomEvent<{ path?: string }>).detail;
@@ -228,19 +272,20 @@ export function LandingWidgetScript() {
       void runNavigate(path);
     };
 
-    window.__BIV = window.__BIV ?? {};
-    window.__BIV.navigate = navigate;
+    const onAssistReady = () => {
+      bindAssistNavigate();
+    };
+
     window.addEventListener('biv:navigate-request', onNavigateRequest);
+    window.addEventListener('biv:assist-ready', onAssistReady);
 
     return () => {
       window.removeEventListener('biv:navigate-request', onNavigateRequest);
-      if (window.__BIV?.navigate === navigate) {
-        delete window.__BIV.navigate;
-      }
+      window.removeEventListener('biv:assist-ready', onAssistReady);
       pendingNavRef.current?.resolve(false);
       pendingNavRef.current = null;
     };
-  }, [context, router]);
+  }, [bindAssistNavigate, context, runNavigate]);
 
   // Actualizar pagePath al navegar dentro del dashboard (sin reiniciar la burbuja).
   useEffect(() => {
@@ -255,6 +300,7 @@ export function LandingWidgetScript() {
     if (pending && navPathsMatch(pending.target, pathname)) {
       pending.resolve(true);
       pendingNavRef.current = null;
+      scrollToNavHash(pending.hash);
       window.dispatchEvent(
         new CustomEvent('biv:navigate-done', { detail: { path: pathname } }),
       );

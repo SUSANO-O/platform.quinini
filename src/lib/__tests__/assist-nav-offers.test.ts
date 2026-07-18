@@ -116,6 +116,19 @@ describe('assist-nav-offers', () => {
     expect(reply).not.toMatch(/sección de Widgets/i);
   });
 
+  it('infiere ajustes de suscripción con ancla de facturación', () => {
+    const offer = inferAssistNavOffer(
+      '¿Te gustaría que te guíe a la sección de Suscripción y cuenta?',
+      { userMessage: '', pagePath: '/dashboard' },
+    );
+    expect(offer?.path).toBe('/dashboard/settings#settings-billing');
+    expect(offer?.onDecline).toContain('Ajustes');
+  });
+
+  it('allows settings hash paths', () => {
+    expect(isAllowedAssistNavPath('/dashboard/settings#settings-billing')).toBe(true);
+  });
+
   it('finalizeAssistChatReply añade navOffer y pregunta', () => {
     const raw =
       'Para crear un agente ve a Dashboard → Agentes → Nuevo agente. Allí pon nombre, prompt y modelo.';

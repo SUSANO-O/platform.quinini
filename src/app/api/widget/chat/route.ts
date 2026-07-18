@@ -21,6 +21,7 @@ import { checkConversationQuota } from '@/lib/quota';
 import { dispatchSaasWebhook } from '@/lib/saas-webhook-outbound';
 import { getAgentLimits } from '@/lib/agent-plans';
 import { checkRateLimitAsync, getClientIp } from '@/lib/rate-limit';
+import { isLocalDevLimitsBypass } from '@/lib/dev-limits';
 import { trackWidgetUserMessageForFaqCandidates } from '@/lib/widget-faq-tracker';
 import { isOriginAllowed } from '@/lib/widget-origin-check';
 import { extractAndGuardMessage, countWidgetUserTurns } from '@/lib/message-guard';
@@ -501,7 +502,9 @@ export async function POST(req: NextRequest) {
                 j.visitorUserId = identity.userId;
                 const pagePath =
                   typeof j.pagePath === 'string' ? j.pagePath : undefined;
-                j = await injectAssistContextIntoChatBody(j, identity, pagePath);
+                j = await injectAssistContextIntoChatBody(j, identity, pagePath, {
+                  hasUserImage: Boolean(imageEnrichment?.images?.length),
+                });
               }
             }
           } catch (idErr) {
@@ -558,7 +561,7 @@ export async function POST(req: NextRequest) {
 
           // Trial/suscripción vencida: permitimos solo el primer mensaje del visitante.
           // Desde el segundo, devolvemos error amigable sin exponer detalle comercial.
-          if (!hasActivePlan && userTurnCount >= 2) {
+          if (!isLocalDevLimitsBypass() && !hasActivePlan && userTurnCount >= 2) {
             return NextResponse.json(
               {
                 error:

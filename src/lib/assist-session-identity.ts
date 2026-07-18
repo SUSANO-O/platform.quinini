@@ -77,10 +77,19 @@ export async function isInternalAppAssistWidget(params: {
  * Inyecta contexto del cliente logueado (nombre, plan, pantalla, scope Mongo).
  * Idempotente: no duplica bloque si el email ya está en sessionContextBlock.
  */
+const VISION_SESSION_MARKER = 'ANÁLISIS DE IMAGEN DEL USUARIO';
+
+const ASSIST_IMAGE_HINT = `[CAPTURA ADJUNTA EN ESTE MENSAJE]
+El usuario envió una imagen (p. ej. pregunta "¿qué es esto?", "¿qué pasa acá?"). El servidor incluye ANÁLISIS DE IMAGEN en el contexto de sesión.
+- Responde según "Contenido detectado" del análisis; trátalo como lo que hay en la captura.
+- No pidas aclarar "esto", "acá" ni "qué sección del dashboard" si ya hay análisis de imagen.
+- Si el análisis falló, pide una descripción breve de lo que ven; no digas que no puedes ver imágenes.`;
+
 export async function injectAssistContextIntoChatBody(
   body: Record<string, unknown>,
   identity: AssistVisitorIdentity,
   pagePath?: string,
+  options?: { hasUserImage?: boolean },
 ): Promise<Record<string, unknown>> {
   const prevCtx = typeof body.sessionContextBlock === 'string' ? body.sessionContextBlock.trim() : '';
   if (prevCtx.includes(identity.email) && prevCtx.includes('CONTEXTO DEL CLIENTE LOGUEADO')) {
@@ -106,9 +115,20 @@ export async function injectAssistContextIntoChatBody(
     message && isTrivialMessage(message, history) ? 'light' : 'full';
 
   const sessionCtx = await loadAssistSessionContext(identity.userId, path);
-  const block = sessionCtx
+  let block = sessionCtx
     ? `${formatAssistSessionContextBlock(sessionCtx, contextMode)}\n\n${assistAgentNavigationPromptSection()}`
     : `Cliente: ${identity.name} <${identity.email}> · plan ${identity.plan}`;
+
+  if (options?.hasUserImage || prevCtx.includes(VISION_SESSION_MARKER)) {
+    block = `${ASSIST_IMAGE_HINT}\n\n${block}`;
+  }
+
+  const hasVisionInPrev = prevCtx.includes(VISION_SESSION_MARKER);
+  const sessionContextBlock = prevCtx
+    ? hasVisionInPrev
+      ? `${prevCtx}\n\n---\n\n${block}`
+      : `${block}\n\n${prevCtx}`
+    : block;
 
   return {
     ...body,
@@ -116,7 +136,7 @@ export async function injectAssistContextIntoChatBody(
     visitorName: identity.name,
     visitorUserId: identity.userId,
     visitorPlan: identity.plan,
-    sessionContextBlock: prevCtx ? `${block}\n\n${prevCtx}` : block,
+    sessionContextBlock,
   };
 }
 

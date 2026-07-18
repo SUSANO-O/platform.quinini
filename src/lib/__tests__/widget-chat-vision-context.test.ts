@@ -14,6 +14,11 @@ const sampleEnrichment: WidgetImageEnrichment = {
   images: [{ url: 'https://res.cloudinary.com/demo/image.png' }],
   analyses: [{ url: 'https://res.cloudinary.com/demo/image.png', text: 'Toggle Vision activada. Modelo Gemini 2.5 Flash.' }],
   displayMessage: '¿Qué ves en la captura?',
+  screenshotContext: {
+    kind: 'botiva_dashboard',
+    pagePath: '/dashboard/agents',
+    originLabel: 'Captura enviada desde el asistente del dashboard BotIvA (Math-ais).',
+  },
 };
 
 describe('widget-chat-vision-context', () => {
@@ -44,9 +49,11 @@ describe('widget-chat-vision-context', () => {
     expect(parsed.sessionContextBlock).toContain('Facts previos: SUV');
   });
 
-  it('buildVisionSessionBlock incluye análisis', () => {
+  it('buildVisionSessionBlock incluye análisis y origen BotIvA', () => {
     const block = buildVisionSessionBlock(sampleEnrichment);
     expect(block).toContain('Gemini 2.5 Flash');
+    expect(block).toContain('ORIGEN DE LA CAPTURA');
+    expect(block).toContain('BotIvA');
   });
 
   it('buildUserPromptWithSessionContext antepone contexto', () => {
