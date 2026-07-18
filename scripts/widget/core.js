@@ -49,28 +49,58 @@
   }
 
   var ASSIST_NAV_BLOCK_RE = /```assist-nav\s*\n([\s\S]*?)\n```/i;
+  var ASSIST_NAV_XML_RE = /<assist-nav[\w-]*[\s\S]*?(?:\/>|<\/assist-nav[\w-]*>)/gi;
+  var ASSIST_NAV_XML_TAG_RE = /<\/?assist-nav[\w-]*(?:\s[^>]*)?\/?>/gi;
 
   function stripAssistNavBlock(raw) {
-    return String(raw || '').replace(ASSIST_NAV_BLOCK_RE, '').replace(/\s+$/, '').trim();
+    return String(raw || '')
+      .replace(ASSIST_NAV_BLOCK_RE, '')
+      .replace(ASSIST_NAV_XML_RE, '')
+      .replace(ASSIST_NAV_XML_TAG_RE, '')
+      .replace(/\s+$/, '')
+      .trim();
+  }
+
+  function parseAssistNavXmlAttrs(attrStr) {
+    var pick = function (name) {
+      var re = new RegExp(name + '\\s*=\\s*["\']([^"\']*)["\']', 'i');
+      var m = re.exec(attrStr);
+      return m && m[1] ? String(m[1]).trim() : '';
+    };
+    var path = pick('path');
+    var onDecline = pick('onDecline');
+    if (!path || !onDecline) return null;
+    return {
+      path: path,
+      prompt: '',
+      onDecline: onDecline,
+      afterNavigate: pick('afterNavigate') || pick('onAccept') || ''
+    };
   }
 
   function parseAssistNavOfferFromRaw(raw) {
     var m = ASSIST_NAV_BLOCK_RE.exec(String(raw || ''));
-    if (!m || !m[1]) return null;
-    try {
-      var j = JSON.parse(m[1].trim());
-      var path = String(j.path || '').trim();
-      var onDecline = String(j.onDecline || j.declineHint || '').trim();
-      if (!path || !onDecline) return null;
-      return {
-        path: path,
-        prompt: j.prompt ? String(j.prompt).trim() : '',
-        onDecline: onDecline,
-        afterNavigate: j.afterNavigate ? String(j.afterNavigate).trim() : (j.onAccept ? String(j.onAccept).trim() : '')
-      };
-    } catch (_e) {
-      return null;
+    if (m && m[1]) {
+      try {
+        var j = JSON.parse(m[1].trim());
+        var path = String(j.path || '').trim();
+        var onDecline = String(j.onDecline || j.declineHint || '').trim();
+        if (!path || !onDecline) return null;
+        return {
+          path: path,
+          prompt: j.prompt ? String(j.prompt).trim() : '',
+          onDecline: onDecline,
+          afterNavigate: j.afterNavigate ? String(j.afterNavigate).trim() : (j.onAccept ? String(j.onAccept).trim() : '')
+        };
+      } catch (_e) {
+        /* try XML */
+      }
     }
+    var xml = /<assist-nav\s+([^>]+?)\s*\/?>/i.exec(String(raw || ''));
+    if (xml && xml[1]) return parseAssistNavXmlAttrs(xml[1]);
+    var action = /<assist-nav-action([^>]*)\/?>/i.exec(String(raw || ''));
+    if (action && action[1]) return parseAssistNavXmlAttrs(action[1]);
+    return null;
   }
 
   /** Fallback cliente si el SSE no trae navOffer (cache viejo / prod sin deploy). */
@@ -97,6 +127,9 @@
     }
     if (/(\bajustes|\bconfiguraci[oó]n)/.test(text)) {
       return mk('/dashboard/settings', 'Ve a Ajustes en el menú lateral.', 'Ajustes de cuenta y preferencias.');
+    }
+    if (/(\bapi rest\b|\bdocumentaci[oó]n api\b|\bclaves api\b)/.test(text) || /(\bllevame|\blleva|\bll[eé]vame|\bir a|\bver)\b.*\bapi\b/.test(text)) {
+      return mk('/dashboard/api', 'Ve a Dashboard → API en el menú lateral.', 'Documentación y claves API REST.');
     }
     return null;
   }

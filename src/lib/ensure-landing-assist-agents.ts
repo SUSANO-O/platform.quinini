@@ -13,6 +13,7 @@ import type { InternalAssistContext } from '@/lib/internal-assist-config';
 import { canAttemptHubSync, ensureClientAgentHubSynced, fetchCatalogAgentFromHub, syncHubCatalogFromLandingAgentDoc } from '@/lib/aibackhub-sync';
 import { MATH_AIS_SYSTEM_PROMPT } from '@/lib/math-ais-content';
 import { mathAisMongoToolIds } from '@/lib/math-ais-mcp';
+import { mathAisApiToolIds } from '@/lib/math-ais-api-mcp';
 
 export type LandingAssistSlot = {
   context: InternalAssistContext;
@@ -246,7 +247,7 @@ export async function ensureLandingAssistAgents(options?: {
         ...(isMathAis
           ? {
               hubspotAutoCaptureContacts: false,
-              enabledMcpToolIds: mathAisMongoToolIds(),
+              enabledMcpToolIds: [...mathAisMongoToolIds(), ...mathAisApiToolIds()],
             }
           : {}),
       });
@@ -262,7 +263,7 @@ export async function ensureLandingAssistAgents(options?: {
       if (!agent.agentHubId) $set.agentHubId = slot.hubId;
       if (isMathAis) {
         $set.hubspotAutoCaptureContacts = false;
-        $set.enabledMcpToolIds = mathAisMongoToolIds();
+        $set.enabledMcpToolIds = [...mathAisMongoToolIds(), ...mathAisApiToolIds()];
       }
       await ClientAgent.updateOne({ _id: agent._id }, { $set });
       updated.agents.push(String(agent._id));

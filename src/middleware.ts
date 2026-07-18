@@ -21,6 +21,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (pathname.startsWith('/api/embed/afapi')) {
+    const token = request.cookies.get('afhub_session')?.value;
+    if (!token) {
+      return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+    }
+    return NextResponse.next();
+  }
+
   // i18n routing only for landing routes
   if (LANDING_PATHS.has(pathname) || pathname.startsWith('/es/') || pathname.startsWith('/en/')) {
     return intlMiddleware(request);
@@ -30,5 +38,14 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/es', '/en', '/es/:path*', '/en/:path*', '/dashboard/:path*', '/admin/:path*'],
+  matcher: [
+    '/',
+    '/es',
+    '/en',
+    '/es/:path*',
+    '/en/:path*',
+    '/dashboard/:path*',
+    '/admin/:path*',
+    '/api/embed/afapi/:path*',
+  ],
 };

@@ -3,7 +3,8 @@
  */
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent, Subscription, User, Widget } from '@/lib/db/models';
-import { hasFeatureOverride, VALID_FEATURE_OVERRIDES } from '@/lib/plan-catalog';
+import { hasFeatureOverride, VALID_FEATURE_OVERRIDES, canUseApiAccess } from '@/lib/plan-catalog';
+import { resolveAgentflowApiUrl } from '@/lib/agentflow-api-url';
 import {
   buildProactiveHints,
   loadAssistInboxSummary,
@@ -31,6 +32,8 @@ export type AssistSessionContext = {
   proactiveHints: string[];
   agents: { total: number; names: string[] };
   widgets: { total: number; names: string[] };
+  /** Agentes con al menos una tool MCP habilitada (enabledMcpToolIds). */
+  mcpAgents: { total: number; ofTotal: number };
   onboarding: {
     hasAgent: boolean;
     hasWidget: boolean;
@@ -58,6 +61,12 @@ export type AssistSessionContext = {
       users: string;
     };
     filterExamples: Record<string, string>;
+  };
+  /** Acceso API REST BotIvA (/api/v1) vía MCP botiva_api. */
+  apiAccess: {
+    enabled: boolean;
+    apiBaseUrl: string;
+    docsPath: string;
   };
 };
 
@@ -133,6 +142,17 @@ export async function loadAssistSessionContext(
     type: 'agent',
     status: { $ne: 'deleted' },
   });
+  const mcpAgentRows = (await ClientAgent.find({
+    userId,
+    type: 'agent',
+    status: { $ne: 'deleted' },
+    enabledMcpToolIds: { $exists: true, $not: { $size: 0 } },
+  })
+    .select({ enabledMcpToolIds: 1 })
+    .lean()) as Array<{ enabledMcpToolIds?: string[] }>;
+  const mcpAgentsTotal = mcpAgentRows.filter(
+    (a) => Array.isArray(a.enabledMcpToolIds) && a.enabledMcpToolIds.length > 0,
+  ).length;
   const widgetsTotal = await Widget.countDocuments({ userId, active: { $ne: false } });
 
   const email = String(user.email).trim().toLowerCase();
@@ -171,6 +191,9 @@ export async function loadAssistSessionContext(
     agentDetail,
   });
 
+  const apiEnabled = canUseApiAccess(plan, status, features);
+  const apiBaseUrl = resolveAgentflowApiUrl();
+
   return {
     userId,
     email,
@@ -200,6 +223,10 @@ export async function loadAssistSessionContext(
       total: widgetsTotal,
       names: widgetRows.map((w) => String(w.name || '').trim()).filter(Boolean),
     },
+    mcpAgents: {
+      total: mcpAgentsTotal,
+      ofTotal: agentsTotal,
+    },
     onboarding: {
       hasAgent: agentsTotal > 0,
       hasWidget: widgetsTotal > 0,
@@ -220,6 +247,11 @@ export async function loadAssistSessionContext(
         subscriptions: `{ "userId": "${userId}" }`,
         users: `{ "_id": ObjectId("${userId}") }`,
       },
+    },
+    apiAccess: {
+      enabled: apiEnabled,
+      apiBaseUrl,
+      docsPath: '/dashboard/api',
     },
   };
 }
@@ -263,6 +295,7 @@ export function formatAssistSessionContextBlock(
     ...(screenLine ? [screenLine] : []),
     `Agentes: ${ctx.agents.total} — ${agentList}`,
     `Widgets: ${ctx.widgets.total} — ${widgetList}`,
+    `Agentes con MCP activo: ${ctx.mcpAgents.total} de ${ctx.mcpAgents.ofTotal}`,
     `Inbox: ${ctx.inbox.openCount} abierta(s)${ctx.inbox.humanModeCount ? `, ${ctx.inbox.humanModeCount} en modo humano` : ''}`,
     `Onboarding: agente=${ctx.onboarding.hasAgent ? 'sí' : 'no'}, widget=${ctx.onboarding.hasWidget ? 'sí' : 'no'}`,
     '',
@@ -279,7 +312,12 @@ export function formatAssistSessionContextBlock(
     `Filtra SIEMPRE por userId="${ctx.userId}" en clientagents/widgets/subscriptions.`,
     `Base: ${ctx.mongoScope.databaseHint}. Colecciones: clientagents, widgets, subscriptions, users.`,
     `Nunca consultes otros userId. No expongas passwordHash, tokens ni URIs.`,
-    `Responde en lenguaje de producto (Dashboard → …), sin repos ni APIs internas.`,
+    '',
+    '[API REST BOTIVA — tools botiva_api_*]',
+    ctx.apiAccess.enabled
+      ? `apiAccess.enabled=true · base ${ctx.apiAccess.apiBaseUrl} · docs en ${ctx.apiAccess.docsPath}. Puedes usar botiva_api_health y botiva_api_request.`
+      : 'apiAccess.enabled=false · el plan no incluye API REST (Team+ o API Develop). No invoques botiva_api_request.',
+    `Responde en lenguaje de producto (Dashboard → …), sin repos ni detalles de infra.`,
   ].join('\n');
 }
 

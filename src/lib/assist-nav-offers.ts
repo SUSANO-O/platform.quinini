@@ -14,9 +14,11 @@ export type AssistNavOffer = {
 };
 
 const NAV_BLOCK_RE = /```assist-nav\s*\n([\s\S]*?)\n```/i;
+const NAV_XML_RE = /<assist-nav[\w-]*[\s\S]*?(?:\/>|<\/assist-nav[\w-]*>)/gi;
+const NAV_XML_TAG_RE = /<\/?assist-nav[\w-]*(?:\s[^>]*)?\/?>/gi;
 
 const ALLOWED_PATH =
-  /^(\/(?:es|en))?\/dashboard(?:\/(?:agents(?:\/[a-f0-9]{24})?|widgets(?:\/[a-f0-9]{24})?|widget-builder|widget-preview|inbox|chats|quick-start|mcp|settings|finance|flows|agents\/new))?\/?$/i;
+  /^(\/(?:es|en))?\/dashboard(?:\/(?:agents(?:\/[a-f0-9]{24})?|widgets(?:\/[a-f0-9]{24})?|widget-builder|widget-preview|inbox|chats|quick-start|mcp|api|settings|finance|flows|agents\/new))?\/?$/i;
 
 export function isAllowedAssistNavPath(path: string): boolean {
   const p = path.trim().split('?')[0].split('#')[0].replace(/\/$/, '') || '/dashboard';
@@ -34,31 +36,72 @@ export function normalizeAssistNavPath(path: string): string {
 
 export function parseAssistNavBlock(raw: string): AssistNavOffer | null {
   const m = NAV_BLOCK_RE.exec(String(raw || ''));
-  if (!m?.[1]) return null;
-  try {
-    const j = JSON.parse(m[1].trim()) as Record<string, unknown>;
-    const path = normalizeAssistNavPath(String(j.path || ''));
-    const onDecline = String(j.onDecline || j.declineHint || '').trim();
-    if (!path || !onDecline || !isAllowedAssistNavPath(path)) return null;
-    return {
-      path,
-      prompt: typeof j.prompt === 'string' ? j.prompt.trim() : undefined,
-      onDecline,
-      afterNavigate:
-        typeof j.afterNavigate === 'string'
-          ? j.afterNavigate.trim()
-          : typeof j.onAccept === 'string'
-            ? j.onAccept.trim()
-            : undefined,
-    };
-  } catch {
-    return null;
+  if (m?.[1]) {
+    try {
+      const j = JSON.parse(m[1].trim()) as Record<string, unknown>;
+      return parseAssistNavJson(j);
+    } catch {
+      /* fallback XML below */
+    }
   }
+
+  const xml = /<assist-nav\s+([^>]+?)\s*\/?>/i.exec(String(raw || ''));
+  if (xml?.[1]) {
+    return parseAssistNavXmlAttrs(xml[1]);
+  }
+
+  const actionBlock = /<assist-nav-action([^>]*)>([\s\S]*?)<\/assist-nav-action>/i.exec(String(raw || ''));
+  if (actionBlock?.[1]) {
+    return parseAssistNavXmlAttrs(actionBlock[1]);
+  }
+  const actionSelf = /<assist-nav-action([^>]*)\/?>/i.exec(String(raw || ''));
+  if (actionSelf?.[1]) {
+    return parseAssistNavXmlAttrs(actionSelf[1]);
+  }
+
+  return null;
+}
+
+function parseAssistNavJson(j: Record<string, unknown>): AssistNavOffer | null {
+  const path = normalizeAssistNavPath(String(j.path || ''));
+  const onDecline = String(j.onDecline || j.declineHint || '').trim();
+  if (!path || !onDecline || !isAllowedAssistNavPath(path)) return null;
+  return {
+    path,
+    prompt: typeof j.prompt === 'string' ? j.prompt.trim() : undefined,
+    onDecline,
+    afterNavigate:
+      typeof j.afterNavigate === 'string'
+        ? j.afterNavigate.trim()
+        : typeof j.onAccept === 'string'
+          ? j.onAccept.trim()
+          : undefined,
+  };
+}
+
+function parseAssistNavXmlAttrs(attrStr: string): AssistNavOffer | null {
+  const pick = (name: string) => {
+    const re = new RegExp(`${name}\\s*=\\s*["']([^"']*)["']`, 'i');
+    const fromEq = re.exec(attrStr)?.[1]?.trim();
+    if (fromEq) return fromEq;
+    const lineRe = new RegExp(`^\\s*${name}\\s*=\\s*["']([^"']*)["']`, 'im');
+    return lineRe.exec(attrStr)?.[1]?.trim() || '';
+  };
+  const path = normalizeAssistNavPath(pick('path'));
+  const onDecline = pick('onDecline');
+  if (!path || !onDecline || !isAllowedAssistNavPath(path)) return null;
+  return {
+    path,
+    onDecline,
+    afterNavigate: pick('afterNavigate') || pick('onAccept') || undefined,
+  };
 }
 
 export function stripAssistNavBlock(raw: string): string {
   return String(raw || '')
     .replace(NAV_BLOCK_RE, '')
+    .replace(NAV_XML_RE, '')
+    .replace(NAV_XML_TAG_RE, '')
     .replace(/\s+$/, '')
     .trim();
 }
@@ -171,6 +214,19 @@ function detectNavIntentFromText(
       'Ve a Dashboard → Integraciones MCP en el menú lateral y conecta la cuenta que necesites.',
       'Conecta aquí Gmail, HubSpot, Calendar u otras integraciones; luego actívalas en tu agente.',
       '¿Quieres que te lleve a Integraciones MCP?',
+    );
+  }
+
+  if (
+    /(\bapi rest\b|\bdocumentaci[oó]n api\b|\bclaves api\b|\brest api\b)/.test(text) ||
+    /(\bllevame|\blleva|\bll[eé]vame|\bir a|\bver|\bmostrar)\b.*\bapi\b/.test(text) ||
+    /^\s*(?:a\s+)?la\s+api\s*$/i.test(text)
+  ) {
+    return mk(
+      '/dashboard/api',
+      'Ve a Dashboard → API en el menú lateral para ver la documentación y tus claves.',
+      'Aquí tienes la documentación interactiva y puedes generar o gestionar claves API.',
+      '¿Quieres que te lleve a la sección API?',
     );
   }
 
@@ -374,9 +430,10 @@ Cuando sugieras ir a otra pantalla (revisar config, ver tareas, inbox, widgets, 
 \`\`\`
 
 Reglas del JSON:
-- path: ruta interna permitida (/dashboard, /dashboard/agents, /dashboard/agents/{id}, /dashboard/widgets, /dashboard/widget-builder, /dashboard/inbox, /dashboard/mcp, /dashboard/settings).
+- path: ruta interna permitida (/dashboard, /dashboard/agents, /dashboard/agents/{id}, /dashboard/widgets, /dashboard/widget-builder, /dashboard/inbox, /dashboard/mcp, /dashboard/api, /dashboard/settings).
 - onDecline: instrucciones manuales claras (Dashboard → …) si dice que no.
 - afterNavigate: 1–2 frases explicando qué hacer ya en esa pantalla (se muestra tras redirigir).
 - No uses URLs externas ni paths fuera de /dashboard.
+- Usa SOLO el bloque \`\`\`assist-nav con JSON. NUNCA etiquetas XML tipo <assist-nav/>.
 - Un solo bloque assist-nav por mensaje.`;
 }

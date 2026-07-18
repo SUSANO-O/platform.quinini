@@ -7,6 +7,9 @@
     "build:widget": "node scripts/widget/build.mjs && node scripts/widget/verify-build.mjs",
     "dev": "next dev -p 3201",
     "dev:clean": "npm run clean && npm run dev",
+    "stack:up": "bash ../scripts/botiva-local-up.sh",
+    "stack:down": "bash ../scripts/botiva-local-down.sh",
+    "stack:status": "bash ../scripts/botiva-local-status.sh",
     "build": "npm run build:widget && next build",
     "start": "next start -p 3201",
     "lint": "next lint",
@@ -15,6 +18,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "smoke": "node scripts/smoke-test.mjs",
+    "test:bdd": "node node_modules/@cucumber/cucumber/bin/cucumber.js",
+    "test:bdd:smoke": "node node_modules/@cucumber/cucumber/bin/cucumber.js --tags \"@smoke\"",
     "test:widget": "node scripts/widget-chat-test.mjs",
     "test:widget:smoke": "node --env-file=.env scripts/widget-chat-smoke.mjs",
     "test:aibackhub:model": "node --env-file=.env scripts/test-aibackhub-model.mjs",
@@ -94,6 +99,7 @@
     "_stripe_react-stripe-js": "^6.1.0"
   },
   "devDependencies": {
+    "@cucumber/cucumber": "^13.1.1",
     "@tailwindcss/postcss": "^4.1.6",
     "@types/jsdom": "^28.0.3",
     "@types/node": "^22.19.17",

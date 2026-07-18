@@ -15,7 +15,7 @@ import { PwaInstallButton } from '@/components/shared/pwa-install-button';
 import { SidebarVersionLink } from '@/components/dashboard/sidebar-version-link';
 import { useInboxOpenCount } from '@/hooks/use-inbox-open-count';
 import { useSubscription } from '@/hooks/use-subscription';
-import { canUseApiAccess, effectiveProductPlan, isApiOnlyPlan, isSoloChatOnlyPlan } from '@/lib/plan-catalog';
+import { canUseApiAccess, canUseConversationFlows, effectiveProductPlan, isApiOnlyPlan, isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 import { BRAND_TEXT_COLOR } from '@/lib/brand';
 
 /** Accesos directos en la barra inferior (estilo app móvil). */
@@ -56,8 +56,13 @@ export function DashboardMobileNav({
     subscription?.status ?? 'free',
     subscription?.features,
   );
+  const showFlowsLink = canUseConversationFlows(
+    subscription?.plan ?? 'free',
+    subscription?.status ?? 'free',
+    subscription?.features,
+  );
   const hideQuickStart = isSoloChatOnlyPlan(subscription?.plan ?? 'free') || apiOnly;
-  const navGroups = buildDashboardNavGroups({ showApiLink, hideQuickStart, apiOnly });
+  const navGroups = buildDashboardNavGroups({ showApiLink, showFlowsLink, hideQuickStart, apiOnly });
   const bottomTabs = apiOnly
     ? [
         { href: '/dashboard/api', label: 'API', icon: Braces },

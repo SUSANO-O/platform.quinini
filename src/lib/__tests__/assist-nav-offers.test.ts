@@ -25,8 +25,25 @@ describe('assist-nav-offers', () => {
 
   it('allows dashboard paths', () => {
     expect(isAllowedAssistNavPath('/dashboard/agents')).toBe(true);
+    expect(isAllowedAssistNavPath('/dashboard/api')).toBe(true);
     expect(isAllowedAssistNavPath('/es/dashboard/inbox')).toBe(true);
     expect(isAllowedAssistNavPath('/admin')).toBe(false);
+  });
+
+  it('parses XML assist-nav and strips from reply', () => {
+    const raw =
+      'Entendido. Te llevaré a la API.\n<assist-nav path="/dashboard/api" onDecline="Ve a API en el menú." afterNavigate="Aquí está la documentación."/>';
+    const { reply, navOffer } = extractAssistNavOffer(raw);
+    expect(reply).not.toContain('<assist-nav');
+    expect(navOffer?.path).toBe('/dashboard/api');
+  });
+
+  it('infiere navegación a API desde mensaje del usuario', () => {
+    const { navOffer } = resolveAssistNavOffer('Te llevaré a la API.', {
+      userMessage: 'llevame a API',
+      pagePath: '/dashboard/inbox',
+    });
+    expect(navOffer?.path).toBe('/dashboard/api');
   });
 
   it('prioriza mensaje del usuario sobre bloque assist-nav del modelo', () => {

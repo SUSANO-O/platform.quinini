@@ -1,33 +1,24 @@
 import { randomBytes } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { verifySessionToken } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
-import { ConversationFlow, Subscription } from '@/lib/db/models';
+import { ConversationFlow } from '@/lib/db/models';
 import { countFlowSteps, flowLimitForPlan, SUPPORT_TICKET_META } from '@/lib/flow-admin';
+import { flowAccessDeniedMessage, resolveFlowAccessFromRequest } from '@/lib/flow-access';
 import { createStartNode, DEFAULT_FLOW_SETTINGS } from '@/lib/flow-editor/constants';
 import type { FlowConnection, FlowNode } from '@/lib/flow-editor/types';
-
-function getUserId(req: NextRequest): string | null {
-  const token = req.cookies.get('afhub_session')?.value;
-  if (!token) return null;
-  return verifySessionToken(token);
-}
 
 function personalWorkspaceId(userId: string) {
   return `personal:${userId}`;
 }
 
-async function userPlan(userId: string) {
-  const sub = await Subscription.findOne({ userId }).select({ plan: 1, status: 1 }).lean() as
-    | { plan?: string; status?: string } | null;
-  const active = ['active', 'trialing', 'past_due'].includes(sub?.status || '');
-  return active ? (sub?.plan || 'free') : 'free';
-}
-
 export async function GET(req: NextRequest) {
-  const userId = getUserId(req);
-  if (!userId) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
+  const access = await resolveFlowAccessFromRequest(req);
+  if (!access) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
+  if (!access.hasAccess) {
+    return NextResponse.json({ error: flowAccessDeniedMessage(), code: 'FLOW_PLAN_REQUIRED' }, { status: 403 });
+  }
 
+  const { userId } = access;
   const workspaceId = req.nextUrl.searchParams.get('workspaceId')
     || personalWorkspaceId(userId);
 
@@ -36,8 +27,7 @@ export async function GET(req: NextRequest) {
   }
 
   await connectDB();
-  const plan = await userPlan(userId);
-  const limit = flowLimitForPlan(plan);
+  const limit = flowLimitForPlan(access.plan, access.status, access.features);
 
   const flows = await ConversationFlow.find({ userId, workspaceId })
     .sort({ updatedAt: -1 })
@@ -61,8 +51,13 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const userId = getUserId(req);
-  if (!userId) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
+  const access = await resolveFlowAccessFromRequest(req);
+  if (!access) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
+  if (!access.hasAccess) {
+    return NextResponse.json({ error: flowAccessDeniedMessage(), code: 'FLOW_PLAN_REQUIRED' }, { status: 403 });
+  }
+
+  const { userId } = access;
 
   const body = await req.json() as {
     name?: string;
@@ -79,10 +74,9 @@ export async function POST(req: NextRequest) {
 
   await connectDB();
 
-  const plan = await userPlan(userId);
-  const limit = flowLimitForPlan(plan);
+  const limit = flowLimitForPlan(access.plan, access.status, access.features);
   if (limit === 0) {
-    return NextResponse.json({ error: 'Tu plan no incluye flujos conversacionales.' }, { status: 403 });
+    return NextResponse.json({ error: flowAccessDeniedMessage(), code: 'FLOW_PLAN_REQUIRED' }, { status: 403 });
   }
   if (limit > 0) {
     const used = await ConversationFlow.countDocuments({ userId, workspaceId });
