@@ -10,7 +10,7 @@ import { randomBytes } from 'crypto';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent, User, Widget } from '@/lib/db/models';
 import type { InternalAssistContext } from '@/lib/internal-assist-config';
-import { canAttemptHubSync, ensureClientAgentHubSynced, syncHubCatalogFromLandingAgentDoc } from '@/lib/aibackhub-sync';
+import { canAttemptHubSync, ensureClientAgentHubSynced, fetchCatalogAgentFromHub, syncHubCatalogFromLandingAgentDoc } from '@/lib/aibackhub-sync';
 import { MATH_AIS_SYSTEM_PROMPT } from '@/lib/math-ais-content';
 import { mathAisMongoToolIds } from '@/lib/math-ais-mcp';
 
@@ -274,6 +274,13 @@ export async function ensureLandingAssistAgents(options?: {
         const hubId = typeof agent.agentHubId === 'string' ? agent.agentHubId.trim() : '';
         if (hubId) {
           await syncHubCatalogFromLandingAgentDoc(agent);
+          const inHub = await fetchCatalogAgentFromHub(hubId);
+          if (inHub?.id) {
+            await ClientAgent.updateOne(
+              { _id: agent._id },
+              { syncStatus: 'synced', agentHubId: inHub.id },
+            );
+          }
         } else {
           await ensureClientAgentHubSynced(String(agent._id), ownerId);
         }

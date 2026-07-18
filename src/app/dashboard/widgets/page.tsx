@@ -15,6 +15,7 @@ import { DashboardStatStrip } from '@/components/dashboard/dashboard-stat-strip'
 import { DashboardEmptyState } from '@/components/dashboard/dashboard-empty-state';
 import { DashboardButton, DashboardButtonLink } from '@/components/dashboard/dashboard-button';
 import { DashboardFilterMenu } from '@/components/dashboard/dashboard-filter-menu';
+import { DashboardSearchInput } from '@/components/dashboard/dashboard-search-input';
 import { DashboardGridToolbar } from '@/components/dashboard/dashboard-grid-toolbar';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 import { BackgroundRefreshIndicator } from '@/components/dashboard/background-refresh-indicator';
@@ -74,6 +75,7 @@ export default function WidgetsPage() {
   const [exportModalWidget, setExportModalWidget] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<WidgetFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     setOrigin(typeof window !== 'undefined' ? window.location.origin : '');
@@ -160,14 +162,28 @@ export default function WidgetsPage() {
   }, [multiAgentEligible]);
 
   const filteredWidgets = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
     return widgets.filter((w) => {
       const isActive = w.active !== false;
-      if (filter === 'active') return isActive;
-      if (filter === 'inactive') return !isActive;
-      if (filter === 'multi') return Boolean(w.multiAgentEnabled);
-      return true;
+      if (filter === 'active' && !isActive) return false;
+      if (filter === 'inactive' && isActive) return false;
+      if (filter === 'multi' && !w.multiAgentEnabled) return false;
+      if (!query) return true;
+
+      const haystack = [
+        w.name,
+        w.agentName,
+        w.position,
+        w.theme,
+        w.multiAgentEnabled ? 'multiagente' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return haystack.includes(query);
     });
-  }, [widgets, filter]);
+  }, [widgets, filter, searchQuery]);
 
   async function downloadWidgetEncrypted(widgetId: string, password: string) {
     const r = await fetch(`/api/widgets/${widgetId}/export`, {
@@ -235,12 +251,29 @@ export default function WidgetsPage() {
       {multiAgentEligible && multiAgentStats ? (
         <DashboardStatStrip
           title="Multiagente — este mes"
+          titleHint="Resumen de enrutamiento en widgets con modo multiagente avanzado (mes en curso)."
           icon={GitBranch}
           stats={[
-            { label: 'Widgets activos', value: multiAgentStats.enabledWidgets ?? 0 },
-            { label: 'Derivaciones', value: multiAgentStats.totals?.totalHandoffs ?? 0 },
-            { label: 'Paralelo + síntesis', value: multiAgentStats.totals?.totalParallel ?? 0 },
-            { label: 'Sesiones con routing', value: multiAgentStats.totals?.sessionsWithRouting ?? 0 },
+            {
+              label: 'Widgets activos',
+              value: multiAgentStats.enabledWidgets ?? 0,
+              hint: 'Widgets tuyos con «multiagente avanzado» activado. No cuenta widgets de un solo agente.',
+            },
+            {
+              label: 'Derivaciones',
+              value: multiAgentStats.totals?.totalHandoffs ?? 0,
+              hint: 'Veces que el orquestador pasó la conversación a un sub-agente o especialista (triaje).',
+            },
+            {
+              label: 'Paralelo + síntesis',
+              value: multiAgentStats.totals?.totalParallel ?? 0,
+              hint: 'Consultas en modo paralelo: varios agentes respondieron y el hub unificó una sola respuesta.',
+            },
+            {
+              label: 'Sesiones con routing',
+              value: multiAgentStats.totals?.sessionsWithRouting ?? 0,
+              hint: 'Conversaciones del mes donde hubo al menos una decisión de enrutamiento multiagente.',
+            },
           ]}
         />
       ) : null}
@@ -265,6 +298,14 @@ export default function WidgetsPage() {
             title="Mis widgets"
             count={filteredWidgets.length}
             countLabel={filteredWidgets.length === 1 ? 'widget' : 'widgets'}
+            search={
+              <DashboardSearchInput
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Buscar widget…"
+                ariaLabel="Buscar widget por nombre o agente"
+              />
+            }
             filter={
               <DashboardFilterMenu
                 value={filter}
@@ -278,11 +319,18 @@ export default function WidgetsPage() {
             <DashboardEmptyState
               icon={<Boxes size={28} className="text-[var(--primary)]" strokeWidth={1.75} />}
               title="Sin resultados"
-              description="Ningún widget coincide con este filtro. Prueba con «Todos» u otro criterio."
+              description={
+                searchQuery.trim()
+                  ? `Ningún widget coincide con «${searchQuery.trim()}». Prueba otro término o limpia la búsqueda.`
+                  : 'Ningún widget coincide con este filtro. Prueba con «Todos» u otro criterio.'
+              }
               action={
                 <DashboardButton
                   variant="secondary"
-                  onClick={() => setFilter('all')}
+                  onClick={() => {
+                    setFilter('all');
+                    setSearchQuery('');
+                  }}
                 >
                   Ver todos
                 </DashboardButton>

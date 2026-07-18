@@ -8,6 +8,7 @@ import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAgentflowhubBaseUrl } from '@/lib/aibackhub-sync';
 import { tryServeWidgetChatViaHubMcp } from '@/lib/widget-chat-direct-mcp';
+import { attachAssistNavToPayload, buildAssistNavCtx } from '@/lib/assist-chat-reply';
 import {
   hubResponseNeedsDirectInference,
   tryServeWidgetChatViaDirectInference,
@@ -264,6 +265,7 @@ export async function POST(req: NextRequest) {
   let parsedWidgetId = '';
   let tokenFromBody = '';
   let parsedMessage = '';
+  let parsedPagePath = '';
   let parsedSessionId = '';
   let parsedVisitorId: string | null = null;
   try {
@@ -274,16 +276,23 @@ export async function POST(req: NextRequest) {
       message?: string;
       sessionId?: string;
       visitorId?: string;
+      pagePath?: string;
     };
     parsedAgentId = typeof j?.agentId === 'string' ? j.agentId.trim() : '';
     parsedWidgetId = typeof j?.widgetId === 'string' ? j.widgetId.trim() : '';
     tokenFromBody = typeof j?.token === 'string' ? j.token.trim() : '';
     parsedMessage = typeof j?.message === 'string' ? j.message : '';
+    parsedPagePath = typeof j?.pagePath === 'string' ? j.pagePath : '';
     parsedSessionId = typeof j?.sessionId === 'string' ? j.sessionId.trim() : '';
     parsedVisitorId = normalizeVisitorId(j?.visitorId);
   } catch {
     /* body no JSON */
   }
+
+  const assistNavCtx = buildAssistNavCtx(
+    guardResult.text || parsedMessage,
+    parsedPagePath || undefined,
+  );
 
   const widgetToken = (
     (req.headers.get('x-widget-token') || '').trim() ||
@@ -301,6 +310,7 @@ export async function POST(req: NextRequest) {
 
   /** Dueño del widget (token wt_*): para telemetría de candidatas a FAQ tras respuesta OK. */
   let faqTrackOwnerId: string | null = null;
+  let isAssistWidget = false;
   let resolvedWidgetId = parsedWidgetId;
 
   const headers: Record<string, string> = {
@@ -482,11 +492,13 @@ export async function POST(req: NextRequest) {
               agentId: parsedAgentId,
             });
             if (isAssist) {
+              isAssistWidget = true;
               j.hubspotAutoCaptureContacts = false;
               const identity = await identityFromSessionCookie(
                 req.cookies.get('afhub_session')?.value,
               );
               if (identity) {
+                j.visitorUserId = identity.userId;
                 const pagePath =
                   typeof j.pagePath === 'string' ? j.pagePath : undefined;
                 j = await injectAssistContextIntoChatBody(j, identity, pagePath);
@@ -797,6 +809,7 @@ export async function POST(req: NextRequest) {
         // HMAC signature: en vez del secreto raw, enviamos una firma con timestamp
         headers['X-Landing-Wt-Valid'] = '1';
         headers[SIGNATURE_HEADER] = signRequest(bodyToForward, secret);
+        headers['x-hub-sync-secret'] = secret;
 
         /** Webhook builtin: AgentFlowhub a veces no usa MCP → solo JSON en texto. Ir directo a AIBackHub ejecuta el POST real. */
         try {
@@ -875,12 +888,17 @@ export async function POST(req: NextRequest) {
               replyLen: direct.reply?.length ?? 0,
             });
             return NextResponse.json(
-              {
-                reply: direct.reply,
-                toolsUsed: direct.toolsUsed,
-                agentId: parsedAgentId,
-                ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
-              },
+              attachAssistNavToPayload(
+                {
+                  reply: direct.reply,
+                  toolsUsed: direct.toolsUsed,
+                  agentId: parsedAgentId,
+                  ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
+                },
+                isAssistWidget,
+                direct.reply,
+                assistNavCtx,
+              ),
               { status: 200, headers: cors(origin) },
             );
           }
@@ -949,12 +967,17 @@ export async function POST(req: NextRequest) {
               replyLen: inferred.reply.length,
             });
             return NextResponse.json(
-              {
-                reply: inferred.reply,
-                agentId: parsedAgentId,
-                usedModel: inferred.usedModel,
-                ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
-              },
+              attachAssistNavToPayload(
+                {
+                  reply: inferred.reply,
+                  agentId: parsedAgentId,
+                  usedModel: inferred.usedModel,
+                  ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
+                },
+                isAssistWidget,
+                inferred.reply,
+                assistNavCtx,
+              ),
               { status: 200, headers: cors(origin) },
             );
           }
@@ -1051,12 +1074,17 @@ export async function POST(req: NextRequest) {
             replyLen: inferred.reply.length,
           });
           return NextResponse.json(
-            {
-              reply: inferred.reply,
-              agentId: parsedAgentId,
-              usedModel: inferred.usedModel,
-              ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
-            },
+            attachAssistNavToPayload(
+              {
+                reply: inferred.reply,
+                agentId: parsedAgentId,
+                usedModel: inferred.usedModel,
+                ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
+              },
+              isAssistWidget,
+              inferred.reply,
+              assistNavCtx,
+            ),
             { status: 200, headers: cors(origin) },
           );
         }
@@ -1127,6 +1155,27 @@ export async function POST(req: NextRequest) {
     } else {
       finishNonStreamTrace(latencyTrace, 'non-stream-error', { ok: false, errorCode: `HTTP_${res.status}` });
     }
+
+    if (res.ok && isAssistWidget) {
+      try {
+        const hubJson = JSON.parse(outText) as Record<string, unknown>;
+        const rawReply = String(
+          hubJson.reply || hubJson.text || hubJson.response || '',
+        );
+        if (rawReply) {
+          const augmented = attachAssistNavToPayload(
+            hubJson,
+            true,
+            rawReply,
+            assistNavCtx,
+          );
+          return NextResponse.json(augmented, { status: res.status, headers: out });
+        }
+      } catch {
+        /* respuesta hub no JSON — devolver tal cual */
+      }
+    }
+
     return new NextResponse(outText, { status: res.status, headers: out });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

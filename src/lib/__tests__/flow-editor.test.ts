@@ -52,5 +52,9 @@ describe('flow editor geometry', () => {
   it('initials from display name', () => {
     expect(initialsFromName('Li Marle')).toBe('LM');
     expect(initialsFromName('Ana')).toBe('AN');
+    expect(initialsFromName('Agente de nutricion')).toBe('AN');
+    expect(initialsFromName('agente del agua')).toBe('AA');
+    expect(initialsFromName('Asesor de Taller Experto')).toBe('AE');
+    expect(initialsFromName('Arquitecto de Agentes AI')).toBe('AI');
   });
 });

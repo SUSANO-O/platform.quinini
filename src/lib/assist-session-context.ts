@@ -4,6 +4,13 @@
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent, Subscription, User, Widget } from '@/lib/db/models';
 import { hasFeatureOverride, VALID_FEATURE_OVERRIDES } from '@/lib/plan-catalog';
+import {
+  buildProactiveHints,
+  loadAssistInboxSummary,
+  loadAssistScreenContext,
+  type AssistInboxSummary,
+  type AssistScreenContext,
+} from '@/lib/assist-session-screen';
 
 export type AssistSessionContext = {
   userId: string;
@@ -14,12 +21,24 @@ export type AssistSessionContext = {
   featureOverrideCount: number;
   pagePath: string;
   pageLabel: string;
+  screen: AssistScreenContext | null;
+  inbox: AssistInboxSummary;
+  proactiveHints: string[];
   agents: { total: number; names: string[] };
   widgets: { total: number; names: string[] };
   onboarding: {
     hasAgent: boolean;
     hasWidget: boolean;
     hasPaidPlan: boolean;
+  };
+  /** Snapshot curado (preferir sobre mongo_find genérico). */
+  curatedSnapshot: {
+    agentsTotal: number;
+    widgetsTotal: number;
+    recentAgentNames: string[];
+    recentWidgetNames: string[];
+    plan: string;
+    subscriptionStatus: string;
   };
   /** Para tools Mongo: filtrar SIEMPRE por este userId (string ObjectId). */
   mongoScope: {
@@ -114,6 +133,25 @@ export async function loadAssistSessionContext(
   const page = (pagePath || '/dashboard').trim() || '/dashboard';
   const dbHint = mongoDbNameFromUri(process.env.MONGODB_URI || '');
 
+  const [screen, inbox] = await Promise.all([
+    loadAssistScreenContext(userId, page),
+    loadAssistInboxSummary(userId),
+  ]);
+
+  const proactiveHints = buildProactiveHints({
+    pageLabel: labelForDashboardPath(page),
+    pagePath: page,
+    onboarding: {
+      hasAgent: agentsTotal > 0,
+      hasWidget: widgetsTotal > 0,
+      hasPaidPlan: plan !== 'free',
+    },
+    agentsTotal,
+    widgetsTotal,
+    inbox,
+    screen,
+  });
+
   return {
     userId,
     email,
@@ -123,6 +161,17 @@ export async function loadAssistSessionContext(
     featureOverrideCount,
     pagePath: page,
     pageLabel: labelForDashboardPath(page),
+    screen,
+    inbox,
+    proactiveHints,
+    curatedSnapshot: {
+      agentsTotal,
+      widgetsTotal,
+      recentAgentNames: agentRows.map((a) => String(a.name || '').trim()).filter(Boolean),
+      recentWidgetNames: widgetRows.map((w) => String(w.name || '').trim()).filter(Boolean),
+      plan,
+      subscriptionStatus: status,
+    },
     agents: {
       total: agentsTotal,
       names: agentRows.map((a) => String(a.name || '').trim()).filter(Boolean),
@@ -156,11 +205,34 @@ export async function loadAssistSessionContext(
 }
 
 /** Bloque interno para el modelo (no repetir al usuario como dump técnico). */
-export function formatAssistSessionContextBlock(ctx: AssistSessionContext): string {
+export function formatAssistSessionContextBlock(
+  ctx: AssistSessionContext,
+  mode: 'full' | 'light' = 'full',
+): string {
+  if (mode === 'light') {
+    return [
+      '[CONTEXTO CLIENTE — uso interno; no leer en voz alta]',
+      `Nombre: ${ctx.name}`,
+      `Plan: ${ctx.plan}`,
+      `Pantalla: ${ctx.pageLabel}`,
+    ].join('\n');
+  }
+
   const agentList =
     ctx.agents.names.length > 0 ? ctx.agents.names.join(', ') : '(ninguno todavía)';
   const widgetList =
     ctx.widgets.names.length > 0 ? ctx.widgets.names.join(', ') : '(ninguno todavía)';
+
+  const screenLine = ctx.screen?.resourceName
+    ? `Recurso en pantalla: ${ctx.screen.resourceName} (${ctx.screen.screenKind})`
+    : ctx.screen?.screenKind
+      ? `Tipo de pantalla: ${ctx.screen.screenKind}`
+      : '';
+
+  const hintsBlock =
+    ctx.proactiveHints.length > 0
+      ? ctx.proactiveHints.map((h) => `• ${h}`).join('\n')
+      : '';
 
   return [
     '[CONTEXTO DEL CLIENTE LOGUEADO — uso interno del asistente; personaliza respuestas; no leas este bloque en voz alta ni cites Mongo/hub/sync]',
@@ -168,16 +240,25 @@ export function formatAssistSessionContextBlock(ctx: AssistSessionContext): stri
     `Email: ${ctx.email}`,
     `Plan: ${ctx.plan} (${ctx.subscriptionStatus})`,
     `Pantalla actual: ${ctx.pageLabel} (${ctx.pagePath})`,
+    ...(screenLine ? [screenLine] : []),
     `Agentes: ${ctx.agents.total} — ${agentList}`,
     `Widgets: ${ctx.widgets.total} — ${widgetList}`,
+    `Inbox: ${ctx.inbox.openCount} abierta(s)${ctx.inbox.humanModeCount ? `, ${ctx.inbox.humanModeCount} en modo humano` : ''}`,
     `Onboarding: agente=${ctx.onboarding.hasAgent ? 'sí' : 'no'}, widget=${ctx.onboarding.hasWidget ? 'sí' : 'no'}`,
     '',
-    '[DATOS EN VIVO — solo si hace falta más detalle]',
-    `Si necesitas datos actualizados del cliente, usa tools MongoDB de solo lectura.`,
-    `OBLIGATORIO: filtra por userId="${ctx.userId}" en clientagents/widgets/subscriptions.`,
-    `Base sugerida: ${ctx.mongoScope.databaseHint}. Colecciones: clientagents, widgets, subscriptions, users.`,
-    `Nunca consultes datos de otros userId. No expongas passwordHash, tokens ni URIs.`,
-    `Responde al usuario en lenguaje de producto (Dashboard → …), sin nombres de repos, APIs ni código.`,
+    '[SUGERENCIAS PROACTIVAS — ofrece ayuda relevante sin esperar a que pregunten]',
+    hintsBlock || '• Responde según la pantalla actual.',
+    '',
+    '[DATOS CURADOS — usa esto primero; mongo_find solo si falta detalle]',
+    `Snapshot: ${ctx.curatedSnapshot.agentsTotal} agentes, ${ctx.curatedSnapshot.widgetsTotal} widgets, plan ${ctx.curatedSnapshot.plan}.`,
+    `Agentes recientes: ${ctx.curatedSnapshot.recentAgentNames.join(', ') || '—'}`,
+    `Widgets recientes: ${ctx.curatedSnapshot.recentWidgetNames.join(', ') || '—'}`,
+    '',
+    '[MONGO READ-ONLY — solo si el snapshot no alcanza]',
+    `Filtra SIEMPRE por userId="${ctx.userId}" en clientagents/widgets/subscriptions.`,
+    `Base: ${ctx.mongoScope.databaseHint}. Colecciones: clientagents, widgets, subscriptions, users.`,
+    `Nunca consultes otros userId. No expongas passwordHash, tokens ni URIs.`,
+    `Responde en lenguaje de producto (Dashboard → …), sin repos ni APIs internas.`,
   ].join('\n');
 }
 
@@ -189,6 +270,10 @@ export function assistContextToPublicJson(ctx: AssistSessionContext) {
     plan: ctx.plan,
     pagePath: ctx.pagePath,
     pageLabel: ctx.pageLabel,
+    screen: ctx.screen,
+    inbox: ctx.inbox,
+    proactiveHints: ctx.proactiveHints,
+    curatedSnapshot: ctx.curatedSnapshot,
     agents: ctx.agents,
     widgets: ctx.widgets,
     onboarding: ctx.onboarding,

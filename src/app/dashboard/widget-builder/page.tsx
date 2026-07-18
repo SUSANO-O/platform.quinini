@@ -35,6 +35,7 @@ import {
   DEFAULT_WIDGET_CONFIG,
   WIDGET_STEP_DESCRIPTIONS,
   WIDGET_WIZARD_STEPS,
+  WIDGET_BUILDER_UI_ACCENT,
   agentProfileFromRow,
   effectiveWidgetAgentId,
   firstSelectableWidgetAgentId,
@@ -584,7 +585,7 @@ export default function WidgetBuilderPage() {
       <WidgetBuilderMobileStepper wizardStep={wizardStep} />
 
       <div
-        className={`widget-builder-form-card${wizardStep === 3 ? ' widget-builder-form-card--publish' : ''}`}
+        className={`widget-builder-form-card${wizardStep === 3 ? ' widget-builder-form-card--publish' : ''}${wizardStep === 1 ? ' widget-builder-form-card--appearance' : ''}`}
         data-tour="widget-builder-form"
       >
             {wizardStep !== 3 ? (
@@ -595,7 +596,7 @@ export default function WidgetBuilderPage() {
                 stepIcon={activeStep.icon}
                 stepLabel={activeStep.label}
                 stepDescription={WIDGET_STEP_DESCRIPTIONS[activeStep.id]}
-                accentColor={cfg.color}
+                accentColor={WIDGET_BUILDER_UI_ACCENT}
               />
             ) : null}
 

@@ -126,8 +126,21 @@ export async function resolveHubAgentIdInBody(
   }
 
   await connectDB();
-  const landingAgent = await ClientAgent.findById(aid).select({ _id: 1 }).lean();
-  if (!landingAgent) {
+  const landingAgent = await ClientAgent.findById(aid)
+    .select({ agentHubId: 1 })
+    .lean() as { agentHubId?: string } | null;
+
+  if (landingAgent) {
+    const slug =
+      typeof landingAgent.agentHubId === 'string' ? landingAgent.agentHubId.trim() : '';
+    if (slug) {
+      const inHub = await fetchCatalogAgentFromHub(slug);
+      if (inHub?.id) {
+        parsed.agentId = inHub.id;
+        return { ok: true, body: JSON.stringify(parsed), hubAgentId: inHub.id };
+      }
+    }
+  } else {
     const inHub = await fetchCatalogAgentFromHub(aid);
     if (inHub?.id) {
       return { ok: true, body: rawBody, hubAgentId: inHub.id };

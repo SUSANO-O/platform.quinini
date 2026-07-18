@@ -8,6 +8,8 @@ import {
   formatAssistSessionContextBlock,
   loadAssistSessionContext,
 } from '@/lib/assist-session-context';
+import { isTrivialMessage } from '@/lib/trivial-message';
+import { assistAgentNavigationPromptSection } from '@/lib/assist-agent-navigation';
 
 export type AssistVisitorIdentity = {
   userId: string;
@@ -96,9 +98,16 @@ export async function injectAssistContextIntoChatBody(
     (typeof pagePath === 'string' && pagePath.trim()) ||
     '/dashboard';
 
+  const message = typeof body.message === 'string' ? body.message.trim() : '';
+  const history = Array.isArray(body.history)
+    ? (body.history as Array<{ role: string; content: string }>)
+    : undefined;
+  const contextMode =
+    message && isTrivialMessage(message, history) ? 'light' : 'full';
+
   const sessionCtx = await loadAssistSessionContext(identity.userId, path);
   const block = sessionCtx
-    ? formatAssistSessionContextBlock(sessionCtx)
+    ? `${formatAssistSessionContextBlock(sessionCtx, contextMode)}\n\n${assistAgentNavigationPromptSection()}`
     : `Cliente: ${identity.name} <${identity.email}> · plan ${identity.plan}`;
 
   return {

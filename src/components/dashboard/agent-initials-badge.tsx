@@ -1,0 +1,64 @@
+import { avatarStyleFromSeed, initialsFromName } from '@/lib/flow-editor/geometry';
+
+export function AgentInitialsBadge({
+  name,
+  seed,
+  selected = false,
+  inactive = false,
+  platform = false,
+  accentColor,
+  size = 'md',
+  className = '',
+}: {
+  name: string;
+  seed?: string;
+  selected?: boolean;
+  inactive?: boolean;
+  platform?: boolean;
+  accentColor?: string;
+  size?: 'sm' | 'md';
+  className?: string;
+}) {
+  const initials = initialsFromName(name);
+  const compact = size === 'sm';
+  const palette = avatarStyleFromSeed(seed ?? name);
+
+  let background = palette.background;
+  let border = palette.border;
+  let color = palette.color;
+
+  if (inactive) {
+    background = 'var(--muted)';
+    border = 'var(--border-subtle)';
+    color = 'var(--muted-foreground)';
+  } else if (platform) {
+    background = 'rgba(var(--brand-cool-rgb), 0.1)';
+    border = 'rgba(var(--brand-cool-rgb), 0.18)';
+    color = 'var(--brand-cool)';
+  } else if (selected && accentColor) {
+    background = `${accentColor}14`;
+    border = `${accentColor}30`;
+    color = accentColor;
+  }
+
+  return (
+    <div
+      className={[
+        'flex items-center justify-center shrink-0 font-bold tracking-tight select-none',
+        compact ? 'w-10 h-10 rounded-xl text-sm' : 'w-12 h-12 rounded-full text-base',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      style={{
+        background,
+        border: `1px solid ${border}`,
+        color,
+        boxShadow: inactive ? 'inset 0 0 0 1px var(--border-subtle)' : undefined,
+      }}
+      aria-hidden
+    >
+      {initials}
+    </div>
+  );
+}

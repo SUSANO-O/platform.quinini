@@ -902,6 +902,7 @@ async function postHubWidgetChat(params: {
     'X-Widget-Token': params.widgetToken,
     'X-Landing-Wt-Valid': '1',
     [SIGNATURE_HEADER]: signRequest(body, params.secret),
+    'x-hub-sync-secret': params.secret,
   };
 
   const fetchOnce = async (base: string) => {

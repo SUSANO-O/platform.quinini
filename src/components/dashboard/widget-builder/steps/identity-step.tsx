@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Loader2, Search } from 'lucide-react';
 import { PipelineEditor } from '@/components/dashboard/pipeline-editor';
-import { UI_SURFACE_SECONDARY } from '@/lib/brand';
 import {
   createDefaultPipelineConfig,
   isContentCapableAgent,
@@ -17,11 +17,12 @@ import type {
   WidgetConfigPatch,
 } from '@/lib/widget-builder';
 import {
-  WIDGET_AGENT_ICONS,
   agentProfileFromRow,
   effectiveWidgetAgentId,
   resolveAgentProfileByWidgetId,
+  WIDGET_BUILDER_UI_ACCENT,
 } from '@/lib/widget-builder';
+import { WidgetBuilderAgentPickerCard } from '@/components/dashboard/widget-builder/agent-picker-card';
 import {
   WidgetBuilderField,
   WidgetBuilderHint,
@@ -64,6 +65,16 @@ export function WidgetBuilderIdentityStep({
   onToggleOrchestrator,
   onToggleTeamAgent,
 }: WidgetBuilderIdentityStepProps) {
+  const [agentFilter, setAgentFilter] = useState('');
+  const filteredAgents = useMemo(() => {
+    const query = agentFilter.trim().toLowerCase();
+    if (!query) return agents;
+    return agents.filter((agent) => {
+      const haystack = `${agent.name} ${agent.description ?? ''}`.toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [agentFilter, agents]);
+
   return (
     <>
       <div data-tour="widget-builder-name">
@@ -111,8 +122,8 @@ export function WidgetBuilderIdentityStep({
                 letterSpacing: '0.04em',
                 padding: '2px 6px',
                 borderRadius: 6,
-                background: 'rgba(99,102,241,0.15)',
-                color: '#6366f1',
+                background: 'rgba(var(--brand-primary-rgb), 0.12)',
+                color: WIDGET_BUILDER_UI_ACCENT,
               }}
             >
               Business · Enterprise
@@ -149,90 +160,69 @@ export function WidgetBuilderIdentityStep({
               </Link>
             </p>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              {agents.map((a, i) => {
-                const agentIdForWidget = effectiveWidgetAgentId(a);
-                const selectable = agentIdForWidget.length > 0;
-                const selected = selectable && isOrchestratorSelected(agentIdForWidget);
-                const icon = WIDGET_AGENT_ICONS[i % WIDGET_AGENT_ICONS.length];
-                const profile = agentProfileFromRow(a);
-                const pipelineCreative =
-                  cfg.multiAgentEnabled &&
-                  cfg.multiAgentMode === 'pipeline' &&
-                  selected &&
-                  isCreativeCapableAgent(profile);
-                const pipelineContent =
-                  cfg.multiAgentEnabled &&
-                  cfg.multiAgentMode === 'pipeline' &&
-                  selected &&
-                  isContentCapableAgent(profile);
-                return (
-                  <button
-                    key={a._id}
-                    type="button"
-                    disabled={!selectable}
-                    onClick={() => selectable && onToggleOrchestrator(agentIdForWidget)}
-                    title={
-                      selectable
-                        ? `${a.description || a.name}${a.isPlatform ? ' · Agente de plataforma' : ''}`
-                        : 'ID de agente no válido. Revisa que el agente exista y esté activo.'
-                    }
-                    className={[
-                      'rounded-2xl border card-texture overflow-hidden w-full text-left transition-all',
-                      selectable ? 'cursor-pointer hover:shadow-md' : 'cursor-not-allowed opacity-55',
-                    ].join(' ')}
-                    style={{
-                      borderColor: selected ? cfg.color : 'var(--border)',
-                      boxShadow: selected
-                        ? `0 0 0 1px ${cfg.color}44, var(--shadow-surface-sm)`
-                        : undefined,
-                    }}
-                  >
-                    <div className="p-3">
-                      <div className="flex items-start justify-between gap-1.5 mb-2">
-                        <div
-                          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-base"
-                          style={{
-                            background: selected ? `${cfg.color}14` : 'rgba(var(--brand-primary-rgb), 0.06)',
-                            border: `1px solid ${selected ? `${cfg.color}30` : 'var(--border)'}`,
-                          }}
-                        >
-                          {icon}
-                        </div>
-                        {a.isPlatform ? (
-                          <span
-                            className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
-                            style={UI_SURFACE_SECONDARY}
-                          >
-                            Plataforma
-                          </span>
-                        ) : null}
-                      </div>
-                      <p
-                        className="text-xs font-bold m-0 truncate leading-snug"
-                        style={{ color: selected ? cfg.color : 'var(--foreground)' }}
-                      >
-                        {a.name}
-                      </p>
-                      {pipelineCreative || pipelineContent ? (
-                        <div className="flex gap-1 justify-start flex-wrap mt-2">
-                          {pipelineContent ? (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-700">
-                              Contenido
-                            </span>
-                          ) : null}
-                          {pipelineCreative ? (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-700">
-                              Creativo
-                            </span>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            <>
+              {agents.length >= 8 ? (
+                <div className="relative mb-3">
+                  <Search
+                    size={14}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                    style={{ color: 'var(--muted-foreground)' }}
+                    aria-hidden
+                  />
+                  <WidgetBuilderInput
+                    value={agentFilter}
+                    onChange={(e) => setAgentFilter(e.target.value)}
+                    placeholder="Buscar agente por nombre o descripción…"
+                    className="pl-9"
+                    aria-label="Buscar agente"
+                  />
+                </div>
+              ) : null}
+              {filteredAgents.length === 0 ? (
+                <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', margin: 0 }}>
+                  Ningún agente coincide con «{agentFilter.trim()}».
+                </p>
+              ) : (
+                <div
+                  className="max-h-[26rem] overflow-y-auto overscroll-contain rounded-xl border pr-1"
+                  style={{ borderColor: 'var(--border)', background: 'var(--background)' }}
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2">
+                    {filteredAgents.map((a) => {
+                    const agentIdForWidget = effectiveWidgetAgentId(a);
+                    const selectable = agentIdForWidget.length > 0;
+                    const selected = selectable && isOrchestratorSelected(agentIdForWidget);
+                    const profile = agentProfileFromRow(a);
+                    const pipelineCreative =
+                      cfg.multiAgentEnabled &&
+                      cfg.multiAgentMode === 'pipeline' &&
+                      selected &&
+                      isCreativeCapableAgent(profile);
+                    const pipelineContent =
+                      cfg.multiAgentEnabled &&
+                      cfg.multiAgentMode === 'pipeline' &&
+                      selected &&
+                      isContentCapableAgent(profile);
+                    const pipelineTags: string[] = [];
+                    if (pipelineContent) pipelineTags.push('Contenido');
+                    if (pipelineCreative) pipelineTags.push('Creativo');
+
+                    return (
+                      <WidgetBuilderAgentPickerCard
+                        key={a._id}
+                        agent={a}
+                        selected={selected}
+                        accentColor={cfg.color}
+                        selectable={selectable}
+                        onSelect={() => onToggleOrchestrator(agentIdForWidget)}
+                        extraMeta={pipelineTags.length > 0 ? pipelineTags : undefined}
+                      />
+                    );
+                  })}
+                  </div>
+                </div>
+              )}
+            </>
           )}
           {!loadingInitial && agents.some((a) => !effectiveWidgetAgentId(a)) && (
             <WidgetBuilderHint>
@@ -277,8 +267,8 @@ export function WidgetBuilderIdentityStep({
             marginBottom: 20,
             padding: 14,
             borderRadius: 12,
-            border: '1px solid rgba(99,102,241,0.25)',
-            background: 'rgba(99,102,241,0.06)',
+            border: '1px solid rgba(var(--brand-primary-rgb), 0.22)',
+            background: 'rgba(var(--brand-primary-rgb), 0.05)',
           }}
         >
           <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
@@ -322,8 +312,8 @@ export function WidgetBuilderIdentityStep({
                     textAlign: 'left',
                     padding: '8px 10px',
                     borderRadius: 8,
-                    border: selected ? '1px solid rgba(99,102,241,0.45)' : '1px solid var(--border)',
-                    background: selected ? 'rgba(99,102,241,0.12)' : 'var(--background)',
+                    border: selected ? '1px solid rgba(var(--brand-primary-rgb), 0.4)' : '1px solid var(--border)',
+                    background: selected ? 'rgba(var(--brand-primary-rgb), 0.1)' : 'var(--background)',
                     cursor: 'pointer',
                   }}
                 >
@@ -402,8 +392,8 @@ export function WidgetBuilderIdentityStep({
                       cursor: 'pointer',
                       padding: '6px 8px',
                       borderRadius: 8,
-                      border: checked ? '1px solid rgba(99,102,241,0.35)' : '1px solid var(--border)',
-                      background: checked ? 'rgba(99,102,241,0.08)' : 'var(--background)',
+                      border: checked ? '1px solid rgba(var(--brand-primary-rgb), 0.32)' : '1px solid var(--border)',
+                      background: checked ? 'rgba(var(--brand-primary-rgb), 0.07)' : 'var(--background)',
                     }}
                   >
                     <input

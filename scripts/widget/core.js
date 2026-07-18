@@ -12,6 +12,218 @@
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
+  var FRIENDLY_CHAT_ERRORS = {
+    AGENT_HUB_SYNC_REQUIRED: 'Estoy reconectando con el asistente. Recarga la página e inténtalo de nuevo.',
+    WIDGET_TOKEN_INVALID: 'No pude validar el chat. Recarga la página (Cmd+Shift+R) e inicia sesión si persiste.',
+    WIDGET_CHAT_FAILED: 'No pude procesar tu mensaje ahora. Inténtalo en unos segundos.',
+    HUB_CHAT_PROXY_FAILED: 'El asistente está ocupado. Espera unos segundos e inténtalo otra vez.',
+    HUB_ERROR: 'Hubo un problema temporal. Inténtalo de nuevo en un momento.',
+    SESSION_TURN_LIMIT: 'Esta conversación llegó al límite de mensajes. Pulsa «Nueva conversación» para empezar de cero.'
+  };
+
+  function friendlyChatError(code, fallback) {
+    var c = code ? String(code).trim() : '';
+    if (c && FRIENDLY_CHAT_ERRORS[c]) return FRIENDLY_CHAT_ERRORS[c];
+    var fb = fallback ? String(fallback).trim() : '';
+    if (fb && !/^(error|widget token|sincronizado|internal server)/i.test(fb)) return fb;
+    return FRIENDLY_CHAT_ERRORS.WIDGET_CHAT_FAILED;
+  }
+
+  function resolvePagePath(cfg) {
+    var fromCfg = cfg && cfg.pagePath != null ? String(cfg.pagePath).trim() : '';
+    if (fromCfg) return fromCfg;
+    try {
+      if (typeof window !== 'undefined' && window.location && window.location.pathname) {
+        return String(window.location.pathname);
+      }
+    } catch (_e) { /* noop */ }
+    return '';
+  }
+
+  var ASSIST_NAV_BLOCK_RE = /```assist-nav\s*\n([\s\S]*?)\n```/i;
+
+  function stripAssistNavBlock(raw) {
+    return String(raw || '').replace(ASSIST_NAV_BLOCK_RE, '').replace(/\s+$/, '').trim();
+  }
+
+  function parseAssistNavOfferFromRaw(raw) {
+    var m = ASSIST_NAV_BLOCK_RE.exec(String(raw || ''));
+    if (!m || !m[1]) return null;
+    try {
+      var j = JSON.parse(m[1].trim());
+      var path = String(j.path || '').trim();
+      var onDecline = String(j.onDecline || j.declineHint || '').trim();
+      if (!path || !onDecline) return null;
+      return {
+        path: path,
+        prompt: j.prompt ? String(j.prompt).trim() : '',
+        onDecline: onDecline,
+        afterNavigate: j.afterNavigate ? String(j.afterNavigate).trim() : (j.onAccept ? String(j.onAccept).trim() : '')
+      };
+    } catch (_e) {
+      return null;
+    }
+  }
+
+  function resolveAssistNavPath(path) {
+    var target = String(path || '/dashboard').trim();
+    if (!target.startsWith('/')) target = '/' + target;
+    try {
+      var loc = window.location && window.location.pathname ? window.location.pathname : '';
+      var lm = /^\/(es|en)(\/|$)/.exec(loc);
+      if (lm && !/^\/(es|en)\//.test(target)) {
+        target = '/' + lm[1] + target;
+      }
+    } catch (_e2) { /* noop */ }
+    return target;
+  }
+
+  function normalizeAssistPathCompare(path) {
+    var p = String(path || '').split('?')[0].replace(/\/$/, '') || '/';
+    return p.replace(/^\/(es|en)(?=\/)/, '') || p;
+  }
+
+  function isAssistInternalDashboard() {
+    try {
+      var p = window.location.pathname || '';
+      return /^\/dashboard(\/|$)/.test(p) || /^\/(es|en)\/dashboard(\/|$)/.test(p);
+    } catch (_e) {
+      return false;
+    }
+  }
+
+  /** Navegación SPA: __BIV.navigate, evento biv:navigate-request, o recarga completa. */
+  function navigateAssistDashboard(target) {
+    return new Promise(function (resolve) {
+      var normalizedTarget = normalizeAssistPathCompare(target);
+      var finished = false;
+      function finish(ok) {
+        if (finished) return;
+        finished = true;
+        resolve(ok !== false);
+      }
+      function hardNav() {
+        try {
+          window.location.assign(target);
+        } catch (_n) {
+          window.location.href = target;
+        }
+        finish(true);
+      }
+
+      if (!isAssistInternalDashboard()) {
+        hardNav();
+        return;
+      }
+
+      function attachDoneListener(onSuccess, onGiveUp) {
+        var timer = null;
+        function cleanup() {
+          if (timer) clearTimeout(timer);
+          timer = null;
+          try {
+            window.removeEventListener('biv:navigate-done', onDone);
+          } catch (_e1) { /* noop */ }
+        }
+        function onDone(ev) {
+          var evPath = ev && ev.detail && ev.detail.path;
+          if (evPath && normalizeAssistPathCompare(evPath) === normalizedTarget) {
+            cleanup();
+            onSuccess();
+          }
+        }
+        window.addEventListener('biv:navigate-done', onDone);
+        timer = setTimeout(function () {
+          cleanup();
+          onGiveUp();
+        }, 10000);
+        return cleanup;
+      }
+
+      function trySoftNav(fn) {
+        var cleanup = attachDoneListener(
+          function () { finish(true); },
+          function () { finish(false); },
+        );
+        try {
+          var ret = fn(target);
+          if (ret && typeof ret.then === 'function') {
+            ret.catch(function () {
+              cleanup();
+              finish(false);
+            });
+          }
+        } catch (_navErr) {
+          cleanup();
+          finish(false);
+        }
+      }
+
+      var softNav = null;
+      try {
+        softNav =
+          window.__BIV && typeof window.__BIV.navigate === 'function'
+            ? window.__BIV.navigate
+            : window.AgentFlowhub && typeof window.AgentFlowhub.navigate === 'function'
+              ? window.AgentFlowhub.navigate
+              : null;
+      } catch (_e0) {
+        softNav = null;
+      }
+
+      if (softNav) {
+        trySoftNav(softNav);
+        return;
+      }
+
+      var eventCleanup = attachDoneListener(
+        function () { finish(true); },
+        function () { hardNav(); },
+      );
+      try {
+        window.dispatchEvent(
+          new CustomEvent('biv:navigate-request', { detail: { path: target } }),
+        );
+      } catch (_ev) {
+        eventCleanup();
+        hardNav();
+      }
+    });
+  }
+
+  function showAssistNavLoading(chatEl) {
+    if (!chatEl) return function () {};
+    var existing = chatEl.querySelector('.afhub-nav-loading-overlay');
+    if (existing) {
+      try {
+        existing.remove();
+      } catch (_rm) { /* noop */ }
+    }
+    var ov = document.createElement('div');
+    ov.className = 'afhub-nav-loading-overlay visible';
+    ov.setAttribute('aria-busy', 'true');
+    ov.innerHTML =
+      '<div class="afhub-nav-loading-inner">' +
+      '<span class="afhub-nav-spinner" aria-hidden="true"></span>' +
+      '<span class="afhub-nav-loading-text">Cargando pantalla…</span>' +
+      '</div>';
+    chatEl.appendChild(ov);
+    return function hideAssistNavLoading() {
+      try {
+        ov.classList.remove('visible');
+        setTimeout(function () {
+          try {
+            ov.remove();
+          } catch (_e) { /* noop */ }
+        }, 180);
+      } catch (_e2) { /* noop */ }
+    };
+  }
+
+  function assistPostNavStorageKey(cfg) {
+    return 'biv-assist-post-nav:' + String(cfg.agentId || 'na');
+  }
+
   var ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
   var ICON_NEW_CHAT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="12" y1="8" x2="12" y2="14"/><line x1="9" y1="11" x2="15" y2="11"/></svg>';
   var ICON_SEND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
@@ -101,6 +313,8 @@
     borderRadius: 16,
     autoOpen: false,
     debug: false,
+    /** Ruta actual del dashboard (Math-ais); se actualiza al navegar sin recargar. */
+    pagePath: '',
     timeoutMs: 60000,
     retries: 2,
     trackEvents: true,
@@ -2016,8 +2230,107 @@
     }
 
     function botReplyForDisplay(raw) {
-      var t = stripHandoffPrefix(String(raw || ''));
+      var t = stripHandoffPrefix(stripAssistNavBlock(String(raw || '')));
       return cfg.showMcpUi ? t : stripHubSpotProducerNotes(t);
+    }
+
+    function appendAssistNavOffer(stackEl, offer) {
+      if (!stackEl || !offer || !offer.path) return;
+      var wrap = document.createElement('div');
+      wrap.className = 'afhub-nav-offer';
+      if (offer.prompt) {
+        var rowText = '';
+        try {
+          var msgRow = stackEl.closest('.afhub-msg-row');
+          var txtEl = msgRow && msgRow.querySelector('.afhub-msg-text');
+          rowText = txtEl ? String(txtEl.innerText || txtEl.textContent || '').toLowerCase() : '';
+        } catch (_rt) { /* noop */ }
+        if (!rowText.includes('quieres que te lleve') && !rowText.includes('¿te llevo')) {
+          var pr = document.createElement('div');
+          pr.className = 'afhub-nav-prompt';
+          pr.textContent = offer.prompt;
+          wrap.appendChild(pr);
+        }
+      }
+      var actions = document.createElement('div');
+      actions.className = 'afhub-nav-actions';
+      var yesBtn = document.createElement('button');
+      yesBtn.type = 'button';
+      yesBtn.className = 'afhub-action-btn';
+      yesBtn.textContent = 'Sí, llévame';
+      var noBtn = document.createElement('button');
+      noBtn.type = 'button';
+      noBtn.className = 'afhub-action-btn afhub-action-btn--ghost';
+      noBtn.textContent = 'No, gracias';
+      yesBtn.addEventListener('click', function () {
+        yesBtn.disabled = true;
+        noBtn.disabled = true;
+        var target = resolveAssistNavPath(offer.path);
+        var curPath = resolvePagePath(cfg);
+        if (normalizeAssistPathCompare(curPath) === normalizeAssistPathCompare(target)) {
+          if (offer.onDecline) {
+            addMessage('bot', offer.onDecline, { noFeedback: true });
+          } else if (offer.afterNavigate) {
+            addMessage('bot', offer.afterNavigate, { noFeedback: true });
+          }
+          return;
+        }
+        try {
+          sessionStorage.setItem(
+            assistPostNavStorageKey(cfg),
+            JSON.stringify({
+              path: target,
+              message: offer.afterNavigate || 'Aquí puedes continuar con lo que necesites. ¿En qué te ayudo?',
+            }),
+          );
+        } catch (_s) { /* noop */ }
+        var hideLoading = showAssistNavLoading(chat);
+        navigateAssistDashboard(target).then(function (ok) {
+          hideLoading();
+          if (!ok) return;
+          try {
+            cfg.pagePath = target;
+            if (window.__BIV && typeof window.__BIV.updatePagePath === 'function') {
+              window.__BIV.updatePagePath(target);
+            } else if (window.AgentFlowhub && typeof window.AgentFlowhub.updatePagePath === 'function') {
+              window.AgentFlowhub.updatePagePath(target);
+            }
+          } catch (_p) { /* noop */ }
+          deliverAssistPostNavFollowUp(true);
+        });
+      });
+      noBtn.addEventListener('click', function () {
+        yesBtn.disabled = true;
+        noBtn.disabled = true;
+        if (offer.onDecline) {
+          addMessage('bot', offer.onDecline, { noFeedback: true });
+        }
+      });
+      actions.appendChild(yesBtn);
+      actions.appendChild(noBtn);
+      wrap.appendChild(actions);
+      stackEl.appendChild(wrap);
+    }
+
+    function deliverAssistPostNavFollowUp(autoOpen) {
+      try {
+        var raw = sessionStorage.getItem(assistPostNavStorageKey(cfg));
+        if (!raw) return false;
+        sessionStorage.removeItem(assistPostNavStorageKey(cfg));
+        var p = JSON.parse(raw);
+        if (p && p.message) {
+          setTimeout(function () {
+            addMessage('bot', String(p.message), { noFeedback: true });
+            if (autoOpen !== false && !isOpen) open();
+          }, 350);
+          return true;
+        }
+      } catch (_e) { /* noop */ }
+      return false;
+    }
+
+    function consumeAssistPostNavFollowUp() {
+      deliverAssistPostNavFollowUp(true);
     }
 
     /** Elige la variante más larga entre tokens acumulados y campos del evento done. */
@@ -2285,6 +2598,7 @@
       if (fbRow) stack.appendChild(fbRow);
       row.appendChild(stack);
       messages.appendChild(row);
+      return row;
     }
 
     function addMessage(type, text, imgOpts) {
@@ -2496,7 +2810,13 @@
         }
       }
       if (type === 'bot') {
-        mountBotMessage(el, fbRow);
+        var botRow = mountBotMessage(el, fbRow);
+        var navOffer = imgOpts && imgOpts.navOffer ? imgOpts.navOffer : null;
+        if (!navOffer) navOffer = parseAssistNavOfferFromRaw(text);
+        if (navOffer && botRow) {
+          var navStack = botRow.querySelector('.afhub-msg-stack');
+          appendAssistNavOffer(navStack, navOffer);
+        }
       } else {
         maybeAppendDateDivider();
         messages.appendChild(el);
@@ -4016,9 +4336,8 @@
         payload.token = String(cfg.token).trim();
       }
       try {
-        if (typeof window !== 'undefined' && window.location && window.location.pathname) {
-          payload.pagePath = String(window.location.pathname);
-        }
+        var pp = resolvePagePath(cfg);
+        if (pp) payload.pagePath = pp;
       } catch (_pp) { /* noop */ }
 
       // ── Image-to-image: attach resized thumbnail when user asks to modify previous image ──
@@ -4098,9 +4417,9 @@
               } else if (evt.type === 'error') {
                 streamErrorEvt = evt;
                 hideTyping();
-                var errMsg = evt.message || 'Error del agente.';
+                var errMsg = friendlyChatError(evt.code, evt.message || 'Error del agente.');
                 if (evt.code === 'SESSION_TURN_LIMIT') {
-                  errMsg = 'Esta conversación llegó al límite de mensajes. Pulsa «Nueva conversación» para empezar de cero.';
+                  errMsg = FRIENDLY_CHAT_ERRORS.SESSION_TURN_LIMIT;
                 }
                 var streamErrorOpts = botOptsForAgentError(evt);
                 var streamShowWa = canShowErrorWhatsApp(streamErrorOpts, errMsg);
@@ -4135,6 +4454,14 @@
               var te2 = streamBubble.querySelector('.afhub-msg-text');
               if (te2) te2.innerHTML = formatBotHtml(finalReply);
               streamBubble.classList.remove('afhub-msg--streaming');
+              var streamNavOffer = doneEvt.navOffer || parseAssistNavOfferFromRaw(finalRaw);
+              if (streamNavOffer) {
+                var streamRow = streamBubble.closest('.afhub-msg-row');
+                var streamStack = streamRow && streamRow.querySelector('.afhub-msg-stack');
+                if (streamStack && !streamStack.querySelector('.afhub-nav-offer')) {
+                  appendAssistNavOffer(streamStack, streamNavOffer);
+                }
+              }
               appendMultiAgentBadge(streamBubble, doneEvt.multiAgent);
               if (cfg.showMcpUi) {
                 appendMcpMetadataToBubble(streamBubble, { toolsUsed: stTools, mcpTag: stMcpTag });
@@ -4223,15 +4550,17 @@
           usedModel = data.data.usedModel.trim();
         }
         var cooldown = data.code === 'AGENT_COOLDOWN' || data.cooldown === true;
+        var navOffer = data.navOffer || parseAssistNavOfferFromRaw(replyRaw);
         var botOpts = undefined;
         var showTools = cfg.showMcpUi && toolsUsed && toolsUsed.length;
         var showMcpChip = cfg.showMcpUi && mcpTag;
-        if ((imgs && imgs.length) || showTools || showMcpChip || cooldown) {
+        if ((imgs && imgs.length) || showTools || showMcpChip || cooldown || navOffer) {
           botOpts = {};
           if (imgs && imgs.length) botOpts.images = imgs;
           if (showTools) botOpts.toolsUsed = toolsUsed;
           if (showMcpChip) botOpts.mcpTag = mcpTag;
           if (cooldown) botOpts.cooldown = true;
+          if (navOffer) botOpts.navOffer = navOffer;
         }
         var qh = data.quotaHint;
         if (qh && !cooldown) {
@@ -4798,19 +5127,23 @@
     });
 
     /** Menú Ajustes — abrir/cerrar y manejar opciones */
+    function setSettingsMenuOpen(open) {
+      settingsMenu.style.display = open ? 'block' : 'none';
+      chat.classList.toggle('afhub-settings-open', open === true);
+    }
     settingsBtn.addEventListener('click', function (e) {
       e.stopPropagation();
       var isOpen = settingsMenu.style.display !== 'none';
-      settingsMenu.style.display = isOpen ? 'none' : 'block';
+      setSettingsMenuOpen(!isOpen);
     });
     /** Cerrar el menú al click fuera */
     document.addEventListener('click', function (e) {
-      if (!settingsWrap.contains(e.target)) settingsMenu.style.display = 'none';
+      if (!settingsWrap.contains(e.target)) setSettingsMenuOpen(false);
     });
     var newChatMenuItem = settingsMenu.querySelector('.afhub-settings-new-chat');
     if (newChatMenuItem) {
       newChatMenuItem.addEventListener('click', function () {
-        settingsMenu.style.display = 'none';
+        setSettingsMenuOpen(false);
         startNewConversation();
       });
     }
@@ -4818,7 +5151,7 @@
     var clearBtnEl = settingsMenu.querySelector('.afhub-settings-clear');
     if (clearBtnEl) {
       clearBtnEl.addEventListener('click', function () {
-        settingsMenu.style.display = 'none';
+        setSettingsMenuOpen(false);
         var ok = window.confirm('¿Borrar toda la conversación? Esta acción no se puede deshacer.');
         if (ok) startNewConversation();
       });
@@ -4874,6 +5207,7 @@
 
     if (cfg.autoOpen || shouldRestoreChatUiOpen(cfg)) setTimeout(open, 80);
     else setTimeout(function () { checkHumanModeOnOpen({ skipReconnectBanner: true }); }, 400);
+    setTimeout(consumeAssistPostNavFollowUp, 600);
     emitEvent('widget_loaded');
 
     var api = {
@@ -4885,6 +5219,9 @@
       newConversation: startNewConversation,
       showLauncher: function () { showLauncher(true); },
       hideLauncher: function () { hideLauncher(true); },
+      updatePagePath: function (path) {
+        cfg.pagePath = path != null ? String(path).trim() : '';
+      },
       destroy: destroy,
       getState: function () {
         return {
@@ -5339,7 +5676,15 @@
       '#' + rootId + '[data-afhub-v="top"][data-afhub-h="center"] .afhub-chat { transform-origin:50% 0%; }' +
       '#' + rootId + ' .afhub-chat { position:absolute; width:392px; max-width:calc(100vw - 40px); height:540px; max-height:calc(100vh - 120px); background:rgba(255,255,255,.72); -webkit-backdrop-filter:blur(48px) saturate(1.7) brightness(1.02); backdrop-filter:blur(48px) saturate(1.7) brightness(1.02); border-radius:' + cfg.borderRadius + 'px; border:1px solid rgba(255,255,255,.72); box-shadow:0 24px 64px rgba(15,23,42,.2),0 8px 24px rgba(15,23,42,.1),inset 0 1px 0 rgba(255,255,255,.88); display:flex; flex-direction:column; overflow:hidden; transform:scale(.84) translateY(14px); opacity:0; pointer-events:none; transition:transform .52s cubic-bezier(.16,1,.3,1),opacity .48s cubic-bezier(.16,1,.3,1),box-shadow .48s cubic-bezier(.16,1,.3,1); will-change:transform,opacity; }' +
       '#' + rootId + ' .afhub-chat::before { content:""; position:absolute; inset:0; border-radius:inherit; background:linear-gradient(165deg,rgba(255,255,255,.42) 0%,rgba(248,250,252,.28) 50%,rgba(241,245,249,.22) 100%); z-index:0; pointer-events:none; }' +
-      '#' + rootId + ' .afhub-chat > * { position:relative; z-index:1; }' +
+      '#' + rootId + ' .afhub-chat > * { position:relative; }' +
+      '#' + rootId + ' .afhub-header { z-index:30; }' +
+      '#' + rootId + ' .afhub-messages,' +
+      '#' + rootId + ' .afhub-shortcuts-wrap,' +
+      '#' + rootId + ' .afhub-input-area,' +
+      '#' + rootId + ' .afhub-action-bar,' +
+      '#' + rootId + ' .afhub-handoff-bar { z-index:1; }' +
+      '#' + rootId + ' .afhub-chat.afhub-settings-open .afhub-messages,' +
+      '#' + rootId + ' .afhub-chat.afhub-settings-open .afhub-shortcuts-wrap { z-index:0; }' +
       '#' + rootId + '[data-afhub-v="top"] .afhub-chat { transform:scale(.84) translateY(-14px); }' +
       '#' + rootId + ' .afhub-chat.visible { transform:scale(1) translateY(0); opacity:1; pointer-events:auto; box-shadow:0 28px 72px rgba(15,23,42,.22),0 10px 28px rgba(15,23,42,.12),inset 0 1px 0 rgba(255,255,255,.92); }' +
       '#' + rootId + ' .afhub-chat.afhub-chat--sidebar {' +
@@ -5584,8 +5929,8 @@
       '#' + rootId + ' .afhub-header-icon-btn:disabled { opacity:.45; cursor:default; pointer-events:none; }' +
       '#' + rootId + ' .afhub-header-icon-btn svg { width:18px; height:18px; }' +
       '#' + rootId + ' .afhub-header-speaker--active { background:rgba(255,255,255,.28) !important; opacity:1 !important; }' +
-      '#' + rootId + ' .afhub-settings-wrap { position:relative; flex-shrink:0; display:inline-flex; }' +
-      '#' + rootId + ' .afhub-settings-menu { position:absolute; top:calc(100% + 6px); right:0; min-width:210px; background:rgba(255,255,255,.98); border:1px solid rgba(15,23,42,.08); border-radius:12px; box-shadow:0 16px 40px rgba(15,23,42,.14),0 0 0 1px rgba(255,255,255,.6) inset; padding:6px; z-index:10000; backdrop-filter:blur(12px); }' +
+      '#' + rootId + ' .afhub-settings-wrap { position:relative; flex-shrink:0; display:inline-flex; z-index:2; }' +
+      '#' + rootId + ' .afhub-settings-menu { position:absolute; top:calc(100% + 6px); right:0; min-width:210px; background:rgba(255,255,255,.98); border:1px solid rgba(15,23,42,.08); border-radius:12px; box-shadow:0 16px 40px rgba(15,23,42,.14),0 0 0 1px rgba(255,255,255,.6) inset; padding:6px; z-index:100; backdrop-filter:blur(12px); }' +
       '#' + rootId + ' .afhub-settings-item { display:flex; align-items:center; gap:8px; width:100%; padding:9px 10px; background:transparent; border:none; border-radius:7px; color:#1a1a2e; font-size:13px; font-weight:500; cursor:pointer; text-align:left; min-height:44px; font-family:inherit; }' +
       '#' + rootId + ' .afhub-settings-item:hover { background:rgba(0,0,0,.05); }' +
       '#' + rootId + ' .afhub-settings-item svg { width:16px; height:16px; flex-shrink:0; }' +
@@ -5698,6 +6043,15 @@
       '#' + rootId + ' .afhub-handoff-btn:hover { background:' + cfg.color + '18; }' +
       '#' + rootId + ' .afhub-handoff-btn:disabled { cursor:not-allowed; opacity:.6; }' +
       // Barra de acciones compacta (chips) — "Hablar con una persona"
+      '#' + rootId + ' .afhub-nav-offer { margin-top:10px; display:flex; flex-direction:column; gap:8px; }' +
+      '#' + rootId + ' .afhub-nav-prompt { font-size:12px; color:#5f6368; line-height:1.35; }' +
+      '#' + rootId + ' .afhub-nav-actions { display:flex; gap:8px; flex-wrap:wrap; }' +
+      '#' + rootId + ' .afhub-nav-loading-overlay { display:none; position:absolute; inset:0; z-index:40; background:rgba(255,255,255,.82); -webkit-backdrop-filter:blur(5px); backdrop-filter:blur(5px); align-items:center; justify-content:center; pointer-events:auto; }' +
+      '#' + rootId + ' .afhub-nav-loading-overlay.visible { display:flex; }' +
+      '#' + rootId + ' .afhub-nav-loading-inner { display:flex; flex-direction:column; align-items:center; gap:10px; padding:12px 16px; }' +
+      '#' + rootId + ' .afhub-nav-spinner { width:28px; height:28px; border:3px solid rgba(15,23,42,.1); border-top-color:' + cfg.color + '; border-radius:50%; animation:afhubNavSpin .72s linear infinite; }' +
+      '#' + rootId + ' .afhub-nav-loading-text { font-size:12px; font-weight:600; color:#5f6368; }' +
+      '@keyframes afhubNavSpin { to { transform:rotate(360deg); } }' +
       '#' + rootId + ' .afhub-action-bar { flex-shrink:0; display:flex; gap:6px; padding:4px 10px 4px; border-top:none; background:rgba(255,255,255,.36); }' +
       '#' + rootId + ' .afhub-action-btn { flex:1; min-width:0; padding:7px 12px; border-radius:999px; border:1.5px solid ' + cfg.color + ' !important; background:#fff !important; color:' + cfg.color + ' !important; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; transition:background .15s,border-color .15s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; appearance:none; -webkit-appearance:none; }' +
       '#' + rootId + ' .afhub-action-btn:hover { background:' + cfg.color + '0d !important; }' +
@@ -5857,31 +6211,41 @@
     else console.log.apply(console, [prefix].concat(args));
   }
 
-  window.AgentFlowhub = {
-    version: VERSION,
-    init: init,
-    showLauncher: function () {
-      var k;
-      for (k in INSTANCES) {
-        if (!Object.prototype.hasOwnProperty.call(INSTANCES, k)) continue;
-        var inst = INSTANCES[k];
-        if (inst && inst.api && typeof inst.api.showLauncher === 'function') inst.api.showLauncher();
+  var hubApi = window.AgentFlowhub || {};
+  hubApi.version = VERSION;
+  hubApi.init = init;
+  hubApi.updatePagePath = function (path) {
+    var k;
+    for (k in INSTANCES) {
+      if (!Object.prototype.hasOwnProperty.call(INSTANCES, k)) continue;
+      var inst = INSTANCES[k];
+      if (inst && inst.api && typeof inst.api.updatePagePath === 'function') {
+        inst.api.updatePagePath(path);
       }
-    },
-    isLauncherHidden: function () {
-      var k;
-      var hasInstance = false;
-      for (k in INSTANCES) {
-        if (!Object.prototype.hasOwnProperty.call(INSTANCES, k)) continue;
-        hasInstance = true;
-        var el = document.getElementById(k);
-        if (el && el.classList.contains('afhub-launcher-hidden')) return true;
-        if (el) return false;
-      }
-      if (hasInstance) return false;
-      return false;
     }
   };
+  hubApi.showLauncher = function () {
+    var k;
+    for (k in INSTANCES) {
+      if (!Object.prototype.hasOwnProperty.call(INSTANCES, k)) continue;
+      var inst = INSTANCES[k];
+      if (inst && inst.api && typeof inst.api.showLauncher === 'function') inst.api.showLauncher();
+    }
+  };
+  hubApi.isLauncherHidden = function () {
+    var k;
+    var hasInstance = false;
+    for (k in INSTANCES) {
+      if (!Object.prototype.hasOwnProperty.call(INSTANCES, k)) continue;
+      hasInstance = true;
+      var el = document.getElementById(k);
+      if (el && el.classList.contains('afhub-launcher-hidden')) return true;
+      if (el) return false;
+    }
+    if (hasInstance) return false;
+    return false;
+  };
+  window.AgentFlowhub = hubApi;
 
   autoInitFromScript();
 })();
