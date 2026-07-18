@@ -167,7 +167,7 @@
     }
   }
 
-  /** Navegación SPA: __BIV.navigate, evento biv:navigate-request, o recarga completa. */
+  /** Navegación SPA: AgentFlowhub.navigate, evento afhub:navigate-request, o recarga completa. */
   function navigateAssistDashboard(target) {
     return new Promise(function (resolve) {
       var normalizedTarget = normalizeAssistPathCompare(target);
@@ -197,7 +197,7 @@
           if (timer) clearTimeout(timer);
           timer = null;
           try {
-            window.removeEventListener('biv:navigate-done', onDone);
+            window.removeEventListener('afhub:navigate-done', onDone);
           } catch (_e1) { /* noop */ }
         }
         function onDone(ev) {
@@ -207,7 +207,7 @@
             onSuccess();
           }
         }
-        window.addEventListener('biv:navigate-done', onDone);
+        window.addEventListener('afhub:navigate-done', onDone);
         timer = setTimeout(function () {
           cleanup();
           onGiveUp();
@@ -248,11 +248,9 @@
       var softNav = null;
       try {
         softNav =
-          window.__BIV && typeof window.__BIV.navigate === 'function'
-            ? window.__BIV.navigate
-            : window.AgentFlowhub && typeof window.AgentFlowhub.navigate === 'function'
-              ? window.AgentFlowhub.navigate
-              : null;
+          window.AgentFlowhub && typeof window.AgentFlowhub.navigate === 'function'
+            ? window.AgentFlowhub.navigate
+            : null;
       } catch (_e0) {
         softNav = null;
       }
@@ -268,7 +266,7 @@
       );
       try {
         window.dispatchEvent(
-          new CustomEvent('biv:navigate-request', { detail: { path: target } }),
+          new CustomEvent('afhub:navigate-request', { detail: { path: target } }),
         );
       } catch (_ev) {
         eventCleanup();
@@ -307,7 +305,7 @@
   }
 
   function assistPostNavStorageKey(cfg) {
-    return 'biv-assist-post-nav:' + String(cfg.agentId || 'na');
+    return 'afhub-assist-post-nav:' + String(cfg.agentId || 'na');
   }
 
   var ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
@@ -2393,9 +2391,7 @@
               }, 400);
             }
             cfg.pagePath = target.split('#')[0];
-            if (window.__BIV && typeof window.__BIV.updatePagePath === 'function') {
-              window.__BIV.updatePagePath(target);
-            } else if (window.AgentFlowhub && typeof window.AgentFlowhub.updatePagePath === 'function') {
+            if (window.AgentFlowhub && typeof window.AgentFlowhub.updatePagePath === 'function') {
               window.AgentFlowhub.updatePagePath(target);
             }
           } catch (_p) { /* noop */ }
@@ -3353,7 +3349,7 @@
 
     function isHumanMsgHidden(id) {
       if (!id) return false;
-      try { return sessionStorage.getItem('biv-hide-msg:' + id) === '1'; } catch (e) { return false; }
+      try { return sessionStorage.getItem('afhub-hide-msg:' + id) === '1'; } catch (e) { return false; }
     }
     function removeHumanMessageById(id) {
       if (!id) return;
@@ -5323,7 +5319,7 @@
     setTimeout(consumeAssistPostNavFollowUp, 600);
     emitEvent('widget_loaded');
     try {
-      window.dispatchEvent(new CustomEvent('biv:assist-ready'));
+      window.dispatchEvent(new CustomEvent('afhub:assist-ready'));
     } catch (_readyEv) { /* noop */ }
 
     var api = {
