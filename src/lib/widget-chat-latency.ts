@@ -25,6 +25,7 @@ export type WidgetChatLatencyPath =
   | 'stream-pipeline'
   | 'stream-parallel'
   | 'stream-infer-direct'
+  | 'stream-direct-mcp'
   | 'stream-hub'
   | 'stream-error'
   | 'non-stream-pipeline'
