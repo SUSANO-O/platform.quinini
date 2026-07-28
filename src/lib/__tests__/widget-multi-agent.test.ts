@@ -13,6 +13,7 @@ import {
   resolveRoutableHubAgentId,
   resolveWidgetRoutingCapabilities,
   triageByKeywords,
+  overrideTriageForInventorySheets,
   validateMultiAgentMode,
   type TeamMember,
 } from '../widget-multi-agent';
@@ -60,6 +61,67 @@ describe('widget-multi-agent', () => {
     const result = triageByKeywords('Necesito un reembolso de mi suscripción', team);
     expect(result.target.id).toBe('s1');
     expect(result.method).toBe('keyword');
+  });
+
+  it('overrideTriageForInventorySheets mantiene orquestador con hoja de inventario', () => {
+    const orchCaps = buildAgentCapabilityProfile({
+      agent: {
+        name: 'Asesor Taller',
+        tools: [
+          {
+            toolId: 'google-sheets',
+            config: {
+              sheets: [
+                {
+                  id: 'sh_1',
+                  name: 'ventas',
+                  description: 'Inventario repuestos',
+                  url: 'https://docs.google.com/spreadsheets/d/abc/edit',
+                },
+              ],
+            },
+          },
+        ],
+      },
+      skillCatalog: DEFAULT_AGENT_SKILLS_CATALOG,
+    });
+    const closerCaps = buildAgentCapabilityProfile({
+      agent: {
+        name: 'Closer Financiero',
+        skillsConfig: [{ id: 'sales_closer', enabled: true }],
+      },
+      skillCatalog: DEFAULT_AGENT_SKILLS_CATALOG,
+    });
+    const team: TeamMember[] = [
+      {
+        id: 'o1',
+        hubId: 'ventas',
+        name: 'Asesor Taller',
+        description: 'repuestos',
+        role: 'orchestrator',
+        capabilities: orchCaps,
+      },
+      {
+        id: 's1',
+        hubId: 'closer',
+        name: 'Closer Financiero',
+        description: 'financiamiento',
+        role: 'specialist',
+        capabilities: closerCaps,
+      },
+    ];
+    const wrong = triageByKeywords(
+      'Busca en el inventario amortiguador Tracker 2017 Gabriel',
+      team,
+      'o1',
+    );
+    const fixed = overrideTriageForInventorySheets(
+      'Busca en el inventario amortiguador Tracker 2017 Gabriel',
+      team,
+      wrong,
+      'o1',
+    );
+    expect(fixed.target.id).toBe('o1');
   });
 
   it('triaje por keywords deriva a billing con descripción', () => {

@@ -22,6 +22,8 @@
     "test:bdd:smoke": "node node_modules/@cucumber/cucumber/bin/cucumber.js --tags \"@smoke\"",
     "test:widget": "node scripts/widget-chat-test.mjs",
     "test:widget:smoke": "node --env-file=.env scripts/widget-chat-smoke.mjs",
+    "test:widget:stress": "node --env-file=.env scripts/widget-stress-inventory.mjs",
+    "test:widget:harness": "node --env-file=.env scripts/widget-harness-inventory.mjs",
     "test:aibackhub:model": "node --env-file=.env scripts/test-aibackhub-model.mjs",
     "test:widget:webhook": "node scripts/widget-webhook-force-test.mjs",
     "verify:mcp-phases": "node scripts/verify-mcp-phases.mjs",
