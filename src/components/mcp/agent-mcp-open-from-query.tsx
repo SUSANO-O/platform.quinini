@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useCallback, useEffect } from 'react';
+import { agentDetailPath } from '@/lib/dashboard-url-hash';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { McpConnectModal } from '@/components/mcp/mcp-connect-modal';
 import { McpLandingConnectForm } from '@/components/mcp/mcp-landing-connect-form';
@@ -34,7 +35,7 @@ function AgentMcpOpenFromQueryInner({
   }, [showModal, onOpenToolsTab]);
 
   const close = useCallback(() => {
-    router.replace(`/dashboard/agents/${agentId}`, { scroll: false });
+    router.replace(agentDetailPath(agentId, 'tools'), { scroll: false });
   }, [router, agentId]);
 
   if (!showModal) return null;

@@ -13,7 +13,7 @@ export function DashboardGridToolbar({
   countLabel?: string;
   description?: string;
   search?: ReactNode;
-  filter: ReactNode;
+  filter?: ReactNode;
 }) {
   const suffix = countLabel ?? (count === 1 ? 'elemento' : 'elementos');
 

@@ -11,6 +11,8 @@ export function DashboardPageHeader({
   description,
   actions,
   beta,
+  compact,
+  hideIcon,
 }: {
   badge: string;
   badgeIcon?: LucideIcon;
@@ -20,21 +22,28 @@ export function DashboardPageHeader({
   description?: string;
   actions?: ReactNode;
   beta?: boolean;
+  /** Menos margen y tipografía más compacta (listas, inbox, chats). */
+  compact?: boolean;
+  /** Oculta el icono grande del título — look más minimal. */
+  hideIcon?: boolean;
 }) {
   const HeadingIcon = TitleIcon ?? BadgeIcon;
+  const showIcon = !hideIcon && HeadingIcon;
 
   return (
-    <header className="dashboard-page-header">
+    <header className={`dashboard-page-header${compact ? ' dashboard-page-header--compact' : ''}`}>
       <div>
-        <div className="badge-primary mb-3 w-fit">
+        <div className="badge-primary mb-2 w-fit">
           {BadgeIcon ? <BadgeIcon size={13} /> : null}
           {badge}
           {beta ? <FlowsBetaBadge style={{ marginLeft: 4 }} /> : null}
         </div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight m-0 flex items-center gap-2 flex-wrap">
-          <span className="dashboard-page-header__icon" aria-hidden>
-            {HeadingIcon ? <HeadingIcon size={22} strokeWidth={1.75} /> : null}
-          </span>
+        <h1 className={`dashboard-page-header__title m-0${showIcon ? ' dashboard-page-header__title--with-icon' : ''}`}>
+          {showIcon ? (
+            <span className="dashboard-page-header__icon" aria-hidden>
+              <HeadingIcon size={20} strokeWidth={1.75} />
+            </span>
+          ) : null}
           <span>
             {title}
             {titleAccent ? (
@@ -46,10 +55,10 @@ export function DashboardPageHeader({
           </span>
         </h1>
         {description ? (
-          <p className="text-sm mt-2 m-0 text-[var(--muted-foreground)]">{description}</p>
+          <p className="dashboard-page-header__desc m-0">{description}</p>
         ) : null}
       </div>
-      {actions ? <div className="shrink-0">{actions}</div> : null}
+      {actions ? <div className="dashboard-page-header__actions shrink-0">{actions}</div> : null}
     </header>
   );
 }

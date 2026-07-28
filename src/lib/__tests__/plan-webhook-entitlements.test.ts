@@ -48,6 +48,14 @@ describe('webhook entitlements (plan-catalog)', () => {
     expect(WHATSAPP_MIN_PLAN).toBe('business');
   });
 
+  it('api access: solo Team+ panel no incluye API; requiere api_develop o add-on', () => {
+    expect(canUseApiAccess('team', 'active')).toBe(false);
+    expect(canUseApiAccess('plus', 'active')).toBe(false);
+    expect(canUseApiAccess('business', 'active')).toBe(false);
+    expect(canUseApiAccess('team', 'active', [API_ACCESS_FEATURE])).toBe(true);
+    expect(canUseApiAccess('solo', 'active')).toBe(false);
+  });
+
   it('whatsapp: Business+ only with active subscription', () => {
     expect(canUseWhatsApp('free', 'free')).toBe(false);
     expect(canUseWhatsApp('team', 'active')).toBe(false);
@@ -94,7 +102,7 @@ describe('webhook entitlements (plan-catalog)', () => {
     expect(canUseAgentWebhookTool('api_develop')).toBe(false);
     expect(planHasApiAccessFeature('api_develop')).toBe(true);
     expect(formatApiAccessFeature('api_develop')).toBe('Incluido');
-    expect(formatApiAccessFeature('team')).not.toBe('Incluido');
+    expect(formatApiAccessFeature('team')).toContain('Add-on');
   });
 
   it('agent webhook: Team+ only (legacy Basic still entitled)', () => {
@@ -136,7 +144,9 @@ describe('webhook entitlements (plan-catalog)', () => {
     expect(planHasOutboundWebhookFeature('team')).toBe(false);
     expect(planHasOutboundWebhookFeature('plus')).toBe(true);
     expect(planHasEscalationSlackFeature('team')).toBe(true);
-    expect(planHasApiAccessFeature('team')).toBe(true);
+    expect(planHasApiAccessFeature('team')).toBe(false);
+    expect(planHasApiAccessFeature('api_develop')).toBe(true);
+    expect(formatApiAccessFeature('team')).toContain('Add-on');
     expect(planHasEscalationTicketFeature('business')).toBe(true);
     expect(planHasCustomIntegrationFeature('business')).toBe(true);
     expect(formatConversationAnalyticsFeature('plus')).toBe('Básico');
@@ -186,7 +196,7 @@ describe('pricing comparison rows', () => {
     const business = rows.find((r) => r.id === 'business');
     expect(plus?.conversationAnalytics).toBe('Básico');
     expect(plus?.outboundWebhook).toBe('Incluido');
-    expect(rows.find((r) => r.id === 'team')?.apiAccess).toBe('Próximamente');
+    expect(rows.find((r) => r.id === 'team')?.apiAccess).toContain('Add-on');
     expect(business?.escalationTickets).toBe('Incluido');
     expect(business?.customIntegration).toBe('Incluido');
     expect(business?.conversationAnalytics).toBe('Completo');

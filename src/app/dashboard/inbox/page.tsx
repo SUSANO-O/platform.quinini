@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
+import { DashboardPageHeader } from '@/components/dashboard/dashboard-page-header';
 import { BackgroundRefreshIndicator } from '@/components/dashboard/background-refresh-indicator';
 import { InboxChatModal } from '@/components/dashboard/inbox-chat-modal';
 import type { ChatMessage } from '@/components/dashboard/inbox-chat-modal';
@@ -359,8 +360,8 @@ export default function InboxPage() {
   const activeChatItem = expanded ? items.find((i) => i.sessionId === expanded) : null;
 
   return (
-    <DashboardShell wide className="inbox-page-shell">
-    <div className="inbox-page">
+    <DashboardShell width="wide" className="inbox-page-shell">
+    <div className="inbox-page dashboard-page-stack">
       <ConfirmDialog
         open={deleteTarget !== null}
         title="Eliminar conversación"
@@ -402,17 +403,15 @@ export default function InboxPage() {
           composerResetKey={composerResetKey}
         />
       )}
-      <header className="inbox-page__header">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div>
-            <h1 className="inbox-page__title">Bandeja de Entrada</h1>
-            <p className="inbox-page__subtitle">
-              Conversaciones de widgets y WhatsApp que requieren tu atención.
-            </p>
-          </div>
-          <BackgroundRefreshIndicator active={inboxQuery.isFetching && !showListSpinner} />
-        </div>
-      </header>
+      <DashboardPageHeader
+        badge="Bandeja"
+        badgeIcon={Inbox}
+        title="Entrada"
+        description="Conversaciones de widgets y WhatsApp que requieren tu atención."
+        compact
+        hideIcon
+        actions={<BackgroundRefreshIndicator active={inboxQuery.isFetching && !showListSpinner} />}
+      />
 
       <div className="inbox-page__toolbar">
         {tab === 'open' ? (

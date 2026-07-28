@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 import { ConversationThread, countVisibleMessages } from '@/components/dashboard/inbox-chat-modal';
+import { DashboardPageHeader } from '@/components/dashboard/dashboard-page-header';
 import { BackgroundRefreshIndicator } from '@/components/dashboard/background-refresh-indicator';
 import { dashboardKeys } from '@/lib/dashboard-query-keys';
 import { fetchConversationsList, fetchConversationThread } from '@/lib/dashboard-fetch';
@@ -283,29 +284,29 @@ export default function ChatsPage() {
   const showPanel = mobileShowThread || selectedId !== null;
 
   return (
-    <DashboardShell wide className="chats-page-shell">
+    <DashboardShell width="wide" className="chats-page-shell">
       <div className="chats-page">
-        <div className="chats-page__header">
-          <div>
-            <h1 className="chats-page__title">Chats</h1>
-            <p className="chats-page__subtitle">
-              Historial de conversaciones de tus widgets · {activeCount} activa{activeCount !== 1 ? 's' : ''}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <BackgroundRefreshIndicator
-              active={conversationsQuery.isFetching && !showListSpinner}
-            />
-            <button
-              type="button"
-              className="chats-page__refresh"
-              onClick={() => void conversationsQuery.refetch()}
-            >
-              <RefreshCw size={13} />
-              Actualizar
-            </button>
-          </div>
-        </div>
+        <DashboardPageHeader
+          badge="Conversaciones"
+          badgeIcon={MessageSquare}
+          title="Chats"
+          description={`Historial de tus widgets · ${activeCount} activa${activeCount !== 1 ? 's' : ''}`}
+          compact
+          hideIcon
+          actions={(
+            <>
+              <BackgroundRefreshIndicator active={conversationsQuery.isFetching && !showListSpinner} />
+              <button
+                type="button"
+                className="dashboard-meta-chip"
+                onClick={() => void conversationsQuery.refetch()}
+              >
+                <RefreshCw size={10} />
+                Actualizar
+              </button>
+            </>
+          )}
+        />
 
         <div className="chats-page__layout">
           {/* Lista de sesiones */}

@@ -8,143 +8,82 @@ import {
   LATEST_RELEASE,
   publicReleaseNotes,
 } from '@/lib/app-release-notes';
-import { BRAND } from '@/lib/brand-colors';
+import { DashboardShell } from '@/components/dashboard/dashboard-shell';
+import { DashboardPageHeader } from '@/components/dashboard/dashboard-page-header';
 
 export default function WhatsNewPage() {
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '8px 4px 48px' }}>
+    <DashboardShell width="narrow">
       <Link
         href="/dashboard"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-          fontSize: 13,
-          color: 'var(--muted-foreground)',
-          textDecoration: 'none',
-          marginBottom: 20,
-        }}
+        className="dashboard-meta-chip dashboard-meta-chip--muted dashboard-meta-chip--link mb-3 w-fit"
       >
-        <ArrowLeft size={16} aria-hidden />
+        <ArrowLeft size={10} />
         Volver al panel
       </Link>
 
-      <div
-        style={{
-          borderRadius: 16,
-          border: '1px solid var(--border)',
-          background: 'linear-gradient(145deg, rgba(255,255,255,0.95), rgba(248,250,252,0.9))',
-          padding: '28px 24px',
-          marginBottom: 28,
-          boxShadow: '0 8px 32px rgba(15, 23, 42, 0.06)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              background: `${BRAND.primary}18`,
-              color: BRAND.primary,
-            }}
-          >
-            <Sparkles size={18} aria-hidden />
-          </span>
-          <div>
-            <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: 'var(--muted-foreground)' }}>
-              BotIvA · Novedades
-            </p>
-            <h1 style={{ margin: '2px 0 0', fontSize: 22, fontWeight: 800, color: 'var(--foreground)' }}>
-              Versión {LATEST_RELEASE.version}
-            </h1>
-          </div>
-        </div>
-        <p style={{ margin: '0 0 8px', fontSize: 15, lineHeight: 1.55, color: 'var(--foreground)' }}>
-          {LATEST_RELEASE.summary}
-        </p>
-        <p style={{ margin: 0, fontSize: 13, color: 'var(--muted-foreground)' }}>
-          Publicado el {formatReleaseDate(LATEST_RELEASE.date)}
-        </p>
-      </div>
+      <DashboardPageHeader
+        badge="BotIvA"
+        badgeIcon={Sparkles}
+        title="Novedades"
+        titleAccent={`v${LATEST_RELEASE.version}`}
+        description={LATEST_RELEASE.summary}
+        compact
+        hideIcon
+      />
 
-      {APP_RELEASES.map((release) => {
-        const { features, fixes } = publicReleaseNotes(release);
-        if (!features.length && !fixes.length) return null;
+      <div className="dashboard-page-stack">
+        {APP_RELEASES.map((release) => {
+          const { features, fixes } = publicReleaseNotes(release);
+          if (!features.length && !fixes.length) return null;
 
-        return (
-          <section key={release.version} style={{ marginBottom: 36 }}>
-            <h2
-              style={{
-                margin: '0 0 6px',
-                fontSize: 17,
-                fontWeight: 700,
-                color: 'var(--foreground)',
-              }}
-            >
-              {release.title}
-            </h2>
-            <p style={{ margin: '0 0 20px', fontSize: 13, color: 'var(--muted-foreground)' }}>
-              v{release.version} · {formatReleaseDate(release.date)}
-            </p>
-
-            {features.length ? (
-              <div style={{ display: 'grid', gap: 12, marginBottom: fixes.length ? 20 : 0 }}>
-                {features.map((item) => (
-                  <article
-                    key={item.title}
-                    style={{
-                      borderRadius: 12,
-                      border: '1px solid var(--border)',
-                      background: 'var(--card)',
-                      padding: '16px 18px',
-                    }}
-                  >
-                    <h3 style={{ margin: '0 0 6px', fontSize: 14, fontWeight: 700 }}>{item.title}</h3>
-                    <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--muted-foreground)' }}>
-                      {item.description}
-                    </p>
-                  </article>
-                ))}
+          return (
+            <article key={release.version} className="dashboard-surface">
+              <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+                <h2 className="dashboard-surface__title m-0">{release.title}</h2>
+                <span className="dashboard-meta-chip dashboard-meta-chip--muted">
+                  v{release.version} · {formatReleaseDate(release.date)}
+                </span>
               </div>
-            ) : null}
+              <p className="dashboard-surface__desc">{release.summary}</p>
 
-            {fixes.length ? (
-              <>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    marginBottom: 12,
-                  }}
-                >
-                  <Wrench size={16} aria-hidden style={{ color: 'var(--muted-foreground)' }} />
-                  <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Mejoras y correcciones</h3>
+              {features.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-[0.6875rem] font-bold uppercase tracking-wide m-0 mb-2 text-[var(--muted-foreground)]">
+                    <Sparkles size={11} className="inline mr-1" style={{ verticalAlign: -1 }} />
+                    Nuevo
+                  </p>
+                  <ul className="m-0 pl-4 text-sm space-y-2">
+                    {features.map((item) => (
+                      <li key={item.title}>
+                        <strong>{item.title}</strong>
+                        <span className="text-[var(--muted-foreground)]"> — {item.description}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <ul
-                  style={{
-                    margin: 0,
-                    padding: '0 0 0 18px',
-                    display: 'grid',
-                    gap: 10,
-                  }}
-                >
-                  {fixes.map((item) => (
-                    <li key={item.title} style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--muted-foreground)' }}>
-                      <strong style={{ color: 'var(--foreground)' }}>{item.title}.</strong>{' '}
-                      {item.description}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            ) : null}
-          </section>
-        );
-      })}
-    </div>
+              )}
+
+              {fixes.length > 0 && (
+                <div>
+                  <p className="text-[0.6875rem] font-bold uppercase tracking-wide m-0 mb-2 text-[var(--muted-foreground)]">
+                    <Wrench size={11} className="inline mr-1" style={{ verticalAlign: -1 }} />
+                    Mejoras
+                  </p>
+                  <ul className="m-0 pl-4 text-sm space-y-2">
+                    {fixes.map((item) => (
+                      <li key={item.title}>
+                        <strong>{item.title}</strong>
+                        <span className="text-[var(--muted-foreground)]"> — {item.description}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    </DashboardShell>
   );
 }

@@ -27,6 +27,7 @@ import { ClientAgent, Subscription, ConversationSession, WidgetMessage } from '@
 import { findWidgetForWtToken, isWidgetActive, sentAgentIdMatchesWidget } from '@/lib/widget-token-verify';
 import { checkConversationQuota } from '@/lib/quota';
 import { trackWidgetChatUsage } from '@/lib/platform-agent-utils';
+import { detectWidgetMeteringChannel } from '@/lib/metering';
 import { trackWidgetUserMessageForFaqCandidates } from '@/lib/widget-faq-tracker';
 import { checkRateLimitAsync, getClientIp } from '@/lib/rate-limit';
 import { getActiveVariant } from '@/lib/ab-testing';
@@ -105,6 +106,8 @@ export async function OPTIONS(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const origin = req.headers.get('origin') || '*';
+  const meteringChannel = detectWidgetMeteringChannel(req);
+  const meteringInput = { channel: meteringChannel } as const;
   const traceId = (req.headers.get('x-trace-id') || req.headers.get('x-request-id') || '').trim() || randomUUID();
   const latencyTrace = new WidgetChatTrace({ traceId, stream: true });
 
@@ -522,7 +525,7 @@ export async function POST(req: NextRequest) {
                 ...(pipeline.images?.length ? { images: pipeline.images } : {}),
               });
               if (widgetToken.startsWith('wt_') && parsedAgentIdLocal) {
-                void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true).catch(() => {});
+                void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true, undefined, meteringInput).catch(() => {});
               }
               if (faqTrackOwnerId) {
                 void afterWidgetChatSuccess({
@@ -587,7 +590,7 @@ export async function POST(req: NextRequest) {
                 streamed: true,
               });
               if (widgetToken.startsWith('wt_') && parsedAgentIdLocal) {
-                void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true).catch(() => {});
+                void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true, undefined, meteringInput).catch(() => {});
               }
               if (faqTrackOwnerId) {
                 void afterWidgetChatSuccess({
@@ -734,7 +737,7 @@ export async function POST(req: NextRequest) {
                   assistNavCtx,
                 ),
               );
-              void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true).catch(() => {});
+              void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true, undefined, meteringInput).catch(() => {});
               if (faqTrackOwnerId) {
                 void trackWidgetUserMessageForFaqCandidates({
                   ownerUserId: faqTrackOwnerId,
@@ -804,7 +807,7 @@ export async function POST(req: NextRequest) {
                   assistNavCtx,
                 ),
               );
-              void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true).catch(() => {});
+              void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true, undefined, meteringInput).catch(() => {});
               if (faqTrackOwnerId) {
                 void trackWidgetUserMessageForFaqCandidates({
                   ownerUserId: faqTrackOwnerId,
@@ -919,7 +922,7 @@ export async function POST(req: NextRequest) {
                   assistNavCtx,
                 ),
               );
-              void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true).catch(() => {});
+              void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true, undefined, meteringInput).catch(() => {});
               if (faqTrackOwnerId) {
                 void trackWidgetUserMessageForFaqCandidates({
                   ownerUserId: faqTrackOwnerId,
@@ -1053,7 +1056,7 @@ export async function POST(req: NextRequest) {
 
         // Telemetry (non-blocking)
         if (widgetToken.startsWith('wt_') && parsedAgentId) {
-          void trackWidgetChatUsage(widgetToken, parsedAgentId, true, json.usage).catch(() => {});
+          void trackWidgetChatUsage(widgetToken, parsedAgentId, true, json.usage, meteringInput).catch(() => {});
           if (faqTrackOwnerId) {
             void trackWidgetUserMessageForFaqCandidates({
               ownerUserId: faqTrackOwnerId,
