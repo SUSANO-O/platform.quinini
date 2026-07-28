@@ -10,6 +10,8 @@ import { listSkillCatalog } from '@/lib/skill-catalog-service';
 import {
   buildAgentCapabilityProfile,
   formatCapabilitySummaryForLlm,
+  memberHasSheetInventoryCapability,
+  messageLooksInventoryIntent,
   messageLooksToolIntent,
   scoreMemberCapabilityMatch,
   type AgentCapabilityProfile,
@@ -467,6 +469,25 @@ export function triageByKeywords(
   return { target: best, method: 'keyword', score: bestScore };
 }
 
+/** Inventario en Sheets vive en el orquestador; no derivar a especialistas sin hoja. */
+export function overrideTriageForInventorySheets(
+  message: string,
+  team: TeamMember[],
+  triage: TriageResult,
+  primaryOrchestratorId?: string,
+): TriageResult {
+  if (!messageLooksInventoryIntent(message)) return triage;
+  const primaryId = normalizeAgentId(primaryOrchestratorId);
+  const orchestrator = primaryId ? team.find((m) => m.id === primaryId) : team.find((m) => m.role === 'orchestrator');
+  if (!orchestrator || !memberHasSheetInventoryCapability(orchestrator)) return triage;
+  if (memberHasSheetInventoryCapability(triage.target)) return triage;
+  return {
+    target: orchestrator,
+    method: 'keyword',
+    score: triage.score,
+  };
+}
+
 /** Llama /api/models directamente en vertex. Devuelve el texto o null. */
 async function callInternalLlm(
   prompt: string,
@@ -523,6 +544,7 @@ async function triageByLlm(
     'Eres un router de triaje para un widget de chat.',
     'Elige UN solo agentId según el ROL/PROMPT del agente (dominio) y solo deriva a otro si la pregunta encaja con sus herramientas específicas (MCP, crons, webhooks).',
     'Preguntas generales de asesoría, finanzas, negocio o conversación → orquestador principal.',
+    'Consultas de inventario, repuestos, stock, catálogo, referencias OEM o Google Sheets → orquestador principal (tiene hojas de inventario), NO especialista financiero.',
     'Preguntas técnicas de bases de datos, integraciones o tareas → agente con esa herramienta.',
     'Responde SOLO JSON válido: {"agentId":"..."}',
     primaryId
@@ -671,7 +693,13 @@ export async function applyMultiAgentRouting(params: {
   }
 
   const message = typeof parsed.message === 'string' ? parsed.message : '';
-  const triage = await triageWidgetMessage(message, team, params.config.orchestratorAgentId);
+  let triage = await triageWidgetMessage(message, team, params.config.orchestratorAgentId);
+  triage = overrideTriageForInventorySheets(
+    message,
+    team,
+    triage,
+    params.config.orchestratorAgentId,
+  );
   const primaryOrch = team.find((m) => m.id === params.config.orchestratorAgentId) ?? team[0];
   const route = resolveRoutableHubAgentId(primaryOrch, triage.target);
   if (!route) return null;

@@ -58,6 +58,34 @@ describe('widget-agent-capabilities', () => {
   it('pregunta financiera no es tool-intent', () => {
     expect(messageLooksToolIntent('como puedo mejorar mis finanzas personales')).toBe(false);
     expect(messageLooksToolIntent('tienes conexion a base de datos')).toBe(true);
+    expect(messageLooksToolIntent('¿Tiene amortiguador Tracker 2017?')).toBe(true);
+  });
+
+  it('indexa hojas google-sheets como capacidad sheet', () => {
+    const profile = buildAgentCapabilityProfile({
+      agent: {
+        name: 'Asesor Taller',
+        tools: [
+          {
+            toolId: 'google-sheets',
+            config: {
+              sheets: [
+                {
+                  id: 'sh_1',
+                  name: 'ventas',
+                  description: 'Inventario de repuestos y stock por sede',
+                  matrixNeed: 'marca, modelo, referencia, stock, sede',
+                  url: 'https://docs.google.com/spreadsheets/d/abc/edit',
+                },
+              ],
+            },
+          },
+        ],
+      },
+      skillCatalog: DEFAULT_AGENT_SKILLS_CATALOG,
+    });
+    expect(profile.items.some((i) => i.kind === 'sheet' && i.id === 'ventas')).toBe(true);
+    expect(profile.toolSignals).toContain('inventario');
   });
 
   it('scoreMemberCapabilityMatch prioriza financiero sobre mongo en asesoría', () => {

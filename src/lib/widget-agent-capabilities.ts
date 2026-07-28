@@ -7,8 +7,18 @@
 import type { AgentSkillCatalogEntry, SkillConfigRow } from '@/lib/agent-skills-catalog';
 import { normalizeAgentSkillsState } from '@/lib/agent-skills-catalog';
 import type { LandingToolConfig } from '@/lib/aibackhub-sync';
+import { extractAgentSheets } from '@/lib/agent-sheets';
 
-export type CapabilityKind = 'domain' | 'mcp' | 'skill' | 'tool' | 'webhook' | 'cron' | 'rag' | 'vision';
+export type CapabilityKind =
+  | 'domain'
+  | 'mcp'
+  | 'skill'
+  | 'tool'
+  | 'webhook'
+  | 'cron'
+  | 'rag'
+  | 'vision'
+  | 'sheet';
 
 export type AgentCapabilityItem = {
   kind: CapabilityKind;
@@ -80,7 +90,21 @@ const BUILTIN_TOOL_TOPICS: Record<string, { label: string; topics: string[] }> =
   },
   'google-sheets': {
     label: 'Google Sheets',
-    topics: ['hoja de cálculo', 'spreadsheet', 'excel', 'google sheets'],
+    topics: [
+      'hoja de cálculo',
+      'spreadsheet',
+      'excel',
+      'google sheets',
+      'inventario',
+      'stock',
+      'repuesto',
+      'repuestos',
+      'catálogo',
+      'bodega',
+      'disponibilidad',
+      'referencia oem',
+      'hoja de ventas',
+    ],
   },
 };
 
@@ -197,8 +221,25 @@ function stemsMatch(a: string, b: string): boolean {
 const TOOL_INTENT_PATTERN =
   /base de datos|bases de datos|mongodb|\bmongo\b|colecci[oó]n|webhook|\bcron\b|tarea programada|hubspot|\bslack\b|\bsql\b|listar bases|consulta(?:r)?\s+(?:a\s+)?(?:la\s+)?(?:base|mongo|datos)/i;
 
+/** Consultas de mostrador / catálogo que deben usar Google Sheets del orquestador. */
+const INVENTORY_INTENT_PATTERN =
+  /\binventario\b|\bstock\b|\brepuestos?\b|\bamortiguador|\bpastillas?\s+de\s+freno|\bfiltros?\b|\bbuj[ií]as?\b|kit de distrib|referencia\s+oem|\boem\b|disponib|\bbodega\b|\bsede\b|\bpasillo\b|hoja de ventas|busca(?:r)?\s+en\s+(?:la\s+)?(?:hoja|inventario|cat[aá]logo)|marca\s+gabriel|\bpe\d+[a-z0-9-]+/i;
+
+export function messageLooksInventoryIntent(message: string): boolean {
+  return INVENTORY_INTENT_PATTERN.test(message);
+}
+
 export function messageLooksToolIntent(message: string): boolean {
-  return TOOL_INTENT_PATTERN.test(message);
+  return TOOL_INTENT_PATTERN.test(message) || messageLooksInventoryIntent(message);
+}
+
+export function memberHasSheetInventoryCapability(member: {
+  capabilities?: AgentCapabilityProfile;
+}): boolean {
+  return (
+    member.capabilities?.items.some((i) => i.kind === 'sheet' || (i.kind === 'tool' && i.id === 'google-sheets')) ??
+    false
+  );
 }
 
 function appendDomainCapability(agent: AgentDocForCapabilities, items: AgentCapabilityItem[]): void {
@@ -373,6 +414,47 @@ function appendBuiltinTools(tools: LandingToolConfig[] | undefined, items: Agent
       continue;
     }
 
+    if (toolId === 'google-sheets') {
+      const sheets = extractAgentSheets({ tools: [t] });
+      for (const sh of sheets) {
+        items.push({
+          kind: 'sheet',
+          id: sh.name,
+          label: `Inventario: ${sh.name}`,
+          description: sh.description || sh.matrixNeed,
+          signals: uniqueSignals([
+            sh.name,
+            sh.description,
+            sh.matrixNeed,
+            sh.tabTitle,
+            'inventario',
+            'stock',
+            'repuesto',
+            'repuestos',
+            'catálogo',
+            'bodega',
+            'disponibilidad',
+            'referencia',
+            'oem',
+            'hoja de ventas',
+            ...tokenize(sh.description),
+            ...tokenize(sh.matrixNeed ?? ''),
+            ...(BUILTIN_TOOL_TOPICS['google-sheets']?.topics ?? []),
+          ]),
+        });
+      }
+      if (!sheets.length) {
+        const meta = BUILTIN_TOOL_TOPICS['google-sheets'];
+        items.push({
+          kind: 'tool',
+          id: toolId,
+          label: meta?.label ?? 'Google Sheets',
+          signals: uniqueSignals([toolId, humanizeKey(toolId), ...(meta?.topics ?? [])]),
+        });
+      }
+      continue;
+    }
+
     const meta = BUILTIN_TOOL_TOPICS[toolId];
     items.push({
       kind: 'tool',
@@ -523,6 +605,7 @@ export function scoreMemberCapabilityMatch(
 
   const profile = member.capabilities;
   const toolIntent = messageLooksToolIntent(message);
+  const inventoryIntent = messageLooksInventoryIntent(message);
 
   if (profile) {
     score += scoreSignalsAgainstMessage(message, profile.domainSignals, 2);
@@ -540,6 +623,14 @@ export function scoreMemberCapabilityMatch(
           const hit = scoreSignalsAgainstMessage(message, item.signals, 1);
           if (hit >= 5) score += hit * 0.5;
         }
+      }
+    }
+
+    if (inventoryIntent) {
+      for (const item of profile.items) {
+        if (item.kind !== 'sheet') continue;
+        const hit = scoreSignalsAgainstMessage(message, item.signals, 2.5);
+        if (hit > 0) score += hit;
       }
     }
   } else {
