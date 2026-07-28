@@ -54,6 +54,55 @@ export async function closePreviousHandoffSessions(input: {
   return result.modifiedCount ?? 0;
 }
 
+type ConversationCloseSession = {
+  sessionId: string;
+  chatSessionId?: string | null;
+  widgetId?: string;
+  escalated?: boolean;
+  handoffAt?: Date | null;
+  inboxStatus?: string | null;
+};
+
+/** Al cerrar desde Chats, alinear Inbox (inboxStatus) y handoffs ho_* vinculados. */
+export async function syncInboxOnConversationClose(input: {
+  userId: string;
+  session: ConversationCloseSession;
+  closedAt: Date;
+  durationSec: number;
+}): Promise<void> {
+  const userId = String(input.userId).trim();
+  const sessionId = input.session.sessionId.trim();
+  const widgetId = String(input.session.widgetId || '').trim();
+  const chatSessionId =
+    (typeof input.session.chatSessionId === 'string' && input.session.chatSessionId.trim()) ||
+    sessionId;
+  const { closedAt, durationSec } = input;
+
+  const isInboxEntry =
+    Boolean(input.session.escalated) ||
+    Boolean(input.session.handoffAt) ||
+    input.session.inboxStatus === 'open' ||
+    sessionId.startsWith('ho_');
+
+  const closeFields = {
+    endedAt: closedAt,
+    durationSec,
+    updatedAt: closedAt,
+    ...(isInboxEntry ? { inboxStatus: 'resolved' as const, humanMode: false } : {}),
+  };
+
+  await ConversationSession.updateOne({ sessionId, userId }, { $set: closeFields });
+
+  if (widgetId && chatSessionId) {
+    await closePreviousHandoffSessions({
+      chatSessionId,
+      userId,
+      widgetId,
+      closedAt,
+    });
+  }
+}
+
 /**
  * Cierra handoffs viejos del mismo chat y crea una entrada Inbox nueva (ho_*).
  */

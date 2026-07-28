@@ -58,7 +58,6 @@ export default function WidgetBuilderPage() {
   const [snippetToken, setSnippetToken] = useState('YOUR_TOKEN');
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [shortcuts, setShortcuts] = useState<WidgetShortcut[]>([]);
   const [suggestingShortcuts, setSuggestingShortcuts] = useState(false);
   const [feedbackQuestions, setFeedbackQuestions] = useState<FeedbackQuestion[]>([]);
@@ -501,9 +500,7 @@ export default function WidgetBuilderPage() {
           body: JSON.stringify(payload),
         });
         if (res.ok) {
-          setSaved(true);
           toast.success('Widget actualizado');
-          setTimeout(() => setSaved(false), 3000);
         } else {
           const err = (await res.json().catch(() => null)) as { error?: string } | null;
           toast.error(err?.error ?? 'No se pudo guardar el widget');
@@ -532,9 +529,7 @@ export default function WidgetBuilderPage() {
           if (data.widget?.afhubToken?.startsWith('wt_')) {
             setSnippetToken(data.widget.afhubToken);
           }
-          setSaved(true);
           toast.success('Widget creado correctamente');
-          setTimeout(() => setSaved(false), 3000);
         } else {
           const err = (await res.json().catch(() => null)) as {
             error?: string;
@@ -607,7 +602,6 @@ export default function WidgetBuilderPage() {
                 snippetToken={snippetToken}
                 copied={copied}
                 saving={saving}
-                saved={saved}
                 loadingInitial={loadingInitial}
                 editWidgetId={editWidgetId}
                 onCopy={copySnippet}
