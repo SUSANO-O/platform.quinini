@@ -23,6 +23,7 @@ import { DashboardPageHeader } from '@/components/dashboard/dashboard-page-heade
 import { BackgroundRefreshIndicator } from '@/components/dashboard/background-refresh-indicator';
 import { dashboardKeys } from '@/lib/dashboard-query-keys';
 import { fetchConversationsList, fetchConversationThread } from '@/lib/dashboard-fetch';
+import { notifyInboxChanged } from '@/hooks/use-inbox-open-count';
 import { useDashboardUiStore } from '@/stores/dashboard-ui-store';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
@@ -252,6 +253,10 @@ export default function ChatsPage() {
       }
       toast.success('Sesión cerrada.');
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.conversations(tab) });
+      void queryClient.invalidateQueries({ queryKey: dashboardKeys.inbox('open') });
+      void queryClient.invalidateQueries({ queryKey: dashboardKeys.inbox('resolved') });
+      void queryClient.invalidateQueries({ queryKey: dashboardKeys.inboxCount() });
+      notifyInboxChanged();
       if (selectedId === sessionId) {
         queryClient.setQueryData(dashboardKeys.conversationThread(sessionId), (old: Awaited<ReturnType<typeof fetchConversationThread>> | undefined) => {
           if (!old?.session) return old;

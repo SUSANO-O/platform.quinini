@@ -11,7 +11,6 @@ export function WidgetBuilderPublishStep({
   snippetToken,
   copied,
   saving,
-  saved,
   loadingInitial,
   editWidgetId,
   onCopy,
@@ -23,7 +22,6 @@ export function WidgetBuilderPublishStep({
   snippetToken: string;
   copied: boolean;
   saving: boolean;
-  saved: boolean;
   loadingInitial: boolean;
   editWidgetId: string | null;
   onCopy: () => void;
@@ -113,7 +111,7 @@ export function WidgetBuilderPublishStep({
           data-tour="widget-builder-save"
         >
           <Save size={16} />
-          {saving ? 'Guardando…' : saved ? '¡Guardado!' : editWidgetId ? 'Guardar y finalizar' : 'Guardar y finalizar widget'}
+          {saving ? 'Guardando…' : editWidgetId ? 'Guardar y finalizar' : 'Guardar y finalizar widget'}
         </button>
         <button type="button" className="widget-builder-btn-secondary" onClick={onBack}>
           Volver

@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { ConversationSession, WidgetMessage, Widget } from '@/lib/db/models';
-import { transcriptSessionIdCandidates } from '@/lib/inbox-handoff';
+import { transcriptSessionIdCandidates, syncInboxOnConversationClose } from '@/lib/inbox-handoff';
 import { verifySessionToken } from '@/lib/auth';
 
 type Params = { params: Promise<{ sessionId: string }> };
@@ -92,10 +92,19 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const startedAt = session.startedAt ? new Date(session.startedAt as Date) : now;
   const durationSec = Math.round((now.getTime() - startedAt.getTime()) / 1000);
 
-  await ConversationSession.updateOne(
-    { sessionId, userId },
-    { $set: { endedAt: now, durationSec } },
-  );
+  await syncInboxOnConversationClose({
+    userId,
+    session: {
+      sessionId: session.sessionId,
+      chatSessionId: session.chatSessionId,
+      widgetId: session.widgetId,
+      escalated: session.escalated,
+      handoffAt: session.handoffAt,
+      inboxStatus: session.inboxStatus,
+    },
+    closedAt: now,
+    durationSec,
+  });
 
   return NextResponse.json({ ok: true, endedAt: now.toISOString(), durationSec });
 }

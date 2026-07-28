@@ -786,8 +786,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     if (data.agent && 'widgetPublicToken' in data.agent) {
       setWidgetPublicToken(typeof data.agent.widgetPublicToken === 'string' ? data.agent.widgetPublicToken : '');
     }
-    setSuccess('Guardado.');
-    setTimeout(() => setSuccess(''), 2500);
+    toast.success('Guardado.');
     return true;
   }
 
