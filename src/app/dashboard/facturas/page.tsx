@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { FileText, ExternalLink } from 'lucide-react';
+import { ExternalLink, FileText, Sparkles } from 'lucide-react';
 import { BillingProfileForm, InvoiceList } from '@/components/billing/invoice-list';
-import { BRAND_TEXT_COLOR, UI_SURFACE_SECONDARY } from '@/lib/brand';
+import { DashboardShell } from '@/components/dashboard/dashboard-shell';
+import { DashboardPageHeader } from '@/components/dashboard/dashboard-page-header';
+import { DashboardButton } from '@/components/dashboard/dashboard-button';
 import { useSubscription } from '@/hooks/use-subscription';
 
 export default function FacturasPage() {
@@ -15,63 +17,45 @@ export default function FacturasPage() {
     subscription.plan !== 'free';
 
   return (
-    <div style={{ maxWidth: 820, margin: '0 auto', padding: '24px 20px 48px' }}>
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <FileText size={22} style={{ color: BRAND_TEXT_COLOR }} />
-          <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>Facturas y recibos</h1>
-        </div>
-        <p style={{ color: 'var(--muted-foreground)', fontSize: 14, margin: 0, lineHeight: 1.5 }}>
-          Guarda tus datos fiscales y descarga recibos automáticos(suscripción y packs).
-        </p>
-      </div>
+    <DashboardShell width="narrow">
+      <DashboardPageHeader
+        badge="Facturación"
+        badgeIcon={Sparkles}
+        title="Facturas y"
+        titleAccent="recibos"
+        description="Datos fiscales y descarga de recibos de suscripción y packs."
+        compact
+        hideIcon
+      />
 
-      <section style={{ ...UI_SURFACE_SECONDARY, borderRadius: 16, padding: '18px 20px', marginBottom: 16 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 800, margin: '0 0 12px' }}>Datos de facturación (cliente)</h2>
-        <BillingProfileForm />
-      </section>
+      <div className="dashboard-page-stack">
+        <section className="dashboard-surface">
+          <h2 className="dashboard-surface__title">Datos de facturación</h2>
+          <p className="dashboard-surface__desc">Información que aparece en tus recibos.</p>
+          <BillingProfileForm />
+        </section>
 
-      <section style={{ ...UI_SURFACE_SECONDARY, borderRadius: 16, padding: '18px 20px', marginBottom: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
-          <div>
-            <h2 style={{ fontSize: 15, fontWeight: 800, margin: '0 0 4px' }}>Historial de pagos</h2>
-            <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0 }}>
-              Suscripciones y compras seguras.
-            </p>
+        <section className="dashboard-surface">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+            <div>
+              <h2 className="dashboard-surface__title m-0">Historial de pagos</h2>
+              <p className="dashboard-surface__desc">Suscripciones y compras seguras.</p>
+            </div>
+            {!loading && hasPaid ? (
+              <DashboardButton variant="secondary" className="text-xs" onClick={() => void openBillingPortal()}>
+                <ExternalLink size={14} />
+                Portal de pagos
+              </DashboardButton>
+            ) : null}
           </div>
-          {!loading && hasPaid ? (
-            <button
-              type="button"
-              onClick={() => void openBillingPortal()}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '8px 12px',
-                borderRadius: 10,
-                border: '1px dashed var(--border)',
-                background: 'transparent',
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: 'pointer',
-                color: 'var(--muted-foreground)',
-              }}
-            >
-              <ExternalLink size={14} />
-              Abrir portal
-            </button>
-          ) : null}
-        </div>
-        <InvoiceList />
-      </section>
+          <InvoiceList />
+        </section>
 
-      <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: 0 }}>
-        También puedes gestionar método de pago en{' '}
-        <Link href="/dashboard/settings#settings-invoices" style={{ color: BRAND_TEXT_COLOR, fontWeight: 600 }}>
-          Ajustes → Facturación
+        <Link href="/dashboard/settings#settings-billing" className="dashboard-meta-chip dashboard-meta-chip--muted dashboard-meta-chip--link w-fit">
+          <FileText size={10} />
+          Ver plan y suscripción →
         </Link>
-        .
-      </p>
-    </div>
+      </div>
+    </DashboardShell>
   );
 }

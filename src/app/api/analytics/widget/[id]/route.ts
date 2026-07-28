@@ -16,16 +16,16 @@ import { connectDB } from '@/lib/db/connection';
 import {
   Widget, ConversationSession, RequestLog, WidgetFeedback, WidgetMessage,
 } from '@/lib/db/models';
+import {
+  COLOMBIA_OFFSET_MS,
+  colombiaHour,
+  colombiaMonthKey,
+  findPeakHour,
+} from '@/lib/colombia-time';
+import { isExcludedConversationSessionId } from '@/lib/conversation-metrics';
 
-// Colombia = UTC-5 (sin DST)
-const COLOMBIA_OFFSET_MS = 5 * 60 * 60 * 1000;
-
-function colombiaHour(d: Date): number {
-  return new Date(d.getTime() - COLOMBIA_OFFSET_MS).getUTCHours();
-}
 function colombiaMonth(d: Date): string {
-  const shifted = new Date(d.getTime() - COLOMBIA_OFFSET_MS);
-  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, '0')}`;
+  return colombiaMonthKey(d);
 }
 
 function auth(req: NextRequest) {
@@ -119,21 +119,25 @@ export async function GET(
 
   const total = sessionsBySid.size;
 
-  // Hora pico (0-23) en Colombia
+  // Hora pico (0-23 Colombia) — por volumen de mensajes, no solo apertura de sesión
   const hourBuckets = new Array(24).fill(0) as number[];
-  // Sesiones por mes
   const byMonthSessions = new Map<string, number>();
   for (const m of monthKeys) byMonthSessions.set(m, 0);
 
+  for (const m of messages) {
+    const sid = typeof m.sessionId === 'string' ? m.sessionId : '';
+    if (isExcludedConversationSessionId(sid)) continue;
+    const at = m.createdAt instanceof Date ? m.createdAt : new Date(m.createdAt as unknown as string);
+    if (isNaN(at.getTime())) continue;
+    hourBuckets[colombiaHour(at)]++;
+  }
+
   for (const s of sessionsBySid.values()) {
-    hourBuckets[colombiaHour(s.firstAt)]++;
     const mk = colombiaMonth(s.firstAt);
     if (byMonthSessions.has(mk)) byMonthSessions.set(mk, (byMonthSessions.get(mk) || 0) + 1);
   }
 
-  // Si no hubo sesiones, peakHour devuelve null (no engañar con 0/12AM)
-  const maxCount = Math.max(...hourBuckets);
-  const peakHour = total > 0 && maxCount > 0 ? hourBuckets.indexOf(maxCount) : null;
+  const peakHour = findPeakHour(hourBuckets);
 
   const avgMsgsPerSession = total
     ? Math.round(Array.from(sessionsBySid.values()).reduce((s, r) => s + r.msgCount, 0) / total)

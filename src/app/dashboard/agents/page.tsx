@@ -16,8 +16,9 @@ import { DashboardPageHeader } from '@/components/dashboard/dashboard-page-heade
 import { DashboardCallout } from '@/components/dashboard/dashboard-callout';
 import { DashboardEmptyState } from '@/components/dashboard/dashboard-empty-state';
 import { DashboardButton, DashboardButtonLink } from '@/components/dashboard/dashboard-button';
-import { DashboardFilterMenu } from '@/components/dashboard/dashboard-filter-menu';
+import { DashboardFilterBar } from '@/components/dashboard/dashboard-filter-bar';
 import { DashboardGridToolbar } from '@/components/dashboard/dashboard-grid-toolbar';
+import { DashboardPlanUsageBar } from '@/components/dashboard/dashboard-plan-usage-bar';
 import { BackgroundRefreshIndicator } from '@/components/dashboard/background-refresh-indicator';
 import { dashboardKeys } from '@/lib/dashboard-query-keys';
 import { fetchAgentsList } from '@/lib/dashboard-fetch';
@@ -35,6 +36,16 @@ function filterByStatus(list: AgentListItem[], filter: AgentFilter): AgentListIt
   if (filter === 'active') return list.filter((a) => a.status === 'active');
   if (filter === 'inactive') return list.filter((a) => a.status === 'disabled');
   return list;
+}
+
+function filterBySearch(list: AgentListItem[], query: string): AgentListItem[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return list;
+  return list.filter((agent) => {
+    const name = agent.name?.toLowerCase() ?? '';
+    const desc = agent.description?.toLowerCase() ?? '';
+    return name.includes(q) || desc.includes(q);
+  });
 }
 
 export default function AgentsPage() {
@@ -56,6 +67,7 @@ export default function AgentsPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AgentListItem | null>(null);
   const [filter, setFilter] = useState<AgentFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const { models: clientModels } = useClientModels(plan);
 
   const modelLabelById = useMemo(() => {
@@ -76,12 +88,16 @@ export default function AgentsPage() {
   );
 
   const filteredMine = useMemo(
-    () => filterByStatus(mineAgents, filter),
-    [mineAgents, filter],
+    () => filterBySearch(filterByStatus(mineAgents, filter), searchQuery),
+    [mineAgents, filter, searchQuery],
   );
   const filteredPlatform = useMemo(
-    () => filterByStatus(catalogPlatformAgents, filter === 'platform' ? 'all' : filter),
-    [catalogPlatformAgents, filter],
+    () =>
+      filterBySearch(
+        filterByStatus(catalogPlatformAgents, filter === 'platform' ? 'all' : filter),
+        searchQuery,
+      ),
+    [catalogPlatformAgents, filter, searchQuery],
   );
 
   const usedAgents = mineAgents.length;
@@ -157,7 +173,7 @@ export default function AgentsPage() {
   const emptyFilter = !loading && !emptyGlobal && totalVisible === 0;
 
   return (
-    <DashboardShell wide>
+    <DashboardShell width="wide">
       <ConfirmDialog
         open={deleteTarget !== null}
         title="Eliminar agente"
@@ -174,10 +190,11 @@ export default function AgentsPage() {
       <DashboardPageHeader
         badge="Agentes"
         badgeIcon={Sparkles}
-        titleIcon={Bot}
         title="Mis"
         titleAccent="agentes"
         description="Tus agentes y el catálogo global van separados: el cupo del plan solo aplica a los tuyos."
+        compact
+        hideIcon
         actions={
           <>
           <BackgroundRefreshIndicator active={agentsQuery.isFetching && !loading} />
@@ -206,36 +223,14 @@ export default function AgentsPage() {
         }
       />
 
-      <div className="dashboard-plan-usage">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex-1 min-w-[200px]">
-            <div className="flex justify-between text-xs font-semibold mb-2">
-              <span>Agentes usados</span>
-              <span className={atLimit ? 'text-[var(--state-error)]' : 'text-[var(--muted-foreground)]'}>
-                {usedAgents} / {agentLimitLabel}
-              </span>
-            </div>
-            <div className="dashboard-plan-usage__bar">
-              <div
-                className={`dashboard-plan-usage__fill${atLimit ? ' dashboard-plan-usage__fill--limit' : ''}`}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-          </div>
-          <div className="text-xs shrink-0 text-[var(--muted-foreground)]">
-            Plan:{' '}
-            <span className="font-bold capitalize text-[var(--foreground)]">{plan}</span>
-          </div>
-          {atLimit ? (
-            <Link
-              href="/dashboard"
-              className="text-xs font-bold px-3 py-1.5 rounded-full no-underline transition-opacity hover:opacity-90 landing-link-accent border border-[rgba(var(--brand-primary-rgb),0.22)] bg-[linear-gradient(135deg,rgba(var(--brand-primary-rgb),0.12),rgba(var(--brand-cool-rgb),0.1))]"
-            >
-              Actualizar plan →
-            </Link>
-          ) : null}
-        </div>
-      </div>
+      <DashboardPlanUsageBar
+        label="Agentes usados"
+        used={usedAgents}
+        limitLabel={agentLimitLabel}
+        percent={pct}
+        atLimit={atLimit}
+        plan={plan}
+      />
 
       {fetchError ? (
         <div className="dashboard-callout flex flex-wrap items-center justify-between gap-3 border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.06)]">
@@ -270,18 +265,36 @@ export default function AgentsPage() {
             title={filter === 'platform' ? 'Catálogo plataforma' : 'Tus agentes'}
             count={totalVisible}
             countLabel={totalVisible === 1 ? 'agente' : 'agentes'}
-            filter={
-              <DashboardFilterMenu value={filter} options={AGENT_FILTER_OPTIONS} onChange={setFilter} />
-            }
+          />
+
+          <DashboardFilterBar
+            searchValue={searchQuery}
+            onSearchChange={setSearchQuery}
+            searchPlaceholder="Buscar agente…"
+            searchAriaLabel="Buscar agente por nombre o descripción"
+            filterValue={filter}
+            filterOptions={AGENT_FILTER_OPTIONS}
+            onFilterChange={setFilter}
+            filterAriaLabel="Filtrar agentes"
           />
 
           {emptyFilter ? (
             <DashboardEmptyState
               icon={<Bot size={28} className="text-[var(--primary)]" strokeWidth={1.75} />}
               title="Sin resultados"
-              description="Ningún agente coincide con este filtro."
+              description={
+                searchQuery.trim()
+                  ? `Ningún agente coincide con «${searchQuery.trim()}».`
+                  : 'Ningún agente coincide con este filtro.'
+              }
               action={
-                <DashboardButton variant="secondary" onClick={() => setFilter('all')}>
+                <DashboardButton
+                  variant="secondary"
+                  onClick={() => {
+                    setFilter('all');
+                    setSearchQuery('');
+                  }}
+                >
                   Ver todos
                 </DashboardButton>
               }

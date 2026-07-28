@@ -14,8 +14,7 @@ import { DashboardCallout } from '@/components/dashboard/dashboard-callout';
 import { DashboardStatStrip } from '@/components/dashboard/dashboard-stat-strip';
 import { DashboardEmptyState } from '@/components/dashboard/dashboard-empty-state';
 import { DashboardButton, DashboardButtonLink } from '@/components/dashboard/dashboard-button';
-import { DashboardFilterMenu } from '@/components/dashboard/dashboard-filter-menu';
-import { DashboardSearchInput } from '@/components/dashboard/dashboard-search-input';
+import { DashboardFilterBar } from '@/components/dashboard/dashboard-filter-bar';
 import { DashboardGridToolbar } from '@/components/dashboard/dashboard-grid-toolbar';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 import { BackgroundRefreshIndicator } from '@/components/dashboard/background-refresh-indicator';
@@ -203,7 +202,7 @@ export default function WidgetsPage() {
   }
 
   return (
-    <DashboardShell wide>
+    <DashboardShell width="wide">
       <EncryptedDownloadModal
         open={exportModalWidget !== null}
         onClose={() => setExportModalWidget(null)}
@@ -224,10 +223,11 @@ export default function WidgetsPage() {
       <DashboardPageHeader
         badge="Widgets"
         badgeIcon={Sparkles}
-        titleIcon={Boxes}
         title="Mis"
         titleAccent="widgets"
-        description="Gestiona todos tus chat widgets — misma línea visual que el resto del panel."
+        description="Gestiona tus chat widgets embebibles."
+        compact
+        hideIcon
         actions={
           <>
           <BackgroundRefreshIndicator active={widgetsQuery.isFetching && !loading} />
@@ -298,21 +298,17 @@ export default function WidgetsPage() {
             title="Mis widgets"
             count={filteredWidgets.length}
             countLabel={filteredWidgets.length === 1 ? 'widget' : 'widgets'}
-            search={
-              <DashboardSearchInput
-                value={searchQuery}
-                onChange={setSearchQuery}
-                placeholder="Buscar widget…"
-                ariaLabel="Buscar widget por nombre o agente"
-              />
-            }
-            filter={
-              <DashboardFilterMenu
-                value={filter}
-                options={WIDGET_FILTER_OPTIONS}
-                onChange={setFilter}
-              />
-            }
+          />
+
+          <DashboardFilterBar
+            searchValue={searchQuery}
+            onSearchChange={setSearchQuery}
+            searchPlaceholder="Buscar widget…"
+            searchAriaLabel="Buscar widget por nombre o agente"
+            filterValue={filter}
+            filterOptions={WIDGET_FILTER_OPTIONS}
+            onFilterChange={setFilter}
+            filterAriaLabel="Filtrar widgets"
           />
 
           {filteredWidgets.length === 0 ? (

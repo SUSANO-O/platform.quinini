@@ -17,6 +17,7 @@ import { connectDB } from '@/lib/db/connection';
 import { ClientAgent, Subscription, ConversationSession, WidgetMessage } from '@/lib/db/models';
 import { findWidgetForWtToken, isWidgetActive, sentAgentIdMatchesWidget } from '@/lib/widget-token-verify';
 import { trackWidgetChatUsage } from '@/lib/platform-agent-utils';
+import { detectWidgetMeteringChannel } from '@/lib/metering';
 import { checkConversationQuota } from '@/lib/quota';
 import { dispatchSaasWebhook } from '@/lib/saas-webhook-outbound';
 import { getAgentLimits } from '@/lib/agent-plans';
@@ -149,6 +150,8 @@ function landingWidgetCooldown(
 
 export async function POST(req: NextRequest) {
   const origin = req.headers.get('origin') || '*';
+  const meteringChannel = detectWidgetMeteringChannel(req);
+  const meteringInput = { channel: meteringChannel } as const;
   const requestIdEarly =
     (req.headers.get('x-trace-id') || req.headers.get('x-request-id') || '').trim() ||
     randomUUID();
@@ -647,7 +650,7 @@ export async function POST(req: NextRequest) {
                 contentAgent: pipeline.meta.pipelineSteps?.[0]?.name,
                 creativeAgent: pipeline.meta.routedAgentName,
               });
-              trackWidgetChatUsage(widgetToken, parsedAgentId, true).catch(() => {});
+              trackWidgetChatUsage(widgetToken, parsedAgentId, true, undefined, meteringInput).catch(() => {});
               void trackWidgetUserMessageForFaqCandidates({
                 ownerUserId: w.userId,
                 agentIdOrHubId: parsedAgentId,
@@ -714,7 +717,7 @@ export async function POST(req: NextRequest) {
                 synthesized: parallel.meta.synthesized,
                 contributors: parallel.meta.contributors?.length ?? 0,
               });
-              trackWidgetChatUsage(widgetToken, parsedAgentId, true).catch(() => {});
+              trackWidgetChatUsage(widgetToken, parsedAgentId, true, undefined, meteringInput).catch(() => {});
               void trackWidgetUserMessageForFaqCandidates({
                 ownerUserId: w.userId,
                 agentIdOrHubId: parsedAgentId,
@@ -844,7 +847,7 @@ export async function POST(req: NextRequest) {
               replyLen: direct.reply?.length ?? 0,
               toolsUsed: direct.toolsUsed ?? [],
             });
-            trackWidgetChatUsage(widgetToken, parsedAgentId, true).catch(() => {});
+            trackWidgetChatUsage(widgetToken, parsedAgentId, true, undefined, meteringInput).catch(() => {});
             void trackWidgetUserMessageForFaqCandidates({
               ownerUserId: w.userId,
               agentIdOrHubId: parsedAgentId,
@@ -939,7 +942,7 @@ export async function POST(req: NextRequest) {
               replyLen: inferred.reply.length,
               usedModel: inferred.usedModel,
             });
-            trackWidgetChatUsage(widgetToken, parsedAgentId, true).catch(() => {});
+            trackWidgetChatUsage(widgetToken, parsedAgentId, true, undefined, meteringInput).catch(() => {});
             void trackWidgetUserMessageForFaqCandidates({
               ownerUserId: w.userId,
               agentIdOrHubId: parsedAgentId,
@@ -1044,7 +1047,7 @@ export async function POST(req: NextRequest) {
             hubStatus: res.status,
             replyLen: inferred.reply.length,
           });
-          trackWidgetChatUsage(widgetToken, parsedAgentId, true).catch(() => {});
+          trackWidgetChatUsage(widgetToken, parsedAgentId, true, undefined, meteringInput).catch(() => {});
           void trackWidgetUserMessageForFaqCandidates({
             ownerUserId: faqTrackOwnerId,
             agentIdOrHubId: parsedAgentId,
@@ -1119,7 +1122,7 @@ export async function POST(req: NextRequest) {
         const parsed = JSON.parse(data) as { usage?: { inputTokens?: number; outputTokens?: number } };
         hubUsage = parsed.usage;
       } catch { /* not JSON or no usage — fine */ }
-      trackWidgetChatUsage(widgetToken, parsedAgentId, true, hubUsage).catch(() => {});
+      trackWidgetChatUsage(widgetToken, parsedAgentId, true, hubUsage, meteringInput).catch(() => {});
       if (faqTrackOwnerId) {
         void trackWidgetUserMessageForFaqCandidates({
           ownerUserId: faqTrackOwnerId,

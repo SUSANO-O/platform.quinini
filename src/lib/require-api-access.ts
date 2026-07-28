@@ -50,9 +50,9 @@ export async function requireApiAccessRequest(
 
   if (!canUseApiAccess(sub?.plan ?? 'free', sub?.status ?? 'free', sub?.features)) {
     return wantsHtml
-      ? htmlAuthError(403, 'Tu plan no incluye API REST. Necesitas Team+ o la feature api_access.')
+      ? htmlAuthError(403, 'Tu plan no incluye API REST. Contrata API Develop o el add-on api_access (Team+).')
       : NextResponse.json(
-          { error: 'Plan Team o feature api_access requerido' },
+          { error: 'API Develop o add-on api_access requerido' },
           { status: 403 },
         );
   }

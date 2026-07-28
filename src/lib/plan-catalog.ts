@@ -148,16 +148,34 @@ export const PLAN_DISPLAY: Record<
   }),
 );
 
-/** Conversaciones incluidas por mes (-1 = ilimitado). Métrica principal de consumo. */
-export const PLAN_CONVERSATION_LIMITS: Record<string, number> = {
+/** Conversaciones incluidas por mes — pool **agentes/widget** (-1 = ilimitado). */
+export const PLAN_AGENT_CONVERSATION_LIMITS: Record<string, number> = {
   free:       50,
   solo:       300,
-  api_develop:        2_000,
+  api_develop:        0,
   team:       2_000,
   plus:       3_000,
   business:   45_000,
   enterprise: -1,
 };
+
+/** Conversaciones incluidas por mes — pool **API REST** (plan API Develop). */
+export const PLAN_API_CONVERSATION_LIMITS: Record<string, number> = {
+  free:       0,
+  solo:       0,
+  api_develop:        2_000,
+  team:       0,
+  plus:       0,
+  business:   0,
+  enterprise: -1,
+};
+
+/** Add-on mensual `api_access`: cupo API separado del widget (Team+). */
+export const API_ACCESS_ADDON_CONVERSATIONS = 2_000;
+export const API_ACCESS_ADDON_PRICE_USD = 19;
+
+/** Alias histórico — conversaciones de agentes/widget. */
+export const PLAN_CONVERSATION_LIMITS = PLAN_AGENT_CONVERSATION_LIMITS;
 
 /** Agentes principales por plan (límite realista para PME). `-1` = ilimitado. */
 export const PLAN_AGENT_LIMITS: Record<string, number> = {
@@ -363,8 +381,11 @@ export const OUTBOUND_SAAS_WEBHOOK_MIN_PLAN: PlanId = 'plus';
 /** Plan mínimo para avisar en Slack al escalar (Incoming Webhook en Cumplimiento). */
 export const ESCALATION_SLACK_MIN_PLAN: PlanId = 'team';
 
-/** Plan mínimo para acceso API REST en planes con panel (Team+). */
-export const API_ACCESS_MIN_PLAN: PlanId = 'team';
+/** Plan mínimo de panel para contratar add-on API (Team+). No implica API incluida. */
+export const API_ADDON_ELIGIBLE_MIN_PLAN: PlanId = 'team';
+
+/** @deprecated Usar API_ADDON_ELIGIBLE_MIN_PLAN — ya no hay API incluida por rank de plan. */
+export const API_ACCESS_MIN_PLAN: PlanId = API_ADDON_ELIGIBLE_MIN_PLAN;
 
 /** Etiqueta pública en landing mientras la API no está disponible en producción. */
 export const API_REST_COMING_SOON_LABEL = 'Próximamente';
@@ -414,7 +435,7 @@ export const FEATURE_OVERRIDES: { key: string; label: string; description: strin
   { key: OUTBOUND_WEBHOOK_FEATURE,  label: 'Webhook saliente (HMAC)', description: 'Eventos firmados a tu backend. Incluido desde Plus por defecto.' },
   { key: ESCALATION_SLACK_FEATURE,  label: 'Slack al escalar',     description: 'Aviso a Slack en handoff. Incluido desde Team por defecto.' },
   { key: ESCALATION_TICKET_FEATURE, label: 'Tickets al escalar',   description: 'Zendesk/Freshdesk en handoff. Incluido desde Business por defecto.' },
-  { key: API_ACCESS_FEATURE,        label: 'Acceso API REST',      description: 'Acceso a la API REST. Incluido desde Team por defecto (API Develop es solo REST).' },
+  { key: API_ACCESS_FEATURE,        label: 'Acceso API REST (add-on)', description: `Add-on: +${API_ACCESS_ADDON_CONVERSATIONS.toLocaleString('es')} conv/mes vía API, cupo separado del widget. Requiere Team+ o API Develop.` },
   { key: CONVERSATION_FLOWS_FEATURE, label: 'Flujos conversacionales', description: 'Editor visual de flujos guiados. Incluido desde Plus por defecto.' },
   { key: CUSTOM_INTEGRATION_FEATURE, label: 'Integraciones custom (MCP)', description: 'Conectores MCP de plan superior (MongoDB, Postgres…). Incluido desde Business por defecto.' },
 ];
@@ -482,12 +503,39 @@ export function planHasEscalationSlackFeature(planId: PlanId): boolean {
   return planRank(planId) >= planRank(ESCALATION_SLACK_MIN_PLAN);
 }
 
-export function planHasApiAccessFeature(planId: PlanId): boolean {
-  if (isApiOnlyPlan(planId)) return true;
-  return planRank(planId) >= planRank(API_ACCESS_MIN_PLAN);
+export function getAgentConversationLimit(plan: string): number {
+  if (isApiOnlyPlan(plan)) return 0;
+  return PLAN_AGENT_CONVERSATION_LIMITS[plan] ?? PLAN_AGENT_CONVERSATION_LIMITS.free;
 }
 
-/** Acceso API REST con suscripción activa (API+), o por override de admin. */
+export function getApiConversationLimit(
+  plan: string,
+  subscriptionFeatures?: string[] | null,
+): number {
+  if (isApiOnlyPlan(plan)) {
+    return PLAN_API_CONVERSATION_LIMITS[plan] ?? 0;
+  }
+  if (hasFeatureOverride(subscriptionFeatures, API_ACCESS_FEATURE)) {
+    return API_ACCESS_ADDON_CONVERSATIONS;
+  }
+  return PLAN_API_CONVERSATION_LIMITS[plan] ?? 0;
+}
+
+export function getConversationLimitForPool(
+  plan: string,
+  pool: 'agents' | 'api',
+  subscriptionFeatures?: string[] | null,
+): number {
+  return pool === 'api'
+    ? getApiConversationLimit(plan, subscriptionFeatures)
+    : getAgentConversationLimit(plan);
+}
+
+export function planHasApiAccessFeature(planId: PlanId): boolean {
+  return isApiOnlyPlan(planId);
+}
+
+/** API REST: solo plan API Develop o add-on `api_access` (admin/checkout). */
 export function canUseApiAccess(
   plan: string,
   status: string,
@@ -495,8 +543,19 @@ export function canUseApiAccess(
 ): boolean {
   if (hasFeatureOverride(subscriptionFeatures, API_ACCESS_FEATURE)) return true;
   const effective = effectiveProductPlan(plan, status);
-  if (isApiOnlyPlan(effective)) return true;
-  return planRank(effective) >= planRank(API_ACCESS_MIN_PLAN);
+  return isApiOnlyPlan(effective);
+}
+
+/** ¿Puede contratar el add-on API? (Team+ activo, sin API ya activa). */
+export function canPurchaseApiAccessAddon(
+  plan: string,
+  status: string,
+  subscriptionFeatures?: string[] | null,
+): boolean {
+  if (hasFeatureOverride(subscriptionFeatures, API_ACCESS_FEATURE)) return false;
+  if (isApiOnlyPlan(plan)) return false;
+  const effective = effectiveProductPlan(plan, status);
+  return planRank(effective) >= planRank(API_ADDON_ELIGIBLE_MIN_PLAN);
 }
 
 /** Flujos conversacionales — Plus+ con suscripción activa, o por override de admin. */
@@ -545,14 +604,16 @@ export function canUseEscalationTickets(
 }
 
 export function apiAccessUpgradeLabel(): string {
-  return PLAN_DISPLAY[API_ACCESS_MIN_PLAN]?.label ?? 'Team';
+  return `API Develop o add-on (+$${API_ACCESS_ADDON_PRICE_USD}/mes)`;
 }
 
 /** Etiqueta API en tablas comparativas. */
 export function formatApiAccessFeature(planId: PlanId): string {
-  if (!planHasApiAccessFeature(planId)) return '—';
   if (isApiOnlyPlan(planId)) return 'Incluido';
-  return API_REST_COMING_SOON_LABEL;
+  if (planRank(planId) >= planRank(API_ADDON_ELIGIBLE_MIN_PLAN)) {
+    return `Add-on $${API_ACCESS_ADDON_PRICE_USD}/mes`;
+  }
+  return '—';
 }
 
 /** Etiqueta para tabla comparativa: — | Básico | Avanzado | Completo */
@@ -645,23 +706,23 @@ export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
     'Soporte por email (48 h)',
   ],
   team: [
-    '2.000 conversaciones al mes (~65/día)',
+    '2.000 conversaciones al mes (~65/día) — widget y agentes',
     '6 agentes · 3 sub-agentes · Webhook incluido',
     'Almacenamiento: 128 MB · 15 fuentes por agente',
-    'Acceso API REST (próximamente) · Gmail y Slack · widgets ilimitados',
+    `API REST: add-on opcional (+$${API_ACCESS_ADDON_PRICE_USD}/mes, cupo API aparte) · Gmail y Slack · widgets ilimitados`,
     'Capacitación grupal · soporte email (48 h)',
   ],
   plus: [
-    '3.000 conversaciones al mes (~100/día)',
+    '3.000 conversaciones al mes (~100/día) — widget y agentes',
     '12 agentes · 6 sub-agentes · Webhook incluido',
     'Almacenamiento: 256 MB · 20 fuentes · búsqueda vectorial',
-    'Flujos conversacionales (BETA) · webhook saliente (HMAC)',
+    `API REST: add-on opcional (+$${API_ACCESS_ADDON_PRICE_USD}/mes) · Flujos conversacionales (BETA) · webhook saliente (HMAC)`,
     'Tareas programadas · historial 60 días · soporte email (48 h)',
   ],
   business: [
-    '45.000 conversaciones al mes (~1.500/día)',
+    '45.000 conversaciones al mes (~1.500/día) — widget y agentes',
     'Agentes ilimitados · integraciones custom · MCP completo',
-    'Integración WhatsApp Business · API REST (próximamente) · webhooks',
+    `Integración WhatsApp Business · API REST add-on (+$${API_ACCESS_ADDON_PRICE_USD}/mes) · webhooks`,
     'Tickets al escalar · analytics completo (multi-agente) · Almac. 100 GB',
     'Historial ilimitado · todos los modelos · SLA 99,9 %',
   ],

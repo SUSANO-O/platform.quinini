@@ -7,6 +7,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useAuth } from '@/hooks/use-auth';
+import { useAgentDetailTab } from '@/hooks/use-agent-detail-tab';
 import { useClientModels, mergeSavedModelOptions } from '@/hooks/use-client-models';
 import { TOOLS, getAgentLimits, TOOL_MAP } from '@/lib/agent-plans';
 import {
@@ -309,6 +310,20 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const limits = getAgentLimits(plan);
   const soloChatOnly = isSoloChatOnlyPlan(plan);
   const sheetSyncAvailable = sheetNightlySyncEnabled(plan, subscription?.features);
+  const whatsappAllowed = user?.role === 'admin' || canUseWhatsApp(
+    plan,
+    subscription?.status ?? 'free',
+    subscription?.features,
+  );
+  const visibleTabIds = useMemo((): AgentDetailTabId[] => {
+    if (soloChatOnly) return ['general'];
+    const ids: AgentDetailTabId[] = [
+      'general', 'rules', 'faqs', 'tools', 'rag', 'subagents', 'scheduled-tasks',
+    ];
+    if (whatsappAllowed) ids.push('whatsapp');
+    return ids;
+  }, [soloChatOnly, whatsappAllowed]);
+  const [tab, setTab] = useAgentDetailTab(visibleTabIds, 'general');
   const [sheetSyncMeta, setSheetSyncMeta] = useState<{
     billingEnabled: boolean;
     gbStored: number;
@@ -318,7 +333,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [agent, setAgent] = useState<ClientAgent | null>(null);
   const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
   const [scheduledTaskCount, setScheduledTaskCount] = useState<number>(0);
-  const [tab, setTab] = useState<Tab>('general');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -603,7 +617,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       .finally(() => setLoading(false));
   }, [id, router]);
 
-  const onOpenToolsTab = useCallback(() => setTab('tools'), []);
+  const onOpenToolsTab = useCallback(() => setTab('tools'), [setTab]);
 
   const loadMcp = useCallback(() => {
     if (!id) return;
@@ -668,10 +682,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   useEffect(() => {
     loadMcp();
   }, [loadMcp]);
-
-  useEffect(() => {
-    if (soloChatOnly && tab !== 'general') setTab('general');
-  }, [soloChatOnly, tab]);
 
   const onHubspotOauthReturn = useCallback(
     (kind: 'ok' | 'partial' | 'err', detail?: string) => {
@@ -1437,12 +1447,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     { id: 'scheduled-tasks' as const, label: 'Tareas', icon: <Clock size={14} />, count: scheduledTaskCount },
     { id: 'whatsapp' as const, label: 'WhatsApp', icon: <MessageCircle size={14} /> },
   ];
-  // WhatsApp es feature de Business+, o concedida por override (subscription.features) / rol admin.
-  const whatsappAllowed = user?.role === 'admin' || canUseWhatsApp(
-    plan,
-    subscription?.status ?? 'free',
-    subscription?.features,
-  );
   const visibleTabs = soloChatOnly
     ? TABS.filter((t) => t.id === 'general')
     : TABS.filter((t) => t.id !== 'whatsapp' || whatsappAllowed);

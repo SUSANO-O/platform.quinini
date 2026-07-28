@@ -2,6 +2,7 @@
 
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { agentDetailPath } from '@/lib/dashboard-url-hash';
 import { useAuth } from '@/hooks/use-auth';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useClientModels } from '@/hooks/use-client-models';
@@ -211,7 +212,7 @@ export default function NewAgentPage() {
       return;
     }
     const qs = pendingMcp ? `?openMcp=${encodeURIComponent(pendingMcp.key)}` : '';
-    router.push(`/dashboard/agents/${data.agent._id}${qs}`);
+    router.push(`${agentDetailPath(data.agent._id, 'tools')}${qs}`);
   }
 
   return (

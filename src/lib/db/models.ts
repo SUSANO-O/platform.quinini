@@ -246,6 +246,17 @@ RequestLogSchema.index({ widgetId: 1, month: -1 });
 RequestLogSchema.index({ userId: 1, widgetId: 1, month: 1 }, { unique: true });
 RequestLogSchema.index({ month: 1 }); // para filtros solo por rango de fecha
 
+/** Contador diario por pool (widget vs API) — alimenta gráfico del dashboard. */
+const ConversationDailyLogSchema = new Schema({
+  userId: { type: String, required: true },
+  date:   { type: String, required: true }, // YYYY-MM-DD (Colombia)
+  pool:   { type: String, enum: ['agents', 'api'], required: true },
+  count:  { type: Number, default: 0 },
+}, { timestamps: true });
+
+ConversationDailyLogSchema.index({ userId: 1, date: 1, pool: 1 }, { unique: true });
+ConversationDailyLogSchema.index({ userId: 1, date: -1 });
+
 // ── CLIENT AGENTS ─────────────────────────────────────────────────────────────
 // Agents created by landing users. Cannot be deleted — only disabled.
 
@@ -837,6 +848,7 @@ export const User                 = mongoose.models.User                 || mong
 export const Subscription         = mongoose.models.Subscription         || mongoose.model('Subscription', SubscriptionSchema);
 export const Widget               = mongoose.models.Widget               || mongoose.model('Widget', WidgetSchema);
 export const RequestLog           = mongoose.models.RequestLog           || mongoose.model('RequestLog', RequestLogSchema);
+export const ConversationDailyLog = mongoose.models.ConversationDailyLog || mongoose.model('ConversationDailyLog', ConversationDailyLogSchema);
 export const ClientAgent          = mongoose.models.ClientAgent          || mongoose.model('ClientAgent', ClientAgentSchema);
 export const PlatformUsage        = mongoose.models.PlatformUsage        || mongoose.model('PlatformUsage', PlatformUsageSchema);
 export const ConversationPack     = mongoose.models.ConversationPack     || mongoose.model('ConversationPack', ConversationPackSchema);

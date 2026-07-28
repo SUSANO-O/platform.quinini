@@ -39,6 +39,7 @@ precio_plan ≥ (cuota × coste_real_por_conv) + infra_mensual + 30% margen brut
 Fuentes de verdad en código:
 
 - `src/lib/plan-catalog.ts` — precios y cuotas
+- `docs/metering-conversations.md` — pesos por canal, promos, políticas de cupo
 - `src/lib/plan-economics.ts` — COGS estimado por plan
 - `src/lib/finance-rates.ts` — tasas USD/msg (defaults admin)
 - `src/lib/model-plan-policy.ts` — techo de tier por plan

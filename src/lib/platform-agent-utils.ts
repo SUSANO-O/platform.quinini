@@ -5,6 +5,15 @@
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent, Widget, RequestLog, PlatformUsage, Subscription } from '@/lib/db/models';
 import { PLATFORM_AGENT_FREE_REQUESTS_PER_USER_MONTH } from '@/lib/agent-plans';
+import {
+  resolveConversationMetering,
+  type MeteringChannel,
+  type MeteringDecision,
+} from '@/lib/metering';
+
+export type WidgetChatMeteringInput = {
+  channel: MeteringChannel;
+};
 
 /** Resuelve un ClientAgent por id Mongo, agentHubId o slug del hub. */
 export async function findClientAgentBySentId(sentAgentId: string) {
@@ -56,15 +65,30 @@ export async function trackWidgetChatUsage(
   parsedAgentId: string,
   ok: boolean,
   tokens?: { inputTokens?: number; outputTokens?: number },
-): Promise<void> {
-  if (!ok || !widgetToken.startsWith('wt_') || !parsedAgentId.trim()) return;
+  meteringInput?: WidgetChatMeteringInput,
+  preResolved?: MeteringDecision,
+): Promise<MeteringDecision | null> {
+  if (!ok || !widgetToken.startsWith('wt_') || !parsedAgentId.trim()) return null;
 
   await connectDB();
 
   const w = await Widget.findOne({ afhubToken: widgetToken.trim() })
     .select({ _id: 1, userId: 1 })
     .lean() as { _id: { toString(): string }; userId: string } | null;
-  if (!w) return;
+  if (!w) return null;
+
+  const channel = meteringInput?.channel ?? 'widget_production';
+  const decision =
+    preResolved ??
+    (await resolveConversationMetering({
+      channel,
+      userId: w.userId,
+      widgetId: w._id.toString(),
+      agentId: parsedAgentId,
+    }));
+
+  const weight = decision.billableUnits;
+  if (weight <= 0) return decision;
 
   const month = new Date().toISOString().slice(0, 7);
   const cycleKey = await getPlatformGiftCycleKey(w.userId);
@@ -84,14 +108,14 @@ export async function trackWidgetChatUsage(
     if (used < PLATFORM_AGENT_FREE_REQUESTS_PER_USER_MONTH) {
       await PlatformUsage.updateOne(
         { userId: w.userId, month: keyInUse },
-        { $inc: { platformFreeUsed: 1 } },
+        { $inc: { platformFreeUsed: weight } },
         { upsert: true },
       );
-      return;
+      return decision;
     }
   }
 
-  const inc: Record<string, number> = { count: 1 };
+  const inc: Record<string, number> = { count: weight };
   if (tokens?.inputTokens) inc.inputTokens = tokens.inputTokens;
   if (tokens?.outputTokens) inc.outputTokens = tokens.outputTokens;
 
@@ -100,4 +124,9 @@ export async function trackWidgetChatUsage(
     { $inc: inc },
     { upsert: true },
   );
+
+  const { incrementDailyConversationUsage } = await import('@/lib/conversation-daily-log');
+  await incrementDailyConversationUsage(w.userId, 'agents', weight).catch(() => {});
+
+  return decision;
 }

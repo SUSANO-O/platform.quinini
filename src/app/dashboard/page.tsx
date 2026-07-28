@@ -3,13 +3,16 @@
 import { useAuth } from '@/hooks/use-auth';
 import { useSubscription } from '@/hooks/use-subscription';
 import { QuotaTopupBanner } from '@/components/dashboard/quota-topup-banner';
+import { DashboardHomeOverview, type DashboardUsageData } from '@/components/dashboard/dashboard-home-overview';
+import { DashboardShell } from '@/components/dashboard/dashboard-shell';
+import { DashboardGreetingHeader } from '@/components/dashboard/dashboard-greeting-header';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
-  Sparkles, Activity, MessageSquare,
-  TrendingUp, Crown, Clock, Zap, ArrowUpRight, RefreshCw,
-  BarChart2, Users, UserCheck, Bot, X, Loader2,
+  MessageSquare,
+  TrendingUp, ArrowUpRight, Clock,
+  BarChart2, Users, UserCheck, X, Loader2,
 } from 'lucide-react';
 
 import { BRAND, STATE, R } from '@/lib/brand-colors';
@@ -17,17 +20,7 @@ import { countOwnedMainAgents } from '@/lib/agent-plans';
 import { resolveRange, type DateRange } from '@/lib/date-range';
 import { DateRangePicker } from '@/components/dashboard/date-range-picker';
 
-interface UsageData {
-  used: number;
-  limit: number;
-  percentUsed: number;
-  plan: string;
-  platformFreeLimit?: number;
-  platformFreeUsed?: number;
-  platformFreeRemaining?: number;
-  platformCycleKey?: string;
-  activePacks: { packId: string; remaining: number; total: number; expiresAt: string }[];
-}
+interface UsageData extends DashboardUsageData {}
 
 interface StatusService {
   name: string;
@@ -50,6 +43,7 @@ interface WidgetAnalytics {
     dropOffRate: number;
   };
   peakHour: number | null;
+  hourDistribution?: number[];
   byMonth: { month: string; sessions: number; conversations: number }[];
   satisfaction?: {
     avgScore: number | null;
@@ -111,6 +105,7 @@ export default function DashboardPage() {
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [feedbackList,     setFeedbackList]     = useState<FeedbackItem[]>([]);
   const [loadingFeedback,  setLoadingFeedback]  = useState(false);
+  const [inboxOpenCount,   setInboxOpenCount]   = useState<number | null>(null);
 
   const coreMetricsReady =
     usage !== null && agentCount !== null && widgetCount !== null;
@@ -122,6 +117,9 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user) return;
     fetch('/api/billing/usage').then(r => r.ok ? r.json() : null).then(d => d && setUsage(d)).catch(() => {});
+    fetch('/api/inbox/count').then(r => r.ok ? r.json() : null).then(d => {
+      if (d && typeof d.openCount === 'number') setInboxOpenCount(d.openCount);
+    }).catch(() => {});
     fetch('/api/agents').then(r => r.ok ? r.json() : null).then(d => d && setAgentCount(countOwnedMainAgents(d.agents))).catch(() => {});
     fetch('/api/widgets').then(r => r.ok ? r.json() : null).then(d => {
       if (!d) return;
@@ -200,12 +198,7 @@ export default function DashboardPage() {
     : 'Free';
 
   return (
-    <div className="relative overflow-hidden" style={{ minHeight: '100%' }}>
-      <div className="hero-glow pointer-events-none" style={{ background: R, top: '-200px', right: '-80px', opacity: 0.1 }} />
-      <div className="hero-glow pointer-events-none" style={{ background: BRAND.primaryLight, top: '120px', left: '-100px', opacity: 0.08 }} />
-
-      <div className="relative px-4 py-4 max-w-5xl mx-auto">
-
+    <DashboardShell width="home">
         {usage && (
           <QuotaTopupBanner
             percentUsed={usage.percentUsed}
@@ -217,341 +210,40 @@ export default function DashboardPage() {
           />
         )}
 
-        {/* ── HEADER ────────────────────────────────────────────────────────── */}
-        <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
-          <div>
-            <div className="badge-primary mb-3 w-fit">
-              <Sparkles size={13} />
-              Panel de Control
-            </div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight m-0" style={{ letterSpacing: '-0.02em' }}>
-              Hola,{' '}
-              <span className="gradient-text">
-                {user?.displayName || user?.email?.split('@')[0]}
-              </span>{' '}
-              👋
-            </h1>
-            <p className="text-sm mt-1 m-0" style={{ color: 'var(--muted-foreground)' }}>
-              {new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-            </p>
-          </div>
+        <DashboardGreetingHeader
+          displayName={user?.displayName || user?.email?.split('@')[0] || 'Usuario'}
+          loadingPlan={loading}
+          isPremium={isPremium}
+          isTrialActive={isTrialActive}
+          trialDaysRemaining={trialDaysRemaining}
+          planLabel={planLabel}
+          actions={<DateRangePicker value={dateRange} onChange={setDateRange} />}
+        />
 
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Date range picker — afecta tarjetas con métricas dependientes de tiempo */}
-            <DateRangePicker value={dateRange} onChange={setDateRange} />
+        <DashboardHomeOverview
+          usage={usage}
+          agentCount={agentCount}
+          widgetCount={widgetCount}
+          conversationsToday={conversationsToday}
+          sessionsStartedToday={sessionsStartedToday}
+          dateRange={dateRange}
+          inboxOpenCount={inboxOpenCount}
+          sysStatus={sysStatus}
+          loadingSysStatus={loadingSysStatus}
+          refreshingStatus={refreshingStatus}
+          onRefreshStatus={() => void refreshStatus()}
+          coreMetricsReady={coreMetricsReady}
+          isPremium={isPremium}
+          isTrialActive={isTrialActive}
+          trialDaysRemaining={trialDaysRemaining}
+          subscriptionLoading={loading}
+        />
 
-            {/* Plan badge */}
-            {loading ? (
-              <Skel w={120} h={28} r={999} />
-            ) : isPremium ? (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
-                style={{ background: `${R}12`, color: R, border: `1px solid ${R}30` }}>
-                <Crown size={12} />{planLabel} — activo
-              </div>
-            ) : isTrialActive ? (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
-                style={{ background: `${R}12`, color: R, border: `1px solid ${R}30` }}>
-                <Clock size={12} />Trial — {trialDaysRemaining} días restantes
-              </div>
-            ) : (
-              <Link href="/dashboard/settings"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold no-underline"
-                style={{ background: `${R}12`, color: R, border: `1px solid ${R}30` }}>
-                <Zap size={12} />Actualizar plan →
-              </Link>
-            )}
-          </div>
-        </div>
-
-        {/* ── METRICS ROW ──────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-          <MetricCard
-            accent={R}
-            icon={<MessageSquare size={13} style={{ color: R }} />}
-            label="Conversaciones"
-            value={usage ? usage.used.toLocaleString('es') : '—'}
-            sub={usage ? (usage.limit === -1 ? 'ilimitadas' : `/ ${usage.limit.toLocaleString('es')} este mes`) : '—'}
-            bar={usage && usage.limit !== -1 ? {
-              pct: Math.min(usage.percentUsed, 100),
-              color: usage.percentUsed >= 80 ? STATE.error : R,
-            } : undefined}
-          />
-          <MetricCard
-            accent={R}
-            icon={<Clock size={13} style={{ color: R }} />}
-            label={dateRange.preset === 'today' ? 'Mensajes hoy' : 'Mensajes en rango'}
-            value={conversationsToday === null ? '—' : conversationsToday.toLocaleString('es')}
-            sub={
-              conversationsToday === null
-                ? '—'
-                : dateRange.preset === 'today'
-                  ? (sessionsStartedToday === null
-                    ? 'facturables · mismo criterio que uso del mes'
-                    : `${sessionsStartedToday} chat${sessionsStartedToday === 1 ? '' : 's'} nuevo${sessionsStartedToday === 1 ? '' : 's'}`)
-                  : (sessionsStartedToday === null
-                    ? 'facturables · mismo criterio que uso del mes'
-                    : `${sessionsStartedToday} chat${sessionsStartedToday === 1 ? '' : 's'} nuevo${sessionsStartedToday === 1 ? '' : 's'} en el periodo`)
-            }
-          />
-          <MetricCard
-            accent={R}
-            icon={<Bot size={13} style={{ color: R }} />}
-            label="Agentes"
-            value={agentCount === null ? '—' : String(agentCount)}
-            sub={agentCount === null ? '—' : agentCount === 0 ? 'crea tu primer agente' : agentCount === 1 ? 'agente activo' : 'agentes creados'}
-          />
-          <MetricCard
-            accent={R}
-            icon={<BarChart2 size={13} style={{ color: R }} />}
-            label="Widgets"
-            value={widgetCount === null ? '—' : String(widgetCount)}
-            sub={widgetCount === null ? '—' : widgetCount === 0 ? 'crea tu primer widget' : widgetCount === 1 ? 'widget desplegado' : 'widgets desplegados'}
-          />
-        </div>
-
-        {/* ── MAIN 2-COL ───────────────────────────────────────────────────── */}
-        <div className="grid lg:grid-cols-3 gap-5 mb-8">
-
-          {/* ── LEFT ────────────────────────────────────────────────────────── */}
-          <div className="lg:col-span-2 flex flex-col gap-5">
-
-            {/* Usage analytics — siempre visible, skeleton cuando no hay datos */}
-            <div
-              className="rounded-2xl overflow-hidden"
-              style={{
-                background: 'var(--card)',
-                boxShadow: 'var(--shadow-surface)',
-                border: usage && usage.percentUsed >= 80 ? `1px solid ${STATE.errorBorder}` : '1px solid rgba(var(--brand-primary-rgb),0.08)',
-              }}
-            >
-              <div className="p-5 md:p-6">
-                <div className="flex items-center justify-between mb-5">
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center justify-center rounded-lg" style={{ width: 28, height: 28, background: `${R}12` }}>
-                      <TrendingUp size={14} style={{ color: R }} />
-                    </div>
-                    <h3 className="text-[13px] font-bold m-0">Uso del mes actual</h3>
-                  </div>
-                  {usage ? (
-                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                      style={{
-                        background: usage.percentUsed >= 80 ? STATE.errorBg : `${R}0c`,
-                        color: usage.percentUsed >= 80 ? STATE.error : R,
-                      }}>
-                      {usage.percentUsed}% usado
-                    </span>
-                  ) : (
-                    <Skel w={72} h={24} r={999} />
-                  )}
-                </div>
-
-                {usage ? (
-                  <div className="metric-value-appear">
-                    <div className="flex items-end justify-between mb-3">
-                      <span className="text-4xl font-extrabold" style={{ letterSpacing: '-0.04em' }}>
-                        {usage.used.toLocaleString('es')}
-                      </span>
-                      <span className="text-sm pb-1" style={{ color: 'var(--muted-foreground)' }}>
-                        {usage.limit === -1 ? 'ilimitado' : `/ ${usage.limit.toLocaleString('es')} conv.`}
-                      </span>
-                    </div>
-                    <div className="h-2 rounded-full overflow-hidden mb-3"
-                      style={{ background: 'rgba(var(--brand-primary-rgb),0.08)' }}>
-                      <div style={{
-                        height: '100%',
-                        width: `${Math.min(usage.percentUsed, 100)}%`,
-                        background: usage.percentUsed >= 80 ? STATE.error : `linear-gradient(90deg,${R},${BRAND.primaryLight})`,
-                        borderRadius: 999,
-                        transition: 'width 0.6s cubic-bezier(0.22,1,0.36,1)',
-                      }} />
-                    </div>
-                    <div className="flex items-center justify-between text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                      <span className="capitalize font-semibold">Plan {usage.plan}</span>
-                      {usage.percentUsed >= 80 ? (
-                        <Link href="/dashboard/settings" className="font-bold" style={{ color: R }}>Ver suscripción →</Link>
-                      ) : (
-                        <span>Dentro del rango mensual</span>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  /* Skeleton analytics */
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-end justify-between">
-                      <Skel w="42%" h={40} />
-                      <Skel w="28%" h={16} />
-                    </div>
-                    <div className="h-2 rounded-full overflow-hidden"
-                      style={{ background: 'rgba(var(--brand-primary-rgb),0.08)' }}>
-                      <div className="metric-skeleton" style={{ height: '100%', width: '35%', borderRadius: 999 }} />
-                    </div>
-                    <div className="flex justify-between">
-                      <Skel w="22%" h={12} />
-                      <Skel w="30%" h={12} />
-                    </div>
-                  </div>
-                )}
-
-
-                {/* Cuota de plataforma */}
-                {usage && typeof usage.platformFreeLimit === 'number' && usage.platformFreeLimit > 0 && (
-                  <div className="mt-4 flex items-center justify-between px-3 py-2.5 rounded-xl text-[11px]"
-                    style={{ background: 'rgba(var(--brand-primary-rgb),0.04)' }}>
-                    <span style={{ color: R, fontWeight: 600 }}>Plataforma</span>
-                    <span style={{ color: 'var(--muted-foreground)' }}>
-                      {(usage.platformFreeUsed ?? 0).toLocaleString('es')} / {usage.platformFreeLimit.toLocaleString('es')} conv.
-                    </span>
-                  </div>
-                )}
-
-                {/* Packs activos */}
-                {usage && usage.activePacks.length > 0 && (
-                  <div className="mt-3 flex flex-col gap-2">
-                    {usage.activePacks.map((pack) => (
-                      <div key={pack.packId} className="rounded-xl px-4 py-3"
-                        style={{ background: 'rgba(var(--brand-primary-rgb),0.04)' }}>
-                        <div className="flex items-center justify-between text-xs mb-1.5">
-                          <span className="font-bold" style={{ color: R }}>Pack {pack.packId}</span>
-                          <span style={{ color: 'var(--muted-foreground)' }}>
-                            {pack.remaining.toLocaleString('es')} / {pack.total.toLocaleString('es')}
-                          </span>
-                        </div>
-                        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(var(--brand-primary-rgb),0.08)' }}>
-                          <div style={{
-                            height: '100%',
-                            width: `${(pack.remaining / pack.total) * 100}%`,
-                            background: R,
-                            borderRadius: 999,
-                          }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-          </div>
-
-          {/* ── RIGHT ───────────────────────────────────────────────────────── */}
-          <div className="flex flex-col gap-4">
-
-            {/* System status — carga al final, tras métricas principales */}
-            <div className="rounded-2xl overflow-hidden"
-              style={{ background: 'var(--card)', boxShadow: 'var(--shadow-surface)', border: '1px solid rgba(var(--brand-primary-rgb),0.08)' }}>
-              <div className="p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="flex items-center justify-center rounded-lg" style={{ width: 28, height: 28, background: `${R}12` }}>
-                    <Activity size={14} style={{ color: R }} />
-                  </div>
-                  <h3 className="text-[13px] font-bold m-0">Estado del sistema</h3>
-                  <button
-                    onClick={refreshStatus}
-                    disabled={refreshingStatus || !coreMetricsReady}
-                    title="Actualizar estado"
-                    className="ml-auto"
-                    style={{ background: 'none', border: 'none', cursor: refreshingStatus || !coreMetricsReady ? 'not-allowed' : 'pointer', padding: 2, color: 'var(--muted-foreground)', opacity: refreshingStatus || !coreMetricsReady ? 0.5 : 1 }}
-                  >
-                    <RefreshCw size={12} style={{ animation: refreshingStatus ? 'spin 0.7s linear infinite' : undefined }} />
-                  </button>
-                </div>
-                {sysStatus ? (
-                  <div className="metric-value-appear">
-                    {sysStatus.status === 'operational' ? (
-                      <p className="text-sm font-semibold m-0" style={{ color: STATE.success }}>
-                        Todo funciona correctamente
-                      </p>
-                    ) : sysStatus.status === 'degraded' ? (
-                      <>
-                        <p className="text-sm font-semibold m-0" style={{ color: STATE.warning }}>
-                          Estamos trabajando en ello
-                        </p>
-                        <p className="text-[11px] mt-1 m-0" style={{ color: 'var(--muted-foreground)' }}>
-                          Puede haber demoras. Vuelve a intentarlo en unos minutos.
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-sm font-semibold m-0" style={{ color: STATE.error }}>
-                          Servicio temporalmente no disponible
-                        </p>
-                        <p className="text-[11px] mt-1 m-0" style={{ color: 'var(--muted-foreground)' }}>
-                          Nuestro equipo ya está al tanto. Disculpa los inconvenientes.
-                        </p>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-1.5">
-                    <Skel w="70%" h={14} />
-                    <Skel w="90%" h={11} />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Upgrade CTA — skeleton mientras carga, real cuando resuelve */}
-            {loading ? (
-              <div className="rounded-2xl overflow-hidden"
-                style={{ background: 'var(--card)', boxShadow: 'var(--shadow-surface)', border: '1px solid rgba(var(--brand-primary-rgb),0.08)' }}>
-                <div className="p-5 flex flex-col gap-3">
-                  <Skel w="60%" h={14} />
-                  <Skel w="90%" h={11} />
-                  <Skel w="85%" h={11} />
-                  <Skel w="100%" h={34} r={12} />
-                </div>
-              </div>
-            ) : !isPremium ? (
-              <div className="rounded-2xl overflow-hidden"
-                style={{ border: `1px solid ${R}22`, background: `linear-gradient(145deg,${R}0a,${R}04)` }}>
-                <div className="p-5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Zap size={14} style={{ color: R }} />
-                    <h3 className="text-[13px] font-bold m-0">
-                      {isTrialActive ? `Trial — ${trialDaysRemaining} días` : 'Actualizar plan'}
-                    </h3>
-                  </div>
-                  <p className="text-xs m-0 mb-4 leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
-                    {isTrialActive
-                      ? 'Activa tu plan antes de que venza el trial para mantener el acceso sin interrupciones.'
-                      : 'Desbloquea más agentes, herramientas y conversaciones con un plan de pago.'}
-                  </p>
-                  <Link href="/dashboard/settings"
-                    className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold text-white no-underline"
-                    style={{ background: R, boxShadow: `0 4px 14px ${R}30` }}>
-                    Ver planes <ArrowUpRight size={12} />
-                  </Link>
-                </div>
-              </div>
-            ) : null}
-
-            {/* Ajustes — siempre visible */}
-            <Link href="/dashboard/settings"
-              className="rounded-2xl p-4 no-underline text-inherit flex items-center justify-between gap-3"
-              style={{
-                border: '1px solid rgba(var(--brand-primary-rgb),0.08)',
-                background: 'var(--card)',
-                boxShadow: 'var(--shadow-surface-sm)',
-              }}>
-              <div>
-                <p className="text-[13px] font-bold m-0">Suscripción y cuenta</p>
-                <p className="text-[11px] m-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-                  Facturas · plan · método de pago
-                </p>
-              </div>
-              <ArrowUpRight size={15} style={{ color: 'var(--muted-foreground)', flexShrink: 0 }} />
-            </Link>
-
-          </div>
-        </div>
         {/* ── WIDGET ANALYTICS ─────────────────────────────────────────────── */}
         {widgetCount !== null && (
-          <div className="rounded-2xl overflow-hidden mb-8"
-            style={{ background: 'var(--card)', boxShadow: 'var(--shadow-surface)', border: '1px solid rgba(var(--brand-primary-rgb),0.08)' }}>
-            <div className="p-5 md:p-6">
-
+          <section className="dashboard-surface mb-6">
               {/* Header */}
-              <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
                 <div className="flex items-center gap-2">
                   <div className="flex items-center justify-center rounded-lg" style={{ width: 28, height: 28, background: `${R}12` }}>
                     <BarChart2 size={14} style={{ color: R }} />
@@ -659,7 +351,7 @@ export default function DashboardPage() {
                         {widgetAnalytics.peakHour == null ? '—' : formatHour(widgetAnalytics.peakHour)}
                       </p>
                       <p className="text-[11px] m-0 mt-1" style={{ color: 'var(--muted-foreground)' }}>
-                        {widgetAnalytics.peakHour == null ? 'sin actividad aún' : 'mayor actividad del widget'}
+                        {widgetAnalytics.peakHour == null ? 'sin actividad aún' : `${widgetAnalytics.hourDistribution?.[widgetAnalytics.peakHour] ?? 0} mensajes en esa hora`}
                       </p>
                     </div>
 
@@ -688,11 +380,8 @@ export default function DashboardPage() {
                   </div>
                 </div>
               )}
-            </div>
-          </div>
+          </section>
         )}
-
-      </div>
 
       {/* Modal: respuestas de la encuesta de satisfacción */}
       {feedbackModalOpen && (
@@ -752,7 +441,7 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
-    </div>
+    </DashboardShell>
   );
 }
 
@@ -766,67 +455,6 @@ function AnalyticTile({ icon, label, value, sub }: { icon: React.ReactNode; labe
       </div>
       <p className="text-2xl font-extrabold m-0" style={{ letterSpacing: '-0.03em', color: 'var(--foreground)' }}>{value}</p>
       <p className="text-[10px] m-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{sub}</p>
-    </div>
-  );
-}
-
-/* ── Métrica pequeña reutilizable ─────────────────────────────────────────── */
-function MetricCard({
-  accent, icon, label, value, sub, bar,
-}: {
-  accent: string;
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  sub: string;
-  bar?: { pct: number; color: string };
-}) {
-  const isLoading = value === '—';
-
-  return (
-    <div
-      className="rounded-2xl overflow-hidden"
-      style={{
-        background: 'var(--card)',
-        boxShadow: 'var(--shadow-surface-sm)',
-        border: '1px solid rgba(var(--brand-primary-rgb),0.08)',
-      }}
-    >
-      <div className="p-4">
-        <div className="flex items-center gap-1.5 mb-3">
-          <div
-            className="flex items-center justify-center rounded-md"
-            style={{ width: 22, height: 22, background: `${accent}14` }}
-          >
-            {icon}
-          </div>
-          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>
-            {label}
-          </span>
-        </div>
-
-        {isLoading ? (
-          <div className="flex flex-col gap-2 mt-1">
-            <div className="metric-skeleton" style={{ height: 28, width: '55%', borderRadius: 6 }} />
-            <div className="metric-skeleton" style={{ height: 11, width: '75%', borderRadius: 4 }} />
-          </div>
-        ) : (
-          <div key={value} className="metric-value-appear">
-            <p className="text-2xl font-extrabold m-0" style={{ letterSpacing: '-0.03em' }}>{value}</p>
-            <p className="text-[11px] m-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{sub}</p>
-          </div>
-        )}
-
-        {bar && (
-          <div className="mt-2.5 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(var(--brand-primary-rgb),0.08)' }}>
-            {isLoading ? (
-              <div className="metric-skeleton" style={{ height: '100%', width: '40%', borderRadius: 999 }} />
-            ) : (
-              <div style={{ height: '100%', width: `${bar.pct}%`, background: bar.color, borderRadius: 999, transition: 'width 0.6s cubic-bezier(0.22,1,0.36,1)' }} />
-            )}
-          </div>
-        )}
-      </div>
     </div>
   );
 }

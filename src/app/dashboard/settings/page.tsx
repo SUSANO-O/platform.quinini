@@ -9,6 +9,9 @@ import { InvoiceList } from '@/components/billing/invoice-list';
 import { useEffect, useState, useRef, type ChangeEvent } from 'react';
 import Link from 'next/link';
 import { CreditCard, ExternalLink, Settings, Sparkles, CheckCircle2, AlertTriangle, ShieldCheck, ShieldOff } from 'lucide-react';
+import { DashboardShell } from '@/components/dashboard/dashboard-shell';
+import { DashboardPageHeader } from '@/components/dashboard/dashboard-page-header';
+import { DashboardSectionNav } from '@/components/dashboard/dashboard-section-nav';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { AvatarEditor } from '@/components/ui/AvatarEditor';
@@ -364,11 +367,7 @@ export default function SettingsPage() {
   const billingRestricted = !emailVerified && !user?.impersonation;
 
   return (
-    <div className="relative overflow-hidden min-h-full">
-      <div className="hero-glow pointer-events-none" style={{ background: BRAND.primary, top: '-200px', right: '-80px' }} />
-      <div className="hero-glow pointer-events-none" style={{ background: BRAND.cool, top: '100px', left: '-120px' }} />
-
-      <div className="relative max-w-2xl mx-auto px-4 py-4">
+    <DashboardShell width="narrow">
       <ConfirmDialog
         open={showCancelConfirm}
         title="Cancelar suscripción"
@@ -385,47 +384,25 @@ export default function SettingsPage() {
         onSaved={() => refresh({ silent: true })}
       />
 
-      <div className="badge-primary mb-3 w-fit">
-        <Sparkles size={13} />
-        Configuración
-      </div>
-      <h1 className="text-2xl md:text-3xl font-bold tracking-tight m-0 flex items-center gap-2 flex-wrap">
-        <span
-          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-          style={{ background: `${BRAND.primary}12`, border: `1px solid ${BRAND.primary}28` }}
-        >
-          <Settings size={20} style={{ color: BRAND.primary }} strokeWidth={1.75} />
-        </span>
-        <span>
-          <span className="gradient-text">Ajustes</span>
-        </span>
-      </h1>
-      <p className="text-sm mt-2 mb-4 m-0" style={{ color: 'var(--muted-foreground)' }}>
-        Información de tu cuenta y suscripción — misma línea visual que el resto del dashboard.
-      </p>
+      <DashboardPageHeader
+        badge="Configuración"
+        badgeIcon={Sparkles}
+        title=""
+        titleAccent="Ajustes"
+        description="Cuenta, seguridad, plan y facturación."
+        hideIcon
+        compact
+      />
 
-      <nav
-        className="sticky top-[52px] md:top-0 z-10 flex flex-wrap gap-2 mb-6 p-2 rounded-xl border card-texture"
-        style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
-        aria-label="Secciones de ajustes"
-      >
-        {[
+      <DashboardSectionNav
+        items={[
           { id: 'settings-account', label: 'Cuenta' },
           { id: 'settings-security', label: 'Seguridad' },
           { id: 'settings-billing', label: 'Plan' },
           { id: 'settings-rag-limits', label: 'Almacenamiento' },
           { id: 'settings-invoices', label: 'Facturas' },
-        ].map((s) => (
-          <a
-            key={s.id}
-            href={`#${s.id}`}
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold no-underline transition-colors hover:opacity-90"
-            style={{ background: 'var(--muted)', color: 'var(--foreground)' }}
-          >
-            {s.label}
-          </a>
-        ))}
-      </nav>
+        ]}
+      />
 
       {/* Account info */}
       <div id="settings-account" className="scroll-mt-24 rounded-2xl overflow-hidden border mb-5 card-texture" style={{ borderColor: 'var(--border)' }} data-tour="settings-account">
@@ -1161,8 +1138,7 @@ export default function SettingsPage() {
 
         </div>
       </div>
-      </div>
-    </div>
+    </DashboardShell>
   );
 }
 

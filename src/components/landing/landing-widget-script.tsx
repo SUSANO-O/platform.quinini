@@ -219,7 +219,17 @@ export function LandingWidgetScript() {
 
       if (existingScript) {
         if (existingScript.src !== scriptSrc) {
+          destroyInstance();
+          removeAssistDom();
+          try {
+            delete (window as unknown as Record<string, unknown>).__BIV;
+          } catch {
+            /* noop */
+          }
           existingScript.src = scriptSrc;
+          existingScript.addEventListener('load', onScriptLoaded, { once: true });
+          existingScript.addEventListener('error', onScriptError, { once: true });
+          return;
         }
         if (window.__BIV) {
           onScriptLoaded();

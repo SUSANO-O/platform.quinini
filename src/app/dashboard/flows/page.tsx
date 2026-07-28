@@ -20,6 +20,7 @@ import { useSubscription } from '@/hooks/use-subscription';
 import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 import { DashboardPageHeader } from '@/components/dashboard/dashboard-page-header';
 import { DashboardButton, DashboardButtonLink } from '@/components/dashboard/dashboard-button';
+import { DashboardPlanUsageBar } from '@/components/dashboard/dashboard-plan-usage-bar';
 import { DashboardEmptyState } from '@/components/dashboard/dashboard-empty-state';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -211,6 +212,8 @@ export default function FlowsPage() {
         title="Flujos"
         titleAccent="conversacionales"
         description="Diseña, publica y embebe flujos guiados en tu widget."
+        compact
+        hideIcon
         actions={(
           <div className="flex flex-wrap gap-2">
             {atLimit ? (
@@ -250,36 +253,14 @@ export default function FlowsPage() {
       />
 
       {!unlimited && limit > 0 && (
-        <div className="dashboard-plan-usage">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <div className="flex justify-between text-xs font-semibold mb-2">
-                <span>Flujos usados</span>
-                <span className={atLimit ? 'text-[var(--state-error)]' : 'text-[var(--muted-foreground)]'}>
-                  {used} / {limitLabel}
-                </span>
-              </div>
-              <div className="dashboard-plan-usage__bar">
-                <div
-                  className={`dashboard-plan-usage__fill${atLimit ? ' dashboard-plan-usage__fill--limit' : ''}`}
-                  style={{ width: `${quotaPct}%` }}
-                />
-              </div>
-            </div>
-            <div className="text-xs shrink-0 text-[var(--muted-foreground)]">
-              Plan:{' '}
-              <span className="font-bold capitalize text-[var(--foreground)]">{plan}</span>
-            </div>
-            {atLimit ? (
-              <Link
-                href="/dashboard/settings#settings-billing"
-                className="text-xs font-bold px-3 py-1.5 rounded-full no-underline transition-opacity hover:opacity-90 landing-link-accent border border-[rgba(var(--brand-primary-rgb),0.22)] bg-[linear-gradient(135deg,rgba(var(--brand-primary-rgb),0.12),rgba(var(--brand-cool-rgb),0.1))]"
-              >
-                Actualizar plan →
-              </Link>
-            ) : null}
-          </div>
-        </div>
+        <DashboardPlanUsageBar
+          label="Flujos usados"
+          used={used}
+          limitLabel={limitLabel}
+          percent={quotaPct}
+          atLimit={atLimit}
+          plan={plan}
+        />
       )}
 
       {listLoading ? (

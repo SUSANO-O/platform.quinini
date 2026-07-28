@@ -418,7 +418,7 @@ export default function WidgetPreviewPage() {
       </h1>
       <p style={{ color: 'var(--muted-foreground)', fontSize: 13, marginBottom: widget ? 10 : 20 }}>
         {widget
-          ? `Probando «${widget.name}». Usa el botón flotante para chatear.`
+          ? 'Probando «' + widget.name + '». Usa el botón flotante para chatear. Cada respuesta aquí cuenta como media conversación de tu plan.'
           : loading
             ? 'Preparando la vista previa de tu widget.'
             : 'Abre esta vista desde Mis widgets con el botón Preview.'}

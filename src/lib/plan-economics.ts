@@ -5,7 +5,8 @@
 
 import {
   PAID_PLAN_IDS,
-  PLAN_CONVERSATION_LIMITS,
+  PLAN_AGENT_CONVERSATION_LIMITS,
+  PLAN_API_CONVERSATION_LIMITS,
   PLAN_PRICES_USD,
   PLAN_RAG_LIMITS,
   CONVERSATION_PACKS,
@@ -23,6 +24,7 @@ import {
   formatConversationAnalyticsFeature,
   type PaidPlanId,
   type PlanId,
+  isApiOnlyPlan,
 } from '@/lib/plan-catalog';
 import { financeRateConfig, estimatedUsdPerMessageWithRag } from '@/lib/finance-rates';
 import { estimatePlanInfraUsdMonth } from '@/lib/finance-infra';
@@ -75,7 +77,9 @@ export type PlanEconomicsRow = {
 export function buildPlanEconomicsRows(): PlanEconomicsRow[] {
   return PAID_PLAN_IDS.map((planId) => {
     const priceUsd = PLAN_PRICES_USD[planId];
-    const conversations = PLAN_CONVERSATION_LIMITS[planId];
+    const conversations = isApiOnlyPlan(planId)
+      ? (PLAN_API_CONVERSATION_LIMITS[planId] ?? 0)
+      : (PLAN_AGENT_CONVERSATION_LIMITS[planId] ?? 50);
     const tier = PLAN_ASSUMED_MODEL_TIER[planId];
     const ragEnabled = PLAN_RAG_LIMITS[planId] !== null;
     const costPerConv = costPerMessageUsd(tier, ragEnabled);
@@ -167,7 +171,11 @@ export function buildPlanComparisonRows(): PlanComparisonRow[] {
       id,
       label: PLAN_DISPLAY[id]?.label ?? id,
       priceLabel: PLAN_DISPLAY[id]?.priceLabel ?? '—',
-      conversations: formatConvLimit(PLAN_CONVERSATION_LIMITS[id]),
+      conversations: formatConvLimit(
+        isApiOnlyPlan(id)
+          ? (PLAN_API_CONVERSATION_LIMITS[id] ?? 0)
+          : (PLAN_AGENT_CONVERSATION_LIMITS[id] ?? 50),
+      ),
       agents: formatAgentLimit(PLAN_AGENT_LIMITS[id]),
       rag: rag ? `${rag.mb} MB · ${rag.sources} fuentes` : '—',
       history: formatHistoryDays(PLAN_HISTORY_RETENTION_DAYS[id]),
@@ -233,7 +241,9 @@ const BotIvA_BENCHMARKS: MarketBenchmark[] = PAID_PLAN_IDS.map((id) =>
   bench(
     `BotIvA ${PLAN_DISPLAY[id].label}`,
     PLAN_PRICES_USD[id],
-    PLAN_CONVERSATION_LIMITS[id],
+    isApiOnlyPlan(id)
+      ? (PLAN_API_CONVERSATION_LIMITS[id] ?? 0)
+      : (PLAN_AGENT_CONVERSATION_LIMITS[id] ?? 50),
     'conversation',
     'BotIvA',
   ),
@@ -308,7 +318,7 @@ export function packEconomicsVsPlans() {
   return CONVERSATION_PACKS.map((pack) => {
     const perConv = pack.price / pack.conversations;
     const cheapestPlanPerConv = Math.min(
-      ...PAID_PLAN_IDS.map((id) => PLAN_PRICES_USD[id] / PLAN_CONVERSATION_LIMITS[id]),
+      ...PAID_PLAN_IDS.map((id) => PLAN_PRICES_USD[id] / PLAN_AGENT_CONVERSATION_LIMITS[id]),
     );
     return {
       packId: pack.id,
@@ -316,7 +326,7 @@ export function packEconomicsVsPlans() {
       conversations: pack.conversations,
       perConv,
       cheaperThanCheapestPlan: perConv < cheapestPlanPerConv,
-      premiumVsPlus: perConv / (PLAN_PRICES_USD.plus / PLAN_CONVERSATION_LIMITS.plus),
+      premiumVsPlus: perConv / (PLAN_PRICES_USD.plus / PLAN_AGENT_CONVERSATION_LIMITS.plus),
     };
   });
 }
