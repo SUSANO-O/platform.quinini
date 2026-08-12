@@ -6,7 +6,7 @@
 import { ASSIST_WIDGET_ORB_SRC } from '@/lib/brand';
 
 /** Mantener en sync con `VERSION` en scripts/widget/core.js (cache-bust de assist.js). */
-export const WIDGET_SDK_VERSION = '1.6.77';
+export const WIDGET_SDK_VERSION = '1.6.81';
 
 const ASSIST_FAB_AVATAR_PX = 60;
 const ASSIST_FAB_MARKETING_PX = 72;
@@ -91,7 +91,7 @@ export function resolveInternalAssistBoot(
   return {
     agentId: envStr('INTERNAL_APP_ASSIST_AGENT_ID', 'math-ais'),
     host,
-    color: envStr('INTERNAL_APP_ASSIST_COLOR', '#006B7D'),
+    color: envStr('INTERNAL_APP_ASSIST_COLOR', '#111111'),
     title: envStr('INTERNAL_APP_ASSIST_TITLE', 'Math-ais'),
     subtitle: envStr('INTERNAL_APP_ASSIST_SUBTITLE', 'En linea'),
     welcome: envStr('INTERNAL_APP_ASSIST_WELCOME', 'Hola! Como puedo ayudarte hoy?'),
@@ -103,8 +103,8 @@ export function resolveInternalAssistBoot(
     handoffEnabled: false,
     position: 'bottom-right',
     edgeInset: envNum('INTERNAL_ASSIST_EDGE_INSET', 20),
-    offsetBottom: envNum('INTERNAL_ASSIST_OFFSET_BOTTOM', 20),
-    offsetTop: envNum('INTERNAL_ASSIST_OFFSET_TOP', 20),
+    offsetBottom: envNum('INTERNAL_APP_ASSIST_OFFSET_BOTTOM', 72),
+    offsetTop: envNum('INTERNAL_APP_ASSIST_OFFSET_TOP', 20),
     humanSupportPhone: envStr('INTERNAL_ASSIST_HUMAN_PHONE', '+57 313 3174629'),
     borderRadius: envNum('INTERNAL_ASSIST_BORDER_RADIUS', 16),
     theme: 'light',

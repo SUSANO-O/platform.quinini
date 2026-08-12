@@ -21,6 +21,8 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { LandingAccessGate } from '@/components/auth/landing-access-gate';
+import { ThemeProvider } from '@mui/material/styles';
+import { dashboardMuiTheme } from '@/theme/dashboard-mui-theme';
 
 import { CHECKOUT_UPGRADE_PLAN_IDS, PLAN_DISPLAY, effectiveProductPlan, isApiOnlyDashboardPath, isApiOnlyPlan } from '@/lib/plan-catalog';
 import { buildTrialExpiredWhatsAppUrl } from '@/lib/sales-whatsapp';
@@ -330,6 +332,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     <QueryProvider>
     <SubscriptionProvider>
       <TourProvider>
+      <ThemeProvider theme={dashboardMuiTheme}>
       <SubscriptionExpiryGate />
       <div
         className="dashboard-root-texture"
@@ -429,6 +432,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         )}
         </div>
       </div>
+      </ThemeProvider>
       </TourProvider>
     </SubscriptionProvider>
     </QueryProvider>

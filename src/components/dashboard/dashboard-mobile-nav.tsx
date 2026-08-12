@@ -23,7 +23,7 @@ import {
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { PwaInstallButton } from '@/components/shared/pwa-install-button';
 import { SidebarVersionLink } from '@/components/dashboard/sidebar-version-link';
-import { BotivaOrbLogo } from '@/components/brand/botiva-orb-logo';
+import { BRAND_FAVICON_SRC, BRAND_NAME } from '@/lib/brand';
 import { useInboxOpenCount } from '@/hooks/use-inbox-open-count';
 import { useSubscription } from '@/hooks/use-subscription';
 import { canUseApiAccess, canUseConversationFlows, effectiveProductPlan, isApiOnlyPlan, isSoloChatOnlyPlan } from '@/lib/plan-catalog';
@@ -152,6 +152,7 @@ export function DashboardMobileNav({
       </Drawer>
 
       <Paper
+        className="dashboard-mobile-nav-bar"
         elevation={8}
         sx={{
           display: { xs: 'block', md: 'none' },
@@ -161,52 +162,66 @@ export function DashboardMobileNav({
           bottom: 0,
           zIndex: (t) => t.zIndex.appBar,
           borderRadius: 0,
-          pb: 'env(safe-area-inset-bottom)',
           borderTop: '1px solid',
           borderColor: 'divider',
+          bgcolor: 'background.paper',
         }}
       >
         <Box
           sx={{
-            position: 'relative',
-            display: 'flex',
+            display: 'grid',
+            gridTemplateColumns: '1fr auto 1fr',
             alignItems: 'center',
-            height: MOBILE_NAV_HEIGHT_PX,
+            minHeight: MOBILE_NAV_HEIGHT_PX,
             px: 0.5,
+            pb: 'env(safe-area-inset-bottom)',
           }}
         >
-          <IconButton
-            aria-label="Abrir menú"
-            onClick={() => setMenuOpen(true)}
-            sx={{ width: 48, height: 48, color: 'text.primary', flexShrink: 0 }}
-          >
-            <Menu size={24} strokeWidth={1.75} aria-hidden />
-          </IconButton>
-          <Typography component="span" variant="body2" fontWeight={700} sx={{ ml: 0.25 }}>
-            Menú
-          </Typography>
+          <Stack direction="row" alignItems="center" sx={{ justifySelf: 'start' }}>
+            <IconButton
+              aria-label="Abrir menú"
+              onClick={() => setMenuOpen(true)}
+              sx={{ width: 48, height: 48, color: 'text.primary', flexShrink: 0 }}
+            >
+              <Menu size={24} strokeWidth={1.75} aria-hidden />
+            </IconButton>
+            <Typography component="span" variant="body2" fontWeight={700} sx={{ ml: 0.25 }}>
+              Menú
+            </Typography>
+          </Stack>
 
           <Box
             component={Link}
             href="/dashboard"
             aria-label="Ir al inicio del panel"
             sx={{
-              position: 'absolute',
-              left: '50%',
-              top: '50%',
-              transform: 'translate(-50%, -50%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: 40,
-              height: 40,
+              width: 36,
+              height: 36,
               lineHeight: 0,
               textDecoration: 'none',
-              zIndex: 1,
             }}
           >
-            <BotivaOrbLogo size={38} className="shrink-0" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={BRAND_FAVICON_SRC}
+              alt={BRAND_NAME}
+              width={30}
+              height={30}
+              style={{
+                display: 'block',
+                width: 30,
+                height: 30,
+                objectFit: 'contain',
+                objectPosition: 'center',
+              }}
+              draggable={false}
+            />
           </Box>
+
+          <Box aria-hidden sx={{ justifySelf: 'end', width: 48 }} />
         </Box>
       </Paper>
     </>

@@ -8,7 +8,7 @@ import { Crown, ShieldCheck, Sparkles } from '@/components/ui/icons';
 const STORAGE_KEY = 'af_dashboard_subscription_hero_intro_v1';
 
 const R = 'var(--primary)';
-const O = 'var(--brand-warm)';
+const O = '#737373';
 const B = 'var(--foreground)';
 
 type Props = {
@@ -261,7 +261,7 @@ export function SubscriptionStatusHero({
       <div
         className="pointer-events-none absolute left-0 right-0 top-0 h-[3px] rounded-t-2xl"
         style={{
-          background: `linear-gradient(90deg, ${R}, ${O}, ${B})`,
+          background: 'linear-gradient(90deg, #111111, #525252, #737373)',
           opacity: isPremium ? 1 : 0.55,
         }}
       />
@@ -373,8 +373,8 @@ export function SubscriptionStatusHero({
                 onClick={() => onCheckout(plan.id)}
                 className="cursor-pointer rounded-xl border-0 px-4 py-2 text-xs font-bold text-white shadow-md transition-transform hover:scale-[1.02]"
                 style={{
-                  background: plan.popular ? R : plan.color,
-                  boxShadow: plan.popular ? '0 4px 16px rgba(var(--brand-primary-rgb),0.25)' : undefined,
+                  background: plan.popular ? '#525252' : '#737373',
+                  boxShadow: plan.popular ? '0 4px 16px rgba(82, 82, 82, 0.22)' : undefined,
                 }}
               >
                 {plan.name} {plan.price}

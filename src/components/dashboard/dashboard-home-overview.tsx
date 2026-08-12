@@ -4,7 +4,7 @@ import Link from 'next/link';
 import {
   Code2, Lock, MessageSquare, RefreshCw,
 } from '@/components/ui/icons';
-import { BRAND, STATE, R } from '@/lib/brand-colors';
+import { STATE } from '@/lib/brand-colors';
 import { PlanFeaturesGlassPanel } from '@/components/dashboard/plan-features-glass-panel';
 import { DashboardActivityMetrics } from '@/components/dashboard/dashboard-activity-metrics';
 import type { DashboardPlanFeature } from '@/lib/dashboard-plan-features';
@@ -50,6 +50,9 @@ interface SystemStatus {
   status: 'operational' | 'degraded' | 'down';
   services: { name: string; status: string; latencyMs: number | null }[];
 }
+
+const POOL_ACCENT_WIDGET = '#111111';
+const POOL_ACCENT_API = '#737373';
 
 function Skel({ w, h, r = 6 }: { w: string | number; h: number; r?: number }) {
   return (
@@ -131,7 +134,7 @@ function UsagePoolCard({
                 className="dashboard-pool-card__bar-fill"
                 style={{
                   width: `${pct}%`,
-                  background: warn ? STATE.error : `linear-gradient(90deg,${accent},${BRAND.primaryLight})`,
+                  background: warn ? STATE.error : POOL_ACCENT_WIDGET,
                 }}
               />
             </div>
@@ -271,7 +274,7 @@ export function DashboardHomeOverview({
           subtitle="Widget, cron y preview (0,5 conv. por respuesta en preview)"
           icon={<MessageSquare size={14} />}
           pool={agentsPool}
-          accent={R}
+          accent={POOL_ACCENT_WIDGET}
           footer={
             usage && usage.activePacks.length > 0 ? (
               <div className="dashboard-pool-card__packs">
@@ -295,7 +298,7 @@ export function DashboardHomeOverview({
           subtitle={`POST /agents/:id/chat · add-on +$${usage?.apiAddon.priceUsd ?? 19}/mes`}
           icon={<Code2 size={14} />}
           pool={hasApi ? apiPool : null}
-          accent={BRAND.primaryLight}
+          accent={POOL_ACCENT_API}
           locked={!hasApi}
           lockedMessage={
             usage?.canPurchaseApiAddon
