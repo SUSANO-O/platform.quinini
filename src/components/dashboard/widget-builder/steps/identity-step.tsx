@@ -28,6 +28,7 @@ import {
   WidgetBuilderHint,
   WidgetBuilderInput,
   WidgetBuilderLabel,
+  WidgetBuilderTogglePanel,
 } from '../ui';
 
 export type WidgetBuilderIdentityStepProps = {
@@ -89,53 +90,35 @@ export function WidgetBuilderIdentityStep({
         </WidgetBuilderField>
       </div>
 
-      {multiAgentEligible && (
-        <div className="widget-builder-feature-card" data-tour="widget-builder-multi-agent">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <input
-              type="checkbox"
-              id="multiAgentEnabled"
-              checked={cfg.multiAgentEnabled}
-              onChange={(e) =>
-                onChange({
-                  multiAgentEnabled: e.target.checked,
-                  ...(e.target.checked
-                    ? {}
-                    : {
-                        agentIds: [],
-                        orchestratorAgentIds: [],
-                        multiAgentMode: 'triage',
-                        pipelineConfig: null,
-                      }),
-                })
-              }
-              style={{ width: 16, height: 16, cursor: 'pointer' }}
-            />
-            <label htmlFor="multiAgentEnabled" style={{ fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-              Widget multiagente avanzado
-            </label>
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                padding: '2px 6px',
-                borderRadius: 6,
-                background: 'rgba(var(--brand-primary-rgb), 0.12)',
-                color: WIDGET_BUILDER_UI_ACCENT,
-              }}
-            >
-              Business · Enterprise
-            </span>
-          </div>
-          <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.45 }}>
-            {cfg.multiAgentEnabled
+      {multiAgentEligible ? (
+        <WidgetBuilderTogglePanel
+          active={cfg.multiAgentEnabled}
+          accentColor={WIDGET_BUILDER_UI_ACCENT}
+          title="Widget multiagente avanzado"
+          badge="Business · Enterprise"
+          description={
+            cfg.multiAgentEnabled
               ? 'Selecciona varios agentes en la grilla de abajo. Cada uno aporta su equipo al triaje.'
-              : 'Sin activar esto, un solo agente en la grilla; sus sub-agentes se enrutan solos si existen.'}
-          </p>
-        </div>
-      )}
+              : 'Sin activar esto, un solo agente en la grilla; sus sub-agentes se enrutan solos si existen.'
+          }
+          onToggle={(multiAgentEnabled) =>
+            onChange({
+              multiAgentEnabled,
+              ...(multiAgentEnabled
+                ? {}
+                : {
+                    agentIds: [], 
+                    orchestratorAgentIds: [],
+                    multiAgentMode: 'triage',
+                    pipelineConfig: null,
+                  }),
+            })
+          }
+          control="checkbox"
+          checkboxId="multiAgentEnabled"
+          tourId="widget-builder-multi-agent"
+        />
+      ) : null}
 
       <div data-tour="widget-builder-agent">
         <WidgetBuilderField>

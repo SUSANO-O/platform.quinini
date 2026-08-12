@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Lock, CheckCircle, Loader2, Eye, EyeOff } from '@/components/ui/icons';
 import { BotivaOrbLogo } from '@/components/brand/botiva-orb-logo';
+import { BRAND_NAME } from '@/lib/brand';
 
 function ResetPasswordContent() {
   const params = useSearchParams();
