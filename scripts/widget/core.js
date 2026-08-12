@@ -2833,6 +2833,7 @@
       avatar.className = 'afhub-msg-avatar';
       avatar.setAttribute('aria-hidden', 'true');
       if (cfg.avatar && String(cfg.avatar).trim()) {
+        avatar.classList.add('afhub-msg-avatar--silhouette');
         if (isVectorAvatar(cfg.avatar)) avatar.classList.add('afhub-msg-avatar--vector');
         avatar.innerHTML = '<img src="' + escapeAttr(cfg.avatar) + '" alt="">';
       } else {
@@ -3116,6 +3117,41 @@
       return { title: 'Pensando…', sub: s };
     }
 
+    /** Texto breve y amigable bajo los tres puntos (sin jerga técnica). */
+    function thinkingCaptionFromStatus(statusLabel, statusPhase) {
+      var phase = String(statusPhase || '').trim();
+      var s = String(statusLabel || '').trim();
+      var lower = s.toLowerCase();
+      if (phase === 'prepare' || phase === 'validate') return 'Preparando tu solicitud…';
+      if (phase === 'enrich') return 'Recordando el contexto…';
+      if (phase === 'vision') return 'Analizando la imagen…';
+      if (phase === 'resolve' || phase === 'triage') return 'Entendiendo tu consulta…';
+      if (phase === 'skills') return 'Activando habilidades…';
+      if (phase === 'rag') return 'Revisando documentos…';
+      if (phase === 'tools' || phase === 'mcp') {
+        if (/invent|stock|repuesto|hoja|sheet|cat[aá]logo/.test(lower)) return 'Consultando inventario…';
+        return 'Buscando información…';
+      }
+      if (phase === 'model' || phase === 'start') return 'Redactando respuesta…';
+      if (phase === 'hub') return 'Procesando tu consulta…';
+      if (phase === 'handoff') return 'Conectando con un especialista…';
+      if (phase === 'parallel') return 'Consultando expertos…';
+      if (phase === 'pipeline' || phase === 'content') return 'Reuniendo información…';
+      if (phase === 'creative') return 'Creando contenido…';
+      if (phase === 'synthesize') return 'Preparando respuesta…';
+      if (/invent|stock|repuesto|hoja/.test(lower)) return 'Consultando inventario…';
+      if (/document|indexad/.test(lower)) return 'Revisando documentos…';
+      if (/captura|imagen|foto/.test(lower)) return 'Analizando la imagen…';
+      if (/especialist|deriv/.test(lower)) return 'Conectando con un especialista…';
+      if (/generando|redact|escrib/.test(lower)) return 'Redactando respuesta…';
+      if (/subiendo|archivo/.test(lower)) return 'Subiendo archivo…';
+      if (/analiz/.test(lower)) return 'Analizando…';
+      if (/consult/.test(lower)) return 'Consultando…';
+      if (/herramient|integrac|conect/.test(lower)) return 'Buscando información…';
+      if (/prepar/.test(lower)) return 'Preparando…';
+      return 'Un momento…';
+    }
+
     function clearTypingTimer() {
       if (typingTimerHandle) {
         clearInterval(typingTimerHandle);
@@ -3138,10 +3174,10 @@
         var sec = Math.floor((Date.now() - typingStartedAt) / 1000);
 
         if (sec >= SLOW_TYPING_MESSAGE_AFTER_SEC) {
-          var subEl = el.querySelector('.afhub-thinking-sub');
-          if (subEl && subEl.getAttribute('data-slow') !== '1') {
-            subEl.setAttribute('data-slow', '1');
-            subEl.textContent = 'Está tardando más de lo habitual. Seguimos trabajando en tu respuesta…';
+          var capEl = el.querySelector('.afhub-thinking-caption');
+          if (capEl && capEl.getAttribute('data-slow') !== '1') {
+            capEl.setAttribute('data-slow', '1');
+            capEl.textContent = 'Tarda un poco más de lo usual…';
           }
         }
 
@@ -3159,23 +3195,33 @@
       }, 1000);
     }
 
+    function setInputAgentBusy(busy) {
+      if (!inputComposer) return;
+      if (busy) {
+        inputComposer.classList.add('afhub-input-composer--agent-busy');
+        inputComposer.classList.remove('afhub-input-composer--typing', 'afhub-input-composer--type-pulse');
+        if (input && typeof input.blur === 'function') input.blur();
+      } else {
+        inputComposer.classList.remove('afhub-input-composer--agent-busy');
+      }
+    }
+
     function renderThinkingCard(el, statusLabel, statusPhase) {
-      var copy = thinkingCopyFromStatus(statusLabel, statusPhase);
+      var caption = thinkingCaptionFromStatus(statusLabel, statusPhase);
       el.innerHTML =
-        '<div class="afhub-thinking-head">' +
-          '<span class="afhub-thinking-pulse" aria-hidden="true"></span>' +
-          '<div class="afhub-thinking-titles">' +
-            '<span class="afhub-thinking-sub">' + escapeHtml(copy.sub) + '</span>' +
-          '</div>' +
+        '<div class="afhub-thinking-beam-ring" aria-hidden="true">' +
+          '<span class="afhub-thinking-beam-spin"></span>' +
         '</div>' +
-        '<div class="afhub-thinking-meta">' +
-          '<span class="afhub-thinking-elapsed"></span>' +
+        '<div class="afhub-thinking-inner">' +
+          '<span class="afhub-thinking-caption">' + escapeHtml(caption) + '</span>' +
           '<span class="afhub-thinking-dots" aria-hidden="true"><span></span><span></span><span></span></span>' +
+          '<span class="afhub-thinking-elapsed"></span>' +
         '</div>';
     }
 
     function showTyping(statusLabel, statusPhase) {
       hideTyping();
+      setInputAgentBusy(true);
       var row = document.createElement('div');
       row.className = 'afhub-msg-row afhub-msg-row--bot afhub-msg-row--typing';
       row.id = typingRowId;
@@ -3203,21 +3249,24 @@
         showTyping(statusLabel, statusPhase);
         return;
       }
-      var subEl = el.querySelector('.afhub-thinking-sub');
-      if (subEl && subEl.getAttribute('data-slow') === '1') return;
+      var capEl = el.querySelector('.afhub-thinking-caption');
+      if (capEl && capEl.getAttribute('data-slow') === '1') return;
       if (statusPhase) el.setAttribute('data-phase', String(statusPhase));
-      var copy = thinkingCopyFromStatus(statusLabel, statusPhase);
-      var titleEl = el.querySelector('.afhub-thinking-title');
-      if (titleEl) titleEl.textContent = copy.title;
-      if (subEl) {
-        subEl.removeAttribute('data-slow');
-        subEl.textContent = copy.sub;
+      if (capEl) {
+        capEl.removeAttribute('data-slow');
+        capEl.textContent = thinkingCaptionFromStatus(statusLabel, statusPhase);
+      }
+      if (cfg.debug) {
+        var titleEl = el.querySelector('.afhub-thinking-title');
+        var copy = thinkingCopyFromStatus(statusLabel, statusPhase);
+        if (titleEl) titleEl.textContent = copy.title;
       }
       messages.scrollTop = messages.scrollHeight;
     }
 
     function hideTyping() {
       clearTypingTimer();
+      setInputAgentBusy(false);
       var row = document.getElementById(typingRowId);
       if (row) {
         row.remove();
@@ -5927,9 +5976,10 @@
           '#' + rootId + ' .afhub-powered { color:#6b6b78; }' +
           '#' + rootId + ' .afhub-powered a { color:#9a9aaa; }' +
           '#' + rootId + ' .afhub-dot { background:#777; }' +
-          '#' + rootId + ' .afhub-thinking-card { background:#3a3a3c; border:none; box-shadow:0 2px 10px rgba(0,0,0,.28), 0 0 0 0.5px rgba(255,255,255,.08); -webkit-backdrop-filter:none; backdrop-filter:none; }' +
-          '#' + rootId + ' .afhub-thinking-title { display:none; }' +
-          '#' + rootId + ' .afhub-thinking-sub { display:none; }' +
+          '#' + rootId + ' .afhub-thinking-card { background:transparent; border:none; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; }' +
+          '#' + rootId + ' .afhub-msg.bot.afhub-thinking-card { background:transparent !important; box-shadow:none !important; }' +
+          '#' + rootId + ' .afhub-thinking-inner { background:#3a3a3c; box-shadow:0 2px 10px rgba(0,0,0,.28), 0 0 0 0.5px rgba(255,255,255,.08); }' +
+          '#' + rootId + ' .afhub-thinking-caption { color:#c8c8d4; }' +
           '#' + rootId + ' .afhub-thinking-elapsed { color:#6b7280; }' +
           '#' + rootId + ' .afhub-skel-line { display:none; }' +
           '#' + rootId + ' .afhub-thinking-dots span { background:#f5f5f7; }' +
@@ -6007,6 +6057,10 @@
         ' .afhub-input-beam-ring { opacity:0 !important; } #' +
         rootId +
         ' .afhub-input-beam-spin,#' + rootId + ' .afhub-input-beam-bloom { animation:none !important; } #' +
+        rootId +
+        ' .afhub-thinking-beam-ring { opacity:.85 !important; } #' +
+        rootId +
+        ' .afhub-thinking-beam-spin { animation:none !important; } #' +
         rootId +
         ' .afhub-input-composer:focus-within .afhub-input-beam-ring { opacity:.65 !important; } }' +
       '#' + rootId + '.afhub-open .afhub-launcher { display:none !important; visibility:hidden !important; pointer-events:none !important; }' +
@@ -6340,8 +6394,9 @@
       '#' + rootId + ' .afhub-msg-row--bot { align-self:flex-start; }' +
       '#' + rootId + ' .afhub-msg-stack { display:flex; flex-direction:column; gap:4px; min-width:0; max-width:calc(100% - 36px); flex:1; }' +
       '#' + rootId + ' .afhub-msg-row--bot .afhub-msg { max-width:100%; }' +
-      '#' + rootId + ' .afhub-msg-avatar { width:32px; height:32px; border-radius:50%; flex-shrink:0; background:transparent; border:none; display:flex; align-items:center; justify-content:center; overflow:visible; margin-bottom:2px; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; }' +
-      '#' + rootId + ' .afhub-msg-avatar img { width:100%; height:100%; object-fit:cover; }' +
+      '#' + rootId + ' .afhub-msg-avatar { width:32px; height:32px; border-radius:50%; flex-shrink:0; background:transparent; border:none; display:flex; align-items:center; justify-content:center; overflow:hidden; margin-bottom:2px; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; }' +
+      '#' + rootId + ' .afhub-msg-avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }' +
+      '#' + rootId + ' .afhub-msg-avatar.afhub-msg-avatar--silhouette img { object-fit:contain; object-position:center center; filter:drop-shadow(0 1px 4px rgba(15,23,42,.1)); }' +
       '#' + rootId + ' .afhub-msg-avatar.afhub-msg-avatar--vector { background:transparent; box-shadow:none; overflow:visible; -webkit-backdrop-filter:none; backdrop-filter:none; }' +
       '#' + rootId + ' .afhub-msg-avatar.afhub-msg-avatar--vector img { object-fit:contain; width:110%; height:110%; padding:0; filter:drop-shadow(0 1px 4px rgba(15,23,42,.1)); border-radius:0; }' +
       '#' + rootId + ' .afhub-msg-avatar svg { width:14px; height:14px; color:#64748b; }' +
@@ -6397,27 +6452,31 @@
       '#' + rootId + ' .afhub-tool-tag { font-size:10px; line-height:1.25; letter-spacing:.02em; padding:2px 6px; border-radius:6px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:rgba(0,0,0,.06); color:#5a5a6e; border:1px solid rgba(0,0,0,.08); }' +
       '#' + rootId + ' .afhub-img-wrap { margin-top:10px; max-width:100%; display:flex; flex-direction:column; gap:8px; }' +
       '#' + rootId + ' .afhub-widget-img { display:block; width:100%; max-width:100%; height:auto; vertical-align:middle; }' +
-      '#' + rootId + ' .afhub-thinking-card { display:flex; flex-direction:row; align-items:center; justify-content:center; gap:0; padding:14px 18px; width:fit-content; min-width:56px; max-width:88%; align-self:flex-start; border-radius:999px; border:none; background:' + msgBubbleBg + '; box-shadow:' + msgBubbleShadow + '; -webkit-backdrop-filter:none; backdrop-filter:none; animation:afhub-thinking-in .28s ease-out; position:relative; }' +
-      '#' + rootId + ' .afhub-thinking-head { display:none; }' +
-      '#' + rootId + ' .afhub-thinking-pulse { display:none; }' +
-      '#' + rootId + ' .afhub-thinking-titles { display:none; }' +
-      '#' + rootId + ' .afhub-thinking-title { display:none; }' +
-      '#' + rootId + ' .afhub-thinking-sub { display:none; }' +
-      '#' + rootId + ' .afhub-thinking-skeleton { display:none; }' +
-      '#' + rootId + ' .afhub-skel-line { display:none; }' +
-      '#' + rootId + ' .afhub-skel-line--lg { display:none; }' +
-      '#' + rootId + ' .afhub-skel-line--md { display:none; }' +
+      '#' + rootId + ' .afhub-msg.bot.afhub-thinking-card { background:transparent !important; border:none !important; box-shadow:none !important; border-radius:999px !important; padding:1px !important; }' +
+      '#' + rootId + ' .afhub-thinking-card { display:flex; flex-direction:column; align-items:stretch; justify-content:center; gap:0; padding:1px; width:fit-content; min-width:96px; max-width:min(92%,320px); align-self:flex-start; border-radius:999px; border:none; background:transparent; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; animation:afhub-thinking-in .28s ease-out; position:relative; isolation:isolate; overflow:hidden; contain:paint; clip-path:inset(0 round 999px); -webkit-clip-path:inset(0 round 999px); }' +
+      '#' + rootId + ' .afhub-thinking-beam-ring { position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:0; opacity:1; box-sizing:border-box; padding:1px; overflow:hidden; -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0); -webkit-mask-composite:xor; mask-composite:exclude; }' +
+      '#' + rootId + ' .afhub-thinking-beam-spin { position:absolute; inset:0; border-radius:inherit; background:conic-gradient(from var(--afhub-beam-angle,0deg),#2dd4bf,#38bdf8,#818cf8,#c084fc,#e879f9,#f472b6,#fb923c,#fbbf24,#2dd4bf); animation:afhub-border-beam-spin 4.8s linear infinite; will-change:--afhub-beam-angle; }' +
+      '#' + rootId + ' .afhub-thinking-inner { position:relative; z-index:1; display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:10px; padding:9px 14px 9px 13px; border-radius:999px; background:' + msgBubbleBg + '; box-shadow:' + msgBubbleShadow + '; min-width:0; }' +
+      '#' + rootId + ' .afhub-thinking-head,' +
+      '#' + rootId + ' .afhub-thinking-pulse,' +
+      '#' + rootId + ' .afhub-thinking-titles,' +
+      '#' + rootId + ' .afhub-thinking-title,' +
+      '#' + rootId + ' .afhub-thinking-sub,' +
+      '#' + rootId + ' .afhub-thinking-skeleton,' +
+      '#' + rootId + ' .afhub-skel-line,' +
+      '#' + rootId + ' .afhub-skel-line--lg,' +
+      '#' + rootId + ' .afhub-skel-line--md,' +
       '#' + rootId + ' .afhub-skel-line--sm { display:none; }' +
-      '#' + rootId + ' .afhub-thinking-meta { display:flex; align-items:center; justify-content:center; gap:0; min-height:0; width:100%; margin:0; }' +
+      '#' + rootId + ' .afhub-thinking-meta { display:none; }' +
+      '#' + rootId + ' .afhub-thinking-caption { display:block; flex:1 1 auto; min-width:0; font-size:12px; font-weight:600; letter-spacing:-.01em; color:#5f6368; text-align:left; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }' +
       '#' + rootId + ' .afhub-thinking-elapsed { display:none; font-size:10px; font-weight:600; letter-spacing:.03em; color:#9ca3af; font-variant-numeric:tabular-nums; }' +
-      '#' + rootId + '.afhub-widget--debug .afhub-thinking-card { flex-direction:column; align-items:flex-start; gap:8px; border-radius:22px 22px 22px 6px; padding:10px 14px; width:auto; min-width:0; }' +
-      '#' + rootId + '.afhub-widget--debug .afhub-thinking-head { display:flex; align-items:flex-start; gap:10px; }' +
-      '#' + rootId + '.afhub-widget--debug .afhub-thinking-titles { display:flex; flex-direction:column; gap:2px; min-width:0; }' +
-      '#' + rootId + '.afhub-widget--debug .afhub-thinking-sub { display:block; font-size:12px; line-height:1.4; color:#6b7280; font-weight:500; }' +
-      '#' + rootId + '.afhub-widget--debug .afhub-thinking-meta { justify-content:space-between; min-height:14px; }' +
+      '#' + rootId + '.afhub-widget--debug .afhub-thinking-card { border-radius:22px 22px 22px 6px; padding:1px; width:auto; min-width:0; clip-path:none; -webkit-clip-path:none; }' +
+      '#' + rootId + '.afhub-widget--debug .afhub-thinking-inner { border-radius:22px 22px 22px 6px; flex-wrap:wrap; padding:10px 14px; gap:8px; }' +
+      '#' + rootId + '.afhub-widget--debug .afhub-thinking-caption { white-space:normal; }' +
+      '#' + rootId + '.afhub-widget--debug .afhub-thinking-meta { display:flex; justify-content:flex-start; min-height:14px; }' +
       '#' + rootId + '.afhub-widget--debug .afhub-thinking-elapsed { display:inline; }' +
-      '#' + rootId + ' .afhub-thinking-dots { display:inline-flex; gap:5px; align-items:center; justify-content:center; margin:0; }' +
-      '#' + rootId + ' .afhub-thinking-dots span { width:6px; height:6px; border-radius:50%; background:#1c1c1e; animation:afhub-thinking-dot 1.5s ease-in-out infinite; }' +
+      '#' + rootId + ' .afhub-thinking-dots { display:inline-flex; gap:4px; align-items:center; justify-content:center; margin:0; flex:0 0 auto; }' +
+      '#' + rootId + ' .afhub-thinking-dots span { width:5px; height:5px; border-radius:50%; background:#1c1c1e; animation:afhub-thinking-dot 1.5s ease-in-out infinite; }' +
       '#' + rootId + ' .afhub-thinking-dots span:nth-child(2) { animation-delay:.25s; }' +
       '#' + rootId + ' .afhub-thinking-dots span:nth-child(3) { animation-delay:.5s; }' +
       '#' + rootId + ' .afhub-multi-agent-tag { display:inline-flex; align-items:center; margin-bottom:8px; font-size:10px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; padding:3px 8px; border-radius:999px; color:' + cfg.color + '; background:' + cfg.color + '14; border:1px solid ' + cfg.color + '33; }' +
@@ -6600,6 +6659,10 @@
         /* entrada (hover/click): misma duración y suavidad que la salida */
         'transition:opacity .85s cubic-bezier(.37,0,.2,1);' +
       '}' +
+      '#' + rootId + ' .afhub-input-composer--agent-busy .afhub-input-beam-ring { opacity:0 !important; }' +
+      '#' + rootId + ' .afhub-input-composer--agent-busy:hover .afhub-input-beam-ring,' +
+      '#' + rootId + ' .afhub-input-composer--agent-busy:focus-within .afhub-input-beam-ring,' +
+      '#' + rootId + ' .afhub-input-composer--agent-busy.afhub-input-composer--typing .afhub-input-beam-ring { opacity:1 !important; }' +
       '#' + rootId + ' .afhub-input-composer--typing .afhub-input-beam-ring {' +
         'opacity:1;' +
         'transition:opacity .85s cubic-bezier(.37,0,.2,1);' +
