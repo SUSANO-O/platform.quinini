@@ -1391,3 +1391,6 @@
 {"t":"2026-08-12T22:35:43.976Z","event":"widget_loaded","agentId":"6a5aac93438b8f1c73bc3b84","instanceId":"biv_1"}
 {"t":"2026-08-12T22:37:17.943Z","event":"widget_opened","agentId":"6a5aac93438b8f1c73bc3b84","instanceId":"biv_1"}
 {"t":"2026-08-12T22:37:22.038Z","event":"widget_closed","agentId":"6a5aac93438b8f1c73bc3b84","instanceId":"biv_1"}
+{"t":"2026-08-12T22:57:51.824Z","event":"widget_opened","agentId":"6a5aac93438b8f1c73bc3b84","instanceId":"biv_1"}
+{"t":"2026-08-12T22:58:17.504Z","event":"widget_loaded","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
+{"t":"2026-08-12T22:58:17.774Z","event":"widget_opened","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
