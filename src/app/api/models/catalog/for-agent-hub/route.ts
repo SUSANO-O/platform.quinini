@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAibackhubBaseUrl, hubCreateHeaders } from '@/lib/aibackhub-sync';
 import { verifySessionToken } from '@/lib/auth';
 import { getUserAllowedProviders } from '@/lib/model-provider-policy';
+import { HUB_MODELS_CATALOG_USER_MESSAGE } from '@/lib/hub-user-errors';
 
 /**
  * Proxy a AIBackHub GET /api/models/catalog/for-agent-hub
@@ -10,8 +11,9 @@ import { getUserAllowedProviders } from '@/lib/model-provider-policy';
 export async function GET(req: NextRequest) {
   const base = getAibackhubBaseUrl();
   if (!base) {
+    console.error('[api/models/catalog/for-agent-hub] BACKEND_URL missing');
     return NextResponse.json(
-      { success: false, error: 'BACKEND_URL no configurado en el servidor.' },
+      { success: false, error: HUB_MODELS_CATALOG_USER_MESSAGE, code: 'HUB_UNAVAILABLE' },
       { status: 503 },
     );
   }
@@ -55,6 +57,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ...json, models: filtered });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Error al contactar AIBackHub';
-    return NextResponse.json({ success: false, error: msg }, { status: 502 });
+    console.error('[api/models/catalog/for-agent-hub]', msg);
+    return NextResponse.json(
+      { success: false, error: HUB_MODELS_CATALOG_USER_MESSAGE, code: 'HUB_UNAVAILABLE' },
+      { status: 502 },
+    );
   }
 }

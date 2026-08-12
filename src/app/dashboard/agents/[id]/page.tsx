@@ -2645,7 +2645,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         : mcpAgentHubLink.catalogSyncStatus === 'pending'
                           ? 'pendiente. Espera unos segundos tras crear el agente o ve a Mis agentes y fuerza sincronización.'
                           : mcpAgentHubLink.catalogSyncStatus === 'failed'
-                            ? 'falló. Revisa que AIBackHub esté en marcha (BACKEND_URL) y vuelve a sincronizar.'
+                            ? 'No se pudo conectar con Stargate. Inténtalo de nuevo en unos minutos o vuelve a sincronizar desde Mis agentes.'
                             : `estado “${mcpAgentHubLink.catalogSyncStatus}”.`}
                     </p>
                     <p style={{ margin: '8px 0 0', color: 'var(--muted-foreground)' }}>

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Loader2, Plug, ExternalLink, AlertCircle } from '@/components/ui/icons';
 import type { McpCatalogRow } from '@/lib/mcp-catalog-types';
+import { friendlyHubErrorMessage, HUB_MCP_CATALOG_USER_MESSAGE } from '@/lib/hub-user-errors';
 
 type Props = {
   /** En formulario nuevo agente: menos altura y enlace al listado completo */
@@ -40,15 +41,20 @@ export function McpAvailablePanel({ compact, onConnectRequest }: Props) {
         const data = await res.json();
         if (cancelled) return;
         if (!data.success) {
-          setError(typeof data.error === 'string' ? data.error : 'No se pudo cargar el catálogo MCP.');
+          setError(
+            friendlyHubErrorMessage(
+              typeof data.error === 'string' ? data.error : null,
+              HUB_MCP_CATALOG_USER_MESSAGE,
+            ),
+          );
           setCatalog([]);
         } else {
           const list = Array.isArray(data.catalog) ? data.catalog : [];
           setCatalog(list.filter((row: McpCatalogRow) => row?.key !== 'mcp_standard'));
           if (typeof data.backendBase === 'string') setBackendBase(data.backendBase);
         }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Error de red');
+      } catch {
+        if (!cancelled) setError(HUB_MCP_CATALOG_USER_MESSAGE);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -86,15 +92,7 @@ export function McpAvailablePanel({ compact, onConnectRequest }: Props) {
           }}
         >
           <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
-          <div>
-            <strong style={{ display: 'block', marginBottom: '4px' }}>No se pudo conectar con AIBackHub</strong>
-            {error}
-            <p style={{ margin: '8px 0 0', fontSize: '12px', opacity: 0.95 }}>
-              Define <code style={{ fontSize: '11px' }}>BACKEND_URL</code> (y opcionalmente{' '}
-              <code style={{ fontSize: '11px' }}>AIBACKHUB_API_KEY</code>) en <code style={{ fontSize: '11px' }}>.env</code> de la landing y
-              reinicia el servidor.
-            </p>
-          </div>
+          <p style={{ margin: 0, fontWeight: 600 }}>{error}</p>
         </div>
       )}
 

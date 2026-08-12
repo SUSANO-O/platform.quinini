@@ -551,7 +551,7 @@ export default function NewAgentPage() {
             <div data-tour="agent-model">
             {modelsHubError && (
               <p className="text-xs mb-3 leading-relaxed m-0" style={{ color: '#d97706' }}>
-                {modelsHubError} Revisa que AIBackHub esté en marcha y BACKEND_URL configurado.
+                {modelsHubError}
               </p>
             )}
             <ModelCatalogPicker

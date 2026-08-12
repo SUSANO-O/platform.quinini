@@ -3,14 +3,14 @@
 import { createTheme } from '@mui/material/styles';
 import { botivaMuiTheme } from '@/theme/botiva-mui-theme';
 
-/** Tema del panel — botones grises (UX), secundario blanco (sin teal de marca landing). */
+/** Tema del panel — botones outline B/N, cajas sin borde (sin teal landing). */
 export const dashboardMuiTheme = createTheme(botivaMuiTheme, {
   palette: {
     primary: {
-      main: '#525252',
-      dark: '#404040',
-      light: '#737373',
-      contrastText: '#ffffff',
+      main: '#111111',
+      dark: '#000000',
+      light: '#525252',
+      contrastText: '#111111',
     },
     secondary: {
       main: '#ffffff',
@@ -43,30 +43,33 @@ export const dashboardMuiTheme = createTheme(botivaMuiTheme, {
           minHeight: 36,
         },
         containedPrimary: {
-          backgroundColor: '#525252',
+          backgroundColor: '#ffffff',
+          color: '#111111',
+          border: '1px solid #111111',
           boxShadow: 'none',
           '&:hover': {
-            backgroundColor: '#404040',
-            boxShadow: 'none',
+            backgroundColor: '#f4f4f5',
+            borderColor: '#111111',
+            boxShadow: '0 2px 12px rgba(17, 17, 17, 0.07)',
           },
           '&:active': {
-            backgroundColor: '#363636',
+            backgroundColor: '#ececec',
           },
         },
         outlinedPrimary: {
-          borderColor: 'rgba(82, 82, 82, 0.22)',
-          color: '#525252',
+          borderColor: '#111111',
+          color: '#111111',
           backgroundColor: '#ffffff',
           '&:hover': {
-            backgroundColor: '#f5f5f5',
-            borderColor: 'rgba(82, 82, 82, 0.36)',
-            boxShadow: 'none',
+            backgroundColor: '#f4f4f5',
+            borderColor: '#111111',
+            boxShadow: '0 2px 12px rgba(17, 17, 17, 0.07)',
           },
         },
         textPrimary: {
-          color: '#525252',
+          color: '#111111',
           '&:hover': {
-            backgroundColor: 'rgba(82, 82, 82, 0.08)',
+            backgroundColor: 'rgba(17, 17, 17, 0.05)',
           },
         },
       },
@@ -88,8 +91,8 @@ export const dashboardMuiTheme = createTheme(botivaMuiTheme, {
     MuiChip: {
       styleOverrides: {
         outlinedPrimary: {
-          borderColor: 'rgba(82, 82, 82, 0.24)',
-          color: '#525252',
+          borderColor: 'rgba(17, 17, 17, 0.2)',
+          color: '#111111',
           fontWeight: 600,
         },
       },

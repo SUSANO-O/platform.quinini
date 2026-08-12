@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { planMeetsModelMin } from '@/lib/agent-plans';
+import {
+  friendlyHubErrorMessage,
+  HUB_MODELS_CATALOG_USER_MESSAGE,
+  HUB_UNAVAILABLE_USER_MESSAGE,
+} from '@/lib/hub-user-errors';
 
 export type ClientModelOption = {
   id: string;
@@ -65,10 +70,7 @@ export function useClientModels(userPlan?: string) {
       .then(async (r) => {
         if (!r.ok) {
           const j = (await r.json().catch(() => ({}))) as { error?: string };
-          const msg =
-            typeof j?.error === 'string'
-              ? j.error
-              : `No se pudo cargar el catálogo (${r.status}).`;
+          const msg = friendlyHubErrorMessage(j?.error, HUB_MODELS_CATALOG_USER_MESSAGE);
           if (!cancelled) {
             setHubError(msg);
             setModels([]);
@@ -89,7 +91,7 @@ export function useClientModels(userPlan?: string) {
         const raw = data?.models;
         if (!Array.isArray(raw) || raw.length === 0) {
           setModels([]);
-          setHubError('El catálogo llegó vacío. Revisa AIBackHub y BACKEND_URL.');
+          setHubError(HUB_MODELS_CATALOG_USER_MESSAGE);
           return;
         }
 
@@ -113,12 +115,10 @@ export function useClientModels(userPlan?: string) {
         setModels(flat);
         setHubError(flat.length === 0 ? 'Ningún modelo disponible para tu plan o catálogo.' : null);
       })
-      .catch((e) => {
+      .catch(() => {
         if (!cancelled) {
           setModels([]);
-          setHubError(
-            e instanceof Error ? e.message : 'Error de red al cargar modelos.',
-          );
+          setHubError(HUB_UNAVAILABLE_USER_MESSAGE);
         }
       })
       .finally(() => {
