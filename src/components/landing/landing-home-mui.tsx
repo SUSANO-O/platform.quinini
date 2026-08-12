@@ -28,7 +28,6 @@ import {
 } from '@/components/ui/icons';
 import { LandingNavbar } from '@/components/landing/landing-navbar';
 import { LandingFooter } from '@/components/landing/landing-footer';
-import { LandingIcon } from '@/components/landing/landing-icon';
 import { HowStepMock } from '@/components/landing/how-step-mock';
 import type { LandingIconName } from '@/lib/landing-icons';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
@@ -162,38 +161,67 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
       </Box>
 
       {/* HOW */}
-      <Box component="section" sx={{ py: { xs: 8, md: 10 }, position: 'relative' }}>
+      <Box component="section" sx={{ py: { xs: 7, md: 9 }, position: 'relative' }}>
         <Container maxWidth="lg">
-          <Stack alignItems="center" spacing={1.5} sx={{ mb: 5, textAlign: 'center' }}>
-            <Chip label={copy.how.badge} variant="outlined" color="primary" sx={{ textWrap: 'balance' }} />
-            <Typography variant="h2">
+          <Stack alignItems="center" spacing={1} sx={{ mb: 3.5, textAlign: 'center' }}>
+            <Chip label={copy.how.badge} variant="outlined" color="primary" size="small" sx={{ textWrap: 'balance' }} />
+            <Typography
+              variant="h2"
+              sx={{ fontSize: { xs: '1.65rem', md: '2rem' }, fontWeight: 700, letterSpacing: '-0.03em', textWrap: 'balance' }}
+            >
               {copy.how.title}
             </Typography>
-            <Typography color="text.secondary" maxWidth={720}>
+            <Typography color="text.secondary" maxWidth={560} sx={{ fontSize: '0.95rem', lineHeight: 1.55, textWrap: 'pretty' }}>
               {copy.how.subtitle}
             </Typography>
           </Stack>
 
-          <Grid container spacing={2.5}>
+          <Grid container spacing={1.5}>
             {copy.how.steps.map((s, idx) => (
               <Grid key={s.title} size={{ xs: 12, md: 6, lg: 4 }}>
-                <Card sx={{ height: '100%', borderTop: `3px solid ${s.accent}` }}>
-                  <CardContent>
-                    <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ mb: 2 }}>
-                      <Avatar sx={{ bgcolor: `${s.accent}18`, color: s.accent, width: 48, height: 48 }}>
-                        <LandingIcon name={s.icon} size="lg" />
-                      </Avatar>
-                      <Box>
-                        <Typography variant="overline" color="text.secondary">
-                          0{idx + 1}
-                        </Typography>
-                        <Typography variant="h6">{s.title}</Typography>
-                      </Box>
+                <Card
+                  sx={{
+                    height: '100%',
+                    borderTop: `3px solid ${s.accent}`,
+                    borderRadius: 2,
+                    boxShadow: 'none',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderTopWidth: 3,
+                    borderTopColor: s.accent,
+                  }}
+                >
+                  <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                    <Stack spacing={0.25} sx={{ mb: 1.25 }}>
+                      <Typography
+                        sx={{
+                          fontSize: '0.65rem',
+                          fontWeight: 700,
+                          letterSpacing: '0.08em',
+                          textTransform: 'uppercase',
+                          color: 'text.secondary',
+                        }}
+                      >
+                        0{idx + 1}
+                      </Typography>
+                      <Typography
+                        component="h3"
+                        sx={{
+                          m: 0,
+                          fontFamily: '"Outfit", "Plus Jakarta Sans", system-ui, sans-serif',
+                          fontSize: '1.05rem',
+                          fontWeight: 700,
+                          letterSpacing: '-0.02em',
+                          lineHeight: 1.25,
+                        }}
+                      >
+                        {s.title}
+                      </Typography>
                     </Stack>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    <Typography sx={{ mb: 1.5, fontSize: '0.8125rem', lineHeight: 1.5, color: 'text.secondary' }}>
                       {s.desc}
                     </Typography>
-                    <Box sx={{ borderRadius: 2, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
+                    <Box sx={{ borderRadius: 1.5, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
                       <HowStepMock variant={s.variant} />
                     </Box>
                   </CardContent>
@@ -205,32 +233,78 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
       </Box>
 
       {/* AGENTS */}
-      <Box id="agents" component="section" sx={{ py: { xs: 8, md: 10 } }}>
+      <Box id="agents" component="section" sx={{ py: { xs: 7, md: 9 } }}>
         <Container maxWidth="lg">
-          <Stack alignItems="center" spacing={1.5} sx={{ mb: 4, textAlign: 'center' }}>
-            <Typography variant="h2" color="primary" sx={{ textWrap: 'balance' }}>
+          <Stack alignItems="center" spacing={1} sx={{ mb: 3.5, textAlign: 'center' }}>
+            <Typography
+              variant="h2"
+              color="primary"
+              sx={{ fontSize: { xs: '1.65rem', md: '2rem' }, fontWeight: 700, letterSpacing: '-0.03em', textWrap: 'balance' }}
+            >
               {copy.agents.title}
             </Typography>
-            <Typography color="text.secondary" maxWidth={720}>
+            <Typography color="text.secondary" maxWidth={560} sx={{ fontSize: '0.95rem', lineHeight: 1.55, textWrap: 'pretty' }}>
               {copy.agents.subtitle}
             </Typography>
           </Stack>
-          <Grid container spacing={2}>
+          <Grid container spacing={1.5}>
             {copy.agents.items.map((a) => (
               <Grid key={a.slug} size={{ xs: 12, sm: 6, lg: 4 }}>
-                <Card sx={{ height: '100%', borderColor: `${a.color}40` }}>
-                  <CardActionArea component={Link} href={`/agents/${a.slug}`} sx={{ height: '100%', alignItems: 'stretch' }}>
-                    <CardContent>
-                      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2 }}>
-                        <Avatar sx={{ bgcolor: `${a.color}16`, color: a.color, width: 56, height: 56 }}>
-                          <LandingIcon name={a.icon} size="2xl" />
-                        </Avatar>
-                        <Chip size="small" label={a.focus} sx={{ bgcolor: `${a.color}12`, color: a.color }} />
-                      </Stack>
-                      <Typography variant="h6" gutterBottom>
+                <Card
+                  sx={{
+                    height: '100%',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 2,
+                    boxShadow: 'none',
+                    transition: 'border-color .18s ease, box-shadow .18s ease, transform .18s ease',
+                    '&:hover': {
+                      borderColor: `${a.color}66`,
+                      boxShadow: `0 10px 28px ${a.color}14`,
+                      transform: 'translateY(-2px)',
+                    },
+                  }}
+                >
+                  <CardActionArea
+                    component={Link}
+                    href={`/agents/${a.slug}`}
+                    sx={{
+                      height: '100%',
+                      alignItems: 'stretch',
+                      borderLeft: `3px solid ${a.color}`,
+                    }}
+                  >
+                    <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                      <Chip
+                        size="small"
+                        label={a.focus}
+                        sx={{
+                          mb: 1.25,
+                          height: 22,
+                          fontSize: '0.65rem',
+                          fontWeight: 700,
+                          letterSpacing: '0.04em',
+                          textTransform: 'uppercase',
+                          bgcolor: `${a.color}12`,
+                          color: a.color,
+                          border: 'none',
+                        }}
+                      />
+                      <Typography
+                        component="h3"
+                        sx={{
+                          m: 0,
+                          mb: 0.75,
+                          fontFamily: '"Outfit", "Plus Jakarta Sans", system-ui, sans-serif',
+                          fontSize: '1.05rem',
+                          fontWeight: 700,
+                          letterSpacing: '-0.02em',
+                          lineHeight: 1.25,
+                        }}
+                      >
                         {a.name}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography sx={{ m: 0, fontSize: '0.8125rem', lineHeight: 1.5, color: 'text.secondary' }}>
                         {a.desc}
                       </Typography>
                     </CardContent>
@@ -243,33 +317,77 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
       </Box>
 
       {/* FEATURES */}
-      <Box component="section" sx={{ py: { xs: 8, md: 10 } }}>
+      <Box
+        component="section"
+        sx={{
+          py: { xs: 7, md: 9 },
+          bgcolor: 'rgba(0,107,125,0.035)',
+          borderTop: '1px solid',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
         <Container maxWidth="lg">
-          <Stack alignItems="center" spacing={1.5} sx={{ mb: 4, textAlign: 'center' }}>
-            <Typography variant="h2">
+          <Stack alignItems="center" spacing={1} sx={{ mb: 3.5, textAlign: 'center' }}>
+            <Typography
+              variant="h2"
+              sx={{ fontSize: { xs: '1.65rem', md: '2rem' }, fontWeight: 700, letterSpacing: '-0.03em', textWrap: 'balance' }}
+            >
               {copy.features.title}
             </Typography>
-            <Typography color="text.secondary">{copy.features.subtitle}</Typography>
+            <Typography color="text.secondary" maxWidth={560} sx={{ fontSize: '0.95rem', lineHeight: 1.55, textWrap: 'pretty' }}>
+              {copy.features.subtitle}
+            </Typography>
           </Stack>
-          <Grid container spacing={2}>
+          <Grid container spacing={1.5}>
             {copy.features.items.map((f) => (
               <Grid key={f.title} size={{ xs: 12, md: 4 }}>
-                <Card sx={{ height: '100%', borderTop: `3px solid ${f.color}` }}>
-                  <CardContent>
-                    <Stack direction="row" justifyContent="space-between" sx={{ mb: 2 }}>
-                      <Avatar sx={{ bgcolor: `${f.color}16`, color: f.color }}>
-                        <LandingIcon name={f.icon} size="xl" />
-                      </Avatar>
-                      <Chip size="small" label={f.metric} sx={{ bgcolor: `${f.color}12`, color: f.color }} />
-                    </Stack>
-                    <Typography variant="h6" gutterBottom>
-                      {f.title}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {f.desc}
-                    </Typography>
-                  </CardContent>
-                </Card>
+                <Box
+                  sx={{
+                    height: '100%',
+                    p: 2.25,
+                    borderRadius: 2,
+                    bgcolor: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderTop: `3px solid ${f.color}`,
+                    transition: 'box-shadow .18s ease, transform .18s ease',
+                    '&:hover': {
+                      boxShadow: `0 12px 28px ${f.color}12`,
+                      transform: 'translateY(-2px)',
+                    },
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      mb: 1,
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      color: f.color,
+                    }}
+                  >
+                    {f.metric}
+                  </Typography>
+                  <Typography
+                    component="h3"
+                    sx={{
+                      m: 0,
+                      mb: 0.85,
+                      fontFamily: '"Outfit", "Plus Jakarta Sans", system-ui, sans-serif',
+                      fontSize: '1.05rem',
+                      fontWeight: 700,
+                      letterSpacing: '-0.02em',
+                      lineHeight: 1.25,
+                    }}
+                  >
+                    {f.title}
+                  </Typography>
+                  <Typography sx={{ m: 0, fontSize: '0.8125rem', lineHeight: 1.55, color: 'text.secondary' }}>
+                    {f.desc}
+                  </Typography>
+                </Box>
               </Grid>
             ))}
           </Grid>
@@ -372,33 +490,42 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
       </Box>
 
       {/* TESTIMONIALS */}
-      <Box component="section" sx={{ py: { xs: 8, md: 10 } }}>
+      <Box component="section" sx={{ py: { xs: 7, md: 9 } }}>
         <Container maxWidth="lg">
-          <Stack alignItems="center" spacing={1.5} sx={{ mb: 4, textAlign: 'center' }}>
-            <Typography variant="h2">
+          <Stack alignItems="center" spacing={1} sx={{ mb: 3.5, textAlign: 'center' }}>
+            <Typography
+              variant="h2"
+              sx={{ fontSize: { xs: '1.65rem', md: '2rem' }, fontWeight: 700, letterSpacing: '-0.03em', textWrap: 'balance' }}
+            >
               {copy.testimonials.title}
             </Typography>
-            <Typography color="text.secondary">{copy.testimonials.subtitle}</Typography>
+            <Typography color="text.secondary" sx={{ fontSize: '0.95rem' }}>
+              {copy.testimonials.subtitle}
+            </Typography>
           </Stack>
-          <Grid container spacing={2}>
+          <Grid container spacing={1.5}>
             {copy.testimonials.items.map((item, i) => {
               const accent = [BRAND.primary, BRAND.primaryLight, BRAND.tertiary][i % 3];
               return (
                 <Grid key={item.author} size={{ xs: 12, md: 4 }}>
-                  <Card sx={{ height: '100%' }}>
-                    <CardContent>
-                      <Stack direction="row" spacing={0.25} sx={{ mb: 1.5 }}>
+                  <Card sx={{ height: '100%', borderRadius: 2, boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+                    <CardContent sx={{ p: 2.25, '&:last-child': { pb: 2.25 } }}>
+                      <Stack direction="row" spacing={0.25} sx={{ mb: 1.25 }}>
                         {[1, 2, 3, 4, 5].map((n) => (
-                          <StarIcon key={n} size={18} style={{ color: accent }} fill="currentColor" />
+                          <StarIcon key={n} size={14} style={{ color: accent }} fill="currentColor" />
                         ))}
                       </Stack>
-                      <Typography variant="body2" sx={{ mb: 2.5 }}>
+                      <Typography sx={{ mb: 2, fontSize: '0.875rem', lineHeight: 1.55 }}>
                         &ldquo;{item.quote}&rdquo;
                       </Typography>
-                      <Stack direction="row" spacing={1.5} alignItems="center">
-                        <Avatar sx={{ bgcolor: accent }}>{item.author.charAt(0)}</Avatar>
+                      <Stack direction="row" spacing={1.25} alignItems="center">
+                        <Avatar sx={{ bgcolor: accent, width: 32, height: 32, fontSize: '0.8125rem' }}>
+                          {item.author.charAt(0)}
+                        </Avatar>
                         <Box>
-                          <Typography variant="subtitle2">{item.author}</Typography>
+                          <Typography variant="subtitle2" sx={{ fontSize: '0.8125rem' }}>
+                            {item.author}
+                          </Typography>
                           <Typography variant="caption" color="text.secondary">
                             {item.role} · {item.company}
                           </Typography>
@@ -414,47 +541,76 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
       </Box>
 
       {/* TRAINING */}
-      <Box id="training" component="section" sx={{ py: { xs: 8, md: 10 } }}>
+      <Box id="training" component="section" sx={{ py: { xs: 7, md: 9 } }}>
         <Container maxWidth="md">
-          <Stack alignItems="center" spacing={1.5} sx={{ mb: 4, textAlign: 'center' }}>
-            <Chip label={copy.training.badge} color="secondary" variant="outlined" />
-            <Typography variant="h2">
+          <Stack alignItems="center" spacing={1} sx={{ mb: 3.5, textAlign: 'center' }}>
+            <Chip label={copy.training.badge} color="secondary" variant="outlined" size="small" />
+            <Typography
+              variant="h2"
+              sx={{ fontSize: { xs: '1.65rem', md: '2rem' }, fontWeight: 700, letterSpacing: '-0.03em', textWrap: 'balance' }}
+            >
               {copy.training.title}
             </Typography>
-            <Typography color="text.secondary" maxWidth={640}>
+            <Typography color="text.secondary" maxWidth={560} sx={{ fontSize: '0.95rem', lineHeight: 1.55, textWrap: 'pretty' }}>
               {copy.training.subtitle}
             </Typography>
           </Stack>
-          <Grid container spacing={2}>
+          <Grid container spacing={1.5}>
             {copy.training.steps.map((s) => (
               <Grid key={s.step} size={{ xs: 12, sm: 6 }}>
-                <Card sx={{ height: '100%', borderTop: `3px solid ${s.color}` }}>
-                  <CardContent>
-                    <Stack direction="row" spacing={2} alignItems="flex-start">
-                      <Avatar sx={{ bgcolor: s.color, width: 52, height: 52 }}>
-                        <LandingIcon name={s.icon} size="xl" className="text-white" />
-                      </Avatar>
-                      <Box>
-                        <Typography variant="h6">{s.title}</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {s.desc}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  </CardContent>
-                </Card>
+                <Box
+                  sx={{
+                    height: '100%',
+                    p: 2.25,
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderTop: `3px solid ${s.color}`,
+                    bgcolor: 'background.paper',
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      mb: 0.75,
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                      color: s.color,
+                    }}
+                  >
+                    {s.step}
+                  </Typography>
+                  <Typography
+                    component="h3"
+                    sx={{
+                      m: 0,
+                      mb: 0.75,
+                      fontFamily: '"Outfit", "Plus Jakarta Sans", system-ui, sans-serif',
+                      fontSize: '1.05rem',
+                      fontWeight: 700,
+                      letterSpacing: '-0.02em',
+                      lineHeight: 1.25,
+                    }}
+                  >
+                    {s.title}
+                  </Typography>
+                  <Typography sx={{ m: 0, fontSize: '0.8125rem', lineHeight: 1.55, color: 'text.secondary' }}>
+                    {s.desc}
+                  </Typography>
+                </Box>
               </Grid>
             ))}
           </Grid>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="center" sx={{ mt: 4 }}>
-            <Chip color="primary" sx={{ textWrap: 'balance' }} variant="outlined" label={copy.training.included} />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="center" alignItems="center" sx={{ mt: 3.5 }}>
+            <Chip color="primary" size="small" sx={{ textWrap: 'balance' }} variant="outlined" label={copy.training.included} />
             <Button
               component="a"
               href={buildTrainingWhatsAppUrl()}
               target={SALES_WHATSAPP_LINK_PROPS.target}
               rel={SALES_WHATSAPP_LINK_PROPS.rel}
               variant="contained"
-              endIcon={<ArrowForwardIcon size={18} />}
+              endIcon={<ArrowForwardIcon size={16} />}
             >
               {copy.training.cta}
             </Button>

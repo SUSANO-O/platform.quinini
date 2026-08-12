@@ -1,6 +1,7 @@
 'use client';
 
 import type { CSSProperties } from 'react';
+import { Bot } from '@/components/ui/icons';
 import {
   defaultHueFromHex,
   hashWidgetSeed,
@@ -20,6 +21,7 @@ export function WidgetAvatar({
   size?: 'md' | 'lg';
 }) {
   const dim = size === 'lg' ? 'h-10 w-10' : 'h-8 w-8';
+  const iconSize = size === 'lg' ? 20 : 16;
   const orbStyle: CSSProperties = {
     background: iridescentOrbBackgroundCss(defaultHueFromHex(color), hashWidgetSeed(`${widgetId}|${color}`)),
     backgroundBlendMode: iridescentOrbBlendModes() as CSSProperties['backgroundBlendMode'],
@@ -43,6 +45,9 @@ export function WidgetAvatar({
                 'inset 0 2px 10px rgba(255,255,255,0.55), inset 0 -6px 14px rgba(0,0,0,0.22), inset 0 0 0 1px rgba(255,255,255,0.25)',
             }}
           />
+          <span className="absolute inset-0 z-[1] flex items-center justify-center text-white drop-shadow-sm">
+            <Bot size={iconSize} />
+          </span>
         </>
       )}
     </div>

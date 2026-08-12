@@ -41,11 +41,11 @@ function FormSection({
     bar === 'bo' ? `linear-gradient(90deg, ${O}, ${R})` : `linear-gradient(90deg, ${R}, ${O})`;
   return (
     <div
-      className="rounded-2xl overflow-hidden border mb-4 card-texture card-hover"
+      className="rounded-xl overflow-hidden border mb-3 card-texture card-hover"
       style={{ borderColor: 'var(--border)' }}
     >
-      <div className="h-[3px]" style={{ background: barBg }} />
-      <div className="p-5">{children}</div>
+      <div className="h-[2px]" style={{ background: barBg }} />
+      <div className="p-3.5 sm:p-4">{children}</div>
     </div>
   );
 }
@@ -122,18 +122,18 @@ export default function NewAgentPage() {
 
   const inp: CSSProperties = {
     width: '100%',
-    padding: '10px 14px',
-    borderRadius: '12px',
+    padding: '8px 11px',
+    borderRadius: '8px',
     border: '1px solid var(--border)',
     background: 'var(--background)',
     color: 'var(--foreground)',
-    fontSize: '13px',
+    fontSize: '12.5px',
     outline: 'none',
     boxSizing: 'border-box',
   };
 
   const sectionTitle: CSSProperties = {
-    fontSize: '12px',
+    fontSize: '11px',
     fontWeight: 700,
     color: 'var(--muted-foreground)',
     textTransform: 'uppercase',
@@ -219,7 +219,7 @@ export default function NewAgentPage() {
     <div className="relative overflow-hidden" style={{ minHeight: '100%' }}>
       <div className="hero-glow pointer-events-none" style={{ background: R, top: '-200px', right: '-60px' }} />
 
-      <div className="relative px-4 py-4 max-w-3xl mx-auto">
+      <div className="relative px-4 py-3 max-w-3xl mx-auto agent-create-page">
         {mcpInfoModal && (
           <McpConnectModal
             open
@@ -227,7 +227,7 @@ export default function NewAgentPage() {
             onClose={() => setMcpInfoModal(null)}
           >
             <p
-              className="text-[13px] leading-relaxed m-0 mb-3.5"
+              className="text-[12px] leading-relaxed m-0 mb-3"
               style={{ color: 'var(--foreground)' }}
             >
               Las credenciales MCP se guardan <strong>por agente</strong>. Completa el formulario de arriba y pulsa{' '}
@@ -235,7 +235,7 @@ export default function NewAgentPage() {
               <strong>{mcpInfoModal.name}</strong> (podrás introducir usuario, tokens, etc.).
             </p>
             <p
-              className="text-xs m-0 mb-4 leading-snug"
+              className="text-[11px] m-0 mb-3 leading-snug"
               style={{ color: 'var(--muted-foreground)' }}
             >
               Puedes cerrar este aviso; seguirá recordado hasta que crees el agente o pulses quitar en la barra inferior.
@@ -243,7 +243,7 @@ export default function NewAgentPage() {
             <button
               type="button"
               onClick={() => setMcpInfoModal(null)}
-              className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-opacity hover:opacity-90"
+              className="inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-xs font-bold cursor-pointer transition-opacity hover:opacity-90"
               style={BTN_PRIMARY}
             >
               Entendido
@@ -253,31 +253,31 @@ export default function NewAgentPage() {
 
         <Link
           href="/dashboard/agents"
-          className="landing-link-accent inline-flex items-center gap-1 text-xs no-underline mb-4 font-semibold"
+          className="landing-link-accent inline-flex items-center gap-1 text-[11px] no-underline mb-3 font-semibold"
         >
-          <ChevronLeft size={14} /> Mis agentes
+          <ChevronLeft size={13} /> Mis agentes
         </Link>
 
-        <div className="badge-primary mb-4 w-fit">
-          <Sparkles size={13} />
+        <div className="badge-primary mb-2.5 w-fit text-[10px]">
+          <Sparkles size={11} />
           Nuevo agente
         </div>
 
-        <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
-          <div className="flex flex-wrap items-center gap-3 min-w-0">
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
+          <div className="flex flex-wrap items-center gap-2.5 min-w-0">
             <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border"
+              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border"
               style={{ background: `${R}14`, borderColor: `${R}33` }}
             >
-              <Bot size={22} style={{ color: R }} strokeWidth={1.75} />
+              <Bot size={16} style={{ color: R }} strokeWidth={1.75} />
             </div>
             <div>
-              <h1 className="text-xl md:text-2xl font-bold tracking-tight m-0">
+              <h1 className="agent-create-page__title">
                 Crear <span className="gradient-text">agente</span>
               </h1>
-              <p className="text-sm m-0 mt-1.5" style={{ color: 'var(--muted-foreground)' }}>
+              <p className="agent-create-page__desc">
                 {soloChatOnly
-                  ? 'Plan Solo: chat básico con hasta 3 agentes. Define nombre, modelo e instrucciones.'
+                  ? 'Plan Solo: chat básico. Define nombre, modelo e instrucciones.'
                   : 'Define modelo, instrucciones y opciones de widget; luego podrás afinar almacenamiento y herramientas en la ficha.'}
               </p>
             </div>
@@ -758,24 +758,24 @@ export default function NewAgentPage() {
             </div>
           )}
 
-          <div className="flex flex-wrap gap-2.5 pt-1">
+          <div className="flex flex-wrap gap-2 pt-1">
             <button
               data-tour="agent-create-submit"
               type="submit"
               disabled={loading}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm cursor-pointer transition-opacity disabled:opacity-70 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold text-xs cursor-pointer transition-opacity disabled:opacity-70 disabled:cursor-not-allowed"
               style={BTN_PRIMARY}
             >
               {loading ? (
-                <Loader2 size={16} className="animate-spin" />
+                <Loader2 size={14} className="animate-spin" />
               ) : (
-                <Bot size={16} strokeWidth={2} />
+                <Bot size={14} strokeWidth={2} />
               )}
               {loading ? 'Creando agente...' : 'Crear agente'}
             </button>
             <Link
               href="/dashboard/agents"
-              className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl font-semibold text-sm border no-underline transition-colors card-hover"
+              className="inline-flex items-center justify-center px-3.5 py-2 rounded-lg font-semibold text-xs border no-underline transition-colors card-hover"
               style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
             >
               Cancelar

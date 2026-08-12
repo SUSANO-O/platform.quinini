@@ -14,11 +14,13 @@ import { DashboardStatStrip } from '@/components/dashboard/dashboard-stat-strip'
 import { DashboardEmptyState } from '@/components/dashboard/dashboard-empty-state';
 import { DashboardButton, DashboardButtonLink } from '@/components/dashboard/dashboard-button';
 import { DashboardFilterBar } from '@/components/dashboard/dashboard-filter-bar';
-import { DashboardGridToolbar } from '@/components/dashboard/dashboard-grid-toolbar';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 import { BackgroundRefreshIndicator } from '@/components/dashboard/background-refresh-indicator';
 import { dashboardKeys } from '@/lib/dashboard-query-keys';
 import { fetchWidgetsList } from '@/lib/dashboard-fetch';
+import Box from '@mui/material/Box';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
 
 type WidgetFilter = 'all' | 'active' | 'inactive' | 'multi';
 
@@ -159,6 +161,18 @@ export default function WidgetsPage() {
     })();
   }, [multiAgentEligible]);
 
+  const overview = useMemo(() => {
+    let active = 0;
+    let inactive = 0;
+    let multi = 0;
+    for (const w of widgets) {
+      if (w.active !== false) active += 1;
+      else inactive += 1;
+      if (w.multiAgentEnabled) multi += 1;
+    }
+    return { total: widgets.length, active, inactive, multi };
+  }, [widgets]);
+
   const filteredWidgets = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return widgets.filter((w) => {
@@ -200,6 +214,13 @@ export default function WidgetsPage() {
     return { blob, filename };
   }
 
+  const overviewCards: { key: WidgetFilter; label: string; value: number; hint: string }[] = [
+    { key: 'all', label: 'Total', value: overview.total, hint: 'Todos tus widgets' },
+    { key: 'active', label: 'Activos', value: overview.active, hint: 'Aceptan mensajes en el embed' },
+    { key: 'inactive', label: 'Inactivos', value: overview.inactive, hint: 'Pausados / sin chat' },
+    { key: 'multi', label: 'Multiagente', value: overview.multi, hint: 'Con routing avanzado' },
+  ];
+
   return (
     <DashboardShell width="wide">
       <EncryptedDownloadModal
@@ -224,81 +245,169 @@ export default function WidgetsPage() {
         badgeIcon={Sparkles}
         title="Mis"
         titleAccent="widgets"
-        description="Gestiona tus chat widgets embebibles."
+        description="Crea, prueba y publica chat widgets en tu sitio."
         compact
         hideIcon
         actions={
           <>
-          <BackgroundRefreshIndicator active={widgetsQuery.isFetching && !loading} />
-          <DashboardButtonLink
-            href="/dashboard/widget-builder"
-            variant="primary"
-            data-tour="widgets-new"
-            className="px-5 py-2.5 text-sm"
-          >
-            <Plus size={16} strokeWidth={2.5} />
-            Nuevo widget
-          </DashboardButtonLink>
+            <BackgroundRefreshIndicator active={widgetsQuery.isFetching && !loading} />
+            <DashboardButtonLink
+              href="/dashboard/widget-builder"
+              variant="primary"
+              data-tour="widgets-new"
+              className="px-4 py-2 text-xs"
+            >
+              <Plus size={14} strokeWidth={2.5} />
+              Nuevo widget
+            </DashboardButtonLink>
           </>
         }
       />
 
+      {!loading && widgets.length > 0 ? (
+        <Box
+          className="dashboard-widgets-overview"
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: 'repeat(2, minmax(0, 1fr))',
+              md: 'repeat(4, minmax(0, 1fr))',
+            },
+            gap: 1,
+            mb: 2,
+          }}
+        >
+          {overviewCards.map((card) => {
+            const selected = filter === card.key;
+            return (
+              <Box
+                key={card.key}
+                component="button"
+                type="button"
+                onClick={() => setFilter(card.key)}
+                title={card.hint}
+                sx={{
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  border: '1px solid',
+                  borderColor: selected ? 'primary.main' : 'divider',
+                  bgcolor: selected ? 'rgba(var(--brand-primary-rgb), 0.06)' : 'background.paper',
+                  borderRadius: '14px',
+                  px: 1.5,
+                  py: 1.25,
+                  boxShadow: 'var(--shadow-surface-sm)',
+                  backgroundImage:
+                    'radial-gradient(circle, rgba(0,0,0,0.03) 1px, transparent 1px)',
+                  backgroundSize: '18px 18px',
+                  transition: 'border-color .15s ease, background .15s ease, transform .15s ease',
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    transform: 'translateY(-1px)',
+                  },
+                }}
+              >
+                <Typography sx={{ m: 0, fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'text.secondary' }}>
+                  {card.label}
+                </Typography>
+                <Typography
+                  sx={{
+                    m: 0,
+                    mt: 0.35,
+                    fontFamily: '"Outfit", "Plus Jakarta Sans", system-ui, sans-serif',
+                    fontSize: '1.35rem',
+                    fontWeight: 700,
+                    letterSpacing: '-0.03em',
+                    lineHeight: 1.1,
+                    color: selected ? 'primary.main' : 'text.primary',
+                  }}
+                >
+                  {card.value}
+                </Typography>
+              </Box>
+            );
+          })}
+        </Box>
+      ) : null}
+
       {multiAgentEligible && multiAgentStats ? (
-        <DashboardStatStrip
-          title="Multiagente — este mes"
-          titleHint="Resumen de enrutamiento en widgets con modo multiagente avanzado (mes en curso)."
-          icon={GitBranch}
-          stats={[
-            {
-              label: 'Widgets activos',
-              value: multiAgentStats.enabledWidgets ?? 0,
-              hint: 'Widgets tuyos con «multiagente avanzado» activado. No cuenta widgets de un solo agente.',
-            },
-            {
-              label: 'Derivaciones',
-              value: multiAgentStats.totals?.totalHandoffs ?? 0,
-              hint: 'Veces que el orquestador pasó la conversación a un sub-agente o especialista (triaje).',
-            },
-            {
-              label: 'Paralelo + síntesis',
-              value: multiAgentStats.totals?.totalParallel ?? 0,
-              hint: 'Consultas en modo paralelo: varios agentes respondieron y el hub unificó una sola respuesta.',
-            },
-            {
-              label: 'Sesiones con routing',
-              value: multiAgentStats.totals?.sessionsWithRouting ?? 0,
-              hint: 'Conversaciones del mes donde hubo al menos una decisión de enrutamiento multiagente.',
-            },
-          ]}
-        />
+        <Box sx={{ mb: 2 }}>
+          <DashboardStatStrip
+            title="Multiagente — este mes"
+            titleHint="Resumen de enrutamiento en widgets con modo multiagente avanzado (mes en curso)."
+            icon={GitBranch}
+            stats={[
+              {
+                label: 'Widgets activos',
+                value: multiAgentStats.enabledWidgets ?? 0,
+                hint: 'Widgets tuyos con «multiagente avanzado» activado.',
+              },
+              {
+                label: 'Derivaciones',
+                value: multiAgentStats.totals?.totalHandoffs ?? 0,
+                hint: 'Pases a sub-agente o especialista (triaje).',
+              },
+              {
+                label: 'Paralelo + síntesis',
+                value: multiAgentStats.totals?.totalParallel ?? 0,
+                hint: 'Consultas en modo paralelo con respuesta unificada.',
+              },
+              {
+                label: 'Sesiones con routing',
+                value: multiAgentStats.totals?.sessionsWithRouting ?? 0,
+                hint: 'Conversaciones con al menos una decisión multiagente.',
+              },
+            ]}
+          />
+        </Box>
       ) : null}
 
       {loading ? (
         <AiLoadingInline label="Cargando widgets…" hint="Recuperando tus chat widgets" style={{ padding: '48px 0' }} />
       ) : widgets.length === 0 ? (
         <DashboardEmptyState
-          icon={<Boxes size={28} className="text-[var(--primary)]" strokeWidth={1.75} />}
+          icon={<Boxes size={26} className="text-[var(--primary)]" strokeWidth={1.75} />}
           title="Aún no tienes widgets"
-          description="Crea tu primer chat widget con el Widget Builder."
+          description="Diseña tu primer chat widget y publícalo en minutos."
           action={
-            <DashboardButtonLink href="/dashboard/widget-builder" variant="primary" className="px-6 py-2.5">
-              <Plus size={16} />
+            <DashboardButtonLink href="/dashboard/widget-builder" variant="primary" className="px-5 py-2 text-xs">
+              <Plus size={14} />
               Crear widget
             </DashboardButtonLink>
           }
         />
       ) : (
         <>
-          <DashboardGridToolbar
-            title="Mis widgets"
-            count={filteredWidgets.length}
-            countLabel={filteredWidgets.length === 1 ? 'widget' : 'widgets'}
-          />
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            justifyContent="space-between"
+            alignItems={{ xs: 'stretch', md: 'center' }}
+            spacing={1.25}
+            sx={{ mb: 1.25 }}
+          >
+            <Box>
+              <Typography
+                component="h2"
+                sx={{
+                  m: 0,
+                  fontFamily: '"Outfit", "Plus Jakarta Sans", system-ui, sans-serif',
+                  fontSize: '0.95rem',
+                  fontWeight: 700,
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                Biblioteca
+              </Typography>
+              <Typography sx={{ m: 0, mt: 0.2, fontSize: '0.75rem', color: 'text.secondary' }}>
+                {filteredWidgets.length} de {overview.total} widget{overview.total === 1 ? '' : 's'}
+                {filter !== 'all' ? ` · filtro «${WIDGET_FILTER_OPTIONS.find((o) => o.value === filter)?.label}»` : ''}
+              </Typography>
+            </Box>
+          </Stack>
 
           <DashboardFilterBar
             searchValue={searchQuery}
             onSearchChange={setSearchQuery}
-            searchPlaceholder="Buscar widget…"
+            searchPlaceholder="Buscar por nombre, agente o tema…"
             searchAriaLabel="Buscar widget por nombre o agente"
             filterValue={filter}
             filterOptions={WIDGET_FILTER_OPTIONS}
@@ -308,7 +417,7 @@ export default function WidgetsPage() {
 
           {filteredWidgets.length === 0 ? (
             <DashboardEmptyState
-              icon={<Boxes size={28} className="text-[var(--primary)]" strokeWidth={1.75} />}
+              icon={<Boxes size={26} className="text-[var(--primary)]" strokeWidth={1.75} />}
               title="Sin resultados"
               description={
                 searchQuery.trim()
@@ -328,11 +437,11 @@ export default function WidgetsPage() {
               }
             />
           ) : (
-            <div className="dashboard-resource-grid" data-tour="widgets-list">
+            <div className="dashboard-widgets-grid" data-tour="widgets-list">
               {filteredWidgets.map((w) => (
                 <div
                   key={w._id}
-                  className={expanded === w._id ? 'dashboard-resource-grid__item--expanded' : undefined}
+                  className={expanded === w._id ? 'dashboard-widgets-grid__item--expanded' : undefined}
                 >
                   <WidgetListCard
                     widget={w}
