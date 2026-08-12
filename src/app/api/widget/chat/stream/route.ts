@@ -53,7 +53,6 @@ import {
 import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-enrich';
 import { schedulePersistWidgetTranscript } from '@/lib/widget-transcript';
 import { agentHasAnyWebhook } from '@/lib/agent-webhooks';
-import { agentHasAnySheet } from '@/lib/agent-sheets';
 import { tryServeWidgetChatViaDirectInference } from '@/lib/widget-chat-direct-inference';
 import { tryServeWidgetChatViaHubMcp } from '@/lib/widget-chat-direct-mcp';
 import { normalizeVisitorId } from '@/lib/widget-visitor';
@@ -306,8 +305,8 @@ export async function POST(req: NextRequest) {
 
         // ── Multi-webhook detection — fuerza fallback al endpoint non-stream ──
         try {
-          if (agentDoc && (agentHasAnyWebhook(agentDoc) || agentHasAnySheet(agentDoc))) {
-            logWidgetFlow('🔀', 'stream:skip', 'agente con webhooks/sheets → forzando fallback non-stream', {
+          if (agentDoc && agentHasAnyWebhook(agentDoc)) {
+            logWidgetFlow('🔀', 'stream:skip', 'agente con webhooks → forzando fallback non-stream', {
               traceId,
               agentId: parsedAgentId,
             });
@@ -712,6 +711,9 @@ export async function POST(req: NextRequest) {
                 ownerUserId: faqTrackOwnerId,
                 visionEnrichment: imageEnrichment,
                 strictPurposeSuffix: STRICT_PURPOSE_SUFFIX,
+                onStatus: (phase, message) => {
+                  enqueue({ type: 'status', phase, message });
+                },
               }),
             );
             if (directMcp?.reply) {
@@ -720,7 +722,6 @@ export async function POST(req: NextRequest) {
                 replyLen: directMcp.reply.length,
                 toolsUsed: directMcp.toolsUsed ?? [],
               });
-              emitWidgetChatStatus(enqueue, 'model');
               await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, directMcp.reply));
               enqueue(
                 attachAssistNavToPayload(
