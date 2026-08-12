@@ -8,15 +8,18 @@
 import { NextResponse } from 'next/server';
 import { getAibackhubBaseUrl, hubCreateHeaders } from '@/lib/aibackhub-sync';
 import { mergeDataSourcesIntoHubCatalogPayload } from '@/lib/mcp-catalog-merge-hub-response';
+import { HUB_MCP_CATALOG_USER_MESSAGE } from '@/lib/hub-user-errors';
 import type { McpCatalogRow } from '@/lib/mcp-catalog-types';
 
 export async function GET() {
   const base = getAibackhubBaseUrl();
   if (!base) {
+    console.error('[api/mcp/available] BACKEND_URL missing');
     return NextResponse.json(
       {
         success: false,
-        error: 'Falta BACKEND_URL en el entorno de la landing (AIBackHub).',
+        error: HUB_MCP_CATALOG_USER_MESSAGE,
+        code: 'HUB_UNAVAILABLE',
         catalog: [] as McpCatalogRow[],
       },
       { status: 503 },
@@ -38,12 +41,13 @@ export async function GET() {
           : typeof raw?.error === 'string'
             ? raw.error
             : `HTTP ${res.status}`;
+      console.error('[api/mcp/available] hub error', msg);
       return NextResponse.json(
         {
           success: false,
-          error: msg,
+          error: HUB_MCP_CATALOG_USER_MESSAGE,
+          code: 'HUB_UNAVAILABLE',
           catalog: [] as McpCatalogRow[],
-          backendBase: base,
         },
         { status: 502 },
       );
@@ -64,12 +68,13 @@ export async function GET() {
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    console.error('[api/mcp/available] fetch failed', msg);
     return NextResponse.json(
       {
         success: false,
-        error: msg,
+        error: HUB_MCP_CATALOG_USER_MESSAGE,
+        code: 'HUB_UNAVAILABLE',
         catalog: [] as McpCatalogRow[],
-        backendBase: base,
       },
       { status: 502 },
     );

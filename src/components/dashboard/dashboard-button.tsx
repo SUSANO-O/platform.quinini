@@ -34,7 +34,7 @@ export function DashboardButton({
   if (variant === 'icon') {
     return (
       <IconButton
-        className={className}
+        className={`dashboard-btn dashboard-btn--icon ${className}`.trim()}
         disabled={disabled}
         title={title}
         aria-label={ariaLabel}
@@ -51,7 +51,7 @@ export function DashboardButton({
   return (
     <Button
       type="button"
-      className={className}
+      className={`dashboard-btn dashboard-btn--${variant} ${className}`.trim()}
       disabled={disabled}
       title={title}
       aria-label={ariaLabel}
@@ -78,7 +78,7 @@ export function DashboardButtonLink({
       <IconButton
         component={Link}
         href={href}
-        className={className}
+        className={`dashboard-btn dashboard-btn--icon ${className}`.trim()}
         data-tour={dataTour}
         size="small"
         color="primary"
@@ -92,7 +92,7 @@ export function DashboardButtonLink({
     <Button
       component={Link}
       href={href}
-      className={className}
+      className={`dashboard-btn dashboard-btn--${variant} ${className}`.trim()}
       data-tour={dataTour}
       variant={mapVariant(variant)}
       color="primary"
