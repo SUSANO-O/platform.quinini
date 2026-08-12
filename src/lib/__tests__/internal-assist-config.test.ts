@@ -36,7 +36,7 @@ describe('resolveInternalAssistBoot', () => {
 describe('resolveAssistScriptUrl', () => {
   it('defaults to /assist.js on origin', () => {
     expect(resolveAssistScriptUrl('https://botiva.example.com')).toBe(
-      'https://botiva.example.com/assist.js?v=1.6.76',
+      'https://botiva.example.com/assist.js?v=1.6.77',
     );
   });
 });
