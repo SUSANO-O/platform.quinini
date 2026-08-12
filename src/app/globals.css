@@ -2449,15 +2449,15 @@ button.dashboard-sidebar-link:hover {
   min-height: 100%;
 }
 
-/* Contenido del dashboard: padding solo en móvil (topbar fija + nav inferior) */
+/* Contenido del dashboard: padding solo en móvil (barra inferior con menú) */
 .dashboard-main {
   flex: 1 1 0%;
   min-width: 0;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding-top: 52px;
-  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  padding-top: 0;
+  padding-bottom: calc(52px + env(safe-area-inset-bottom, 0px));
 }
 
 .dashboard-main--flow-editor {
@@ -2524,7 +2524,7 @@ button.dashboard-sidebar-link:hover {
   gap: 0.5rem;
   margin-bottom: 1.25rem;
   position: sticky;
-  top: 52px;
+  top: 0;
   z-index: 10;
   padding: 0.35rem 0;
   background: linear-gradient(180deg, var(--background) 70%, transparent);
