@@ -1,17 +1,12 @@
 'use client';
 
 import {
-  Calendar,
   Code2,
   Download,
-  MapPin,
   MoreVertical,
-  Pencil,
-  Play,
   Power,
   PowerOff,
   Share2,
-  Sun,
   Trash2,
 } from '@/components/ui/icons';
 import { DashboardButton, DashboardButtonLink } from '@/components/dashboard/dashboard-button';
@@ -20,9 +15,6 @@ import {
   DashboardMenuDivider,
   DashboardMenuItem,
 } from '@/components/dashboard/dashboard-dropdown-menu';
-import { DashboardMetaRow } from '@/components/dashboard/dashboard-meta-row';
-import { DashboardResourceCard } from '@/components/dashboard/dashboard-resource-card';
-import { DashboardStatusBadge } from '@/components/dashboard/dashboard-status-badge';
 import { WidgetAvatar } from '@/components/dashboard/widget-avatar';
 import { WidgetEmbedPanel } from '@/components/dashboard/widget-embed-panel';
 
@@ -43,23 +35,35 @@ export type WidgetListItem = {
 };
 
 function formatPosition(position: string): string {
-  return position.replace(/-/g, ' ');
+  const map: Record<string, string> = {
+    'bottom-right': 'Abajo der.',
+    'bottom-left': 'Abajo izq.',
+    'top-right': 'Arriba der.',
+    'top-left': 'Arriba izq.',
+  };
+  return map[position] ?? position.replace(/-/g, ' ');
 }
 
 function formatTheme(theme: string): string {
-  if (theme === 'dark') return 'Tema oscuro';
-  if (theme === 'light') return 'Tema claro';
+  if (theme === 'dark') return 'Oscuro';
+  if (theme === 'light') return 'Claro';
   return theme;
 }
 
 function formatUpdatedLabel(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
-  if (d.toDateString() === now.toDateString()) return 'Actualizado: Hoy';
+  if (d.toDateString() === now.toDateString()) return 'Hoy';
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
-  if (d.toDateString() === yesterday.toDateString()) return 'Actualizado: Ayer';
-  return `Actualizado: ${d.toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+  if (d.toDateString() === yesterday.toDateString()) return 'Ayer';
+  return d.toLocaleDateString('es', { day: 'numeric', month: 'short' });
+}
+
+function multiLabel(mode?: WidgetListItem['multiAgentMode']): string {
+  if (mode === 'parallel') return 'Paralelo';
+  if (mode === 'pipeline') return 'Pipeline';
+  return 'Triaje';
 }
 
 export function WidgetListCard({
@@ -89,18 +93,40 @@ export function WidgetListCard({
   onDelete: () => void;
   buildSnippet: (w: WidgetListItem, origin: string) => string;
 }) {
+  const agentLabel = w.agentName?.trim() || 'Sin agente';
+
   return (
-    <DashboardResourceCard
-      inactive={!isActive}
-      avatar={<WidgetAvatar widgetId={w._id} color={w.color} avatarUrl={w.avatar} size="md" />}
-      status={<DashboardStatusBadge active={isActive} />}
-      headerAction={
+    <article
+      className={`widget-card card-texture${isActive ? '' : ' widget-card--off'}${expanded ? ' is-open' : ''}`}
+      style={{ ['--resource-accent' as string]: w.color }}
+    >
+      <div className="widget-card__accent" aria-hidden />
+
+      <header className="widget-card__head">
+        <div className="widget-card__identity">
+          <WidgetAvatar widgetId={w._id} color={w.color} avatarUrl={w.avatar} size="md" />
+          <div className="widget-card__head-text">
+            <div className="widget-card__status-row">
+              <span className={`widget-card__dot${isActive ? ' is-on' : ''}`} aria-hidden />
+              <span className={`widget-card__status${isActive ? ' is-on' : ''}`}>
+                {isActive ? 'Activo' : 'Inactivo'}
+              </span>
+            </div>
+            <p className="widget-card__title" title={w.name}>
+              {w.name}
+            </p>
+            <p className="widget-card__subtitle" title={agentLabel}>
+              {agentLabel}
+            </p>
+          </div>
+        </div>
+
         <DashboardDropdownMenu
           placement="bottom"
           trigger={({ open, toggle }) => (
             <DashboardButton
               variant="icon"
-              className={open ? 'is-open' : ''}
+              className={`widget-card__menu${open ? ' is-open' : ''}`}
               aria-label="Más acciones"
               aria-expanded={open}
               onClick={toggle}
@@ -110,64 +136,66 @@ export function WidgetListCard({
           )}
         >
           <DashboardMenuItem disabled={toggling} onClick={onToggleActive}>
-            {isActive ? <PowerOff size={14} /> : <Power size={14} />}
+            {isActive ? <PowerOff size={13} /> : <Power size={13} />}
             {isActive ? 'Desactivar' : 'Activar'}
           </DashboardMenuItem>
           <DashboardMenuItem onClick={onToggleCode}>
-            <Code2 size={14} />
+            <Code2 size={13} />
             Código embed
           </DashboardMenuItem>
           <DashboardMenuItem href={`/dashboard/widgets/${w._id}/shares`}>
-            <Share2 size={14} className="text-[#6366f1]" />
+            <Share2 size={13} />
             Compartir
           </DashboardMenuItem>
           <DashboardMenuItem onClick={onExportHistory}>
-            <Download size={14} />
+            <Download size={13} />
             Historial
           </DashboardMenuItem>
           <DashboardMenuDivider />
           <DashboardMenuItem danger onClick={onDelete}>
-            <Trash2 size={14} />
+            <Trash2 size={13} />
             Eliminar
           </DashboardMenuItem>
         </DashboardDropdownMenu>
-      }
-      title={w.name}
-      subtitle={w.agentName?.trim() || 'Sin agente vinculado'}
-      meta={
-        <>
-          <DashboardMetaRow icon={MapPin}>{formatPosition(w.position)}</DashboardMetaRow>
-          <DashboardMetaRow icon={Sun}>{formatTheme(w.theme)}</DashboardMetaRow>
-          <DashboardMetaRow icon={Calendar}>{formatUpdatedLabel(w.createdAt)}</DashboardMetaRow>
-          {w.multiAgentEnabled ? (
-            <p className="dashboard-meta-row m-0 text-[11px] font-semibold text-[var(--primary)]">
-              Multiagente · {w.multiAgentMode === 'parallel' ? 'paralelo' : w.multiAgentMode === 'pipeline' ? 'pipeline' : 'triaje'}
-            </p>
-          ) : null}
-        </>
-      }
-      actions={
-        <>
-          <DashboardButtonLink href={`/dashboard/widget-builder?edit=${w._id}`} variant="primary">
-            <Pencil size={14} />
-            Editar
-          </DashboardButtonLink>
-          <DashboardButtonLink href={`/dashboard/widget-preview?id=${w._id}`} variant="secondary" title="Probar el chat">
-            <Play size={14} />
-            Probar
-          </DashboardButtonLink>
-        </>
-      }
-      footer={
-        expanded ? (
+      </header>
+
+      <div className="widget-card__tags">
+        <span className="widget-card__tag">{formatPosition(w.position)}</span>
+        <span className="widget-card__tag">{formatTheme(w.theme)}</span>
+        <span className="widget-card__tag">{formatUpdatedLabel(w.createdAt)}</span>
+        {w.multiAgentEnabled ? (
+          <span className="widget-card__tag widget-card__tag--accent">{multiLabel(w.multiAgentMode)}</span>
+        ) : null}
+      </div>
+
+      <footer className="widget-card__footer">
+        <DashboardButtonLink
+          href={`/dashboard/widget-builder?edit=${w._id}`}
+          variant="primary"
+          className="widget-card__btn"
+        >
+          Editar
+        </DashboardButtonLink>
+        <DashboardButtonLink
+          href={`/dashboard/widget-preview?id=${w._id}`}
+          variant="secondary"
+          className="widget-card__btn"
+          title="Probar el chat"
+        >
+          Probar
+        </DashboardButtonLink>
+      </footer>
+
+      {expanded ? (
+        <div className="widget-card__embed">
           <WidgetEmbedPanel
             snippet={buildSnippet(w, origin)}
             token={w.afhubToken}
             copied={copied}
             onCopySnippet={onCopyCode}
           />
-        ) : undefined
-      }
-    />
+        </div>
+      ) : null}
+    </article>
   );
 }

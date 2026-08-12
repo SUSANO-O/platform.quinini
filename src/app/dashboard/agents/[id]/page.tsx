@@ -1473,7 +1473,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       <div className="hero-glow pointer-events-none" style={{ background: R, top: '-200px', right: '-60px' }} />
       <div className="hero-glow pointer-events-none" style={{ background: B, top: '120px', left: '-120px' }} />
 
-      <div className="agent-editor-page__inner relative px-4 sm:px-6 py-6 md:py-8">
+      <div className="agent-editor-page__inner relative px-4 sm:px-5 py-4 md:py-5">
       {agent && (
         <>
           <AgentMcpOpenFromQuery

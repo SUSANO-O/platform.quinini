@@ -1,18 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Copy,
   GitBranch,
-  Pause,
-  Pencil,
-  Play,
   Plus,
   Sparkles,
-  Trash2,
 } from '@/components/ui/icons';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/use-auth';
@@ -22,9 +16,9 @@ import { DashboardPageHeader } from '@/components/dashboard/dashboard-page-heade
 import { DashboardButton, DashboardButtonLink } from '@/components/dashboard/dashboard-button';
 import { DashboardPlanUsageBar } from '@/components/dashboard/dashboard-plan-usage-bar';
 import { DashboardEmptyState } from '@/components/dashboard/dashboard-empty-state';
+import { FlowListCard } from '@/components/dashboard/flow-list-card';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { flowStatusLabel, parseFlowTags } from '@/lib/flow-admin';
 import { canUseConversationFlows } from '@/lib/plan-catalog';
 import type { FlowListItem } from '@/lib/flow-editor/types';
 import '@/components/flows/flows-admin.css';
@@ -45,14 +39,6 @@ async function fetchFlows(workspaceId: string): Promise<FlowsResponse> {
   });
   if (!res.ok) throw new Error('No se pudieron cargar los flujos');
   return res.json() as Promise<FlowsResponse>;
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('es', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
 }
 
 export default function FlowsPage() {
@@ -294,106 +280,17 @@ export default function FlowsPage() {
           )}
         />
       ) : (
-        <div className="flows-admin-table-wrap">
-          <table className="flows-admin-table">
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Etiquetas</th>
-                <th>Estado</th>
-                <th>Pasos</th>
-                <th>Creado</th>
-                <th aria-label="Acciones" />
-              </tr>
-            </thead>
-            <tbody>
-              {flows.map((flow) => {
-                const tags = parseFlowTags(flow.tags);
-                const visible = tags.slice(0, 3);
-                const hidden = tags.length - visible.length;
-                const isBusy = busyId === flow.id;
-
-                return (
-                  <tr key={flow.id}>
-                    <td>
-                      <button
-                        type="button"
-                        className="flows-admin-table__name"
-                        onClick={() => router.push(`/dashboard/flows/${flow.id}`)}
-                      >
-                        {flow.name}
-                      </button>
-                      {flow.description ? (
-                        <p className="flows-admin-table__desc">{flow.description}</p>
-                      ) : null}
-                    </td>
-                    <td>
-                      {tags.length > 0 ? (
-                        <div className="flows-admin-tags">
-                          {visible.map((tag) => (
-                            <span key={tag} className="flows-admin-tag">{tag}</span>
-                          ))}
-                          {hidden > 0 && (
-                            <span className="flows-admin-tag flows-admin-tag--more">+{hidden}</span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-[var(--muted-foreground)] text-xs">—</span>
-                      )}
-                    </td>
-                    <td>
-                      <span
-                        className={`flows-admin-status ${
-                          flow.status === 'published'
-                            ? 'flows-admin-status--active'
-                            : 'flows-admin-status--draft'
-                        }`}
-                      >
-                        {flowStatusLabel(flow.status)}
-                      </span>
-                    </td>
-                    <td className="font-semibold tabular-nums">{flow.stepCount}</td>
-                    <td className="text-[var(--muted-foreground)] text-sm">{formatDate(flow.createdAt)}</td>
-                    <td>
-                      <div className="flows-admin-row-actions">
-                        <DashboardButton
-                          variant="icon"
-                          title="Duplicar"
-                          disabled={isBusy}
-                          onClick={() => void duplicateFlow(flow.id)}
-                        >
-                          <Copy size={15} />
-                        </DashboardButton>
-                        <DashboardButton
-                          variant="icon"
-                          title="Editar"
-                          onClick={() => router.push(`/dashboard/flows/${flow.id}/edit`)}
-                        >
-                          <Pencil size={15} />
-                        </DashboardButton>
-                        <DashboardButton
-                          variant="icon"
-                          title={flow.status === 'published' ? 'Pausar' : 'Activar'}
-                          disabled={isBusy}
-                          onClick={() => void toggleStatus(flow)}
-                        >
-                          {flow.status === 'published' ? <Pause size={15} /> : <Play size={15} />}
-                        </DashboardButton>
-                        <DashboardButton
-                          variant="icon"
-                          title="Eliminar"
-                          disabled={isBusy}
-                          onClick={() => setDeleteId(flow.id)}
-                        >
-                          <Trash2 size={15} />
-                        </DashboardButton>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="dashboard-resource-grid">
+          {flows.map((flow) => (
+            <FlowListCard
+              key={flow.id}
+              flow={flow}
+              busy={busyId === flow.id}
+              onDuplicate={() => void duplicateFlow(flow.id)}
+              onToggleStatus={() => void toggleStatus(flow)}
+              onDelete={() => setDeleteId(flow.id)}
+            />
+          ))}
         </div>
       )}
 

@@ -32,28 +32,28 @@ export function AgentDetailHeader({
     <div className="agent-detail-header">
       <Link
         href="/dashboard/agents"
-        className="landing-link-accent inline-flex items-center gap-1 text-xs no-underline mb-4 font-semibold"
+        className="landing-link-accent inline-flex items-center gap-1 text-[11px] no-underline mb-3 font-semibold"
       >
-        <ChevronLeft size={14} aria-hidden /> Mis agentes
+        <ChevronLeft size={13} aria-hidden /> Mis agentes
       </Link>
 
       <div
-        className="agent-detail-header__card rounded-2xl border overflow-hidden card-texture"
+        className="agent-detail-header__card rounded-xl border overflow-hidden card-texture"
         style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
       >
         <div
-          className="h-[3px]"
+          className="h-[2px]"
           style={{ background: isDisabled ? 'var(--border)' : 'var(--primary)' }}
         />
 
-        <div className="p-4 md:p-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex items-start gap-3 min-w-0 flex-1">
+        <div className="p-3 md:p-3.5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-2.5 min-w-0 flex-1">
               <div
                 className={`agent-detail-header__avatar${isDisabled ? ' agent-detail-header__avatar--disabled' : ''}`}
               >
                 <Bot
-                  size={22}
+                  size={16}
                   style={{ color: isDisabled ? 'var(--muted-foreground)' : 'var(--primary)' }}
                   strokeWidth={1.75}
                   aria-hidden
@@ -61,8 +61,8 @@ export function AgentDetailHeader({
               </div>
 
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                  <h1 className="m-0 text-lg md:text-xl font-bold tracking-tight truncate max-w-full">
+                <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                  <h1 className="agent-detail-header__title truncate max-w-full">
                     {name}
                   </h1>
                   <span

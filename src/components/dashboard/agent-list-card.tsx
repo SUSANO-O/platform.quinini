@@ -1,32 +1,25 @@
 'use client';
 
 import {
-  Calendar,
-  ChevronRight,
   CircleOff,
-  Cpu,
-  Globe2,
   MoreVertical,
-  Network,
   Power,
   PowerOff,
   Trash2,
-  Wrench,
-  Zap,
 } from '@/components/ui/icons';
 import { TOOL_MAP } from '@/lib/agent-plans';
+import { avatarStyleFromSeed } from '@/lib/flow-editor/geometry';
 import { AgentInitialsBadge } from '@/components/dashboard/agent-initials-badge';
-import { AgentSkillsCount } from '@/components/dashboard/agent-skills-count';
-import { DashboardBadge } from '@/components/dashboard/dashboard-badge';
 import { DashboardButton, DashboardButtonLink } from '@/components/dashboard/dashboard-button';
 import {
   DashboardDropdownMenu,
   DashboardMenuDivider,
   DashboardMenuItem,
 } from '@/components/dashboard/dashboard-dropdown-menu';
-import { DashboardMetaRow } from '@/components/dashboard/dashboard-meta-row';
-import { DashboardResourceCard } from '@/components/dashboard/dashboard-resource-card';
-import { DashboardStatusBadge } from '@/components/dashboard/dashboard-status-badge';
+import {
+  DashboardResourceCard,
+  ResourceCardTag,
+} from '@/components/dashboard/dashboard-resource-card';
 
 export type AgentListItem = {
   _id: string;
@@ -48,11 +41,11 @@ export type AgentListItem = {
 function formatUpdatedLabel(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
-  if (d.toDateString() === now.toDateString()) return 'Actualizado: Hoy';
+  if (d.toDateString() === now.toDateString()) return 'Hoy';
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
-  if (d.toDateString() === yesterday.toDateString()) return 'Actualizado: Ayer';
-  return `Actualizado: ${d.toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+  if (d.toDateString() === yesterday.toDateString()) return 'Ayer';
+  return d.toLocaleDateString('es', { day: 'numeric', month: 'short' });
 }
 
 function shortModelDisplay(modelId: string, label: string): string {
@@ -61,18 +54,8 @@ function shortModelDisplay(modelId: string, label: string): string {
   return segment ?? modelId;
 }
 
-function ragMeta(agent: AgentListItem): { text: string; warn?: boolean } {
-  const ragN = Array.isArray(agent.ragSources) ? agent.ragSources.length : 0;
-  if (agent.ragEnabled && ragN > 0) {
-    return { text: `Almacenamiento · ${ragN} fuente${ragN !== 1 ? 's' : ''}` };
-  }
-  if (agent.ragEnabled && ragN === 0) {
-    return { text: 'Almacenamiento activo · sin fuentes', warn: true };
-  }
-  if (!agent.ragEnabled && ragN > 0) {
-    return { text: `Almac. off · ${ragN} guardada${ragN !== 1 ? 's' : ''}` };
-  }
-  return { text: 'Sin almacenamiento RAG' };
+function skillsCount(agent: AgentListItem): number {
+  return (agent.skills ?? []).filter((id) => typeof id === 'string' && id.trim().length > 0).length;
 }
 
 export function AgentListCard({
@@ -92,7 +75,12 @@ export function AgentListCard({
 }) {
   const isDisabled = agent.status === 'disabled';
   const isPlatform = Boolean(agent.isPlatform);
-  const rag = ragMeta(agent);
+  const accent = avatarStyleFromSeed(agent._id || agent.name).color;
+  const modelLabel = getModelLabel(agent.model);
+  const modelShort = shortModelDisplay(agent.model, modelLabel);
+  const description = agent.description?.trim();
+  const subtitle = description || modelShort;
+  const subtitleFull = description ? `${description} · ${modelLabel}` : modelLabel;
   const toolNames = (agent.tools ?? [])
     .map((t) => TOOL_MAP[t.toolId]?.name ?? t.toolId)
     .filter(Boolean);
@@ -102,16 +90,14 @@ export function AgentListCard({
         ? `${toolNames.slice(0, 2).join(', ')} +${toolNames.length - 2}`
         : toolNames.join(', ')
       : null;
-
-  const modelLabel = getModelLabel(agent.model);
-  const modelShort = shortModelDisplay(agent.model, modelLabel);
-  const description = agent.description?.trim();
-  const subtitle = description || modelShort;
-  const subtitleFull = description ? `${description} · ${modelLabel}` : modelLabel;
+  const ragN = Array.isArray(agent.ragSources) ? agent.ragSources.length : 0;
+  const skillN = skillsCount(agent);
+  const subN = agent.subAgentIds?.length ?? 0;
 
   return (
     <DashboardResourceCard
       inactive={isDisabled}
+      accentColor={accent}
       avatar={
         <AgentInitialsBadge
           name={agent.name}
@@ -121,7 +107,8 @@ export function AgentListCard({
           size="sm"
         />
       }
-      status={<DashboardStatusBadge active={!isDisabled} />}
+      statusLabel={isDisabled ? 'Inactivo' : 'Activo'}
+      statusOn={!isDisabled}
       headerAction={
         isPlatform ? null : (
           <DashboardDropdownMenu
@@ -129,12 +116,12 @@ export function AgentListCard({
             trigger={({ open, toggle }) => (
               <DashboardButton
                 variant="icon"
-                className={open ? 'is-open' : ''}
+                className={`resource-card__menu${open ? ' is-open' : ''}`}
                 aria-label="Más acciones"
                 aria-expanded={open}
                 onClick={toggle}
               >
-                <MoreVertical size={14} />
+                <MoreVertical size={15} />
               </DashboardButton>
             )}
           >
@@ -153,36 +140,32 @@ export function AgentListCard({
       title={agent.name}
       subtitle={subtitle}
       subtitleTitle={subtitleFull}
-      meta={
+      tags={
         <>
-          {description ? (
-            <DashboardMetaRow icon={Cpu}>
-              <span className="dashboard-meta-row__truncate" title={modelLabel}>
-                Modelo: {modelShort}
-              </span>
-            </DashboardMetaRow>
+          <ResourceCardTag title={modelLabel}>{modelShort}</ResourceCardTag>
+          {toolsLabel ? <ResourceCardTag title={toolsLabel}>{toolsLabel}</ResourceCardTag> : null}
+          {subN > 0 ? (
+            <ResourceCardTag>
+              {subN} sub-agente{subN !== 1 ? 's' : ''}
+            </ResourceCardTag>
           ) : null}
-          {toolsLabel ? <DashboardMetaRow icon={Wrench}>{toolsLabel}</DashboardMetaRow> : null}
-          {(agent.subAgentIds?.length ?? 0) > 0 ? (
-            <DashboardMetaRow icon={Network}>
-              {agent.subAgentIds.length} sub-agente{agent.subAgentIds.length !== 1 ? 's' : ''}
-            </DashboardMetaRow>
+          {agent.ragEnabled || ragN > 0 ? (
+            <ResourceCardTag>
+              {agent.ragEnabled
+                ? ragN > 0
+                  ? `RAG · ${ragN}`
+                  : 'RAG sin fuentes'
+                : `RAG off · ${ragN}`}
+            </ResourceCardTag>
           ) : null}
-          {(agent.ragEnabled || (Array.isArray(agent.ragSources) && agent.ragSources.length > 0)) ? (
-            <DashboardMetaRow icon={Zap}>
-              <span className={rag.warn ? 'dashboard-meta-row__warn' : undefined}>{rag.text}</span>
-            </DashboardMetaRow>
+          {agent.syncStatus === 'synced' ? <ResourceCardTag>Hub sync</ResourceCardTag> : null}
+          <ResourceCardTag>{formatUpdatedLabel(agent.createdAt)}</ResourceCardTag>
+          {isPlatform ? <ResourceCardTag accent>Plataforma</ResourceCardTag> : null}
+          {skillN > 0 ? (
+            <ResourceCardTag accent>
+              {skillN} skill{skillN !== 1 ? 's' : ''}
+            </ResourceCardTag>
           ) : null}
-          {agent.syncStatus === 'synced' ? (
-            <DashboardMetaRow icon={Globe2}>Hub sincronizado</DashboardMetaRow>
-          ) : null}
-          <DashboardMetaRow icon={Calendar}>{formatUpdatedLabel(agent.createdAt)}</DashboardMetaRow>
-          {isPlatform ? (
-            <p className="dashboard-agent-card__tag-row m-0">
-              <DashboardBadge variant="muted">Plataforma</DashboardBadge>
-            </p>
-          ) : null}
-          <AgentSkillsCount skillIds={agent.skills} />
         </>
       }
       actions={
@@ -190,14 +173,14 @@ export function AgentListCard({
           <DashboardButtonLink
             href={`/dashboard/agents/${agent._id}`}
             variant="primary"
-            className={isPlatform ? 'dashboard-resource-card__action-full' : undefined}
+            className={isPlatform ? 'resource-card__btn resource-card__btn--full' : 'resource-card__btn'}
           >
             {isPlatform ? 'Ver agente' : 'Configurar'}
-            <ChevronRight size={12} />
           </DashboardButtonLink>
           {!isPlatform ? (
             <DashboardButton
               variant="secondary"
+              className="resource-card__btn"
               disabled={toggling === agent._id || deleting === agent._id}
               title={isDisabled ? 'Activar agente' : 'Desactivar agente'}
               onClick={() => onToggleStatus(agent)}

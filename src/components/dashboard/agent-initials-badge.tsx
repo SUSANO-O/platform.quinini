@@ -1,3 +1,6 @@
+'use client';
+
+import { Bot } from '@/components/ui/icons';
 import { avatarStyleFromSeed, initialsFromName } from '@/lib/flow-editor/geometry';
 
 export function AgentInitialsBadge({
@@ -20,7 +23,9 @@ export function AgentInitialsBadge({
   className?: string;
 }) {
   const initials = initialsFromName(name);
+  const showBot = !name.trim() || initials === '?';
   const compact = size === 'sm';
+  const iconSize = compact ? 16 : 18;
   const palette = avatarStyleFromSeed(seed ?? name);
 
   let background = palette.background;
@@ -58,7 +63,7 @@ export function AgentInitialsBadge({
       }}
       aria-hidden
     >
-      {initials}
+      {showBot ? <Bot size={iconSize} /> : initials}
     </div>
   );
 }

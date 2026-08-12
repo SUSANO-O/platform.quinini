@@ -116,14 +116,18 @@ export function ApiDocsView({
         </summary>
         <div className="api-docs-tips__grid">
           <article className="api-docs-tip-card">
-            <span className="api-docs-tip-card__step">1</span>
+            <span className="api-docs-tip-card__step" aria-hidden>
+              <KeyRound size={13} />
+            </span>
             <p className="api-docs-tip-card__title">Obtén tu clave</p>
             <p className="api-docs-tip-card__text">
               Pulsa <strong>Generar</strong> en Autenticación o usa <code>POST /auth/token</code>.
             </p>
           </article>
           <article className="api-docs-tip-card">
-            <span className="api-docs-tip-card__step">2</span>
+            <span className="api-docs-tip-card__step" aria-hidden>
+              <Code2 size={13} />
+            </span>
             <p className="api-docs-tip-card__title">Prueba un endpoint</p>
             <p className="api-docs-tip-card__text">
               Elige un endpoint en la sidebar, completa parámetros si hace falta y pulsa{' '}
@@ -131,7 +135,9 @@ export function ApiDocsView({
             </p>
           </article>
           <article className="api-docs-tip-card">
-            <span className="api-docs-tip-card__step">3</span>
+            <span className="api-docs-tip-card__step" aria-hidden>
+              <Braces size={13} />
+            </span>
             <p className="api-docs-tip-card__title">Integra en tu backend</p>
             <p className="api-docs-tip-card__text">
               Usa el header <code>X-Api-Key</code> en tus servicios con base{' '}
