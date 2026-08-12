@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { Fragment, useEffect, useState } from 'react';
 import type { LucideIcon } from '@/components/ui/icons';
 import {
@@ -22,7 +21,8 @@ import {
   MessageSquare,
   GitBranch,
 } from '@/components/ui/icons';
-import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
+import { BotivaOrbLogo } from '@/components/brand/botiva-orb-logo';
+import { BRAND_NAME } from '@/lib/brand';
 import { PwaInstallButton } from '@/components/shared/pwa-install-button';
 import { SidebarVersionLink } from '@/components/dashboard/sidebar-version-link';
 import { UserAvatar } from '@/components/shared/user-avatar';
@@ -492,14 +492,7 @@ export function DashboardSidebar({
               <ChevronRight size={16} aria-hidden />
             </IconButton>
             <Link href="/" className="flex items-center justify-center no-underline" title={BRAND_NAME}>
-              <Image
-                src={BRAND_LOGO_SRC}
-                alt={BRAND_NAME}
-                width={36}
-                height={36}
-                className="h-8 w-auto object-contain rounded-full shrink-0 bg-white"
-                style={{ boxShadow: '0 2px 8px rgba(15, 23, 42, 0.08)' }}
-              />
+              <BotivaOrbLogo size={32} className="shrink-0" />
             </Link>
             <UserAvatar
               displayName={user.displayName}
@@ -511,14 +504,7 @@ export function DashboardSidebar({
         ) : (
           <>
             <Link href="/" className="flex items-center gap-2 no-underline min-w-0" title="Ir al inicio">
-              <Image
-                src={BRAND_LOGO_SRC}
-                alt={BRAND_NAME}
-                width={26}
-                height={26}
-                className="h-6 w-auto object-contain rounded-full shrink-0 bg-white"
-                style={{ boxShadow: '0 2px 8px rgba(15, 23, 42, 0.08)' }}
-              />
+              <BotivaOrbLogo size={24} className="shrink-0" />
               <span className="text-xs font-bold text-black truncate font-display">{BRAND_NAME}</span>
             </Link>
             {isDesktop && onToggleCollapse ? (

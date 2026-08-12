@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { Crown, Clock, Sparkles, Zap } from '@/components/ui/icons';
+import { Crown, Clock, LayoutDashboard, Zap } from '@/components/ui/icons';
 import Stack from '@mui/material/Stack';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
@@ -39,7 +39,7 @@ export function DashboardGreetingHeader({
           size="small"
           color="primary"
           variant="outlined"
-          icon={<Sparkles size={13} />}
+          icon={<LayoutDashboard size={13} />}
           label="Panel de Control"
           sx={{ mb: 1 }}
         />

@@ -28,11 +28,11 @@
     "rights": "Todos los derechos reservados."
   },
   "landing": {
-    "badge": "agentes para tu negocio",
+    "badge": "Integra agentes de IA",
     "hero": {
-      "title1": "Tu negocio, atendido",
-      "title2": "por agentes BotIvA",
-      "description": "Crea agentes, entrégalos con un widget y opera todo desde el panel. La plataforma de BotIvA para ventas, soporte y operaciones — sin montar infraestructura.",
+      "title1": "Crece tu negocio",
+      "title2": "integrando agentes de IA",
+      "description": "Crea agentes con tu conocimiento, publícalos en tu web o por API y opera todo desde el panel. Ventas, soporte y operaciones — sin montar infraestructura.",
       "ctaPrimary": "Ver precios",
       "ctaAccount": "Entrar a BotIvA"
     },
@@ -50,7 +50,7 @@
     "how": {
       "badge": "Implementación rápida",
       "title": "De la cuenta BotIvA al widget en vivo",
-      "subtitle": "Nuestra plataforma está diseñada para que despliegues agentes inteligentes sin complicaciones técnicas. Sigue estos seis pasos y transforma tu atención al cliente hoy mismo.",
+      "subtitle": "Diseñada para desplegar agentes inteligentes sin complicaciones técnicas. Sigue estos seis pasos y transforma tu atención al cliente hoy mismo.",
       "step1Title": "Crea tu cuenta",
       "step1Desc": "Regístrate con tu código de autorización y accede al panel de control cuando tengas un plan activo.",
       "step2Title": "Entrena tu agente",
@@ -291,7 +291,7 @@
     "cta": {
       "title1": "Activa BotIvA",
       "title2": "en tu sitio",
-      "subtitle": "Panel, agentes, widget y panel. Cancela cuando quieras.",
+      "subtitle": "Panel, agentes, widget y API. Cancela cuando quieras.",
       "primary": "Ver precios",
       "secondary": "Ya tengo cuenta"
     },

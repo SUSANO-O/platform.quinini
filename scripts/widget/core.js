@@ -8,7 +8,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.6.69';
+  var VERSION = '1.6.76';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -379,13 +379,23 @@
     '<span class="afhub-orb-wave"></span><span class="afhub-orb-wave afhub-orb-wave-b"></span>' +
     '<span class="afhub-orb-core"></span></span></span>';
 
-  /** Con avatar → silueta PNG sola. Sin avatar → orbe animado (ondas + núcleo). */
+  /** SVG / vector brand orb (mismo estilo que navbar BotIvA). */
+  function isVectorAvatar(url) {
+    return /\.svg(\?|#|$)/i.test(String(url || '').trim());
+  }
+
+  /** Con avatar → imagen (SVG orbe o PNG). Sin avatar → orbe animado CSS. */
   function orbHtmlForCfg(cfg) {
     var url = cfg.avatar && String(cfg.avatar).trim();
     if (url) {
+      var vectorCls = isVectorAvatar(url) ? ' afhub-orb--avatar-vector' : '';
       return (
-        '<span class="afhub-fab-inner" aria-hidden="true"><span class="afhub-orb afhub-orb--avatar afhub-orb--avatar-silhouette">' +
-        '<img class="afhub-orb-avatar-img" src="' + escapeAttr(url) + '" alt="" width="128" height="128" decoding="async" loading="eager">' +
+        '<span class="afhub-fab-inner" aria-hidden="true"><span class="afhub-orb afhub-orb--avatar afhub-orb--avatar-silhouette' +
+        vectorCls +
+        '">' +
+        '<img class="afhub-orb-avatar-img" src="' +
+        escapeAttr(url) +
+        '" alt="" width="256" height="256" decoding="async" loading="eager">' +
         '</span></span>'
       );
     }
@@ -403,6 +413,7 @@
   function syncFabAvatarMode(fab, cfg) {
     if (usesFabSilhouetteAvatar(cfg)) fab.classList.add('afhub-fab--avatar');
     else fab.classList.remove('afhub-fab--avatar');
+    fab.classList.remove('afhub-fab--avatar-vector', 'afhub-fab--avatar-teal');
   }
 
   var AFHUB_FONT_STACK =
@@ -677,9 +688,14 @@
         var ri;
         for (ri = 0; ri < remoteWins.length; ri++) {
           var rk = remoteWins[ri];
-          if (Object.prototype.hasOwnProperty.call(remoteCfg, rk) && remoteCfg[rk] !== undefined) {
-            mergedInput[rk] = remoteCfg[rk];
+          if (!Object.prototype.hasOwnProperty.call(remoteCfg, rk) || remoteCfg[rk] === undefined) continue;
+          if (rk === 'avatar') {
+            var remoteAv = String(remoteCfg.avatar == null ? '' : remoteCfg.avatar).trim();
+            var localAv = String(localInput.avatar == null ? '' : localInput.avatar).trim();
+            mergedInput.avatar = remoteAv || localAv;
+            continue;
           }
+          mergedInput[rk] = remoteCfg[rk];
         }
       }
       var cfg = normalizeConfig(mergedInput);
@@ -1578,7 +1594,10 @@
     header.className = 'afhub-header';
 
     var avatarEl = document.createElement('div');
-    avatarEl.className = 'afhub-avatar' + (cfg.avatar ? ' afhub-avatar--silhouette' : '');
+    avatarEl.className =
+      'afhub-avatar' +
+      (cfg.avatar ? ' afhub-avatar--silhouette' : '') +
+      (cfg.avatar && isVectorAvatar(cfg.avatar) ? ' afhub-avatar--vector' : '');
     avatarEl.innerHTML = cfg.avatar ? ('<img src="' + escapeAttr(cfg.avatar) + '" alt="avatar">') : ICON_BOT;
     header.appendChild(avatarEl);
 
@@ -2814,6 +2833,7 @@
       avatar.className = 'afhub-msg-avatar';
       avatar.setAttribute('aria-hidden', 'true');
       if (cfg.avatar && String(cfg.avatar).trim()) {
+        if (isVectorAvatar(cfg.avatar)) avatar.classList.add('afhub-msg-avatar--vector');
         avatar.innerHTML = '<img src="' + escapeAttr(cfg.avatar) + '" alt="">';
       } else {
         avatar.innerHTML = ICON_BOT;
@@ -6019,19 +6039,20 @@
       '#' + rootId + ' .afhub-orb-avatar-img { width:36px; height:36px; border-radius:50%; object-fit:cover; object-position:center 18%; position:relative; z-index:2; display:block; border:2px solid rgba(255,255,255,.94); box-shadow:inset 0 2px 10px rgba(0,0,0,.16),inset 0 -1px 0 rgba(255,255,255,.28),0 4px 14px rgba(0,0,0,.18); filter:contrast(1.06) saturate(1.08); -webkit-backface-visibility:hidden; backface-visibility:hidden; transform:translateZ(0); }' +
       '#' + rootId + ' .afhub-orb-avatar-shine { position:absolute; inset:0; border-radius:50%; pointer-events:none; z-index:3; background:linear-gradient(145deg,rgba(255,255,255,.48) 0%,rgba(255,255,255,.12) 34%,transparent 56%,rgba(255,255,255,.06) 100%); mix-blend-mode:soft-light; }' +
       '#' + rootId + ' .afhub-orb-avatar-halo,#' + rootId + ' .afhub-orb-avatar-shine { display:none; }' +
-      '#' + rootId + ' .afhub-orb--avatar-silhouette { border-radius:50%; overflow:hidden; background:#0f172a; box-shadow:none; }' +
-      '#' + rootId + ' .afhub-orb--avatar-silhouette .afhub-orb-avatar-img { border-radius:50%; object-fit:cover; object-position:center center; background:transparent; border:none; box-shadow:none; filter:contrast(1.14) saturate(1.08) brightness(1.03); image-rendering:auto; -webkit-backface-visibility:hidden; backface-visibility:hidden; transform:translateZ(0); }' +
-      '#' + rootId + ' .afhub-fab.afhub-fab--avatar { width:' + fabAvatarPx + 'px; height:' + fabAvatarPx + 'px; border-radius:50%; background:#061018; background-blend-mode:normal; filter:none; padding:0; overflow:hidden; box-shadow:0 6px 18px rgba(15,23,42,.22),0 0 0 1.5px rgba(255,255,255,.95),0 0 0 3px rgba(0,107,125,.12); transition:transform .28s cubic-bezier(.22,1,.36,1),box-shadow .22s ease; }' +
+      '#' + rootId + ' .afhub-orb--avatar-silhouette { border-radius:0; overflow:visible; background:transparent; box-shadow:none; }' +
+      '#' + rootId + ' .afhub-orb--avatar-silhouette .afhub-orb-avatar-img { border-radius:0; object-fit:contain; object-position:center center; background:transparent; border:none; box-shadow:none; filter:drop-shadow(0 4px 10px rgba(15,23,42,.16)); image-rendering:auto; -webkit-backface-visibility:hidden; backface-visibility:hidden; transform:translateZ(0); }' +
+      /* FAB con avatar — orbe flotante, sin disco #061018 ni anillo blanco */
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar { width:' + fabAvatarPx + 'px; height:' + fabAvatarPx + 'px; border-radius:0; background:transparent; background-blend-mode:normal; filter:none; padding:0; overflow:visible; box-shadow:none; transition:transform .28s cubic-bezier(.22,1,.36,1); }' +
       '#' + rootId + ' .afhub-fab.afhub-fab--avatar::before,#' + rootId + ' .afhub-fab.afhub-fab--avatar::after { display:none; }' +
-      '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-fab-inner { width:100%; height:100%; border-radius:50%; overflow:hidden; }' +
-      '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-orb--avatar { width:100%; height:100%; padding:0; background:transparent; box-shadow:none; border-radius:50%; overflow:hidden; }' +
-      '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-orb-avatar-img { width:100%; height:100%; border-radius:50%; object-fit:cover; object-position:center center; box-shadow:none; display:block; image-rendering:auto; border:none; filter:contrast(1.04) saturate(1.05) brightness(1.02); background:transparent; -webkit-backface-visibility:hidden; backface-visibility:hidden; transform:translateZ(0); }' +
-      '#' + rootId + '.afhub-open .afhub-fab.afhub-fab--avatar { width:' + fabAvatarPx + 'px; height:' + fabAvatarPx + 'px; background:#061018; box-shadow:0 6px 18px rgba(15,23,42,.22),0 0 0 1.5px rgba(255,255,255,.95),0 0 0 3px rgba(0,107,125,.12); opacity:1; }' +
-      '#' + rootId + ' .afhub-fab.afhub-fab--avatar:hover { transform:scale(1.04); filter:none; box-shadow:0 8px 22px rgba(15,23,42,.28),0 0 0 1.5px #fff,0 0 0 4px rgba(0,107,125,.16); }' +
-      '#' + rootId + ' .afhub-fab.afhub-fab--avatar:hover .afhub-orb-avatar-img { filter:contrast(1.06) saturate(1.08) brightness(1.03); }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-fab-inner { width:100%; height:100%; border-radius:0; overflow:visible; }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-orb--avatar { width:100%; height:100%; padding:0; background:transparent; box-shadow:none; border-radius:0; overflow:visible; }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-orb-avatar-img { width:100%; height:100%; border-radius:0; object-fit:contain; object-position:center center; box-shadow:none; display:block; image-rendering:auto; border:none; filter:drop-shadow(0 4px 10px rgba(15,23,42,.16)); background:transparent; -webkit-backface-visibility:hidden; backface-visibility:hidden; transform:translateZ(0); }' +
+      '#' + rootId + '.afhub-open .afhub-fab.afhub-fab--avatar { width:' + fabAvatarPx + 'px; height:' + fabAvatarPx + 'px; background:transparent; box-shadow:none; opacity:1; }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar:hover { transform:scale(1.07); filter:none; box-shadow:none; }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar:hover .afhub-orb-avatar-img { filter:drop-shadow(0 6px 14px rgba(15,23,42,.22)); }' +
       '#' + rootId + ' .afhub-fab.afhub-fab--avatar:hover .afhub-orb--avatar { box-shadow:none; }' +
       '#' + rootId + ' .afhub-fab.afhub-fab--avatar:active { transform:scale(1.01); }' +
-      '#' + rootId + ' .afhub-fab.afhub-fab--avatar.afhub-fab--dragging { box-shadow:0 10px 22px rgba(0,0,0,.28),0 0 0 1.5px #fff; }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar.afhub-fab--dragging { box-shadow:none; }' +
       '@media (prefers-reduced-motion:reduce){ #' + rootId + ' .afhub-orb-wave { animation:none; opacity:.35; transform:scale(1.15); } }' +
       '#' + rootId + '[data-afhub-h="right"] .afhub-chat { transform-origin:100% 100%; }' +
       '#' + rootId + '[data-afhub-h="left"] .afhub-chat { transform-origin:0% 100%; }' +
@@ -6283,10 +6304,12 @@
       '#' + rootId + ' .afhub-header::before { display:none; }' +
       '#' + rootId + ' .afhub-header::after { display:none; }' +
       '#' + rootId + ' .afhub-header > * { position:relative; z-index:1; }' +
-      '#' + rootId + ' .afhub-avatar { width:34px; height:34px; border-radius:50%; background:transparent; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; border:none; box-shadow:0 0 0 0.5px rgba(15,23,42,.08),0 1px 4px rgba(15,23,42,.06); }' +
-      '#' + rootId + ' .afhub-avatar.afhub-avatar--silhouette { width:34px; height:34px; border-radius:50%; background:transparent; overflow:hidden; border:none; box-shadow:0 0 0 0.5px rgba(15,23,42,.08),0 1px 4px rgba(15,23,42,.06); }' +
+      '#' + rootId + ' .afhub-avatar { width:40px; height:40px; border-radius:50%; background:transparent; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; border:none; box-shadow:none; }' +
+      '#' + rootId + ' .afhub-avatar.afhub-avatar--silhouette { width:40px; height:40px; border-radius:50%; background:transparent; overflow:hidden; border:none; box-shadow:none; }' +
       '#' + rootId + ' .afhub-avatar img { width:100%; height:100%; object-fit:cover; }' +
-      '#' + rootId + ' .afhub-avatar.afhub-avatar--silhouette img { object-fit:cover; object-position:center 18%; filter:none; }' +
+      '#' + rootId + ' .afhub-avatar.afhub-avatar--silhouette img { object-fit:contain; object-position:center center; filter:drop-shadow(0 2px 5px rgba(15,23,42,.12)); }' +
+      '#' + rootId + ' .afhub-avatar.afhub-avatar--vector { background:transparent; box-shadow:none; overflow:visible; }' +
+      '#' + rootId + ' .afhub-avatar.afhub-avatar--vector img { object-fit:contain; object-position:center center; padding:0; width:110%; height:110%; filter:drop-shadow(0 2px 5px rgba(15,23,42,.12)); border-radius:0; }' +
       '#' + rootId + ' .afhub-avatar svg { width:18px; height:18px; opacity:.92; color:#64748b; }' +
       '#' + rootId + ' .afhub-header-info { flex:1; min-width:0; }' +
       '#' + rootId + ' .afhub-header-info h3 { font-size:14px; font-weight:600; letter-spacing:-.02em; line-height:1.2; color:#0f172a; }' +
@@ -6314,8 +6337,10 @@
       '#' + rootId + ' .afhub-msg-row--bot { align-self:flex-start; }' +
       '#' + rootId + ' .afhub-msg-stack { display:flex; flex-direction:column; gap:4px; min-width:0; max-width:calc(100% - 36px); flex:1; }' +
       '#' + rootId + ' .afhub-msg-row--bot .afhub-msg { max-width:100%; }' +
-      '#' + rootId + ' .afhub-msg-avatar { width:28px; height:28px; border-radius:50%; flex-shrink:0; background:rgba(255,255,255,.35); border:none; display:flex; align-items:center; justify-content:center; overflow:hidden; margin-bottom:2px; box-shadow:0 0 0 0.5px rgba(255,255,255,.55),0 2px 8px rgba(15,23,42,.06); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); }' +
+      '#' + rootId + ' .afhub-msg-avatar { width:32px; height:32px; border-radius:50%; flex-shrink:0; background:transparent; border:none; display:flex; align-items:center; justify-content:center; overflow:visible; margin-bottom:2px; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; }' +
       '#' + rootId + ' .afhub-msg-avatar img { width:100%; height:100%; object-fit:cover; }' +
+      '#' + rootId + ' .afhub-msg-avatar.afhub-msg-avatar--vector { background:transparent; box-shadow:none; overflow:visible; -webkit-backdrop-filter:none; backdrop-filter:none; }' +
+      '#' + rootId + ' .afhub-msg-avatar.afhub-msg-avatar--vector img { object-fit:contain; width:110%; height:110%; padding:0; filter:drop-shadow(0 1px 4px rgba(15,23,42,.1)); border-radius:0; }' +
       '#' + rootId + ' .afhub-msg-avatar svg { width:14px; height:14px; color:#64748b; }' +
       '#' + rootId + ' .afhub-date-divider { align-self:center; text-align:center; margin:4px 0 2px; width:100%; }' +
       '#' + rootId + ' .afhub-date-divider span { display:inline-block; font-size:10px; font-weight:600; letter-spacing:.03em; text-transform:capitalize; color:#94a3b8; background:rgba(255,255,255,.18); padding:4px 11px; border-radius:999px; border:none; box-shadow:0 0 0 0.5px rgba(255,255,255,.48),0 2px 8px rgba(15,23,42,.04); -webkit-backdrop-filter:blur(14px) saturate(1.5); backdrop-filter:blur(14px) saturate(1.5); }' +

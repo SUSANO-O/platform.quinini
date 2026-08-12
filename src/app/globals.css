@@ -1030,6 +1030,53 @@ label {
   background: linear-gradient(180deg, transparent 55%, rgba(15, 23, 42, 0.18) 100%);
 }
 
+.landing-how-section .MuiContainer-root {
+  padding-left: max(1.5rem, env(safe-area-inset-left));
+  padding-right: max(1.5rem, env(safe-area-inset-right));
+}
+
+.landing-how-grid-wrap {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 0.25rem 1rem 0;
+}
+
+@media (min-width: 900px) {
+  .landing-how-grid-wrap {
+    padding: 0.25rem 1.75rem 0;
+  }
+}
+
+.landing-how-card--compact {
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.035);
+}
+
+.landing-how-card--compact .how-step-visual {
+  aspect-ratio: 16 / 10;
+}
+
+.landing-how-card--compact .landing-how-card__body {
+  padding: 0.7rem 0.9rem 0.85rem;
+  min-height: 0;
+}
+
+.landing-how-card--compact .landing-how-card__n {
+  margin-bottom: 0.25rem;
+  font-size: 0.58rem;
+}
+
+.landing-how-card--compact .landing-card-title {
+  font-size: 0.9375rem;
+  margin-bottom: 0.35rem !important;
+}
+
+.landing-how-card--compact .landing-body-sm {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  -webkit-line-clamp: 2;
+}
+
 .landing-how-card {
   height: 100%;
   display: flex;

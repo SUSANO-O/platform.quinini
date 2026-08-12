@@ -3,12 +3,15 @@
  * Valores por defecto; override vía env en servidor.
  */
 
-/** Mantener en sync con `VERSION` en scripts/widget/core.js (cache-bust de assist.js). */
-export const WIDGET_SDK_VERSION = '1.6.69';
+import { ASSIST_WIDGET_ORB_SRC } from '@/lib/brand';
 
-const ASSIST_FAB_AVATAR_PX = 52;
-const ASSIST_ORB_MARKETING = '/assets/marketing/math-avatar-cutout.webp?v=orb3';
-const ASSIST_ORB_APP = '/assets/assist/botivaorbe.webp?v=orb3';
+/** Mantener en sync con `VERSION` en scripts/widget/core.js (cache-bust de assist.js). */
+export const WIDGET_SDK_VERSION = '1.6.76';
+
+const ASSIST_FAB_AVATAR_PX = 60;
+const ASSIST_FAB_MARKETING_PX = 72;
+/** Orbe 3D cian del FAB — distinto del logo de marca en navbar. */
+const ASSIST_ORB = ASSIST_WIDGET_ORB_SRC;
 
 export type InternalAssistContext = 'app' | 'marketing';
 
@@ -68,8 +71,8 @@ export function resolveInternalAssistBoot(
       subtitle: envStr('INTERNAL_MARKETING_ASSIST_SUBTITLE', 'En linea'),
       welcome: envStr('INTERNAL_MARKETING_ASSIST_WELCOME', 'Hola! Como puedo ayudarte hoy?'),
       fabHint: envStr('INTERNAL_MARKETING_ASSIST_FAB_HINT', 'Hola! Como puedo ayudarte hoy?'),
-      avatar: envStr('INTERNAL_MARKETING_ASSIST_AVATAR', ASSIST_ORB_MARKETING),
-      fabAvatarSize: envNum('INTERNAL_ASSIST_FAB_AVATAR_SIZE', ASSIST_FAB_AVATAR_PX),
+      avatar: envStr('INTERNAL_MARKETING_ASSIST_AVATAR', ASSIST_ORB),
+      fabAvatarSize: envNum('INTERNAL_ASSIST_FAB_AVATAR_SIZE', ASSIST_FAB_MARKETING_PX),
       // Solo WhatsApp por ahora: sin "Hablar con una persona" (inbox/canales).
       humanSupportEnabled: true,
       handoffEnabled: false,
@@ -93,7 +96,7 @@ export function resolveInternalAssistBoot(
     subtitle: envStr('INTERNAL_APP_ASSIST_SUBTITLE', 'En linea'),
     welcome: envStr('INTERNAL_APP_ASSIST_WELCOME', 'Hola! Como puedo ayudarte hoy?'),
     fabHint: envStr('INTERNAL_APP_ASSIST_FAB_HINT', '¿Tienes dudas?'),
-    avatar: envStr('INTERNAL_APP_ASSIST_AVATAR', ASSIST_ORB_APP),
+    avatar: envStr('INTERNAL_APP_ASSIST_AVATAR', ASSIST_ORB),
     fabAvatarSize: envNum('INTERNAL_ASSIST_FAB_AVATAR_SIZE', ASSIST_FAB_AVATAR_PX),
     // Solo WhatsApp por ahora: sin "Hablar con una persona" (inbox/canales).
     humanSupportEnabled: true,

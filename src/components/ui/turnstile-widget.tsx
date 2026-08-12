@@ -27,7 +27,7 @@ export const TurnstileWidget = forwardRef<TurnstileInstance, Props>(
         onSuccess={onSuccess}
         onExpire={onExpire}
         onError={onError}
-        options={{ theme: 'light', size: 'normal' }}
+        options={{ theme: 'light', size: 'compact' }}
       />
     );
   },

@@ -5,8 +5,18 @@ export const BRAND_ASSISTANT_NAME = 'BotIvA Assistant';
 
 export const BRAND_ASSISTANT_NAME_ES = 'Asistente BotIvA';
 
-/** Orbe BotIvA (public/). */
-export const BRAND_LOGO_SRC = '/assets/marketing/botiva-orb.png';
+/** Cache-bust del logo de marca (UI, favicon, PWA). */
+export const BRAND_ICON_VERSION = 'filoia1';
+
+/** Logo BotIvA — PNG (navbar, login, dashboard, emails). */
+export const BRAND_LOGO_SRC = `/assets/marketing/botiva-logo.png?v=${BRAND_ICON_VERSION}`;
+export const BRAND_LOGO_PNG_SRC = BRAND_LOGO_SRC;
+export const BRAND_LOGO_PNG_2X_SRC = `/assets/marketing/botiva-logo@2x.png?v=${BRAND_ICON_VERSION}`;
+export const BRAND_FAVICON_SRC = `/assets/marketing/botiva-logo-32.png?v=${BRAND_ICON_VERSION}`;
+
+/** Orbe 3D cian — solo FAB / avatar de widgets de atención (assist). */
+export const ASSIST_WIDGET_ORB_VERSION = 'orb-teal2';
+export const ASSIST_WIDGET_ORB_SRC = `/assets/marketing/botiva-orb.png?v=${ASSIST_WIDGET_ORB_VERSION}`;
 
 /** Texto legible en panel. */
 export const BRAND_TEXT_COLOR = '#000000';

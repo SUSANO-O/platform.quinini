@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { useState } from 'react';
 import {
   AppBar,
@@ -24,7 +23,8 @@ import { ChevronDown, Menu as MenuIcon, X as CloseIcon } from '@/components/ui/i
 import { useAuth } from '@/hooks/use-auth';
 import { useTranslations } from 'next-intl';
 import { LanguageSwitcher } from './language-switcher';
-import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
+import { BotivaOrbLogo } from '@/components/brand/botiva-orb-logo';
+import { BRAND_NAME } from '@/lib/brand';
 
 const NAV_LINKS = [
   { href: '#agents', key: 'agents' as const },
@@ -84,14 +84,7 @@ export function LandingNavbar() {
                 fontFamily: '"Inter", system-ui, sans-serif',
               }}
             >
-              <Image
-                src={BRAND_LOGO_SRC}
-                alt={BRAND_NAME}
-                width={32}
-                height={32}
-                style={{ height: 28, width: 28, objectFit: 'contain', borderRadius: 8 }}
-                priority
-              />
+              <BotivaOrbLogo size={32} className="shrink-0" />
               <Box component="span" sx={{ fontWeight: 700, letterSpacing: '-0.03em', display: { xs: 'none', sm: 'inline' } }}>
                 {BRAND_NAME}
               </Box>

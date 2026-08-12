@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useAuthSplashLoading } from '@/hooks/use-auth-splash-loading';
@@ -11,7 +10,8 @@ import { AiLoadingScreen } from '@/components/ui/ai-loading-screen';
 import { DashboardSidebar, SIDEBAR_COLLAPSED_PX } from '@/components/dashboard/dashboard-sidebar';
 import { DashboardMobileNav } from '@/components/dashboard/dashboard-mobile-nav';
 import { TourProvider, useTour } from '@/components/onboarding/app-tour';
-import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
+import { BotivaOrbLogo } from '@/components/brand/botiva-orb-logo';
+import { BRAND_NAME } from '@/lib/brand';
 // import { initPaddleClient } from '@/lib/paddle-client'; // Paddle — comentado
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -399,7 +399,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           boxShadow: 'var(--shadow-surface-sm)',
         }}>
           <Link href="/dashboard" className="flex items-center gap-2 no-underline">
-            <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={32} height={32} className="h-8 w-8 object-contain rounded-xl shrink-0" />
+            <BotivaOrbLogo size={32} className="shrink-0" />
             <span className="text-base font-bold text-black">{BRAND_NAME}</span>
           </Link>
         </header>
