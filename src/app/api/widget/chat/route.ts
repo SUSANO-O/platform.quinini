@@ -28,7 +28,7 @@ import { isOriginAllowed } from '@/lib/widget-origin-check';
 import { extractAndGuardMessage, countWidgetUserTurns } from '@/lib/message-guard';
 import { signRequest, SIGNATURE_HEADER } from '@/lib/hub-signature';
 import { logSecurityEvent } from '@/lib/security-log';
-import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
+import { logWidgetFlow, widgetInventoryReplyProbe, widgetMessageProbe, widgetToolsProbe } from '@/lib/debug-widget-flow';
 import {
   applyMultiAgentRouting,
   buildWidgetMultiAgentConfig,
@@ -846,6 +846,8 @@ export async function POST(req: NextRequest) {
               agentId: parsedAgentId,
               replyLen: direct.reply?.length ?? 0,
               toolsUsed: direct.toolsUsed ?? [],
+              ...widgetToolsProbe(direct.toolsUsed),
+              inventory: widgetInventoryReplyProbe(direct.reply),
             });
             trackWidgetChatUsage(widgetToken, parsedAgentId, true, undefined, meteringInput).catch(() => {});
             void trackWidgetUserMessageForFaqCandidates({

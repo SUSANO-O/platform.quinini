@@ -21,3 +21,33 @@ export function widgetMessageProbe(message: string | undefined): { len: number; 
     head: m.slice(0, 72).replace(/\s+/g, ' ').trim(),
   };
 }
+
+/** Señales rápidas de calidad de respuesta inventario (stress tests y DEBUG_WIDGET_FLOW). */
+export function widgetInventoryReplyProbe(reply: string | undefined): {
+  repRefs: number;
+  mentionsStock: boolean;
+  mentionsSede: boolean;
+  emptyInventory: boolean;
+  asksLead: boolean;
+} {
+  const r = typeof reply === 'string' ? reply : '';
+  const repRefs = (r.match(/\bREP-\d+/gi) ?? []).length;
+  return {
+    repRefs,
+    mentionsStock: /\bstock\b/i.test(r),
+    mentionsSede: /\bsede\b/i.test(r),
+    emptyInventory: /(no (he |pude |encontr|hay)|sin resultados|no arroj[oó]|inventario vac)/i.test(r),
+    asksLead: /(nombre|tel[eé]fono|correo|agendar|cita|especialista de producto|d[eé]jame tus datos)/i.test(r),
+  };
+}
+
+/** Resumen compacto de herramientas usadas en una respuesta widget. */
+export function widgetToolsProbe(toolsUsed: string[] | undefined): {
+  count: number;
+  sheetTools: string[];
+  hasSheet: boolean;
+} {
+  const list = Array.isArray(toolsUsed) ? toolsUsed.map(String) : [];
+  const sheetTools = list.filter((t) => /sheet/i.test(t));
+  return { count: list.length, sheetTools, hasSheet: sheetTools.length > 0 };
+}
