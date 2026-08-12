@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Download, Share } from 'lucide-react';
+import { Download, Share } from '@/components/ui/icons';
 
 declare global {
   interface Window {

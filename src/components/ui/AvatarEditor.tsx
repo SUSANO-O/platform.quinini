@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Scissors, Sliders, Sparkles, X, Check, Loader2, Minus, Plus, RotateCcw } from 'lucide-react';
+import { Scissors, Sliders, Sparkles, X, Check, Loader2, Minus, Plus, RotateCcw } from '@/components/ui/icons';
 import { compressCanvasToDataUrl, computeAvatarCropRect } from '@/lib/avatar-export';
 import { browserImageUrlError } from '@/lib/safe-image-url';
 import { USER_AVATAR_MAX_DATA_URL_LENGTH } from '@/lib/user-profile';

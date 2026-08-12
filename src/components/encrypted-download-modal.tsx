@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Download, Eye, EyeOff, Lock } from 'lucide-react';
+import { Download, Eye, EyeOff, Lock } from '@/components/ui/icons';
 
 interface Props {
   open:       boolean;

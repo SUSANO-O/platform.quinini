@@ -17,7 +17,7 @@ import {
   Save,
   Ticket,
   MessageSquare,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { SecretRevealModal } from '@/components/ui/secret-reveal-modal';
 import { EncryptedDownloadModal } from '@/components/encrypted-download-modal';

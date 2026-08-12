@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Lock, Shield, AlertTriangle, Eye, CheckCircle, ArrowRight, Zap, Search, Terminal } from 'lucide-react';
+import { Lock, Shield, AlertTriangle, Eye, CheckCircle, ArrowRight, Zap, Search, Terminal } from '@/components/ui/icons';
 
 const R = 'var(--primary)';
 const D = '#991b1b';

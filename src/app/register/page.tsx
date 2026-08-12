@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { KeyRound, Eye, EyeOff, Check } from 'lucide-react';
+import { KeyRound, Eye, EyeOff, Check } from '@/components/ui/icons';
 import { useAuth } from '@/hooks/use-auth';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 import { TurnstileWidget } from '@/components/ui/turnstile-widget';

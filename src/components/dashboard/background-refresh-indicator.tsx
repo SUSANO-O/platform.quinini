@@ -1,6 +1,6 @@
 'use client';
 
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw } from '@/components/ui/icons';
 
 /** Indicador discreto: refresh en segundo plano sin bloquear la UI. */
 export function BackgroundRefreshIndicator({

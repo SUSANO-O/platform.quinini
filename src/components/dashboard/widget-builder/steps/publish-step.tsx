@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, CheckCircle2, Code2, Copy, Save } from 'lucide-react';
+import { Check, CheckCircle2, Code2, Copy, Save } from '@/components/ui/icons';
 import { BRAND_NAME } from '@/lib/brand';
 
 const PUBLISH_STEPS = ['Identidad', 'Apariencia', 'Comportamiento', 'Publicar'] as const;

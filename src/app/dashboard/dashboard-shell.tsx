@@ -18,7 +18,11 @@ import {
   ShieldAlert,
   Route,
   RotateCcw,
-} from 'lucide-react';
+} from '@/components/ui/icons';
+import Button from '@mui/material/Button';
+import Paper from '@mui/material/Paper';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
 import { LandingAccessGate } from '@/components/auth/landing-access-gate';
 
 import { CHECKOUT_UPGRADE_PLAN_IDS, PLAN_DISPLAY, effectiveProductPlan, isApiOnlyDashboardPath, isApiOnlyPlan } from '@/lib/plan-catalog';
@@ -63,79 +67,57 @@ function SubscriptionExpiryGate() {
         backdropFilter: 'blur(6px)',
       }}
     >
-      <div
-        className="card-texture"
-        style={{
+      <Paper
+        elevation={8}
+        sx={{
           width: 'min(560px, 100%)',
-          borderRadius: '18px',
-          border: '1px solid rgba(255,255,255,0.24)',
-          boxShadow: '0 24px 70px rgba(0,0,0,0.35)',
-          background: 'linear-gradient(145deg, rgba(255,255,255,0.22), rgba(255,255,255,0.07))',
-          backdropFilter: 'blur(14px)',
-          color: '#f8fafc',
-          padding: '28px 24px',
+          borderRadius: 3,
+          p: 3,
+          bgcolor: 'background.paper',
         }}
       >
-        <p style={{ margin: 0, fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.78 }}>
+        <Typography variant="overline" color="text.secondary">
           Suscripción inactiva
-        </p>
-        <h3 id="trial-expired-title" style={{ margin: '8px 0 12px', fontSize: '22px', lineHeight: 1.18 }}>
+        </Typography>
+        <Typography id="trial-expired-title" variant="h5" sx={{ mt: 1, mb: 1.5 }}>
           Tu plan de pago no está activo
-        </h3>
+        </Typography>
 
-        <p style={{ margin: '0 0 20px', color: 'rgba(241,245,249,0.96)', lineHeight: 1.5 }}>
+        <Typography color="text.secondary" sx={{ mb: 2.5 }}>
           {expiredAt
             ? `Tu suscripción terminó el ${expiredAt}.`
             : 'Necesitas una suscripción activa para usar el dashboard.'}{' '}
           Elige un plan y contáctanos por WhatsApp para activarlo, o cierra sesión.
-        </p>
+        </Typography>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+        <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 1.5 }}>
           {CHECKOUT_UPGRADE_PLAN_IDS.map((planId) => {
             const plan = PLAN_DISPLAY[planId];
             return (
-              <a
+              <Button
                 key={planId}
+                component="a"
                 href={buildTrialExpiredWhatsAppUrl(plan.label, plan.priceLabel)}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{
-                  border: 0,
-                  borderRadius: '10px',
-                  padding: '9px 14px',
-                  fontSize: '12px',
-                  fontWeight: 800,
-                  color: '#fff',
-                  cursor: 'pointer',
-                  background: 'var(--brand-primary)',
-                  textDecoration: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                }}
+                variant="contained"
+                size="small"
               >
                 {plan.label} · {plan.priceLabel}
-              </a>
+              </Button>
             );
           })}
-        </div>
+        </Stack>
 
-        <button
+        <Button
           type="button"
+          variant="outlined"
+          color="inherit"
           onClick={() => void logout().then(() => { window.location.href = '/login'; })}
-          style={{
-            border: '1px solid rgba(255,255,255,0.28)',
-            borderRadius: '10px',
-            padding: '8px 14px',
-            fontSize: '12px',
-            fontWeight: 700,
-            color: '#fff',
-            cursor: 'pointer',
-            background: 'transparent',
-          }}
         >
           Cerrar sesión
-        </button>
-      </div>
+        </Button>
+      </Paper>
     </div>
   );
 }

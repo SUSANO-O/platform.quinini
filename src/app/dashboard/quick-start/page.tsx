@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
-import { Upload, FileText, Copy, Check, Sparkles, ExternalLink, Loader2 } from 'lucide-react';
+import { Upload, FileText, Copy, Check, Sparkles, ExternalLink, Loader2 } from '@/components/ui/icons';
 import Link from 'next/link';
 import { BRAND_TEXT_COLOR, UI_SURFACE_SECONDARY } from '@/lib/brand';
 import { useSubscription } from '@/hooks/use-subscription';

@@ -4,7 +4,7 @@ import { useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Lock, CheckCircle, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Lock, CheckCircle, Loader2, Eye, EyeOff } from '@/components/ui/icons';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 
 function ResetPasswordContent() {

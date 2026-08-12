@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, Search, X } from 'lucide-react';
+import { Loader2, Search, X } from '@/components/ui/icons';
 
 export type AdminUserOption = {
   id: string;

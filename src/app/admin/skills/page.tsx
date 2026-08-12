@@ -12,7 +12,7 @@ import {
   RotateCcw,
   Eye,
   EyeOff,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import type { AgentSkillCatalogEntry } from '@/lib/agent-skills-catalog';
 

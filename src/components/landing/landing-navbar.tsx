@@ -3,11 +3,32 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
-import { LandingIcon } from '@/components/landing/landing-icon';
+import {
+  AppBar,
+  Toolbar,
+  Box,
+  Button,
+  IconButton,
+  Drawer,
+  List,
+  ListItemButton,
+  ListItemText,
+  Stack,
+  Divider,
+  Container,
+} from '@mui/material';
+import { Menu as MenuIcon, X as CloseIcon } from '@/components/ui/icons';
 import { useAuth } from '@/hooks/use-auth';
 import { useTranslations } from 'next-intl';
 import { LanguageSwitcher } from './language-switcher';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
+
+const NAV_LINKS = [
+  { href: '#agents', key: 'agents' as const },
+  { href: '#training', key: 'training' as const },
+  { href: '/pricing', key: 'pricing' as const },
+  { href: '/preguntas-frecuentes', key: 'faq' as const },
+];
 
 export function LandingNavbar() {
   const [open, setOpen] = useState(false);
@@ -15,190 +36,107 @@ export function LandingNavbar() {
   const t = useTranslations('nav');
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 glass border-b" style={{ borderColor: 'var(--border)' }}>
-      <div className="max-w-7xl mx-auto px-5 h-14 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={100} height={30} className="h-7 w-auto object-contain rounded-lg" priority />
-          <span className="landing-nav-brand text-black">
-            {BRAND_NAME}
-          </span>
-        </Link>
+    <>
+      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+        <Container maxWidth="lg" disableGutters sx={{ px: 2.5 }}>
+          <Toolbar disableGutters sx={{ minHeight: 64, gap: 1 }}>
+            <Box
+              component={Link}
+              href="/"
+              sx={{ display: 'flex', alignItems: 'center', gap: 1, textDecoration: 'none', color: 'text.primary', mr: 'auto' }}
+            >
+              <Image
+                src={BRAND_LOGO_SRC}
+                alt={BRAND_NAME}
+                width={100}
+                height={30}
+                style={{ height: 28, width: 'auto', objectFit: 'contain', borderRadius: 8 }}
+                priority
+              />
+              <Box component="span" sx={{ fontWeight: 700, letterSpacing: '-0.02em', display: { xs: 'none', sm: 'inline' } }}>
+                {BRAND_NAME}
+              </Box>
+            </Box>
 
-        {/* Desktop */}
-        <div className="hidden md:flex items-center gap-4">
-          <Link
-            href="#agents"
-            className="landing-btn text-xs font-medium transition-colors"
-            style={{ color: 'var(--muted-foreground)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
-          >
-            {t('agents')}
-          </Link>
-          <Link
-            href="#training"
-            className="landing-btn text-xs font-medium transition-colors"
-            style={{ color: 'var(--muted-foreground)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
-          >
-            {t('training')}
-          </Link>
-          <Link
-            href="/pricing"
-            className="landing-btn text-xs font-medium transition-colors"
-            style={{ color: 'var(--muted-foreground)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
-          >
-            {t('pricing')}
-          </Link>
-          <Link
-            href="/preguntas-frecuentes"
-            className="landing-btn text-xs font-medium transition-colors"
-            style={{ color: 'var(--muted-foreground)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted-foreground)')}
-          >
-            {t('faq')}
-          </Link>
+            <Stack direction="row" spacing={0.5} alignItems="center" sx={{ display: { xs: 'none', md: 'flex' } }}>
+              {NAV_LINKS.map((item) => (
+                <Button key={item.key} component={Link} href={item.href} color="inherit" size="small">
+                  {t(item.key)}
+                </Button>
+              ))}
+              <LanguageSwitcher />
+              {!loading &&
+                (user ? (
+                  <Button component={Link} href="/dashboard" variant="contained" size="small">
+                    {t('dashboard')}
+                  </Button>
+                ) : (
+                  <>
+                    <Button component={Link} href="/login" color="inherit" size="small">
+                      {t('signIn')}
+                    </Button>
+                    <Button component={Link} href="/pricing" variant="contained" size="small">
+                      {t('startFree')}
+                    </Button>
+                  </>
+                ))}
+            </Stack>
 
-          <LanguageSwitcher />
+            <IconButton
+              edge="end"
+              color="inherit"
+              aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
+              onClick={() => setOpen((v) => !v)}
+              sx={{ display: { md: 'none' } }}
+            >
+              {open ? <CloseIcon size={22} /> : <MenuIcon size={22} />}
+            </IconButton>
+          </Toolbar>
+        </Container>
+      </AppBar>
 
-          {!loading && (
-            user ? (
-              <Link
-                href="/dashboard"
-                className="text-xs font-semibold px-4 py-2 rounded-lg text-white transition-all hover:shadow-lg"
-                style={{ background: 'var(--brand-primary)' }}
-              >
-                {t('dashboard')}
-              </Link>
-            ) : (
-              <div className="flex items-center gap-3">
-                <Link
-                  href="/login"
-                  className="text-xs font-semibold"
-                  style={{ color: 'var(--foreground)' }}
-                >
-                  {t('signIn')}
-                </Link>
-                <Link
-                  href="/pricing"
-                  className="text-xs font-semibold px-4 py-2 rounded-lg text-white transition-all hover:shadow-lg"
-                  style={{ background: 'var(--brand-primary)' }}
-                >
-                  {t('startFree')}
-                </Link>
-              </div>
-            )
-          )}
-        </div>
-
-        {/* Mobile toggle */}
-        <button
-          className="md:hidden flex items-center justify-center w-8 h-8 rounded-lg transition-colors"
-          style={{ border: '1px solid var(--border)', background: open ? 'rgba(var(--brand-primary-rgb),0.07)' : 'transparent', color: open ? 'var(--primary)' : 'var(--foreground)' }}
-          onClick={() => setOpen(!open)}
-          aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
-        >
-          {open ? <LandingIcon name="close" size="lg" aria-hidden={false} /> : <LandingIcon name="menu" size="lg" aria-hidden={false} />}
-        </button>
-      </div>
-
-      {/* Mobile menu */}
-      <div
-        className="md:hidden overflow-hidden transition-all duration-300 ease-in-out"
-        style={{
-          maxHeight: open ? '400px' : '0px',
-          opacity: open ? 1 : 0,
-          borderTop: open ? '1px solid var(--border)' : '1px solid transparent',
-        }}
+      <Drawer
+        anchor="right"
+        open={open}
+        onClose={() => setOpen(false)}
+        sx={{ display: { md: 'none' } }}
+        PaperProps={{ sx: { width: 'min(320px, 88vw)', pt: 1 } }}
       >
-        <div
-          className="px-5 py-4 flex flex-col gap-1"
-          style={{ background: 'var(--card)', boxShadow: '0 12px 32px rgba(0,0,0,0.12)' }}
-        >
-          <Link
-            href="#agents"
-            className="flex items-center text-xs font-medium px-3 py-2 rounded-lg transition-colors"
-            style={{ color: 'var(--foreground)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-            onClick={() => setOpen(false)}
-          >
-            {t('agents')}
-          </Link>
-          <Link
-            href="#training"
-            className="flex items-center text-xs font-medium px-3 py-2 rounded-lg transition-colors"
-            style={{ color: 'var(--foreground)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-            onClick={() => setOpen(false)}
-          >
-            {t('training')}
-          </Link>
-          <Link
-            href="/pricing"
-            className="flex items-center text-xs font-medium px-3 py-2 rounded-lg transition-colors"
-            style={{ color: 'var(--foreground)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-            onClick={() => setOpen(false)}
-          >
-            {t('pricing')}
-          </Link>
-          <Link
-            href="/preguntas-frecuentes"
-            className="flex items-center text-xs font-medium px-3 py-2 rounded-lg transition-colors"
-            style={{ color: 'var(--foreground)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--muted)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-            onClick={() => setOpen(false)}
-          >
-            {t('faq')}
-          </Link>
-
-          <div className="px-3 py-1">
-            <LanguageSwitcher />
-          </div>
-
-          <div className="mt-2 pt-3 flex flex-col gap-2" style={{ borderTop: '1px solid var(--border)' }}>
-            {!loading && (
-              user ? (
-                <Link
-                  href="/dashboard"
-                  className="text-center text-sm font-bold px-5 py-2.5 rounded-xl text-white"
-                  style={{ background: 'var(--brand-primary)', boxShadow: '0 4px 14px rgba(var(--brand-primary-rgb),0.25)' }}
-                  onClick={() => setOpen(false)}
-                >
-                  {t('dashboard')}
-                </Link>
-              ) : (
-                <>
-                  <Link
-                    href="/login"
-                    className="text-center text-sm font-semibold px-5 py-2.5 rounded-xl border transition-colors"
-                    style={{ color: 'var(--foreground)', borderColor: 'var(--border)' }}
-                    onClick={() => setOpen(false)}
-                  >
-                    {t('signIn')}
-                  </Link>
-                  <Link
-                    href="/pricing"
-                    className="text-center text-sm font-bold px-5 py-2.5 rounded-xl text-white"
-                    style={{ background: 'var(--brand-primary)', boxShadow: '0 4px 14px rgba(var(--brand-primary-rgb),0.25)' }}
-                    onClick={() => setOpen(false)}
-                  >
-                    {t('startFree')}
-                  </Link>
-                </>
-              )
-            )}
-          </div>
-        </div>
-      </div>
-    </nav>
+        <Toolbar />
+        <List>
+          {NAV_LINKS.map((item) => (
+            <ListItemButton
+              key={item.key}
+              component={Link}
+              href={item.href}
+              onClick={() => setOpen(false)}
+            >
+              <ListItemText primary={t(item.key)} />
+            </ListItemButton>
+          ))}
+        </List>
+        <Box sx={{ px: 2, pb: 1 }}>
+          <LanguageSwitcher />
+        </Box>
+        <Divider sx={{ my: 1 }} />
+        <Stack spacing={1} sx={{ px: 2, pb: 3 }}>
+          {!loading &&
+            (user ? (
+              <Button component={Link} href="/dashboard" variant="contained" fullWidth onClick={() => setOpen(false)}>
+                {t('dashboard')}
+              </Button>
+            ) : (
+              <>
+                <Button component={Link} href="/login" variant="outlined" fullWidth onClick={() => setOpen(false)}>
+                  {t('signIn')}
+                </Button>
+                <Button component={Link} href="/pricing" variant="contained" fullWidth onClick={() => setOpen(false)}>
+                  {t('startFree')}
+                </Button>
+              </>
+            ))}
+        </Stack>
+      </Drawer>
+    </>
   );
 }

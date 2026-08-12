@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { HeartPulse, Shield, Activity, CheckCircle, ArrowRight, Zap, Brain, Stethoscope } from 'lucide-react';
+import { HeartPulse, Shield, Activity, CheckCircle, ArrowRight, Zap, Brain, Stethoscope } from '@/components/ui/icons';
 
 const R = 'var(--primary)';
 const O = 'var(--brand-warm)';

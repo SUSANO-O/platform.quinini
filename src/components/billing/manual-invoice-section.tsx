@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, CheckCircle2, FileDown, Loader2, Plus, Trash2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, FileDown, Loader2, Plus, Trash2 } from '@/components/ui/icons';
 import { toast } from 'sonner';
 import { BillingProfileForm } from '@/components/billing/invoice-list';
 import { BRAND_TEXT_COLOR } from '@/lib/brand';

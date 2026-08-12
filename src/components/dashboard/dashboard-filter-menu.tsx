@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Filter, Check } from 'lucide-react';
+import { Filter, Check } from '@/components/ui/icons';
 import { DashboardButton } from '@/components/dashboard/dashboard-button';
 
 export type DashboardFilterOption<T extends string> = {

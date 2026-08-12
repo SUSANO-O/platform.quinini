@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   Inbox,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 import { DashboardPageHeader } from '@/components/dashboard/dashboard-page-header';

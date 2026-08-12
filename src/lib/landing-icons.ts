@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/components/ui/icons';
 import {
   ArrowRight,
   BadgeCheck,
@@ -25,9 +25,9 @@ import {
   Wrench,
   X,
   Zap,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 
-/** Nombres semánticos — la UI no importa lucide directamente. */
+/** Nombres semánticos — Material Symbols vía Google Fonts Icons. */
 export type LandingIconName =
   | 'arrow-right'
   | 'badge-check'

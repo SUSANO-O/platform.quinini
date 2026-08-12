@@ -7,7 +7,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Clock, Plus, Trash2, Pause, Play, AlertTriangle, CheckCircle2, Loader2, Eye, X, ScrollText, Pencil, Zap, EyeOff, ArrowRight } from 'lucide-react';
+import { Clock, Plus, Trash2, Pause, Play, AlertTriangle, CheckCircle2, Loader2, Eye, X, ScrollText, Pencil, Zap, EyeOff, ArrowRight } from '@/components/ui/icons';
 import { describeActionFlow } from '@/lib/scheduled-task-validation';
 
 const TZ = 'America/Bogota';

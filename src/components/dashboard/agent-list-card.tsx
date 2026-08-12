@@ -13,7 +13,7 @@ import {
   Trash2,
   Wrench,
   Zap,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { TOOL_MAP } from '@/lib/agent-plans';
 import { AgentInitialsBadge } from '@/components/dashboard/agent-initials-badge';
 import { AgentSkillsCount } from '@/components/dashboard/agent-skills-count';
@@ -118,7 +118,7 @@ export function AgentListCard({
           seed={agent._id}
           inactive={isDisabled}
           platform={isPlatform}
-          size="md"
+          size="sm"
         />
       }
       status={<DashboardStatusBadge active={!isDisabled} />}
@@ -134,17 +134,17 @@ export function AgentListCard({
                 aria-expanded={open}
                 onClick={toggle}
               >
-                <MoreVertical size={15} />
+                <MoreVertical size={14} />
               </DashboardButton>
             )}
           >
             <DashboardMenuItem disabled={toggling === agent._id} onClick={() => onToggleStatus(agent)}>
-              {isDisabled ? <Power size={14} /> : <PowerOff size={14} />}
+              {isDisabled ? <Power size={13} /> : <PowerOff size={13} />}
               {isDisabled ? 'Activar' : 'Desactivar'}
             </DashboardMenuItem>
             <DashboardMenuDivider />
             <DashboardMenuItem danger onClick={() => onDelete(agent)} disabled={deleting === agent._id}>
-              <Trash2 size={14} />
+              <Trash2 size={13} />
               Eliminar
             </DashboardMenuItem>
           </DashboardDropdownMenu>
@@ -193,7 +193,7 @@ export function AgentListCard({
             className={isPlatform ? 'dashboard-resource-card__action-full' : undefined}
           >
             {isPlatform ? 'Ver agente' : 'Configurar'}
-            <ChevronRight size={14} />
+            <ChevronRight size={12} />
           </DashboardButtonLink>
           {!isPlatform ? (
             <DashboardButton
@@ -202,7 +202,7 @@ export function AgentListCard({
               title={isDisabled ? 'Activar agente' : 'Desactivar agente'}
               onClick={() => onToggleStatus(agent)}
             >
-              <CircleOff size={14} />
+              <CircleOff size={12} />
               {isDisabled ? 'Activar' : 'Pausar'}
             </DashboardButton>
           ) : null}

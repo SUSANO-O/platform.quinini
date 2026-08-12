@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Eye, EyeOff, Lock } from 'lucide-react';
+import { Eye, EyeOff, Lock } from '@/components/ui/icons';
 
 export default function ShareLoginPage() {
   const { shareId } = useParams<{ shareId: string }>();

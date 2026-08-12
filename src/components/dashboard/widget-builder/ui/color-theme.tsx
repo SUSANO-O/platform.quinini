@@ -1,7 +1,7 @@
 'use client';
 
 import type { CSSProperties } from 'react';
-import { Moon, Sun } from 'lucide-react';
+import { Moon, Sun } from '@/components/ui/icons';
 import { WidgetBuilderField, WidgetBuilderLabel } from './field';
 import { WidgetBuilderInput } from './input';
 

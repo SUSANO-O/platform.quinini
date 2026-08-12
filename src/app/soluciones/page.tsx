@@ -15,7 +15,7 @@ import {
   Users,
   LineChart,
   type LucideIcon,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import type { Metadata } from 'next';
 import { buildContactWhatsAppUrl, buildPricingInquiryWhatsAppUrl, SALES_WHATSAPP_LINK_PROPS } from '@/lib/sales-whatsapp';
 

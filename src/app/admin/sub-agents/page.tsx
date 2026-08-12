@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Download, ExternalLink, Network, RefreshCw } from 'lucide-react';
+import { Download, ExternalLink, Network, RefreshCw } from '@/components/ui/icons';
 
 type SubRow = {
   id: string;

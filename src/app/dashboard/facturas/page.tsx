@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ExternalLink, FileText, Sparkles } from 'lucide-react';
+import { ExternalLink, FileText, Sparkles } from '@/components/ui/icons';
 import { BillingProfileForm, InvoiceList } from '@/components/billing/invoice-list';
 import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 import { DashboardPageHeader } from '@/components/dashboard/dashboard-page-header';

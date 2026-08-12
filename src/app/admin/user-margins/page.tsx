@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { TrendingUp, TrendingDown, AlertTriangle, Users, DollarSign, RefreshCw, Filter } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Users, DollarSign, RefreshCw, Filter } from '@/components/ui/icons';
 
 interface UserMarginRow {
   userId: string;

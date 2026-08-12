@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, RefreshCw, Trash2, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, ChevronDown, ChevronUp, Copy, Check } from '@/components/ui/icons';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {

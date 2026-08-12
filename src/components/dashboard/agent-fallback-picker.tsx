@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Loader2, Plus, X } from 'lucide-react';
+import { Loader2, Plus, X } from '@/components/ui/icons';
 import { ModelPickerCard } from '@/components/dashboard/model-picker-card';
 import type { ClientModelOption } from '@/hooks/use-client-models';
 import { mergeSavedModelOptions } from '@/hooks/use-client-models';

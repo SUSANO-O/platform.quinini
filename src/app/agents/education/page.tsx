@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { GraduationCap, BookOpen, Target, Users, CheckCircle, ArrowRight, Zap, Award, MessageSquare } from 'lucide-react';
+import { GraduationCap, BookOpen, Target, Users, CheckCircle, ArrowRight, Zap, Award, MessageSquare } from '@/components/ui/icons';
 
 const O = 'var(--brand-warm)';
 const Y = '#eab308';

@@ -1,6 +1,6 @@
 'use client';
 
-import { Lock, RefreshCw } from 'lucide-react';
+import { Lock, RefreshCw } from '@/components/ui/icons';
 
 type Props = {
   enabled: boolean;

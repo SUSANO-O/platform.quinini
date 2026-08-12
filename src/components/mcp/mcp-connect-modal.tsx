@@ -1,6 +1,6 @@
 'use client';
 
-import { X } from 'lucide-react';
+import { X } from '@/components/ui/icons';
 
 type Props = {
   open: boolean;

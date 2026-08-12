@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Zap, Activity, Clock, AlertCircle, Wrench, RefreshCw } from 'lucide-react';
+import { Zap, Activity, Clock, AlertCircle, Wrench, RefreshCw } from '@/components/ui/icons';
 
 const HL = '#f97316'; // naranja brand — color destacado
 

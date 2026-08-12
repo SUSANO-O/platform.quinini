@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Shield } from 'lucide-react';
+import { Shield } from '@/components/ui/icons';
 
 export default function PromotePage() {
   const [email, setEmail]   = useState('');

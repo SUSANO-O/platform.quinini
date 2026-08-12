@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { CheckCircle, AlertTriangle, XCircle, RefreshCw, Activity, Clock } from 'lucide-react';
+import { CheckCircle, AlertTriangle, XCircle, RefreshCw, Activity, Clock } from '@/components/ui/icons';
 import type { ServiceCheck } from '@/app/api/status/route';
 
 type ServiceStatus = 'operational' | 'degraded' | 'down';

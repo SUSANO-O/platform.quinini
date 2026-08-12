@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/components/ui/icons';
 import {
   ArrowLeft,
   Calendar,
@@ -24,7 +24,7 @@ import {
   Timer,
   Trash2,
   Type,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { FlowsBetaBadge } from '@/components/flows/flows-beta-badge';
 import { FlowNodePropsPanel } from '@/components/flow-editor/flow-node-props';
 import { toast } from 'sonner';

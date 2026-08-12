@@ -1,3 +1,7 @@
+'use client';
+
+import Chip from '@mui/material/Chip';
+
 export function DashboardBadge({
   children,
   variant = 'muted',
@@ -5,7 +9,10 @@ export function DashboardBadge({
   children: React.ReactNode;
   variant?: 'success' | 'danger' | 'muted';
 }) {
+  const color =
+    variant === 'success' ? 'success' : variant === 'danger' ? 'error' : 'default';
+
   return (
-    <span className={`dashboard-badge dashboard-badge--${variant}`}>{children}</span>
+    <Chip size="small" color={color} label={children} variant={variant === 'muted' ? 'outlined' : 'filled'} />
   );
 }

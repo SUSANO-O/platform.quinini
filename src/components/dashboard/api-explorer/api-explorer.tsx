@@ -11,7 +11,7 @@ import {
   Play,
   RefreshCw,
   Search,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import {
   fetchOpenApiSpec,
   loadStoredApiKey,

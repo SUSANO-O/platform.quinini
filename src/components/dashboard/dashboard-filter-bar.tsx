@@ -1,11 +1,12 @@
 'use client';
 
-/**
- * Barra minimalista compartida: búsqueda + chips de filtro.
- * Usada en `/dashboard/agents` y `/dashboard/widgets`.
- */
-import { Search } from 'lucide-react';
+import { Search } from '@/components/ui/icons';
 import type { DashboardFilterOption } from '@/components/dashboard/dashboard-filter-menu';
+import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
 export function DashboardFilterBar<T extends string>({
   searchValue,
@@ -27,35 +28,46 @@ export function DashboardFilterBar<T extends string>({
   filterAriaLabel?: string;
 }) {
   return (
-    <div className="dashboard-filter-bar" role="search">
-      <label className="dashboard-filter-bar__search">
-        <Search size={14} className="dashboard-filter-bar__search-icon" aria-hidden />
-        <input
-          type="search"
-          value={searchValue}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder={searchPlaceholder}
-          aria-label={searchAriaLabel ?? searchPlaceholder}
-          className="dashboard-filter-bar__search-input"
-        />
-      </label>
+    <Stack
+      direction={{ xs: 'column', sm: 'row' }}
+      spacing={1.5}
+      alignItems={{ xs: 'stretch', sm: 'center' }}
+      role="search"
+      sx={{ mb: 2 }}
+    >
+      <TextField
+        size="small"
+        type="search"
+        value={searchValue}
+        onChange={(e) => onSearchChange(e.target.value)}
+        placeholder={searchPlaceholder}
+        inputProps={{ 'aria-label': searchAriaLabel ?? searchPlaceholder }}
+        sx={{ flex: 1, minWidth: 0 }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <Search size={14} aria-hidden />
+            </InputAdornment>
+          ),
+        }}
+      />
 
-      <div className="dashboard-filter-bar__chips" role="group" aria-label={filterAriaLabel}>
-        {filterOptions.map((opt) => {
-          const active = opt.value === filterValue;
-          return (
-            <button
-              key={opt.value}
-              type="button"
-              className={`dashboard-filter-bar__chip${active ? ' is-active' : ''}`}
-              aria-pressed={active}
-              onClick={() => onFilterChange(opt.value)}
-            >
-              {opt.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
+      <ToggleButtonGroup
+        exclusive
+        size="small"
+        value={filterValue}
+        onChange={(_e, next) => {
+          if (next != null) onFilterChange(next as T);
+        }}
+        aria-label={filterAriaLabel}
+        sx={{ flexWrap: 'wrap' }}
+      >
+        {filterOptions.map((opt) => (
+          <ToggleButton key={opt.value} value={opt.value} sx={{ textTransform: 'none', px: 1.5 }}>
+            {opt.label}
+          </ToggleButton>
+        ))}
+      </ToggleButtonGroup>
+    </Stack>
   );
 }

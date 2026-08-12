@@ -180,7 +180,7 @@ describe('agent tool limits (agent-plans)', () => {
     const limits = getAgentLimits('solo');
     expect(limits.availableToolIds).toEqual([]);
     expect(limits.toolsPerAgent).toBe(0);
-    expect(limits.agents).toBe(4);
+    expect(limits.agents).toBe(-1);
   });
 
   it('webhook tool minPlan matches Team gate', () => {

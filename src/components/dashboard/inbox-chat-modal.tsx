@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronDown, FileText, Loader2, MessageSquare, Paperclip, Send, Trash2, User, X, Download, Check, CheckCheck, Bot, Headphones,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 
 export type ChatAttachment = {
   type: string;

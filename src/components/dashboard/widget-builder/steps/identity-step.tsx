@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2, Search } from '@/components/ui/icons';
 import { PipelineEditor } from '@/components/dashboard/pipeline-editor';
 import {
   createDefaultPipelineConfig,

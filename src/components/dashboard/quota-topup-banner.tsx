@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { CONVERSATION_PACKS, canPurchaseConversationPacks } from '@/lib/plan-catalog';
-import { Zap, X } from 'lucide-react';
+import { Zap, X } from '@/components/ui/icons';
 import { BRAND, STATE, BRAND_GRADIENT } from '@/lib/brand-colors';
 interface Props {
   percentUsed: number;

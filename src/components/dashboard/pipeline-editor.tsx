@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowDown, ArrowLeftRight, CheckCircle2, AlertTriangle, Sparkles } from 'lucide-react';
+import { ArrowDown, ArrowLeftRight, CheckCircle2, AlertTriangle, Sparkles } from '@/components/ui/icons';
 import {
   PIPELINE_TEMPLATES,
   applyPipelineTemplate,

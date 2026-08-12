@@ -13,7 +13,7 @@ import {
   Share2,
   Sun,
   Trash2,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { DashboardButton, DashboardButtonLink } from '@/components/dashboard/dashboard-button';
 import {
   DashboardDropdownMenu,
@@ -92,7 +92,7 @@ export function WidgetListCard({
   return (
     <DashboardResourceCard
       inactive={!isActive}
-      avatar={<WidgetAvatar widgetId={w._id} color={w.color} avatarUrl={w.avatar} size="lg" />}
+      avatar={<WidgetAvatar widgetId={w._id} color={w.color} avatarUrl={w.avatar} size="md" />}
       status={<DashboardStatusBadge active={isActive} />}
       headerAction={
         <DashboardDropdownMenu

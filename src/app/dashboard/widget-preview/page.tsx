@@ -20,7 +20,7 @@ import {
   Layers,
   Sparkles,
   ExternalLink,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 
 interface WidgetShortcut {

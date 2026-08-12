@@ -1,7 +1,7 @@
 'use client';
 
 import type { CSSProperties } from 'react';
-import { ImageIcon, Mic, Paperclip, Volume2, X } from 'lucide-react';
+import { ImageIcon, Mic, Paperclip, Volume2, X } from '@/components/ui/icons';
 import { initialsFromName } from '@/lib/flow-editor/geometry';
 import type { WidgetConfig } from '@/lib/widget-builder';
 import { BorderBeamField } from '@/components/ui/border-beam-field';

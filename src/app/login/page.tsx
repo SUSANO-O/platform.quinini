@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 import { TurnstileWidget } from '@/components/ui/turnstile-widget';
 import type { TurnstileInstance } from '@marsidev/react-turnstile';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from '@/components/ui/icons';
 import { LandingAccessGate } from '@/components/auth/landing-access-gate';
 
 const CAPTCHA_ENABLED = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);

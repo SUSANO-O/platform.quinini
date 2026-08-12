@@ -167,15 +167,8 @@ export async function loadAssistAgentDetailSnapshot(
       recommendations.push('RAG desactivado o sin fuentes — sugerir pestaña Almacén para subir PDFs/URLs.');
     }
   }
-  if (subAgentsCount === 0 && limits.subAgentsPerAgent > 0) {
+  if (subAgentsCount === 0 && (limits.subAgentsPerAgent < 0 || limits.subAgentsPerAgent > 0)) {
     recommendations.push('Sin sub-agentes — puede delegar tareas especializadas en pestaña Sub-agentes.');
-  } else if (subAgentsCount === 0 && limits.subAgentsPerAgent === 0) {
-    const up = nextPlanHint(plan, 'subagents');
-    if (up) {
-      recommendations.push(
-        `Sub-agentes no disponibles en plan ${planLabel(plan)} — upgrade a ${up} para orquestación.`,
-      );
-    }
   }
   if (scheduledTasksCount === 0 && tasksAvailable) {
     recommendations.push('Sin tareas programadas — puede automatizar reportes/recordatorios en pestaña Tareas.');

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ExternalLink, Loader2 } from 'lucide-react';
+import { ChevronLeft, ExternalLink, Loader2 } from '@/components/ui/icons';
 import {
   isMcpIntegrationAllowedForPlan,
   minPlanForMcpIntegration,

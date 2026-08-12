@@ -11,7 +11,7 @@ import { AgentFallbackPicker } from '@/components/dashboard/agent-fallback-picke
 import { McpAvailablePanel } from '@/components/mcp/mcp-available-panel';
 import { McpConnectModal } from '@/components/mcp/mcp-connect-modal';
 import type { McpCatalogRow } from '@/lib/mcp-catalog-types';
-import { Bot, ChevronLeft, Loader2, KeyRound, Plug, Sparkles, X } from 'lucide-react';
+import { Bot, ChevronLeft, Loader2, KeyRound, Plug, Sparkles, X } from '@/components/ui/icons';
 import { AIInputButton } from '@/components/ui/AIInputButton';
 import Link from 'next/link';
 import { ModelCatalogPicker } from '@/components/dashboard/model-catalog-picker';
@@ -337,7 +337,7 @@ export default function NewAgentPage() {
                   </strong>
                   <br />
                   <span style={{ color: 'var(--muted-foreground)' }}>
-                    Visible para todos los usuarios autenticados, sincronizado con AIBackHub como el resto de agentes, y no consume el cupo de agentes del plan. Solo cuentas con rol{' '}
+                    Visible para todos los usuarios autenticados, sincronizado con AIBackHub como el resto de agentes. Solo cuentas con rol{' '}
                     <strong>administrador</strong> pueden activar esta opción.
                   </span>
                   {!isAdmin && (

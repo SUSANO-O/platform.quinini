@@ -2,8 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import type { LucideIcon } from 'lucide-react';
-import { Bot, Boxes, Braces, LayoutDashboard, LogOut, Menu, Settings, X } from 'lucide-react';
+import type { LucideIcon } from '@/components/ui/icons';
+import { Bot, Boxes, Braces, LayoutDashboard, LogOut, Menu, Settings } from '@/components/ui/icons';
+import Drawer from '@mui/material/Drawer';
+import Box from '@mui/material/Box';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import Badge from '@mui/material/Badge';
+import BottomNavigation from '@mui/material/BottomNavigation';
+import BottomNavigationAction from '@mui/material/BottomNavigationAction';
+import Paper from '@mui/material/Paper';
+import { X as CloseIcon } from '@/components/ui/icons';
 import {
   buildDashboardNavGroups,
   SIDEBAR_TOUR_KEY_BY_HREF,
@@ -16,9 +29,7 @@ import { SidebarVersionLink } from '@/components/dashboard/sidebar-version-link'
 import { useInboxOpenCount } from '@/hooks/use-inbox-open-count';
 import { useSubscription } from '@/hooks/use-subscription';
 import { canUseApiAccess, canUseConversationFlows, effectiveProductPlan, isApiOnlyPlan, isSoloChatOnlyPlan } from '@/lib/plan-catalog';
-import { BRAND_TEXT_COLOR } from '@/lib/brand';
 
-/** Accesos directos en la barra inferior (estilo app móvil). */
 const BOTTOM_TABS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/agents', label: 'Agentes', icon: Bot },
@@ -26,7 +37,6 @@ const BOTTOM_TABS: { href: string; label: string; icon: LucideIcon }[] = [
 ];
 
 const BOTTOM_HREFS = new Set(BOTTOM_TABS.map((t) => t.href));
-
 const MENU_ONLY_PREFIXES = ['/dashboard/widget-builder', '/dashboard/compliance', '/dashboard/settings'];
 
 function isMenuSectionActive(pathname: string) {
@@ -74,172 +84,142 @@ export function DashboardMobileNav({
     setMenuOpen(false);
   }, [pathname]);
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [menuOpen]);
-
   const menuActive = menuOpen || isMenuSectionActive(pathname);
+  const activeTab = bottomTabs.find((t) => isActive(pathname, t.href))?.href ?? (menuActive ? '__menu__' : '');
 
   return (
     <>
-      {menuOpen ? (
-        <button
-          type="button"
-          aria-label="Cerrar menú"
-          className="dashboard-mobile-nav__backdrop md:hidden"
-          onClick={() => setMenuOpen(false)}
-        />
-      ) : null}
+      <Drawer
+        anchor="bottom"
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        sx={{ display: { md: 'none' } }}
+        PaperProps={{
+          sx: {
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            maxHeight: '88vh',
+            px: 2,
+            pb: 2,
+          },
+        }}
+      >
+        <Box sx={{ width: 40, height: 4, borderRadius: 999, bgcolor: 'divider', mx: 'auto', my: 1.25 }} aria-hidden />
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
+            <UserAvatar displayName={user.displayName} email={user.email} avatarUrl={user.avatarUrl} size={44} />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography fontWeight={700} noWrap>
+                {user.displayName || user.email.split('@')[0]}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" noWrap display="block">
+                {user.email}
+              </Typography>
+            </Box>
+          </Stack>
+          <IconButton aria-label="Cerrar" onClick={() => setMenuOpen(false)}>
+            <CloseIcon size={22} />
+          </IconButton>
+        </Stack>
 
-      {menuOpen ? (
-        <div className="dashboard-mobile-nav__sheet md:hidden" role="dialog" aria-modal="true" aria-label="Menú">
-          <div className="dashboard-mobile-nav__sheet-handle" aria-hidden />
-          <div className="dashboard-mobile-nav__sheet-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-              <UserAvatar
-                displayName={user.displayName}
-                email={user.email}
-                avatarUrl={user.avatarUrl}
-                size={44}
-              />
-              <div style={{ minWidth: 0 }}>
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: 15,
-                    fontWeight: 700,
-                    color: 'var(--foreground)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {user.displayName || user.email.split('@')[0]}
-                </p>
-                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--muted-foreground)' }}>
-                  {user.email}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              aria-label="Cerrar"
-              onClick={() => setMenuOpen(false)}
-              className="dashboard-mobile-nav__sheet-close"
-            >
-              <X size={18} />
-            </button>
-          </div>
+        {menuFooter}
 
-          {menuFooter}
+        <Box component="nav" sx={{ overflowY: 'auto' }}>
+          {navGroups.map((group) => {
+            const items = group.items.filter((item) => !BOTTOM_HREFS.has(item.href));
+            if (items.length === 0) return null;
+            return (
+              <Box key={group.title} sx={{ mb: 2 }}>
+                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ px: 1.25, mb: 0.5, display: 'block' }}>
+                  {group.title}
+                </Typography>
+                {items.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(pathname, item.href);
+                  return (
+                    <ListItemButton
+                      key={item.href}
+                      component={Link}
+                      href={item.href}
+                      data-tour={SIDEBAR_TOUR_KEY_BY_HREF[item.href]}
+                      onClick={() => setMenuOpen(false)}
+                      selected={active}
+                      sx={{ borderRadius: 2 }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 36 }}>
+                        <Icon size={20} strokeWidth={1.75} aria-hidden />
+                      </ListItemIcon>
+                      <ListItemText primary={item.label} />
+                      {item.href === '/dashboard/inbox' && inboxOpenCount > 0 ? (
+                        <Badge badgeContent={inboxOpenCount > 99 ? '99+' : inboxOpenCount} color="error" />
+                      ) : null}
+                    </ListItemButton>
+                  );
+                })}
+              </Box>
+            );
+          })}
+        </Box>
 
-          <nav className="dashboard-mobile-nav__sheet-nav">
-            {navGroups.map((group) => {
-              const items = group.items.filter((item) => !BOTTOM_HREFS.has(item.href));
-              if (items.length === 0) return null;
-              return (
-              <div key={group.title} style={{ marginBottom: 16 }}>
-                <p className="dashboard-mobile-nav__group-title">{group.title}</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {items.map((item) => {
-                    const Icon = item.icon;
-                    const active = isActive(pathname, item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        data-tour={SIDEBAR_TOUR_KEY_BY_HREF[item.href]}
-                        onClick={() => setMenuOpen(false)}
-                        className={`dashboard-mobile-nav__sheet-link${active ? ' dashboard-mobile-nav__sheet-link--active' : ''}`}
-                        style={{ position: 'relative' }}
-                      >
-                        <Icon size={20} strokeWidth={1.75} className="dashboard-sidebar-link__icon" aria-hidden />
-                        <span style={{ flex: 1 }}>{item.label}</span>
-                        {item.href === '/dashboard/inbox' && inboxOpenCount > 0 ? (
-                          <span
-                            aria-label={`${inboxOpenCount} solicitudes pendientes`}
-                            style={{
-                              minWidth: 20,
-                              height: 20,
-                              padding: '0 6px',
-                              borderRadius: 999,
-                              background: BRAND_TEXT_COLOR,
-                              color: '#fff',
-                              fontSize: 11,
-                              fontWeight: 700,
-                              lineHeight: '20px',
-                              textAlign: 'center',
-                            }}
-                          >
-                            {inboxOpenCount > 99 ? '99+' : inboxOpenCount}
-                          </span>
-                        ) : null}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-              );
-            })}
-          </nav>
-
-          <div style={{ paddingTop: 8 }}>
-            <PwaInstallButton collapsed={false} />
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false);
-                onLogout();
-              }}
-              className="dashboard-mobile-nav__sheet-link dashboard-sidebar-link"
-              style={{ width: '100%', marginTop: 6 }}
-            >
+        <Box sx={{ pt: 1 }}>
+          <PwaInstallButton collapsed={false} />
+          <ListItemButton
+            onClick={() => {
+              setMenuOpen(false);
+              onLogout();
+            }}
+            sx={{ borderRadius: 2, mt: 0.75 }}
+          >
+            <ListItemIcon sx={{ minWidth: 36 }}>
               <LogOut size={20} strokeWidth={1.75} aria-hidden />
-              <span>Cerrar sesión</span>
-            </button>
-            <SidebarVersionLink
-              onNavigate={() => {
-                setMenuOpen(false);
-              }}
-            />
-          </div>
-        </div>
-      ) : null}
+            </ListItemIcon>
+            <ListItemText primary="Cerrar sesión" />
+          </ListItemButton>
+          <SidebarVersionLink onNavigate={() => setMenuOpen(false)} />
+        </Box>
+      </Drawer>
 
-      <nav className="dashboard-mobile-nav md:hidden" aria-label="Navegación móvil">
-        {bottomTabs.map(({ href, label, icon: Icon }) => {
-          const active = isActive(pathname, href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              data-tour={SIDEBAR_TOUR_KEY_BY_HREF[href]}
-              className={`dashboard-mobile-nav__tab${active ? ' dashboard-mobile-nav__tab--active' : ''}`}
-            >
-              <Icon size={22} strokeWidth={1.75} aria-hidden />
-              <span>{label}</span>
-            </Link>
-          );
-        })}
-        {!apiOnly ? (
-        <button
-          type="button"
-          onClick={() => setMenuOpen(true)}
-          className={`dashboard-mobile-nav__tab${menuActive ? ' dashboard-mobile-nav__tab--active' : ''}`}
+      <Paper
+        elevation={8}
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: (t) => t.zIndex.appBar,
+          borderRadius: 0,
+          pb: 'env(safe-area-inset-bottom)',
+        }}
+      >
+        <BottomNavigation
+          showLabels
+          value={activeTab}
+          sx={{ height: MOBILE_NAV_HEIGHT_PX }}
         >
-          <Menu size={22} strokeWidth={1.75} aria-hidden />
-          <span>Menú</span>
-        </button>
-        ) : null}
-      </nav>
+          {bottomTabs.map(({ href, label, icon: Icon }) => (
+            <BottomNavigationAction
+              key={href}
+              component={Link}
+              href={href}
+              value={href}
+              data-tour={SIDEBAR_TOUR_KEY_BY_HREF[href]}
+              label={label}
+              icon={<Icon size={22} strokeWidth={1.75} aria-hidden />}
+            />
+          ))}
+          {!apiOnly ? (
+            <BottomNavigationAction
+              value="__menu__"
+              label="Menú"
+              icon={<Menu size={22} strokeWidth={1.75} aria-hidden />}
+              onClick={() => setMenuOpen(true)}
+            />
+          ) : null}
+        </BottomNavigation>
+      </Paper>
     </>
   );
 }
 
-/** Altura reservada para la barra inferior + safe area. */
 export const MOBILE_NAV_HEIGHT_PX = 64;

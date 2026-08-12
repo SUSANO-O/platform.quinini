@@ -1,5 +1,9 @@
+'use client';
+
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
 
 type DashboardButtonProps = {
   children: ReactNode;
@@ -11,8 +15,10 @@ type DashboardButtonProps = {
   'aria-expanded'?: boolean;
 };
 
-function btnClass(variant: string, extra = '') {
-  return `dashboard-btn dashboard-btn--${variant} ${extra}`.trim();
+function mapVariant(variant: 'primary' | 'secondary' | 'icon') {
+  if (variant === 'primary') return 'contained' as const;
+  if (variant === 'icon') return 'text' as const;
+  return 'outlined' as const;
 }
 
 export function DashboardButton({
@@ -25,18 +31,38 @@ export function DashboardButton({
   'aria-expanded': ariaExpanded,
   onClick,
 }: DashboardButtonProps & { onClick?: () => void }) {
+  if (variant === 'icon') {
+    return (
+      <IconButton
+        className={className}
+        disabled={disabled}
+        title={title}
+        aria-label={ariaLabel}
+        aria-expanded={ariaExpanded}
+        onClick={onClick}
+        size="small"
+        color="primary"
+      >
+        {children}
+      </IconButton>
+    );
+  }
+
   return (
-    <button
+    <Button
       type="button"
-      className={btnClass(variant, className)}
+      className={className}
       disabled={disabled}
       title={title}
       aria-label={ariaLabel}
       aria-expanded={ariaExpanded}
       onClick={onClick}
+      variant={mapVariant(variant)}
+      color="primary"
+      size="small"
     >
       {children}
-    </button>
+    </Button>
   );
 }
 
@@ -47,9 +73,32 @@ export function DashboardButtonLink({
   className = '',
   'data-tour': dataTour,
 }: DashboardButtonProps & { href: string; 'data-tour'?: string }) {
+  if (variant === 'icon') {
+    return (
+      <IconButton
+        component={Link}
+        href={href}
+        className={className}
+        data-tour={dataTour}
+        size="small"
+        color="primary"
+      >
+        {children}
+      </IconButton>
+    );
+  }
+
   return (
-    <Link href={href} className={btnClass(variant, className)} data-tour={dataTour}>
+    <Button
+      component={Link}
+      href={href}
+      className={className}
+      data-tour={dataTour}
+      variant={mapVariant(variant)}
+      color="primary"
+      size="small"
+    >
       {children}
-    </Link>
+    </Button>
   );
 }

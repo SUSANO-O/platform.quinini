@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Calendar, Check, ChevronDown } from 'lucide-react';
+import { Calendar, Check, ChevronDown } from '@/components/ui/icons';
 import { DashboardButton } from '@/components/dashboard/dashboard-button';
 import { resolveRange, toColombiaDateInput, type DateRange, type RangePreset } from '@/lib/date-range';
 

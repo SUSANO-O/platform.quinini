@@ -8,7 +8,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.6.57';
+  var VERSION = '1.6.59';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -406,7 +406,27 @@
   }
 
   var AFHUB_FONT_STACK =
-    '-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",system-ui,sans-serif';
+    '"Plus Jakarta Sans","Outfit",system-ui,-apple-system,BlinkMacSystemFont,sans-serif';
+
+  function ensureWidgetGoogleFonts() {
+    if (typeof document === 'undefined') return;
+    if (document.getElementById('afhub-google-fonts')) return;
+    var pre1 = document.createElement('link');
+    pre1.rel = 'preconnect';
+    pre1.href = 'https://fonts.googleapis.com';
+    var pre2 = document.createElement('link');
+    pre2.rel = 'preconnect';
+    pre2.href = 'https://fonts.gstatic.com';
+    pre2.crossOrigin = 'anonymous';
+    var link = document.createElement('link');
+    link.id = 'afhub-google-fonts';
+    link.rel = 'stylesheet';
+    link.href =
+      'https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap';
+    document.head.appendChild(pre1);
+    document.head.appendChild(pre2);
+    document.head.appendChild(link);
+  }
 
   var DEFAULTS = {
     agentId: '',
@@ -1498,6 +1518,8 @@
         }
       }
     }
+
+    ensureWidgetGoogleFonts();
 
     var root = document.createElement('div');
     root.id = rootId;
@@ -3812,34 +3834,54 @@
       messages.appendChild(wrap);
       wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
+    function paintFeedbackStars(group, val, commit) {
+      if (!group) return;
+      var n = Math.max(0, parseInt(val, 10) || 0);
+      if (commit !== false) group.setAttribute('data-value', String(n));
+      var stars = group.querySelectorAll('.afhub-fb-star');
+      var selected = commit !== false ? n : (parseInt(group.getAttribute('data-value'), 10) || 0);
+      for (var m = 0; m < stars.length; m++) {
+        var bv = parseInt(stars[m].getAttribute('data-star'), 10);
+        if (bv <= n) stars[m].classList.add('is-on');
+        else stars[m].classList.remove('is-on');
+        stars[m].setAttribute('aria-checked', bv === selected && selected > 0 ? 'true' : 'false');
+      }
+    }
+
     function buildFeedbackHtml() {
       var h = '<div class="afhub-fb-inner">';
       h += '<div class="afhub-fb-title">' + fbEsc(cfg.feedbackTitle) + '</div>';
       for (var i = 0; i < feedbackQs.length; i++) {
         var q = feedbackQs[i];
         var qid = q.id || ('q' + i);
-        h += '<div class="afhub-fb-q" data-qid="' + fbEsc(qid) + '" data-type="' + fbEsc(q.type) + '" data-required="' + (q.required ? '1' : '0') + '" style="margin-bottom:10px">';
-        h += '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:5px;color:#3c4043">' + fbEsc(q.text) + (q.required ? ' *' : '') + '</label>';
+        h += '<div class="afhub-fb-q" data-qid="' + fbEsc(qid) + '" data-type="' + fbEsc(q.type) + '" data-required="' + (q.required ? '1' : '0') + '">';
+        h += '<div class="afhub-fb-label">' + fbEsc(q.text) + (q.required ? ' <span class="afhub-fb-req">*</span>' : '') + '</div>';
         if (q.type === 'rating') {
-          h += '<div class="afhub-fb-stars" data-value="0" style="display:flex;gap:5px">';
-          for (var s = 1; s <= 5; s++) h += '<button type="button" class="afhub-fb-star" data-star="' + s + '" style="background:none;border:none;cursor:pointer;font-size:24px;line-height:1;color:#ccc;padding:0">★</button>';
+          h += '<div class="afhub-fb-stars" data-value="0" role="radiogroup" aria-label="' + fbEsc(q.text) + '">';
+          for (var s = 1; s <= 5; s++) {
+            h += '<button type="button" class="afhub-fb-star" data-star="' + s + '" role="radio" aria-checked="false" aria-label="' + s + ' estrella' + (s === 1 ? '' : 's') + '">';
+            h += '<span class="afhub-fb-star-icon" aria-hidden="true">★</span>';
+            h += '</button>';
+          }
           h += '</div>';
         } else if (q.type === 'yesno') {
-          h += '<div style="display:flex;gap:14px;font-size:12px">';
-          h += '<label style="cursor:pointer"><input type="radio" name="fb_' + fbEsc(qid) + '" value="Sí"> Sí</label>';
-          h += '<label style="cursor:pointer"><input type="radio" name="fb_' + fbEsc(qid) + '" value="No"> No</label>';
+          h += '<div class="afhub-fb-choices" role="radiogroup">';
+          h += '<label class="afhub-fb-choice"><input type="radio" name="fb_' + fbEsc(qid) + '" value="Sí"><span>Sí</span></label>';
+          h += '<label class="afhub-fb-choice"><input type="radio" name="fb_' + fbEsc(qid) + '" value="No"><span>No</span></label>';
           h += '</div>';
         } else if (q.type === 'choice') {
-          h += '<div style="display:flex;flex-direction:column;gap:6px;font-size:12px">';
+          h += '<div class="afhub-fb-choices afhub-fb-choices--stack" role="radiogroup">';
           var opts = Array.isArray(q.options) ? q.options : [];
-          for (var o = 0; o < opts.length; o++) h += '<label style="cursor:pointer"><input type="radio" name="fb_' + fbEsc(qid) + '" value="' + fbEsc(opts[o]) + '"> ' + fbEsc(opts[o]) + '</label>';
+          for (var o = 0; o < opts.length; o++) {
+            h += '<label class="afhub-fb-choice"><input type="radio" name="fb_' + fbEsc(qid) + '" value="' + fbEsc(opts[o]) + '"><span>' + fbEsc(opts[o]) + '</span></label>';
+          }
           h += '</div>';
         } else {
-          h += '<textarea class="afhub-fb-text" rows="2" placeholder="Tu comentario…" style="width:100%;box-sizing:border-box;border:1px solid #e2e4e8;border-radius:8px;padding:6px 8px;font-size:12px;font-family:inherit;resize:vertical"></textarea>';
+          h += '<textarea class="afhub-fb-text" rows="2" placeholder="Tu comentario…"></textarea>';
         }
         h += '</div>';
       }
-      h += '<p class="afhub-fb-error" style="display:none;color:#d93025;font-size:11px;margin:2px 0 6px"></p>';
+      h += '<p class="afhub-fb-error" hidden></p>';
       h += '<div class="afhub-fb-actions">';
       h += '<button type="button" class="afhub-fb-submit">Enviar</button>';
       h += '<button type="button" class="afhub-fb-skip">Ahora no</button>';
@@ -3934,16 +3976,7 @@
         var el = qEls[i];
         var type = el.getAttribute('data-type');
         if (type === 'rating') {
-          var val = positive ? 5 : 2;
-          var group = el.querySelector('.afhub-fb-stars');
-          if (group) {
-            group.setAttribute('data-value', String(val));
-            var stars = group.querySelectorAll('.afhub-fb-star');
-            for (var m = 0; m < stars.length; m++) {
-              var bv = parseInt(stars[m].getAttribute('data-star'), 10);
-              stars[m].style.color = bv <= val ? '#f5b301' : '#ccc';
-            }
-          }
+          paintFeedbackStars(el.querySelector('.afhub-fb-stars'), positive ? 5 : 2);
         } else if (type === 'yesno') {
           var radios = el.querySelectorAll('input[type=radio]');
           for (var r = 0; r < radios.length; r++) {
@@ -4012,7 +4045,19 @@
     function submitFeedback() {
       var res = collectFeedbackAnswers();
       var errEl = feedbackCard && feedbackCard.querySelector('.afhub-fb-error');
-      if (res.error) { if (errEl) { errEl.textContent = res.error; errEl.style.display = 'block'; } return; }
+      if (res.error) {
+        if (errEl) {
+          errEl.textContent = res.error;
+          errEl.removeAttribute('hidden');
+          errEl.style.display = 'block';
+        }
+        return;
+      }
+      if (errEl) {
+        errEl.setAttribute('hidden', '');
+        errEl.style.display = 'none';
+        errEl.textContent = '';
+      }
       if (!res.answers.length) { dismissFeedback(); return; }
       var wid = resolveWidgetIdForHandoff();
       if (wid && cfg.token) {
@@ -4034,7 +4079,10 @@
       try { emitEvent('survey_submitted', { count: res.answers.length }); } catch (e) { /* */ }
       // Reemplazar la encuesta por el agradecimiento, en línea (sin popup).
       if (feedbackCard) {
-        feedbackCard.innerHTML = '<div class="afhub-fb-inner afhub-fb-thanks"><span class="afhub-fb-check">✓</span><span>' + fbEsc(cfg.feedbackThanks) + '</span></div>';
+        feedbackCard.innerHTML =
+          '<div class="afhub-fb-inner afhub-fb-thanks">' +
+          '<span class="afhub-fb-check" aria-hidden="true">✓</span>' +
+          '<span>' + fbEsc(cfg.feedbackThanks) + '</span></div>';
         feedbackCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
       feedbackCard = null; // ya no hay encuesta activa (el agradecimiento queda en el chat)
@@ -4055,14 +4103,18 @@
           var stars = group.querySelectorAll('.afhub-fb-star');
           for (var k = 0; k < stars.length; k++) {
             stars[k].addEventListener('click', function () {
-              var val = parseInt(this.getAttribute('data-star'), 10);
-              group.setAttribute('data-value', String(val));
-              for (var m = 0; m < stars.length; m++) {
-                var bv = parseInt(stars[m].getAttribute('data-star'), 10);
-                stars[m].style.color = bv <= val ? '#f5b301' : '#ccc';
-              }
+              paintFeedbackStars(group, this.getAttribute('data-star'), true);
+            });
+            stars[k].addEventListener('mouseenter', function () {
+              paintFeedbackStars(group, this.getAttribute('data-star'), false);
+            });
+            stars[k].addEventListener('focus', function () {
+              paintFeedbackStars(group, this.getAttribute('data-star'), false);
             });
           }
+          group.addEventListener('mouseleave', function () {
+            paintFeedbackStars(group, group.getAttribute('data-value') || 0, false);
+          });
         })(groups[g]);
       }
       feedbackCard.querySelector('.afhub-fb-submit').addEventListener('click', submitFeedback);
@@ -6376,16 +6428,80 @@
       '#' + rootId + ' .afhub-action-btn--ghost:hover { background:#f5f6f7; color:#5f6368; }' +
       '#' + rootId + ' .afhub-action-btn--disabled { cursor:not-allowed; opacity:.5; pointer-events:none; }' +
       // Encuesta inline (tarjeta dentro del flujo de mensajes, no popup)
-      '#' + rootId + ' .afhub-msg.afhub-fb-card { align-self:stretch; max-width:100%; width:100%; box-sizing:border-box; background:rgba(255,255,255,.22); border:none; border-radius:14px; padding:12px 14px; box-shadow:0 0 0 0.5px rgba(255,255,255,.5) inset,0 4px 16px rgba(15,23,42,.04); -webkit-backdrop-filter:blur(18px) saturate(1.6); backdrop-filter:blur(18px) saturate(1.6); }' +
-      '#' + rootId + ' .afhub-fb-title { font-size:13px; font-weight:700; color:#202124; margin-bottom:10px; }' +
-      '#' + rootId + ' .afhub-fb-actions { display:flex; align-items:center; gap:10px; margin-top:8px; flex-wrap:wrap; }' +
-      '#' + rootId + ' .afhub-fb-submit { flex:0 0 auto; min-width:112px; background:' + cfg.color + '; color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer; line-height:1.2; box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 1px 3px ' + b16 + '; transition:filter .14s,box-shadow .14s; }' +
+      '#' + rootId + ' .afhub-msg.afhub-fb-card {' +
+        'align-self:stretch;max-width:100%;width:100%;box-sizing:border-box;' +
+        'background:rgba(255,255,255,.72);border:none;border-radius:12px;padding:12px 12px 10px;' +
+        'box-shadow:0 0 0 0.5px rgba(255,255,255,.55) inset,0 4px 14px rgba(15,23,42,.05);' +
+        '-webkit-backdrop-filter:blur(16px) saturate(1.5);backdrop-filter:blur(16px) saturate(1.5);' +
+      '}' +
+      '#' + rootId + ' .afhub-fb-inner { display:flex; flex-direction:column; gap:10px; }' +
+      '#' + rootId + ' .afhub-fb-title {' +
+        'font-family:inherit;' +
+        'font-size:13px;font-weight:700;letter-spacing:-.01em;line-height:1.3;color:#111827;margin:0;' +
+      '}' +
+      '#' + rootId + ' .afhub-fb-q { display:flex; flex-direction:column; gap:5px; }' +
+      '#' + rootId + ' .afhub-fb-label { font-size:11.5px; font-weight:600; color:#4b5563; line-height:1.3; }' +
+      '#' + rootId + ' .afhub-fb-req { color:#ef4444; font-weight:700; }' +
+      '#' + rootId + ' .afhub-fb-stars { display:flex; align-items:center; gap:0; }' +
+      '#' + rootId + ' .afhub-fb-star {' +
+        'appearance:none;-webkit-appearance:none;background:transparent;border:none;cursor:pointer;' +
+        'padding:2px 3px;margin:0;line-height:1;border-radius:6px;color:#d1d5db;' +
+        'transition:color .12s ease,transform .12s ease,background .12s ease;' +
+      '}' +
+      '#' + rootId + ' .afhub-fb-star:hover,' +
+      '#' + rootId + ' .afhub-fb-star:focus-visible { background:rgba(245,179,1,.12); outline:none; transform:scale(1.06); }' +
+      '#' + rootId + ' .afhub-fb-star-icon {' +
+        'font-size:20px;line-height:1;display:block;font-family:system-ui,"Apple Color Emoji","Segoe UI Symbol",sans-serif;' +
+      '}' +
+      '#' + rootId + ' .afhub-fb-star.is-on { color:#f5b301; }' +
+      '#' + rootId + ' .afhub-fb-star.is-on .afhub-fb-star-icon {' +
+        'filter:drop-shadow(0 1px 1px rgba(245,179,1,.3));' +
+      '}' +
+      '#' + rootId + ' .afhub-fb-choices { display:flex; flex-wrap:wrap; gap:6px; }' +
+      '#' + rootId + ' .afhub-fb-choices--stack { flex-direction:column; align-items:stretch; }' +
+      '#' + rootId + ' .afhub-fb-choice { cursor:pointer; margin:0; position:relative; }' +
+      '#' + rootId + ' .afhub-fb-choice input { position:absolute; opacity:0; pointer-events:none; width:0; height:0; }' +
+      '#' + rootId + ' .afhub-fb-choice span {' +
+        'display:inline-flex;align-items:center;justify-content:center;min-width:52px;padding:5px 12px;' +
+        'border-radius:999px;font-size:11.5px;font-weight:600;color:#4b5563;' +
+        'background:rgba(255,255,255,.65);border:1px solid rgba(15,23,42,.1);' +
+        'transition:background .12s,border-color .12s,color .12s,box-shadow .12s;' +
+      '}' +
+      '#' + rootId + ' .afhub-fb-choices--stack .afhub-fb-choice span { justify-content:flex-start; border-radius:8px; min-width:0; width:100%; box-sizing:border-box; }' +
+      '#' + rootId + ' .afhub-fb-choice:hover span { border-color:rgba(15,23,42,.18); background:rgba(255,255,255,.85); }' +
+      '#' + rootId + ' .afhub-fb-choice input:focus-visible + span { outline:2px solid ' + cfg.color + '; outline-offset:2px; }' +
+      '#' + rootId + ' .afhub-fb-choice input:checked + span {' +
+        'background:' + cfg.color + ';color:#fff;border-color:transparent;' +
+        'box-shadow:0 2px 8px ' + cfg.color + '33;' +
+      '}' +
+      '#' + rootId + ' .afhub-fb-text {' +
+        'width:100%;box-sizing:border-box;border:1px solid rgba(15,23,42,.12);border-radius:8px;' +
+        'padding:7px 9px;font-size:12px;font-family:inherit;resize:vertical;min-height:48px;' +
+        'background:rgba(255,255,255,.75);color:#111827;line-height:1.35;' +
+        'transition:border-color .12s,box-shadow .12s;' +
+      '}' +
+      '#' + rootId + ' .afhub-fb-text:focus { outline:none; border-color:' + cfg.color + '; box-shadow:0 0 0 2px ' + cfg.color + '22; }' +
+      '#' + rootId + ' .afhub-fb-error { display:none; color:#dc2626; font-size:11px; font-weight:600; margin:0; }' +
+      '#' + rootId + ' .afhub-fb-error:not([hidden]) { display:block; }' +
+      '#' + rootId + ' .afhub-fb-actions { display:flex; align-items:center; gap:8px; margin-top:0; flex-wrap:wrap; }' +
+      '#' + rootId + ' .afhub-fb-submit {' +
+        'flex:0 0 auto;min-width:88px;background:' + cfg.color + ';color:#fff;border:none;border-radius:8px;' +
+        'padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;line-height:1.2;font-family:inherit;' +
+        'box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 2px 8px ' + b16 + ';' +
+        'transition:filter .12s,box-shadow .12s,transform .12s;' +
+      '}' +
       '#' + rootId + ' .afhub-fb-submit:hover { filter:brightness(1.05); }' +
-      '#' + rootId + ' .afhub-fb-submit:active { filter:brightness(.94); box-shadow:inset 0 1px 2px rgba(0,0,0,.12); }' +
-      '#' + rootId + ' .afhub-fb-skip { background:none; border:none; color:#80868b; font-size:12px; cursor:pointer; padding:8px 6px; font-weight:600; }' +
-      '#' + rootId + ' .afhub-fb-skip:hover { color:#5f6368; }' +
-      '#' + rootId + ' .afhub-fb-thanks { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:#202124; }' +
-      '#' + rootId + ' .afhub-fb-check { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:999px; background:#22c55e; color:#fff; font-size:12px; flex-shrink:0; }' +
+      '#' + rootId + ' .afhub-fb-submit:active { filter:brightness(.94); transform:translateY(1px); box-shadow:inset 0 1px 2px rgba(0,0,0,.12); }' +
+      '#' + rootId + ' .afhub-fb-skip {' +
+        'background:none;border:none;color:#6b7280;font-size:11.5px;cursor:pointer;padding:6px 6px;' +
+        'font-weight:600;font-family:inherit;border-radius:6px;transition:color .12s,background .12s;' +
+      '}' +
+      '#' + rootId + ' .afhub-fb-skip:hover { color:#374151; background:rgba(15,23,42,.04); }' +
+      '#' + rootId + ' .afhub-fb-thanks { display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:#111827; }' +
+      '#' + rootId + ' .afhub-fb-check {' +
+        'display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:999px;' +
+        'background:#22c55e;color:#fff;font-size:12px;line-height:1;flex-shrink:0;font-weight:700;' +
+      '}' +
       '#' + rootId + ' .afhub-handoff-overlay { display:none; position:absolute; inset:0; z-index:30; background:rgba(0,0,0,.45); align-items:center; justify-content:center; padding:16px; box-sizing:border-box; }' +
       '#' + rootId + ' .afhub-handoff-overlay.visible { display:flex; }' +
       '#' + rootId + ' .afhub-handoff-modal { width:100%; max-width:320px; background:rgba(255,255,255,.88); border-radius:16px; padding:20px 18px; box-shadow:0 0 0 0.5px rgba(0,0,0,.08),0 24px 64px rgba(0,0,0,.22); font-family:inherit; color:#1c1c1e; -webkit-backdrop-filter:blur(28px) saturate(180%); backdrop-filter:blur(28px) saturate(180%); }' +

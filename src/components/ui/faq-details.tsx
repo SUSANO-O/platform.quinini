@@ -1,5 +1,10 @@
 'use client';
 
+import Accordion from '@mui/material/Accordion';
+import AccordionSummary from '@mui/material/AccordionSummary';
+import AccordionDetails from '@mui/material/AccordionDetails';
+import Typography from '@mui/material/Typography';
+import { ChevronDown as ExpandMoreIcon } from '@/components/ui/icons';
 import { BRAND } from '@/lib/brand-colors';
 
 type FaqDetailsProps = {
@@ -10,31 +15,24 @@ type FaqDetailsProps = {
 
 export function FaqDetails({ question, answer, accent = BRAND.primary }: FaqDetailsProps) {
   return (
-    <details
-      className="mb-3 rounded-xl overflow-hidden card-texture group"
-      style={{ border: '1px solid var(--border)' }}
-      onToggle={(e) => {
-        const open = (e.currentTarget as HTMLDetailsElement).open;
-        e.currentTarget.querySelector('summary')?.setAttribute('aria-expanded', String(open));
+    <Accordion
+      disableGutters
+      elevation={0}
+      sx={{
+        mb: 1.5,
+        border: '1px solid',
+        borderColor: 'divider',
+        borderRadius: '12px !important',
+        '&:before': { display: 'none' },
+        overflow: 'hidden',
       }}
     >
-      <summary
-        aria-expanded="false"
-        className="px-6 py-4 font-semibold cursor-pointer landing-body-sm flex items-center justify-between"
-        style={{ listStyle: 'none' }}
-      >
-        {question}
-        <span
-          className="transition-transform group-open:rotate-45"
-          style={{ color: accent, fontSize: 18, fontWeight: 300 }}
-          aria-hidden
-        >
-          +
-        </span>
-      </summary>
-      <p className="px-6 pb-5 landing-body-sm m-0 landing-muted">
-        {answer}
-      </p>
-    </details>
+      <AccordionSummary expandIcon={<ExpandMoreIcon size={22} style={{ color: accent }} />}>
+        <Typography fontWeight={600}>{question}</Typography>
+      </AccordionSummary>
+      <AccordionDetails>
+        <Typography color="text.secondary">{answer}</Typography>
+      </AccordionDetails>
+    </Accordion>
   );
 }
