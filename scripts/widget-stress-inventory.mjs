@@ -58,6 +58,18 @@ const QUESTIONS = [
   },
 ];
 
+function inventoryProbe(reply) {
+  const r = reply || '';
+  const repRefs = (r.match(/\bREP-\d+/gi) ?? []).length;
+  return {
+    repRefs,
+    mentionsStock: /\bstock\b/i.test(r),
+    mentionsSede: /\bsede\b/i.test(r),
+    emptyInventory: /(no (he |pude |encontr|hay)|sin resultados|no arroj[oó]|inventario vac)/i.test(r),
+    asksLead: /(nombre|tel[eé]fono|correo|agendar|cita|especialista de producto|d[eé]jame tus datos)/i.test(r),
+  };
+}
+
 async function resolveToken() {
   if (process.env.WIDGET_TOKEN?.trim()) return process.env.WIDGET_TOKEN.trim();
   const uri = process.env.MONGODB_URI?.trim();
@@ -74,6 +86,7 @@ async function resolveToken() {
 }
 
 async function chat(token, message, sessionId) {
+  const t0 = Date.now();
   const res = await fetch(`${BASE}/api/widget/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Widget-Token': token },
@@ -81,26 +94,36 @@ async function chat(token, message, sessionId) {
     signal: AbortSignal.timeout(120_000),
   });
   const json = await res.json().catch(() => ({}));
-  return { status: res.status, json };
+  return { status: res.status, json, ms: Date.now() - t0 };
 }
 
-function scoreReply(q, reply, tools) {
-  const r = (reply || '').toLowerCase();
+function scoreReply(q, reply, tools, inv) {
   const usedSheet = tools.some((t) => /sheet/i.test(String(t)));
-  const asksLead = /(nombre|tel[eé]fono|correo|contacto|cita|agendar|especialista de producto|d[eé]jame tus datos)/i.test(reply || '');
+  const asksLead = inv.asksLead;
   const noAccess = /(no tengo acceso|no puedo consultar|especialista|supervisor|financiar tu pr[oó]ximo|estrenar un veh[ií]culo)/i.test(reply || '');
 
   if (q.id === 'n2-oem-pe5r') {
-    const ok = /buj[ií]a|iridio|mazda|skyactiv/i.test(r) && usedSheet && !asksLead;
+    const ok = /buj[ií]a|iridio|mazda|skyactiv/i.test((reply || '').toLowerCase()) && usedSheet && !asksLead;
     return ok ? 'PASS' : usedSheet && !asksLead ? 'PARTIAL' : usedSheet ? 'PARTIAL' : 'FAIL';
   }
   if (q.id === 'n1-explicit-sheet') {
-    return usedSheet && !noAccess && !asksLead ? 'PASS' : usedSheet ? 'PARTIAL' : 'FAIL';
+    return usedSheet && !noAccess && !asksLead && inv.repRefs > 0 ? 'PASS' : usedSheet ? 'PARTIAL' : 'FAIL';
   }
-  if (usedSheet && !noAccess && !asksLead) return 'PASS';
+  if (usedSheet && !noAccess && !asksLead && inv.repRefs > 0) return 'PASS';
+  if (usedSheet && !noAccess && !asksLead) return 'PARTIAL';
   if (usedSheet) return 'PARTIAL';
   if (asksLead && !usedSheet) return 'FAIL';
   return noAccess ? 'FAIL' : 'PARTIAL';
+}
+
+function formatInv(inv) {
+  const bits = [];
+  if (inv.repRefs) bits.push(`${inv.repRefs} REP`);
+  if (inv.mentionsStock) bits.push('stock');
+  if (inv.mentionsSede) bits.push('sede');
+  if (inv.emptyInventory) bits.push('vacío');
+  if (inv.asksLead) bits.push('pide contacto');
+  return bits.length ? bits.join(', ') : 'sin señales';
 }
 
 const token = await resolveToken();
@@ -113,21 +136,27 @@ console.log(`   Token:  ${token.slice(0, 10)}…\n`);
 let pass = 0;
 let partial = 0;
 let fail = 0;
+const rows = [];
 
 for (const q of QUESTIONS) {
   const sid = `stress-${q.id}-${Date.now()}`;
-  const { status, json } = await chat(token, q.message, sid);
+  const { status, json, ms } = await chat(token, q.message, sid);
   const reply = typeof json.reply === 'string' ? json.reply : '';
   const tools = Array.isArray(json.toolsUsed) ? json.toolsUsed : [];
-  const verdict = scoreReply(q, reply, tools);
+  const inv = inventoryProbe(reply);
+  const verdict = scoreReply(q, reply, tools, inv);
 
   if (verdict === 'PASS') pass++;
   else if (verdict === 'PARTIAL') partial++;
   else fail++;
 
+  rows.push({ id: q.id, level: q.level, verdict, ms, tools, inv });
+
   console.log('─'.repeat(72));
   console.log(`[${q.level}] ${q.id} → ${verdict}`);
-  console.log(`HTTP ${status} | tools: ${tools.length ? tools.join(', ') : '(ninguna)'}`);
+  console.log(
+    `HTTP ${status} | ${(ms / 1000).toFixed(1)}s | tools: ${tools.length ? tools.join(', ') : '(ninguna)'} | inventario: ${formatInv(inv)}`,
+  );
   if (json.multiAgent) console.log(`multiAgent: ${JSON.stringify(json.multiAgent)}`);
   console.log(`P: ${q.message.slice(0, 100)}…`);
   console.log(`R: ${reply.slice(0, 500)}${reply.length > 500 ? '…' : ''}`);
@@ -136,4 +165,16 @@ for (const q of QUESTIONS) {
 
 console.log('═'.repeat(72));
 console.log(`Resumen: ${pass} PASS, ${partial} PARTIAL, ${fail} FAIL / ${QUESTIONS.length} total`);
+console.log('');
+console.log('Tabla rápida:');
+console.log('  ID                      | ms    | tool sheet | REP | vacío | veredicto');
+for (const r of rows) {
+  const sheet = r.tools.some((t) => /sheet/i.test(t)) ? 'sí' : 'no';
+  console.log(
+    `  ${r.id.padEnd(23)} | ${String(Math.round(r.ms / 1000) + 's').padStart(5)} | ${sheet.padEnd(10)} | ${String(r.inv.repRefs).padStart(3)} | ${(r.inv.emptyInventory ? 'sí' : 'no').padEnd(5)} | ${r.verdict}`,
+  );
+}
+console.log('');
+console.log('Tip: en AIBackHub busca `[sheet] fetch` y `[mcp-chat] inventario sheet` en Cloud Run logs.');
+console.log('Tip: en landing activa DEBUG_WIDGET_FLOW=1 para ver tools + señales inventario por request.');
 process.exit(fail > 0 && pass === 0 ? 1 : 0);

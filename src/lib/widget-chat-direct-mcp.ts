@@ -12,7 +12,7 @@ import {
   syncHubCatalogFromLandingAgentDoc,
 } from '@/lib/aibackhub-sync';
 import { agentSkillsNeedMcpTools } from '@/lib/agent-skills-mcp';
-import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
+import { logWidgetFlow, widgetInventoryReplyProbe, widgetMessageProbe, widgetToolsProbe } from '@/lib/debug-widget-flow';
 import { agentHasAnyWebhook } from '@/lib/agent-webhooks';
 import { agentHasAnySheet } from '@/lib/agent-sheets';
 import { isTrivialMessage } from '@/lib/trivial-message';
@@ -308,6 +308,8 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     replyLen: data.text.length,
     toolsUsed: data.toolsUsed ?? [],
     toolRounds: data.toolRounds,
+    ...widgetToolsProbe(data.toolsUsed),
+    inventory: widgetInventoryReplyProbe(data.text),
   });
 
   return {
