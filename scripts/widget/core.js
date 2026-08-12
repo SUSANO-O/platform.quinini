@@ -8,7 +8,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.6.68';
+  var VERSION = '1.6.69';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -6535,16 +6535,16 @@
       '#' + rootId + ' .afhub-policy-link { color:' + cfg.color + '; text-decoration:underline; }' +
       '#' + rootId + ' a.afhub-policy-link { cursor:pointer; }' +
       '#' + rootId + ' a.afhub-policy-link:hover { filter:brightness(0.9); }' +
-      '#' + rootId + ' .afhub-input-area { padding:8px 12px 10px; border-top:none; display:flex; gap:6px; flex-shrink:0; background:transparent; -webkit-backdrop-filter:blur(40px) saturate(1.85); backdrop-filter:blur(40px) saturate(1.85); align-items:flex-end; box-shadow:0 -0.5px 0 rgba(15,23,42,.05); }' +
+      '#' + rootId + ' .afhub-input-area { padding:8px 12px 10px; border-top:none; display:flex; gap:8px; flex-shrink:0; background:transparent; -webkit-backdrop-filter:blur(40px) saturate(1.85); backdrop-filter:blur(40px) saturate(1.85); align-items:flex-end; box-shadow:0 -0.5px 0 rgba(15,23,42,.05); }' +
       '#' + rootId + ' .afhub-flow-options { display:none; flex-wrap:wrap; gap:6px; padding:8px 12px 4px; border-top:1px solid #e8ecf0; background:#f8fafc; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-flow-opt-btn { flex:1 1 calc(50% - 6px); min-width:120px; padding:8px 10px; border-radius:10px; border:1px solid #e2e8f0; background:#fff; color:#0f172a; font-size:13px; font-weight:500; cursor:pointer; transition:background .15s,border-color .15s,box-shadow .15s; text-align:left; line-height:1.35; }' +
       '#' + rootId + ' .afhub-flow-opt-btn:hover { border-color:' + cfg.color + '66; background:' + cfg.color + '0a; box-shadow:0 2px 8px rgba(15,23,42,.06); }' +
-      '#' + rootId + ' .afhub-input-composer { flex:1; min-width:0; position:relative; isolation:isolate; display:block; padding:2px; border-radius:999px; background:rgba(15,23,42,.07); border:none; overflow:hidden; }' +
-      '#' + rootId + ' .afhub-input-composer-inner { position:relative; z-index:1; display:flex; align-items:flex-end; gap:2px; width:100%; box-sizing:border-box; padding:5px 8px 5px 6px; border-radius:999px; background:#fff; box-shadow:inset 0 0.5px 0 rgba(255,255,255,.98); }' +
+      '#' + rootId + ' .afhub-input-composer { flex:1; min-width:0; max-width:100%; position:relative; isolation:isolate; display:block; padding:2px; border-radius:999px; background:rgba(15,23,42,.07); border:none; overflow:hidden; contain:paint; clip-path:inset(0 round 999px); -webkit-clip-path:inset(0 round 999px); }' +
+      '#' + rootId + ' .afhub-input-composer-inner { position:relative; z-index:1; display:flex; align-items:flex-end; gap:2px; width:100%; max-width:100%; box-sizing:border-box; padding:5px 8px 5px 6px; border-radius:999px; background:#fff; box-shadow:inset 0 0.5px 0 rgba(255,255,255,.98); }' +
       /* Border beam: conic sobre el box real + mask anillo → borde continuo (sin elipses rotas). */
       '#' + rootId + ' .afhub-input-beam-ring {' +
         'position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;opacity:0;' +
-        'box-sizing:border-box;padding:2px;' +
+        'box-sizing:border-box;padding:2px;overflow:hidden;' +
         /* salida (quita hover): suave */
         'transition:opacity .85s cubic-bezier(.22,.61,.36,1);' +
         '-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);' +
@@ -6559,7 +6559,7 @@
         'transition:filter .7s cubic-bezier(.22,.61,.36,1),opacity .85s cubic-bezier(.22,.61,.36,1);' +
       '}' +
       '#' + rootId + ' .afhub-input-beam-bloom {' +
-        'filter:blur(8px);opacity:.58;' +
+        'inset:1px;filter:blur(3.5px);opacity:.42;' +
       '}' +
       '#' + rootId + ' .afhub-input-composer:hover .afhub-input-beam-ring,' +
       '#' + rootId + ' .afhub-input-composer:focus-within .afhub-input-beam-ring {' +
@@ -6571,13 +6571,13 @@
         'opacity:1;' +
         'transition:opacity .85s cubic-bezier(.37,0,.2,1);' +
       '}' +
-      '#' + rootId + ' .afhub-input-composer--typing .afhub-input-beam-bloom { opacity:.72; }' +
+      '#' + rootId + ' .afhub-input-composer--typing .afhub-input-beam-bloom { opacity:.55; }' +
       '#' + rootId + ' .afhub-input-composer--type-pulse .afhub-input-beam-ring { opacity:1; }' +
       '#' + rootId + ' .afhub-input-composer--type-pulse .afhub-input-beam-spin {' +
         'filter:brightness(1.35) saturate(1.25);' +
       '}' +
       '#' + rootId + ' .afhub-input-composer--type-pulse .afhub-input-beam-bloom {' +
-        'opacity:.92;filter:blur(11px) brightness(1.2);' +
+        'opacity:.7;filter:blur(5px) brightness(1.15);' +
       '}' +
       '#' + rootId + ' .afhub-input-composer--voice-line .afhub-input-beam-ring {' +
         'opacity:1;' +
@@ -6612,7 +6612,7 @@
       '#' + rootId + ' .afhub-input::-webkit-scrollbar { display:none; width:0; height:0; }' +
       '#' + rootId + ' .afhub-input::placeholder { color:#94a3b8; opacity:1; font-weight:400; }' +
       '#' + rootId + ' .afhub-input:focus { box-shadow:none; }' +
-      '#' + rootId + ' .afhub-send { width:28px; height:28px; border-radius:50%; border:none; cursor:pointer; background:' + cfg.color + '; color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background .14s,opacity .14s,transform .14s ' + macSpring + '; box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 3px ' + b16 + '; }' +
+      '#' + rootId + ' .afhub-send { width:28px; height:28px; border-radius:50%; border:none; cursor:pointer; background:' + cfg.color + '; color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; position:relative; z-index:2; transition:background .14s,opacity .14s,transform .14s ' + macSpring + '; box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 3px ' + b16 + '; }' +
       '#' + rootId + ' .afhub-send:not(:disabled):hover { filter:brightness(1.06); transform:none; box-shadow:inset 0 1px 0 rgba(255,255,255,.34),0 2px 6px ' + b22 + '; }' +
       '#' + rootId + ' .afhub-send:not(:disabled):active { filter:brightness(.94); box-shadow:inset 0 1px 2px rgba(0,0,0,.12); transform:scale(.96); }' +
       '#' + rootId + ' .afhub-send:disabled { opacity:1; cursor:default; background:#c7c7cc; color:rgba(255,255,255,.95); box-shadow:none; }' +
