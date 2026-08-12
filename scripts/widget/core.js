@@ -6201,7 +6201,7 @@
         '-webkit-backdrop-filter:blur(24px) saturate(180%);backdrop-filter:blur(24px) saturate(180%);' +
       '}' +
       '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen .afhub-messages {' +
-        'grid-area:messages;gap:16px;min-height:0;' +
+        'grid-area:messages;gap:22px;min-height:0;' +
         'font-size:14.5px;line-height:1.65;' +
         /* Columna centrada: evita que user se vaya al borde derecho del viewport */
         'padding:32px max(28px,calc((100% - 640px) / 2)) 24px;' +
@@ -6379,7 +6379,7 @@
       '#' + rootId + ' .afhub-settings-clear { color:#dc2626; }' +
       '#' + rootId + ' .afhub-settings-clear:hover { background:rgba(220,38,38,.08); }' +
       '#' + rootId + ' .afhub-close-btn { margin-left:0; }' +
-      '#' + rootId + ' .afhub-messages { flex:1 1 0; min-height:0; overflow-y:auto; padding:16px 14px 12px; display:flex; flex-direction:column; gap:8px; scroll-behavior:smooth; background:transparent; font-size:14px; line-height:1.47; letter-spacing:-.011em; scrollbar-width:thin; scrollbar-color:rgba(0,0,0,.12) transparent; }' +
+      '#' + rootId + ' .afhub-messages { flex:1 1 0; min-height:0; overflow-y:auto; padding:16px 14px 12px; display:flex; flex-direction:column; gap:16px; scroll-behavior:smooth; background:transparent; font-size:14px; line-height:1.47; letter-spacing:-.011em; scrollbar-width:thin; scrollbar-color:rgba(0,0,0,.12) transparent; }' +
       '#' + rootId + ' .afhub-messages::-webkit-scrollbar { width:5px; }' +
       '#' + rootId + ' .afhub-messages::-webkit-scrollbar-thumb { background:rgba(15,23,42,.14); border-radius:999px; }' +
       '#' + rootId + ' .afhub-msg-row { display:flex; gap:8px; align-items:flex-end; max-width:100%; width:100%; }' +
@@ -6392,7 +6392,7 @@
       '#' + rootId + ' .afhub-msg-avatar.afhub-msg-avatar--vector { background:transparent; box-shadow:none; overflow:visible; -webkit-backdrop-filter:none; backdrop-filter:none; }' +
       '#' + rootId + ' .afhub-msg-avatar.afhub-msg-avatar--vector img { object-fit:contain; width:110%; height:110%; padding:0; filter:drop-shadow(0 1px 4px rgba(15,23,42,.1)); border-radius:0; }' +
       '#' + rootId + ' .afhub-msg-avatar svg { width:14px; height:14px; color:#64748b; }' +
-      '#' + rootId + ' .afhub-date-divider { align-self:center; text-align:center; margin:4px 0 2px; width:100%; }' +
+      '#' + rootId + ' .afhub-date-divider { align-self:center; text-align:center; margin:10px 0 6px; width:100%; }' +
       '#' + rootId + ' .afhub-date-divider span { display:inline-block; font-size:10px; font-weight:600; letter-spacing:.03em; text-transform:capitalize; color:#94a3b8; background:rgba(255,255,255,.18); padding:4px 11px; border-radius:999px; border:none; box-shadow:0 0 0 0.5px rgba(255,255,255,.48),0 2px 8px rgba(15,23,42,.04); -webkit-backdrop-filter:blur(14px) saturate(1.5); backdrop-filter:blur(14px) saturate(1.5); }' +
       '#' + rootId + ' .afhub-msg { max-width:88%; padding:10px 14px; border-radius:22px; font-size:14px; line-height:1.47; letter-spacing:-.011em; word-wrap:break-word; animation:afhub-msg-fade-in .32s ' + macSpring + '; position:relative; -webkit-backdrop-filter:none; backdrop-filter:none; }' +
       '#' + rootId + ' .afhub-msg.user { white-space:pre-wrap; background:linear-gradient(180deg,' + b14 + ',' + b10 + '); color:#0f172a; align-self:flex-end; border-radius:22px 22px 6px 22px; border:none; box-shadow:' + msgBubbleShadow + '; }' +

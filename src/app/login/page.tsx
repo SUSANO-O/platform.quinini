@@ -100,10 +100,7 @@ function LoginForm() {
 
   if (twoFAStep) {
     return (
-      <div className="landing-auth-wrap">
-        <div className="hero-glow" style={{ background: 'var(--brand-primary)', top: '-200px', left: '8%' }} />
-        <div className="hero-glow" style={{ background: 'var(--brand-primary-light)', top: '-100px', right: '5%' }} />
-
+      <div className="landing-auth-wrap landing-auth-wrap--mono">
         <div className="relative w-full max-w-[420px]">
           <div className="text-center mb-6">
             <Link href="/" className="inline-flex items-center justify-center gap-3 no-underline">
@@ -114,8 +111,8 @@ function LoginForm() {
 
           <div className="landing-card landing-auth-card p-8">
             <div className="flex items-center gap-3 mb-5">
-              <div style={{ width: 40, height: 40, borderRadius: '10px', background: 'rgba(var(--brand-primary-rgb),0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <ShieldCheck size={20} style={{ color: 'var(--primary)' }} />
+              <div style={{ width: 40, height: 40, borderRadius: '10px', background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <ShieldCheck size={20} style={{ color: '#111' }} />
               </div>
               <div>
                 <p className="font-bold text-[14px] m-0">Verificación en dos pasos</p>
@@ -146,7 +143,7 @@ function LoginForm() {
               </div>
 
               {error && (
-                <p className="text-[13px] text-red-600 bg-red-500/10 px-3.5 py-2.5 rounded-lg border border-red-500/20">
+                <p className="text-[13px] auth-error px-3.5 py-2.5 rounded-lg">
                   {error}
                 </p>
               )}
@@ -171,11 +168,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="landing-auth-wrap">
-      <div className="hero-glow" style={{ background: 'var(--brand-primary)', top: '-200px', left: '8%' }} />
-      <div className="hero-glow" style={{ background: 'var(--brand-primary-light)', top: '-100px', right: '5%' }} />
-      <div className="hero-glow" style={{ background: 'var(--brand-cool)', top: '45%', left: '48%', opacity: 0.1 }} />
-
+    <div className="landing-auth-wrap landing-auth-wrap--mono">
       <div className="relative w-full max-w-[420px]">
         <div className="text-center mb-6">
           <Link href="/" className="inline-flex items-center justify-center gap-3 no-underline">
@@ -226,7 +219,7 @@ function LoginForm() {
             />
 
             {error && (
-              <div className="text-[13px] text-red-600 bg-red-500/10 px-3.5 py-2.5 rounded-lg border border-red-500/20">
+              <div className="text-[13px] auth-error px-3.5 py-2.5 rounded-lg">
                 <p className="m-0">{error}</p>
                 {errorCode === 'USER_NOT_REGISTERED' && (
                   <p className="m-0 mt-2">
