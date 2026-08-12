@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useAuthSplashLoading } from '@/hooks/use-auth-splash-loading';
@@ -10,8 +9,6 @@ import { AiLoadingScreen } from '@/components/ui/ai-loading-screen';
 import { DashboardSidebar, SIDEBAR_COLLAPSED_PX } from '@/components/dashboard/dashboard-sidebar';
 import { DashboardMobileNav } from '@/components/dashboard/dashboard-mobile-nav';
 import { TourProvider, useTour } from '@/components/onboarding/app-tour';
-import { BotivaOrbLogo } from '@/components/brand/botiva-orb-logo';
-import { BRAND_NAME } from '@/lib/brand';
 // import { initPaddleClient } from '@/lib/paddle-client'; // Paddle — comentado
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -389,22 +386,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           </div>
         )}
         <div style={{ display: 'flex', flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
-        {/* Topbar móvil — solo marca */}
-        {!isFlowEditorRoute && (
-        <header className="flex md:hidden" style={{
-          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 40,
-          height: 52, alignItems: 'center', justifyContent: 'center',
-          padding: '0 14px', background: 'var(--card)',
-          borderBottom: '1px solid var(--border)',
-          boxShadow: 'var(--shadow-surface-sm)',
-        }}>
-          <Link href="/dashboard" className="flex items-center gap-2 no-underline">
-            <BotivaOrbLogo size={32} className="shrink-0" />
-            <span className="text-base font-bold text-black">{BRAND_NAME}</span>
-          </Link>
-        </header>
-        )}
-
         {!isFlowEditorRoute && (
         <DashboardSidebar
           variant="desktop"

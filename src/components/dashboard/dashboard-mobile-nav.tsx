@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import type { LucideIcon } from '@/components/ui/icons';
-import { Bot, Boxes, Braces, LayoutDashboard, LogOut, Menu, Settings } from '@/components/ui/icons';
+import { LogOut, Menu } from '@/components/ui/icons';
 import Drawer from '@mui/material/Drawer';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -13,8 +12,6 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Badge from '@mui/material/Badge';
-import BottomNavigation from '@mui/material/BottomNavigation';
-import BottomNavigationAction from '@mui/material/BottomNavigationAction';
 import Paper from '@mui/material/Paper';
 import { X as CloseIcon } from '@/components/ui/icons';
 import {
@@ -26,22 +23,10 @@ import {
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { PwaInstallButton } from '@/components/shared/pwa-install-button';
 import { SidebarVersionLink } from '@/components/dashboard/sidebar-version-link';
+import { BotivaOrbLogo } from '@/components/brand/botiva-orb-logo';
 import { useInboxOpenCount } from '@/hooks/use-inbox-open-count';
 import { useSubscription } from '@/hooks/use-subscription';
 import { canUseApiAccess, canUseConversationFlows, effectiveProductPlan, isApiOnlyPlan, isSoloChatOnlyPlan } from '@/lib/plan-catalog';
-
-const BOTTOM_TABS: { href: string; label: string; icon: LucideIcon }[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/agents', label: 'Agentes', icon: Bot },
-  { href: '/dashboard/widgets', label: 'Widgets', icon: Boxes },
-];
-
-const BOTTOM_HREFS = new Set(BOTTOM_TABS.map((t) => t.href));
-const MENU_ONLY_PREFIXES = ['/dashboard/widget-builder', '/dashboard/compliance', '/dashboard/settings'];
-
-function isMenuSectionActive(pathname: string) {
-  return MENU_ONLY_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-}
 
 type DashboardMobileNavProps = {
   pathname: string;
@@ -73,19 +58,10 @@ export function DashboardMobileNav({
   );
   const hideQuickStart = isSoloChatOnlyPlan(subscription?.plan ?? 'free') || apiOnly;
   const navGroups = buildDashboardNavGroups({ showApiLink, showFlowsLink, hideQuickStart, apiOnly });
-  const bottomTabs = apiOnly
-    ? [
-        { href: '/dashboard/api', label: 'API', icon: Braces },
-        { href: '/dashboard/settings', label: 'Ajustes', icon: Settings },
-      ]
-    : BOTTOM_TABS;
 
   useEffect(() => {
     setMenuOpen(false);
   }, [pathname]);
-
-  const menuActive = menuOpen || isMenuSectionActive(pathname);
-  const activeTab = bottomTabs.find((t) => isActive(pathname, t.href))?.href ?? (menuActive ? '__menu__' : '');
 
   return (
     <>
@@ -125,40 +101,36 @@ export function DashboardMobileNav({
         {menuFooter}
 
         <Box component="nav" sx={{ overflowY: 'auto' }}>
-          {navGroups.map((group) => {
-            const items = group.items.filter((item) => !BOTTOM_HREFS.has(item.href));
-            if (items.length === 0) return null;
-            return (
-              <Box key={group.title} sx={{ mb: 2 }}>
-                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ px: 1.25, mb: 0.5, display: 'block' }}>
-                  {group.title}
-                </Typography>
-                {items.map((item) => {
-                  const Icon = item.icon;
-                  const active = isActive(pathname, item.href);
-                  return (
-                    <ListItemButton
-                      key={item.href}
-                      component={Link}
-                      href={item.href}
-                      data-tour={SIDEBAR_TOUR_KEY_BY_HREF[item.href]}
-                      onClick={() => setMenuOpen(false)}
-                      selected={active}
-                      sx={{ borderRadius: 2 }}
-                    >
-                      <ListItemIcon sx={{ minWidth: 36 }}>
-                        <Icon size={20} strokeWidth={1.75} aria-hidden />
-                      </ListItemIcon>
-                      <ListItemText primary={item.label} />
-                      {item.href === '/dashboard/inbox' && inboxOpenCount > 0 ? (
-                        <Badge badgeContent={inboxOpenCount > 99 ? '99+' : inboxOpenCount} color="error" />
-                      ) : null}
-                    </ListItemButton>
-                  );
-                })}
-              </Box>
-            );
-          })}
+          {navGroups.map((group) => (
+            <Box key={group.title} sx={{ mb: 2 }}>
+              <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ px: 1.25, mb: 0.5, display: 'block' }}>
+                {group.title}
+              </Typography>
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(pathname, item.href);
+                return (
+                  <ListItemButton
+                    key={item.href}
+                    component={Link}
+                    href={item.href}
+                    data-tour={SIDEBAR_TOUR_KEY_BY_HREF[item.href]}
+                    onClick={() => setMenuOpen(false)}
+                    selected={active}
+                    sx={{ borderRadius: 2 }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 36 }}>
+                      <Icon size={20} strokeWidth={1.75} aria-hidden />
+                    </ListItemIcon>
+                    <ListItemText primary={item.label} />
+                    {item.href === '/dashboard/inbox' && inboxOpenCount > 0 ? (
+                      <Badge badgeContent={inboxOpenCount > 99 ? '99+' : inboxOpenCount} color="error" />
+                    ) : null}
+                  </ListItemButton>
+                );
+              })}
+            </Box>
+          ))}
         </Box>
 
         <Box sx={{ pt: 1 }}>
@@ -190,36 +162,55 @@ export function DashboardMobileNav({
           zIndex: (t) => t.zIndex.appBar,
           borderRadius: 0,
           pb: 'env(safe-area-inset-bottom)',
+          borderTop: '1px solid',
+          borderColor: 'divider',
         }}
       >
-        <BottomNavigation
-          showLabels
-          value={activeTab}
-          sx={{ height: MOBILE_NAV_HEIGHT_PX }}
+        <Box
+          sx={{
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            height: MOBILE_NAV_HEIGHT_PX,
+            px: 0.5,
+          }}
         >
-          {bottomTabs.map(({ href, label, icon: Icon }) => (
-            <BottomNavigationAction
-              key={href}
-              component={Link}
-              href={href}
-              value={href}
-              data-tour={SIDEBAR_TOUR_KEY_BY_HREF[href]}
-              label={label}
-              icon={<Icon size={22} strokeWidth={1.75} aria-hidden />}
-            />
-          ))}
-          {!apiOnly ? (
-            <BottomNavigationAction
-              value="__menu__"
-              label="Menú"
-              icon={<Menu size={22} strokeWidth={1.75} aria-hidden />}
-              onClick={() => setMenuOpen(true)}
-            />
-          ) : null}
-        </BottomNavigation>
+          <IconButton
+            aria-label="Abrir menú"
+            onClick={() => setMenuOpen(true)}
+            sx={{ width: 48, height: 48, color: 'text.primary', flexShrink: 0 }}
+          >
+            <Menu size={24} strokeWidth={1.75} aria-hidden />
+          </IconButton>
+          <Typography component="span" variant="body2" fontWeight={700} sx={{ ml: 0.25 }}>
+            Menú
+          </Typography>
+
+          <Box
+            component={Link}
+            href="/dashboard"
+            aria-label="Ir al inicio del panel"
+            sx={{
+              position: 'absolute',
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 40,
+              height: 40,
+              lineHeight: 0,
+              textDecoration: 'none',
+              zIndex: 1,
+            }}
+          >
+            <BotivaOrbLogo size={38} className="shrink-0" />
+          </Box>
+        </Box>
       </Paper>
     </>
   );
 }
 
-export const MOBILE_NAV_HEIGHT_PX = 64;
+export const MOBILE_NAV_HEIGHT_PX = 52;
