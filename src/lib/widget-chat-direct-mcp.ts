@@ -62,6 +62,8 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   /** Última defensa: fusionar OCR/visión justo antes del POST a AIBackHub. */
   visionEnrichment?: WidgetImageEnrichment | null;
   strictPurposeSuffix?: string;
+  /** Si se pasa, usa SSE del hub y emite fases reales durante la ejecución. */
+  onStatus?: (phase: string, message: string) => void;
 }): Promise<DirectMcpWidgetChatResult | null> {
   if (!params.widgetTokenStartsWithWt || !params.parsedAgentId.trim()) {
     logWidgetFlow('🚫', 'direct:skip', 'sin wt_ o agentId', { agentId: params.parsedAgentId });
@@ -268,14 +270,80 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     ...(visitorUserId ? { visitorUserId } : {}),
   };
 
-  const url = `${hubBase.replace(/\/$/, '')}/api/mcp/widget-chat`;
-  logWidgetFlow('📡', 'direct:fetch', 'llamando hub MCP', { url, enabledToolCount: payload.enabledToolIds.length });
+  const url = `${hubBase.replace(/\/$/, '')}/api/mcp/widget-chat${params.onStatus ? '/stream' : ''}`;
+  logWidgetFlow('📡', 'direct:fetch', 'llamando hub MCP', {
+    url,
+    enabledToolCount: payload.enabledToolIds.length,
+    stream: Boolean(params.onStatus),
+  });
   const res = await fetch(url, {
     method: 'POST',
     headers: { ...hubCreateHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
     signal: AbortSignal.timeout(120_000),
   });
+
+  if (params.onStatus && res.ok && res.body) {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let donePayload: DirectMcpWidgetChatResult | null = null;
+
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      buf += decoder.decode(chunk.value, { stream: true });
+      const parts = buf.split('\n\n');
+      buf = parts.pop() ?? '';
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith('data:')) continue;
+        let evt: {
+          type?: string;
+          phase?: string;
+          message?: string;
+          reply?: string;
+          toolsUsed?: string[];
+          toolRounds?: number;
+          code?: string;
+        };
+        try {
+          evt = JSON.parse(line.slice(5).trim()) as typeof evt;
+        } catch {
+          continue;
+        }
+        if (evt.type === 'status' && typeof evt.message === 'string') {
+          params.onStatus(typeof evt.phase === 'string' ? evt.phase : 'hub', evt.message);
+        } else if (evt.type === 'done' && typeof evt.reply === 'string') {
+          donePayload = {
+            reply: evt.reply,
+            toolsUsed: evt.toolsUsed,
+            toolRounds: evt.toolRounds,
+          };
+        } else if (evt.type === 'error') {
+          logWidgetFlow('❌', 'direct:hubStream', 'error SSE del hub', {
+            code: evt.code,
+            message: evt.message,
+          });
+          return null;
+        }
+      }
+    }
+
+    if (!donePayload?.reply) {
+      logWidgetFlow('❌', 'direct:hubStream', 'SSE sin evento done');
+      return null;
+    }
+
+    logWidgetFlow('✅', 'direct:ok', 'respuesta MCP (stream)', {
+      replyLen: donePayload.reply.length,
+      toolsUsed: donePayload.toolsUsed ?? [],
+      toolRounds: donePayload.toolRounds,
+      ...widgetToolsProbe(donePayload.toolsUsed),
+      inventory: widgetInventoryReplyProbe(donePayload.reply),
+    });
+    return donePayload;
+  }
 
   const rawText = await res.text();
   if (!res.ok) {

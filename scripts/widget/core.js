@@ -3117,112 +3117,28 @@
       return { title: 'Pensando…', sub: s };
     }
 
-    /** Texto breve y amigable (sin jerga técnica). Variantes para no repetir siempre lo mismo. */
-    function pickThinkingVariant(variants, seed) {
-      var list = variants && variants.length ? variants : ['Un momento…'];
-      if (list.length === 1) return list[0];
-      var n = 0;
-      var s = String(seed || '');
-      for (var i = 0; i < s.length; i++) n = (n + s.charCodeAt(i)) % list.length;
-      return list[n];
-    }
-
-    function detectThinkingLane(userMessage) {
-      var m = String(userMessage || '').toLowerCase();
-      if (/repuesto|invent|stock|oem|referencia|sede|pasillo|marca|tracker|chevrolet|renault|kit|pastilla|amortiguador|hoja|ventas|cat[aá]logo|buj[ií]a|freno|distribuci/.test(m)) {
-        return 'inventory';
-      }
-      if (/imagen|captura|foto|adjunt|screenshot/.test(m)) return 'vision';
-      if (/especialist|equipo|paralelo|creativo|contenido/.test(m)) return 'team';
-      return 'general';
-    }
-
-    var THINKING_CAPTION_POOLS = {
-      inventory: [
-        'Entendiendo tu consulta…',
-        'Revisando el catálogo…',
-        'Consultando disponibilidad…',
-        'Comparando referencias…',
-        'Verificando stock y sede…',
-        'Preparando tu respuesta…',
-      ],
-      general: [
-        'Entendiendo tu consulta…',
-        'Revisando la información…',
-        'Organizando la respuesta…',
-        'Un momento, casi listo…',
-        'Preparando tu respuesta…',
-      ],
-      vision: [
-        'Analizando la imagen…',
-        'Extrayendo detalles…',
-        'Preparando tu respuesta…',
-      ],
-      team: [
-        'Analizando tu consulta…',
-        'Consultando al equipo…',
-        'Reuniendo respuestas…',
-        'Preparando tu respuesta…',
-      ],
-    };
-
-    var thinkingLive = { lane: 'general', step: 0, lastServerAt: 0, lastServerCaption: '' };
-
-    function thinkingCaptionFromStatus(statusLabel, statusPhase) {
-      var phase = String(statusPhase || '').trim();
+    /** Texto de la burbuja: mensaje del servidor (SSE) o fallback mínimo por fase. */
+    function displayThinkingCaption(statusLabel, statusPhase) {
       var s = String(statusLabel || '').trim();
-      var lower = s.toLowerCase();
-      var seed = phase + '|' + s.slice(0, 40);
-      if (phase === 'prepare' || phase === 'validate') return pickThinkingVariant(['Preparando tu solicitud…', 'Organizando tu pedido…'], seed);
-      if (phase === 'enrich') return pickThinkingVariant(['Recordando el contexto…', 'Retomando la conversación…'], seed);
-      if (phase === 'vision') return pickThinkingVariant(['Analizando la imagen…', 'Revisando la captura…'], seed);
-      if (phase === 'resolve' || phase === 'triage') {
-        return pickThinkingVariant(['Entendiendo tu consulta…', 'Interpretando lo que necesitas…', 'Viendo cómo ayudarte…'], seed);
+      if (s) {
+        return s
+          .replace(/\bmcp\b/gi, 'integración')
+          .replace(/\bharness\b/gi, '')
+          .replace(/\bpipeline\b/gi, 'proceso')
+          .replace(/\s{2,}/g, ' ')
+          .trim();
       }
-      if (phase === 'skills') return pickThinkingVariant(['Activando habilidades…', 'Afinando la respuesta…'], seed);
-      if (phase === 'rag') return pickThinkingVariant(['Revisando documentos…', 'Consultando la base de conocimiento…'], seed);
-      if (phase === 'tools' || phase === 'mcp') {
-        if (/invent|stock|repuesto|hoja|sheet|cat[aá]logo/.test(lower)) {
-          return pickThinkingVariant(['Consultando inventario…', 'Revisando disponibilidad…', 'Buscando en catálogo…'], seed);
-        }
-        return pickThinkingVariant(['Buscando información…', 'Consultando datos…', 'Revisando fuentes…'], seed);
-      }
-      if (phase === 'model' || phase === 'start') {
-        return pickThinkingVariant(['Redactando respuesta…', 'Escribiendo tu respuesta…', 'Dando forma a la respuesta…'], seed);
-      }
-      if (phase === 'hub') return pickThinkingVariant(['Procesando tu consulta…', 'Trabajando en tu respuesta…'], seed);
-      if (phase === 'handoff') return pickThinkingVariant(['Conectando con un especialista…', 'Buscando al experto indicado…'], seed);
-      if (phase === 'parallel') return pickThinkingVariant(['Consultando expertos…', 'Reuniendo varias opiniones…'], seed);
-      if (phase === 'pipeline' || phase === 'content') return pickThinkingVariant(['Reuniendo información…', 'Recopilando detalles…'], seed);
-      if (phase === 'creative') return pickThinkingVariant(['Creando contenido…', 'Generando propuesta…'], seed);
-      if (phase === 'synthesize') return pickThinkingVariant(['Preparando respuesta…', 'Unificando la respuesta…'], seed);
-      if (/invent|stock|repuesto|hoja|cat[aá]logo/.test(lower)) {
-        return pickThinkingVariant(['Consultando inventario…', 'Revisando disponibilidad…'], seed);
-      }
-      if (/document|indexad/.test(lower)) return pickThinkingVariant(['Revisando documentos…', 'Consultando archivos…'], seed);
-      if (/captura|imagen|foto/.test(lower)) return pickThinkingVariant(['Analizando la imagen…', 'Revisando la captura…'], seed);
-      if (/especialist|deriv/.test(lower)) return pickThinkingVariant(['Conectando con un especialista…', 'Buscando al experto…'], seed);
-      if (/generando|redact|escrib/.test(lower)) {
-        return pickThinkingVariant(['Redactando respuesta…', 'Escribiendo tu respuesta…'], seed);
-      }
-      if (/subiendo|archivo/.test(lower)) return 'Subiendo archivo…';
-      if (/analiz/.test(lower)) return pickThinkingVariant(['Analizando…', 'Revisando tu consulta…'], seed);
-      if (/consult/.test(lower)) return pickThinkingVariant(['Consultando…', 'Buscando datos…'], seed);
-      if (/herramient|integrac|conect/.test(lower)) return pickThinkingVariant(['Buscando información…', 'Consultando fuentes…'], seed);
-      if (/prepar/.test(lower)) return pickThinkingVariant(['Preparando…', 'Organizando…'], seed);
-      if (s) return pickThinkingVariant(['Un momento…', 'Trabajando en ello…'], seed);
-      return '';
-    }
-
-    function thinkingCaptionFromLane(lane, step) {
-      var pool = THINKING_CAPTION_POOLS[lane] || THINKING_CAPTION_POOLS.general;
-      return pool[Math.abs(step) % pool.length];
-    }
-
-    function resolveThinkingCaption(statusLabel, statusPhase, lane, step) {
-      var fromServer = thinkingCaptionFromStatus(statusLabel, statusPhase);
-      if (fromServer) return fromServer;
-      return thinkingCaptionFromLane(lane, step);
+      var phase = String(statusPhase || '').trim();
+      if (phase === 'tools' || phase === 'mcp') return 'Ejecutando herramientas…';
+      if (phase === 'model') return 'Generando respuesta…';
+      if (phase === 'triage' || phase === 'resolve') return 'Analizando tu consulta…';
+      if (phase === 'hub') return 'Consultando al asistente…';
+      if (phase === 'rag') return 'Consultando documentos…';
+      if (phase === 'vision') return 'Analizando captura…';
+      if (phase === 'prepare') return 'Preparando tu solicitud…';
+      if (phase === 'enrich') return 'Cargando contexto…';
+      if (phase === 'skills') return 'Aplicando habilidades…';
+      return 'Un momento…';
     }
 
     function clearTypingTimer() {
@@ -3263,18 +3179,7 @@
         } else {
           elapsedEl.textContent = sec + ' s';
         }
-
-        var capEl = el.querySelector('.afhub-thinking-caption');
-        if (capEl && capEl.getAttribute('data-slow') !== '1') {
-          var serverFresh = thinkingLive.lastServerAt && Date.now() - thinkingLive.lastServerAt < 2200;
-          if (!serverFresh) {
-            thinkingLive.step += 1;
-            capEl.textContent = thinkingCaptionFromLane(thinkingLive.lane, thinkingLive.step);
-          } else if (thinkingLive.lastServerCaption) {
-            capEl.textContent = thinkingLive.lastServerCaption;
-          }
-        }
-      }, 2200);
+      }, 1000);
     }
 
     function setInputAgentBusy(busy) {
@@ -3289,12 +3194,7 @@
     }
 
     function renderThinkingCard(el, statusLabel, statusPhase) {
-      var caption = resolveThinkingCaption(
-        statusLabel,
-        statusPhase,
-        thinkingLive.lane,
-        thinkingLive.step,
-      );
+      var caption = displayThinkingCaption(statusLabel, statusPhase);
       el.innerHTML =
         '<div class="afhub-thinking-beam-ring" aria-hidden="true">' +
           '<span class="afhub-thinking-beam-spin"></span>' +
@@ -3310,23 +3210,12 @@
       if (!el) return;
       var capEl = el.querySelector('.afhub-thinking-caption');
       if (!capEl || capEl.getAttribute('data-slow') === '1') return;
-      var fromServer = thinkingCaptionFromStatus(statusLabel, statusPhase);
-      if (fromServer) {
-        thinkingLive.lastServerAt = Date.now();
-        thinkingLive.lastServerCaption = fromServer;
-        capEl.textContent = fromServer;
-        return;
-      }
-      capEl.textContent = resolveThinkingCaption(statusLabel, statusPhase, thinkingLive.lane, thinkingLive.step);
+      capEl.textContent = displayThinkingCaption(statusLabel, statusPhase);
     }
 
     function showTyping(statusLabel, statusPhase) {
       hideTyping();
       setInputAgentBusy(true);
-      thinkingLive.lane = detectThinkingLane(lastAssistUserMessage);
-      thinkingLive.step = 0;
-      thinkingLive.lastServerAt = 0;
-      thinkingLive.lastServerCaption = '';
       var row = document.createElement('div');
       row.className = 'afhub-msg-row afhub-msg-row--bot afhub-msg-row--typing';
       row.id = typingRowId;
