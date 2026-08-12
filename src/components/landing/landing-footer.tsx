@@ -31,9 +31,9 @@ export function LandingFooter() {
               <Image
                 src={BRAND_LOGO_SRC}
                 alt={BRAND_NAME}
-                width={90}
-                height={27}
-                style={{ height: 28, width: 'auto', objectFit: 'contain', borderRadius: 8 }}
+                width={32}
+                height={32}
+                style={{ height: 28, width: 28, objectFit: 'contain', borderRadius: 8 }}
               />
               <Typography fontWeight={700}>{BRAND_NAME}</Typography>
             </Stack>

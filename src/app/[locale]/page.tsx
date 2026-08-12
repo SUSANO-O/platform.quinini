@@ -16,7 +16,6 @@ function plainCopy(value: unknown, fallback: string): string {
 export default async function LandingPage() {
   const t = await getTranslations('landing');
 
-  const FAQ_ITEMS = t.raw('faq.items') as { q: string; a: string }[];
   const TESTIMONIALS = t.raw('testimonials.items') as {
     quote: string;
     author: string;
@@ -53,6 +52,7 @@ export default async function LandingPage() {
         { title: t('how.step3Title'), desc: t('how.step3Desc'), icon: 'palette', accent: R, variant: 3 },
         { title: t('how.step4Title'), desc: t('how.step4Desc'), icon: 'terminal', accent: C, variant: 4 },
         { title: t('how.step5Title'), desc: t('how.step5Desc'), icon: 'rocket', accent: R, variant: 5 },
+        { title: t('how.step6Title'), desc: t('how.step6Desc'), icon: 'users', accent: W, variant: 6 },
       ],
     },
     agents: {
@@ -118,7 +118,6 @@ export default async function LandingPage() {
         { step: '04', icon: 'play-circle' as LandingIconName, color: Rd, title: t('training.step4Title'), desc: t('training.step4Desc') },
       ],
     },
-    faq: { title: t('faq.title'), items: FAQ_ITEMS },
     cta: {
       title1: t('cta.title1'),
       title2: t('cta.title2'),

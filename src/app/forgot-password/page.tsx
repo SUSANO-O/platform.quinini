@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
 
       <div className="relative w-full max-w-[400px] landing-card p-9">
         <Link href="/" className="inline-flex items-center gap-2.5 mb-7 no-underline">
-          <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={120} height={36} className="h-9 w-auto object-contain rounded-xl" />
+          <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={36} height={36} className="h-9 w-9 object-contain rounded-xl" />
           <span className="text-lg font-bold text-black">{BRAND_NAME}</span>
         </Link>
 

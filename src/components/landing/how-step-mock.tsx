@@ -1,90 +1,28 @@
-/** Ilustraciones CSS para cada paso del onboarding (glass + flotación, sin assets externos). */
-export function HowStepMock({ variant }: { variant: 1 | 2 | 3 | 4 | 5 }) {
-  switch (variant) {
-    case 1:
-      return (
-        <div className="how-step-mock how-step-mock--account" aria-hidden>
-          <div className="how-step-mock__orb how-step-mock__orb--a" />
-          <div className="how-step-mock__device how-step-mock__device--laptop how-step-mock__float">
-            <div className="how-step-mock__screen">
-              <div className="how-step-mock__avatar-row">
-                <span className="how-step-mock__avatar" />
-                <span className="how-step-mock__bar" />
-              </div>
-              <div className="how-step-mock__field" />
-              <div className="how-step-mock__field how-step-mock__field--short" />
-              <div className="how-step-mock__btn" />
-            </div>
-          </div>
-        </div>
-      );
-    case 2:
-      return (
-        <div className="how-step-mock how-step-mock--train" aria-hidden>
-          <div className="how-step-mock__orb how-step-mock__orb--b" />
-          <div className="how-step-mock__device how-step-mock__device--monitor how-step-mock__float">
-            <div className="how-step-mock__screen">
-              <div className="how-step-mock__charts">
-                <span className="how-step-mock__chart how-step-mock__chart--a" />
-                <span className="how-step-mock__chart how-step-mock__chart--b" />
-                <span className="how-step-mock__chart how-step-mock__chart--c" />
-              </div>
-              <div className="how-step-mock__lines">
-                <span /><span /><span />
-              </div>
-            </div>
-          </div>
-          <div className="how-step-mock__chip how-step-mock__chip--float">AI</div>
-        </div>
-      );
-    case 3:
-      return (
-        <div className="how-step-mock how-step-mock--widget" aria-hidden>
-          <div className="how-step-mock__orb how-step-mock__orb--c" />
-          <div className="how-step-mock__device how-step-mock__device--tablet how-step-mock__float">
-            <div className="how-step-mock__screen">
-              <div className="how-step-mock__palette">
-                <span /><span /><span /><span />
-              </div>
-              <div className="how-step-mock__bubble" />
-              <div className="how-step-mock__bubble how-step-mock__bubble--user" />
-              <div className="how-step-mock__fab" />
-            </div>
-          </div>
-        </div>
-      );
-    case 4:
-      return (
-        <div className="how-step-mock how-step-mock--snippet" aria-hidden>
-          <div className="how-step-mock__orb how-step-mock__orb--a" />
-          <div className="how-step-mock__device how-step-mock__device--laptop how-step-mock__float">
-            <div className="how-step-mock__screen how-step-mock__screen--code">
-              <div className="how-step-mock__code-line how-step-mock__code-line--tag" />
-              <div className="how-step-mock__code-line" />
-              <div className="how-step-mock__code-line how-step-mock__code-line--short" />
-              <div className="how-step-mock__code-line" />
-            </div>
-          </div>
-          <div className="how-step-mock__chip how-step-mock__chip--float how-step-mock__chip--code">{'</>'}</div>
-        </div>
-      );
-    case 5:
-      return (
-        <div className="how-step-mock how-step-mock--scale" aria-hidden>
-          <div className="how-step-mock__orb how-step-mock__orb--b" />
-          <div className="how-step-mock__device how-step-mock__device--monitor how-step-mock__float">
-            <div className="how-step-mock__screen">
-              <div className="how-step-mock__growth">
-                <span /><span /><span /><span /><span />
-              </div>
-              <div className="how-step-mock__metric-row">
-                <span /><span />
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    default:
-      return null;
-  }
+import Image from 'next/image';
+
+const HOW_IMAGES: Record<1 | 2 | 3 | 4 | 5 | 6, { src: string; alt: string }> = {
+  1: { src: '/landing/how/01.jpg', alt: 'Crear cuenta en el panel' },
+  2: { src: '/landing/how/02.jpg', alt: 'Entrenar el agente con documentos' },
+  3: { src: '/landing/how/03.jpg', alt: 'Diseñar el widget de chat' },
+  4: { src: '/landing/how/04.jpg', alt: 'Copiar el snippet de código' },
+  5: { src: '/landing/how/05.jpg', alt: 'Escalar uso en el dashboard' },
+  6: { src: '/landing/how/06.jpg', alt: 'Operar varios agentes' },
+};
+
+/** Ilustración fotográfica por paso del onboarding. */
+export function HowStepMock({ variant }: { variant: 1 | 2 | 3 | 4 | 5 | 6 }) {
+  const img = HOW_IMAGES[variant];
+
+  return (
+    <div className="how-step-visual" aria-hidden>
+      <Image
+        src={img.src}
+        alt=""
+        fill
+        sizes="(max-width: 900px) 100vw, 360px"
+        className="how-step-visual__img"
+      />
+      <span className="how-step-visual__glow" />
+    </div>
+  );
 }

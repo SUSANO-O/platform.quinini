@@ -6,6 +6,7 @@ import { LandingWidgetScript } from '@/components/landing/landing-widget-script'
 import { CardProTracker } from '@/components/landing/card-pro-tracker';
 import { MuiProvider } from '@/providers/mui-provider';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
+import { appFontVariables } from '@/lib/fonts';
 
 /** Evita SSG en rutas que dependen de providers cliente (auth, toasts, assist). */
 export const dynamic = 'force-dynamic';
@@ -37,14 +38,15 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es" className={appFontVariables} suppressHydrationWarning>
       <head>
         <link rel="icon" href={BRAND_LOGO_SRC} sizes="192x192" type="image/png" />
         <link rel="apple-touch-icon" href={BRAND_LOGO_SRC} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* Solo iconos: tipografía vía next/font (sin salto de layout). */}
         <link
-          href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block"
           rel="stylesheet"
         />
       </head>

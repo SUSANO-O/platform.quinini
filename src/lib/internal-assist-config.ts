@@ -4,7 +4,11 @@
  */
 
 /** Mantener en sync con `VERSION` en scripts/widget/core.js (cache-bust de assist.js). */
-export const WIDGET_SDK_VERSION = '1.6.59';
+export const WIDGET_SDK_VERSION = '1.6.67';
+
+const ASSIST_FAB_AVATAR_PX = 52;
+const ASSIST_ORB_MARKETING = '/assets/marketing/math-avatar-cutout.webp?v=orb3';
+const ASSIST_ORB_APP = '/assets/assist/botivaorbe.webp?v=orb3';
 
 export type InternalAssistContext = 'app' | 'marketing';
 
@@ -17,6 +21,8 @@ export type InternalAssistBootConfig = {
   welcome: string;
   fabHint: string;
   avatar?: string;
+  /** Diámetro del FAB con avatar (px). Default más compacto que el SDK (86). */
+  fabAvatarSize?: number;
   position: string;
   edgeInset: number;
   offsetBottom: number;
@@ -62,10 +68,8 @@ export function resolveInternalAssistBoot(
       subtitle: envStr('INTERNAL_MARKETING_ASSIST_SUBTITLE', 'En linea'),
       welcome: envStr('INTERNAL_MARKETING_ASSIST_WELCOME', 'Hola! Como puedo ayudarte hoy?'),
       fabHint: envStr('INTERNAL_MARKETING_ASSIST_FAB_HINT', 'Hola! Como puedo ayudarte hoy?'),
-      avatar: envStr(
-        'INTERNAL_MARKETING_ASSIST_AVATAR',
-        '/assets/marketing/math-avatar-cutout.webp',
-      ),
+      avatar: envStr('INTERNAL_MARKETING_ASSIST_AVATAR', ASSIST_ORB_MARKETING),
+      fabAvatarSize: envNum('INTERNAL_ASSIST_FAB_AVATAR_SIZE', ASSIST_FAB_AVATAR_PX),
       // Solo WhatsApp por ahora: sin "Hablar con una persona" (inbox/canales).
       humanSupportEnabled: true,
       handoffEnabled: false,
@@ -89,10 +93,8 @@ export function resolveInternalAssistBoot(
     subtitle: envStr('INTERNAL_APP_ASSIST_SUBTITLE', 'En linea'),
     welcome: envStr('INTERNAL_APP_ASSIST_WELCOME', 'Hola! Como puedo ayudarte hoy?'),
     fabHint: envStr('INTERNAL_APP_ASSIST_FAB_HINT', '¿Tienes dudas?'),
-    avatar: envStr(
-      'INTERNAL_APP_ASSIST_AVATAR',
-      '/assets/assist/botivaorbe.webp',
-    ),
+    avatar: envStr('INTERNAL_APP_ASSIST_AVATAR', ASSIST_ORB_APP),
+    fabAvatarSize: envNum('INTERNAL_ASSIST_FAB_AVATAR_SIZE', ASSIST_FAB_AVATAR_PX),
     // Solo WhatsApp por ahora: sin "Hablar con una persona" (inbox/canales).
     humanSupportEnabled: true,
     handoffEnabled: false,

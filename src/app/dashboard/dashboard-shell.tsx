@@ -399,7 +399,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           boxShadow: 'var(--shadow-surface-sm)',
         }}>
           <Link href="/dashboard" className="flex items-center gap-2 no-underline">
-            <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={100} height={30} className="h-8 w-auto object-contain rounded-xl shrink-0" />
+            <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={32} height={32} className="h-8 w-8 object-contain rounded-xl shrink-0" />
             <span className="text-base font-bold text-black">{BRAND_NAME}</span>
           </Link>
         </header>

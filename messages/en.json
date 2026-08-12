@@ -4,6 +4,9 @@
     "training": "Training",
     "pricing": "Pricing",
     "faq": "FAQ",
+    "resources": "Resources",
+    "demos": "Demos",
+    "solutions": "Solutions",
     "docs": "Documentation",
     "signIn": "Sign in",
     "startFree": "View pricing",
@@ -25,7 +28,7 @@
     "rights": "All rights reserved."
   },
   "landing": {
-    "badge": "BotIvA · agents on your site",
+    "badge": "agents for your business",
     "hero": {
       "title1": "Your business, powered",
       "title2": "by BotIvA agents",
@@ -47,7 +50,7 @@
     "how": {
       "badge": "Fast setup",
       "title": "From BotIvA account to live widget",
-      "subtitle": "Our platform is built so you can deploy intelligent agents without technical hassle. Follow these five steps and transform your customer support today.",
+      "subtitle": "Our platform is built so you can deploy intelligent agents without technical hassle. Follow these six steps and transform your customer support today.",
       "step1Title": "Create your account",
       "step1Desc": "Sign up with your authorization code and access the dashboard once you have an active plan.",
       "step2Title": "Train your agent",
@@ -57,7 +60,9 @@
       "step4Title": "Copy the snippet",
       "step4Desc": "Copy a single line of code and paste it on your website. Your agent will be live and ready to help instantly.",
       "step5Title": "Scale when you're ready",
-      "step5Desc": "Upgrade to the plan you need, add multi-agent or more capacity. No contracts — cancel anytime."
+      "step5Desc": "Upgrade to the plan you need, add multi-agent or more capacity. No contracts — cancel anytime.",
+      "step6Title": "Run multiple agents",
+      "step6Desc": "Combine sales, support, and ops in one panel. Orchestrate flows and track results in real time."
     },
     "agents": {
       "title": "BotIvA agents by domain",
