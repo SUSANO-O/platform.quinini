@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Mail, CheckCircle, Loader2 } from '@/components/ui/icons';
 import { BotivaOrbLogo } from '@/components/brand/botiva-orb-logo';
+import { BRAND_NAME } from '@/lib/brand';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');

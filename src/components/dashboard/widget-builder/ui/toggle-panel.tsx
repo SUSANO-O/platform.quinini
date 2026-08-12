@@ -36,6 +36,7 @@ export function WidgetBuilderTogglePanel({
   onToggle,
   children,
   tourId,
+  badge,
   control = 'switch',
   checkboxId,
 }: {
@@ -46,6 +47,7 @@ export function WidgetBuilderTogglePanel({
   onToggle: (active: boolean) => void;
   children?: ReactNode;
   tourId?: string;
+  badge?: string;
   control?: 'switch' | 'checkbox';
   checkboxId?: string;
 }) {
@@ -55,7 +57,7 @@ export function WidgetBuilderTogglePanel({
       data-tour={tourId}
       style={active ? ({ '--wb-accent': accentColor } as CSSProperties) : undefined}
     >
-      <div className={`widget-builder-toggle-panel__head${active ? ' has-border' : ''}`}>
+      <div className={`widget-builder-toggle-panel__head${active && children ? ' has-border' : ''}`}>
         {control === 'checkbox' && checkboxId ? (
           <input
             type="checkbox"
@@ -86,11 +88,17 @@ export function WidgetBuilderTogglePanel({
           tabIndex={control === 'switch' ? -1 : 0}
         >
           {control === 'checkbox' && checkboxId ? (
-            <label htmlFor={checkboxId} className="widget-builder-toggle-panel__title">
-              {title}
-            </label>
+            <div className="widget-builder-toggle-panel__title-row">
+              <label htmlFor={checkboxId} className="widget-builder-toggle-panel__title">
+                {title}
+              </label>
+              {badge ? <span className="widget-builder-plan-badge">{badge}</span> : null}
+            </div>
           ) : (
-            <p className="widget-builder-toggle-panel__title">{title}</p>
+            <div className="widget-builder-toggle-panel__title-row">
+              <p className="widget-builder-toggle-panel__title">{title}</p>
+              {badge ? <span className="widget-builder-plan-badge">{badge}</span> : null}
+            </div>
           )}
           <p className="widget-builder-toggle-panel__desc">{description}</p>
         </div>
