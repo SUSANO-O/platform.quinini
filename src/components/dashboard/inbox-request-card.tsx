@@ -9,7 +9,7 @@ import {
   RotateCcw,
   Send,
   Trash2,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { formatPhoneDisplay, phoneFromVisitorId, phoneFromWhatsAppSessionId, resolveInboxVisitorDisplay } from '@/lib/inbox-visitor-display';
 
 export type InboxCardItem = {

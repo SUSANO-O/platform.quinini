@@ -9,7 +9,7 @@ import {
   LayoutDashboard,
   Sparkles,
   Cpu,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 
 export const metadata: Metadata = {
   title: 'Demos | BotIvA',

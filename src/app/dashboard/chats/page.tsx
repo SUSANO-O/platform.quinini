@@ -16,7 +16,7 @@ import {
   RefreshCw,
   Search,
   X,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 import { ConversationThread, countVisibleMessages } from '@/components/dashboard/inbox-chat-modal';
 import { DashboardPageHeader } from '@/components/dashboard/dashboard-page-header';

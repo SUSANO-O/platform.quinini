@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import {
   Bot, ChevronLeft, CircleOff, Loader2, Sparkles, Trash2,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 
 export function AgentDetailHeader({
   name,

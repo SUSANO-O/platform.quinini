@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowLeft, Share2, Plus, Copy, Check, Trash2, Clock, Globe, KeyRound, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Share2, Plus, Copy, Check, Trash2, Clock, Globe, KeyRound, AlertCircle } from '@/components/ui/icons';
 
 type DurationUnit = 'hours' | 'days' | 'weeks' | 'months';
 

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Loader2, Plug, ExternalLink, AlertCircle } from 'lucide-react';
+import { Loader2, Plug, ExternalLink, AlertCircle } from '@/components/ui/icons';
 import type { McpCatalogRow } from '@/lib/mcp-catalog-types';
 
 type Props = {

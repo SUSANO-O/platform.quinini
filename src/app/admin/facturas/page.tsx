@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ExternalLink, FileText } from 'lucide-react';
+import { ExternalLink, FileText } from '@/components/ui/icons';
 import { toast } from 'sonner';
 import { AdminUserPicker, type AdminUserOption } from '@/components/billing/admin-user-picker';
 import { InvoiceList } from '@/components/billing/invoice-list';

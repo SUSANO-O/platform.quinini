@@ -2,9 +2,12 @@
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { Crown, Clock, Sparkles, Zap } from 'lucide-react';
+import { Crown, Clock, Sparkles, Zap } from '@/components/ui/icons';
+import Stack from '@mui/material/Stack';
+import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
+import Typography from '@mui/material/Typography';
 
-/** Header del home — saludo + acciones (date range, plan badge). */
 export function DashboardGreetingHeader({
   displayName,
   actions,
@@ -23,47 +26,59 @@ export function DashboardGreetingHeader({
   planLabel?: string;
 }) {
   return (
-    <header className="dashboard-page-header dashboard-page-header--compact dashboard-greeting-header">
-      <div>
-        <div className="badge-primary mb-2 w-fit">
-          <Sparkles size={13} />
-          Panel de Control
-        </div>
-        <h1 className="dashboard-greeting-header__title m-0">
-          Hola, <span className="gradient-text">{displayName}</span> 👋
-        </h1>
-        <p className="dashboard-greeting-header__date m-0">
+    <Stack
+      component="header"
+      direction={{ xs: 'column', sm: 'row' }}
+      justifyContent="space-between"
+      alignItems={{ xs: 'flex-start', sm: 'center' }}
+      spacing={2}
+      sx={{ mb: 2 }}
+    >
+      <Box>
+        <Chip
+          size="small"
+          color="primary"
+          variant="outlined"
+          icon={<Sparkles size={13} />}
+          label="Panel de Control"
+          sx={{ mb: 1 }}
+        />
+        <Typography variant="h4" component="h1" sx={{ m: 0, fontWeight: 700 }}>
+          Hola,{' '}
+          <Box component="span" color="primary.main">
+            {displayName}
+          </Box>{' '}
+          👋
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, textTransform: 'capitalize' }}>
           {new Date().toLocaleDateString('es', {
             weekday: 'long',
             day: 'numeric',
             month: 'long',
             year: 'numeric',
           })}
-        </p>
-      </div>
-      <div className="dashboard-greeting-header__actions">
+        </Typography>
+      </Box>
+      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
         {actions}
         {loadingPlan ? (
-          <span className="dashboard-meta-chip dashboard-meta-chip--muted" aria-hidden>
-            …
-          </span>
+          <Chip size="small" label="…" />
         ) : isPremium ? (
-          <span className="dashboard-meta-chip dashboard-meta-chip--accent">
-            <Crown size={11} />
-            {planLabel} — activo
-          </span>
+          <Chip size="small" color="primary" icon={<Crown size={11} />} label={`${planLabel} — activo`} />
         ) : isTrialActive ? (
-          <span className="dashboard-meta-chip dashboard-meta-chip--accent">
-            <Clock size={11} />
-            Trial — {trialDaysRemaining} días
-          </span>
+          <Chip size="small" color="warning" icon={<Clock size={11} />} label={`Trial — ${trialDaysRemaining} días`} />
         ) : (
-          <Link href="/dashboard/settings" className="dashboard-meta-chip dashboard-meta-chip--accent dashboard-meta-chip--link">
-            <Zap size={11} />
-            Actualizar plan →
-          </Link>
+          <Chip
+            component={Link}
+            href="/dashboard/settings"
+            clickable
+            size="small"
+            color="secondary"
+            icon={<Zap size={11} />}
+            label="Actualizar plan →"
+          />
         )}
-      </div>
-    </header>
+      </Stack>
+    </Stack>
   );
 }

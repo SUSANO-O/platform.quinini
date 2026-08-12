@@ -41,7 +41,7 @@ import {
   AlertCircle, X, KeyRound, RefreshCw, Sparkles, HelpCircle,
   Phone, MessageCircle, Check,
   Copy, Eye, Search, Clock, Lightbulb,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import ScheduledTasksTab from '@/components/agents/ScheduledTasksTab';
 import WhatsAppTab from '@/components/agents/WhatsAppTab';
 import { GoogleSheetEntryCard } from '@/components/agents/google-sheet-entry-card';
@@ -4006,37 +4006,26 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
       {tab === 'subagents' && (
         <>
-          {limits.subAgentsPerAgent === 0 ? (
-            <AgentEditorSection innerStyle={{ textAlign: 'center', padding: '36px 20px' }}>
-              <Network size={32} style={{ color: 'var(--muted-foreground)', margin: '0 auto 12px' }} />
-              <p style={{ fontWeight: 700, marginBottom: '6px' }}>Sub-agentes no disponibles en tu plan</p>
-              <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', marginBottom: '16px' }}>
-                Los sub-agentes permiten orquestar múltiples especialistas bajo un agente principal. Disponible desde el plan Starter.
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div>
+              <p className="font-bold m-0 mb-0.5">Orquestación y sub-agentes</p>
+              <p style={{ color: 'var(--muted-foreground)', fontSize: '12px', margin: 0 }}>
+                {limits.subAgentsPerAgent < 0
+                  ? `${subAgents.length} sub-agente${subAgents.length !== 1 ? 's' : ''}`
+                  : `${subAgents.length}/${limits.subAgentsPerAgent} sub-agentes`}
               </p>
-              <Link href="/dashboard" className="landing-btn-primary !inline-flex !w-auto no-underline text-sm px-5 py-2 rounded-xl">
-                Ver planes →
-              </Link>
-            </AgentEditorSection>
-          ) : (
-            <>
-              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                <div>
-                  <p className="font-bold m-0 mb-0.5">Orquestación y sub-agentes</p>
-                  <p style={{ color: 'var(--muted-foreground)', fontSize: '12px', margin: 0 }}>
-                    {subAgents.length}/{limits.subAgentsPerAgent} sub-agentes
-                  </p>
-                </div>
-                {subAgents.length < limits.subAgentsPerAgent && !showNewSub && (
-                  <button
-                    type="button"
-                    onClick={() => setShowNewSub(true)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs transition-opacity"
-                    style={{ ...BTN_PRIMARY, cursor: 'pointer' }}
-                  >
-                    <Plus size={13} /> Agregar sub-agente
-                  </button>
-                )}
-              </div>
+            </div>
+            {(limits.subAgentsPerAgent < 0 || subAgents.length < limits.subAgentsPerAgent) && !showNewSub && (
+              <button
+                type="button"
+                onClick={() => setShowNewSub(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs transition-opacity"
+                style={{ ...BTN_PRIMARY, cursor: 'pointer' }}
+              >
+                <Plus size={13} /> Agregar sub-agente
+              </button>
+            )}
+          </div>
 
               {showNewSub && !readOnly && (
                 <AgentEditorSection outerStyle={{ borderColor: 'rgba(var(--brand-primary-rgb),0.35)' }}>
@@ -4158,8 +4147,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   ))}
                 </div>
               )}
-            </>
-          )}
         </>
       )}
       </div>

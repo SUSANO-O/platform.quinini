@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { Crown, ShieldCheck, Sparkles } from 'lucide-react';
+import { Crown, ShieldCheck, Sparkles } from '@/components/ui/icons';
 
 const STORAGE_KEY = 'af_dashboard_subscription_hero_intro_v1';
 

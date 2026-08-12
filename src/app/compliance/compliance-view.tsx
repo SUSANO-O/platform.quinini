@@ -14,7 +14,7 @@ import {
   Scale,
   Shield,
   Users,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { Navbar } from '@/components/shared/navbar';
 import { Footer } from '@/components/shared/footer';
 

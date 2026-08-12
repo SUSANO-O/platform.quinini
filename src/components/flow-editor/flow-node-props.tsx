@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X } from '@/components/ui/icons';
 import type { FlowConditionOperator, FlowNodeConfig, FlowNodeType } from '@/lib/flow-editor/types';
 import type { FlowNodeData } from '@/lib/flow-editor/serialization';
 

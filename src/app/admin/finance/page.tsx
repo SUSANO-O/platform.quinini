@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Building2, DollarSign, MessageSquare, Users } from 'lucide-react';
+import { Building2, DollarSign, MessageSquare, Users } from '@/components/ui/icons';
 
 type TenantRow = {
   userId: string;

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
-import { Sparkles, Wrench, ExternalLink, X, RefreshCw, Activity } from 'lucide-react';
+import { Sparkles, Wrench, ExternalLink, X, RefreshCw, Activity } from '@/components/ui/icons';
 import {
   API_RELEASES,
   API_VERSION,

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Loader2, Plus, Sparkles, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Sparkles, Trash2 } from '@/components/ui/icons';
 import type { HandoffNotifyMode } from '@/lib/handoff-notify';
 import { HANDOFF_NOTIFY_MODE_LABELS } from '@/lib/handoff-notify';
 import type {

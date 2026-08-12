@@ -13,7 +13,7 @@ import {
   Pencil,
   Play,
   Trash2,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/use-subscription';
 import { DashboardShell } from '@/components/dashboard/dashboard-shell';

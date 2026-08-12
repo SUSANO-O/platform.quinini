@@ -13,7 +13,7 @@ import {
   MessageSquare,
   TrendingUp, ArrowUpRight, Clock,
   BarChart2, Users, UserCheck, X, Loader2,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 
 import { BRAND, STATE, R } from '@/lib/brand-colors';
 import { countOwnedMainAgents } from '@/lib/agent-plans';

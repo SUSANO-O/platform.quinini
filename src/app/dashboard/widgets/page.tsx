@@ -5,12 +5,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EncryptedDownloadModal } from '@/components/encrypted-download-modal';
-import { Plus, Boxes, Sparkles, GitBranch } from 'lucide-react';
+import { Plus, Boxes, Sparkles, GitBranch } from '@/components/ui/icons';
 import { useSubscription } from '@/hooks/use-subscription';
 import { WidgetListCard, type WidgetListItem } from '@/components/dashboard/widget-list-card';
 import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 import { DashboardPageHeader } from '@/components/dashboard/dashboard-page-header';
-import { DashboardCallout } from '@/components/dashboard/dashboard-callout';
 import { DashboardStatStrip } from '@/components/dashboard/dashboard-stat-strip';
 import { DashboardEmptyState } from '@/components/dashboard/dashboard-empty-state';
 import { DashboardButton, DashboardButtonLink } from '@/components/dashboard/dashboard-button';
@@ -243,10 +242,6 @@ export default function WidgetsPage() {
           </>
         }
       />
-
-      <DashboardCallout>
-        Puedes crear tantos widgets como necesites — cada widget debe tener un nombre único.
-      </DashboardCallout>
 
       {multiAgentEligible && multiAgentStats ? (
         <DashboardStatStrip

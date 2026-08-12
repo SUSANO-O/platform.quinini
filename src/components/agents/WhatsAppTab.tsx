@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Phone, MessageCircle, Copy, Check, Loader2, RefreshCw, AlertCircle, CheckCircle2, ExternalLink } from 'lucide-react';
+import { Phone, MessageCircle, Copy, Check, Loader2, RefreshCw, AlertCircle, CheckCircle2, ExternalLink } from '@/components/ui/icons';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 
 interface WhatsAppInfo {

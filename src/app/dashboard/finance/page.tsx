@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/hooks/use-auth';
 import { useEffect, useState } from 'react';
-import { PieChart, Loader2 } from 'lucide-react';
+import { PieChart, Loader2 } from '@/components/ui/icons';
 
 type FinancePayload = {
   currency: string;

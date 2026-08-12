@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ChevronLeft, Plug } from 'lucide-react';
+import { ChevronLeft, Plug } from '@/components/ui/icons';
 import { McpAvailablePanel } from '@/components/mcp/mcp-available-panel';
 
 const hubUiBase = (process.env.NEXT_PUBLIC_AGENTFLOWHUB_URL || 'http://127.0.0.1:9010').replace(/\/$/, '');

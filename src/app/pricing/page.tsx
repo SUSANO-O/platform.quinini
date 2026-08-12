@@ -2,7 +2,7 @@ import { Navbar } from '@/components/shared/navbar';
 import { Footer } from '@/components/shared/footer';
 import { PLANS, buildPricingGridPlans } from '@/lib/gateway';
 import { PLAN_DISPLAY, CONVERSATION_PACKS, API_REST_COMING_SOON_LABEL } from '@/lib/plan-catalog';
-import { Check, ArrowRight, Zap, Smartphone, Wallet, Landmark, type LucideIcon } from 'lucide-react';
+import { Check, ArrowRight, Zap, Smartphone, Wallet, Landmark, type LucideIcon } from '@/components/ui/icons';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { PricingComparisonTable } from '@/components/landing/pricing-comparison-table';

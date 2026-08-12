@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   Globe, TrendingUp, Shield, BarChart3, ArrowRight, Zap,
   Scale, Landmark, Ship, AlertTriangle, LineChart, Target
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { useEffect } from 'react';
 import { buildPricingInquiryWhatsAppUrl, SALES_WHATSAPP_LINK_PROPS } from '@/lib/sales-whatsapp';
 

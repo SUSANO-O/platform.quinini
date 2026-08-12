@@ -1,5 +1,14 @@
+'use client';
+
 import Link from 'next/link';
 import Image from 'next/image';
+import Box from '@mui/material/Box';
+import Container from '@mui/material/Container';
+import Grid from '@mui/material/Grid';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import Divider from '@mui/material/Divider';
+import MuiLink from '@mui/material/Link';
 import { SITE_COMPANY_LINKS, SITE_LEGAL_LINKS, SITE_PRODUCT_LINKS } from '@/lib/site-nav';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 import {
@@ -8,69 +17,75 @@ import {
   SALES_WHATSAPP_LINK_PROPS,
 } from '@/lib/sales-whatsapp';
 
+function LinkList({
+  title,
+  links,
+}: {
+  title: string;
+  links: readonly { readonly href: string; readonly label: string; readonly external?: boolean }[];
+}) {
+  return (
+    <Box>
+      <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
+        {title}
+      </Typography>
+      <Stack spacing={1}>
+        {links.map((l) =>
+          'external' in l && l.external ? (
+            <MuiLink key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" underline="hover" color="text.secondary" variant="body2">
+              {l.label}
+            </MuiLink>
+          ) : (
+            <MuiLink key={l.href} component={Link} href={l.href} underline="hover" color="text.secondary" variant="body2">
+              {l.label}
+            </MuiLink>
+          ),
+        )}
+      </Stack>
+    </Box>
+  );
+}
+
 export function Footer() {
   return (
-    <footer style={{ borderColor: 'var(--border)', background: 'var(--muted)' }} className="border-t">
-      <div className="max-w-7xl mx-auto px-6 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
-          <div className="col-span-2 md:col-span-1">
-            <div className="flex items-center gap-2.5 mb-4">
-              <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={100} height={30} className="h-8 w-auto object-contain rounded-lg" />
-              <span className="font-bold">{BRAND_NAME}</span>
-            </div>
-            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              Agentes de IA como servicio.<br />
+    <Box component="footer" sx={{ borderTop: '1px solid', borderColor: 'divider', bgcolor: 'action.hover' }}>
+      <Container maxWidth="lg" sx={{ py: 8 }}>
+        <Grid container spacing={4}>
+          <Grid size={{ xs: 12, md: 3 }}>
+            <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 2 }}>
+              <Image
+                src={BRAND_LOGO_SRC}
+                alt={BRAND_NAME}
+                width={100}
+                height={30}
+                style={{ height: 32, width: 'auto', objectFit: 'contain', borderRadius: 8 }}
+              />
+              <Typography fontWeight={700}>{BRAND_NAME}</Typography>
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Agentes de IA como servicio.
+              <br />
               API REST full, integración en minutos.
-            </p>
-            <a
-              href={buildContactWhatsAppUrl()}
-              {...SALES_WHATSAPP_LINK_PROPS}
-              className="inline-block mt-4 text-sm font-medium hover:underline"
-              style={{ color: 'var(--foreground)' }}
-            >
+            </Typography>
+            <MuiLink href={buildContactWhatsAppUrl()} {...SALES_WHATSAPP_LINK_PROPS} underline="hover" color="inherit" fontWeight={600} variant="body2">
               WhatsApp {SALES_WHATSAPP_DISPLAY}
-            </a>
-          </div>
-
-          <div>
-            <h4 className="font-semibold text-sm mb-3">Producto</h4>
-            <ul className="space-y-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              {SITE_PRODUCT_LINKS.map((l) => (
-                <li key={l.href}>
-                  {'external' in l && l.external ? (
-                    <a href={l.href} {...SALES_WHATSAPP_LINK_PROPS} className="hover:underline">{l.label}</a>
-                  ) : (
-                    <Link href={l.href} className="hover:underline">{l.label}</Link>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-semibold text-sm mb-3">Empresa</h4>
-            <ul className="space-y-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              <li><Link href="/es" className="hover:underline">Inicio</Link></li>
-              {SITE_COMPANY_LINKS.map((l) => (
-                <li key={l.href}><Link href={l.href} className="hover:underline">{l.label}</Link></li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-semibold text-sm mb-3">Legal</h4>
-            <ul className="space-y-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              {SITE_LEGAL_LINKS.map((l) => (
-                <li key={l.href}><Link href={l.href} className="hover:underline">{l.label}</Link></li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        <div className="mt-12 pt-8 text-center text-xs" style={{ borderTop: '1px solid var(--border)', color: 'var(--muted-foreground)' }}>
-          &copy; {new Date().getFullYear()} BotIvA. Powered by quinini.
-        </div>
-      </div>
-    </footer>
+            </MuiLink>
+          </Grid>
+          <Grid size={{ xs: 6, md: 3 }}>
+            <LinkList title="Producto" links={SITE_PRODUCT_LINKS} />
+          </Grid>
+          <Grid size={{ xs: 6, md: 3 }}>
+            <LinkList title="Empresa" links={SITE_COMPANY_LINKS} />
+          </Grid>
+          <Grid size={{ xs: 12, md: 3 }}>
+            <LinkList title="Legal" links={SITE_LEGAL_LINKS} />
+          </Grid>
+        </Grid>
+        <Divider sx={{ my: 4 }} />
+        <Typography variant="caption" color="text.secondary">
+          © {new Date().getFullYear()} {BRAND_NAME}. Todos los derechos reservados.
+        </Typography>
+      </Container>
+    </Box>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Box } from 'lucide-react';
+import { Box } from '@/components/ui/icons';
 
 const AdminEmbeddingViz3D = dynamic(
   () => import('@/components/admin/embedding-viz-3d'),

@@ -1,4 +1,8 @@
+'use client';
+
 import type { CSSProperties, ReactNode } from 'react';
+import Box from '@mui/material/Box';
+import Paper from '@mui/material/Paper';
 
 export function DashboardPanel({
   children,
@@ -19,21 +23,41 @@ export function DashboardPanel({
   className?: string;
   style?: CSSProperties;
 }) {
-  const classes = [
-    'dashboard-panel',
-    inactive ? 'dashboard-panel--inactive' : '',
-    interactive ? 'dashboard-panel--interactive' : '',
-    className,
-  ]
-    .filter(Boolean)
-    .join(' ');
-
   return (
-    <article className={classes} style={{ ...style, zIndex: elevated ? 40 : undefined }}>
+    <Paper
+      component="article"
+      elevation={elevated ? 4 : 0}
+      className={className}
+      sx={{
+        position: 'relative',
+        overflow: 'hidden',
+        opacity: inactive ? 0.72 : 1,
+        zIndex: elevated ? 40 : undefined,
+        transition: 'box-shadow .2s ease, transform .2s ease',
+        ...(interactive
+          ? {
+              cursor: 'pointer',
+              '&:hover': { boxShadow: 3, transform: 'translateY(-1px)' },
+            }
+          : null),
+        ...style,
+      }}
+    >
       {showAccent ? (
-        <div className="dashboard-panel__accent" style={{ background: accentColor }} />
+        <Box
+          aria-hidden
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 3,
+            bgcolor: accentColor === 'transparent' ? 'primary.main' : accentColor,
+            opacity: accentColor === 'transparent' ? 0 : 1,
+          }}
+        />
       ) : null}
       {children}
-    </article>
+    </Paper>
   );
 }

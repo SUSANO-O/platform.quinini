@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Check, Lock } from 'lucide-react';
+import { Check, Lock } from '@/components/ui/icons';
 import type { DashboardPlanFeature } from '@/lib/dashboard-plan-features';
 
 function FeatureChip({ feature }: { feature: DashboardPlanFeature }) {

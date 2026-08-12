@@ -4,7 +4,7 @@ import { Canvas, type ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, Grid, Stars, GizmoHelper, GizmoViewport } from '@react-three/drei';
 import * as THREE from 'three';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw } from '@/components/ui/icons';
 
 export type VizPoint = {
   x: number;

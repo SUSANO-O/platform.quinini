@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import {
   Code2, Lock, MessageSquare, RefreshCw,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { BRAND, STATE, R } from '@/lib/brand-colors';
 import { PlanFeaturesGlassPanel } from '@/components/dashboard/plan-features-glass-panel';
 import { DashboardActivityMetrics } from '@/components/dashboard/dashboard-activity-metrics';
@@ -237,10 +237,8 @@ export function DashboardHomeOverview({
           />
         </button>
 
-        {agentCount != null && usage && (
-          <span className="dashboard-meta-chip">
-            {agentCount} / {usage.agentLimitLabel} agentes
-          </span>
+        {agentCount != null && (
+          <span className="dashboard-meta-chip">{agentCount} agentes</span>
         )}
         {widgetCount != null && (
           <span className="dashboard-meta-chip">{widgetCount} widgets</span>

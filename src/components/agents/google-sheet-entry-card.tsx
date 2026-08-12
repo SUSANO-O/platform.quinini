@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
-import { Loader2, RefreshCw, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, RefreshCw, Trash2, ChevronDown, ChevronUp } from '@/components/ui/icons';
 import {
   applyTabToUrl,
   extractGid,

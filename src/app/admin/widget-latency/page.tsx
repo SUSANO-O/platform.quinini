@@ -10,7 +10,7 @@ import {
   Target,
   Lightbulb,
   ChevronRight,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import type { WidgetLatencyInsights, LatencyRecommendation } from '@/lib/widget-latency-insights';
 
 const HL = '#f59e0b';

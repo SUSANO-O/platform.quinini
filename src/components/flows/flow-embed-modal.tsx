@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { X } from '@/components/ui/icons';
 import { DashboardButton } from '@/components/dashboard/dashboard-button';
 import { WidgetEmbedPanel } from '@/components/dashboard/widget-embed-panel';
 

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useSubscription } from '@/hooks/use-subscription';
 import { PLAN_DISPLAY, PAID_PLAN_IDS, PLAN_RAG_LIMITS, planRank } from '@/lib/plan-catalog';
 import { PlanChangeModal, type PaidPlanId } from '@/components/dashboard/plan-change-modal';
-import { ChevronRight, Crown, Loader2 } from 'lucide-react';
+import { ChevronRight, Crown, Loader2 } from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 /** Panel de plan (subir/bajar) — pensado para Ajustes → Suscripción. */

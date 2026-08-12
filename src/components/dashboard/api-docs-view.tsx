@@ -1,6 +1,6 @@
 'use client';
 
-import { Braces, Code2, Download, KeyRound, Loader2, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Braces, Code2, Download, KeyRound, Loader2, RefreshCw, ShieldCheck } from '@/components/ui/icons';
 import { DashboardPageHeader } from '@/components/dashboard/dashboard-page-header';
 import { ApiExplorer } from '@/components/dashboard/api-explorer/api-explorer';
 import { BRAND, STATE } from '@/lib/brand-colors';

@@ -1,10 +1,17 @@
-import type { LucideIcon } from 'lucide-react';
-import { Info } from 'lucide-react';
+'use client';
+
+import type { LucideIcon } from '@/components/ui/icons';
+import { Info } from '@/components/ui/icons';
+import Paper from '@mui/material/Paper';
+import Stack from '@mui/material/Stack';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import Tooltip from '@mui/material/Tooltip';
+import Grid from '@mui/material/Grid';
 
 export type DashboardStatItem = {
   label: string;
   value: string | number;
-  /** Texto del tooltip al pasar el cursor o enfocar el icono ℹ️ */
   hint?: string;
 };
 
@@ -20,33 +27,43 @@ export function DashboardStatStrip({
   stats: DashboardStatItem[];
 }) {
   return (
-    <section className="dashboard-stat-strip" aria-label={title}>
-      <div className="dashboard-stat-strip__head">
-        <h2 className="dashboard-stat-strip__title">
-          {Icon ? <Icon size={16} className="dashboard-stat-strip__title-icon" aria-hidden /> : null}
-          {title}
-        </h2>
-        {titleHint ? <p className="dashboard-stat-strip__subtitle">{titleHint}</p> : null}
-      </div>
-      {stats.map((s) => (
-        <div key={s.label} className="dashboard-stat-cell" title={s.hint}>
-          <p className="dashboard-stat-cell__value">{s.value}</p>
-          <div className="dashboard-stat-cell__label-row">
-            <p className="dashboard-stat-cell__label">{s.label}</p>
-            {s.hint ? (
-              <span
-                className="dashboard-stat-cell__info"
-                tabIndex={0}
-                role="note"
-                aria-label={s.hint}
-                data-tooltip={s.hint}
-              >
-                <Info size={11} strokeWidth={2.25} aria-hidden />
-              </span>
-            ) : null}
-          </div>
-        </div>
-      ))}
-    </section>
+    <Paper component="section" elevation={0} aria-label={title} sx={{ p: 2.5 }}>
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+        {Icon ? <Icon size={16} aria-hidden /> : null}
+        <Box>
+          <Typography variant="subtitle1" fontWeight={700}>
+            {title}
+          </Typography>
+          {titleHint ? (
+            <Typography variant="caption" color="text.secondary">
+              {titleHint}
+            </Typography>
+          ) : null}
+        </Box>
+      </Stack>
+      <Grid container spacing={2}>
+        {stats.map((s) => (
+          <Grid key={s.label} size={{ xs: 6, sm: 3 }}>
+            <Box>
+              <Typography variant="h5" fontWeight={800}>
+                {s.value}
+              </Typography>
+              <Stack direction="row" spacing={0.5} alignItems="center">
+                <Typography variant="caption" color="text.secondary">
+                  {s.label}
+                </Typography>
+                {s.hint ? (
+                  <Tooltip title={s.hint}>
+                    <Box component="span" sx={{ display: 'inline-flex', color: 'text.secondary' }} tabIndex={0} role="note" aria-label={s.hint}>
+                      <Info size={11} strokeWidth={2.25} aria-hidden />
+                    </Box>
+                  </Tooltip>
+                ) : null}
+              </Stack>
+            </Box>
+          </Grid>
+        ))}
+      </Grid>
+    </Paper>
   );
 }

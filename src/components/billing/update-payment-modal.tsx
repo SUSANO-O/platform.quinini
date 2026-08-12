@@ -17,7 +17,7 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { X, ExternalLink } from 'lucide-react';
+import { X, ExternalLink } from '@/components/ui/icons';
 
 type UpdatePaymentModalProps = {
   open: boolean;

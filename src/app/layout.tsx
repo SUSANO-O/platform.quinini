@@ -4,6 +4,7 @@ import { AuthProvider } from '@/hooks/use-auth';
 import { AppToasterLoader } from '@/components/ui/app-toaster-loader';
 import { LandingWidgetScript } from '@/components/landing/landing-widget-script';
 import { CardProTracker } from '@/components/landing/card-pro-tracker';
+import { MuiProvider } from '@/providers/mui-provider';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 
 /** Evita SSG en rutas que dependen de providers cliente (auth, toasts, assist). */
@@ -43,24 +44,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&f[]=satoshi@400,500,700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap"
           rel="stylesheet"
         />
       </head>
       <body suppressHydrationWarning>
-        {/* Captura beforeinstallprompt antes de que React hidrate */}
-        <script dangerouslySetInnerHTML={{ __html: `
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
           window.addEventListener('beforeinstallprompt', function(e) {
             e.preventDefault();
             window.__pwaPrompt = e;
           });
-        `}} />
-        <AuthProvider>
-          {children}
-          <CardProTracker />
-          <LandingWidgetScript />
-          <AppToasterLoader />
-        </AuthProvider>
+        `,
+          }}
+        />
+        <MuiProvider>
+          <AuthProvider>
+            {children}
+            <CardProTracker />
+            <LandingWidgetScript />
+            <AppToasterLoader />
+          </AuthProvider>
+        </MuiProvider>
       </body>
     </html>
   );

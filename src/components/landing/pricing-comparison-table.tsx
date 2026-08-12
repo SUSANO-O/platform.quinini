@@ -2,7 +2,7 @@
 
 import { buildPlanComparisonRows } from '@/lib/plan-economics';
 import { API_REST_COMING_SOON_LABEL } from '@/lib/plan-catalog';
-import { Check, Minus } from 'lucide-react';
+import { Check, Minus } from '@/components/ui/icons';
 
 function ComingSoonTag() {
   return (
@@ -54,7 +54,7 @@ export function PricingComparisonTable() {
         <tbody>
           {[
             { key: 'conversations', label: 'Conversaciones / mes' },
-            { key: 'agents', label: 'Agentes' },
+            { key: 'rag', label: 'Almacenamiento (por agente)' },
             { key: 'agentWebhook', label: 'Webhook del agente' },
             { key: 'outboundWebhook', label: 'Webhook saliente (HMAC)' },
             { key: 'apiAccess', label: 'Acceso API REST' },
@@ -62,7 +62,6 @@ export function PricingComparisonTable() {
             { key: 'whatsapp', label: 'Integración WhatsApp Business' },
             { key: 'escalationTickets', label: 'Creación de tickets al escalar' },
             { key: 'conversationAnalytics', label: 'Analytics de conversaciones' },
-            { key: 'rag', label: 'Almacenamiento (por agente)' },
             { key: 'history', label: 'Historial' },
             { key: 'support', label: 'Soporte' },
           ].map(({ key, label }) => (
@@ -104,7 +103,7 @@ export function PricingComparisonTable() {
         </tbody>
       </table>
       <p className="p-4 text-xs border-t" style={{ color: 'var(--muted-foreground)', borderColor: 'var(--border)' }}>
-        Una conversación = un mensaje del usuario procesado por el agente. Widgets ilimitados en todos los planes de pago.
+        Una conversación = un mensaje del usuario procesado por el agente. Agentes, sub-agentes y widgets ilimitados; el cupo del plan es chats y almacenamiento.
       </p>
     </div>
   );

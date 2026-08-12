@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   Cpu, RefreshCw, TrendingUp, Clock, AlertTriangle, Layers, Zap,
   DollarSign, ChevronDown, ChevronUp, Filter, X,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import type { ModelStatRow, WidgetBreakdownRow } from '@/app/api/admin/model-stats/route';
 
 // ── Provider helpers ──────────────────────────────────────────────────────────

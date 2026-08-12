@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { Fragment, useEffect, useState } from 'react';
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/components/ui/icons';
 import {
   LayoutDashboard,
   Boxes,
@@ -21,8 +21,8 @@ import {
   Braces,
   MessageSquare,
   GitBranch,
-} from 'lucide-react';
-import { BRAND_LOGO_SRC, BRAND_NAME, BRAND_TEXT_COLOR } from '@/lib/brand';
+} from '@/components/ui/icons';
+import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 import { PwaInstallButton } from '@/components/shared/pwa-install-button';
 import { SidebarVersionLink } from '@/components/dashboard/sidebar-version-link';
 import { UserAvatar } from '@/components/shared/user-avatar';
@@ -30,6 +30,15 @@ import { useInboxOpenCount } from '@/hooks/use-inbox-open-count';
 import { useDashboardPrefetch } from '@/hooks/dashboard/use-dashboard-prefetch';
 import { useSubscription } from '@/hooks/use-subscription';
 import { canUseApiAccess, canUseConversationFlows, effectiveProductPlan, isApiOnlyPlan, isSoloChatOnlyPlan } from '@/lib/plan-catalog';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import Badge from '@mui/material/Badge';
+import Tooltip from '@mui/material/Tooltip';
+import IconButton from '@mui/material/IconButton';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import Divider from '@mui/material/Divider';
 import { FlowsBetaBadge } from '@/components/flows/flows-beta-badge';
 
 export const SIDEBAR_EXPANDED_PX = 220;
@@ -124,16 +133,95 @@ function AssistantHelpRestoreItem({
 }
 
 function SoftDivider({ margin }: { margin?: string }) {
+  return <Divider aria-hidden sx={{ borderColor: 'divider', margin: margin ?? '8px 0 12px' }} />;
+}
+
+function InboxBadge({ count, collapsed }: { count: number; collapsed: boolean }) {
+  if (count <= 0) return null;
   return (
-    <div
-      aria-hidden
-      style={{
-        height: 1,
-        background: 'var(--divider-soft)',
-        margin: margin ?? '8px 0 12px',
-        border: 'none',
+    <Badge
+      badgeContent={count > 99 ? '99+' : count}
+      color="error"
+      aria-label={`${count} solicitudes pendientes`}
+      sx={{
+        ml: collapsed ? 0 : 'auto',
+        position: collapsed ? 'absolute' : 'static',
+        top: collapsed ? 4 : undefined,
+        right: collapsed ? 6 : undefined,
+        '& .MuiBadge-badge': { fontSize: 10, height: 16, minWidth: 16 },
       }}
     />
+  );
+}
+
+function SidebarNavLink({
+  href,
+  label,
+  icon: Icon,
+  active,
+  collapsed,
+  onNavigate,
+  badge,
+  navTag,
+  onPrefetch,
+}: {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  active: boolean;
+  collapsed: boolean;
+  onNavigate?: () => void;
+  badge?: number;
+  navTag?: 'BETA';
+  onPrefetch?: (href: string) => void;
+}) {
+  const title = badge && badge > 0 ? `${label} (${badge} pendientes)` : navTag ? `${label} (${navTag})` : label;
+
+  const button = (
+    <ListItemButton
+      component={Link}
+      href={href}
+      prefetch
+      onMouseEnter={() => onPrefetch?.(href)}
+      onFocus={() => onPrefetch?.(href)}
+      onClick={onNavigate}
+      data-tour={SIDEBAR_TOUR_KEY_BY_HREF[href]}
+      selected={active}
+      sx={{
+        borderRadius: 2,
+        mb: 0.25,
+        minHeight: 40,
+        justifyContent: collapsed ? 'center' : 'flex-start',
+        px: collapsed ? 1 : 1.25,
+        position: 'relative',
+      }}
+    >
+      <ListItemIcon
+        sx={{
+          minWidth: collapsed ? 0 : 34,
+          color: active ? 'primary.main' : 'text.secondary',
+          justifyContent: 'center',
+        }}
+      >
+        <Icon size={17} strokeWidth={1.75} aria-hidden />
+      </ListItemIcon>
+      {!collapsed ? (
+        <ListItemText
+          primary={label}
+          primaryTypographyProps={{ fontSize: 13, fontWeight: active ? 700 : 500, noWrap: true }}
+        />
+      ) : null}
+      {!collapsed && navTag === 'BETA' ? <FlowsBetaBadge /> : null}
+      <InboxBadge count={badge ?? 0} collapsed={collapsed} />
+    </ListItemButton>
+  );
+
+  return collapsed ? (
+    <Tooltip title={title} placement="right">
+      {button}
+    </Tooltip>
+  ) : (
+    button
   );
 }
 
@@ -239,90 +327,6 @@ export function isActive(pathname: string, href: string) {
   return href === '/dashboard' ? pathname === href : pathname.startsWith(href);
 }
 
-function InboxBadge({ count, collapsed }: { count: number; collapsed: boolean }) {
-  if (count <= 0) return null;
-  const label = count > 99 ? '99+' : String(count);
-  return (
-    <span
-      aria-label={`${count} solicitudes pendientes`}
-      style={{
-        ...(collapsed
-          ? {
-              position: 'absolute',
-              top: 4,
-              right: '50%',
-              transform: 'translate(calc(50% + 8px), 0)',
-            }
-          : { marginLeft: 'auto' }),
-        minWidth: 20,
-        height: 20,
-        padding: '0 6px',
-        borderRadius: 999,
-        background: BRAND_TEXT_COLOR,
-        color: '#fff',
-        fontSize: 11,
-        fontWeight: 700,
-        lineHeight: '20px',
-        textAlign: 'center',
-        flexShrink: 0,
-      }}
-    >
-      {label}
-    </span>
-  );
-}
-
-function SidebarNavLink({
-  href,
-  label,
-  icon: Icon,
-  active,
-  collapsed,
-  onNavigate,
-  badge,
-  navTag,
-  onPrefetch,
-}: {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-  active: boolean;
-  collapsed: boolean;
-  onNavigate?: () => void;
-  badge?: number;
-  navTag?: 'BETA';
-  onPrefetch?: (href: string) => void;
-}) {
-  return (
-    <Link
-      href={href}
-      prefetch
-      onMouseEnter={() => onPrefetch?.(href)}
-      onFocus={() => onPrefetch?.(href)}
-      onClick={onNavigate}
-      data-tour={SIDEBAR_TOUR_KEY_BY_HREF[href]}
-      title={badge && badge > 0 ? `${label} (${badge} pendientes)` : navTag ? `${label} (${navTag})` : label}
-      className={`dashboard-sidebar-link${active ? ' dashboard-sidebar-link--active' : ''}`}
-      style={{
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: collapsed ? 'center' : 'flex-start',
-        gap: collapsed ? 0 : 10,
-        padding: collapsed ? '8px 0' : '7px 10px',
-        borderRadius: 10,
-        fontSize: 13,
-        width: collapsed ? '100%' : undefined,
-      }}
-    >
-      <Icon size={17} strokeWidth={1.75} className="dashboard-sidebar-link__icon" aria-hidden />
-      {!collapsed ? <span className="truncate">{label}</span> : null}
-      {!collapsed && navTag === 'BETA' ? <FlowsBetaBadge /> : null}
-      <InboxBadge count={badge ?? 0} collapsed={collapsed} />
-    </Link>
-  );
-}
-
 function SidebarNav({
   pathname,
   collapsed,
@@ -364,18 +368,20 @@ function SidebarNav({
             <SoftDivider margin={collapsed ? '10px 6px' : '8px 8px 12px'} />
           ) : null}
           {!collapsed ? (
-            <p
-              style={{
-                margin: 0,
-                padding: groupIndex === 0 ? '2px 10px 6px' : '2px 10px 6px',
-                fontSize: 10,
+            <Typography
+              variant="caption"
+              sx={{
+                display: 'block',
+                px: 1.25,
+                pt: groupIndex === 0 ? 0.25 : 0.25,
+                pb: 0.75,
                 fontWeight: 600,
-                color: 'var(--muted-foreground)',
+                color: 'text.secondary',
                 letterSpacing: '0.01em',
               }}
             >
               {group.title}
-            </p>
+            </Typography>
           ) : null}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {group.items.map((item) => (
@@ -475,16 +481,16 @@ export function DashboardSidebar({
       >
         {rail ? (
           <>
-            <button
+            <IconButton
               type="button"
               onClick={onToggleCollapse}
               aria-expanded={false}
               aria-controls="dashboard-sidebar-nav"
               title="Expandir menú"
-              className="dashboard-sidebar-toggle"
+              size="small"
             >
               <ChevronRight size={16} aria-hidden />
-            </button>
+            </IconButton>
             <Link href="/" className="flex items-center justify-center no-underline" title={BRAND_NAME}>
               <Image
                 src={BRAND_LOGO_SRC}
@@ -516,16 +522,16 @@ export function DashboardSidebar({
               <span className="text-xs font-bold text-black truncate font-display">{BRAND_NAME}</span>
             </Link>
             {isDesktop && onToggleCollapse ? (
-              <button
+              <IconButton
                 type="button"
                 onClick={onToggleCollapse}
                 aria-expanded
                 aria-controls="dashboard-sidebar-nav"
                 title="Solo iconos"
-                className="dashboard-sidebar-toggle"
+                size="small"
               >
                 <ChevronLeft size={16} aria-hidden />
-              </button>
+              </IconButton>
             ) : null}
           </>
         )}
@@ -584,26 +590,22 @@ export function DashboardSidebar({
         }}
       >
         <PwaInstallButton collapsed={rail} />
-        <button
-          type="button"
+        <ListItemButton
           onClick={onLogout}
           title="Cerrar sesión"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
+          sx={{
+            borderRadius: 2,
+            mt: 0.75,
+            minHeight: 40,
             justifyContent: rail ? 'center' : 'flex-start',
-            gap: rail ? 0 : 10,
-            padding: rail ? '8px 0' : '7px 10px',
-            marginTop: 6,
-            borderRadius: 10,
-            fontSize: 13,
-            width: '100%',
+            px: rail ? 1 : 1.25,
           }}
-          className="dashboard-sidebar-link"
         >
-          <LogOut size={17} strokeWidth={1.75} aria-hidden />
-          {!rail ? 'Cerrar sesión' : null}
-        </button>
+          <ListItemIcon sx={{ minWidth: rail ? 0 : 34, justifyContent: 'center', color: 'text.secondary' }}>
+            <LogOut size={17} strokeWidth={1.75} aria-hidden />
+          </ListItemIcon>
+          {!rail ? <ListItemText primary="Cerrar sesión" primaryTypographyProps={{ fontSize: 13 }} /> : null}
+        </ListItemButton>
         <SidebarVersionLink collapsed={rail} onNavigate={onNavigate} />
       </div>
     </aside>

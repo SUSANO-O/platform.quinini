@@ -177,15 +177,19 @@ export const API_ACCESS_ADDON_PRICE_USD = 19;
 /** Alias histórico — conversaciones de agentes/widget. */
 export const PLAN_CONVERSATION_LIMITS = PLAN_AGENT_CONVERSATION_LIMITS;
 
-/** Agentes principales por plan (límite realista para PME). `-1` = ilimitado. */
+/**
+ * Agentes principales por plan.
+ * Producto: sin cupo de agentes (límites comerciales = chats + storage).
+ * `-1` = ilimitado.
+ */
 export const PLAN_AGENT_LIMITS: Record<string, number> = {
-  free:       1,
-  solo:       4,   // +15% desde 3
-  api_develop:        7,   // +15% desde 6
-  team:       6,   // +15% desde 5
-  plus:       12,  // +15% desde 10
-  business:   -1,
-  enterprise: 999,
+  free:        -1,
+  solo:        -1,
+  api_develop: -1,
+  team:        -1,
+  plus:        -1,
+  business:    -1,
+  enterprise:  -1,
 };
 
 /** `-1` = sin límite práctico en producto. */
@@ -198,15 +202,23 @@ export function isAgentLimitReached(used: number, limit: number): boolean {
   return limit >= 0 && used >= limit;
 }
 
+/**
+ * Sub-agentes por agente padre.
+ * Producto: sin cupo (límites comerciales = chats + storage). `-1` = ilimitado.
+ */
 export const PLAN_SUBAGENT_LIMITS: Record<string, number> = {
-  free:       0,
-  solo:       0,
-  api_develop:        0,
-  team:       3,   // +15% desde 2
-  plus:       6,   // +15% desde 5
-  business:   58,  // +15% desde 50
-  enterprise: 999,
+  free:        -1,
+  solo:        -1,
+  api_develop: -1,
+  team:        -1,
+  plus:        -1,
+  business:    -1,
+  enterprise:  -1,
 };
+
+export function isSubAgentLimitReached(used: number, limit: number): boolean {
+  return limit >= 0 && used >= limit;
+}
 
 export const PLAN_TOOLS_LIMITS: Record<string, number> = {
   free:       2,
@@ -693,35 +705,35 @@ export function isSoloChatOnlyPlan(plan: string): boolean {
 export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
   solo: [
     '300 conversaciones al mes (~10/día)',
-    '4 agentes · solo chat (sin herramientas ni almacenamiento)',
+    'Agentes y sub-agentes ilimitados · solo chat (sin herramientas ni almacenamiento)',
     'Widgets básicos · historial 30 días',
     'Autoguiado: documentación y videos en YouTube',
     'Soporte por email (72 h, sin onboarding dedicado)',
   ],
   api_develop: [
     '2.000 conversaciones al mes vía API REST',
-    '7 agentes · sin panel, widgets ni builder',
+    'Agentes ilimitados · sin panel, widgets ni builder',
     'Auth con API key · documentación interactiva',
     'Endpoints de agentes, chat y claves ya disponibles',
     'Soporte por email (48 h)',
   ],
   team: [
     '2.000 conversaciones al mes (~65/día) — widget y agentes',
-    '6 agentes · 3 sub-agentes · Webhook incluido',
+    'Agentes y sub-agentes ilimitados · Webhook incluido',
     'Almacenamiento: 128 MB · 15 fuentes por agente',
     `API REST: add-on opcional (+$${API_ACCESS_ADDON_PRICE_USD}/mes, cupo API aparte) · Gmail y Slack · widgets ilimitados`,
     'Capacitación grupal · soporte email (48 h)',
   ],
   plus: [
     '3.000 conversaciones al mes (~100/día) — widget y agentes',
-    '12 agentes · 6 sub-agentes · Webhook incluido',
+    'Agentes y sub-agentes ilimitados · Webhook incluido',
     'Almacenamiento: 256 MB · 20 fuentes · búsqueda vectorial',
     `API REST: add-on opcional (+$${API_ACCESS_ADDON_PRICE_USD}/mes) · Flujos conversacionales (BETA) · webhook saliente (HMAC)`,
     'Tareas programadas · historial 60 días · soporte email (48 h)',
   ],
   business: [
     '45.000 conversaciones al mes (~1.500/día) — widget y agentes',
-    'Agentes ilimitados · integraciones custom · MCP completo',
+    'Agentes y sub-agentes ilimitados · integraciones custom · MCP completo',
     `Integración WhatsApp Business · API REST add-on (+$${API_ACCESS_ADDON_PRICE_USD}/mes) · webhooks`,
     'Tickets al escalar · analytics completo (multi-agente) · Almac. 100 GB',
     'Historial ilimitado · todos los modelos · SLA 99,9 %',

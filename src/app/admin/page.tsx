@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { BRAND, STATE, PLAN_ACCENTS, METRIC } from '@/lib/brand-colors';
 import Link from 'next/link';
-import { Users, Boxes, TrendingUp, Clock, XCircle, CheckCircle, AlertTriangle, Ban, Activity, ShoppingBag, LayoutDashboard, Database, Cpu, Network, HardDrive } from 'lucide-react';
+import { Users, Boxes, TrendingUp, Clock, XCircle, CheckCircle, AlertTriangle, Ban, Activity, ShoppingBag, LayoutDashboard, Database, Cpu, Network, HardDrive } from '@/components/ui/icons';
 
 interface UserQuota {
   userId: string;

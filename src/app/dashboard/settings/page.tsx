@@ -8,7 +8,7 @@ import { InvoiceList } from '@/components/billing/invoice-list';
 // import { getStripePromise } from '@/lib/stripe-client'; // Stripe — comentado
 import { useEffect, useState, useRef, type ChangeEvent } from 'react';
 import Link from 'next/link';
-import { CreditCard, ExternalLink, Settings, Sparkles, CheckCircle2, AlertTriangle, ShieldCheck, ShieldOff } from 'lucide-react';
+import { CreditCard, ExternalLink, Settings, Sparkles, CheckCircle2, AlertTriangle, ShieldCheck, ShieldOff } from '@/components/ui/icons';
 import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 import { DashboardPageHeader } from '@/components/dashboard/dashboard-page-header';
 import { DashboardSectionNav } from '@/components/dashboard/dashboard-section-nav';

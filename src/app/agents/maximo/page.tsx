@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Wrench, Settings, AlertTriangle, BarChart2, CheckCircle, ArrowRight, Zap, Cpu, ClipboardList } from 'lucide-react';
+import { Wrench, Settings, AlertTriangle, BarChart2, CheckCircle, ArrowRight, Zap, Cpu, ClipboardList } from '@/components/ui/icons';
 
 const Rd = '#bb1b14';
 const O = 'var(--brand-warm)';

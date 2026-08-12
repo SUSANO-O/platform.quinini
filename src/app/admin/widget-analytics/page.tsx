@@ -14,7 +14,7 @@ import {
   UserCheck,
   TrendingDown,
   Clock,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 
 type Row = {
   widgetId: string;

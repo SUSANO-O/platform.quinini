@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X, Loader2, Trash2, Save, RefreshCw } from 'lucide-react';
+import { X, Loader2, Trash2, Save, RefreshCw } from '@/components/ui/icons';
 import { PLAN_ORDER, FEATURE_OVERRIDES, VALID_FEATURE_OVERRIDES, type PlanId } from '@/lib/plan-catalog';
 
 const PLANS = [...PLAN_ORDER] as const;

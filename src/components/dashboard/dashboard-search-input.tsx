@@ -1,6 +1,8 @@
 'use client';
 
-import { Search } from 'lucide-react';
+import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
+import { Search } from '@/components/ui/icons';
 
 export function DashboardSearchInput({
   value,
@@ -16,16 +18,22 @@ export function DashboardSearchInput({
   className?: string;
 }) {
   return (
-    <div className={`dashboard-search-input${className ? ` ${className}` : ''}`}>
-      <Search size={14} className="dashboard-search-input__icon" aria-hidden />
-      <input
-        type="search"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        aria-label={ariaLabel ?? placeholder}
-        className="dashboard-search-input__field"
-      />
-    </div>
+    <TextField
+      className={className}
+      size="small"
+      type="search"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      inputProps={{ 'aria-label': ariaLabel ?? placeholder }}
+      fullWidth
+      InputProps={{
+        startAdornment: (
+          <InputAdornment position="start">
+            <Search size={14} aria-hidden />
+          </InputAdornment>
+        ),
+      }}
+    />
   );
 }

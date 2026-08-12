@@ -1,6 +1,6 @@
 'use client';
 
-import { Check } from 'lucide-react';
+import { Check } from '@/components/ui/icons';
 import { AgentInitialsBadge } from '@/components/dashboard/agent-initials-badge';
 import { buildAgentPickerMetaChips } from '@/lib/widget-builder';
 import type { ClientAgentRow } from '@/lib/widget-builder';

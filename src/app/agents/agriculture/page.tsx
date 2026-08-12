@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Sprout, Droplets, Sun, TrendingUp, CheckCircle, ArrowRight, Zap, CloudRain, Bug } from 'lucide-react';
+import { Sprout, Droplets, Sun, TrendingUp, CheckCircle, ArrowRight, Zap, CloudRain, Bug } from '@/components/ui/icons';
 
 const C = '#00c896';
 const G = '#059669';

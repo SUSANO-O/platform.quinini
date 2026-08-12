@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, Sparkles, Wrench } from 'lucide-react';
+import { ArrowLeft, Sparkles, Wrench } from '@/components/ui/icons';
 import {
   APP_RELEASES,
   formatReleaseDate,

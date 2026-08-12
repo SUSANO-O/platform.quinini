@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Bot, CheckCircle, AlertTriangle, ChevronRight, Loader2, Save, RefreshCw, ShieldAlert, Layers } from 'lucide-react';
+import { Bot, CheckCircle, AlertTriangle, ChevronRight, Loader2, Save, RefreshCw, ShieldAlert, Layers } from '@/components/ui/icons';
 import { AdminCollapsibleSection } from '@/components/admin/admin-collapsible-section';
 import { PLAN_ORDER } from '@/lib/plan-catalog';
 

@@ -57,8 +57,8 @@ const nextConfig: NextConfig = {
       "default-src 'self'",
       "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://control-BotIvA.vercel.app https://unpkg.com https://challenges.cloudflare.com",
       "script-src-elem 'self' 'unsafe-inline' https://control-BotIvA.vercel.app https://unpkg.com https://challenges.cloudflare.com",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com https://unpkg.com",
-      "font-src 'self' data: https://fonts.gstatic.com https://api.fontshare.com https://cdn.fontshare.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com",
+      "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
       "connect-src 'self' https://api.lemonsqueezy.com https://api.stripe.com https://*.upstash.io https://control-BotIvA.vercel.app https://challenges.cloudflare.com wss: " + agentflowApiOrigins,
       // 'self' incluye /api/embed/afapi/* (docs embebidas en /dashboard/api)

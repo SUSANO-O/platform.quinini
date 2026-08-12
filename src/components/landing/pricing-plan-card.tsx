@@ -1,19 +1,16 @@
 import {
   ArrowRight,
-  Bot,
   Braces,
   Check,
   Crown,
   HardDrive,
   MessageSquare,
   Sparkles,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import type { PlanInfo } from '@/lib/plan-catalog';
 import {
-  PLAN_AGENT_LIMITS,
   PLAN_CONVERSATION_LIMITS,
   PLAN_RAG_LIMITS,
-  formatAgentLimit,
 } from '@/lib/plan-catalog';
 
 function fmtConv(n: number): string {
@@ -29,7 +26,6 @@ type Highlight = {
 
 function planHighlights(planId: string): Highlight[] {
   const conv = PLAN_CONVERSATION_LIMITS[planId] ?? 0;
-  const agents = PLAN_AGENT_LIMITS[planId] ?? 0;
   const rag = PLAN_RAG_LIMITS[planId as keyof typeof PLAN_RAG_LIMITS];
 
   const items: Highlight[] = [
@@ -37,11 +33,6 @@ function planHighlights(planId: string): Highlight[] {
       icon: MessageSquare,
       label: 'Conversaciones',
       value: `${fmtConv(conv)}/mes`,
-    },
-    {
-      icon: Bot,
-      label: 'Agentes',
-      value: formatAgentLimit(agents),
     },
   ];
 
@@ -59,7 +50,7 @@ function planHighlights(planId: string): Highlight[] {
 const PLAN_ICONS: Record<string, typeof Crown> = {
   solo: Sparkles,
   api_develop: Braces,
-  team: Bot,
+  team: Sparkles,
   plus: Sparkles,
   business: Crown,
 };

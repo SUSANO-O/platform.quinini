@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Mail, CheckCircle, Loader2 } from 'lucide-react';
+import { Mail, CheckCircle, Loader2 } from '@/components/ui/icons';
 import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
 
 export default function ForgotPasswordPage() {

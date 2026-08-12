@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Sparkles, X, ArrowRight, Loader2 } from 'lucide-react';
+import { Sparkles, X, ArrowRight, Loader2 } from '@/components/ui/icons';
 
 export type AiFieldType =
   | 'agent_name'

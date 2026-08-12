@@ -2,7 +2,7 @@
 
 import { memo, type ComponentType } from 'react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/components/ui/icons';
 import {
   Calendar,
   CalendarDays,
@@ -19,7 +19,7 @@ import {
   Play,
   Timer,
   Type,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { NODE_TYPE_LABELS } from '@/lib/flow-editor/constants';
 import type { FlowNodeType } from '@/lib/flow-editor/types';
 import type { FlowNodeData } from '@/lib/flow-editor/serialization';

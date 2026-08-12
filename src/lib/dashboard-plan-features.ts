@@ -21,7 +21,6 @@ import {
   ESCALATION_TICKET_FEATURE,
   PLAN_DISPLAY,
   PLAN_RAG_LIMITS,
-  PLAN_SUBAGENT_LIMITS,
   SCHEDULED_TASKS_FEATURE,
   SHEET_NIGHTLY_SYNC_FEATURE,
   WHATSAPP_MIN_PLAN,
@@ -95,7 +94,6 @@ export function buildDashboardPlanFeatures(
   const overrides = subscriptionFeatures ?? [];
   const limits = getAgentLimits(effective);
   const ragSpec = PLAN_RAG_LIMITS[effective];
-  const subagentLimit = PLAN_SUBAGENT_LIMITS[effective] ?? 0;
   const apiOnly = isApiOnlyPlan(effective);
 
   const items: DashboardPlanFeature[] = [];
@@ -138,11 +136,9 @@ export function buildDashboardPlanFeatures(
     items.push({
       key: 'subagents',
       label: 'Sub-agentes',
-      description: subagentLimit > 0
-        ? `Hasta ${subagentLimit === 999 ? 'ilimitados' : subagentLimit} por cuenta`
-        : 'Agentes especializados invocados por el principal.',
-      enabled: subagentLimit > 0,
-      unlockLabel: planLabel('team'),
+      description: 'Agentes especializados ilimitados bajo el principal.',
+      enabled: true,
+      unlockLabel: planLabel('free'),
       group: 'core',
       href: '/dashboard/agents',
     });

@@ -10,7 +10,7 @@ import {
   RefreshCw,
   Sparkles,
   ExternalLink,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 
 type AssistItem = {
   context: 'marketing' | 'app';

@@ -8,7 +8,7 @@ import {
   planRank,
   type PaidPlanId,
 } from '@/lib/plan-catalog';
-import { AlertTriangle, CheckCircle2, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, X } from '@/components/ui/icons';
 
 export type { PaidPlanId } from '@/lib/plan-catalog';
 

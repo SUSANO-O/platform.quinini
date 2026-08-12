@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { Subscription, ClientAgent, User, ScheduledTask } from '@/lib/db/models';
 import { verifySessionToken, isUserEmailVerified, isImpersonationSession } from '@/lib/auth';
-import { getAgentLimits, isAgentLimitReached, formatAgentLimit } from '@/lib/agent-plans';
+import { getAgentLimits, isAgentLimitReached, formatAgentLimit, isSubAgentLimitReached } from '@/lib/agent-plans';
 import mongoose from 'mongoose';
 import {
   canAttemptHubSync,
@@ -289,13 +289,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Agente padre no encontrado.' }, { status: 404 });
     }
     const subCount = await ClientAgent.countDocuments({ userId, type: 'sub-agent', parentAgentId });
-    if (subCount >= limits.subAgentsPerAgent) {
+    if (isSubAgentLimitReached(subCount, limits.subAgentsPerAgent)) {
       return NextResponse.json({
         error: `Tu plan permite máximo ${limits.subAgentsPerAgent} sub-agente${limits.subAgentsPerAgent !== 1 ? 's' : ''} por agente.`,
       }, { status: 403 });
-    }
-    if (limits.subAgentsPerAgent === 0) {
-      return NextResponse.json({ error: 'Tu plan no incluye sub-agentes. Actualiza tu suscripción.' }, { status: 403 });
     }
   }
 

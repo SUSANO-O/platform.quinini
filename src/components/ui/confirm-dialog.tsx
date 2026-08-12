@@ -1,8 +1,12 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { Loader2 } from 'lucide-react';
-import { BRAND, STATE } from '@/lib/brand-colors';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogActions from '@mui/material/DialogActions';
+import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
 
 type ConfirmDialogProps = {
   open: boolean;
@@ -27,100 +31,26 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
-  const cancelRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    cancelRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !loading) onCancel();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, loading, onCancel]);
-
-  if (!open) return null;
-
-  const confirmColor = variant === 'danger' ? STATE.error : BRAND.primary;
-
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="confirm-dialog-title"
-      aria-describedby="confirm-dialog-desc"
-      onClick={() => { if (!loading) onCancel(); }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 100,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-        background: 'rgba(2,6,23,0.45)',
-        backdropFilter: 'blur(4px)',
-      }}
-    >
-      <div
-        className="card-texture"
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 'min(420px, 100%)',
-          borderRadius: 16,
-          padding: 22,
-          boxShadow: 'var(--shadow-surface-lg)',
-        }}
-      >
-        <h2 id="confirm-dialog-title" style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
-          {title}
-        </h2>
-        <p id="confirm-dialog-desc" style={{ margin: '10px 0 20px', fontSize: 14, color: 'var(--muted-foreground)', lineHeight: 1.55 }}>
-          {description}
-        </p>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          <button
-            ref={cancelRef}
-            type="button"
-            disabled={loading}
-            onClick={onCancel}
-            style={{
-              padding: '9px 16px',
-              borderRadius: 10,
-              border: 'none',
-              background: 'var(--muted)',
-              boxShadow: 'var(--shadow-surface-sm)',
-              color: 'var(--foreground)',
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: loading ? 'wait' : 'pointer',
-            }}
-          >
-            {cancelLabel}
-          </button>
-          <button
-            type="button"
-            disabled={loading}
-            onClick={onConfirm}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '9px 16px',
-              borderRadius: 10,
-              border: 'none',
-              background: confirmColor,
-              color: '#fff',
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: loading ? 'wait' : 'pointer',
-            }}
-          >
-            {loading && <Loader2 className="animate-spin" size={14} />}
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+    <Dialog open={open} onClose={loading ? undefined : onCancel} maxWidth="xs" fullWidth>
+      <DialogTitle>{title}</DialogTitle>
+      <DialogContent>
+        <DialogContentText>{description}</DialogContentText>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={onCancel} disabled={loading} color="inherit">
+          {cancelLabel}
+        </Button>
+        <Button
+          onClick={onConfirm}
+          disabled={loading}
+          variant="contained"
+          color={variant === 'danger' ? 'error' : 'primary'}
+          startIcon={loading ? <CircularProgress size={14} color="inherit" /> : undefined}
+        >
+          {confirmLabel}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }

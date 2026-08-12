@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Lightbulb } from 'lucide-react';
+import { Lightbulb } from '@/components/ui/icons';
 import { BuilderRail } from '@/components/dashboard/builder-rail';
 import { WIDGET_STEP_TIPS, WIDGET_WIZARD_STEPS } from '@/lib/widget-builder';
 import type { BuilderRailItem } from '@/components/dashboard/builder-rail';

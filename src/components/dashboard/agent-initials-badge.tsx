@@ -45,7 +45,7 @@ export function AgentInitialsBadge({
     <div
       className={[
         'flex items-center justify-center shrink-0 font-bold tracking-tight select-none',
-        compact ? 'w-10 h-10 rounded-xl text-sm' : 'w-12 h-12 rounded-full text-base',
+        compact ? 'w-8 h-8 rounded-full text-[0.6875rem]' : 'w-10 h-10 rounded-full text-sm',
         className,
       ]
         .filter(Boolean)

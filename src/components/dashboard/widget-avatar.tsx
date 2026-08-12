@@ -19,7 +19,7 @@ export function WidgetAvatar({
   avatarUrl?: string | null;
   size?: 'md' | 'lg';
 }) {
-  const dim = size === 'lg' ? 'h-12 w-12' : 'h-11 w-11';
+  const dim = size === 'lg' ? 'h-10 w-10' : 'h-8 w-8';
   const orbStyle: CSSProperties = {
     background: iridescentOrbBackgroundCss(defaultHueFromHex(color), hashWidgetSeed(`${widgetId}|${color}`)),
     backgroundBlendMode: iridescentOrbBlendModes() as CSSProperties['backgroundBlendMode'],

@@ -6,8 +6,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useClientModels } from '@/hooks/use-client-models';
-import { getAgentLimits, isAgentLimitReached } from '@/lib/agent-plans';
-import { Bot, Plus, Sparkles, Globe2 } from 'lucide-react';
+import { Bot, Plus, Sparkles, Globe2 } from '@/components/ui/icons';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { AgentListCard, type AgentListItem } from '@/components/dashboard/agent-list-card';
@@ -18,7 +17,6 @@ import { DashboardEmptyState } from '@/components/dashboard/dashboard-empty-stat
 import { DashboardButton, DashboardButtonLink } from '@/components/dashboard/dashboard-button';
 import { DashboardFilterBar } from '@/components/dashboard/dashboard-filter-bar';
 import { DashboardGridToolbar } from '@/components/dashboard/dashboard-grid-toolbar';
-import { DashboardPlanUsageBar } from '@/components/dashboard/dashboard-plan-usage-bar';
 import { BackgroundRefreshIndicator } from '@/components/dashboard/background-refresh-indicator';
 import { dashboardKeys } from '@/lib/dashboard-query-keys';
 import { fetchAgentsList } from '@/lib/dashboard-fetch';
@@ -52,7 +50,6 @@ export default function AgentsPage() {
   const queryClient = useQueryClient();
   const { subscription } = useSubscription();
   const plan = subscription?.plan ?? 'free';
-  const limits = getAgentLimits(plan);
 
   const agentsQuery = useQuery({
     queryKey: dashboardKeys.agents(),
@@ -99,12 +96,6 @@ export default function AgentsPage() {
       ),
     [catalogPlatformAgents, filter, searchQuery],
   );
-
-  const usedAgents = mineAgents.length;
-  const unlimitedAgents = limits.agents < 0;
-  const atLimit = isAgentLimitReached(usedAgents, limits.agents);
-  const pct = unlimitedAgents ? 0 : Math.min(100, (usedAgents / limits.agents) * 100);
-  const agentLimitLabel = unlimitedAgents ? 'Ilimitados' : String(limits.agents);
 
   const showMineSection = filter !== 'platform';
   const showPlatformSection = catalogPlatformAgents.length > 0;
@@ -192,44 +183,23 @@ export default function AgentsPage() {
         badgeIcon={Sparkles}
         title="Mis"
         titleAccent="agentes"
-        description="Tus agentes y el catálogo global van separados: el cupo del plan solo aplica a los tuyos."
+        description="Tus agentes y el catálogo global van separados. Crea tantos agentes como necesites; el cupo del plan aplica a chats y almacenamiento."
         compact
         hideIcon
         actions={
           <>
           <BackgroundRefreshIndicator active={agentsQuery.isFetching && !loading} />
-          {atLimit ? (
-            <DashboardButtonLink
-              href="/dashboard/settings#settings-billing"
-              variant="secondary"
-              title={`Límite alcanzado (${usedAgents}/${agentLimitLabel})`}
-              className="px-5 py-2.5 text-sm"
-            >
-              <Plus size={16} strokeWidth={2.5} />
-              Límite alcanzado — Ver planes
-            </DashboardButtonLink>
-          ) : (
-            <DashboardButtonLink
-              href="/dashboard/agents/new"
-              variant="primary"
-              data-tour="agents-new"
-              className="px-5 py-2.5 text-sm"
-            >
-              <Plus size={16} strokeWidth={2.5} />
-              Nuevo agente
-            </DashboardButtonLink>
-          )}
+          <DashboardButtonLink
+            href="/dashboard/agents/new"
+            variant="primary"
+            data-tour="agents-new"
+            className="px-5 py-2.5 text-sm"
+          >
+            <Plus size={16} strokeWidth={2.5} />
+            Nuevo agente
+          </DashboardButtonLink>
           </>
         }
-      />
-
-      <DashboardPlanUsageBar
-        label="Agentes usados"
-        used={usedAgents}
-        limitLabel={agentLimitLabel}
-        percent={pct}
-        atLimit={atLimit}
-        plan={plan}
       />
 
       {fetchError ? (

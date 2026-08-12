@@ -1,4 +1,4 @@
-import { Shield, Zap } from 'lucide-react';
+import { Shield, Zap } from '@/components/ui/icons';
 
 export function WidgetBuilderTrustBadges() {
   return (

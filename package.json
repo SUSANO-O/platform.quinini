@@ -50,9 +50,15 @@
     "test:flows:integration": "node --env-file=.env scripts/test-flows-integration.mjs"
   },
   "dependencies": {
+    "@emotion/cache": "^11.14.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "@lemonsqueezy/lemonsqueezy.js": "^4.0.0",
     "@marsidev/react-turnstile": "^1.5.2",
     "@mozilla/readability": "^0.6.0",
+    "@mui/icons-material": "^7.3.11",
+    "@mui/material": "^7.3.11",
+    "@mui/material-nextjs": "^7.3.10",
     "@paddle/paddle-node-sdk": "^1.10.0",
     "@react-three/drei": "^10.0.3",
     "@react-three/fiber": "^9.0.4",
@@ -72,7 +78,6 @@
     "driver.js": "^1.4.0",
     "jsdom": "^29.1.1",
     "jszip": "^3.10.1",
-    "lucide-react": "^0.511.0",
     "mammoth": "^1.12.0",
     "mongodb": "^6.12.0",
     "mongoose": "^9.4.1",

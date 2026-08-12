@@ -1,5 +1,8 @@
-import type { LucideIcon } from 'lucide-react';
+'use client';
+
+import type { LucideIcon } from '@/components/ui/icons';
 import type { ReactNode } from 'react';
+import Alert from '@mui/material/Alert';
 
 export function DashboardCallout({
   children,
@@ -11,9 +14,12 @@ export function DashboardCallout({
   variant?: 'default' | 'warm';
 }) {
   return (
-    <aside className={`dashboard-callout${variant === 'warm' ? ' dashboard-callout--warm' : ''}`}>
-      {Icon ? <Icon size={16} className="shrink-0 text-[var(--primary)]" aria-hidden /> : null}
-      <p className="dashboard-callout__text">{children}</p>
-    </aside>
+    <Alert
+      severity={variant === 'warm' ? 'warning' : 'info'}
+      icon={Icon ? <Icon size={16} aria-hidden /> : undefined}
+      sx={{ borderRadius: 2, alignItems: 'center' }}
+    >
+      {children}
+    </Alert>
   );
 }

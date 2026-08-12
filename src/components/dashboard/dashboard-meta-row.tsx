@@ -1,5 +1,9 @@
-import type { LucideIcon } from 'lucide-react';
+'use client';
+
+import type { LucideIcon } from '@/components/ui/icons';
 import type { ReactNode } from 'react';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
 
 export function DashboardMetaRow({
   icon: Icon,
@@ -9,9 +13,23 @@ export function DashboardMetaRow({
   children: ReactNode;
 }) {
   return (
-    <p className="dashboard-meta-row">
-      <Icon size={14} className="dashboard-meta-row__icon" aria-hidden />
-      <span>{children}</span>
-    </p>
+    <Stack
+      direction="row"
+      spacing={0.75}
+      alignItems="center"
+      component="p"
+      className="dashboard-meta-row"
+      sx={{ m: 0, color: 'text.secondary', minWidth: 0 }}
+    >
+      <Icon size={12} aria-hidden className="dashboard-meta-row__icon" />
+      <Typography
+        component="span"
+        variant="caption"
+        color="inherit"
+        sx={{ fontSize: '0.6875rem', lineHeight: 1.35, fontWeight: 500, minWidth: 0 }}
+      >
+        {children}
+      </Typography>
+    </Stack>
   );
 }

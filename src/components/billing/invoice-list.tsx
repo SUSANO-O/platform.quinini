@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ExternalLink, FileText, Loader2, Receipt } from 'lucide-react';
+import { ExternalLink, FileText, Loader2, Receipt } from '@/components/ui/icons';
 import { toast } from 'sonner';
 import { BRAND_TEXT_COLOR, UI_SURFACE_SECONDARY } from '@/lib/brand';
 import { isBillingProfileReady, type BillingProfile } from '@/lib/billing-profile';
