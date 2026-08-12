@@ -4,7 +4,7 @@
  */
 
 /** Mantener en sync con `VERSION` en scripts/widget/core.js (cache-bust de assist.js). */
-export const WIDGET_SDK_VERSION = '1.6.67';
+export const WIDGET_SDK_VERSION = '1.6.68';
 
 const ASSIST_FAB_AVATAR_PX = 52;
 const ASSIST_ORB_MARKETING = '/assets/marketing/math-avatar-cutout.webp?v=orb3';
