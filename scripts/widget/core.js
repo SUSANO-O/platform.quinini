@@ -8,7 +8,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.6.67';
+  var VERSION = '1.6.68';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -6606,6 +6606,9 @@
       '#' + rootId + ' .afhub-input-wrap:has(.afhub-mic) .afhub-input { padding-right:40px; }' +
       '#' + rootId + ' .afhub-input-wrap .afhub-mic { position:absolute; right:4px; top:50%; transform:translateY(-50%); z-index:1; }' +
       '#' + rootId + ' .afhub-input { flex:1; min-width:0; border:none; border-radius:16px; padding:5px 8px; font-size:13px; font-weight:400; outline:none; resize:none; min-height:28px; max-height:88px; line-height:1.35; letter-spacing:-0.01em; font-family:inherit !important; color:#0f172a !important; -webkit-text-fill-color:#0f172a; caret-color:' + cfg.color + '; background:transparent; box-shadow:none; overflow-y:auto; scrollbar-width:none; transition:none; }' +
+      /* iOS/Safari: <16px en focus hace zoom de toda la página */
+      '@media (hover:none),(max-width:768px){#' + rootId + ' .afhub-input{font-size:16px;line-height:1.35;min-height:32px;padding:6px 8px;}' +
+      '#' + rootId + ' .afhub-handoff-input,#' + rootId + ' .afhub-fb-text{font-size:16px!important;}}' +
       '#' + rootId + ' .afhub-input::-webkit-scrollbar { display:none; width:0; height:0; }' +
       '#' + rootId + ' .afhub-input::placeholder { color:#94a3b8; opacity:1; font-weight:400; }' +
       '#' + rootId + ' .afhub-input:focus { box-shadow:none; }' +

@@ -1189,3 +1189,4 @@
 {"t":"2026-08-12T16:23:26.920Z","event":"widget_loaded","agentId":"6a5aac92438b8f1c73bc3b82","instanceId":"biv_1"}
 {"t":"2026-08-12T16:25:04.247Z","event":"widget_opened","agentId":"6a5aac92438b8f1c73bc3b82","instanceId":"biv_1"}
 {"t":"2026-08-12T16:25:04.247Z","event":"widget_loaded","agentId":"6a5aac92438b8f1c73bc3b82","instanceId":"biv_1"}
+{"t":"2026-08-12T16:29:40.505Z","event":"widget_closed","agentId":"6a5aac92438b8f1c73bc3b82","instanceId":"biv_1"}
