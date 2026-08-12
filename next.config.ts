@@ -28,7 +28,7 @@ const nextConfig: NextConfig = {
 
   async redirects() {
     return [
-      { source: '/favicon.ico', destination: '/favicon.svg', permanent: false },
+      { source: '/favicon.ico', destination: '/assets/marketing/botiva-logo-32.png', permanent: false },
       { source: '/docs', destination: '/pricing#api', permanent: false },
       { source: '/playground', destination: '/pricing#api', permanent: false },
     ];

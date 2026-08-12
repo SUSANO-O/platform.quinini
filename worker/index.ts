@@ -41,8 +41,8 @@ sw.addEventListener('push', (event) => {
   pushEvent.waitUntil(
     sw.registration.showNotification(payload.title, {
       body: payload.body,
-      icon: '/assets/marketing/botiva-orb.png',
-      badge: '/assets/marketing/botiva-orb.png',
+      icon: '/assets/marketing/botiva-logo.png',
+      badge: '/assets/marketing/botiva-logo-192.png',
     }),
   );
 });

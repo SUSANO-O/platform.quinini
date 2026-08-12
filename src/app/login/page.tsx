@@ -3,9 +3,9 @@
 import { useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
-import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
+import { BotivaOrbLogo } from '@/components/brand/botiva-orb-logo';
+import { BRAND_NAME } from '@/lib/brand';
 import { TurnstileWidget } from '@/components/ui/turnstile-widget';
 import type { TurnstileInstance } from '@marsidev/react-turnstile';
 import { ShieldCheck } from '@/components/ui/icons';
@@ -105,10 +105,10 @@ function LoginForm() {
         <div className="hero-glow" style={{ background: 'var(--brand-primary-light)', top: '-100px', right: '5%' }} />
 
         <div className="relative w-full max-w-[420px]">
-          <div className="text-center mb-8">
-            <Link href="/" className="inline-flex flex-col items-center gap-3 no-underline">
-              <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={56} height={56} className="h-14 w-14 object-contain rounded-xl shadow-md" priority />
-              <span className="text-2xl font-bold text-black">{BRAND_NAME}</span>
+          <div className="text-center mb-6">
+            <Link href="/" className="inline-flex items-center justify-center gap-3 no-underline">
+              <BotivaOrbLogo size={48} variant="compact" className="shrink-0" />
+              <span className="text-2xl font-bold text-black tracking-tight">{BRAND_NAME}</span>
             </Link>
           </div>
 
@@ -177,14 +177,11 @@ function LoginForm() {
       <div className="hero-glow" style={{ background: 'var(--brand-cool)', top: '45%', left: '48%', opacity: 0.1 }} />
 
       <div className="relative w-full max-w-[420px]">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex flex-col items-center gap-3 no-underline">
-            <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={56} height={56} className="h-14 w-14 object-contain rounded-xl shadow-md" priority />
-            <span className="text-2xl font-bold text-black">{BRAND_NAME}</span>
+        <div className="text-center mb-6">
+          <Link href="/" className="inline-flex items-center justify-center gap-3 no-underline">
+            <BotivaOrbLogo size={48} variant="compact" className="shrink-0" />
+            <span className="text-2xl font-bold text-black tracking-tight">{BRAND_NAME}</span>
           </Link>
-          <p className="mt-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-            Inicia sesión en tu cuenta
-          </p>
           {sessionExpired && (
             <p className="mt-3 text-sm font-medium" style={{ color: 'var(--foreground)' }}>
               Tu sesión expiró por inactividad. Vuelve a iniciar sesión.

@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import {
   Box,
@@ -12,7 +11,8 @@ import {
   Typography,
   Divider,
 } from '@mui/material';
-import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
+import { BotivaOrbLogo } from '@/components/brand/botiva-orb-logo';
+import { BRAND_NAME } from '@/lib/brand';
 import {
   buildContactWhatsAppUrl,
   SALES_WHATSAPP_DISPLAY,
@@ -28,13 +28,7 @@ export function LandingFooter() {
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, md: 5 }}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
-              <Image
-                src={BRAND_LOGO_SRC}
-                alt={BRAND_NAME}
-                width={32}
-                height={32}
-                style={{ height: 28, width: 28, objectFit: 'contain', borderRadius: 8 }}
-              />
+              <BotivaOrbLogo size={32} className="shrink-0" />
               <Typography fontWeight={700}>{BRAND_NAME}</Typography>
             </Stack>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2, maxWidth: 360 }}>

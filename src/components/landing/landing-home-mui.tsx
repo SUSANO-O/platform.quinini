@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/icons';
 import { LandingNavbar } from '@/components/landing/landing-navbar';
 import { LandingFooter } from '@/components/landing/landing-footer';
+import { BotivaOrbLogo } from '@/components/brand/botiva-orb-logo';
 import { HowStepMock } from '@/components/landing/how-step-mock';
 import type { LandingIconName } from '@/lib/landing-icons';
 import { BRAND } from '@/lib/brand-colors';
@@ -173,8 +174,8 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
       </section>
 
       {/* HOW + imagen editorial */}
-      <section className="landing-section landing-section--soft">
-        <Container maxWidth="lg">
+      <section className="landing-section landing-section--soft landing-how-section">
+        <Container maxWidth="lg" sx={{ px: { xs: 3, sm: 4, md: 5 } }}>
           <div className="landing-split" style={{ marginBottom: '2.75rem' }}>
             <div>
               <span className="landing-eyebrow">{copy.how.badge}</span>
@@ -196,10 +197,11 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
             </div>
           </div>
 
-          <Grid container spacing={2}>
+          <div className="landing-how-grid-wrap">
+            <Grid container spacing={1.5}>
             {copy.how.steps.map((s, idx) => (
               <Grid key={s.title} size={{ xs: 12, sm: 6, lg: 4 }}>
-                <article className="landing-how-card">
+                <article className="landing-how-card landing-how-card--compact">
                   <div className="landing-how-card__media">
                     <HowStepMock variant={s.variant} />
                   </div>
@@ -215,7 +217,8 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
                 </article>
               </Grid>
             ))}
-          </Grid>
+            </Grid>
+          </div>
         </Container>
       </section>
 
@@ -357,22 +360,38 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
                   {copy.widget.chatSampleTitle}
                 </Typography>
                 <Paper variant="outlined" sx={{ overflow: 'hidden', borderRadius: '16px' }}>
-                  <Box sx={{ bgcolor: R, color: '#fff', px: 2, py: 1.5 }}>
-                    <Typography sx={{ fontWeight: 650, fontSize: '0.9rem' }}>{copy.widget.assistantName}</Typography>
-                    <Typography variant="caption" sx={{ opacity: 0.85 }}>
-                      {copy.widget.available}
-                    </Typography>
-                  </Box>
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={1.25}
+                    sx={{ px: 2, py: 1.5, bgcolor: '#fff', borderBottom: '1px solid rgba(15,23,42,0.08)' }}
+                  >
+                    <BotivaOrbLogo size={36} className="shrink-0" />
+                    <Box>
+                      <Typography sx={{ fontWeight: 650, fontSize: '0.9rem', lineHeight: 1.25 }}>
+                        {copy.widget.assistantName}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        {copy.widget.available}
+                      </Typography>
+                    </Box>
+                  </Stack>
                   <Stack spacing={1.5} sx={{ p: 2, bgcolor: '#f8fafc', minHeight: 180 }}>
-                    <Paper sx={{ p: 1.25, alignSelf: 'flex-start', maxWidth: '85%', borderRadius: '14px' }} elevation={0}>
-                      <Typography variant="body2">{copy.widget.msg1}</Typography>
-                    </Paper>
+                    <Stack direction="row" spacing={1} alignItems="flex-end" sx={{ alignSelf: 'flex-start', maxWidth: '88%' }}>
+                      <BotivaOrbLogo size={22} className="shrink-0" style={{ marginBottom: 2 }} />
+                      <Paper sx={{ p: 1.25, borderRadius: '14px', flex: 1 }} elevation={0}>
+                        <Typography variant="body2">{copy.widget.msg1}</Typography>
+                      </Paper>
+                    </Stack>
                     <Paper sx={{ p: 1.25, alignSelf: 'flex-end', maxWidth: '80%', bgcolor: R, color: '#fff', borderRadius: '14px' }} elevation={0}>
                       <Typography variant="body2">{copy.widget.msg2}</Typography>
                     </Paper>
-                    <Paper sx={{ p: 1.25, alignSelf: 'flex-start', maxWidth: '85%', borderRadius: '14px' }} elevation={0}>
-                      <Typography variant="body2">{copy.widget.msg3}</Typography>
-                    </Paper>
+                    <Stack direction="row" spacing={1} alignItems="flex-end" sx={{ alignSelf: 'flex-start', maxWidth: '88%' }}>
+                      <BotivaOrbLogo size={22} className="shrink-0" style={{ marginBottom: 2 }} />
+                      <Paper sx={{ p: 1.25, borderRadius: '14px', flex: 1 }} elevation={0}>
+                        <Typography variant="body2">{copy.widget.msg3}</Typography>
+                      </Paper>
+                    </Stack>
                   </Stack>
                   <Divider />
                   <Box sx={{ p: 1.5 }}>

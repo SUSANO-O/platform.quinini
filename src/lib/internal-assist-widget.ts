@@ -8,6 +8,7 @@
 import { Types } from 'mongoose';
 import { connectDB } from '@/lib/db/connection';
 import { Widget } from '@/lib/db/models';
+import { ASSIST_WIDGET_ORB_SRC } from '@/lib/brand';
 import type { InternalAssistBootConfig, InternalAssistContext } from '@/lib/internal-assist-config';
 import { resolveInternalAssistWidgetId } from '@/lib/ensure-landing-assist-agents';
 
@@ -70,6 +71,7 @@ export async function enrichInternalAssistWithWidget(
     widgetId: String(w._id),
     token,
     agentId,
+    avatar: ASSIST_WIDGET_ORB_SRC,
     ...(typeof w.color === 'string' && w.color.trim() ? { color: w.color.trim() } : {}),
     ...(typeof w.title === 'string' && w.title.trim() ? { title: w.title.trim() } : {}),
     ...(typeof w.subtitle === 'string' && w.subtitle.trim() ? { subtitle: w.subtitle.trim() } : {}),

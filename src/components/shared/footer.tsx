@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Grid';
@@ -10,7 +9,8 @@ import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import MuiLink from '@mui/material/Link';
 import { SITE_COMPANY_LINKS, SITE_LEGAL_LINKS, SITE_PRODUCT_LINKS } from '@/lib/site-nav';
-import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
+import { BotivaOrbLogo } from '@/components/brand/botiva-orb-logo';
+import { BRAND_NAME } from '@/lib/brand';
 import {
   buildContactWhatsAppUrl,
   SALES_WHATSAPP_DISPLAY,
@@ -53,13 +53,7 @@ export function Footer() {
         <Grid container spacing={4}>
           <Grid size={{ xs: 12, md: 3 }}>
             <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 2 }}>
-              <Image
-                src={BRAND_LOGO_SRC}
-                alt={BRAND_NAME}
-                width={36}
-                height={36}
-                style={{ height: 32, width: 32, objectFit: 'contain', borderRadius: 8 }}
-              />
+              <BotivaOrbLogo size={32} className="shrink-0" />
               <Typography fontWeight={700}>{BRAND_NAME}</Typography>
             </Stack>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>

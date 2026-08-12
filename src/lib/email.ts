@@ -6,7 +6,7 @@
 
 import { Resend } from 'resend';
 import { planEmailLabel } from '@/lib/plan-catalog';
-import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
+import { BRAND_LOGO_PNG_SRC, BRAND_NAME } from '@/lib/brand';
 import { BRAND } from '@/lib/brand-colors';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
@@ -33,7 +33,7 @@ const EMAIL_PUBLIC_ORIGIN = (
   process.env.APP_URL?.trim() ||
   'http://localhost:3201'
 ).replace(/\/$/, '');
-const EMAIL_LOGO_URL = `${EMAIL_PUBLIC_ORIGIN}${BRAND_LOGO_SRC}`;
+const EMAIL_LOGO_URL = `${EMAIL_PUBLIC_ORIGIN}${BRAND_LOGO_PNG_SRC}`;
 
 // ── Template helpers ──────────────────────────────────────────────────────────
 

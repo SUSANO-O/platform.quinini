@@ -59,12 +59,9 @@ export default async function LandingPage() {
       title: t('agents.title'),
       subtitle: t('agents.subtitle'),
       items: [
-        { name: 'Health Monitor', desc: t('agents.health'), icon: 'health-pulse', color: R, focus: 'Salud', slug: 'health' },
         { name: 'Smart Agriculture', desc: t('agents.agriculture'), icon: 'sprout', color: C, focus: 'Agro', slug: 'agriculture' },
         { name: 'Education AI', desc: t('agents.education'), icon: 'graduation-cap', color: W, focus: 'Educacion', slug: 'education' },
         { name: 'Geoeconomics', desc: t('agents.geoeconomics'), icon: 'trending-up', color: B, focus: 'Economia', slug: 'geoeconomics' },
-        { name: 'Cybersecurity', desc: t('agents.cybersecurity'), icon: 'lock', color: R, focus: 'Seguridad', slug: 'cybersecurity' },
-        { name: 'Maximo', desc: t('agents.maximo'), icon: 'wrench', color: Rd, focus: 'Industria', slug: 'maximo' },
       ],
     },
     features: {

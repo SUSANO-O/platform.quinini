@@ -3,10 +3,10 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { KeyRound, Eye, EyeOff, Check } from '@/components/ui/icons';
 import { useAuth } from '@/hooks/use-auth';
-import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
+import { BotivaOrbLogo } from '@/components/brand/botiva-orb-logo';
+import { BRAND_NAME } from '@/lib/brand';
 import { TurnstileWidget } from '@/components/ui/turnstile-widget';
 import type { TurnstileInstance } from '@marsidev/react-turnstile';
 
@@ -116,7 +116,7 @@ export default function RegisterPage() {
       <div className="relative w-full max-w-[440px]">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex flex-col items-center gap-3 no-underline">
-            <Image src={BRAND_LOGO_SRC} alt={BRAND_NAME} width={56} height={56} className="h-14 w-14 object-contain rounded-xl shadow-md" priority />
+            <BotivaOrbLogo size={56} variant="detailed" className="shrink-0" />
             <span className="text-2xl font-bold text-black">{BRAND_NAME}</span>
           </Link>
           <p className="mt-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>

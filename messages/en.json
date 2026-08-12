@@ -28,11 +28,11 @@
     "rights": "All rights reserved."
   },
   "landing": {
-    "badge": "agents for your business",
+    "badge": "Integrate AI agents",
     "hero": {
-      "title1": "Your business, powered",
-      "title2": "by BotIvA agents",
-      "description": "Build agents, ship them with a widget, and run everything from the dashboard. BotIvA for sales, support, and ops — without standing up infrastructure.",
+      "title1": "Grow your business",
+      "title2": "with AI agents",
+      "description": "Build agents on your knowledge, publish them on your site or via API, and run everything from the dashboard. Sales, support, and ops — without standing up infrastructure.",
       "ctaPrimary": "View pricing",
       "ctaAccount": "Sign in to BotIvA"
     },
@@ -291,7 +291,7 @@
     "cta": {
       "title1": "Put BotIvA",
       "title2": "on your site",
-      "subtitle": "Plan, agents, widget, and dashboard. Cancel anytime.",
+      "subtitle": "Dashboard, agents, widget, and API. Cancel anytime.",
       "primary": "View pricing",
       "secondary": "I already have an account"
     },

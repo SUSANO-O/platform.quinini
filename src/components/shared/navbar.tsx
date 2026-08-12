@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { useState } from 'react';
 import {
   AppBar,
@@ -19,7 +18,8 @@ import {
 } from '@mui/material';
 import { Menu as MenuIcon, X as CloseIcon } from '@/components/ui/icons';
 import { useAuth } from '@/hooks/use-auth';
-import { BRAND_LOGO_SRC, BRAND_NAME } from '@/lib/brand';
+import { BotivaOrbLogo } from '@/components/brand/botiva-orb-logo';
+import { BRAND_NAME } from '@/lib/brand';
 import { SITE_NAV_LINKS } from '@/lib/site-nav';
 
 export function Navbar() {
@@ -36,14 +36,7 @@ export function Navbar() {
               href="/"
               sx={{ display: 'flex', alignItems: 'center', gap: 1.25, textDecoration: 'none', color: 'text.primary', mr: 'auto' }}
             >
-              <Image
-                src={BRAND_LOGO_SRC}
-                alt={BRAND_NAME}
-                width={40}
-                height={40}
-                style={{ height: 36, width: 36, objectFit: 'contain', borderRadius: 12 }}
-                priority
-              />
+              <BotivaOrbLogo size={36} className="shrink-0" />
               <Box component="span" sx={{ fontWeight: 700, fontSize: '1.05rem', display: { xs: 'none', sm: 'inline' } }}>
                 {BRAND_NAME}
               </Box>
