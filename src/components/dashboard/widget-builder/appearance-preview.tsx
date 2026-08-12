@@ -4,6 +4,7 @@ import type { CSSProperties } from 'react';
 import { ImageIcon, Mic, Paperclip, Volume2, X } from 'lucide-react';
 import { initialsFromName } from '@/lib/flow-editor/geometry';
 import type { WidgetConfig } from '@/lib/widget-builder';
+import { BorderBeamField } from '@/components/ui/border-beam-field';
 import { widgetPositionLabel } from './ui';
 
 type PreviewCfg = Pick<
@@ -108,22 +109,28 @@ export function WidgetBuilderAppearancePreview({ cfg }: { cfg: PreviewCfg }) {
             <div className="wb-preview__bubble wb-preview__bubble--user">Quiero más información</div>
           </div>
 
-          <footer className="wb-preview__composer">
-            {cfg.imageUploadEnabled ? (
-              <span className="wb-preview__composer-icon" aria-hidden>
-                <Paperclip size={12} />
+          <BorderBeamField
+            radius={18}
+            theme={cfg.theme === 'dark' ? 'dark' : 'light'}
+            className="wb-preview__composer-beam"
+          >
+            <footer className="wb-preview__composer" style={{ borderRadius: 18 }}>
+              {cfg.imageUploadEnabled ? (
+                <span className="wb-preview__composer-icon" aria-hidden>
+                  <Paperclip size={12} />
+                </span>
+              ) : null}
+              <span className="wb-preview__composer-input">Escribe un mensaje…</span>
+              {cfg.micEnabled ? (
+                <span className="wb-preview__composer-icon" aria-hidden>
+                  <Mic size={12} />
+                </span>
+              ) : null}
+              <span className="wb-preview__composer-send" style={{ background: cfg.color }} aria-hidden>
+                →
               </span>
-            ) : null}
-            <span className="wb-preview__composer-input">Escribe un mensaje…</span>
-            {cfg.micEnabled ? (
-              <span className="wb-preview__composer-icon" aria-hidden>
-                <Mic size={12} />
-              </span>
-            ) : null}
-            <span className="wb-preview__composer-send" style={{ background: cfg.color }} aria-hidden>
-              →
-            </span>
-          </footer>
+            </footer>
+          </BorderBeamField>
 
           {cfg.policyEnabled !== false ? (
             <p className="wb-preview__policy">

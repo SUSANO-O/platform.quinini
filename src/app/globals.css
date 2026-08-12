@@ -6169,6 +6169,12 @@ button.dashboard-meta-chip:disabled {
   border-top: 1px solid var(--border-subtle);
 }
 
+.wb-preview__composer-beam {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
 .wb-preview__device.is-dark .wb-preview__composer {
   border-top-color: rgba(255, 255, 255, 0.08);
 }
