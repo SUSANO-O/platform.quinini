@@ -39,9 +39,9 @@ export function Navbar() {
               <Image
                 src={BRAND_LOGO_SRC}
                 alt={BRAND_NAME}
-                width={120}
-                height={36}
-                style={{ height: 36, width: 'auto', objectFit: 'contain', borderRadius: 12 }}
+                width={40}
+                height={40}
+                style={{ height: 36, width: 36, objectFit: 'contain', borderRadius: 12 }}
                 priority
               />
               <Box component="span" sx={{ fontWeight: 700, fontSize: '1.05rem', display: { xs: 'none', sm: 'inline' } }}>

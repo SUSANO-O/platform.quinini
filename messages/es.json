@@ -4,6 +4,9 @@
     "training": "Capacitación",
     "pricing": "Precios",
     "faq": "Preguntas frecuentes",
+    "resources": "Recursos",
+    "demos": "Demos",
+    "solutions": "Soluciones",
     "docs": "Documentación",
     "signIn": "Iniciar sesión",
     "startFree": "Ver precios",
@@ -25,7 +28,7 @@
     "rights": "Todos los derechos reservados."
   },
   "landing": {
-    "badge": "BotIvA · agentes en tu web",
+    "badge": "agentes para tu negocio",
     "hero": {
       "title1": "Tu negocio, atendido",
       "title2": "por agentes BotIvA",
@@ -47,7 +50,7 @@
     "how": {
       "badge": "Implementación rápida",
       "title": "De la cuenta BotIvA al widget en vivo",
-      "subtitle": "Nuestra plataforma está diseñada para que despliegues agentes inteligentes sin complicaciones técnicas. Sigue estos cinco pasos y transforma tu atención al cliente hoy mismo.",
+      "subtitle": "Nuestra plataforma está diseñada para que despliegues agentes inteligentes sin complicaciones técnicas. Sigue estos seis pasos y transforma tu atención al cliente hoy mismo.",
       "step1Title": "Crea tu cuenta",
       "step1Desc": "Regístrate con tu código de autorización y accede al panel de control cuando tengas un plan activo.",
       "step2Title": "Entrena tu agente",
@@ -57,7 +60,9 @@
       "step4Title": "Copia el snippet",
       "step4Desc": "Copia una sola línea de código e insértala en tu sitio web. Tu agente estará activo y listo para ayudar de inmediato.",
       "step5Title": "Escala cuando estés listo",
-      "step5Desc": "Actualiza al plan que necesites, añade multi-agente o más capacidad. Sin contratos, cancela cuando quieras."
+      "step5Desc": "Actualiza al plan que necesites, añade multi-agente o más capacidad. Sin contratos, cancela cuando quieras.",
+      "step6Title": "Opera con varios agentes",
+      "step6Desc": "Combina ventas, soporte y operaciones en el mismo panel. Orquesta flujos y mide resultados en tiempo real."
     },
     "agents": {
       "title": "Agentes BotIvA por dominio",

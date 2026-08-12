@@ -36,6 +36,7 @@ export async function enrichInternalAssistWithWidget(
       welcome: 1,
       fabHint: 1,
       avatar: 1,
+      fabAvatarSize: 1,
     })
     .lean()) as {
     _id: unknown;
@@ -48,6 +49,7 @@ export async function enrichInternalAssistWithWidget(
     welcome?: string;
     fabHint?: string;
     avatar?: string;
+    fabAvatarSize?: number;
   } | null;
 
   if (!w || w.active === false) return config;
@@ -73,6 +75,6 @@ export async function enrichInternalAssistWithWidget(
     ...(typeof w.subtitle === 'string' && w.subtitle.trim() ? { subtitle: w.subtitle.trim() } : {}),
     ...(typeof w.welcome === 'string' && w.welcome.trim() ? { welcome: w.welcome.trim() } : {}),
     ...(typeof w.fabHint === 'string' && w.fabHint.trim() ? { fabHint: w.fabHint.trim() } : {}),
-    ...(typeof w.avatar === 'string' && w.avatar.trim() ? { avatar: w.avatar.trim() } : {}),
+    // Orbe: tamaño del boot (más compacto); no heredar fabAvatarSize grande de Mongo.
   };
 }

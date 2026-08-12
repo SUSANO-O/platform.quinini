@@ -56,9 +56,9 @@ export function Footer() {
               <Image
                 src={BRAND_LOGO_SRC}
                 alt={BRAND_NAME}
-                width={100}
-                height={30}
-                style={{ height: 32, width: 'auto', objectFit: 'contain', borderRadius: 8 }}
+                width={36}
+                height={36}
+                style={{ height: 32, width: 32, objectFit: 'contain', borderRadius: 8 }}
               />
               <Typography fontWeight={700}>{BRAND_NAME}</Typography>
             </Stack>

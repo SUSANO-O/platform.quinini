@@ -7,7 +7,7 @@ describe('resolveInternalAssistBoot', () => {
     expect(cfg.agentId).toBe('math-ais');
     expect(cfg.position).toBe('bottom-right');
     expect(cfg.host).toBe('https://app.example.com');
-    expect(cfg.color).toBe('#fb0e0e');
+    expect(cfg.color).toBe('#006B7D');
   });
 
   it('returns marketing defaults', () => {
@@ -15,7 +15,8 @@ describe('resolveInternalAssistBoot', () => {
     expect(cfg.agentId).toBe('math');
     expect(cfg.host).toBe('https://app.example.com');
     expect(cfg.fabHint).toBe('Hola! Como puedo ayudarte hoy?');
-    expect(cfg.avatar).toBe('/assets/marketing/math-avatar-cutout.webp');
+    expect(cfg.avatar).toBe('/assets/marketing/math-avatar-cutout.webp?v=orb3');
+    expect(cfg.fabAvatarSize).toBe(52);
   });
 
   it('prefers request origin over NEXT_PUBLIC_APP_URL for widget host', () => {
@@ -33,6 +34,8 @@ describe('resolveInternalAssistBoot', () => {
 
 describe('resolveAssistScriptUrl', () => {
   it('defaults to /assist.js on origin', () => {
-    expect(resolveAssistScriptUrl('https://botiva.example.com')).toBe('https://botiva.example.com/assist.js');
+    expect(resolveAssistScriptUrl('https://botiva.example.com')).toBe(
+      'https://botiva.example.com/assist.js?v=1.6.67',
+    );
   });
 });
