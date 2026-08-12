@@ -15,7 +15,7 @@ import {
   BarChart2, Users, UserCheck, X, Loader2,
 } from '@/components/ui/icons';
 
-import { BRAND, STATE, R } from '@/lib/brand-colors';
+import { STATE } from '@/lib/brand-colors';
 import { countOwnedMainAgents } from '@/lib/agent-plans';
 import { resolveRange, type DateRange } from '@/lib/date-range';
 import { DateRangePicker } from '@/components/dashboard/date-range-picker';
@@ -67,6 +67,10 @@ function formatHour(h: number) {
   if (h === 12) return '12 PM';
   return `${h - 12} PM`;
 }
+
+const CHART_ACCENT = '#111111';
+const CHART_MUTED = 'var(--muted-foreground)';
+const CHART_SURFACE = 'rgba(0, 0, 0, 0.04)';
 
 const STATUS_COLOR: Record<string, string> = {
   operational: STATE.success,
@@ -245,8 +249,8 @@ export default function DashboardPage() {
               {/* Header */}
               <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center justify-center rounded-lg" style={{ width: 28, height: 28, background: `${R}12` }}>
-                    <BarChart2 size={14} style={{ color: R }} />
+                  <div className="flex items-center justify-center rounded-lg" style={{ width: 28, height: 28, background: CHART_SURFACE }}>
+                    <BarChart2 size={14} style={{ color: CHART_MUTED }} />
                   </div>
                   <h3 className="text-[13px] font-bold m-0">Analítica de widgets</h3>
                 </div>
@@ -262,7 +266,7 @@ export default function DashboardPage() {
                 )}
                 {widgets.length === 1 && (
                   <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                    style={{ background: `${R}10`, color: R }}>
+                    style={{ background: CHART_SURFACE, color: CHART_ACCENT }}>
                     {widgets[0].name}
                   </span>
                 )}
@@ -275,7 +279,7 @@ export default function DashboardPage() {
                   </p>
                   <Link href="/dashboard/widget-builder"
                     className="inline-flex items-center gap-1.5 mt-3 text-xs font-bold no-underline"
-                    style={{ color: R }}>
+                    style={{ color: CHART_ACCENT }}>
                     Crear widget <ArrowUpRight size={12} />
                   </Link>
                 </div>
@@ -294,19 +298,19 @@ export default function DashboardPage() {
                   {/* Stat tiles */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                     <AnalyticTile
-                      icon={<Users size={12} style={{ color: R }} />}
+                      icon={<Users size={12} style={{ color: CHART_MUTED }} />}
                       label="Aperturas" value={widgetAnalytics.summary.totalSessions.toLocaleString('es')}
                       sub="sesiones en 3 meses" />
                     <AnalyticTile
-                      icon={<MessageSquare size={12} style={{ color: R }} />}
+                      icon={<MessageSquare size={12} style={{ color: CHART_MUTED }} />}
                       label="Mensajes / sesión" value={String(widgetAnalytics.summary.avgMessagesPerSession)}
                       sub="promedio por conversación" />
                     <AnalyticTile
-                      icon={<UserCheck size={12} style={{ color: R }} />}
+                      icon={<UserCheck size={12} style={{ color: CHART_MUTED }} />}
                       label="Leads (handoff)" value={`${widgetAnalytics.summary.escalationRate}%`}
                       sub="pidieron hablar con humano" />
                     <AnalyticTile
-                      icon={<TrendingUp size={12} style={{ color: R }} />}
+                      icon={<TrendingUp size={12} style={{ color: CHART_MUTED }} />}
                       label="Abandono" value={`${widgetAnalytics.summary.dropOffRate}%`}
                       sub="abrieron sin escribir" />
                   </div>
@@ -321,21 +325,21 @@ export default function DashboardPage() {
                     >
                       <div className="flex items-center justify-between gap-3 flex-wrap">
                         <div>
-                          <span className="text-[10px] font-bold uppercase" style={{ color: R, letterSpacing: '0.05em' }}>Satisfacción</span>
+                          <span className="text-[10px] font-bold uppercase" style={{ color: CHART_MUTED, letterSpacing: '0.05em' }}>Satisfacción</span>
                           <p className="text-2xl font-extrabold m-0 mt-1">
                             {widgetAnalytics.satisfaction.avgScore != null
                               ? `${widgetAnalytics.satisfaction.avgScore.toFixed(1)} / 5`
                               : 'Sin datos'}
-                            <span style={{ color: R, marginLeft: 8, fontSize: 18, opacity: 0.85 }}>
+                            <span style={{ color: CHART_ACCENT, marginLeft: 8, fontSize: 18, opacity: 0.85 }}>
                               {'★'.repeat(Math.round(widgetAnalytics.satisfaction.avgScore || 0))}
-                              <span style={{ color: 'rgba(var(--brand-primary-rgb),0.2)' }}>{'★'.repeat(5 - Math.round(widgetAnalytics.satisfaction.avgScore || 0))}</span>
+                              <span style={{ color: 'rgba(0,0,0,0.18)' }}>{'★'.repeat(5 - Math.round(widgetAnalytics.satisfaction.avgScore || 0))}</span>
                             </span>
                           </p>
                           <p className="text-[11px] m-0 mt-1" style={{ color: 'var(--muted-foreground)' }}>
                             {widgetAnalytics.satisfaction.totalResponses} respuesta{widgetAnalytics.satisfaction.totalResponses === 1 ? '' : 's'} · {widgetAnalytics.satisfaction.responseRate}% de las sesiones respondió
                           </p>
                         </div>
-                        <span className="text-xs font-bold" style={{ color: R }}>Ver respuestas →</span>
+                        <span className="text-xs font-bold" style={{ color: CHART_ACCENT }}>Ver respuestas →</span>
                       </div>
                     </button>
                   )}
@@ -344,10 +348,10 @@ export default function DashboardPage() {
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="rounded-xl p-4" style={{ background: 'rgba(var(--brand-primary-rgb),0.03)' }}>
                       <div className="flex items-center gap-2 mb-2">
-                        <Clock size={12} style={{ color: R }} />
+                        <Clock size={12} style={{ color: CHART_MUTED }} />
                         <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>Hora pico</span>
                       </div>
-                      <p className="text-3xl font-extrabold m-0" style={{ letterSpacing: '-0.03em', color: R }}>
+                      <p className="text-3xl font-extrabold m-0" style={{ letterSpacing: '-0.03em', color: 'var(--foreground)' }}>
                         {widgetAnalytics.peakHour == null ? '—' : formatHour(widgetAnalytics.peakHour)}
                       </p>
                       <p className="text-[11px] m-0 mt-1" style={{ color: 'var(--muted-foreground)' }}>
@@ -357,7 +361,7 @@ export default function DashboardPage() {
 
                     <div className="rounded-xl p-4" style={{ background: 'rgba(var(--brand-primary-rgb),0.03)' }}>
                       <div className="flex items-center gap-2 mb-3">
-                        <BarChart2 size={12} style={{ color: R }} />
+                        <BarChart2 size={12} style={{ color: CHART_MUTED }} />
                         <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>Sesiones por mes</span>
                       </div>
                       <div className="flex items-end gap-2" style={{ height: 56 }}>
@@ -369,7 +373,7 @@ export default function DashboardPage() {
                               <span className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>{m.sessions}</span>
                               <div className="w-full rounded-t-md" style={{
                                 height: `${pct}%`, minHeight: 4,
-                                background: `linear-gradient(180deg,${BRAND.primaryLight},${R})`, opacity: 0.9,
+                                background: `linear-gradient(180deg, #525252, ${CHART_ACCENT})`, opacity: 0.92,
                               }} />
                               <span className="text-[9px]" style={{ color: 'var(--muted-foreground)' }}>{m.month.slice(5)}</span>
                             </div>
@@ -414,9 +418,9 @@ export default function DashboardPage() {
                     <div key={f._id} className="rounded-xl p-3" style={{ border: '1px solid var(--border)' }}>
                       <div className="flex items-center justify-between mb-2">
                         {f.score != null ? (
-                          <span style={{ color: R, fontSize: 15, opacity: 0.9 }}>
+                          <span style={{ color: CHART_ACCENT, fontSize: 15, opacity: 0.9 }}>
                             {'★'.repeat(Math.round(f.score))}
-                            <span style={{ color: 'rgba(var(--brand-primary-rgb),0.22)' }}>{'★'.repeat(5 - Math.round(f.score))}</span>
+                            <span style={{ color: 'rgba(0,0,0,0.18)' }}>{'★'.repeat(5 - Math.round(f.score))}</span>
                           </span>
                         ) : <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Sin rating</span>}
                         <span className="text-[11px]" style={{ color: 'var(--muted-foreground)' }}>

@@ -4,7 +4,7 @@
  * Mantener APP_VERSION en sync con package.json.
  */
 
-export const APP_VERSION = '1.1.0';
+export const APP_VERSION = '1.2.0';
 
 export type ReleaseNoteItem = {
   title: string;
@@ -23,6 +23,74 @@ export type AppRelease = {
 };
 
 export const APP_RELEASES: AppRelease[] = [
+  {
+    version: '1.2.0',
+    date: '2026-08-12',
+    title: 'Panel más claro, widget más cómodo y botones más amables',
+    summary:
+      'El dashboard gana un look negro y blanco más ordenado, gráficos más legibles, botones grises fáciles de pulsar y un chat embebido con más aire y mejor feedback mientras responde.',
+    features: [
+      {
+        audience: 'all',
+        title: 'Dashboard negro y blanco',
+        description:
+          'Paleta más limpia en el panel: fondos claros, acentos en negro y gráficos en escala de grises para leer métricas sin distracciones.',
+      },
+      {
+        audience: 'all',
+        title: 'Botones grises estilo app moderna',
+        description:
+          'Los botones principales del panel usan grises suaves en lugar de negro puro, con forma de píldora y transiciones discretas.',
+      },
+      {
+        audience: 'all',
+        title: 'Widget con más espacio y lectura premium',
+        description:
+          'Más separación entre mensajes, burbujas más cómodas y composer más claro para que el chat en tu web se sienta más cuidado.',
+      },
+      {
+        audience: 'all',
+        title: 'Feedback visual al consultar',
+        description:
+          'El borde animado al escribir o mientras el agente piensa es más visible y pegado al borde, para que sepas que está trabajando.',
+      },
+      {
+        audience: 'all',
+        title: 'Navegación móvil del panel',
+        description:
+          'Barra inferior con logo recortado, mejor safe-area y el asistente ya no se solapa con los controles del móvil.',
+      },
+      {
+        audience: 'internal',
+        title: 'Widget SDK 1.6.81',
+        description:
+          'build:widget sincroniza core.js, public/widget.js, assist.js e internal-assist-config (cache ?v=).',
+      },
+      {
+        audience: 'internal',
+        title: 'Tema MUI del dashboard',
+        description: 'ThemeProvider con dashboard-mui-theme.ts (botones/chips grises, sin teal landing).',
+      },
+    ],
+    fixes: [
+      {
+        audience: 'all',
+        title: 'Selector de fechas del panel',
+        description: 'Calendario y rangos más claros en las vistas de analítica.',
+      },
+      {
+        audience: 'all',
+        title: 'Planes de suscripción',
+        description: 'Botones de upgrade alineados al nuevo estilo gris del panel.',
+      },
+      {
+        audience: 'internal',
+        title: 'Rollback documentado',
+        description:
+          'Ver CHANGELOG §1.2.0: Vercel → Promote deployment anterior; widget.js usa ?v= para invalidar caché.',
+      },
+    ],
+  },
   {
     version: '1.1.0',
     date: '2026-07-18',

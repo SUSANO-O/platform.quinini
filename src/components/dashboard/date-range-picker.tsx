@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Calendar, Check, ChevronDown } from '@/components/ui/icons';
 import { DashboardButton } from '@/components/dashboard/dashboard-button';
 import { resolveRange, toColombiaDateInput, type DateRange, type RangePreset } from '@/lib/date-range';
@@ -21,10 +22,19 @@ interface Props {
 
 export function DateRangePicker({ value, onChange }: Props) {
   const [open, setOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [customFrom, setCustomFrom] = useState(() => toColombiaDateInput(value.from));
   const [customTo, setCustomTo] = useState(() => toColombiaDateInput(value.to));
   const ref = useRef<HTMLDivElement>(null);
   const isCustom = value.preset === 'custom';
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const sync = () => setIsMobile(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
 
   useEffect(() => {
     setCustomFrom(toColombiaDateInput(value.from));
@@ -52,8 +62,64 @@ export function DateRangePicker({ value, onChange }: Props) {
     setOpen(false);
   }
 
+  const panel = (
+    <div
+      className="dashboard-filter-menu__panel dashboard-date-range-picker__panel"
+      role="menu"
+    >
+      {PRESETS.map((p) => {
+        const selected = value.preset === p.key;
+        return (
+          <button
+            key={p.key}
+            type="button"
+            role="menuitemradio"
+            aria-checked={selected}
+            className={`dashboard-filter-menu__option${selected ? ' is-selected' : ''}`}
+            onClick={() => selectPreset(p.key)}
+          >
+            <span>{p.label}</span>
+            {selected ? <Check size={14} aria-hidden /> : null}
+          </button>
+        );
+      })}
+
+      <div className="dashboard-date-range-picker__custom">
+        <p className="dashboard-date-range-picker__custom-title">Personalizado</p>
+        <div className="dashboard-date-range-picker__fields">
+          <label className="dashboard-date-range-picker__field">
+            <span className="dashboard-date-range-picker__field-label">Desde</span>
+            <input
+              type="date"
+              className="dashboard-date-range-picker__input"
+              value={customFrom}
+              onChange={(e) => setCustomFrom(e.target.value)}
+            />
+          </label>
+          <label className="dashboard-date-range-picker__field">
+            <span className="dashboard-date-range-picker__field-label">Hasta</span>
+            <input
+              type="date"
+              className="dashboard-date-range-picker__input"
+              value={customTo}
+              onChange={(e) => setCustomTo(e.target.value)}
+            />
+          </label>
+          <DashboardButton
+            variant="primary"
+            className="dashboard-date-range-picker__apply"
+            disabled={!customFrom || !customTo}
+            onClick={applyCustom}
+          >
+            Aplicar
+          </DashboardButton>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="dashboard-filter-menu dashboard-date-range-picker" ref={ref}>
+    <div className={`dashboard-filter-menu dashboard-date-range-picker${open ? ' is-open' : ''}`} ref={ref}>
       <DashboardButton
         variant="secondary"
         className={`dashboard-filter-menu__trigger${isCustom ? ' is-active' : ''}`}
@@ -70,61 +136,22 @@ export function DateRangePicker({ value, onChange }: Props) {
         />
       </DashboardButton>
 
-      {open ? (
-        <div
-          className="dashboard-filter-menu__panel dashboard-date-range-picker__panel"
-          role="menu"
-        >
-          {PRESETS.map((p) => {
-            const selected = value.preset === p.key;
-            return (
-              <button
-                key={p.key}
-                type="button"
-                role="menuitemradio"
-                aria-checked={selected}
-                className={`dashboard-filter-menu__option${selected ? ' is-selected' : ''}`}
-                onClick={() => selectPreset(p.key)}
-              >
-                <span>{p.label}</span>
-                {selected ? <Check size={14} aria-hidden /> : null}
-              </button>
-            );
-          })}
+      {open && !isMobile ? panel : null}
 
-          <div className="dashboard-date-range-picker__custom">
-            <p className="dashboard-date-range-picker__custom-title">Personalizado</p>
-            <div className="dashboard-date-range-picker__fields">
-              <label className="dashboard-date-range-picker__field">
-                <span className="dashboard-date-range-picker__field-label">Desde</span>
-                <input
-                  type="date"
-                  className="dashboard-date-range-picker__input"
-                  value={customFrom}
-                  onChange={(e) => setCustomFrom(e.target.value)}
-                />
-              </label>
-              <label className="dashboard-date-range-picker__field">
-                <span className="dashboard-date-range-picker__field-label">Hasta</span>
-                <input
-                  type="date"
-                  className="dashboard-date-range-picker__input"
-                  value={customTo}
-                  onChange={(e) => setCustomTo(e.target.value)}
-                />
-              </label>
-              <DashboardButton
-                variant="primary"
-                className="dashboard-date-range-picker__apply"
-                disabled={!customFrom || !customTo}
-                onClick={applyCustom}
-              >
-                Aplicar
-              </DashboardButton>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {open && isMobile && typeof document !== 'undefined'
+        ? createPortal(
+            <>
+              <button
+                type="button"
+                className="dashboard-filter-menu__backdrop"
+                aria-label="Cerrar filtro de fechas"
+                onClick={() => setOpen(false)}
+              />
+              <div className="dashboard-date-range-picker__sheet">{panel}</div>
+            </>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
