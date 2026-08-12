@@ -8,7 +8,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.6.85';
+  var VERSION = '1.6.86';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -413,7 +413,9 @@
   function syncFabAvatarMode(fab, cfg) {
     if (usesFabSilhouetteAvatar(cfg)) fab.classList.add('afhub-fab--avatar');
     else fab.classList.remove('afhub-fab--avatar');
-    fab.classList.remove('afhub-fab--avatar-vector', 'afhub-fab--avatar-teal');
+    if (hasFabAvatar(cfg) && isVectorAvatar(cfg.avatar)) fab.classList.add('afhub-fab--avatar-vector');
+    else fab.classList.remove('afhub-fab--avatar-vector');
+    fab.classList.remove('afhub-fab--avatar-teal');
   }
 
   var AFHUB_FONT_STACK =
@@ -1542,6 +1544,7 @@
     root.style.position = 'fixed';
     root.style.zIndex = String(2147483000 + INSTANCE_COUNT);
     root.style.fontFamily = AFHUB_FONT_STACK;
+    root.style.background = 'transparent';
     root.setAttribute('data-afhub-theme', cfg.theme);
     if (cfg.debug) root.classList.add('afhub-widget--debug');
 
@@ -5942,6 +5945,8 @@
         '-webkit-text-size-adjust:100%;' +
       '}' +
       '#' + rootId + ' * { box-sizing:border-box; margin:0; padding:0; }' +
+      '#' + rootId + ' { background:transparent !important; }' +
+      '#' + rootId + ' .afhub-launcher,#' + rootId + ' .afhub-fab-wrap { background:transparent !important; }' +
       '#' + rootId + ' .afhub-msg,#' + rootId + ' .afhub-msg-rich .afhub-p,#' + rootId + ' .afhub-msg-text { font-weight:400; letter-spacing:.01em; color:inherit; }' +
       '#' + rootId + ' .afhub-msg.user { font-weight:500; }' +
       '#' + rootId + ' .afhub-msg-rich strong,#' + rootId + ' .afhub-header-info h3 { font-weight:600; }' +
@@ -6027,11 +6032,14 @@
       '#' + rootId + ' .afhub-orb--avatar-silhouette { border-radius:0; overflow:visible; background:transparent; box-shadow:none; }' +
       '#' + rootId + ' .afhub-orb--avatar-silhouette .afhub-orb-avatar-img { border-radius:0; object-fit:contain; object-position:center center; background:transparent; border:none; box-shadow:none; filter:drop-shadow(0 4px 10px rgba(15,23,42,.16)); image-rendering:auto; -webkit-backface-visibility:hidden; backface-visibility:hidden; transform:translateZ(0); }' +
       /* FAB con avatar — orbe flotante, sin disco #061018 ni anillo blanco */
-      '#' + rootId + ' .afhub-fab.afhub-fab--avatar { width:' + fabAvatarPx + 'px; height:' + fabAvatarPx + 'px; border-radius:0; background:transparent; background-blend-mode:normal; filter:none; padding:0; overflow:visible; box-shadow:none; transition:transform .28s cubic-bezier(.22,1,.36,1); }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar { width:' + fabAvatarPx + 'px; height:' + fabAvatarPx + 'px; border-radius:0; background:transparent !important; background-blend-mode:normal; filter:none; padding:0; overflow:visible; box-shadow:none; transition:transform .28s cubic-bezier(.22,1,.36,1); appearance:none; -webkit-appearance:none; }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar:not(.afhub-fab--avatar-vector) { border-radius:50%; overflow:hidden; }' +
       '#' + rootId + ' .afhub-fab.afhub-fab--avatar::before,#' + rootId + ' .afhub-fab.afhub-fab--avatar::after { display:none; }' +
-      '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-fab-inner { width:100%; height:100%; border-radius:0; overflow:visible; }' +
-      '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-orb--avatar { width:100%; height:100%; padding:0; background:transparent; box-shadow:none; border-radius:0; overflow:visible; }' +
-      '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-orb-avatar-img { width:100%; height:100%; border-radius:0; object-fit:contain; object-position:center center; box-shadow:none; display:block; image-rendering:auto; border:none; filter:drop-shadow(0 4px 10px rgba(15,23,42,.16)); background:transparent; -webkit-backface-visibility:hidden; backface-visibility:hidden; transform:translateZ(0); }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-fab-inner { width:100%; height:100%; border-radius:inherit; overflow:hidden; }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-orb--avatar { width:100%; height:100%; padding:0; background:transparent; box-shadow:none; border-radius:inherit; overflow:hidden; }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar:not(.afhub-fab--avatar-vector) .afhub-orb--avatar-silhouette { border-radius:50%; overflow:hidden; }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar .afhub-orb-avatar-img { width:100%; height:100%; border-radius:inherit; object-fit:contain; object-position:center center; box-shadow:none; display:block; image-rendering:auto; border:none; filter:drop-shadow(0 4px 10px rgba(15,23,42,.16)); background:transparent; -webkit-backface-visibility:hidden; backface-visibility:hidden; transform:translateZ(0); }' +
+      '#' + rootId + ' .afhub-fab.afhub-fab--avatar:not(.afhub-fab--avatar-vector) .afhub-orb-avatar-img { border-radius:50%; object-fit:cover; }' +
       '#' + rootId + '.afhub-open .afhub-fab.afhub-fab--avatar { width:' + fabAvatarPx + 'px; height:' + fabAvatarPx + 'px; background:transparent; box-shadow:none; opacity:1; }' +
       '#' + rootId + ' .afhub-fab.afhub-fab--avatar:hover { transform:scale(1.07); filter:none; box-shadow:none; }' +
       '#' + rootId + ' .afhub-fab.afhub-fab--avatar:hover .afhub-orb-avatar-img { filter:drop-shadow(0 6px 14px rgba(15,23,42,.22)); }' +
