@@ -14,12 +14,13 @@ type BorderBeamFieldProps = {
   /** `line` = haz inferior (útil para “ondas” de voz). */
   size?: 'md' | 'line';
   strength?: number;
+  duration?: number;
+  colorVariant?: 'colorful' | 'mono' | 'ocean' | 'sunset';
 };
 
 /**
  * Wrapper seguro para inputs/composers.
  * Nunca usar size="sm" de border-beam: fuerza 70×36 y rompe el layout.
- * size="md" + colorful ≈ borde completo; size="line" ≈ ondas / voz.
  */
 export function BorderBeamField({
   children,
@@ -30,14 +31,17 @@ export function BorderBeamField({
   theme = 'light',
   size = 'line',
   strength = 0.55,
+  duration,
+  colorVariant = 'colorful',
 }: BorderBeamFieldProps) {
+  const resolvedDuration = duration ?? (size === 'line' ? 3.6 : 2.6);
   return (
     <BorderBeam
       size={size}
       theme={theme}
-      colorVariant="colorful"
+      colorVariant={colorVariant}
       strength={strength}
-      duration={size === 'line' ? 3.6 : 2.6}
+      duration={resolvedDuration}
       borderRadius={radius}
       active={active}
       className={className}

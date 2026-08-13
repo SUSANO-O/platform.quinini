@@ -15,6 +15,7 @@ import { connectDB } from '@/lib/db/connection';
 import { Widget, ClientAgent, User } from '@/lib/db/models';
 import { validateMultiAgentMode } from '@/lib/widget-multi-agent';
 import { normalizeHandoffNotifyMode, resolveWidgetHumanSupportPhone } from '@/lib/handoff-notify';
+import { normalizeAiBeamFields } from '@/lib/widget-ai-beam';
 import { getCorsHeaders, handlePreflight, withCors } from '@/lib/cors';
 
 export async function OPTIONS(req: NextRequest) {
@@ -35,7 +36,7 @@ export async function GET(req: NextRequest) {
   await connectDB();
 
   const widget = await Widget.findOne({ afhubToken: token })
-    .select('_id userId agentId color title subtitle welcome fabHint avatar fabAvatarSize position theme borderRadius autoOpen fabDismissible voiceEnabled imageUploadEnabled micEnabled humanSupportPhone humanSupportEnabled handoffEnabled handoffNotifyMode handoffTimeout shortcuts multiAgentEnabled multiAgentMode active feedbackEnabled feedbackTitle feedbackThanks feedbackQuestions conversationIdleTimeout policyEnabled policyText policyLinkLabel policyUrl')
+    .select('_id userId agentId color title subtitle welcome fabHint avatar fabAvatarSize position theme borderRadius autoOpen fabDismissible voiceEnabled imageUploadEnabled micEnabled aiBeamScope aiBeamPalette aiBeamColor aiBeamBlur aiBeamSpeed aiBeamIntensity humanSupportPhone humanSupportEnabled handoffEnabled handoffNotifyMode handoffTimeout shortcuts multiAgentEnabled multiAgentMode active feedbackEnabled feedbackTitle feedbackThanks feedbackQuestions conversationIdleTimeout policyEnabled policyText policyLinkLabel policyUrl')
     .lean() as Record<string, unknown> | null;
 
   if (!widget) {
@@ -65,6 +66,8 @@ export async function GET(req: NextRequest) {
       voiceName = typeof agent?.widgetVoiceName === 'string' ? agent.widgetVoiceName : '';
     } catch { /* non-critical — fallback to auto voice */ }
   }
+
+  const aiBeam = normalizeAiBeamFields(widget as Record<string, unknown>);
 
   return withCors(
     req,
@@ -116,6 +119,7 @@ export async function GET(req: NextRequest) {
         policyText:      typeof widget.policyText === 'string' ? widget.policyText : '',
         policyLinkLabel: typeof widget.policyLinkLabel === 'string' ? widget.policyLinkLabel : '',
         policyUrl:       typeof widget.policyUrl === 'string' ? widget.policyUrl : '',
+        ...aiBeam,
       },
       {
         headers: {

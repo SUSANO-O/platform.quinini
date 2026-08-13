@@ -12,6 +12,7 @@ import { verifySessionToken, isUserEmailVerified, isImpersonationSession } from 
 import { validateMultiAgentWidgetSave, validateMultiAgentMode, validatePipelineWidgetConfigSave } from '@/lib/widget-multi-agent';
 import { normalizeHandoffNotifyMode, normalizeWidgetSupportFields } from '@/lib/handoff-notify';
 import { applySoloWidgetDefaults } from '@/lib/solo-plan-limits';
+import { normalizeAiBeamFields } from '@/lib/widget-ai-beam';
 
 function getUserId(req: NextRequest): string | null {
   const token = req.cookies.get('afhub_session')?.value;
@@ -144,6 +145,7 @@ export async function POST(req: NextRequest) {
 
   const widget = await Widget.create({
     ...restNormalized,
+    ...normalizeAiBeamFields(restNormalized as Record<string, unknown>),
     name: nameStr,
     userId,
     afhubToken,

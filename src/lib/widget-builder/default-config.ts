@@ -1,4 +1,5 @@
 import { BRAND } from '@/lib/brand-colors';
+import { DEFAULT_AI_BEAM } from '@/lib/widget-ai-beam';
 import type { WidgetConfig } from './types';
 
 export const DEFAULT_WIDGET_CONFIG: WidgetConfig = {
@@ -37,4 +38,5 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig = {
   agentIds: [],
   orchestratorAgentIds: [],
   pipelineConfig: null,
+  ...DEFAULT_AI_BEAM,
 };

@@ -2,9 +2,13 @@
 
 import type { CSSProperties } from 'react';
 import { AvatarEditor } from '@/components/ui/AvatarEditor';
+import { Sparkles } from '@/components/ui/icons';
 import { BRAND } from '@/lib/brand-colors';
-import type { WidgetConfig, WidgetConfigPatch } from '@/lib/widget-builder';
-import { WIDGET_BUILDER_UI_ACCENT } from '@/lib/widget-builder';
+import type { AiBeamScope, WidgetConfig, WidgetConfigPatch } from '@/lib/widget-builder';
+import {
+  WIDGET_BUILDER_UI_ACCENT,
+  aiBeamScopeLabel,
+} from '@/lib/widget-builder';
 import { WidgetBuilderAppearancePreview } from '@/components/dashboard/widget-builder/appearance-preview';
 import {
   WidgetBuilderColorField,
@@ -31,6 +35,19 @@ const COLOR_PRESETS = [
 ] as const;
 
 const RADIUS_PRESETS = ['0px', '8px', '12px', '16px', '20px', '24px'] as const;
+
+const AI_BEAM_SCOPE_OPTIONS: { id: AiBeamScope; label: string; hint: string }[] = [
+  { id: 'off', label: 'Off', hint: 'Sin borde mágico' },
+  { id: 'input', label: 'Input', hint: 'Solo barra de mensaje' },
+  { id: 'messages', label: 'Mensajes', hint: 'Solo tarjeta “pensando”' },
+  { id: 'both', label: 'Ambos', hint: 'Input + mensajes' },
+];
+
+const AI_BEAM_PALETTE_OPTIONS = [
+  { id: 'rainbow' as const, label: 'Arcoíris' },
+  { id: 'brand' as const, label: 'Color marca' },
+  { id: 'custom' as const, label: 'Personalizado' },
+];
 
 const VISUAL_TOGGLES = [
   {
@@ -63,6 +80,7 @@ const VISUAL_TOGGLES = [
 export function WidgetBuilderAppearanceStep({
   cfg,
   onChange,
+  autoSave = false,
 }: {
   cfg: Pick<
     WidgetConfig,
@@ -83,9 +101,17 @@ export function WidgetBuilderAppearanceStep({
     | 'fabDismissible'
     | 'policyEnabled'
     | 'policyLinkLabel'
+    | 'aiBeamScope'
+    | 'aiBeamPalette'
+    | 'aiBeamColor'
+    | 'aiBeamBlur'
+    | 'aiBeamSpeed'
+    | 'aiBeamIntensity'
   >;
   onChange: (patch: WidgetConfigPatch) => void;
 }) {
+  const aiBeamOn = cfg.aiBeamScope !== 'off';
+
   return (
     <div className="widget-builder-appearance">
       <div className="widget-builder-appearance__form">
@@ -126,6 +152,139 @@ export function WidgetBuilderAppearanceStep({
               accentColor={cfg.color}
               onChange={(theme) => onChange({ theme })}
             />
+          </WidgetBuilderSection>
+
+          <WidgetBuilderSection
+            tourId="widget-builder-ai-beam"
+            title="Modo AI (borde mágico)"
+            description={
+              autoSave
+                ? 'Borde animado en el input y/o en la tarjeta de “pensando”. Los cambios se guardan al editar un widget existente.'
+                : 'Borde animado en el input y/o en la tarjeta de “pensando”. Personaliza color, difuminado y velocidad.'
+            }
+            bodyClassName="widget-builder-section__body--grid"
+          >
+            <div className="widget-builder-field widget-builder-field--full widget-builder-ai-beam-head">
+              <div className="widget-builder-ai-beam-head__text">
+                <p className="widget-builder-visual-toggles__label">
+                  <Sparkles size={14} aria-hidden className="inline-block align-[-2px] mr-1" />
+                  Activar borde mágico
+                </p>
+                <p className="widget-builder-visual-toggles__hint">
+                  Actual: {aiBeamScopeLabel(cfg.aiBeamScope)}
+                  {aiBeamOn && cfg.aiBeamPalette !== 'rainbow'
+                    ? ` · ${cfg.aiBeamPalette === 'brand' ? 'color marca' : 'color custom'}`
+                    : ''}
+                </p>
+              </div>
+              <WidgetBuilderSwitch
+                checked={aiBeamOn}
+                accentColor={WIDGET_BUILDER_UI_ACCENT}
+                onChange={(checked) => onChange({ aiBeamScope: checked ? 'both' : 'off' })}
+                ariaLabel="Activar borde mágico modo AI"
+              />
+            </div>
+
+            {aiBeamOn ? (
+              <>
+                <WidgetBuilderField className="widget-builder-field--full">
+                  <WidgetBuilderLabel>Dónde mostrar</WidgetBuilderLabel>
+                  <div className="widget-builder-ai-beam-scope" role="group" aria-label="Alcance del borde mágico">
+                    {AI_BEAM_SCOPE_OPTIONS.filter((o) => o.id !== 'off').map((opt) => {
+                      const active = cfg.aiBeamScope === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          title={opt.hint}
+                          aria-pressed={active}
+                          className={`widget-builder-ai-beam-scope__btn${active ? ' is-active' : ''}`}
+                          style={active ? ({ ['--wb-accent' as string]: cfg.color } as CSSProperties) : undefined}
+                          onClick={() => onChange({ aiBeamScope: opt.id })}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </WidgetBuilderField>
+
+                <WidgetBuilderField className="widget-builder-field--full">
+                  <WidgetBuilderLabel>Color del borde</WidgetBuilderLabel>
+                  <div className="widget-builder-ai-beam-scope" role="group" aria-label="Paleta del borde">
+                    {AI_BEAM_PALETTE_OPTIONS.map((opt) => {
+                      const active = cfg.aiBeamPalette === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          aria-pressed={active}
+                          className={`widget-builder-ai-beam-scope__btn${active ? ' is-active' : ''}`}
+                          style={active ? ({ ['--wb-accent' as string]: cfg.color } as CSSProperties) : undefined}
+                          onClick={() =>
+                            opt.id === 'custom'
+                              ? onChange({
+                                  aiBeamPalette: 'custom',
+                                  aiBeamColor: cfg.aiBeamColor?.trim() || cfg.color,
+                                })
+                              : onChange({ aiBeamPalette: opt.id })
+                          }
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </WidgetBuilderField>
+
+                {cfg.aiBeamPalette === 'custom' ? (
+                  <WidgetBuilderField className="widget-builder-field--full">
+                    <WidgetBuilderColorField
+                      id="wb-ai-beam-color"
+                      label="Color del borde"
+                      value={cfg.aiBeamColor || cfg.color}
+                      onChange={(aiBeamColor) => onChange({ aiBeamColor })}
+                    />
+                  </WidgetBuilderField>
+                ) : null}
+
+                <WidgetBuilderRangeField
+                  id="wb-ai-beam-blur"
+                  label={`Difuminación (${cfg.aiBeamBlur}px)`}
+                  value={cfg.aiBeamBlur}
+                  min={0}
+                  max={20}
+                  step={1}
+                  accentColor={cfg.color}
+                  hint="Halo suave alrededor del borde."
+                  onChange={(aiBeamBlur) => onChange({ aiBeamBlur })}
+                />
+
+                <WidgetBuilderRangeField
+                  id="wb-ai-beam-speed"
+                  label={`Velocidad animación (${cfg.aiBeamSpeed}s)`}
+                  value={cfg.aiBeamSpeed}
+                  min={2}
+                  max={16}
+                  step={0.5}
+                  accentColor={cfg.color}
+                  hint="Segundos por vuelta completa del gradiente."
+                  onChange={(aiBeamSpeed) => onChange({ aiBeamSpeed })}
+                />
+
+                <WidgetBuilderRangeField
+                  id="wb-ai-beam-intensity"
+                  label={`Intensidad (${cfg.aiBeamIntensity}%)`}
+                  value={cfg.aiBeamIntensity}
+                  min={10}
+                  max={100}
+                  step={5}
+                  accentColor={cfg.color}
+                  hint="Opacidad del borde y del brillo."
+                  onChange={(aiBeamIntensity) => onChange({ aiBeamIntensity })}
+                />
+              </>
+            ) : null}
           </WidgetBuilderSection>
 
           <WidgetBuilderSection

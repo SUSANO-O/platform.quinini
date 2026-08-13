@@ -1,5 +1,6 @@
 import type { HandoffNotifyMode } from '@/lib/handoff-notify';
 import type { PipelineConfig } from '@/lib/widget-pipeline-ui';
+import type { AiBeamPalette, AiBeamScope } from '@/lib/widget-ai-beam';
 
 export interface WidgetShortcut {
   id: string;
@@ -58,6 +59,13 @@ export interface WidgetConfig {
   agentIds: string[];
   orchestratorAgentIds: string[];
   pipelineConfig: PipelineConfig | null;
+  /** Borde mágico modo AI: off | input | messages | both */
+  aiBeamScope: AiBeamScope;
+  aiBeamPalette: AiBeamPalette;
+  aiBeamColor: string;
+  aiBeamBlur: number;
+  aiBeamSpeed: number;
+  aiBeamIntensity: number;
 }
 
 export interface ClientAgentRow {

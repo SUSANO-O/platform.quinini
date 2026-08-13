@@ -12,8 +12,15 @@ import { ClientAgent, User, Widget } from '@/lib/db/models';
 import type { InternalAssistContext } from '@/lib/internal-assist-config';
 import { canAttemptHubSync, ensureClientAgentHubSynced, fetchCatalogAgentFromHub, syncHubCatalogFromLandingAgentDoc } from '@/lib/aibackhub-sync';
 import { MATH_AIS_SYSTEM_PROMPT } from '@/lib/math-ais-content';
+import {
+  MATH_MARKETING_SYSTEM_PROMPT,
+  mathMarketingBehaviorRules,
+  mathMarketingFaqs,
+  mathMarketingRagSources,
+} from '@/lib/math-marketing-content';
 import { mathAisMongoToolIds } from '@/lib/math-ais-mcp';
 import { mathAisApiToolIds } from '@/lib/math-ais-api-mcp';
+import { mathMarketingMcpToolIds } from '@/lib/math-marketing-mcp';
 
 export type LandingAssistSlot = {
   context: InternalAssistContext;
@@ -47,8 +54,7 @@ export function landingAssistSlots(): LandingAssistSlot[] {
         process.env.INTERNAL_MARKETING_ASSIST_AVATAR ||
         '/assets/marketing/math-avatar-cutout.webp'
       ).trim(),
-      systemPrompt:
-        'Eres Math, el asistente de la landing de BotIvA. Ayudas a visitantes con dudas sobre el producto, planes y cómo empezar. Sé claro, cercano y breve. Si piden atención humana, sugiere WhatsApp cuando esté disponible.',
+      systemPrompt: MATH_MARKETING_SYSTEM_PROMPT,
     },
     {
       context: 'app',
@@ -228,6 +234,7 @@ export async function ensureLandingAssistAgents(options?: {
     }
 
     const isMathAis = slot.context === 'app';
+    const isMathMarketing = slot.context === 'marketing';
 
     if (!agent) {
       agent = await ClientAgent.create({
@@ -242,8 +249,16 @@ export async function ensureLandingAssistAgents(options?: {
         agentHubId: slot.hubId,
         isPlatform: false,
         syncStatus: 'pending',
-        ragEnabled: false,
+        ragEnabled: isMathMarketing,
         strictPurposeOnly: true,
+        ...(isMathMarketing
+          ? {
+              behaviorRules: mathMarketingBehaviorRules(),
+              agentFaqs: mathMarketingFaqs(),
+              ragSources: mathMarketingRagSources(),
+              enabledMcpToolIds: mathMarketingMcpToolIds(),
+            }
+          : {}),
         ...(isMathAis
           ? {
               hubspotAutoCaptureContacts: false,
@@ -264,6 +279,13 @@ export async function ensureLandingAssistAgents(options?: {
       if (isMathAis) {
         $set.hubspotAutoCaptureContacts = false;
         $set.enabledMcpToolIds = [...mathAisMongoToolIds(), ...mathAisApiToolIds()];
+      }
+      if (isMathMarketing) {
+        $set.ragEnabled = true;
+        $set.behaviorRules = mathMarketingBehaviorRules();
+        $set.agentFaqs = mathMarketingFaqs();
+        $set.ragSources = mathMarketingRagSources();
+        $set.enabledMcpToolIds = mathMarketingMcpToolIds();
       }
       await ClientAgent.updateOne({ _id: agent._id }, { $set });
       updated.agents.push(String(agent._id));

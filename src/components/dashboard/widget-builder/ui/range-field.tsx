@@ -23,8 +23,11 @@ export function WidgetBuilderRangeField({
   hint?: string;
   onChange: (value: number) => void;
 }) {
-  const dec = () => onChange(Math.max(min, value - step));
-  const inc = () => onChange(Math.min(max, value + step));
+  const parseStep = step < 1 ? parseFloat : (raw: string) => parseInt(raw, 10);
+  const roundStep = (n: number) => (step < 1 ? Math.round(n * 10) / 10 : Math.round(n));
+
+  const dec = () => onChange(roundStep(Math.max(min, value - step)));
+  const inc = () => onChange(roundStep(Math.min(max, value + step)));
 
   return (
     <WidgetBuilderField>
@@ -40,7 +43,10 @@ export function WidgetBuilderRangeField({
           max={max}
           step={step}
           value={value}
-          onChange={(e) => onChange(Math.min(max, Math.max(min, parseInt(e.target.value, 10) || value)))}
+          onChange={(e) => {
+            const parsed = parseStep(e.target.value);
+            onChange(roundStep(Math.min(max, Math.max(min, Number.isFinite(parsed) ? parsed : value))));
+          }}
           className="widget-builder-range-row__slider"
           style={{ accentColor }}
         />

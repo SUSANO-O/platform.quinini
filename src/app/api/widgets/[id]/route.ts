@@ -11,6 +11,14 @@ import { verifySessionToken } from '@/lib/auth';
 import { validateMultiAgentWidgetSave, validateMultiAgentMode, validatePipelineWidgetConfigSave } from '@/lib/widget-multi-agent';
 import { invalidateWidgetTokenCache } from '@/lib/widget-token-verify';
 import { normalizeHandoffNotifyMode, normalizeWidgetSupportFields } from '@/lib/handoff-notify';
+import {
+  normalizeAiBeamBlur,
+  normalizeAiBeamColor,
+  normalizeAiBeamIntensity,
+  normalizeAiBeamPalette,
+  normalizeAiBeamScope,
+  normalizeAiBeamSpeed,
+} from '@/lib/widget-ai-beam';
 import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 import { SOLO_WIDGET_LOCKED } from '@/lib/solo-plan-limits';
 
@@ -52,6 +60,12 @@ const PATCHABLE = [
   'policyText',
   'policyLinkLabel',
   'policyUrl',
+  'aiBeamScope',
+  'aiBeamPalette',
+  'aiBeamColor',
+  'aiBeamBlur',
+  'aiBeamSpeed',
+  'aiBeamIntensity',
 ] as const;
 
 type PatchableKey = (typeof PATCHABLE)[number];
@@ -144,6 +158,30 @@ export async function PATCH(
     if (key === 'fabAvatarSize') {
       const n = typeof v === 'number' ? v : parseInt(String(v), 10);
       if (Number.isFinite(n)) $set.fabAvatarSize = Math.min(120, Math.max(56, Math.round(n)));
+      continue;
+    }
+    if (key === 'aiBeamScope') {
+      $set.aiBeamScope = normalizeAiBeamScope(v);
+      continue;
+    }
+    if (key === 'aiBeamPalette') {
+      $set.aiBeamPalette = normalizeAiBeamPalette(v);
+      continue;
+    }
+    if (key === 'aiBeamColor') {
+      $set.aiBeamColor = normalizeAiBeamColor(v);
+      continue;
+    }
+    if (key === 'aiBeamBlur') {
+      $set.aiBeamBlur = normalizeAiBeamBlur(v);
+      continue;
+    }
+    if (key === 'aiBeamSpeed') {
+      $set.aiBeamSpeed = normalizeAiBeamSpeed(v);
+      continue;
+    }
+    if (key === 'aiBeamIntensity') {
+      $set.aiBeamIntensity = normalizeAiBeamIntensity(v);
       continue;
     }
     if (typeof v === 'string') {
