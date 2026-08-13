@@ -4,6 +4,7 @@ import type { CSSProperties } from 'react';
 import { ImageIcon, Mic, Paperclip, Volume2, X } from '@/components/ui/icons';
 import { initialsFromName } from '@/lib/flow-editor/geometry';
 import type { WidgetConfig } from '@/lib/widget-builder';
+import { aiBeamShowsInput, aiBeamShowsMessages } from '@/lib/widget-builder';
 import { BorderBeamField } from '@/components/ui/border-beam-field';
 import { widgetPositionLabel } from './ui';
 
@@ -25,6 +26,12 @@ type PreviewCfg = Pick<
   | 'fabDismissible'
   | 'policyEnabled'
   | 'policyLinkLabel'
+  | 'aiBeamScope'
+  | 'aiBeamPalette'
+  | 'aiBeamColor'
+  | 'aiBeamBlur'
+  | 'aiBeamSpeed'
+  | 'aiBeamIntensity'
 >;
 
 function parseRadiusPx(value: string): number {
@@ -57,6 +64,30 @@ export function WidgetBuilderAppearancePreview({ cfg }: { cfg: PreviewCfg }) {
   const initials = initialsFromName(cfg.title || 'Bot');
   const posStyle = POSITION_STYLE[cfg.position] ?? POSITION_STYLE['bottom-right'];
   const hasAvatar = Boolean(cfg.avatar?.trim());
+  const showInputBeam = aiBeamShowsInput(cfg.aiBeamScope);
+  const showMsgBeam = aiBeamShowsMessages(cfg.aiBeamScope);
+  const beamStrength = Math.min(1, Math.max(0.1, cfg.aiBeamIntensity / 100));
+  const beamVariant =
+    cfg.aiBeamPalette === 'rainbow' ? 'colorful' : cfg.aiBeamPalette === 'brand' ? 'ocean' : 'sunset';
+
+  const composer = (
+    <footer className="wb-preview__composer" style={{ borderRadius: 18 }}>
+      {cfg.imageUploadEnabled ? (
+        <span className="wb-preview__composer-icon" aria-hidden>
+          <Paperclip size={12} />
+        </span>
+      ) : null}
+      <span className="wb-preview__composer-input">Escribe un mensaje…</span>
+      {cfg.micEnabled ? (
+        <span className="wb-preview__composer-icon" aria-hidden>
+          <Mic size={12} />
+        </span>
+      ) : null}
+      <span className="wb-preview__composer-send" style={{ background: cfg.color }} aria-hidden>
+        →
+      </span>
+    </footer>
+  );
 
   return (
     <div className="wb-preview">
@@ -106,31 +137,43 @@ export function WidgetBuilderAppearancePreview({ cfg }: { cfg: PreviewCfg }) {
 
           <div className="wb-preview__chat-body">
             <div className="wb-preview__bubble wb-preview__bubble--bot">{cfg.welcome || '¡Hola!'}</div>
+            {showMsgBeam ? (
+              <BorderBeamField
+                radius={999}
+                theme={cfg.theme === 'dark' ? 'dark' : 'light'}
+                className="wb-preview__thinking-beam"
+                active
+                size="md"
+                strength={beamStrength}
+                duration={cfg.aiBeamSpeed}
+                colorVariant={beamVariant}
+              >
+                <div className="wb-preview__thinking-card">
+                  <p className="wb-preview__thinking-caption">Consultando documentos indexados…</p>
+                  <p className="wb-preview__thinking-sub">Buscando en la base de conocimiento</p>
+                  <p className="wb-preview__thinking-state">Pensando</p>
+                </div>
+              </BorderBeamField>
+            ) : null}
             <div className="wb-preview__bubble wb-preview__bubble--user">Quiero más información</div>
           </div>
 
-          <BorderBeamField
-            radius={18}
-            theme={cfg.theme === 'dark' ? 'dark' : 'light'}
-            className="wb-preview__composer-beam"
-          >
-            <footer className="wb-preview__composer" style={{ borderRadius: 18 }}>
-              {cfg.imageUploadEnabled ? (
-                <span className="wb-preview__composer-icon" aria-hidden>
-                  <Paperclip size={12} />
-                </span>
-              ) : null}
-              <span className="wb-preview__composer-input">Escribe un mensaje…</span>
-              {cfg.micEnabled ? (
-                <span className="wb-preview__composer-icon" aria-hidden>
-                  <Mic size={12} />
-                </span>
-              ) : null}
-              <span className="wb-preview__composer-send" style={{ background: cfg.color }} aria-hidden>
-                →
-              </span>
-            </footer>
-          </BorderBeamField>
+          {showInputBeam ? (
+            <BorderBeamField
+              radius={18}
+              theme={cfg.theme === 'dark' ? 'dark' : 'light'}
+              className="wb-preview__composer-beam"
+              active
+              size="line"
+              strength={beamStrength}
+              duration={cfg.aiBeamSpeed}
+              colorVariant={beamVariant}
+            >
+              {composer}
+            </BorderBeamField>
+          ) : (
+            composer
+          )}
 
           {cfg.policyEnabled !== false ? (
             <p className="wb-preview__policy">
@@ -171,7 +214,7 @@ export function WidgetBuilderAppearancePreview({ cfg }: { cfg: PreviewCfg }) {
       <ul className="wb-preview__legend">
         <li>
           <ImageIcon size={11} aria-hidden />
-          Barra según toggles de input
+          Borde mágico según alcance y sliders
         </li>
       </ul>
     </div>

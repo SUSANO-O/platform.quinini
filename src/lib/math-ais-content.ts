@@ -48,7 +48,7 @@ export function mathAisFaqs() {
     ],
     [
       '¿Qué planes hay?',
-      'Team, Plus y Business. Cada plan abre más agentes, tools, RAG y WhatsApp.',
+      'Solo ($7/mes), Team ($35/mes), Plus ($50/mes), Business ($749/mes), API Develop ($29/mes, solo API) y Enterprise (contacto). Cada plan abre más conversaciones, RAG, integraciones y WhatsApp.',
     ],
     [
       '¿Cómo veo conversaciones?',

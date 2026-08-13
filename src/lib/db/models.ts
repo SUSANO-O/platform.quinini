@@ -150,6 +150,13 @@ const WidgetSchema = new Schema({
   imageUploadEnabled: { type: Boolean, default: true },
   /** Si false, oculta el botón micrófono (STT) en el input del chat. */
   micEnabled: { type: Boolean, default: true },
+  /** Borde mágico modo AI: off | input | messages | both */
+  aiBeamScope: { type: String, enum: ['off', 'input', 'messages', 'both'], default: 'both' },
+  aiBeamPalette: { type: String, enum: ['rainbow', 'brand', 'custom'], default: 'rainbow' },
+  aiBeamColor: { type: String, default: '' },
+  aiBeamBlur: { type: Number, default: 4 },
+  aiBeamSpeed: { type: Number, default: 5 },
+  aiBeamIntensity: { type: Number, default: 85 },
   /** Teléfono WhatsApp (con código de país); el SDK ofrece enlace si humanSupportEnabled. */
   humanSupportPhone: { type: String, default: '' },
   /** Si false, no se muestra oferta WhatsApp por palabras clave ni enlaces wa.me. */

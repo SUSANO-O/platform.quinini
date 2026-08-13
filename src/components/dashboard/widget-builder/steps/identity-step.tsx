@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { Loader2, Search } from '@/components/ui/icons';
+import { Search } from '@/components/ui/icons';
 import { PipelineEditor } from '@/components/dashboard/pipeline-editor';
 import {
   createDefaultPipelineConfig,
@@ -130,12 +130,7 @@ export function WidgetBuilderIdentityStep({
               Selecciona uno o más agentes. Cada uno aporta su equipo de sub-agentes al triaje.
             </WidgetBuilderHint>
           ) : null}
-          {loadingInitial ? (
-            <p className="flex items-center gap-2 text-[13px] m-0" style={{ color: 'var(--muted-foreground)' }}>
-              <Loader2 size={14} className="animate-spin shrink-0" aria-hidden />
-              Cargando…
-            </p>
-          ) : agents.length === 0 ? (
+          {agents.length === 0 ? (
             <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', margin: 0 }}>
               No tienes agentes activos.{' '}
               <Link href="/dashboard/agents/new" className="font-semibold landing-link-accent text-[13px]">

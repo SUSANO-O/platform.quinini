@@ -22,19 +22,44 @@ export function computeAvatarCropRect(
   };
 }
 
-/** Exporta un canvas a JPEG data URL, reduciendo calidad y/o tamaño hasta caber en el límite. */
+/** Exporta un canvas a PNG (transparencia) o JPEG, reduciendo tamaño hasta caber en el límite. */
 export function compressCanvasToDataUrl(
   canvas: HTMLCanvasElement,
   maxLength: number = USER_AVATAR_MAX_DATA_URL_LENGTH,
 ): string {
-  const encode = (target: HTMLCanvasElement, quality: number) =>
+  const encodePng = (target: HTMLCanvasElement) => target.toDataURL('image/png');
+  const encodeJpeg = (target: HTMLCanvasElement, quality: number) =>
     target.toDataURL('image/jpeg', quality);
 
+  const tryPng = (target: HTMLCanvasElement) => {
+    let dataUrl = encodePng(target);
+    if (dataUrl.length <= maxLength) return dataUrl;
+
+    let scale = 0.85;
+    while (scale >= 0.4) {
+      const w = Math.max(96, Math.round(target.width * scale));
+      const h = Math.max(96, Math.round(target.height * scale));
+      const tmp = document.createElement('canvas');
+      tmp.width = w;
+      tmp.height = h;
+      const ctx = tmp.getContext('2d');
+      if (!ctx) break;
+      ctx.drawImage(target, 0, 0, w, h);
+      dataUrl = encodePng(tmp);
+      if (dataUrl.length <= maxLength) return dataUrl;
+      scale -= 0.15;
+    }
+    return null;
+  };
+
+  const pngUrl = tryPng(canvas);
+  if (pngUrl) return pngUrl;
+
   let quality = 0.92;
-  let dataUrl = encode(canvas, quality);
+  let dataUrl = encodeJpeg(canvas, quality);
   while (dataUrl.length > maxLength && quality > 0.35) {
     quality = Math.round((quality - 0.07) * 100) / 100;
-    dataUrl = encode(canvas, quality);
+    dataUrl = encodeJpeg(canvas, quality);
   }
   if (dataUrl.length <= maxLength) return dataUrl;
 
@@ -50,10 +75,10 @@ export function compressCanvasToDataUrl(
     ctx.drawImage(canvas, 0, 0, w, h);
 
     quality = 0.88;
-    dataUrl = encode(tmp, quality);
+    dataUrl = encodeJpeg(tmp, quality);
     while (dataUrl.length > maxLength && quality > 0.35) {
       quality = Math.round((quality - 0.07) * 100) / 100;
-      dataUrl = encode(tmp, quality);
+      dataUrl = encodeJpeg(tmp, quality);
     }
     if (dataUrl.length <= maxLength) return dataUrl;
     scale -= 0.15;

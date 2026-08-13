@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/use-subscription';
 import { WidgetBuilderTrustBadges } from '@/components/dashboard/widget-builder-trust-badges';
@@ -10,6 +10,7 @@ import {
   WidgetBuilderFormActions,
   WidgetBuilderFormHeader,
   WidgetBuilderIdentityStep,
+  WidgetBuilderLoadingState,
   WidgetBuilderMobileStepper,
   WidgetBuilderPublishStep,
   WidgetBuilderShell,
@@ -33,6 +34,9 @@ import type {
 } from '@/lib/widget-builder';
 import {
   DEFAULT_WIDGET_CONFIG,
+  mergeWidgetAppearanceFromApi,
+  normalizeAiBeamFields,
+  pickWidgetAppearancePatch,
   WIDGET_STEP_DESCRIPTIONS,
   WIDGET_WIZARD_STEPS,
   WIDGET_BUILDER_UI_ACCENT,
@@ -234,7 +238,7 @@ export default function WidgetBuilderPage() {
     });
   }
 
-  function goNextStep() {
+  async function goNextStep() {
     if (wizardStep === 0) {
       if (!cfg.name.trim()) { toast.error('Indica un nombre para el widget'); return; }
       if (!cfg.agentId) { toast.error('Selecciona un agente'); return; }
@@ -246,6 +250,10 @@ export default function WidgetBuilderPage() {
         toast.error(pipelineSetup.warnings[0] ?? 'Revisa la configuración del pipeline');
         return;
       }
+    }
+    if (wizardStep === 1 && editWidgetId) {
+      const ok = await flushAppearanceSave();
+      if (!ok) return;
     }
     setWizardStep((s) => Math.min(WIDGET_WIZARD_STEPS.length - 1, s + 1));
   }
@@ -369,6 +377,7 @@ export default function WidgetBuilderPage() {
                     : []),
                 ].filter((id) => /^[a-f0-9]{24}$/i.test(String(id))),
               ),
+              ...normalizeAiBeamFields(widget as Record<string, unknown>),
             });
             if (Array.isArray(widget.shortcuts)) {
               setShortcuts((widget.shortcuts as WidgetShortcut[]).map((s) => ({
@@ -421,6 +430,161 @@ export default function WidgetBuilderPage() {
   const update = useCallback((patch: Partial<WidgetConfig>) => {
     setCfg((prev) => ({ ...prev, ...patch }));
   }, []);
+
+  const appearanceSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const appearanceSaveInflight = useRef<Promise<boolean> | null>(null);
+  const appearanceSaveSeq = useRef(0);
+  const cfgRef = useRef(cfg);
+  const editWidgetIdRef = useRef<string | null>(null);
+  cfgRef.current = cfg;
+  editWidgetIdRef.current = editWidgetId;
+
+  /** Cambios discretos (botones/toggles): guardar al instante, sin esperar debounce. */
+  const IMMEDIATE_APPEARANCE_KEYS = new Set<string>([
+    'color',
+    'theme',
+    'position',
+    'borderRadius',
+    'autoOpen',
+    'fabDismissible',
+    'voiceEnabled',
+    'imageUploadEnabled',
+    'micEnabled',
+    'policyEnabled',
+    'aiBeamScope',
+    'aiBeamPalette',
+    'aiBeamColor',
+  ]);
+
+  const patchWidgetFields = useCallback(
+    async (
+      patch: Record<string, unknown>,
+      options?: { syncFromServer?: boolean },
+    ): Promise<boolean> => {
+      const widgetId = editWidgetIdRef.current;
+      if (!widgetId) return false;
+      const seq = ++appearanceSaveSeq.current;
+      try {
+        const res = await fetch(`/api/widgets/${widgetId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(patch),
+        });
+        if (!res.ok) {
+          const err = (await res.json().catch(() => null)) as { error?: string } | null;
+          toast.error(err?.error ?? 'No se pudo guardar los cambios');
+          return false;
+        }
+        if (options?.syncFromServer) {
+          const data = (await res.json()) as { widget?: Record<string, unknown> };
+          if (data.widget && seq === appearanceSaveSeq.current) {
+            setCfg((prev) => mergeWidgetAppearanceFromApi(prev, data.widget!));
+          }
+        } else {
+          await res.json().catch(() => null);
+        }
+        return true;
+      } catch {
+        toast.error('Error de red al guardar');
+        return false;
+      }
+    },
+    [],
+  );
+
+  const flushAppearanceSave = useCallback(
+    async (nextCfg?: WidgetConfig): Promise<boolean> => {
+      if (!editWidgetIdRef.current) return true;
+      if (appearanceSaveTimer.current) {
+        clearTimeout(appearanceSaveTimer.current);
+        appearanceSaveTimer.current = null;
+      }
+      const snapshot = nextCfg ?? cfgRef.current;
+      const run = patchWidgetFields(
+        pickWidgetAppearancePatch(snapshot as unknown as Record<string, unknown>),
+        { syncFromServer: false },
+      );
+      appearanceSaveInflight.current = run;
+      const ok = await run;
+      if (appearanceSaveInflight.current === run) appearanceSaveInflight.current = null;
+      return ok;
+    },
+    [patchWidgetFields],
+  );
+
+  const scheduleAppearanceSave = useCallback(
+    (delayMs = 500) => {
+      if (!editWidgetIdRef.current) return;
+      if (appearanceSaveTimer.current) clearTimeout(appearanceSaveTimer.current);
+      appearanceSaveTimer.current = setTimeout(() => {
+        appearanceSaveTimer.current = null;
+        void patchWidgetFields(
+          pickWidgetAppearancePatch(cfgRef.current as unknown as Record<string, unknown>),
+          { syncFromServer: false },
+        );
+      }, delayMs);
+    },
+    [patchWidgetFields],
+  );
+
+  const updateAppearance = useCallback(
+    (patch: Partial<WidgetConfig>) => {
+      setCfg((prev) => {
+        const next = { ...prev, ...patch };
+        cfgRef.current = next;
+        return next;
+      });
+      const keys = Object.keys(patch);
+      const immediate = keys.some((key) => IMMEDIATE_APPEARANCE_KEYS.has(key));
+      if (immediate) {
+        if (appearanceSaveTimer.current) {
+          clearTimeout(appearanceSaveTimer.current);
+          appearanceSaveTimer.current = null;
+        }
+        queueMicrotask(() => {
+          void flushAppearanceSave();
+        });
+        return;
+      }
+      scheduleAppearanceSave(keys.some((key) => key === 'avatar') ? 900 : 500);
+    },
+    [flushAppearanceSave, scheduleAppearanceSave],
+  );
+
+  useEffect(() => {
+    if (!editWidgetId) return;
+    const flushOnLeave = () => {
+      if (appearanceSaveTimer.current) {
+        clearTimeout(appearanceSaveTimer.current);
+        appearanceSaveTimer.current = null;
+      }
+      const widgetId = editWidgetIdRef.current;
+      if (!widgetId) return;
+      const patch = pickWidgetAppearancePatch(cfgRef.current as unknown as Record<string, unknown>);
+      void fetch(`/api/widgets/${widgetId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+        keepalive: true,
+      }).catch(() => {});
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flushOnLeave();
+    };
+    window.addEventListener('pagehide', flushOnLeave);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.removeEventListener('pagehide', flushOnLeave);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [editWidgetId]);
+
+  useEffect(
+    () => () => {
+      if (appearanceSaveTimer.current) clearTimeout(appearanceSaveTimer.current);
+    },
+    [],
+  );
 
   async function suggestShortcuts() {
     const agentName = agents.find((a) => effectiveWidgetAgentId(a) === cfg.agentId)?.name ?? cfg.title ?? '';
@@ -500,6 +664,11 @@ export default function WidgetBuilderPage() {
           body: JSON.stringify(payload),
         });
         if (res.ok) {
+          const data = (await res.json()) as { widget?: Record<string, unknown> };
+          if (data.widget) {
+            setCfg((prev) => mergeWidgetAppearanceFromApi(prev, data.widget!));
+            cfgRef.current = mergeWidgetAppearanceFromApi(cfgRef.current, data.widget!);
+          }
           toast.success('Widget actualizado');
         } else {
           const err = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -574,7 +743,11 @@ export default function WidgetBuilderPage() {
       railItems={railItems}
       onStepSelect={(id) => {
         const idx = WIDGET_WIZARD_STEPS.findIndex((s) => s.id === id);
-        if (idx >= 0) setWizardStep(idx);
+        if (idx < 0) return;
+        if (wizardStep === 1 && editWidgetId && idx !== 1) {
+          void flushAppearanceSave();
+        }
+        setWizardStep(idx);
       }}
     >
       <WidgetBuilderMobileStepper wizardStep={wizardStep} />
@@ -595,6 +768,10 @@ export default function WidgetBuilderPage() {
               />
             ) : null}
 
+            {loadingInitial ? (
+              <WidgetBuilderLoadingState />
+            ) : (
+              <>
             {wizardStep === 3 ? (
               <WidgetBuilderPublishStep
                 widgetName={cfg.name}
@@ -629,7 +806,11 @@ export default function WidgetBuilderPage() {
             ) : null}
 
             {wizardStep === 1 ? (
-              <WidgetBuilderAppearanceStep cfg={cfg} onChange={update} />
+              <WidgetBuilderAppearanceStep
+                cfg={cfg}
+                onChange={updateAppearance}
+                autoSave={Boolean(editWidgetId)}
+              />
             ) : null}
 
             {wizardStep === 2 ? (
@@ -651,12 +832,17 @@ export default function WidgetBuilderPage() {
               <WidgetBuilderFormActions
                 showBack={wizardStep > 0}
                 soloPrimary={wizardStep === 0}
-                onBack={() => setWizardStep((s) => Math.max(0, s - 1))}
+                onBack={() => {
+                  if (wizardStep === 1 && editWidgetId) void flushAppearanceSave();
+                  setWizardStep((s) => Math.max(0, s - 1));
+                }}
                 onNext={goNextStep}
               />
             ) : null}
 
             {wizardStep === 0 ? <WidgetBuilderTrustBadges /> : null}
+              </>
+            )}
       </div>
     </WidgetBuilderShell>
   );

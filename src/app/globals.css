@@ -7177,6 +7177,122 @@ button.dashboard-meta-chip:disabled {
   color: var(--muted-foreground);
 }
 
+.widget-builder-ai-beam-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background: var(--card);
+}
+
+.widget-builder-ai-beam-head__text {
+  min-width: 0;
+  flex: 1;
+}
+
+.widget-builder-ai-beam-scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.widget-builder-ai-beam-scope__btn {
+  flex: 1 1 auto;
+  min-width: 4.5rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--card);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.widget-builder-ai-beam-scope__btn.is-active {
+  border-color: var(--wb-accent, var(--primary));
+  color: var(--wb-accent, var(--primary));
+  background: rgba(var(--brand-primary-rgb), 0.06);
+}
+
+.wb-preview__thinking-beam {
+  width: 100%;
+  max-width: 100%;
+}
+
+.wb-preview__thinking-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+}
+
+.wb-preview__thinking-caption {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #1c1c1e;
+}
+
+.wb-preview__thinking-sub {
+  margin: 0;
+  font-size: 0.58rem;
+  line-height: 1.35;
+  color: #9ca3af;
+  text-decoration: none;
+  background: transparent;
+}
+
+.wb-preview__thinking-state {
+  margin: 0.35rem 0 0;
+  padding-top: 0;
+  border-top: none;
+  font-size: 0.56rem;
+  font-weight: 500;
+  line-height: 1;
+  background: linear-gradient(90deg, #9ca3af 0%, #cbd5e1 42%, #9ca3af 84%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: wb-thinking-shimmer 2.4s ease-in-out infinite;
+}
+
+.wb-preview__device.is-dark .wb-preview__thinking-card {
+  background: #1e1e28;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.wb-preview__device.is-dark .wb-preview__thinking-caption {
+  color: #ececf1;
+}
+
+.wb-preview__device.is-dark .wb-preview__thinking-sub {
+  color: #9ca3af;
+}
+
+.wb-preview__device.is-dark .wb-preview__thinking-state {
+  border-top: none;
+}
+
+@keyframes wb-thinking-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
 /* Vista previa del widget (paso Apariencia) */
 .wb-preview {
   border-radius: 16px;
@@ -8281,6 +8397,168 @@ button.dashboard-meta-chip:disabled {
 .widget-builder-stepper__dot.is-done {
   background: rgba(var(--brand-primary-rgb), 0.15);
   color: var(--primary);
+}
+
+.widget-builder-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 18rem;
+  padding: 2.5rem 1.25rem 2rem;
+  text-align: center;
+}
+
+.widget-builder-loading__stage {
+  position: relative;
+  width: 7.5rem;
+  height: 7.5rem;
+  display: grid;
+  place-items: center;
+}
+
+.widget-builder-loading__glow {
+  position: absolute;
+  inset: 0.35rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(var(--brand-primary-rgb), 0.28) 0%, rgba(var(--brand-primary-rgb), 0.06) 52%, transparent 72%);
+  animation: widget-builder-loading-glow 2.4s ease-in-out infinite;
+}
+
+.widget-builder-loading__orb {
+  position: relative;
+  z-index: 1;
+  animation: widget-builder-loading-bounce 1.35s cubic-bezier(0.45, 0.05, 0.25, 1) infinite;
+  filter: drop-shadow(0 10px 18px rgba(var(--brand-primary-rgb), 0.22));
+}
+
+.widget-builder-loading__spark {
+  position: absolute;
+  z-index: 2;
+  font-size: 0.95rem;
+  line-height: 1;
+  color: rgba(var(--brand-primary-rgb), 0.85);
+  text-shadow: 0 0 10px rgba(var(--brand-primary-rgb), 0.35);
+  pointer-events: none;
+}
+
+.widget-builder-loading__spark--1 {
+  top: 0.35rem;
+  right: 0.75rem;
+  animation: widget-builder-loading-spark-a 2.1s ease-in-out infinite;
+}
+
+.widget-builder-loading__spark--2 {
+  bottom: 0.65rem;
+  left: 0.35rem;
+  animation: widget-builder-loading-spark-b 2.4s ease-in-out infinite;
+}
+
+.widget-builder-loading__spark--3 {
+  top: 1.15rem;
+  left: 0.15rem;
+  animation: widget-builder-loading-spark-c 1.9s ease-in-out infinite;
+}
+
+.widget-builder-loading__title {
+  margin: 0.35rem 0 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--foreground);
+  letter-spacing: -0.02em;
+}
+
+.widget-builder-loading__hint {
+  margin: 0;
+  min-height: 1.125rem;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+  animation: widget-builder-loading-hint 0.45s ease-out;
+}
+
+@keyframes widget-builder-loading-bounce {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+  35% {
+    transform: translateY(-10px) rotate(-4deg) scale(1.04);
+  }
+  55% {
+    transform: translateY(-4px) rotate(3deg) scale(0.98);
+  }
+  75% {
+    transform: translateY(-8px) rotate(-2deg) scale(1.02);
+  }
+}
+
+@keyframes widget-builder-loading-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes widget-builder-loading-spark-a {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0) scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-6px) scale(1.15);
+  }
+}
+
+@keyframes widget-builder-loading-spark-b {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateX(0) scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(5px) scale(1.1);
+  }
+}
+
+@keyframes widget-builder-loading-spark-c {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: rotate(0deg) scale(0.88);
+  }
+  50% {
+    opacity: 1;
+    transform: rotate(18deg) scale(1.12);
+  }
+}
+
+@keyframes widget-builder-loading-hint {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .widget-builder-loading__orb,
+  .widget-builder-loading__glow,
+  .widget-builder-loading__spark,
+  .widget-builder-loading__hint {
+    animation: none !important;
+  }
 }
 
 /* Paso 4 — Publicar */
