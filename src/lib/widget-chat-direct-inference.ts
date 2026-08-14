@@ -16,6 +16,7 @@ import {
   recallConversationContextBlock,
   shouldRecallConversationMemory,
 } from '@/lib/widget-conversation-recall';
+import { retrieveRagContextBlock } from '@/lib/rag-embeddings-index';
 
 export type DirectInferenceResult = {
   reply: string;
@@ -311,6 +312,18 @@ export async function tryServeWidgetChatViaDirectInference(params: {
       contextBlock = mergeContextBlocks(contextBlock, memoryBlock);
       logWidgetFlow('🧠', 'infer:recall', 'memoria conversacional recuperada', {
         chars: memoryBlock.length,
+      });
+    }
+  }
+
+  /** Los documentos del panel: este camino no los consultaba nunca. */
+  const hubIdForRag = typeof ca.agentHubId === 'string' ? ca.agentHubId.trim() : '';
+  if (!trivial && ca.ragEnabled === true && hubIdForRag) {
+    const ragBlock = await retrieveRagContextBlock({ agentHubId: hubIdForRag, query: message });
+    if (ragBlock) {
+      contextBlock = mergeContextBlocks(contextBlock, ragBlock);
+      logWidgetFlow('📚', 'infer:rag', 'contexto de documentos recuperado', {
+        chars: ragBlock.length,
       });
     }
   }
