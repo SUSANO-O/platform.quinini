@@ -8,10 +8,46 @@ import type { WidgetImageEnrichment } from '@/lib/widget-chat-images';
 import { formatPlatformUiClassificationHint } from '@/lib/botiva-platform-ui-reference';
 import { formatWidgetScreenshotOriginBlock } from '@/lib/widget-image-vision-context';
 
-const IMAGE_REFERENCE_RE =
-  /\b(la imagen|el de la imagen|esta imagen|esa imagen|la foto|esta foto|esa foto|lo de la foto|el veh[ií]culo de la imagen|en la captura|de la captura)\b/i;
+/** Como nombra el usuario al adjunto: "imagen", "foto", "captura"… */
+const IMAGE_NOUN =
+  '(?:im[áa]gen(?:es)?|foto(?:s|graf[íi]as?)?|captura(?:s)?|pantallazo(?:s)?|screenshots?|images?|photos?|pictures?|pics?)';
 
-/** El usuario se refiere a una imagen enviada en un turno anterior. */
+/**
+ * Solo determinantes definidos, demostrativos y posesivos. Los indefinidos
+ * quedan fuera a propósito: "mándame una foto" pide una nueva, no alude a la
+ * que ya se envió.
+ */
+const IMAGE_DETERMINER =
+  '(?:la|el|las|los|esa|ese|esta|este|esas|esos|estas|estos|mi|mis|tu|tus|dicha|dicho|aquella|aquel|the|that|this|those|these|my)';
+
+/**
+ * Fin de palabra tolerante a acentos: `\b` de JavaScript solo mira [A-Za-z0-9_],
+ * asi que "mandé\b" nunca casaria por terminar en vocal acentuada.
+ */
+const FIN = '(?![\\p{L}])';
+
+/** Alusiones sin nombrar el adjunto: "lo que te mandé", "lo que viste". */
+const IMAGE_ACTION_PATTERNS = [
+  `\\bte\\s+(?:la\\s+|lo\\s+|las\\s+|los\\s+)?(?:mand[ée]|envi[ée]|pas[ée]|adjunt[ée]|compart[íi]|mostr[ée]|ense[ñn][ée])${FIN}`,
+  `\\bque\\s+(?:te\\s+)?(?:adjunt[ée]|sub[íi]|mand[ée]|envi[ée])${FIN}`,
+  `\\b(?:lo|eso)\\s+que\\s+(?:viste|analizaste|le[íi]ste|te\\s+(?:mand[ée]|envi[ée]|pas[ée]))${FIN}`,
+  `\\bi\\s+(?:sent|shared|uploaded|attached)${FIN}`,
+];
+
+const IMAGE_REFERENCE_RE = new RegExp(
+  [`\\b${IMAGE_DETERMINER}\\s+${IMAGE_NOUN}${FIN}`, ...IMAGE_ACTION_PATTERNS].join('|'),
+  'iu',
+);
+
+/**
+ * El usuario se refiere a una imagen enviada en un turno anterior.
+ *
+ * Se prefiere pecar de generoso: esto solo se consulta cuando la sesión ya tiene
+ * una imagen analizada, así que un falso positivo como mucho añade contexto de
+ * más, mientras que un falso negativo hace que el agente olvide algo que acaba
+ * de ver. Aun así no cubre alusiones puramente contextuales del tipo "¿cuánto
+ * costaba?", que no nombran el adjunto de ninguna forma.
+ */
 export function messageReferencesPriorImage(message: string): boolean {
   return IMAGE_REFERENCE_RE.test(message.trim());
 }
