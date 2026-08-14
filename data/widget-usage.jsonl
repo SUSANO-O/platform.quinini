@@ -1698,3 +1698,10 @@
 {"t":"2026-08-14T17:48:26.206Z","event":"widget_loaded","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
 {"t":"2026-08-14T17:48:26.530Z","event":"widget_opened","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
 {"t":"2026-08-14T17:48:29.297Z","event":"message_sent","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
+{"t":"2026-08-14T17:48:55.751Z","event":"multi_agent_routed","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
+{"t":"2026-08-14T17:48:55.759Z","event":"message_received","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
+{"t":"2026-08-14T17:49:18.559Z","event":"widget_closed","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
+{"t":"2026-08-14T17:49:19.924Z","event":"widget_opened","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
+{"t":"2026-08-14T17:49:26.566Z","event":"message_sent","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
+{"t":"2026-08-14T17:49:57.616Z","event":"multi_agent_routed","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}
+{"t":"2026-08-14T17:49:57.625Z","event":"message_received","agentId":"69d5084c78e0af3d5536fe95","instanceId":"afhub_1"}

@@ -107,6 +107,14 @@ export function WidgetBuilderAppearanceStep({
     | 'aiBeamBlur'
     | 'aiBeamSpeed'
     | 'aiBeamIntensity'
+    | 'scrollHaloEnabled'
+    | 'scrollHaloColorMode'
+    | 'scrollHaloColor'
+    | 'scrollHaloHeight'
+    | 'scrollHaloOpacity'
+    | 'scrollHaloBlur'
+    | 'scrollHaloTop'
+    | 'scrollHaloBottom'
   >;
   onChange: (patch: WidgetConfigPatch) => void;
   autoSave?: boolean;
