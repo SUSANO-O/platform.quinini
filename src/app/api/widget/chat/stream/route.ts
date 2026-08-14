@@ -49,7 +49,12 @@ import { enrichWidgetChatBodyWithImages, type WidgetImageEnrichment } from '@/li
 import {
   finalizeWidgetChatBodyWithVision,
   mergeVisionContextIntoBody,
+  messageReferencesPriorImage,
 } from '@/lib/widget-chat-vision-context';
+import {
+  loadSessionVisionEnrichment,
+  persistSessionVisionAnalysis,
+} from '@/lib/widget-session-context';
 import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-enrich';
 import { schedulePersistWidgetTranscript } from '@/lib/widget-transcript';
 import { agentHasAnyWebhook } from '@/lib/agent-webhooks';
@@ -141,6 +146,8 @@ export async function POST(req: NextRequest) {
   );
   let rawBody = imageEnriched.body;
   const imageEnrichment: WidgetImageEnrichment | null = imageEnriched.enrichment;
+  /** Imagen de este turno o, si el usuario alude a una anterior, la de la sesión. */
+  let activeVisionEnrichment: WidgetImageEnrichment | null = imageEnrichment;
   const userDisplayMessage = imageEnrichment?.displayMessage || guardResult.text || '';
 
   const hubConfigErr = validateHubProxyConfig(req.nextUrl.origin);
@@ -381,11 +388,37 @@ export async function POST(req: NextRequest) {
           console.warn('[widget/chat/stream] assist identity inject skipped:', idErr);
         }
 
-        if (imageEnrichment?.analyses?.length && parsedAgentId) {
+        const visionWidgetId = resolvedWidgetId || w.id;
+        if (imageEnrichment && visionWidgetId && parsedSessionId) {
+          void persistSessionVisionAnalysis(
+            visionWidgetId,
+            parsedSessionId,
+            w.userId,
+            imageEnrichment,
+          ).catch(() => {});
+        } else if (
+          !imageEnrichment &&
+          visionWidgetId &&
+          parsedSessionId &&
+          messageReferencesPriorImage(guardResult.text || '')
+        ) {
+          try {
+            activeVisionEnrichment = await loadSessionVisionEnrichment(
+              visionWidgetId,
+              parsedSessionId,
+              w.userId,
+              guardResult.text || '',
+            );
+          } catch {
+            /* ignore */
+          }
+        }
+
+        if (activeVisionEnrichment?.analyses?.length && parsedAgentId) {
           try {
             rawBody = await finalizeWidgetChatBodyWithVision({
               rawBody,
-              enrichment: imageEnrichment,
+              enrichment: activeVisionEnrichment,
               agentId: parsedAgentId,
               ownerUserId: w.userId,
               strictPurposeSuffix: STRICT_PURPOSE_SUFFIX,
@@ -678,10 +711,10 @@ export async function POST(req: NextRequest) {
             const agentDoc = await ClientAgent.findOne(agentFilter, { strictPurposeOnly: 1, systemPrompt: 1 })
               .lean() as { strictPurposeOnly?: boolean; systemPrompt?: string } | null;
 
-            if (imageEnrichment) {
+            if (activeVisionEnrichment) {
               hubBody = mergeVisionContextIntoBody(
                 hubBody,
-                imageEnrichment,
+                activeVisionEnrichment,
                 agentDoc?.systemPrompt,
               );
             }
@@ -709,7 +742,7 @@ export async function POST(req: NextRequest) {
                 parsedAgentId: parsedAgentIdLocal,
                 rawBody: hubBody,
                 ownerUserId: faqTrackOwnerId,
-                visionEnrichment: imageEnrichment,
+                visionEnrichment: activeVisionEnrichment,
                 strictPurposeSuffix: STRICT_PURPOSE_SUFFIX,
                 onStatus: (phase, message) => {
                   enqueue({ type: 'status', phase, message });
