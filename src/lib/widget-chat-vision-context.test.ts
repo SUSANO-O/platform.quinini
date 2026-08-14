@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { messageReferencesPriorImage } from './widget-chat-vision-context';
+import {
+  messageReferencesPriorImage,
+  PRIOR_IMAGE_RECENCY_MS,
+  shouldUsePriorImage,
+} from './widget-chat-vision-context';
 
 describe('messageReferencesPriorImage', () => {
   it('reconoce las formas que ya se soportaban', () => {
@@ -68,7 +72,92 @@ describe('messageReferencesPriorImage', () => {
     }
   });
 
-  it('no cubre alusiones sin nombrar el adjunto (limite conocido)', () => {
+  it('no cubre alusiones sin nombrar el adjunto (de eso se ocupa la recencia)', () => {
     expect(messageReferencesPriorImage('¿cuánto costaba?')).toBe(false);
+  });
+});
+
+describe('shouldUsePriorImage', () => {
+  const now = new Date('2026-08-14T12:00:00Z');
+  const haceUnMinuto = new Date(now.getTime() - 60_000);
+  const haceUnaHora = new Date(now.getTime() - 60 * 60_000);
+
+  it('una mencion explicita vale por vieja que sea la imagen', () => {
+    expect(
+      shouldUsePriorImage({
+        message: '¿qué decía la imagen?',
+        analyzedAt: haceUnaHora,
+        trivial: false,
+        now,
+      }),
+    ).toBe(true);
+  });
+
+  it('vale incluso sin marca de tiempo (sesiones anteriores al cambio)', () => {
+    expect(
+      shouldUsePriorImage({ message: '¿qué decía la foto?', analyzedAt: null, trivial: false, now }),
+    ).toBe(true);
+  });
+
+  it('un seguimiento sin mencionarla vale si la imagen es de hace un momento', () => {
+    expect(
+      shouldUsePriorImage({
+        message: '¿cuánto costaba?',
+        analyzedAt: haceUnMinuto,
+        trivial: false,
+        now,
+      }),
+    ).toBe(true);
+  });
+
+  it('el mismo seguimiento ya no vale si la imagen es vieja', () => {
+    expect(
+      shouldUsePriorImage({
+        message: '¿cuánto costaba?',
+        analyzedAt: haceUnaHora,
+        trivial: false,
+        now,
+      }),
+    ).toBe(false);
+  });
+
+  it('justo en el limite todavia vale', () => {
+    const alLimite = new Date(now.getTime() - PRIOR_IMAGE_RECENCY_MS);
+    expect(
+      shouldUsePriorImage({ message: '¿y el precio?', analyzedAt: alLimite, trivial: false, now }),
+    ).toBe(true);
+    expect(
+      shouldUsePriorImage({
+        message: '¿y el precio?',
+        analyzedAt: new Date(alLimite.getTime() - 1),
+        trivial: false,
+        now,
+      }),
+    ).toBe(false);
+  });
+
+  it('un saludo no arrastra la imagen aunque sea reciente', () => {
+    expect(
+      shouldUsePriorImage({ message: 'hola', analyzedAt: haceUnMinuto, trivial: true, now }),
+    ).toBe(false);
+  });
+
+  it('sin imagen en la sesion no hay nada que traer', () => {
+    expect(
+      shouldUsePriorImage({ message: '¿cuánto costaba?', analyzedAt: null, trivial: false, now }),
+    ).toBe(false);
+  });
+
+  it('ignora marcas de tiempo en el futuro', () => {
+    const futuro = new Date(now.getTime() + 60_000);
+    expect(
+      shouldUsePriorImage({ message: '¿cuánto costaba?', analyzedAt: futuro, trivial: false, now }),
+    ).toBe(false);
+  });
+
+  it('un mensaje vacio nunca la trae', () => {
+    expect(
+      shouldUsePriorImage({ message: '   ', analyzedAt: haceUnMinuto, trivial: false, now }),
+    ).toBe(false);
   });
 });

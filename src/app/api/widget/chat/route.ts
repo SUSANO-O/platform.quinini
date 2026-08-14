@@ -38,7 +38,8 @@ import {
   type MultiAgentRoutingMeta,
 } from '@/lib/widget-multi-agent';
 import { enrichWidgetChatBodyWithImages, type WidgetImageEnrichment } from '@/lib/widget-chat-images';
-import { finalizeWidgetChatBodyWithVision, messageReferencesPriorImage } from '@/lib/widget-chat-vision-context';
+import { finalizeWidgetChatBodyWithVision, shouldUsePriorImage } from '@/lib/widget-chat-vision-context';
+import { isTrivialMessage } from '@/lib/trivial-message';
 import {
   loadSessionVisionEnrichment,
   persistSessionVisionAnalysis,
@@ -397,15 +398,25 @@ export async function POST(req: NextRequest) {
           !imageEnrichment &&
           visionWidgetId &&
           parsedSessionId &&
-          messageReferencesPriorImage(guardResult.text || parsedMessage)
+          !isTrivialMessage(guardResult.text || parsedMessage)
         ) {
           try {
-            activeVisionEnrichment = await loadSessionVisionEnrichment(
+            const prior = await loadSessionVisionEnrichment(
               visionWidgetId,
               parsedSessionId,
               w.userId,
               guardResult.text || parsedMessage,
             );
+            if (
+              prior &&
+              shouldUsePriorImage({
+                message: guardResult.text || parsedMessage,
+                analyzedAt: prior.analyzedAt,
+                trivial: false,
+              })
+            ) {
+              activeVisionEnrichment = prior.enrichment;
+            }
           } catch {
             /* ignore */
           }

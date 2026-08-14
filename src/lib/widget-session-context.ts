@@ -145,6 +145,8 @@ export async function mergeSessionFacts(
 
 const VISION_OCR_FACT_KEY = 'vision_ocr';
 const VISION_URL_FACT_KEY = 'vision_url';
+/** Cuándo se analizó, para saber si la imagen sigue siendo del momento. */
+const VISION_AT_FACT_KEY = 'vision_at';
 
 /** Guarda el último análisis OCR/visión de la sesión para follow-ups ("el de la imagen"). */
 export async function persistSessionVisionAnalysis(
@@ -163,9 +165,17 @@ export async function persistSessionVisionAnalysis(
 
   const ctx = await loadWidgetSessionContext(widgetId, chatSessionId, userId);
   const facts = (ctx?.facts ?? []).filter(
-    (f) => f.key !== VISION_OCR_FACT_KEY && f.key !== VISION_URL_FACT_KEY,
+    (f) =>
+      f.key !== VISION_OCR_FACT_KEY &&
+      f.key !== VISION_URL_FACT_KEY &&
+      f.key !== VISION_AT_FACT_KEY,
   );
   facts.push({ key: VISION_OCR_FACT_KEY, value: analysisText, source: 'extracted' });
+  facts.push({
+    key: VISION_AT_FACT_KEY,
+    value: new Date().toISOString(),
+    source: 'extracted',
+  });
   const imageUrl = enrichment.images[0]?.url?.trim();
   if (imageUrl) {
     facts.push({ key: VISION_URL_FACT_KEY, value: imageUrl.slice(0, 500), source: 'extracted' });
@@ -177,21 +187,38 @@ export async function persistSessionVisionAnalysis(
   });
 }
 
-/** Recupera el último OCR/visión de la sesión cuando el usuario alude a la imagen sin re-adjuntarla. */
+export type SessionVisionEnrichment = {
+  enrichment: WidgetImageEnrichment;
+  /** Null en sesiones anteriores a que se guardara la marca de tiempo. */
+  analyzedAt: Date | null;
+};
+
+/**
+ * Recupera el último OCR/visión de la sesión cuando el usuario no re-adjunta la
+ * imagen. Devuelve también cuándo se analizó: quien llama decide si usarla.
+ */
 export async function loadSessionVisionEnrichment(
   widgetId: string,
   chatSessionId: string,
   userId: string,
   userMessage: string,
-): Promise<WidgetImageEnrichment | null> {
+): Promise<SessionVisionEnrichment | null> {
   const ctx = await loadWidgetSessionContext(widgetId, chatSessionId, userId);
   const ocrFact = ctx?.facts?.find((f) => f.key === VISION_OCR_FACT_KEY);
   if (!ocrFact?.value?.trim()) return null;
   const urlFact = ctx?.facts?.find((f) => f.key === VISION_URL_FACT_KEY);
   const url = typeof urlFact?.value === 'string' ? urlFact.value.trim() : '';
+
+  const atFact = ctx?.facts?.find((f) => f.key === VISION_AT_FACT_KEY);
+  const parsedAt = atFact?.value ? new Date(atFact.value) : null;
+  const analyzedAt = parsedAt && !Number.isNaN(parsedAt.getTime()) ? parsedAt : null;
+
   return {
-    images: url ? [{ url }] : [],
-    analyses: [{ url, text: ocrFact.value.trim() }],
-    displayMessage: userMessage.trim(),
+    enrichment: {
+      images: url ? [{ url }] : [],
+      analyses: [{ url, text: ocrFact.value.trim() }],
+      displayMessage: userMessage.trim(),
+    },
+    analyzedAt,
   };
 }

@@ -52,6 +52,31 @@ export function messageReferencesPriorImage(message: string): boolean {
   return IMAGE_REFERENCE_RE.test(message.trim());
 }
 
+/**
+ * Cuánto sigue "viva" una imagen recién analizada para los mensajes que no la
+ * nombran. Cubre el seguimiento inmediato ("¿cuánto costaba?") sin arrastrar el
+ * OCR durante el resto de la conversación.
+ */
+export const PRIOR_IMAGE_RECENCY_MS = 10 * 60 * 1000;
+
+/** Decide si traer al prompt la imagen que el usuario envió en un turno anterior. */
+export function shouldUsePriorImage(params: {
+  message: string;
+  analyzedAt: Date | null;
+  /** Saludos y similares: nunca necesitan la imagen. */
+  trivial: boolean;
+  now?: Date;
+}): boolean {
+  const message = params.message.trim();
+  if (!message) return false;
+
+  if (messageReferencesPriorImage(message)) return true;
+  if (params.trivial || !params.analyzedAt) return false;
+
+  const age = (params.now ?? new Date()).getTime() - params.analyzedAt.getTime();
+  return age >= 0 && age <= PRIOR_IMAGE_RECENCY_MS;
+}
+
 const VISION_FAILURE_MARKERS = [
   '[No se pudo analizar la imagen.]',
   '[Imagen adjunta — configura VERTEX_GEMINI_API_KEY',
