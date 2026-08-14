@@ -416,14 +416,11 @@
   function syncFabAvatarMode(fab, cfg) {
     if (usesFabSilhouetteAvatar(cfg)) fab.classList.add('afhub-fab--avatar');
     else fab.classList.remove('afhub-fab--avatar');
-    if (hasFabAvatar(cfg) && isVectorAvatar(cfg.avatar)) {
-      fab.classList.add('afhub-fab--avatar-vector');
-      fab.classList.remove('afhub-fab--avatar-silhouette');
-      fab.classList.remove('afhub-fab--avatar-round');
-    } else if (hasFabAvatar(cfg)) {
-      fab.classList.remove('afhub-fab--avatar-vector');
+    if (hasFabAvatar(cfg)) {
       fab.classList.add('afhub-fab--avatar-silhouette');
-      fab.classList.add('afhub-fab--avatar-round');
+      fab.classList.remove('afhub-fab--avatar-round');
+      if (isVectorAvatar(cfg.avatar)) fab.classList.add('afhub-fab--avatar-vector');
+      else fab.classList.remove('afhub-fab--avatar-vector');
     } else {
       fab.classList.remove('afhub-fab--avatar-vector');
       fab.classList.remove('afhub-fab--avatar-silhouette');
@@ -6401,13 +6398,14 @@
       '#' + rootId + ' .afhub-orb-core { position:relative; z-index:2; width:12px; height:12px; border-radius:50%; background:radial-gradient(circle at 50% 48%,#fff,rgba(255,255,255,.92)); box-shadow:0 0 14px rgba(255,255,255,.85),inset 0 1px 2px rgba(255,255,255,.5); }' +
       '#' + rootId + ' .afhub-orb-wave { pointer-events:none; position:absolute; left:50%; top:50%; width:26px; height:26px; margin:-13px 0 0 -13px; border-radius:50%; border:2px solid rgba(255,255,255,.42); animation:afhub-wave 2.5s cubic-bezier(.22,1,.36,1) infinite; }' +
       '#' + rootId + ' .afhub-orb-wave-b { animation-delay:1.2s; border-width:1px; border-color:rgba(255,255,255,.28); }' +
-      '#' + rootId + ' .afhub-orb--avatar { width:36px; height:36px; display:flex; align-items:center; justify-content:center; position:relative; border-radius:50%; }' +
+      '#' + rootId + ' .afhub-orb--avatar { width:36px; height:36px; display:flex; align-items:center; justify-content:center; position:relative; border-radius:0; background:transparent; overflow:visible; }' +
       '#' + rootId + ' .afhub-orb-avatar-halo { position:absolute; inset:-22%; border-radius:50%; pointer-events:none; z-index:0; background:radial-gradient(circle at 50% 42%,rgba(255,255,255,.55) 0%,rgba(212,175,55,.22) 42%,transparent 72%); filter:blur(11px); opacity:.9; animation:afhub-avatar-halo 5.2s ease-in-out infinite; }' +
       '#' + rootId + ' .afhub-orb-avatar-img { width:36px; height:36px; border-radius:50%; object-fit:cover; object-position:center 18%; position:relative; z-index:2; display:block; border:2px solid rgba(255,255,255,.94); box-shadow:inset 0 2px 10px rgba(0,0,0,.16),inset 0 -1px 0 rgba(255,255,255,.28),0 4px 14px rgba(0,0,0,.18); filter:contrast(1.06) saturate(1.08); -webkit-backface-visibility:hidden; backface-visibility:hidden; transform:translateZ(0); }' +
       '#' + rootId + ' .afhub-orb-avatar-shine { position:absolute; inset:0; border-radius:50%; pointer-events:none; z-index:3; background:linear-gradient(145deg,rgba(255,255,255,.48) 0%,rgba(255,255,255,.12) 34%,transparent 56%,rgba(255,255,255,.06) 100%); mix-blend-mode:soft-light; }' +
       '#' + rootId + ' .afhub-orb-avatar-halo,#' + rootId + ' .afhub-orb-avatar-shine { display:none; }' +
       '#' + rootId + ' .afhub-orb--avatar-silhouette { border-radius:0; overflow:visible; background:transparent; box-shadow:none; }' +
       '#' + rootId + ' .afhub-orb--avatar-silhouette .afhub-orb-avatar-img { border-radius:0; object-fit:contain; object-position:center center; background:transparent; border:none; box-shadow:none; filter:drop-shadow(0 4px 10px rgba(15,23,42,.16)); image-rendering:auto; -webkit-backface-visibility:hidden; backface-visibility:hidden; transform:translateZ(0); }' +
+      '#' + rootId + ' .afhub-orb--avatar-vector .afhub-orb-avatar-img { border-radius:0; object-fit:contain; object-position:center center; background:transparent; border:none; box-shadow:none; filter:drop-shadow(0 4px 10px rgba(15,23,42,.16)); }' +
       /* FAB con avatar — orbe flotante, sin disco #061018 ni anillo blanco */
       '#' + rootId + ' .afhub-fab.afhub-fab--avatar { width:' + fabAvatarPx + 'px; height:' + fabAvatarPx + 'px; border-radius:0; background:transparent !important; background-blend-mode:normal; filter:none; padding:0; overflow:visible; box-shadow:none; transition:transform .28s cubic-bezier(.22,1,.36,1); appearance:none; -webkit-appearance:none; }' +
       '#' + rootId + ' .afhub-fab.afhub-fab--avatar::before,#' + rootId + ' .afhub-fab.afhub-fab--avatar::after { display:none; }' +
