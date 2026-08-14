@@ -524,6 +524,16 @@ const WidgetSessionContextSchema = new Schema({
 WidgetSessionContextSchema.index({ widgetId: 1, chatSessionId: 1, userId: 1 }, { unique: true });
 WidgetSessionContextSchema.index({ userId: 1, updatedAt: -1 });
 
+// Estado de trabajo de una conversación (resumen, hechos, OCR de la última
+// imagen), no historial: el visitante lo pierde al cerrar la pestaña porque el
+// sessionId vive en sessionStorage. Sin caducidad se acumularía para siempre una
+// fila por conversación, así que se borra sola a los 7 días del último turno.
+// La transcripción visible en el inbox es widgetmessages y no la toca esto.
+WidgetSessionContextSchema.index(
+  { updatedAt: 1 },
+  { expireAfterSeconds: 7 * 24 * 60 * 60, name: 'widgetsessioncontext_ttl' },
+);
+
 // ── RAG BULK JOBS ─────────────────────────────────────────────────────────────
 // Cola async para ingestión masiva de documentos RAG (ZIP o lotes grandes).
 
