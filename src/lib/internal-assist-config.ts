@@ -6,7 +6,7 @@
 import { ASSIST_WIDGET_ORB_SRC } from '@/lib/brand';
 
 /** Mantener en sync con `VERSION` en scripts/widget/core.js (cache-bust de assist.js). */
-export const WIDGET_SDK_VERSION = '1.6.120';
+export const WIDGET_SDK_VERSION = '1.6.132';
 
 const ASSIST_FAB_AVATAR_PX = 60;
 const ASSIST_FAB_MARKETING_PX = 72;

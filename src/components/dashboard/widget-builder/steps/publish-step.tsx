@@ -1,9 +1,35 @@
 'use client';
 
-import { Check, CheckCircle2, Code2, Copy, Save } from '@/components/ui/icons';
+import { useCallback, useState } from 'react';
+import {
+  Check,
+  Copy,
+  Rocket,
+  Save,
+  ShieldCheck,
+  Smartphone,
+  Zap,
+} from '@/components/ui/icons';
 import { BRAND_NAME } from '@/lib/brand';
 
-const PUBLISH_STEPS = ['Identidad', 'Apariencia', 'Comportamiento', 'Publicar'] as const;
+const INSTALL_STEPS = [
+  'Copia el snippet de integración.',
+  'Pégalo justo antes de la etiqueta de cierre </body> en tu HTML.',
+  'Guarda y publica: el widget quedará activo con tu token.',
+] as const;
+
+const FEATURES = [
+  {
+    icon: Smartphone,
+    title: 'Responsive',
+    desc: 'Se adapta a móvil y escritorio.',
+  },
+  {
+    icon: Zap,
+    title: 'Carga async',
+    desc: 'No bloquea la carga de tu sitio.',
+  },
+] as const;
 
 export function WidgetBuilderPublishStep({
   widgetName,
@@ -29,78 +55,93 @@ export function WidgetBuilderPublishStep({
   onBack: () => void;
 }) {
   const displayName = widgetName.trim() || 'tu widget';
+  const [tokenCopied, setTokenCopied] = useState(false);
+
+  const copyToken = useCallback(() => {
+    if (snippetToken === 'YOUR_TOKEN') return;
+    void navigator.clipboard.writeText(snippetToken).then(() => {
+      setTokenCopied(true);
+      window.setTimeout(() => setTokenCopied(false), 2000);
+    });
+  }, [snippetToken]);
 
   return (
     <div className="widget-builder-publish" data-tour="widget-builder-publish">
-      <div className="widget-builder-publish__stepper" aria-label="Progreso del asistente">
-        {PUBLISH_STEPS.map((label, i) => {
-          const done = i < 3;
-          const active = i === 3;
-          return (
-            <div key={label} className="widget-builder-publish__stepper-item">
-              <span
-                className={`widget-builder-publish__stepper-dot${done ? ' is-done' : ''}${active ? ' is-active' : ''}`}
-                aria-hidden
-              >
-                {done ? <Check size={12} strokeWidth={3} /> : i + 1}
-              </span>
-              {active ? (
-                <span className="widget-builder-publish__stepper-label">Paso 4: {label}</span>
-              ) : null}
-              {i < PUBLISH_STEPS.length - 1 ? (
-                <span className="widget-builder-publish__stepper-line" aria-hidden />
-              ) : null}
-            </div>
-          );
-        })}
+      <div className="widget-builder-publish__hero">
+        <span className="widget-builder-publish__hero-icon" aria-hidden>
+          <Rocket size={20} strokeWidth={1.75} />
+        </span>
+        <div className="min-w-0">
+          <p className="widget-builder-publish__hero-eyebrow m-0">Listo para publicar</p>
+          <p className="widget-builder-publish__hero-title m-0">
+            Integra <strong>{displayName}</strong> con {BRAND_NAME}
+          </p>
+        </div>
       </div>
 
-      <h2 className="widget-builder-publish__title">Publicar widget</h2>
-      <p className="widget-builder-publish__desc">
-        Sigue estas instrucciones para integrar <strong>{displayName}</strong> en tu sitio web con{' '}
-        {BRAND_NAME} de forma rápida y segura.
-      </p>
+      <ol className="widget-builder-publish__steps">
+        {INSTALL_STEPS.map((text, i) => (
+          <li key={text}>
+            <span className="widget-builder-publish__step-num" aria-hidden>
+              {i + 1}
+            </span>
+            <span>{text}</span>
+          </li>
+        ))}
+      </ol>
 
-      <div className="widget-builder-publish__install-card">
-        <div className="widget-builder-publish__install-head">
-          <span className="widget-builder-publish__install-icon" aria-hidden>
-            <Code2 size={18} />
-          </span>
-          <div>
-            <p className="widget-builder-publish__install-title m-0">Instrucciones de instalación</p>
-            <p className="widget-builder-publish__install-text m-0">
-              Copia el fragmento de código y pégalo justo antes de la etiqueta de cierre{' '}
-              <code>&lt;/body&gt;</code> en el HTML de tu sitio.
-            </p>
+      <div className="widget-builder-publish__editor" data-tour="widget-builder-copy">
+        <div className="widget-builder-publish__editor-bar">
+          <div className="widget-builder-publish__traffic" aria-hidden>
+            <span />
+            <span />
+            <span />
           </div>
-        </div>
-
-        <div className="widget-builder-publish__code-wrap">
-          <button type="button" className="widget-builder-publish__copy-btn" onClick={onCopy} data-tour="widget-builder-copy">
+          <span className="widget-builder-publish__editor-label">embed.html</span>
+          <button
+            type="button"
+            className="widget-builder-publish__copy-btn"
+            onClick={onCopy}
+            aria-label={copied ? 'Snippet copiado' : 'Copiar snippet de integración'}
+          >
             {copied ? <Check size={14} /> : <Copy size={14} />}
-            {copied ? 'Copiado' : 'Copiar'}
+            {copied ? 'Copiado' : 'Copiar snippet'}
           </button>
-          <pre className="widget-builder-publish__code">
-            <code>{snippet}</code>
-          </pre>
-          {snippetToken !== 'YOUR_TOKEN' ? (
-            <p className="widget-builder-publish__token-hint m-0">
-              Token: <code>{snippetToken}</code>
-            </p>
-          ) : null}
         </div>
+        <pre className="widget-builder-publish__code">
+          <code>{snippet}</code>
+        </pre>
+        {snippetToken !== 'YOUR_TOKEN' ? (
+          <div className="widget-builder-publish__token-row">
+            <ShieldCheck size={15} aria-hidden className="widget-builder-publish__token-icon" />
+            <span className="widget-builder-publish__token-label">Token</span>
+            <code className="widget-builder-publish__token-value">{snippetToken}</code>
+            <button
+              type="button"
+              className="widget-builder-publish__token-copy"
+              onClick={copyToken}
+              aria-label={tokenCopied ? 'Token copiado' : 'Copiar token'}
+            >
+              {tokenCopied ? <Check size={13} /> : <Copy size={13} />}
+              {tokenCopied ? 'Copiado' : 'Copiar'}
+            </button>
+          </div>
+        ) : null}
       </div>
 
-      <ul className="widget-builder-publish__checks">
-        <li>
-          <CheckCircle2 size={16} aria-hidden />
-          Optimizado para dispositivos móviles
-        </li>
-        <li>
-          <CheckCircle2 size={16} aria-hidden />
-          Carga asíncrona (no afecta la velocidad del sitio)
-        </li>
-      </ul>
+      <div className="widget-builder-publish__features">
+        {FEATURES.map(({ icon: Icon, title, desc }) => (
+          <div key={title} className="widget-builder-publish__feature">
+            <span className="widget-builder-publish__feature-icon" aria-hidden>
+              <Icon size={16} strokeWidth={1.75} />
+            </span>
+            <div>
+              <p className="widget-builder-publish__feature-title m-0">{title}</p>
+              <p className="widget-builder-publish__feature-desc m-0">{desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
 
       <div className="widget-builder-publish__actions">
         <button
