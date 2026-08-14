@@ -8,7 +8,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.6.132';
+  var VERSION = '1.6.141';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -495,6 +495,14 @@
     aiBeamBlur: 4,
     aiBeamSpeed: 5,
     aiBeamIntensity: 85,
+    scrollHaloEnabled: true,
+    scrollHaloColorMode: 'brand',
+    scrollHaloColor: '',
+    scrollHaloHeight: 28,
+    scrollHaloOpacity: 55,
+    scrollHaloBlur: 10,
+    scrollHaloTop: true,
+    scrollHaloBottom: true,
     /** Idioma BCP-47 para STT/TTS, por defecto detecta del navegador */
     voiceLang: '',
     /** Nombre exacto de la voz SpeechSynthesis; vacío = auto */
@@ -709,7 +717,15 @@
           'aiBeamColor',
           'aiBeamBlur',
           'aiBeamSpeed',
-          'aiBeamIntensity'
+          'aiBeamIntensity',
+          'scrollHaloEnabled',
+          'scrollHaloColorMode',
+          'scrollHaloColor',
+          'scrollHaloHeight',
+          'scrollHaloOpacity',
+          'scrollHaloBlur',
+          'scrollHaloTop',
+          'scrollHaloBottom'
         ];
         var ri;
         for (ri = 0; ri < remoteWins.length; ri++) {
@@ -871,6 +887,15 @@
     merged.aiBeamBlur = aiBeam.blur;
     merged.aiBeamSpeed = aiBeam.speed;
     merged.aiBeamIntensity = aiBeam.intensity;
+    var scrollHalo = normalizeScrollHaloConfig(merged);
+    merged.scrollHaloEnabled = scrollHalo.enabled;
+    merged.scrollHaloColorMode = scrollHalo.colorMode;
+    merged.scrollHaloColor = scrollHalo.color;
+    merged.scrollHaloHeight = scrollHalo.height;
+    merged.scrollHaloOpacity = scrollHalo.opacity;
+    merged.scrollHaloBlur = scrollHalo.blur;
+    merged.scrollHaloTop = scrollHalo.top;
+    merged.scrollHaloBottom = scrollHalo.bottom;
     return merged;
   }
 
@@ -1858,11 +1883,15 @@
     messagesShell.className = 'afhub-messages-shell';
     var messages = document.createElement('div');
     messages.className = 'afhub-messages';
-    var scrollHalo = document.createElement('div');
-    scrollHalo.className = 'afhub-scroll-halo';
-    scrollHalo.setAttribute('aria-hidden', 'true');
+    var scrollHaloTop = document.createElement('div');
+    scrollHaloTop.className = 'afhub-scroll-halo afhub-scroll-halo--top';
+    scrollHaloTop.setAttribute('aria-hidden', 'true');
+    var scrollHaloBottom = document.createElement('div');
+    scrollHaloBottom.className = 'afhub-scroll-halo afhub-scroll-halo--bottom';
+    scrollHaloBottom.setAttribute('aria-hidden', 'true');
     messagesShell.appendChild(messages);
-    messagesShell.appendChild(scrollHalo);
+    messagesShell.appendChild(scrollHaloTop);
+    messagesShell.appendChild(scrollHaloBottom);
     chat.appendChild(messagesShell);
 
     var messagesLastScrollTop = 0;
@@ -3186,8 +3215,46 @@
       return el;
     }
 
+    function sanitizeThinkingStatusText(raw) {
+      return String(raw || '')
+        .replace(/\bmcp\b/gi, 'integración')
+        .replace(/\bharness\b/gi, '')
+        .replace(/\bpipeline\b/gi, 'proceso')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+    }
+
+    /** Alineado con widget-chat-status.ts — fallback cuando aún no llegó evt.message. */
+    function widgetStatusCaptionForPhase(phase, detail) {
+      var p = String(phase || '').trim();
+      var d = typeof detail === 'string' ? detail.trim() : '';
+      switch (p) {
+        case 'prepare': return 'Preparando tu solicitud…';
+        case 'validate': return 'Verificando sesión…';
+        case 'vision': return 'Analizando captura…';
+        case 'enrich': return 'Cargando contexto de conversación…';
+        case 'resolve': return 'Identificando agente…';
+        case 'skills':
+        case 'skill': return d ? 'Aplicando habilidad: ' + d + '…' : 'Aplicando habilidades del agente…';
+        case 'rag': return 'Consultando documentos indexados…';
+        case 'tools': return d ? 'Usando ' + d + '…' : 'Ejecutando herramientas…';
+        case 'mcp': return 'Conectando con integraciones…';
+        case 'model': return 'Generando respuesta…';
+        case 'hub': return 'Consultando al asistente…';
+        case 'triage': return 'Analizando tu consulta…';
+        case 'handoff': return d ? 'Conectando con ' + d + '…' : 'Derivando a un especialista…';
+        case 'parallel': return 'Consultando especialistas en paralelo…';
+        case 'pipeline': return 'Recopilando información…';
+        case 'content': return 'Recopilando información del producto…';
+        case 'creative': return d ? 'Generando creativo con ' + d + '…' : 'Generando creativo…';
+        case 'synthesize': return 'Preparando respuesta unificada…';
+        case 'start':
+        default: return 'Generando respuesta…';
+      }
+    }
+
     function thinkingCopyFromStatus(statusLabel, statusPhase) {
-      var s = String(statusLabel || '').trim();
+      var s = sanitizeThinkingStatusText(statusLabel);
       var phase = String(statusPhase || '').trim();
       if (phase === 'prepare') return { title: 'Preparando…', sub: s || 'Organizando tu solicitud' };
       if (phase === 'enrich') return { title: 'Cargando contexto…', sub: s || 'Recuperando la conversación' };
@@ -3204,7 +3271,8 @@
       if (phase === 'pipeline' || phase === 'content') return { title: 'Recopilando información…', sub: s || 'Pipeline multiagente' };
       if (phase === 'creative') return { title: 'Generando creativo…', sub: s || 'Agente creativo en acción' };
       if (phase === 'synthesize') return { title: 'Unificando respuesta…', sub: s || 'Sintetizando resultados' };
-      if (!s) return { title: 'Pensando…', sub: 'Preparando tu respuesta' };
+      if (!s && !phase) return { title: widgetStatusCaptionForPhase('start'), sub: '' };
+      if (!s) return { title: widgetStatusCaptionForPhase(phase), sub: '' };
       var lower = s.toLowerCase();
       if (lower.indexOf('subiendo') >= 0) return { title: 'Subiendo archivo…', sub: s };
       if (lower.indexOf('captura') >= 0 || lower.indexOf('analizando captura') >= 0) return { title: 'Analizando imagen…', sub: s };
@@ -3220,31 +3288,42 @@
       if (lower.indexOf('preparando') >= 0) return { title: 'Preparando…', sub: s };
       if (lower.indexOf('contexto') >= 0) return { title: 'Cargando contexto…', sub: s };
       if (lower.indexOf('generando') >= 0) return { title: 'Generando respuesta…', sub: s };
-      return { title: 'Pensando…', sub: s };
+      return { title: s, sub: '' };
     }
 
-    /** Texto de la burbuja: mensaje del servidor (SSE) o fallback mínimo por fase. */
-    function displayThinkingCaption(statusLabel, statusPhase) {
-      var s = String(statusLabel || '').trim();
-      if (s) {
-        return s
-          .replace(/\bmcp\b/gi, 'integración')
-          .replace(/\bharness\b/gi, '')
-          .replace(/\bpipeline\b/gi, 'proceso')
-          .replace(/\s{2,}/g, ' ')
-          .trim();
-      }
+    /** Badge inferior desvanecido: etapa corta (tools, delegación, etc.). */
+    function thinkingFooterState(statusPhase) {
       var phase = String(statusPhase || '').trim();
-      if (phase === 'tools' || phase === 'mcp') return 'Ejecutando herramientas…';
-      if (phase === 'model') return 'Generando respuesta…';
-      if (phase === 'triage' || phase === 'resolve') return 'Analizando tu consulta…';
-      if (phase === 'hub') return 'Consultando al asistente…';
-      if (phase === 'rag') return 'Consultando documentos…';
-      if (phase === 'vision') return 'Analizando captura…';
-      if (phase === 'prepare') return 'Preparando tu solicitud…';
-      if (phase === 'enrich') return 'Cargando contexto…';
-      if (phase === 'skills') return 'Aplicando habilidades…';
-      return 'Un momento…';
+      if (phase === 'rag') return 'Consultando docs';
+      if (phase === 'tools') return 'Ejecutando tools';
+      if (phase === 'mcp') return 'Integraciones';
+      if (phase === 'model') return 'Generando';
+      if (phase === 'parallel') return 'Especialistas';
+      if (phase === 'handoff') return 'Delegando';
+      if (phase === 'pipeline' || phase === 'content') return 'Recopilando';
+      if (phase === 'creative') return 'Creativo';
+      if (phase === 'synthesize') return 'Unificando';
+      if (phase === 'vision') return 'Analizando imagen';
+      if (phase === 'skills' || phase === 'skill') return 'Habilidades';
+      if (phase === 'hub' || phase === 'resolve') return 'Conectando';
+      if (phase === 'prepare' || phase === 'enrich') return 'Preparando';
+      if (phase === 'triage') return 'Analizando';
+      if (phase === 'validate') return 'Validando';
+      return '';
+    }
+
+    /** Caption = mensaje SSE; footer = etapa desvanecida abajo. */
+    function resolveThinkingDisplay(statusLabel, statusPhase) {
+      var server = sanitizeThinkingStatusText(statusLabel);
+      var phase = String(statusPhase || '').trim();
+      var caption = server || widgetStatusCaptionForPhase(phase);
+      var footer = thinkingFooterState(phase);
+      return { caption: caption, sub: '', footer: footer };
+    }
+
+    /** @deprecated use resolveThinkingDisplay */
+    function displayThinkingCaption(statusLabel, statusPhase) {
+      return resolveThinkingDisplay(statusLabel, statusPhase).caption;
     }
 
     function clearTypingTimer() {
@@ -3301,39 +3380,51 @@
       }
     }
 
-    /** Subtítulo secundario (estilo Cursor: línea gris bajo el estado principal). */
+    /** Subtítulo secundario (solo si aporta contexto distinto al título). */
     function thinkingSublineFromStatus(statusLabel, statusPhase) {
-      var copy = thinkingCopyFromStatus(statusLabel, statusPhase);
-      var caption = displayThinkingCaption(statusLabel, statusPhase);
-      var sub = String(copy.sub || '').trim();
-      if (sub && sub !== caption) return sub;
-      var phase = String(statusPhase || '').trim();
-      if (phase === 'rag') return 'Buscando en documentos indexados';
-      if (phase === 'tools' || phase === 'mcp') return 'Ejecutando herramientas conectadas';
-      if (phase === 'model') return 'El modelo está redactando';
-      if (phase === 'parallel') return 'Varios especialistas en paralelo';
-      if (phase === 'pipeline' || phase === 'content') return 'Pipeline multiagente en curso';
-      if (phase === 'vision') return 'Procesando la imagen adjunta';
-      if (phase === 'skills') return 'Configurando habilidades del agente';
-      if (phase === 'hub') return 'Procesando en el servidor';
-      if (phase === 'triage' || phase === 'resolve') return 'Determinando el mejor enfoque';
-      return 'Organizando la respuesta';
+      return resolveThinkingDisplay(statusLabel, statusPhase).sub;
+    }
+
+    function applyThinkingDisplay(el, statusLabel, statusPhase) {
+      if (!el) return;
+      var display = resolveThinkingDisplay(statusLabel, statusPhase);
+      var capEl = el.querySelector('.afhub-thinking-caption');
+      var subEl = el.querySelector('.afhub-thinking-sub');
+      var footerEl = el.querySelector('.afhub-thinking-footer');
+      var stateEl = el.querySelector('.afhub-thinking-state');
+      if (capEl && capEl.getAttribute('data-slow') !== '1') {
+        capEl.textContent = display.caption;
+        capEl.style.display = '';
+      }
+      if (subEl) {
+        subEl.textContent = '';
+        subEl.style.display = 'none';
+      }
+      if (stateEl) {
+        if (display.footer) {
+          stateEl.textContent = display.footer;
+          if (footerEl) footerEl.style.display = '';
+        } else {
+          stateEl.textContent = '';
+          if (footerEl) footerEl.style.display = 'none';
+        }
+      }
+      if (statusPhase) el.setAttribute('data-phase', String(statusPhase));
+      else el.removeAttribute('data-phase');
     }
 
     function renderThinkingCard(el, statusLabel, statusPhase) {
-      var caption = displayThinkingCaption(statusLabel, statusPhase);
-      var sub = thinkingSublineFromStatus(statusLabel, statusPhase);
+      var display = resolveThinkingDisplay(statusLabel, statusPhase);
       el.innerHTML =
         '<div class="afhub-thinking-beam-ring" aria-hidden="true">' +
           '<span class="afhub-thinking-beam-spin"></span>' +
         '</div>' +
         '<div class="afhub-thinking-inner">' +
           '<div class="afhub-thinking-body">' +
-            '<p class="afhub-thinking-caption">' + escapeHtml(caption) + '</p>' +
-            '<p class="afhub-thinking-sub">' + escapeHtml(sub) + '</p>' +
+            '<p class="afhub-thinking-caption">' + escapeHtml(display.caption) + '</p>' +
           '</div>' +
-          '<div class="afhub-thinking-footer">' +
-            '<span class="afhub-thinking-state">Pensando</span>' +
+          '<div class="afhub-thinking-footer"' + (display.footer ? '' : ' style="display:none"') + '>' +
+            '<span class="afhub-thinking-state">' + escapeHtml(display.footer) + '</span>' +
           '</div>' +
           '<span class="afhub-thinking-elapsed"></span>' +
         '</div>';
@@ -3342,10 +3433,8 @@
     function setThinkingCaption(el, statusLabel, statusPhase) {
       if (!el) return;
       var capEl = el.querySelector('.afhub-thinking-caption');
-      if (!capEl || capEl.getAttribute('data-slow') === '1') return;
-      var subEl = el.querySelector('.afhub-thinking-sub');
-      capEl.textContent = displayThinkingCaption(statusLabel, statusPhase);
-      if (subEl) subEl.textContent = thinkingSublineFromStatus(statusLabel, statusPhase);
+      if (capEl && capEl.getAttribute('data-slow') === '1') return;
+      applyThinkingDisplay(el, statusLabel, statusPhase);
       el.classList.add('afhub-thinking-card--pulse');
       setTimeout(function () {
         if (el.isConnected) el.classList.remove('afhub-thinking-card--pulse');
@@ -3385,6 +3474,7 @@
       var capEl = el.querySelector('.afhub-thinking-caption');
       if (capEl && capEl.getAttribute('data-slow') === '1') return;
       if (statusPhase) el.setAttribute('data-phase', String(statusPhase));
+      else el.removeAttribute('data-phase');
       setThinkingCaption(el, statusLabel, statusPhase);
       if (cfg.debug) {
         var titleEl = el.querySelector('.afhub-thinking-title');
@@ -4841,7 +4931,11 @@
               : cfg.multiAgentEnabled
                 ? 'Analizando tu consulta…'
                 : '';
-      showTyping(initialTyping, initialTyping ? 'triage' : '');
+      setInputAgentBusy(true);
+      if (initialTyping) {
+        var initialPhase = userImagesPayload.length ? 'vision' : 'triage';
+        showTyping(initialTyping, initialPhase);
+      }
 
       // ── SSE Streaming (cuando el servidor lo soporta) ──────────────────────
       var useStream = cfg.stream !== false && typeof window.ReadableStream !== 'undefined';
@@ -5000,6 +5094,9 @@
 
       // ── Standard (non-streaming) fallback ─────────────────────────────────
       try {
+      if (!document.getElementById(typingId)) {
+        showTyping('Consultando al asistente…', 'hub');
+      }
       var data = await fetchJsonWithRetry(endpoint, payload, cfg);
         hideTyping();
         var replyRaw = data.reply || data.response || data.text || 'Sin respuesta';
@@ -6090,6 +6187,81 @@
     return { scope: scope, palette: palette, color: color, blur: blur, speed: speed, intensity: intensity };
   }
 
+  function normalizeScrollHaloConfig(cfg) {
+    var enabled = !(cfg && cfg.scrollHaloEnabled === false);
+    var colorMode = String((cfg && cfg.scrollHaloColorMode) || 'brand').toLowerCase();
+    if (colorMode !== 'custom') colorMode = 'brand';
+    var color = String((cfg && cfg.scrollHaloColor) || '').trim();
+    if (!isHexColor(color)) color = '';
+    var height = Number(cfg && cfg.scrollHaloHeight);
+    if (!isFinite(height)) height = 28;
+    height = clamp(Math.round(height), 8, 48);
+    var opacity = Number(cfg && cfg.scrollHaloOpacity);
+    if (!isFinite(opacity)) opacity = 55;
+    opacity = clamp(Math.round(opacity), 0, 100);
+    var blur = Number(cfg && cfg.scrollHaloBlur);
+    if (!isFinite(blur)) blur = 10;
+    blur = clamp(Math.round(blur), 0, 24);
+    var top = !(cfg && cfg.scrollHaloTop === false);
+    var bottom = !(cfg && cfg.scrollHaloBottom === false);
+    return {
+      enabled: enabled,
+      colorMode: colorMode,
+      color: color,
+      height: height,
+      opacity: opacity,
+      blur: blur,
+      top: top,
+      bottom: bottom
+    };
+  }
+
+  function resolveScrollHaloAccent(haloCfg, brandHex) {
+    if (haloCfg.colorMode === 'custom' && haloCfg.color) return haloCfg.color;
+    var scrollHaloRgb = hexToRgbOrb(brandHex);
+    var widgetAccentLight = '#ffc9a3';
+    if (scrollHaloRgb) {
+      var scrollHaloHsl = rgbToHslOrb(scrollHaloRgb.r, scrollHaloRgb.g, scrollHaloRgb.b);
+      widgetAccentLight = rgbToHexOrb(
+        scrollHaloHsl.h,
+        clamp(scrollHaloHsl.s - 10, 0, 100),
+        clamp(scrollHaloHsl.l + 24, 62, 90)
+      );
+    }
+    return widgetAccentLight;
+  }
+
+  function buildScrollHaloGradient(accent, opacityPct, direction) {
+    var peak = (opacityPct / 100) * 0.72;
+    var mid = peak * 0.54;
+    var low = peak * 0.15;
+    var fade = peak * 0.04;
+    if (direction === 'bottom') {
+      return (
+        'linear-gradient(0deg,' +
+        colorRgba(accent, peak) +
+        ' 0%,' +
+        colorRgba(accent, mid) +
+        ' 42%,' +
+        colorRgba(accent, low) +
+        ' 72%,' +
+        colorRgba(accent, fade) +
+        ' 88%,transparent 100%)'
+      );
+    }
+    return (
+      'linear-gradient(180deg,' +
+      colorRgba(accent, peak) +
+      ' 0%,' +
+      colorRgba(accent, mid) +
+      ' 42%,' +
+      colorRgba(accent, low) +
+      ' 72%,' +
+      colorRgba(accent, fade) +
+      ' 88%,transparent 100%)'
+    );
+  }
+
   function conicBeamGradient(cfg, brandHex, vivid) {
     var beam = normalizeAiBeamConfig(cfg);
     if (beam.palette === 'rainbow') {
@@ -6230,6 +6402,14 @@
       ' 42%,' +
       colorRgba(widgetAccentLight, 0.08) +
       ' 72%,transparent 100%)';
+    var widgetScrollHaloGradientBottom =
+      'linear-gradient(0deg,' +
+      colorRgba(widgetAccentLight, 0.52) +
+      ' 0%,' +
+      colorRgba(widgetAccentLight, 0.28) +
+      ' 42%,' +
+      colorRgba(widgetAccentLight, 0.08) +
+      ' 72%,transparent 100%)';
     var glassComposer = 'rgba(255,255,255,.52)';
     var macRadius = Math.max(Number(cfg.borderRadius) || 16, 22);
     var inputTopRadius = Math.max(14, Math.min(macRadius, 22));
@@ -6240,7 +6420,8 @@
         dp + '.afhub-messages { background:transparent; scrollbar-color:rgba(255,255,255,.14) transparent; }' +
         dp + '.afhub-messages::-webkit-scrollbar-thumb { background:rgba(255,255,255,.16); }' +
         dp + '.afhub-header { background:' + chatSurfaceBg + '; color:#fff; }' +
-        dp + '.afhub-chat--scroll-top .afhub-scroll-halo { opacity:1; }' +
+        dp + '.afhub-chat--scroll-top .afhub-scroll-halo--top { opacity:1; }' +
+        dp + '.afhub-chat--scroll-bottom .afhub-scroll-halo--bottom { opacity:1; }' +
         dp + '.afhub-header-info h3 { color:' + headerText + '; }' +
         dp + '.afhub-header-status { color:' + headerSubtext + '; }' +
         dp + '.afhub-status-dot { background:#4ade80; box-shadow:0 0 0 1px rgba(255,255,255,.35); }' +
@@ -6711,8 +6892,11 @@
       '#' + rootId + ' .afhub-settings-clear:hover { background:rgba(220,38,38,.08); }' +
       '#' + rootId + ' .afhub-close-btn { margin-left:0; }' +
       '#' + rootId + ' .afhub-messages-shell { flex:1 1 0; min-height:0; position:relative; display:flex; flex-direction:column; overflow:hidden; z-index:1; }' +
-      '#' + rootId + ' .afhub-scroll-halo { position:absolute; top:0; left:0; right:0; height:' + widgetScrollHaloHeight + 'px; pointer-events:none; z-index:12; opacity:0; transition:opacity .28s ease; background:' + widgetScrollHaloGradient + '; }' +
-      '#' + rootId + ' .afhub-chat--scroll-top .afhub-scroll-halo { opacity:1; }' +
+      '#' + rootId + ' .afhub-scroll-halo { position:absolute; left:0; right:0; height:' + widgetScrollHaloHeight + 'px; pointer-events:none; z-index:12; opacity:0; transition:opacity .28s ease; }' +
+      '#' + rootId + ' .afhub-scroll-halo--top { top:0; background:' + widgetScrollHaloGradient + '; }' +
+      '#' + rootId + ' .afhub-scroll-halo--bottom { bottom:0; background:' + widgetScrollHaloGradientBottom + '; }' +
+      '#' + rootId + ' .afhub-chat--scroll-top .afhub-scroll-halo--top { opacity:1; }' +
+      '#' + rootId + ' .afhub-chat--scroll-bottom .afhub-scroll-halo--bottom { opacity:1; }' +
       '#' + rootId + ' .afhub-messages { flex:1 1 0; min-height:0; overflow-y:auto; padding:' + messagesPadTop + 'px 18px 18px; display:flex; flex-direction:column; gap:22px; scroll-behavior:smooth; background:transparent; font-size:14.5px; line-height:1.58; letter-spacing:-.012em; scrollbar-width:thin; scrollbar-color:rgba(0,0,0,.12) transparent; position:relative; box-shadow:none; }' +
       '#' + rootId + ' .afhub-messages::-webkit-scrollbar { width:5px; }' +
       '#' + rootId + ' .afhub-messages::-webkit-scrollbar-thumb { background:rgba(15,23,42,.14); border-radius:999px; }' +
@@ -6805,8 +6989,8 @@
       '#' + rootId + ' .afhub-thinking-dots { display:none !important; }' +
       '#' + rootId + ' .afhub-thinking-caption { display:-webkit-box; margin:0; flex:none; min-width:0; font-size:13px; font-weight:500; letter-spacing:-.015em; color:#1c1c1e; text-align:left; line-height:1.35; white-space:normal; overflow:hidden; -webkit-line-clamp:2; -webkit-box-orient:vertical; transition:opacity .2s ease; text-decoration:none; border:none; background:transparent; -webkit-text-fill-color:currentColor; -webkit-background-clip:border-box; background-clip:border-box; user-select:none; -webkit-user-select:none; }' +
       '#' + rootId + ' .afhub-thinking-sub { display:-webkit-box; margin:0; font-size:11px; font-weight:400; letter-spacing:.01em; color:#9ca3af; line-height:1.35; white-space:normal; overflow:hidden; -webkit-line-clamp:2; -webkit-box-orient:vertical; transition:opacity .2s ease; text-decoration:none; border:none; background:transparent; -webkit-text-fill-color:currentColor; -webkit-background-clip:border-box; background-clip:border-box; user-select:none; -webkit-user-select:none; }' +
-      '#' + rootId + ' .afhub-thinking-footer { display:flex; align-items:center; min-height:14px; padding-top:0; border-top:none; }' +
-      '#' + rootId + ' .afhub-thinking-state { display:inline-block; font-size:11px; font-weight:500; letter-spacing:.02em; line-height:1; background:linear-gradient(90deg,#9ca3af 0%,#cbd5e1 42%,#9ca3af 84%); background-size:220% 100%; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; animation:afhub-thinking-shimmer 2.4s ease-in-out infinite; }' +
+      '#' + rootId + ' .afhub-thinking-footer { display:flex; align-items:center; min-height:14px; padding-top:2px; border-top:none; }' +
+      '#' + rootId + ' .afhub-thinking-state { display:inline-block; font-size:11px; font-weight:500; letter-spacing:.02em; line-height:1; opacity:.72; background:linear-gradient(90deg,#9ca3af 0%,#cbd5e1 42%,#9ca3af 84%); background-size:220% 100%; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; animation:afhub-thinking-shimmer 2.4s ease-in-out infinite; }' +
       '#' + rootId + ' .afhub-thinking-meta { display:none; }' +
       '#' + rootId + ' .afhub-thinking-elapsed { display:none; font-size:10px; font-weight:600; letter-spacing:.03em; color:#9ca3af; font-variant-numeric:tabular-nums; }' +
       '#' + rootId + '.afhub-widget--debug .afhub-thinking-card { border-radius:14px; padding:1.5px; width:100%; min-width:0; clip-path:none; -webkit-clip-path:none; }' +

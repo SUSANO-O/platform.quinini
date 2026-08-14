@@ -16,6 +16,7 @@ import { Widget, ClientAgent, User } from '@/lib/db/models';
 import { validateMultiAgentMode } from '@/lib/widget-multi-agent';
 import { normalizeHandoffNotifyMode, resolveWidgetHumanSupportPhone } from '@/lib/handoff-notify';
 import { normalizeAiBeamFields } from '@/lib/widget-ai-beam';
+import { normalizeScrollHaloFields } from '@/lib/widget-scroll-halo';
 import { getCorsHeaders, handlePreflight, withCors } from '@/lib/cors';
 
 export async function OPTIONS(req: NextRequest) {
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
   await connectDB();
 
   const widget = await Widget.findOne({ afhubToken: token })
-    .select('_id userId agentId color title subtitle welcome fabHint avatar fabAvatarSize position theme borderRadius autoOpen fabDismissible voiceEnabled imageUploadEnabled micEnabled aiBeamScope aiBeamPalette aiBeamColor aiBeamBlur aiBeamSpeed aiBeamIntensity humanSupportPhone humanSupportEnabled handoffEnabled handoffNotifyMode handoffTimeout shortcuts multiAgentEnabled multiAgentMode active feedbackEnabled feedbackTitle feedbackThanks feedbackQuestions conversationIdleTimeout policyEnabled policyText policyLinkLabel policyUrl')
+    .select('_id userId agentId color title subtitle welcome fabHint avatar fabAvatarSize position theme borderRadius autoOpen fabDismissible voiceEnabled imageUploadEnabled micEnabled aiBeamScope aiBeamPalette aiBeamColor aiBeamBlur aiBeamSpeed aiBeamIntensity scrollHaloEnabled scrollHaloColorMode scrollHaloColor scrollHaloHeight scrollHaloOpacity scrollHaloBlur scrollHaloTop scrollHaloBottom humanSupportPhone humanSupportEnabled handoffEnabled handoffNotifyMode handoffTimeout shortcuts multiAgentEnabled multiAgentMode active feedbackEnabled feedbackTitle feedbackThanks feedbackQuestions conversationIdleTimeout policyEnabled policyText policyLinkLabel policyUrl')
     .lean() as Record<string, unknown> | null;
 
   if (!widget) {
@@ -68,6 +69,7 @@ export async function GET(req: NextRequest) {
   }
 
   const aiBeam = normalizeAiBeamFields(widget as Record<string, unknown>);
+  const scrollHalo = normalizeScrollHaloFields(widget as Record<string, unknown>);
 
   return withCors(
     req,
@@ -120,6 +122,7 @@ export async function GET(req: NextRequest) {
         policyLinkLabel: typeof widget.policyLinkLabel === 'string' ? widget.policyLinkLabel : '',
         policyUrl:       typeof widget.policyUrl === 'string' ? widget.policyUrl : '',
         ...aiBeam,
+        ...scrollHalo,
       },
       {
         headers: {

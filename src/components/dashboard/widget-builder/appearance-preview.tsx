@@ -32,11 +32,57 @@ type PreviewCfg = Pick<
   | 'aiBeamBlur'
   | 'aiBeamSpeed'
   | 'aiBeamIntensity'
+  | 'scrollHaloEnabled'
+  | 'scrollHaloColorMode'
+  | 'scrollHaloColor'
+  | 'scrollHaloHeight'
+  | 'scrollHaloOpacity'
+  | 'scrollHaloBlur'
+  | 'scrollHaloTop'
+  | 'scrollHaloBottom'
 >;
 
 function parseRadiusPx(value: string): number {
   const n = Number.parseInt(String(value).replace(/[^\d]/g, ''), 10);
   return Number.isFinite(n) ? Math.min(32, Math.max(0, n)) : 16;
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const s = String(hex || '').trim().replace(/^#/, '');
+  if (s.length === 3) {
+    return {
+      r: Number.parseInt(s[0] + s[0], 16),
+      g: Number.parseInt(s[1] + s[1], 16),
+      b: Number.parseInt(s[2] + s[2], 16),
+    };
+  }
+  if (s.length !== 6) return null;
+  const r = Number.parseInt(s.slice(0, 2), 16);
+  const g = Number.parseInt(s.slice(2, 4), 16);
+  const b = Number.parseInt(s.slice(4, 6), 16);
+  if (![r, g, b].every((n) => Number.isFinite(n))) return null;
+  return { r, g, b };
+}
+
+function scrollHaloAccent(cfg: PreviewCfg): string {
+  if (cfg.scrollHaloColorMode === 'custom' && cfg.scrollHaloColor?.trim()) {
+    return cfg.scrollHaloColor.trim();
+  }
+  return cfg.color;
+}
+
+function scrollHaloGradient(cfg: PreviewCfg, edge: 'top' | 'bottom'): string {
+  const rgb = hexToRgb(scrollHaloAccent(cfg));
+  if (!rgb) return 'transparent';
+  const peak = (cfg.scrollHaloOpacity / 100) * 0.72;
+  const mid = peak * 0.54;
+  const low = peak * 0.15;
+  const fade = peak * 0.04;
+  const a = (n: number) => `rgba(${rgb.r},${rgb.g},${rgb.b},${n.toFixed(3)})`;
+  if (edge === 'top') {
+    return `linear-gradient(180deg,${a(peak)} 0%,${a(mid)} 42%,${a(low)} 72%,${a(fade)} 88%,transparent 100%)`;
+  }
+  return `linear-gradient(0deg,${a(peak)} 0%,${a(mid)} 42%,${a(low)} 72%,${a(fade)} 88%,transparent 100%)`;
 }
 
 function fabSizePx(cfg: PreviewCfg): number {
@@ -69,6 +115,9 @@ export function WidgetBuilderAppearancePreview({ cfg }: { cfg: PreviewCfg }) {
   const beamStrength = Math.min(1, Math.max(0.1, cfg.aiBeamIntensity / 100));
   const beamVariant =
     cfg.aiBeamPalette === 'rainbow' ? 'colorful' : cfg.aiBeamPalette === 'brand' ? 'ocean' : 'sunset';
+  const scrollHaloOn = cfg.scrollHaloEnabled !== false;
+  const previewHaloHeight = Math.max(8, Math.min(48, cfg.scrollHaloHeight || 28));
+  const previewHaloBlur = Math.max(0, Math.min(24, cfg.scrollHaloBlur || 0));
 
   const composer = (
     <footer className="wb-preview__composer" style={{ borderRadius: 18 }}>
@@ -135,27 +184,53 @@ export function WidgetBuilderAppearancePreview({ cfg }: { cfg: PreviewCfg }) {
             </div>
           </header>
 
-          <div className="wb-preview__chat-body">
-            <div className="wb-preview__bubble wb-preview__bubble--bot">{cfg.welcome || '¡Hola!'}</div>
-            {showMsgBeam ? (
-              <BorderBeamField
-                radius={999}
-                theme={cfg.theme === 'dark' ? 'dark' : 'light'}
-                className="wb-preview__thinking-beam"
-                active
-                size="md"
-                strength={beamStrength}
-                duration={cfg.aiBeamSpeed}
-                colorVariant={beamVariant}
-              >
-                <div className="wb-preview__thinking-card">
-                  <p className="wb-preview__thinking-caption">Consultando documentos indexados…</p>
-                  <p className="wb-preview__thinking-sub">Buscando en la base de conocimiento</p>
-                  <p className="wb-preview__thinking-state">Pensando</p>
-                </div>
-              </BorderBeamField>
+          <div className="wb-preview__chat-messages-shell">
+            {scrollHaloOn && cfg.scrollHaloTop !== false ? (
+              <div
+                className="wb-preview__scroll-halo wb-preview__scroll-halo--top"
+                style={{
+                  height: `${Math.round(previewHaloHeight * 0.55)}px`,
+                  background: scrollHaloGradient(cfg, 'top'),
+                  backdropFilter: previewHaloBlur > 0 ? `blur(${Math.max(1, Math.round(previewHaloBlur * 0.45))}px)` : undefined,
+                }}
+                aria-hidden
+              />
             ) : null}
-            <div className="wb-preview__bubble wb-preview__bubble--user">Quiero más información</div>
+
+            <div className="wb-preview__chat-body">
+              <div className="wb-preview__bubble wb-preview__bubble--bot">{cfg.welcome || '¡Hola!'}</div>
+              {showMsgBeam ? (
+                <BorderBeamField
+                  radius={999}
+                  theme={cfg.theme === 'dark' ? 'dark' : 'light'}
+                  className="wb-preview__thinking-beam"
+                  active
+                  size="md"
+                  strength={beamStrength}
+                  duration={cfg.aiBeamSpeed}
+                  colorVariant={beamVariant}
+                >
+                  <div className="wb-preview__thinking-card">
+                    <p className="wb-preview__thinking-caption">Consultando documentos indexados…</p>
+                    <p className="wb-preview__thinking-sub">Buscando en la base de conocimiento</p>
+                    <p className="wb-preview__thinking-state">Pensando</p>
+                  </div>
+                </BorderBeamField>
+              ) : null}
+              <div className="wb-preview__bubble wb-preview__bubble--user">Quiero más información</div>
+            </div>
+
+            {scrollHaloOn && cfg.scrollHaloBottom !== false ? (
+              <div
+                className="wb-preview__scroll-halo wb-preview__scroll-halo--bottom"
+                style={{
+                  height: `${Math.round(previewHaloHeight * 0.55)}px`,
+                  background: scrollHaloGradient(cfg, 'bottom'),
+                  backdropFilter: previewHaloBlur > 0 ? `blur(${Math.max(1, Math.round(previewHaloBlur * 0.45))}px)` : undefined,
+                }}
+                aria-hidden
+              />
+            ) : null}
           </div>
 
           {showInputBeam ? (
@@ -214,7 +289,7 @@ export function WidgetBuilderAppearancePreview({ cfg }: { cfg: PreviewCfg }) {
       <ul className="wb-preview__legend">
         <li>
           <ImageIcon size={11} aria-hidden />
-          Borde mágico según alcance y sliders
+          Borde mágico y halo de scroll según sliders
         </li>
       </ul>
     </div>
