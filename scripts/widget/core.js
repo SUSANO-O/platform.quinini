@@ -8,7 +8,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.6.141';
+  var VERSION = '1.6.142';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -6897,6 +6897,7 @@
       '#' + rootId + ' .afhub-scroll-halo--bottom { bottom:0; background:' + widgetScrollHaloGradientBottom + '; }' +
       '#' + rootId + ' .afhub-chat--scroll-top .afhub-scroll-halo--top { opacity:1; }' +
       '#' + rootId + ' .afhub-chat--scroll-bottom .afhub-scroll-halo--bottom { opacity:1; }' +
+      '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen .afhub-scroll-halo { display:none !important; opacity:0 !important; }' +
       '#' + rootId + ' .afhub-messages { flex:1 1 0; min-height:0; overflow-y:auto; padding:' + messagesPadTop + 'px 18px 18px; display:flex; flex-direction:column; gap:22px; scroll-behavior:smooth; background:transparent; font-size:14.5px; line-height:1.58; letter-spacing:-.012em; scrollbar-width:thin; scrollbar-color:rgba(0,0,0,.12) transparent; position:relative; box-shadow:none; }' +
       '#' + rootId + ' .afhub-messages::-webkit-scrollbar { width:5px; }' +
       '#' + rootId + ' .afhub-messages::-webkit-scrollbar-thumb { background:rgba(15,23,42,.14); border-radius:999px; }' +
