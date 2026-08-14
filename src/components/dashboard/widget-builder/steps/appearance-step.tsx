@@ -109,6 +109,7 @@ export function WidgetBuilderAppearanceStep({
     | 'aiBeamIntensity'
   >;
   onChange: (patch: WidgetConfigPatch) => void;
+  autoSave?: boolean;
 }) {
   const aiBeamOn = cfg.aiBeamScope !== 'off';
 

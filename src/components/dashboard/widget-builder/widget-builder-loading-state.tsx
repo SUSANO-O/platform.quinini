@@ -1,7 +1,7 @@
 'use client';
 
-import Image from 'next/image';
 import { useEffect, useState } from 'react';
+import { BRAND_LOGO_PNG_SRC } from '@/lib/brand';
 
 const LOADING_HINTS = [
   'Despertando a tus agentes…',
@@ -30,18 +30,16 @@ export function WidgetBuilderLoadingState() {
       aria-label="Cargando widget builder"
     >
       <div className="widget-builder-loading__stage" aria-hidden>
-        <span className="widget-builder-loading__glow" />
-        <Image
-          src="/assets/marketing/botiva-orb.svg"
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={BRAND_LOGO_PNG_SRC}
           alt=""
-          width={92}
-          height={92}
-          className="widget-builder-loading__orb"
-          priority
+          width={88}
+          height={88}
+          className="widget-builder-loading__mark"
+          decoding="async"
+          draggable={false}
         />
-        <span className="widget-builder-loading__spark widget-builder-loading__spark--1">✦</span>
-        <span className="widget-builder-loading__spark widget-builder-loading__spark--2">✧</span>
-        <span className="widget-builder-loading__spark widget-builder-loading__spark--3">★</span>
       </div>
       <p className="widget-builder-loading__title">Armando tu widget…</p>
       <p className="widget-builder-loading__hint" key={hintIdx}>
