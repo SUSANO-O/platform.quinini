@@ -6,6 +6,7 @@
 import crypto from 'crypto';
 import { processFile, getFileCategory, RAG_MAX_EXTRACTED_CHARS } from '@/lib/rag-processor';
 import { canAttemptHubSync, syncHubCatalogFromLandingAgentDoc } from '@/lib/aibackhub-sync';
+import { indexRagSourceEmbeddings } from '@/lib/rag-embeddings-index';
 import type { AgentPlanLimits } from '@/lib/agent-plans';
 import type { ClientAgent } from '@/lib/db/models';
 
@@ -13,6 +14,12 @@ import { RAG_MAX_FILE_SIZE as RAG_MAX_FILE_SIZE_BYTES } from '@/lib/rag-upload-l
 
 export const RAG_MAX_FILE_SIZE = RAG_MAX_FILE_SIZE_BYTES;
 export const RAG_DEFAULT_MAX_SOURCES = 20;
+
+export type RagIngestOptions = {
+  syncHub?: boolean;
+  /** Solo para altas masivas que prefieran indexar aparte; por defecto se indexa. */
+  indexEmbeddings?: boolean;
+};
 
 export const RAG_ALLOWED_MIMES = new Set([
   'application/pdf',
@@ -190,24 +197,41 @@ function validateRagTextInput(
 function appendRagSource(
   agent: AgentDoc,
   source: Record<string, unknown>,
-  options?: { syncHub?: boolean },
+  options?: RagIngestOptions,
 ): Promise<RagIngestResult> {
   agent.ragSources = [...(agent.ragSources ?? []), source];
   agent.ragEnabled = true;
   return agent.save().then(async () => {
+    const hubId = typeof agent.agentHubId === 'string' ? agent.agentHubId.trim() : '';
     const shouldSync = options?.syncHub !== false;
     if (shouldSync) {
-      const hubId = typeof agent.agentHubId === 'string' ? agent.agentHubId.trim() : '';
       if (hubId && canAttemptHubSync()) {
         const ok = await syncHubCatalogFromLandingAgentDoc(agent);
         agent.syncStatus = ok ? 'synced' : 'failed';
         await agent.save();
       }
     }
+
+    const avisos = [typeof source.warning === 'string' ? source.warning : ''];
+
+    // Guardar el texto no basta: el RAG solo encuentra lo que está vectorizado.
+    // Se avisa en vez de fallar porque el documento ya está guardado y se puede
+    // reintentar, pero si no se dice, el agente parece ignorar lo que subiste.
+    if (options?.indexEmbeddings !== false) {
+      const indexado = await indexRagSourceEmbeddings({
+        agentHubId: hubId,
+        fileName: typeof source.name === 'string' ? source.name : 'documento',
+        content: typeof source.content === 'string' ? source.content : '',
+      });
+      if (!indexado.ok) {
+        avisos.push(`No se pudo indexar para búsqueda (${indexado.error}). El agente aún no podrá consultarlo.`);
+      }
+    }
+
     return {
       ok: true as const,
       source,
-      warning: typeof source.warning === 'string' ? source.warning : null,
+      warning: avisos.filter(Boolean).join(' ') || null,
     };
   });
 }
@@ -216,7 +240,7 @@ export async function ingestRagFileToAgent(
   agent: AgentDoc,
   input: RagIngestInput,
   limits: AgentPlanLimits,
-  options?: { syncHub?: boolean },
+  options?: RagIngestOptions,
 ): Promise<RagIngestResult> {
   const validationError = validateRagIngestInput(input, agent, limits);
   if (validationError) return validationError;
@@ -252,7 +276,7 @@ export async function ingestRagTextToAgent(
   agent: AgentDoc,
   input: RagTextIngestInput,
   limits: AgentPlanLimits,
-  options?: { syncHub?: boolean },
+  options?: RagIngestOptions,
 ): Promise<RagIngestResult> {
   const validationError = validateRagTextInput(input, agent, limits);
   if (validationError) return validationError;
