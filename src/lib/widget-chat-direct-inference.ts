@@ -11,6 +11,11 @@ import { agentSkillsNeedMcpTools } from '@/lib/agent-skills-mcp';
 import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
 import { isTrivialMessage } from '@/lib/trivial-message';
 import { buildUserPromptWithSessionContext, VISION_SYSTEM_INSTRUCTIONS } from '@/lib/widget-chat-vision-context';
+import {
+  mergeContextBlocks,
+  recallConversationContextBlock,
+  shouldRecallConversationMemory,
+} from '@/lib/widget-conversation-recall';
 
 export type DirectInferenceResult = {
   reply: string;
@@ -118,6 +123,8 @@ export async function tryServeWidgetChatViaDirectInference(params: {
     history?: Array<{ role: string; content: string }>;
     sessionContextBlock?: string;
     systemPromptOverride?: string;
+    sessionId?: string;
+    visitorId?: string;
   };
   try {
     parsed = JSON.parse(params.rawBody) as typeof parsed;
@@ -128,10 +135,8 @@ export async function tryServeWidgetChatViaDirectInference(params: {
   const message = typeof parsed.message === 'string' ? parsed.message.trim() : '';
   if (!message) return null;
 
-  const promptForModel = buildUserPromptWithSessionContext(
-    message,
-    parsed.sessionContextBlock,
-  );
+  const chatSessionId = typeof parsed.sessionId === 'string' ? parsed.sessionId.trim() : '';
+  const visitorId = typeof parsed.visitorId === 'string' ? parsed.visitorId.trim() : '';
 
   await connectDB();
   const id = params.parsedAgentId.trim();
@@ -290,6 +295,27 @@ export async function tryServeWidgetChatViaDirectInference(params: {
       ? `${resolvedSystemPrompt.trim()}\n\n${visionTail}`
       : visionTail;
   }
+
+  let contextBlock =
+    typeof parsed.sessionContextBlock === 'string' ? parsed.sessionContextBlock : '';
+
+  if (shouldRecallConversationMemory({ trivial, sessionId: chatSessionId })) {
+    const memoryBlock = await recallConversationContextBlock({
+      /** Mismo id con el que afterWidgetChatSuccess escribe este turno. */
+      agentId: params.parsedAgentId,
+      query: message,
+      sessionId: chatSessionId,
+      visitorId,
+    });
+    if (memoryBlock) {
+      contextBlock = mergeContextBlocks(contextBlock, memoryBlock);
+      logWidgetFlow('🧠', 'infer:recall', 'memoria conversacional recuperada', {
+        chars: memoryBlock.length,
+      });
+    }
+  }
+
+  const promptForModel = buildUserPromptWithSessionContext(message, contextBlock);
 
   params.onStatus?.('model', 'Generando respuesta…');
 
