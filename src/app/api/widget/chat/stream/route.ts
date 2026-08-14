@@ -49,8 +49,9 @@ import { enrichWidgetChatBodyWithImages, type WidgetImageEnrichment } from '@/li
 import {
   finalizeWidgetChatBodyWithVision,
   mergeVisionContextIntoBody,
-  messageReferencesPriorImage,
+  shouldUsePriorImage,
 } from '@/lib/widget-chat-vision-context';
+import { isTrivialMessage } from '@/lib/trivial-message';
 import {
   loadSessionVisionEnrichment,
   persistSessionVisionAnalysis,
@@ -400,15 +401,25 @@ export async function POST(req: NextRequest) {
           !imageEnrichment &&
           visionWidgetId &&
           parsedSessionId &&
-          messageReferencesPriorImage(guardResult.text || '')
+          !isTrivialMessage(guardResult.text || '')
         ) {
           try {
-            activeVisionEnrichment = await loadSessionVisionEnrichment(
+            const prior = await loadSessionVisionEnrichment(
               visionWidgetId,
               parsedSessionId,
               w.userId,
               guardResult.text || '',
             );
+            if (
+              prior &&
+              shouldUsePriorImage({
+                message: guardResult.text || '',
+                analyzedAt: prior.analyzedAt,
+                trivial: false,
+              })
+            ) {
+              activeVisionEnrichment = prior.enrichment;
+            }
           } catch {
             /* ignore */
           }
