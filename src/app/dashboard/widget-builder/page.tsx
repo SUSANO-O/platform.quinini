@@ -756,8 +756,7 @@ export default function WidgetBuilderPage() {
         className={`widget-builder-form-card${wizardStep === 3 ? ' widget-builder-form-card--publish' : ''}${wizardStep === 1 ? ' widget-builder-form-card--appearance' : ''}`}
         data-tour="widget-builder-form"
       >
-            {wizardStep !== 3 ? (
-              <WidgetBuilderFormHeader
+            <WidgetBuilderFormHeader
                 wizardStep={wizardStep}
                 totalSteps={WIDGET_WIZARD_STEPS.length}
                 editWidgetId={editWidgetId}
@@ -766,7 +765,6 @@ export default function WidgetBuilderPage() {
                 stepDescription={WIDGET_STEP_DESCRIPTIONS[activeStep.id]}
                 accentColor={WIDGET_BUILDER_UI_ACCENT}
               />
-            ) : null}
 
             {loadingInitial ? (
               <WidgetBuilderLoadingState />
