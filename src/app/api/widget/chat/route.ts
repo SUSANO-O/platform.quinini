@@ -666,6 +666,7 @@ export async function POST(req: NextRequest) {
                 ownerUserId: w.userId,
                 agentIdOrHubId: parsedAgentId,
                 rawBody,
+                agentReply: pipeline.reply,
               }).catch(() => {});
               void afterWidgetChatSuccess({
                 ownerUserId: w.userId,
@@ -733,6 +734,7 @@ export async function POST(req: NextRequest) {
                 ownerUserId: w.userId,
                 agentIdOrHubId: parsedAgentId,
                 rawBody,
+                agentReply: parallel.reply,
               }).catch(() => {});
               void afterWidgetChatSuccess({
                 ownerUserId: w.userId,
@@ -865,6 +867,7 @@ export async function POST(req: NextRequest) {
               ownerUserId: w.userId,
               agentIdOrHubId: parsedAgentId,
               rawBody,
+              agentReply: direct.reply,
             }).catch(() => {});
             void afterWidgetChatSuccess({
               ownerUserId: w.userId,
@@ -960,6 +963,7 @@ export async function POST(req: NextRequest) {
               ownerUserId: w.userId,
               agentIdOrHubId: parsedAgentId,
               rawBody,
+              agentReply: inferred.reply,
             }).catch(() => {});
             void afterWidgetChatSuccess({
               ownerUserId: w.userId,
@@ -1065,6 +1069,7 @@ export async function POST(req: NextRequest) {
             ownerUserId: faqTrackOwnerId,
             agentIdOrHubId: parsedAgentId,
             rawBody: rawBodyInitial,
+            agentReply: inferred.reply,
           }).catch(() => {});
           void afterWidgetChatSuccess({
             ownerUserId: faqTrackOwnerId,
@@ -1137,29 +1142,30 @@ export async function POST(req: NextRequest) {
       } catch { /* not JSON or no usage — fine */ }
       trackWidgetChatUsage(widgetToken, parsedAgentId, true, hubUsage, meteringInput).catch(() => {});
       if (faqTrackOwnerId) {
+        let replyText = '';
+        try {
+          const hubJson = JSON.parse(data) as { reply?: string };
+          replyText = typeof hubJson.reply === 'string' ? hubJson.reply : '';
+        } catch { /* non-critical */ }
+
         void trackWidgetUserMessageForFaqCandidates({
           ownerUserId: faqTrackOwnerId,
           agentIdOrHubId: parsedAgentId,
           rawBody: rawBodyInitial,
+          agentReply: replyText,
         }).catch(() => {});
 
-        if (resolvedWidgetId) {
-          try {
-            const hubJson = JSON.parse(data) as { reply?: string };
-            const replyText = typeof hubJson.reply === 'string' ? hubJson.reply : '';
-            if (replyText) {
-              schedulePersistWidgetTranscript({
-                widgetId: resolvedWidgetId,
-                userId: faqTrackOwnerId,
-                agentId: parsedAgentId,
-                sessionId: parsedSessionId || traceId,
-                traceId,
-                userMessage: guardResult.text || '',
-                assistantMessage: replyText,
-                enrichment: imageEnrichment,
-              });
-            }
-          } catch { /* non-critical */ }
+        if (resolvedWidgetId && replyText) {
+          schedulePersistWidgetTranscript({
+            widgetId: resolvedWidgetId,
+            userId: faqTrackOwnerId,
+            agentId: parsedAgentId,
+            sessionId: parsedSessionId || traceId,
+            traceId,
+            userMessage: guardResult.text || '',
+            assistantMessage: replyText,
+            enrichment: imageEnrichment,
+          });
         }
       }
     }

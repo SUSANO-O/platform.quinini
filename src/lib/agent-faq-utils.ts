@@ -23,6 +23,12 @@ export type FaqCandidateRow = {
   key: string;
   /** Mejor texto de pregunta detectado (muestra legible). */
   questionSample: string;
+  /**
+   * Lo que el agente contestó la última vez, como borrador para la FAQ. Es solo
+   * una propuesta: sale de una conversación real y hay que revisarla antes de
+   * fijarla, porque puede haber envejecido o venir de datos de aquel momento.
+   */
+  answerSample?: string;
   count: number;
   lastSeen: string;
   dismissed?: boolean;
@@ -159,6 +165,42 @@ export function isUsefulFaqCandidateMessage(raw: string): boolean {
   const alphaRatio = (extracted.match(/[a-záéíóúñ]/gi) ?? []).length / extracted.length;
   if (alphaRatio < 0.45) return false;
   return true;
+}
+
+/** Tope del borrador guardado: suficiente para una FAQ, no para un ensayo. */
+export const MAX_FAQ_ANSWER_SAMPLE = 600;
+
+const ANSWER_FAILURE_RE =
+  /\b(no tengo acceso|no dispongo|no puedo (ayudar|darte|acceder|proporcionar)|no encuentro|no s[ée] (nada|responder)|lo siento|disculpa las molestias|intenta de nuevo|error al)/i;
+
+const EMAIL_RE = /[^\s@]+@[^\s@]+\.[a-z]{2,}/i;
+
+/** Siete o más dígitos seguidos: teléfonos, DNIs, números de pedido. */
+const IDENTIFIER_RE = /\d[\d\s().-]{5,}\d/;
+
+/**
+ * True si la respuesta sirve como punto de partida para una FAQ.
+ *
+ * Se descartan las disculpas y los "no tengo acceso" —que no fijan nada— y todo
+ * lo que lleve un correo o algo que parezca un identificador, porque eso suele
+ * ser de la persona que preguntaba y acabaría contándoselo al resto. Los precios
+ * pasan el filtro: son cifras cortas y son justo lo que interesa fijar.
+ */
+export function isReusableFaqAnswer(raw: string): boolean {
+  const t = String(raw ?? '').trim();
+  if (t.length < 20) return false;
+  if (ANSWER_FAILURE_RE.test(t)) return false;
+  if (EMAIL_RE.test(t)) return false;
+  if (IDENTIFIER_RE.test(t)) return false;
+  const alphaRatio = (t.match(/[a-záéíóúñü]/gi) ?? []).length / t.length;
+  return alphaRatio >= 0.45;
+}
+
+/** Borrador listo para guardar, o cadena vacía si la respuesta no sirve. */
+export function buildFaqAnswerSample(raw: string): string {
+  const t = String(raw ?? '').trim().replace(/\s+/g, ' ');
+  if (!isReusableFaqAnswer(t)) return '';
+  return t.slice(0, MAX_FAQ_ANSWER_SAMPLE);
 }
 
 export function stripManagedFaqPrompt(raw: string): string {

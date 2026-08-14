@@ -607,6 +607,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 id: typeof c.id === 'string' && c.id ? c.id : crypto.randomUUID(),
                 key: typeof c.key === 'string' ? c.key : '',
                 questionSample: typeof c.questionSample === 'string' ? c.questionSample : '',
+                /** Sin esto el guardado del panel borraría el borrador que dejó el widget. */
+                answerSample: typeof c.answerSample === 'string' ? c.answerSample : undefined,
                 count: typeof c.count === 'number' ? c.count : 0,
                 lastSeen: typeof c.lastSeen === 'string' ? c.lastSeen : new Date().toISOString(),
                 dismissed: c.dismissed === true,
@@ -2475,7 +2477,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                                   {
                                     id: crypto.randomUUID(),
                                     question: q.slice(0, 500),
-                                    answer: '',
+                                    /** Lo que ya contestó el agente, para revisar en vez de escribir de cero. */
+                                    answer: (c.answerSample ?? '').trim(),
                                     enabled: true,
                                     priority: 50,
                                   },
@@ -2507,6 +2510,24 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         )}
                       </div>
                       <p style={{ margin: '8px 0 0', lineHeight: 1.4, color: 'var(--foreground)' }}>{c.questionSample}</p>
+                      {c.answerSample?.trim() && (
+                        <div
+                          style={{
+                            margin: '8px 0 0',
+                            padding: '8px 10px',
+                            borderRadius: 8,
+                            border: '1px dashed var(--border)',
+                            background: 'var(--background)',
+                          }}
+                        >
+                          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: 'var(--muted-foreground)' }}>
+                            Respuesta que dio el agente — revísala antes de fijarla
+                          </p>
+                          <p style={{ margin: '4px 0 0', lineHeight: 1.4, color: 'var(--foreground)' }}>
+                            {c.answerSample}
+                          </p>
+                        </div>
+                      )}
                       <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--muted-foreground)' }}>
                         Última vez: {c.lastSeen ? new Date(c.lastSeen).toLocaleString('es') : '—'}
                       </p>

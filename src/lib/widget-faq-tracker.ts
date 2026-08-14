@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { ClientAgent } from '@/lib/db/models';
 import {
+  buildFaqAnswerSample,
   extractFaqQuestionText,
   isUsefulFaqCandidateMessage,
   normalizeFaqKey,
@@ -50,6 +51,7 @@ function bumpCandidates(
   prev: FaqCandidateRow[] | undefined,
   key: string,
   sample: string,
+  answerSample: string,
 ): FaqCandidateRow[] {
   const list = Array.isArray(prev) ? [...prev] : [];
   const idx = list.findIndex((c) => c.key === key && !c.dismissed);
@@ -61,12 +63,15 @@ function bumpCandidates(
       count: (cur.count ?? 0) + 1,
       lastSeen: now,
       questionSample: pickBetterSample(cur.questionSample, sample),
+      /** Gana la última buena: un borrador viejo puede tener precios caducados. */
+      ...(answerSample ? { answerSample } : {}),
     };
   } else {
     list.push({
       id: new mongoose.Types.ObjectId().toString(),
       key,
       questionSample: sample.slice(0, 400),
+      ...(answerSample ? { answerSample } : {}),
       count: 1,
       lastSeen: now,
       dismissed: false,
@@ -79,11 +84,16 @@ function bumpCandidates(
 /**
  * Tras un turno de chat del widget (token wt_), registra candidatas a FAQ si el mensaje
  * parece una pregunta útil y no coincide con ninguna FAQ ya definida.
+ *
+ * Se guarda también lo que contestó el agente, como borrador: convertir una
+ * candidata en FAQ dejaba la respuesta en blanco y había que reescribirla, aunque
+ * el agente ya la hubiera respondido bien decenas de veces.
  */
 export async function trackWidgetUserMessageForFaqCandidates(params: {
   ownerUserId: string;
   agentIdOrHubId: string;
   rawBody: string;
+  agentReply?: string;
 }): Promise<void> {
   const last = extractLastUserMessage(params.rawBody);
   if (!last) return;
@@ -120,7 +130,7 @@ export async function trackWidgetUserMessageForFaqCandidates(params: {
   if (key.length < 10) return;
 
   const prev = ((agent as { faqCandidates?: FaqCandidateRow[] }).faqCandidates ?? []) as FaqCandidateRow[];
-  const next = bumpCandidates(prev, key, questionText);
+  const next = bumpCandidates(prev, key, questionText, buildFaqAnswerSample(params.agentReply ?? ''));
 
   const filter = hex.test(idParam)
     ? { _id: idParam, userId: params.ownerUserId }
