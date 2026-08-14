@@ -157,6 +157,15 @@ const WidgetSchema = new Schema({
   aiBeamBlur: { type: Number, default: 4 },
   aiBeamSpeed: { type: Number, default: 5 },
   aiBeamIntensity: { type: Number, default: 85 },
+  /** Halo de scroll sobre mensajes (fade al subir/bajar). */
+  scrollHaloEnabled: { type: Boolean, default: true },
+  scrollHaloColorMode: { type: String, enum: ['brand', 'custom'], default: 'brand' },
+  scrollHaloColor: { type: String, default: '' },
+  scrollHaloHeight: { type: Number, default: 28 },
+  scrollHaloOpacity: { type: Number, default: 55 },
+  scrollHaloBlur: { type: Number, default: 10 },
+  scrollHaloTop: { type: Boolean, default: true },
+  scrollHaloBottom: { type: Boolean, default: true },
   /** Teléfono WhatsApp (con código de país); el SDK ofrece enlace si humanSupportEnabled. */
   humanSupportPhone: { type: String, default: '' },
   /** Si false, no se muestra oferta WhatsApp por palabras clave ni enlaces wa.me. */

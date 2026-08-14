@@ -16,3 +16,9 @@ export {
   pickWidgetAppearancePatch,
 } from '@/lib/widget-ai-beam';
 export type { AiBeamConfig, AiBeamPalette, AiBeamScope } from '@/lib/widget-ai-beam';
+export {
+  DEFAULT_SCROLL_HALO,
+  normalizeScrollHaloFields,
+  pickWidgetScrollHaloPatch,
+} from '@/lib/widget-scroll-halo';
+export type { ScrollHaloColorMode, ScrollHaloConfig } from '@/lib/widget-scroll-halo';

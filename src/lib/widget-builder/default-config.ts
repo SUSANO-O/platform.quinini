@@ -1,5 +1,6 @@
 import { BRAND } from '@/lib/brand-colors';
 import { DEFAULT_AI_BEAM } from '@/lib/widget-ai-beam';
+import { DEFAULT_SCROLL_HALO } from '@/lib/widget-scroll-halo';
 import type { WidgetConfig } from './types';
 
 export const DEFAULT_WIDGET_CONFIG: WidgetConfig = {
@@ -39,4 +40,5 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig = {
   orchestratorAgentIds: [],
   pipelineConfig: null,
   ...DEFAULT_AI_BEAM,
+  ...DEFAULT_SCROLL_HALO,
 };

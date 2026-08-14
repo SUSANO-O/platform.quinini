@@ -19,6 +19,13 @@ import {
   normalizeAiBeamScope,
   normalizeAiBeamSpeed,
 } from '@/lib/widget-ai-beam';
+import {
+  normalizeScrollHaloBlur,
+  normalizeScrollHaloColor,
+  normalizeScrollHaloColorMode,
+  normalizeScrollHaloHeight,
+  normalizeScrollHaloOpacity,
+} from '@/lib/widget-scroll-halo';
 import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 import { SOLO_WIDGET_LOCKED } from '@/lib/solo-plan-limits';
 
@@ -66,6 +73,14 @@ const PATCHABLE = [
   'aiBeamBlur',
   'aiBeamSpeed',
   'aiBeamIntensity',
+  'scrollHaloEnabled',
+  'scrollHaloColorMode',
+  'scrollHaloColor',
+  'scrollHaloHeight',
+  'scrollHaloOpacity',
+  'scrollHaloBlur',
+  'scrollHaloTop',
+  'scrollHaloBottom',
 ] as const;
 
 type PatchableKey = (typeof PATCHABLE)[number];
@@ -133,7 +148,7 @@ export async function PATCH(
   for (const key of PATCHABLE) {
     if (!(key in raw)) continue;
     const v = raw[key];
-    if (key === 'autoOpen' || key === 'fabDismissible' || key === 'voiceEnabled' || key === 'imageUploadEnabled' || key === 'micEnabled' || key === 'active' || key === 'handoffEnabled' || key === 'humanSupportEnabled' || key === 'feedbackEnabled' || key === 'policyEnabled') {
+    if (key === 'autoOpen' || key === 'fabDismissible' || key === 'voiceEnabled' || key === 'imageUploadEnabled' || key === 'micEnabled' || key === 'active' || key === 'handoffEnabled' || key === 'humanSupportEnabled' || key === 'feedbackEnabled' || key === 'policyEnabled' || key === 'scrollHaloEnabled' || key === 'scrollHaloTop' || key === 'scrollHaloBottom') {
       $set[key] = Boolean(v);
       continue;
     }
@@ -182,6 +197,26 @@ export async function PATCH(
     }
     if (key === 'aiBeamIntensity') {
       $set.aiBeamIntensity = normalizeAiBeamIntensity(v);
+      continue;
+    }
+    if (key === 'scrollHaloColorMode') {
+      $set.scrollHaloColorMode = normalizeScrollHaloColorMode(v);
+      continue;
+    }
+    if (key === 'scrollHaloColor') {
+      $set.scrollHaloColor = normalizeScrollHaloColor(v);
+      continue;
+    }
+    if (key === 'scrollHaloHeight') {
+      $set.scrollHaloHeight = normalizeScrollHaloHeight(v);
+      continue;
+    }
+    if (key === 'scrollHaloOpacity') {
+      $set.scrollHaloOpacity = normalizeScrollHaloOpacity(v);
+      continue;
+    }
+    if (key === 'scrollHaloBlur') {
+      $set.scrollHaloBlur = normalizeScrollHaloBlur(v);
       continue;
     }
     if (typeof v === 'string') {

@@ -7460,6 +7460,31 @@ button.dashboard-meta-chip:disabled {
   background: rgba(255, 255, 255, 0.16);
 }
 
+.wb-preview__chat-messages-shell {
+  position: relative;
+  flex: 1;
+  min-height: 4.5rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.wb-preview__scroll-halo {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.wb-preview__scroll-halo--top {
+  top: 0;
+}
+
+.wb-preview__scroll-halo--bottom {
+  bottom: 0;
+}
+
 .wb-preview__chat-body {
   flex: 1;
   min-height: 4.5rem;
@@ -7467,6 +7492,8 @@ button.dashboard-meta-chip:disabled {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  position: relative;
+  z-index: 1;
 }
 
 .wb-preview__bubble {

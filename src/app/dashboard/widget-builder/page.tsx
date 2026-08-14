@@ -36,6 +36,7 @@ import {
   DEFAULT_WIDGET_CONFIG,
   mergeWidgetAppearanceFromApi,
   normalizeAiBeamFields,
+  normalizeScrollHaloFields,
   pickWidgetAppearancePatch,
   WIDGET_STEP_DESCRIPTIONS,
   WIDGET_WIZARD_STEPS,
@@ -378,6 +379,7 @@ export default function WidgetBuilderPage() {
                 ].filter((id) => /^[a-f0-9]{24}$/i.test(String(id))),
               ),
               ...normalizeAiBeamFields(widget as Record<string, unknown>),
+              ...normalizeScrollHaloFields(widget as Record<string, unknown>),
             });
             if (Array.isArray(widget.shortcuts)) {
               setShortcuts((widget.shortcuts as WidgetShortcut[]).map((s) => ({
@@ -454,6 +456,11 @@ export default function WidgetBuilderPage() {
     'aiBeamScope',
     'aiBeamPalette',
     'aiBeamColor',
+    'scrollHaloEnabled',
+    'scrollHaloColorMode',
+    'scrollHaloColor',
+    'scrollHaloTop',
+    'scrollHaloBottom',
   ]);
 
   const patchWidgetFields = useCallback(

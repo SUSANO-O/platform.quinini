@@ -66,6 +66,15 @@ export interface WidgetConfig {
   aiBeamBlur: number;
   aiBeamSpeed: number;
   aiBeamIntensity: number;
+  /** Fade superior/inferior al hacer scroll en mensajes. */
+  scrollHaloEnabled: boolean;
+  scrollHaloColorMode: 'brand' | 'custom';
+  scrollHaloColor: string;
+  scrollHaloHeight: number;
+  scrollHaloOpacity: number;
+  scrollHaloBlur: number;
+  scrollHaloTop: boolean;
+  scrollHaloBottom: boolean;
 }
 
 export interface ClientAgentRow {
