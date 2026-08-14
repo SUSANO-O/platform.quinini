@@ -308,6 +308,20 @@ export async function POST(req: NextRequest) {
       .slice(0, 100);
   }
   if (Array.isArray(body.faqCandidates)) {
+    // El borrador de respuesta vive solo en la landing: el hub no lo necesita y su
+    // validación descarta lo que no conoce, así que lo que vuelve nunca lo trae.
+    // Se relee de Mongo para no borrar en cada sync lo que dejó el widget.
+    const draftFilter = buildClientFilter(agentHubId, body.landingClientAgentId, body.description);
+    const draftDoc = await ClientAgent.findOne(draftFilter).select({ faqCandidates: 1 }).lean() as
+      | { faqCandidates?: Array<{ key?: string; answerSample?: string }> }
+      | null;
+    const draftByKey = new Map<string, string>();
+    for (const c of draftDoc?.faqCandidates ?? []) {
+      const k = typeof c?.key === 'string' ? c.key.trim() : '';
+      const draft = typeof c?.answerSample === 'string' ? c.answerSample.trim() : '';
+      if (k && draft) draftByKey.set(k, draft);
+    }
+
     $set.faqCandidates = body.faqCandidates
       .filter((x) => x && typeof x === 'object' && typeof (x as { key?: unknown }).key === 'string')
       .map((x) => {
@@ -319,10 +333,13 @@ export async function POST(req: NextRequest) {
           lastSeen?: string;
           dismissed?: boolean;
         };
+        const key = String(o.key).trim().slice(0, 500);
+        const draft = draftByKey.get(key);
         return {
           id: typeof o.id === 'string' && o.id.trim() ? o.id.trim().slice(0, 64) : new mongoose.Types.ObjectId().toString(),
-          key: String(o.key).trim().slice(0, 500),
+          key,
           questionSample: typeof o.questionSample === 'string' ? o.questionSample.trim().slice(0, 400) : '',
+          ...(draft ? { answerSample: draft } : {}),
           count:
             typeof o.count === 'number' && Number.isFinite(o.count)
               ? Math.max(0, Math.min(1_000_000, Math.floor(o.count)))

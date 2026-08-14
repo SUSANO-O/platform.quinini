@@ -27,6 +27,7 @@ import { validateModelForPlan } from '@/lib/model-plan-policy';
 import { isSoloChatOnlyPlan, canUseWhatsApp, whatsappUpgradeLabel, WHATSAPP_MIN_PLAN } from '@/lib/plan-catalog';
 import { soloAgentPatchBlocked } from '@/lib/solo-plan-limits';
 import { validateAgentFallbackModels } from '@/lib/fallback-models-config';
+import { MAX_FAQ_ANSWER_SAMPLE } from '@/lib/agent-faq-utils';
 import { encryptSecret, decryptSecret, maskSecret, isEncryptionAvailable } from '@/lib/secret-crypto';
 import { generateVerifyToken, getWhatsAppWebhookUrl } from '@/lib/whatsapp';
 
@@ -619,6 +620,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         key: typeof x.key === 'string' ? x.key.trim().slice(0, 500) : '',
         questionSample:
           typeof x.questionSample === 'string' ? x.questionSample.trim().slice(0, 400) : '',
+        /** El borrador que dejó el widget; sin esto, guardar el panel lo borraría. */
+        ...(typeof x.answerSample === 'string' && x.answerSample.trim()
+          ? { answerSample: x.answerSample.trim().slice(0, MAX_FAQ_ANSWER_SAMPLE) }
+          : {}),
         count:
           typeof x.count === 'number' && Number.isFinite(x.count)
             ? Math.max(0, Math.min(1_000_000, Math.floor(x.count)))

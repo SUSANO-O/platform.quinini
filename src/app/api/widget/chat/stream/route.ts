@@ -788,6 +788,7 @@ export async function POST(req: NextRequest) {
                   ownerUserId: faqTrackOwnerId,
                   agentIdOrHubId: parsedAgentIdLocal,
                   rawBody: rawBodyInitial,
+                  agentReply: directMcp.reply,
                 }).catch(() => {});
                 void afterWidgetChatSuccess({
                   ownerUserId: faqTrackOwnerId,
@@ -858,6 +859,7 @@ export async function POST(req: NextRequest) {
                   ownerUserId: faqTrackOwnerId,
                   agentIdOrHubId: parsedAgentIdLocal,
                   rawBody: rawBodyInitial,
+                  agentReply: inferredEarly.reply,
                 }).catch(() => {});
                 void afterWidgetChatSuccess({
                   ownerUserId: faqTrackOwnerId,
@@ -973,6 +975,7 @@ export async function POST(req: NextRequest) {
                   ownerUserId: faqTrackOwnerId,
                   agentIdOrHubId: parsedAgentIdLocal,
                   rawBody: rawBodyInitial,
+                  agentReply: inferred.reply,
                 }).catch(() => {});
                 void afterWidgetChatSuccess({
                   ownerUserId: faqTrackOwnerId,
@@ -1107,6 +1110,7 @@ export async function POST(req: NextRequest) {
               ownerUserId: faqTrackOwnerId,
               agentIdOrHubId: parsedAgentId,
               rawBody,
+              agentReply: fullReply,
             }).catch(() => {});
 
             // Persist transcript (fire-and-forget — never blocks stream)
