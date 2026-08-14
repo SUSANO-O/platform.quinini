@@ -788,7 +788,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     if (data.agent && 'widgetPublicToken' in data.agent) {
       setWidgetPublicToken(typeof data.agent.widgetPublicToken === 'string' ? data.agent.widgetPublicToken : '');
     }
-    toast.success('Guardado.');
+    if (typeof data.warning === 'string' && data.warning.trim()) {
+      toast.success('Guardado, con aviso.');
+      setUploadErr(data.warning);
+    } else {
+      toast.success('Guardado.');
+    }
     return true;
   }
 
@@ -1107,6 +1112,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       onStatus: (msg) => setUploadMsg(msg),
     });
     if (!result.ok) return { ok: false, error: result.error ?? 'Error al subir archivo.' };
+    if (typeof result.message === 'string' && result.message.includes('No se pudo indexar')) {
+      setUploadErr(result.message);
+    } else if (result.message) {
+      setUploadMsg(result.message);
+    }
     const agentRes = await fetch(`/api/agents/${id}`);
     const agentData = await agentRes.json();
     if (agentData.agent) {

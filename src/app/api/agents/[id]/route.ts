@@ -28,6 +28,7 @@ import { isSoloChatOnlyPlan, canUseWhatsApp, whatsappUpgradeLabel, WHATSAPP_MIN_
 import { soloAgentPatchBlocked } from '@/lib/solo-plan-limits';
 import { validateAgentFallbackModels } from '@/lib/fallback-models-config';
 import { MAX_FAQ_ANSWER_SAMPLE } from '@/lib/agent-faq-utils';
+import { syncRagSourceEmbeddings, type RagSourceLike } from '@/lib/rag-embeddings-index';
 import { encryptSecret, decryptSecret, maskSecret, isEncryptionAvailable } from '@/lib/secret-crypto';
 import { generateVerifyToken, getWhatsAppWebhookUrl } from '@/lib/whatsapp';
 
@@ -366,7 +367,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     agent.ragEnabled = body.ragEnabled;
   }
 
+  let prevRagSources: RagSourceLike[] | null = null;
   if ('ragSources' in body) {
+    prevRagSources = Array.isArray(agent.ragSources)
+      ? (agent.ragSources as RagSourceLike[])
+      : [];
     agent.ragSources = body.ragSources;
   }
 
@@ -755,6 +760,25 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const pushedOk = await syncHubCatalogFromLandingAgentDoc(agent);
     agent.syncStatus = pushedOk ? 'synced' : 'failed';
     await ClientAgent.updateOne({ _id: agent._id }, { syncStatus: agent.syncStatus });
+  }
+
+  /**
+   * Texto, URL y duplicar se guardan aquí, no por rag-upload. Sin este paso
+   * el panel muestra la fuente y el agente no puede consultarla.
+   */
+  if (prevRagSources && hubId) {
+    const next = Array.isArray(agent.ragSources) ? (agent.ragSources as RagSourceLike[]) : [];
+    const sync = await syncRagSourceEmbeddings({
+      agentHubId: hubId,
+      previous: prevRagSources,
+      next,
+    });
+    if (sync.errors.length) {
+      return NextResponse.json({
+        agent,
+        warning: `Guardado, pero no se indexó para búsqueda: ${sync.errors.join(' | ')}`,
+      });
+    }
   }
 
   return NextResponse.json({ agent: withSafeWhatsApp(agent.toObject() as { whatsapp?: unknown }) });

@@ -35,6 +35,41 @@ export function ragSourceFileName(name: string, fallback = 'documento'): string 
   return /\.[a-z0-9]{1,8}$/i.test(base) ? base : `${base}.txt`;
 }
 
+export type RagSourceLike = {
+  name?: string;
+  fileName?: string;
+  content?: string;
+};
+
+export function ragSourceIndexName(s: RagSourceLike): string {
+  return ragSourceFileName(s.fileName || s.name || 'documento');
+}
+
+/** Nombre + texto: si cambia el contenido se reindexa; si no, no se vuelve a pagar el embedding. */
+export function ragSourceFingerprint(s: RagSourceLike): string {
+  return `${ragSourceIndexName(s)}\n${String(s.content ?? '').trim()}`;
+}
+
+/**
+ * Qué hay que indexar y qué borrar al guardar el panel (texto, URL o duplicar).
+ * Los archivos ya pasan por ingest; este diff cubre el resto y evita reindexar
+ * lo que no se ha tocado.
+ */
+export function diffRagSourcesForIndex(
+  previous: RagSourceLike[],
+  next: RagSourceLike[],
+): { toIndex: RagSourceLike[]; toDelete: string[] } {
+  const prevFp = new Set((previous ?? []).map(ragSourceFingerprint));
+  const nextNames = new Set((next ?? []).map(ragSourceIndexName));
+  const toIndex = (next ?? []).filter(
+    (s) => String(s.content ?? '').trim() && !prevFp.has(ragSourceFingerprint(s)),
+  );
+  const toDelete = [...new Set((previous ?? []).map(ragSourceIndexName))].filter(
+    (n) => !nextNames.has(n),
+  );
+  return { toIndex, toDelete };
+}
+
 export type RagIndexResult =
   | { ok: true; chunks: number }
   | { ok: false; error: string };
@@ -146,4 +181,39 @@ export async function deleteRagSourceEmbeddings(params: {
   } catch {
     return false;
   }
+}
+
+/**
+ * Alinea vectores con lo que acaba de guardar el panel: indexa altas y cambios,
+ * borra lo que ya no está. Nunca lanza.
+ */
+export async function syncRagSourceEmbeddings(params: {
+  agentHubId: string;
+  previous: RagSourceLike[];
+  next: RagSourceLike[];
+}): Promise<{ indexed: number; deleted: number; errors: string[] }> {
+  const { toIndex, toDelete } = diffRagSourcesForIndex(params.previous, params.next);
+  const errors: string[] = [];
+  let indexed = 0;
+  let deleted = 0;
+
+  for (const nombre of toDelete) {
+    const ok = await deleteRagSourceEmbeddings({
+      agentHubId: params.agentHubId,
+      fileName: nombre,
+    });
+    if (ok) deleted += 1;
+  }
+
+  for (const s of toIndex) {
+    const r = await indexRagSourceEmbeddings({
+      agentHubId: params.agentHubId,
+      fileName: ragSourceIndexName(s),
+      content: String(s.content ?? ''),
+    });
+    if (r.ok) indexed += 1;
+    else errors.push(`${ragSourceIndexName(s)}: ${r.error}`);
+  }
+
+  return { indexed, deleted, errors };
 }
