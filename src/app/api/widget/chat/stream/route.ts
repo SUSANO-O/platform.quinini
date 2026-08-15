@@ -918,7 +918,7 @@ export async function POST(req: NextRequest) {
             );
           }
           if (streamHints.ragEnabled) {
-            emitWidgetChatStatusForTurn(enqueue, streamMsg, 'rag');
+            emitWidgetChatStatusForTurn(enqueue, userMsgForStatus, 'rag');
           }
         } catch (hintsErr) {
           logWidgetFlow('⚠️', 'stream:hintsErr', hintsErr instanceof Error ? hintsErr.message : String(hintsErr));
