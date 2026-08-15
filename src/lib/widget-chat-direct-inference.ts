@@ -10,6 +10,15 @@ import { getAibackhubBaseUrl, hubCreateHeaders, hubFetch } from '@/lib/aibackhub
 import { agentSkillsNeedMcpTools } from '@/lib/agent-skills-mcp';
 import { logWidgetFlow, widgetMessageProbe } from '@/lib/debug-widget-flow';
 import { isTrivialMessage } from '@/lib/trivial-message';
+import {
+  LEAD_CAPTURE_SKILL_IDS,
+  leadCaptureToolsAllowed,
+  needsKnowledgeLookup,
+  shouldSkipHeavyWidgetPath,
+  shouldUseCheapGreetingModel,
+  widgetReplyMaxTokens,
+  widgetRuntimeDirectives,
+} from '@/lib/widget-counter-rhythm';
 import { buildUserPromptWithSessionContext, VISION_SYSTEM_INSTRUCTIONS } from '@/lib/widget-chat-vision-context';
 import {
   mergeContextBlocks,
@@ -159,10 +168,12 @@ export async function tryServeWidgetChatViaDirectInference(params: {
   if (isImageModel(storedModel)) return null;
 
   // Fast-path de saludos: barato por /api/models aunque el agente tenga skills MCP.
-  // AIBackHub también vacía tools en trivial; evitamos el pipeline MCP pesado.
+  // Continuidad (recuerdo, emoción, hechos): sin RAG/skills/MCP; el modelo del agente basta.
   const trivial = isTrivialMessage(message, parsed.history);
+  const skipHeavy = shouldSkipHeavyWidgetPath(message, parsed.history);
+  const cheapGreeting = shouldUseCheapGreetingModel(message, parsed.history);
 
-  if (!trivial && (await agentNeedsMcpWidgetChat(ca))) {
+  if (!skipHeavy && (await agentNeedsMcpWidgetChat(ca))) {
     logWidgetFlow('⏭️', 'infer:skip', 'agente con MCP/skills-tools — requiere /api/mcp/widget-chat', {
       agentId: id,
       agentHubId: ca.agentHubId,
@@ -173,14 +184,15 @@ export async function tryServeWidgetChatViaDirectInference(params: {
 
   const { provider, model } = normalizeModel(storedModel);
 
-  const effProvider = trivial ? 'vertex' : provider;
-  const effModel = trivial ? 'gemini-2.5-flash-lite' : model;
+  const effProvider = cheapGreeting ? 'vertex' : provider;
+  const effModel = cheapGreeting ? 'gemini-2.5-flash-lite' : model;
 
-  logWidgetFlow(trivial ? '⚡' : '🧠', 'infer:start', 'POST /api/models directo', {
+  logWidgetFlow(cheapGreeting ? '⚡' : skipHeavy ? '💬' : '🧠', 'infer:start', 'POST /api/models directo', {
     agentId: id,
     provider: effProvider,
     model: effModel,
-    fastPath: trivial,
+    fastPath: cheapGreeting,
+    skipHeavy,
     ...widgetMessageProbe(message),
   });
 
@@ -234,7 +246,7 @@ export async function tryServeWidgetChatViaDirectInference(params: {
   let resolvedMaxTokens =
     typeof ca.inferenceMaxTokens === 'number' ? ca.inferenceMaxTokens : undefined;
 
-  if (skills.length > 0 || skillsConfig.length > 0) {
+  if (!skipHeavy && (skills.length > 0 || skillsConfig.length > 0)) {
     params.onStatus?.(
       'skills',
       skills.length === 1
@@ -254,6 +266,9 @@ export async function tryServeWidgetChatViaDirectInference(params: {
             baseMaxOutputTokens: resolvedMaxTokens,
             skillIds: skills,
             skillsConfig,
+            ...(!leadCaptureToolsAllowed(message, parsed.history)
+              ? { excludeSkillIds: [...LEAD_CAPTURE_SKILL_IDS] }
+              : {}),
           }),
         },
         8_000,
@@ -297,6 +312,13 @@ export async function tryServeWidgetChatViaDirectInference(params: {
       : visionTail;
   }
 
+  const runtimeBlock = widgetRuntimeDirectives(message, parsed.history).join('\n');
+  if (runtimeBlock) {
+    resolvedSystemPrompt = resolvedSystemPrompt.trim()
+      ? `${resolvedSystemPrompt.trim()}\n\n${runtimeBlock}`
+      : runtimeBlock;
+  }
+
   let contextBlock =
     typeof parsed.sessionContextBlock === 'string' ? parsed.sessionContextBlock : '';
 
@@ -316,9 +338,9 @@ export async function tryServeWidgetChatViaDirectInference(params: {
     }
   }
 
-  /** Los documentos del panel: este camino no los consultaba nunca. */
+  /** Documentos del panel: solo si el turno pide inventario, precio o ficha. */
   const hubIdForRag = typeof ca.agentHubId === 'string' ? ca.agentHubId.trim() : '';
-  if (!trivial && ca.ragEnabled === true && hubIdForRag) {
+  if (needsKnowledgeLookup(message) && ca.ragEnabled === true && hubIdForRag) {
     const ragBlock = await retrieveRagContextBlock({ agentHubId: hubIdForRag, query: message });
     if (ragBlock) {
       contextBlock = mergeContextBlocks(contextBlock, ragBlock);
@@ -329,6 +351,11 @@ export async function tryServeWidgetChatViaDirectInference(params: {
   }
 
   const promptForModel = buildUserPromptWithSessionContext(message, contextBlock);
+  resolvedMaxTokens = widgetReplyMaxTokens({
+    message,
+    history: parsed.history,
+    agentMax: resolvedMaxTokens,
+  });
 
   params.onStatus?.('model', 'Generando respuesta…');
 
@@ -340,6 +367,7 @@ export async function tryServeWidgetChatViaDirectInference(params: {
         headers: {
           ...hubCreateHeaders(),
           'x-agent-name': agentName,
+          'x-widget-output-sanitize': 'true',
         },
         body: JSON.stringify({
           prompt: promptForModel,

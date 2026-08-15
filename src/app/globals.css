@@ -7221,6 +7221,10 @@ button.dashboard-meta-chip:disabled {
 .wb-preview__thinking-beam {
   width: 100%;
   max-width: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 12px;
 }
 
 .wb-preview__thinking-card {
@@ -7241,6 +7245,8 @@ button.dashboard-meta-chip:disabled {
   font-weight: 500;
   line-height: 1.35;
   color: #1c1c1e;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .wb-preview__thinking-sub {
@@ -7376,10 +7382,12 @@ button.dashboard-meta-chip:disabled {
   position: absolute;
   left: 8%;
   right: 8%;
-  bottom: 8%;
+  top: 10%;
+  bottom: 26%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  isolation: isolate;
   border: 1px solid rgba(0, 0, 0, 0.08);
   background: #fff;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16);
@@ -7487,13 +7495,15 @@ button.dashboard-meta-chip:disabled {
 
 .wb-preview__chat-body {
   flex: 1;
-  min-height: 4.5rem;
+  min-height: 0;
   padding: 0.55rem;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
   position: relative;
   z-index: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .wb-preview__bubble {
@@ -7527,12 +7537,15 @@ button.dashboard-meta-chip:disabled {
   gap: 0.25rem;
   padding: 0.35rem 0.45rem;
   border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0;
 }
 
 .wb-preview__composer-beam {
   display: block;
   width: 100%;
   min-width: 0;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
 .wb-preview__device.is-dark .wb-preview__composer {
@@ -7573,6 +7586,7 @@ button.dashboard-meta-chip:disabled {
   text-align: center;
   color: var(--muted-foreground);
   border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0;
 }
 
 .wb-preview__launcher {
@@ -7583,6 +7597,7 @@ button.dashboard-meta-chip:disabled {
   align-items: flex-end;
   gap: 0.25rem;
   max-width: 42%;
+  pointer-events: none;
 }
 
 .wb-preview__fab-hint {

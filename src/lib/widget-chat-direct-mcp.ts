@@ -16,6 +16,7 @@ import { logWidgetFlow, widgetInventoryReplyProbe, widgetMessageProbe, widgetToo
 import { agentHasAnyWebhook } from '@/lib/agent-webhooks';
 import { agentHasAnySheet } from '@/lib/agent-sheets';
 import { isTrivialMessage } from '@/lib/trivial-message';
+import { shouldSkipHeavyWidgetPath } from '@/lib/widget-counter-rhythm';
 import {
   buildUserPromptWithSessionContext,
   buildVisionSessionBlock,
@@ -173,15 +174,15 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     return null;
   }
 
-  // Saludos: no pagar pipeline MCP; el caller puede usar /api/models barato.
-  if (
-    (skillsNeedMcp || hasExplicitMcpIds) &&
-    !clientAgentHasWebhookUrl(ca) &&
-    !clientAgentWantsHubspotWidgetAutoCapture(ca) &&
-    isTrivialMessage(message, Array.isArray(parsed.history) ? parsed.history : undefined)
-  ) {
-    logWidgetFlow('⚡', 'direct:skip', 'mensaje trivial — omitir MCP (fast-path models)', {
+  // Saludos y continuidad (recuerdo/emoción): no pagar pipeline MCP.
+  const skipHeavy = shouldSkipHeavyWidgetPath(
+    message,
+    Array.isArray(parsed.history) ? parsed.history : undefined,
+  );
+  if (skipHeavy) {
+    logWidgetFlow('⚡', 'direct:skip', 'turno simple — omitir MCP (inferencia directa)', {
       agentId: id,
+      trivial: isTrivialMessage(message, Array.isArray(parsed.history) ? parsed.history : undefined),
     });
     return null;
   }
