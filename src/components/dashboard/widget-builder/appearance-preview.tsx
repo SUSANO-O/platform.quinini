@@ -201,7 +201,7 @@ export function WidgetBuilderAppearancePreview({ cfg }: { cfg: PreviewCfg }) {
               <div className="wb-preview__bubble wb-preview__bubble--bot">{cfg.welcome || '¡Hola!'}</div>
               {showMsgBeam ? (
                 <BorderBeamField
-                  radius={999}
+                  radius={12}
                   theme={cfg.theme === 'dark' ? 'dark' : 'light'}
                   className="wb-preview__thinking-beam"
                   active
