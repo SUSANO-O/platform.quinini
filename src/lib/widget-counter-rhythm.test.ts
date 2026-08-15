@@ -7,16 +7,33 @@ import {
   needsVehicleFactsEcho,
   shouldSkipHeavyWidgetPath,
   shouldUseCheapGreetingModel,
+  replyDriftsFromTurn,
   widgetReplyMaxTokens,
   widgetRuntimeDirectives,
   WIDGET_TOKEN_BUDGET,
   WIDGET_TOKEN_FLOOR,
+  widgetTurnUserText,
 } from './widget-counter-rhythm';
 
 const OPEN_HISTORY = [
   { role: 'user', content: 'Hola' },
   { role: 'model', content: 'Buenas, soy el jefe de taller.' },
 ];
+
+function wrapSession(user: string, extra = 'Andrés. Hija al colegio. Semáforos. sheet_repuestos.') {
+  return `[CONTEXTO DE SESIÓN — incluye análisis de imágenes; tratar como hechos confirmados]\n--- CONTEXTO DE SESIÓN ---\n${extra}\n\n[MENSAJE DEL USUARIO]\n${user}`;
+}
+
+describe('widgetTurnUserText', () => {
+  it('deja solo el texto del visitante', () => {
+    expect(widgetTurnUserText(wrapSession('cuánto cuesta el plan Pro?'))).toBe('cuánto cuesta el plan Pro?');
+  });
+
+  it('si el recorte es solo el encabezado de sesión, no hay término de turno', () => {
+    const truncated = wrapSession('Que Kia Picanto 2026 tienen?').slice(0, 120);
+    expect(widgetTurnUserText(truncated)).toBe('');
+  });
+});
 
 describe('needsKnowledgeLookup', () => {
   it('enciende RAG / documentos en inventario y precio', () => {
@@ -31,6 +48,7 @@ describe('needsKnowledgeLookup', () => {
       ),
     ).toBe(true);
     expect(needsKnowledgeLookup('cuánto cuesta el Picanto 2026?')).toBe(true);
+    expect(needsKnowledgeLookup('Qué laptops tienen en el catálogo?')).toBe(true);
   });
 
   it('no enciende RAG en memoria, emoción ni hechos del visitante', () => {
@@ -123,6 +141,91 @@ describe('needsVehicleFactsEcho', () => {
       false,
     );
     expect(needsVehicleFactsEcho('Que Kia Picanto 2026 tienen en el inventario premium en Bogota?')).toBe(false);
+    expect(
+      needsVehicleFactsEcho(
+        wrapSession(
+          'Tienen el amortiguador delantero izquierdo para una Chevrolet Tracker 2017? Dime stock.',
+          'Me llamo Andres. Tengo un Picanto blanco del 2019 con 42000 kilometros.',
+        ),
+      ),
+    ).toBe(false);
+  });
+});
+
+describe('replyDriftsFromTurn', () => {
+  it('marca re-saludo en hilo abierto', () => {
+    expect(
+      replyDriftsFromTurn({
+        message: 'Tienen stock del SKU ABC-1? Dime sede.',
+        reply: 'Hola, Andrés. No hay disponibilidad de ese SKU.',
+        history: OPEN_HISTORY,
+      }),
+    ).toBe(true);
+  });
+
+  it('marca emoción arrastrada en un cálculo si el mensaje no la nombra', () => {
+    expect(
+      replyDriftsFromTurn({
+        message: 'Cuanto me faltaria para el cambio? Razona en voz alta.',
+        reply: 'Entiendo tu angustia. El de lista vale 58.900.000; no tengo retoma.',
+        history: OPEN_HISTORY,
+      }),
+    ).toBe(true);
+  });
+
+  it('no marca empatía cuando el visitante sí habla de miedo', () => {
+    expect(
+      replyDriftsFromTurn({
+        message: 'Estoy angustiado y tengo miedo de que falle.',
+        reply: 'Entiendo tu angustia. Vamos a revisarlo.',
+        history: OPEN_HISTORY,
+      }),
+    ).toBe(false);
+  });
+
+  it('marca eco de un susto previo si este mensaje no lo nombra', () => {
+    const scared = [
+      ...OPEN_HISTORY,
+      {
+        role: 'user',
+        content: 'Estoy angustiado. Se apaga y llevo a mi hija al colegio. Tengo miedo.',
+      },
+    ];
+    expect(
+      replyDriftsFromTurn({
+        message: 'Agendame una cita el jueves.',
+        reply: 'Te agendamos el jueves para que lleves a tu hija al colegio.',
+        history: scared,
+      }),
+    ).toBe(true);
+  });
+
+  it('no marca si el visitante pregunta por ese episodio', () => {
+    const scared = [
+      ...OPEN_HISTORY,
+      { role: 'user', content: 'Estoy angustiado. Llevo a mi hija al colegio y tengo miedo.' },
+    ];
+    expect(
+      replyDriftsFromTurn({
+        message: 'Recuerdas a quien llevo al colegio?',
+        reply: 'Sí, a tu hija.',
+        history: scared,
+      }),
+    ).toBe(false);
+  });
+
+  it('el bloque de sesión no cuenta como que este turno nombra el susto', () => {
+    const scared = [
+      ...OPEN_HISTORY,
+      { role: 'user', content: 'Estoy angustiado. Llevo a mi hija al colegio y tengo miedo.' },
+    ];
+    expect(
+      replyDriftsFromTurn({
+        message: wrapSession('Agendame una cita el jueves.'),
+        reply: 'Te agendamos el jueves para que lleves a tu hija al colegio.',
+        history: scared,
+      }),
+    ).toBe(true);
   });
 });
 

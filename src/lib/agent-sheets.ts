@@ -235,8 +235,39 @@ export function extractAgentSheets(agent: {
   return out;
 }
 
+/** Ancho por defecto: 26 columnas. ZZ (702) truncaba el CSV y cortaba el sync. */
+export const SHEET_GVIZ_DEFAULT_MAX_COL = 'Z';
+
+export const SHEET_DATA_FALLBACK_HEADER = [
+  'referencia',
+  'categoria',
+  'descripcion',
+  'oem',
+  'marca_repuesto',
+  'marca_vehiculo',
+  'modelo',
+  'anios',
+  'estado',
+  'stock',
+  'costo',
+  'precio_lista',
+  'sede',
+  'fecha',
+  'nota',
+] as const;
+
+/** Primera celda tipo REP-0000004: es fila de datos, no encabezado. */
+export function looksLikeSheetDataRow(cells: string[] | undefined): boolean {
+  const first = String(cells?.[0] || '').trim();
+  return /^REP-\d+/i.test(first);
+}
+
 /** Rango A1 para paginación de sync/fetch parcial. */
-export function sheetDataRowsToA1Range(fromRow: number, toRowExclusive: number, maxCol = 'ZZ'): string {
+export function sheetDataRowsToA1Range(
+  fromRow: number,
+  toRowExclusive: number,
+  maxCol = SHEET_GVIZ_DEFAULT_MAX_COL,
+): string {
   const start = Math.max(0, Math.floor(fromRow)) + 2;
   const end = Math.max(start, Math.floor(toRowExclusive) + 1);
   return `A${start}:${maxCol}${end}`;
@@ -256,28 +287,65 @@ export function buildGvizCsvUrl(params: {
   return u.toString();
 }
 
+function parseCsvLine(line: string): string[] {
+  const out: string[] = [];
+  let cur = '';
+  let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]!;
+    if (ch === '"') {
+      if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (ch === ',' && !inQ) { out.push(cur); cur = ''; }
+    else cur += ch;
+  }
+  out.push(cur);
+  return out;
+}
+
 /** Parsea CSV simple en header + filas. */
 export function parseSimpleCsv(csv: string): { header: string[]; rows: string[][] } {
   const lines = csv.split('\n').filter((l) => l.trim() !== '');
   if (lines.length === 0) return { header: [], rows: [] };
-  const parseLine = (line: string): string[] => {
-    const out: string[] = [];
-    let cur = '';
-    let inQ = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i]!;
-      if (ch === '"') {
-        if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
-        else inQ = !inQ;
-      } else if (ch === ',' && !inQ) { out.push(cur); cur = ''; }
-      else cur += ch;
-    }
-    out.push(cur);
-    return out;
-  };
-  const header = parseLine(lines[0]!);
-  const rows = lines.slice(1).map(parseLine);
+  const header = parseCsvLine(lines[0]!);
+  const rows = lines.slice(1).map(parseCsvLine);
   return { header, rows };
+}
+
+function fallbackHeaderForWidth(width: number): string[] {
+  const base = [...SHEET_DATA_FALLBACK_HEADER];
+  while (base.length < width) base.push(`col_${base.length + 1}`);
+  return base.slice(0, Math.max(width, 1));
+}
+
+/**
+ * Parsea un trozo gviz/CSV.
+ * `includeHeader=false` (chunks 2..n): TODAS las líneas son datos.
+ * Si no, una primera fila REP-* se mueve a datos con encabezado sintético.
+ */
+export function parseGvizCsvChunk(
+  csv: string,
+  includeHeader: boolean,
+): { header: string[]; rows: string[][]; lineCount: number } {
+  const lines = csv.split('\n').filter((l) => l.trim() !== '');
+  if (lines.length === 0) return { header: [], rows: [], lineCount: 0 };
+  const records = lines.map(parseCsvLine);
+  if (!includeHeader) {
+    return { header: [], rows: records, lineCount: records.length };
+  }
+  const first = records[0]!;
+  if (looksLikeSheetDataRow(first)) {
+    return { header: fallbackHeaderForWidth(first.length), rows: records, lineCount: records.length };
+  }
+  return { header: first, rows: records.slice(1), lineCount: records.length };
+}
+
+/** Partir filas para no pasar el tope de 16MB por documento Mongo. */
+export function splitSheetRowsForMongo(rows: string[][], chunkSize = 4000): string[][][] {
+  const size = Math.max(1, Math.floor(chunkSize));
+  const out: string[][][] = [];
+  for (let i = 0; i < rows.length; i += size) out.push(rows.slice(i, i + size));
+  return out.length ? out : [[]];
 }
 
 export function agentHasAnySheet(agent: {

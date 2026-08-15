@@ -11,6 +11,19 @@ import { isTrivialMessage, type SimpleTurn } from '@/lib/trivial-message';
 type HistoryTurn = { role?: string; content?: string } | null | undefined;
 
 /**
+ * El landing antepone [CONTEXTO DE SESIÓN] al mensaje. El gating y { search }
+ * deben verse solo lo que escribió el visitante en este turno.
+ */
+export function widgetTurnUserText(raw: string): string {
+  const t = typeof raw === 'string' ? raw : '';
+  const marker = '[MENSAJE DEL USUARIO]';
+  const i = t.lastIndexOf(marker);
+  if (i >= 0) return t.slice(i + marker.length).trim();
+  if (/CONTEXTO DE SESI[OÓ]N/i.test(t)) return '';
+  return t.trim();
+}
+
+/**
  * Pisos absolutos: por debajo hubo regresión 16:51 (720 tok → humano 57, frases cortadas).
  * Nunca se baja de aquí, aunque el agente tenga maxOutputTokens más bajo en Mongo.
  */
@@ -41,27 +54,50 @@ function resolvedTokenBudget(tier: WidgetTokenTier, agentMax?: number): number {
 
 /** Runtime (no edita el prompt del agente en Mongo): baja captura de lead en turnos pasivos. */
 export const WIDGET_PASSIVE_COUNTER_DIRECTIVE =
-  '- **Mostrador pasivo (este turno):** responde la pregunta del visitante y cierra la idea en una oración natural. **Prohibido** pedir teléfono, correo, WhatsApp, test drive o agendamiento salvo que él lo pida. Si ya hay hilo abierto, **no** lo saludes de nuevo.';
+  '- **Mostrador pasivo (este turno):** responde la pregunta del visitante y cierra la idea en una oración natural. **Prohibido** pedir teléfono, correo, WhatsApp, demo o agendamiento salvo que él lo pida. Si ya hay hilo abierto, **no** lo saludes de nuevo.';
 
 export const WIDGET_TURN_FOCUS_DIRECTIVE =
-  '- **Enfoque del turno:** responde **solo** a la pregunta de este mensaje. No retomes otros temas del hilo (semáforos, angustia, tasación, lead) si el visitante no los nombra ahora.';
+  '- **Enfoque del turno:** responde **solo** a la pregunta de este mensaje. No retomes otros temas del hilo (emoción, cálculo, lead) si el visitante no los nombra ahora. Si ya hay conversación, **no** saludes de nuevo.';
+
+/** Un retry de orquestación si el modelo ignora el enfoque. */
+export const WIDGET_TURN_FOCUS_RETRY =
+  '[Corrección de enfoque: no saludes de nuevo. Responde solo a este mensaje. No retomes emoción ni síntomas de otro turno si el visitante no los nombra ahora. Si este mensaje pide un recuerdo, respóndelo.]';
 
 export const WIDGET_INVENTORY_NO_LEAD_DIRECTIVE =
-  '- **Inventario / precio de lista:** entrega solo datos del documento o RAG (modelo, precio, sede). **No** cierres pidiendo contacto ni agendamiento en el mismo mensaje.';
+  '- **Catálogo / precio de lista:** entrega solo datos del documento o RAG. **No** cierres pidiendo contacto ni agendamiento en el mismo mensaje.';
 
 export const WIDGET_REASONING_DIRECTIVE =
-  '- **Retoma / diferencia de cambio:** razona en español con los precios del inventario ya conocidos. Si no tienes tasación del usado, dilo claro; no inventes rangos. **No** cambies de tema (semáforos, angustia, saludos).';
+  '- **Cifras ya conocidas:** razona en español con los números que ya tienes. Si falta un dato, dilo claro; no inventes rangos. **No** cambies de tema ni saludes de nuevo.';
 
-/** Solo turno corto-escritura (A2): el visitante presenta su auto por primera vez. */
-export const WIDGET_VEHICLE_FACTS_ECHO_DIRECTIVE =
-  '- **Datos que acaba de contar (este turno):** repite explícitamente en tu respuesta **cada dato** que el visitante acaba de dar: nombre, modelo, **color**, año y kilómetros. Si dijo "blanco", escribe "blanco"; no omitas el color ni generalices.';
+/** Plantilla; el runtime interpola los datos de este turno. */
+export const WIDGET_STATED_FACTS_ECHO_DIRECTIVE =
+  '- **Datos que acaba de contar (este turno):** repite cada dato concreto (nombre, producto, color, cifras). No omitas ni generalices.';
+
+/** @deprecated alias — el eco no es de un vertical. */
+export const WIDGET_VEHICLE_FACTS_ECHO_DIRECTIVE = WIDGET_STATED_FACTS_ECHO_DIRECTIVE;
+
+const STATED_COLOR_RE = /\b(blanc[oa]|negr[oa]|roj[oa]|gris|azul|platead[oa]|verde|beige)\b/i;
+
+function statedFactsEchoDirective(message: string): string {
+  const bits: string[] = [];
+  const name = message.match(/\bme\s+llamo\s+([A-Za-zÁÉÍÓÚáéíóúüÜñÑ]+)/i);
+  if (name?.[1]) bits.push(name[1]);
+  const color = message.match(STATED_COLOR_RE);
+  if (color?.[1]) bits.push(color[1].toLowerCase());
+  const year = message.match(/\b(20\d{2})\b/);
+  if (year?.[1]) bits.push(year[1]);
+  const km = message.match(/\b(\d{3,6})\s*(?:km|kil[oó]metros?)\b/i);
+  if (km?.[1]) bits.push(`${km[1]} km`);
+  const extra = bits.length ? ` Si dijo ${bits.map((b) => `"${b}"`).join(', ')}, escríbelo igual.` : '';
+  return `${WIDGET_STATED_FACTS_ECHO_DIRECTIVE}${extra}`;
+}
 
 /** Skills que activan CRM/cierre. Fuera si el turno no pide agenda ni captura. */
 export const LEAD_CAPTURE_SKILL_IDS = ['sales_closer', 'objection_handling', 'lead_qualifier'] as const;
 
-/** Inventario, precios de lista, ficha, financiación: sí RAG / hojas. */
+/** Catálogo, precios, ficha, política: sí RAG / docs. Sin marcas de un cliente. */
 const KNOWLEDGE_RE =
-  /\b(?:precio|precios|cuesta|costar|valor|cotiz(?:ar|aci[oó]n)?|inventario|stock|disponible|cat[aá]logo|brochure|ficha|financi(?:a|aci[oó]n)|cuota|entrada|garant[ií]a|retoma|permuta|cu[aá]nto\s+(?:me\s+)?(?:falt|cuesta|vale|sale|dan)|lista\s+de\s+precios|tienen?\s+(?:en\s+)?(?:el\s+)?inventario|qu[eé]\s+(?:kia|renault|chevrolet|mazda|toyota|hyundai|modelos?|versiones?))\b/i;
+  /\b(?:precio|precios|cuesta|costar|valor|cotiz(?:ar|aci[oó]n)?|inventario|stock|disponible|cat[aá]logo|brochure|ficha|financi(?:a|aci[oó]n)|cuota|entrada|garant[ií]a|retoma|permuta|cu[aá]nto\s+(?:me\s+)?(?:falt|cuesta|vale|sale|dan)|lista\s+de\s+precios|tienen?\s+(?:en\s+)?(?:el\s+)?(?:inventario|cat[aá]logo)|qu[eé]\s+(?:modelos?|versiones?|planes?|productos?|servicios?))\b/i;
 
 /** Cita, envío, webhook: MCP / calendario / HubSpot sí. */
 const OPERATIONAL_RE =
@@ -86,43 +122,157 @@ function isShortProceedAfterQuestion(
   message: string,
   history?: HistoryTurn[] | null,
 ): boolean {
-  const proceed = message.trim().toLowerCase().replace(/[!.,]+$/g, '');
+  const proceed = widgetTurnUserText(message).toLowerCase().replace(/[!.,]+$/g, '');
   return SHORT_PROCEED.has(proceed) && lastAssistantAskedQuestion(history);
 }
 
 export function needsKnowledgeLookup(message: string): boolean {
-  const raw = typeof message === 'string' ? message.trim() : '';
+  const raw = widgetTurnUserText(message);
   if (!raw) return false;
   return KNOWLEDGE_RE.test(raw);
 }
 
 export function needsOperationalTools(message: string): boolean {
-  const raw = typeof message === 'string' ? message.trim() : '';
+  const raw = widgetTurnUserText(message);
   if (!raw) return false;
   return OPERATIONAL_RE.test(raw);
 }
 
 /**
- * Turno A2 (memoria-corta-escritura): visitante presenta nombre + datos del auto.
- * No aplica a recuerdos (A5/B1), inventario (A3) ni emoción (A4).
+ * El visitante acaba de declarar un ítem propio (nombre + tengo / tengo un…).
+ * No aplica a recuerdos ni a catálogo/precio.
  */
-export function needsVehicleFactsEcho(message: string): boolean {
-  const raw = typeof message === 'string' ? message.trim() : '';
+export function needsStatedFactsEcho(message: string): boolean {
+  const raw = widgetTurnUserText(message);
   if (!raw || /[?¿]/.test(raw)) return false;
   if (needsKnowledgeLookup(raw) || needsOperationalTools(raw)) return false;
   if (/\b(?:te\s+acuerdas|recuerdas|cu[aá]ntos?\s+kil[oó]met|de\s+qu[eé]\s+color\s+(?:era|ten[ií]a))\b/i.test(raw)) {
     return false;
   }
-  const declaresOwnVehicle =
-    /\bme\s+llamo\b[\s\S]{0,160}\btengo\b/i.test(raw) ||
-    /\btengo\s+(?:un\s+)?(?:mi\s+)?(?:kia\s+)?(?:picanto|soul|rio|sportage|auto|carro|veh[ií]culo)\b/i.test(raw);
-  if (!declaresOwnVehicle) return false;
+  const presentsOwnItem =
+    /\bme\s+llamo\b[\s\S]{0,160}\btengo\b/i.test(raw) || /\btengo\s+(?:un|una|mi)\s+\w+/i.test(raw);
+  if (!presentsOwnItem) return false;
   return (
-    /\b(?:blanc[oa]|negro|roj[oa]|gris|azul|platead[oa]|verde|beige)\b/i.test(raw) ||
+    STATED_COLOR_RE.test(raw) ||
     /\b20\d{2}\b/.test(raw) ||
     /\b(?:kil[oó]met|\d{3,6}\s*km)\b/i.test(raw) ||
     /\b(?:cambiar|retoma|permuta|m[aá]s\s+nuevo|renovar)\b/i.test(raw)
   );
+}
+
+export const needsVehicleFactsEcho = needsStatedFactsEcho;
+
+const TURN_EMOTION_RE = /\b(?:angust|miedo|preocup|estr[eé]s|zozobra|temor)/i;
+const TURN_REGREET_RE = /^(?:¡?\s*)?(?:hola|buenas|qu[eé]\s+gusto\s+saludarte)/i;
+const TURN_REASONING_RE =
+  /\b(?:razona|razonamiento|cu[aá]nto\s+me\s+faltar|diferencia|retoma|permuta|tasaci[oó]n|aval[uú]o)\b/i;
+
+const FOCUS_STOP = new Set([
+  'este',
+  'esta',
+  'esto',
+  'para',
+  'como',
+  'cuando',
+  'tiene',
+  'tienen',
+  'tengo',
+  'quiero',
+  'vamos',
+  'carro',
+  'auto',
+  'vehiculo',
+  'equipo',
+  'producto',
+  'problema',
+  'revisar',
+  'revision',
+  'verdad',
+  'todas',
+  'todos',
+  'decir',
+  'dije',
+  'color',
+]);
+
+function foldFocusText(text: string): string {
+  return String(text || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function distinctiveFocusTokens(text: string): Set<string> {
+  const out = new Set<string>();
+  const parts = foldFocusText(text).match(/[a-z0-9]+/g) ?? [];
+  for (const p of parts) {
+    if (p.length < 4) continue;
+    if (FOCUS_STOP.has(p)) continue;
+    out.add(p);
+  }
+  return out;
+}
+
+function priorEmotionalTokens(history?: HistoryTurn[] | null): Set<string> {
+  const out = new Set<string>();
+  if (!Array.isArray(history)) return out;
+  for (const h of history) {
+    if (!h || typeof h !== 'object') continue;
+    const role = String(h.role || '');
+    if (role !== 'user') continue;
+    const content = typeof h.content === 'string' ? h.content : '';
+    if (!TURN_EMOTION_RE.test(content)) continue;
+    for (const t of distinctiveFocusTokens(content)) out.add(t);
+  }
+  return out;
+}
+
+function replyLeaksPriorEmotion(params: {
+  message: string;
+  reply: string;
+  history?: HistoryTurn[] | null;
+}): boolean {
+  if (TURN_EMOTION_RE.test(params.message)) return false;
+  const prior = priorEmotionalTokens(params.history);
+  if (prior.size === 0) return false;
+  const current = distinctiveFocusTokens(params.message);
+  for (const t of current) {
+    if (prior.has(t)) return false;
+  }
+  const replyToks = distinctiveFocusTokens(params.reply);
+  for (const t of prior) {
+    if (replyToks.has(t) && !current.has(t)) return true;
+  }
+  return false;
+}
+
+function turnNeedsFocusGuard(message: string): boolean {
+  return needsKnowledgeLookup(message) || needsOperationalTools(message) || TURN_REASONING_RE.test(message);
+}
+
+/**
+ * El modelo saludó de nuevo o arrastró emoción de otro turno.
+ * No importa inventory-intent (evita ciclo: intent ya importa rhythm).
+ */
+export function replyDriftsFromTurn(params: {
+  message: string;
+  reply: string;
+  history?: HistoryTurn[] | null;
+}): boolean {
+  const message = widgetTurnUserText(params.message);
+  const reply = typeof params.reply === 'string' ? params.reply.trim() : '';
+  if (!reply) return false;
+  const open = historyHasOpenThread(params.history);
+  if (open && TURN_REGREET_RE.test(reply) && !needsStatedFactsEcho(message)) {
+    return true;
+  }
+  if (turnNeedsFocusGuard(message) && TURN_EMOTION_RE.test(reply) && !TURN_EMOTION_RE.test(message)) {
+    return true;
+  }
+  if (replyLeaksPriorEmotion({ message, reply, history: params.history })) {
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -156,7 +306,7 @@ export function shouldUseCheapGreetingModel(
   history?: SimpleTurn[] | HistoryTurn[] | null,
 ): boolean {
   const hist = Array.isArray(history) ? (history as SimpleTurn[]) : undefined;
-  return isTrivialMessage(message, hist) && !historyHasOpenThread(history);
+  return isTrivialMessage(widgetTurnUserText(message), hist) && !historyHasOpenThread(history);
 }
 
 export function shouldSkipHeavyWidgetPath(
@@ -164,10 +314,11 @@ export function shouldSkipHeavyWidgetPath(
   history?: SimpleTurn[] | HistoryTurn[] | null,
 ): boolean {
   const hist = Array.isArray(history) ? (history as SimpleTurn[]) : undefined;
-  if (isShortProceedAfterQuestion(message, history)) return false;
-  if (isTrivialMessage(message, hist)) return true;
-  if (needsKnowledgeLookup(message)) return false;
-  if (needsOperationalTools(message)) return false;
+  const turn = widgetTurnUserText(message);
+  if (isShortProceedAfterQuestion(turn, history)) return false;
+  if (isTrivialMessage(turn, hist)) return true;
+  if (needsKnowledgeLookup(turn)) return false;
+  if (needsOperationalTools(turn)) return false;
   return true;
 }
 
@@ -193,23 +344,20 @@ export function widgetRuntimeDirectives(
   message: string,
   history?: HistoryTurn[] | null,
 ): string[] {
+  const turn = widgetTurnUserText(message);
   const lines: string[] = [WIDGET_TURN_FOCUS_DIRECTIVE];
-  const allowLead = leadCaptureToolsAllowed(message, history);
+  const allowLead = leadCaptureToolsAllowed(turn, history);
   if (!allowLead) {
     lines.push(WIDGET_PASSIVE_COUNTER_DIRECTIVE);
   }
-  if (needsKnowledgeLookup(message) && !allowLead) {
+  if (needsKnowledgeLookup(turn) && !allowLead) {
     lines.push(WIDGET_INVENTORY_NO_LEAD_DIRECTIVE);
   }
-  if (
-    /\b(?:razona|razonamiento|cu[aá]nto\s+me\s+faltar|diferencia|retoma|permuta|tasaci[oó]n|aval[uú]o)\b/i.test(
-      message,
-    )
-  ) {
+  if (TURN_REASONING_RE.test(turn)) {
     lines.push(WIDGET_REASONING_DIRECTIVE);
   }
-  if (needsVehicleFactsEcho(message)) {
-    lines.push(WIDGET_VEHICLE_FACTS_ECHO_DIRECTIVE);
+  if (needsStatedFactsEcho(turn)) {
+    lines.push(statedFactsEchoDirective(turn));
   }
   return lines;
 }

@@ -539,6 +539,7 @@
     onClose: null,
     onMessageSent: null,
     onMessageReceived: null,
+    onStatus: null,
     onError: null,
     /**
      * Layout inicial al abrir el widget.
@@ -3253,6 +3254,23 @@
       }
     }
 
+    /** Alineado con widget-chat-status.ts — catálogo vs cálculo (cualquier agente). */
+    function widgetStatusCaptionForUserMessage(userText, phase, detail) {
+      var msg = String(userText || '').trim();
+      if (!msg) return widgetStatusCaptionForPhase(phase, detail);
+      var inventoryTurn = /\binventario\b/i.test(msg);
+      var reasoningTurn = /\b(?:retoma|permuta|cu[aá]nto\s+me\s+falt|diferencia|tasaci[oó]n|razona)\b/i.test(msg);
+      var knowledgeTurn = /\b(?:precio|inventario|stock|cotiz|ficha|retoma|permuta|cu[aá]nto\s+(?:me\s+)?(?:falt|cuesta|vale))\b/i.test(msg);
+      var p = String(phase || '').trim();
+      if (p === 'rag' || p === 'hub' || p === 'mcp' || p === 'tools') {
+        if (reasoningTurn) return 'Calculando con las cifras ya conocidas…';
+        if (knowledgeTurn && inventoryTurn) return 'Consultando catálogo y precios…';
+        if (knowledgeTurn) return 'Consultando precios y fichas…';
+      }
+      if (p === 'model' && reasoningTurn) return 'Razonando con las cifras del hilo…';
+      return widgetStatusCaptionForPhase(phase, detail);
+    }
+
     function thinkingCopyFromStatus(statusLabel, statusPhase) {
       var s = sanitizeThinkingStatusText(statusLabel);
       var phase = String(statusPhase || '').trim();
@@ -4939,6 +4957,7 @@
 
       // ── SSE Streaming (cuando el servidor lo soporta) ──────────────────────
       var useStream = cfg.stream !== false && typeof window.ReadableStream !== 'undefined';
+      var streamRevealMinChars = 32;
 
       if (useStream) {
         try {
@@ -4976,11 +4995,12 @@
                 var stPhase = typeof evt.phase === 'string' ? evt.phase : '';
                 if (!document.getElementById(typingId)) showTyping(evt.message, stPhase);
                 else updateTypingStatus(evt.message, stPhase);
+                notify('onStatus', { phase: stPhase, message: evt.message });
                 continue;
               }
               if (evt.type === 'token') {
-                hideTyping();
                 streamReply += typeof evt.text === 'string' ? evt.text : '';
+                if (streamReply.length >= streamRevealMinChars) hideTyping();
                 if (!streamBubble) {
                   streamBubble = addMessage('bot', botReplyForDisplay(streamReply), { streaming: true });
                 } else {
@@ -5095,7 +5115,7 @@
       // ── Standard (non-streaming) fallback ─────────────────────────────────
       try {
       if (!document.getElementById(typingId)) {
-        showTyping('Consultando al asistente…', 'hub');
+        showTyping(widgetStatusCaptionForUserMessage(displayText, 'hub'), 'hub');
       }
       var data = await fetchJsonWithRetry(endpoint, payload, cfg);
         hideTyping();

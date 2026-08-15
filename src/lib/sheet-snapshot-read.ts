@@ -28,7 +28,13 @@ export type SheetSnapshotDoc = {
   byteSize?: number;
   rowCount?: number;
   syncedAt?: Date | string;
+  complete?: boolean;
 };
+
+/** Search live (gviz) si el snapshot nocturno no terminó — evita tapar Ford/Mazda con 399 Chevrolet. */
+export function snapshotCanServeSearch(snap: { complete?: boolean } | null | undefined): boolean {
+  return snap?.complete === true;
+}
 
 const PREVIEW_ROWS = 5;
 const MAX_RANGE_ROWS = 200;

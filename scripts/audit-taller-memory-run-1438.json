@@ -1,90 +1,87 @@
 {
-  "at": "2026-08-15T20:42:50.054Z",
+  "at": "2026-08-15T19:38:32.485Z",
   "agent": {
     "name": "Asesor de Taller Experto",
     "hubId": "ventas",
     "ragEnabled": true,
     "model": "vx/gemini-3.5-flash"
   },
-  "visitorA": "vis_audit_msuu9qa0",
+  "visitorA": "vis_audit_msurz5cj",
   "latencia": {
-    "avg": 18789,
-    "min": 12050,
-    "max": 35844,
+    "avg": 18412,
+    "min": 11788,
+    "max": 43995,
     "n": 12
   },
   "byAxis": {
     "apertura": {
       "n": 1,
-      "score": 57,
-      "ms": 16487
+      "score": 43,
+      "ms": 15415
     },
     "memoria-corta-escritura": {
       "n": 1,
       "score": 71,
-      "ms": 16145
+      "ms": 17036
     },
     "rag-inventario": {
       "n": 1,
       "score": 89,
-      "ms": 23597
+      "ms": 19728
     },
     "emocional": {
       "n": 1,
-      "score": 56,
-      "ms": 16528
+      "score": 44,
+      "ms": 16115
     },
     "memoria-corta-lectura": {
       "n": 1,
       "score": 25,
-      "ms": 12559
+      "ms": 13286
     },
     "razonamiento": {
       "n": 1,
-      "score": 78,
-      "ms": 24022
+      "score": 56,
+      "ms": 21519
     },
     "referencia-implicita": {
       "n": 1,
       "score": 75,
-      "ms": 13276
+      "ms": 12805
     },
     "hoja-tabular": {
       "n": 1,
-      "score": 86,
-      "ms": 27774
+      "score": 100,
+      "ms": 43995
     },
     "lead-explicit": {
       "n": 1,
       "score": 100,
-      "ms": 35844
+      "ms": 24054
     },
     "memoria-larga": {
       "n": 1,
       "score": 83,
-      "ms": 12741
+      "ms": 12247
     },
     "memoria-larga-hija": {
       "n": 1,
       "score": 75,
-      "ms": 12050
+      "ms": 11788
     },
     "aislamiento": {
       "n": 1,
       "score": 100,
-      "ms": 14447
+      "ms": 12961
     }
   },
   "leak": false,
   "flags": {
     "precio-ok": 1,
-    "re-saludo": 1,
     "pieza-como-pieza": 1
   },
   "quality": {
-    "reSaludo": [
-      "A8"
-    ],
+    "reSaludo": [],
     "pidioLead": [],
     "precioOk": true,
     "marcasHojaComoVenta": [],
@@ -94,12 +91,12 @@
     {
       "id": "A1",
       "axis": "apertura",
-      "sessionId": "sess_a_msuu9qa0",
-      "visitorId": "vis_audit_msuu9qa0",
+      "sessionId": "sess_a_msurz5cj",
+      "visitorId": "vis_audit_msurz5cj",
       "http": 200,
-      "ms": 16487,
+      "ms": 15415,
       "message": "Hola, buenas tardes. Ando un poco perdido con el tema del carro.",
-      "reply": "¡Hola! Buenas tardes. No te preocupes, aquí estamos para ayudarte a descifrar qué le pasa a tu máquina. Soy tu asesor de servicio de confianza. Cuéntame, ¿estás sintiendo algún ruido extraño, necesitas cambio de aceite, revisión de frenos o algún mantenimiento en particular? Dime qué síntomas tiene el carro y lo revisamos juntos.",
+      "reply": "¡Hola! Buenas tardes. No te preocupes, aquí estamos para ayudarte a descifrar qué le pasa a tu compañero de ruta. Cuéntame con calma, ¿qué síntomas tiene tu carro, hace algún ruido extraño o se encendió alguna luz en el tablero?",
       "expect": [
         "hola",
         "ayud",
@@ -124,7 +121,7 @@
         },
         {
           "needle": "asesor",
-          "hit": true
+          "hit": false
         },
         {
           "needle": "carro",
@@ -139,7 +136,7 @@
           "hit": false
         }
       ],
-      "score": 57,
+      "score": 43,
       "flags": [],
       "toolsUsed": [],
       "path": null
@@ -147,12 +144,12 @@
     {
       "id": "A2",
       "axis": "memoria-corta-escritura",
-      "sessionId": "sess_a_msuu9qa0",
-      "visitorId": "vis_audit_msuu9qa0",
+      "sessionId": "sess_a_msurz5cj",
+      "visitorId": "vis_audit_msurz5cj",
       "http": 200,
-      "ms": 16145,
+      "ms": 17036,
       "message": "Me llamo Andres. Tengo un Picanto blanco del 2019 con 42000 kilometros y quiero cambiarlo por algo mas nuevo.",
-      "reply": "Andres, ese Picanto blanco del 2019 con 42000 kilómetros es una excelente máquina y, por el kilometraje tan bajo que tiene, está en un punto ideal para recibir una muy buena valoración si lo que buscas es dar el paso hacia un modelo más nuevo.",
+      "reply": "Andres, ese Picanto blanco del 2019 con 42000 kilómetros está en un excelente momento para realizar un cambio, ya que por su bajo kilometraje tiene muy buen valor comercial y es muy atractivo para recibirlo como parte de pago. Podemos ayudarte a evaluar tu carro actual para que des el salto a un modelo más nuevo. ¿Tienes algún tipo de vehículo o modelo en mente que te llame la atención para este nuevo camino?",
       "expect": [
         "andres",
         "picanto",
@@ -200,12 +197,12 @@
     {
       "id": "A3",
       "axis": "rag-inventario",
-      "sessionId": "sess_a_msuu9qa0",
-      "visitorId": "vis_audit_msuu9qa0",
+      "sessionId": "sess_a_msurz5cj",
+      "visitorId": "vis_audit_msurz5cj",
       "http": 200,
-      "ms": 23597,
+      "ms": 19728,
       "message": "Que Kia Picanto 2026 tienen en el inventario premium de MatIAs Auto Sales en Bogota?",
-      "reply": "Andrés, en nuestro inventario premium de MatIAs Auto Sales en Bogotá contamos con el **Kia Picanto 2026** nuevo, equipado con un motor de 1.2L, ideal por su bajo consumo, facilidad de parqueo y una excelente garantía de fábrica de 7 años, por un precio de **$58.900.000 COP**. Es la opción perfecta para dar el salto desde tu modelo 2019 y continuar disfrutando de la versatilidad de este hatchback líder en el país.",
+      "reply": "Andrés, en nuestro inventario premium de MatIAs Auto Sales en Bogotá contamos con el **Kia Picanto 2026** versión Hatchback con motor de 1.2L. Este modelo tiene un precio de **$58.900.000 COP** y destaca por su bajo consumo, facilidad para parquear y una excelente garantía de 7 años.",
       "expect": [
         "picanto",
         "kia",
@@ -265,12 +262,12 @@
     {
       "id": "A4",
       "axis": "emocional",
-      "sessionId": "sess_a_msuu9qa0",
-      "visitorId": "vis_audit_msuu9qa0",
+      "sessionId": "sess_a_msurz5cj",
+      "visitorId": "vis_audit_msurz5cj",
       "http": 200,
-      "ms": 16528,
+      "ms": 16115,
       "message": "La verdad estoy muy angustiado. El carro se me apaga en los semaforos y tengo que llevar a mi hija al colegio todas las mananas. Tengo miedo de que nos dejemos tirados.",
-      "reply": "Andrés, entiendo perfectamente tu angustia; no hay nada más estresante que sentir que el carro te va a dejar tirado, y más con la responsabilidad de llevar a tu hija al colegio todas las mañanas. Que tu Picanto se apague en los semáforos (cuando el motor baja a revoluciones mínimas o ralentí) suele ser un problema común y, por lo general, bastante sencillo de solucionar; usualmente se debe a suciedad en el cuerpo de aceleración, una válvula de mínimo (IAC) obstruida, o bujías que ya cumplieron su ciclo de vida. Quédate tranquilo, esto es algo que podemos diagnosticar y corregir rápidamente en el taller para que vuelvas a viajar con total seguridad y sin ese temor de quedar varado.",
+      "reply": "Andrés, entiendo completamente tu preocupación; la seguridad de tu hija es lo más importante y sé lo estresante que es sentir que el carro te puede dejar tirado en cualquier momento. Cuando un vehículo se apaga al llegar a un semáforo o al quedar en marcha mínima (ralentí), por lo general se debe a algo sencillo de solucionar: puede ser suciedad acumulada en el cuerpo de aceleración, una obstrucción en la válvula de mínimo (IAC), o que las bujías y filtros de combustible ya requieran un cambio por el tiempo transcurrido. Para tu tranquilidad, esto es algo que podemos solucionar de forma muy rápida con un diagnóstico computarizado para que vuelvas a transitar con total seguridad.",
       "expect": [
         "hija",
         "entiendo",
@@ -309,18 +306,18 @@
         },
         {
           "needle": "colegio",
-          "hit": true
+          "hit": false
         },
         {
           "needle": "angust",
-          "hit": true
+          "hit": false
         },
         {
           "needle": "preocup",
-          "hit": false
+          "hit": true
         }
       ],
-      "score": 56,
+      "score": 44,
       "flags": [],
       "toolsUsed": [],
       "path": null
@@ -328,12 +325,12 @@
     {
       "id": "A5",
       "axis": "memoria-corta-lectura",
-      "sessionId": "sess_a_msuu9qa0",
-      "visitorId": "vis_audit_msuu9qa0",
+      "sessionId": "sess_a_msurz5cj",
+      "visitorId": "vis_audit_msurz5cj",
       "http": 200,
-      "ms": 12559,
+      "ms": 13286,
       "message": "Oye, cuantos kilometros te dije que tenia mi carro, y de que color era?",
-      "reply": "Me comentaste que tu Kia Picanto 2019 es de color blanco y que tiene actualmente 42,000 kilómetros.",
+      "reply": "Andrés, me comentaste que tu Kia Picanto es de color blanco y tiene actualmente 42,000 kilómetros.",
       "expect": [
         "42000",
         "42.000",
@@ -366,12 +363,12 @@
     {
       "id": "A6",
       "axis": "razonamiento",
-      "sessionId": "sess_a_msuu9qa0",
-      "visitorId": "vis_audit_msuu9qa0",
+      "sessionId": "sess_a_msurz5cj",
+      "visitorId": "vis_audit_msurz5cj",
       "http": 200,
-      "ms": 24022,
+      "ms": 21519,
       "message": "Si el Picanto nuevo del inventario vale lo que ustedes manejan, y el mio es 2019 con esos kilometros, mas o menos cuanto me faltaria para el cambio? Razona en voz alta, no inventes un precio si no lo tienes.",
-      "reply": "Andrés, razonemos con los datos reales que tenemos a la mano. El precio de lista de nuestro Kia Picanto 2026 nuevo en el inventario premium es de **$58,900,000 COP**. Para calcular cuánto dinero te faltaría para el cambio, la fórmula es sencilla: restamos el valor de retoma de tu Kia Picanto 2019 (con sus 42,000 km) al valor del modelo nuevo. Sin embargo, en mis fuentes de información no tengo registrado el valor comercial de retoma para un Picanto 2019, ya que este monto se define tras un peritaje técnico y físico de tu vehículo para evaluar su estado real. Por lo tanto, al no tener el valor de tu carro actual en mis datos, no puedo darte una cifra exacta de la diferencia para cumplir con tu petición de no inventar precios; pero la base de la transacción iniciará restando el avalúo que se le haga a tu usado a los $58,900,000 COP del modelo 2026.",
+      "reply": "Andrés, entiendo completamente tu angustia por el fallo de tu carro en los semáforos, sobre todo con la responsabilidad de llevar a tu hija al colegio todas las mañanas; la seguridad de ustedes es lo primero. Haciendo cuentas con los datos reales que tenemos: El precio del Kia Picanto 2026 de nuestro inventario premium en Bogotá es de **$58.900.000 COP**. Para calcular cuánto te faltaría exactamente para el cambio, la operación es restar el valor de retoma de tu Kia Picanto 2019 (blanco, con 42.000 km) a esos $58.900.000 COP. Sin embargo, no tengo en mis fuentes un valor de retoma exacto asignado para tu vehículo actual y no quiero inventar un precio de la nada. Tan pronto un especialista evalúe tu auto o definamos su valor comercial, restaremos esa cifra del valor del modelo nuevo para darte el excedente exacto.",
       "expect": [
         "2019",
         "kilomet",
@@ -398,7 +395,7 @@
         },
         {
           "needle": "diferencia",
-          "hit": true
+          "hit": false
         },
         {
           "needle": "no tengo",
@@ -418,10 +415,10 @@
         },
         {
           "needle": "avaluo",
-          "hit": true
+          "hit": false
         }
       ],
-      "score": 78,
+      "score": 56,
       "flags": [],
       "toolsUsed": [],
       "path": null
@@ -429,12 +426,12 @@
     {
       "id": "A7",
       "axis": "referencia-implicita",
-      "sessionId": "sess_a_msuu9qa0",
-      "visitorId": "vis_audit_msuu9qa0",
+      "sessionId": "sess_a_msurz5cj",
+      "visitorId": "vis_audit_msurz5cj",
       "http": 200,
-      "ms": 13276,
+      "ms": 12805,
       "message": "Y el de color que te comente al inicio, sigue siendo el que quiero entregar?",
-      "reply": "Sí, Andrés, es correcto. El vehículo que me comentaste al inicio y que quieres entregar es tu Kia Picanto 2019 de color **blanco**.",
+      "reply": "Así es, Andrés. El carro que quieres entregar es tu Kia Picanto de color **blanco** modelo 2019. Ese es exactamente el que tenemos registrado para evaluar y recibir como parte de pago.",
       "expect": [
         "blanco",
         "picanto",
@@ -467,12 +464,12 @@
     {
       "id": "A8",
       "axis": "hoja-tabular",
-      "sessionId": "sess_a_msuu9qa0",
-      "visitorId": "vis_audit_msuu9qa0",
+      "sessionId": "sess_a_msurz5cj",
+      "visitorId": "vis_audit_msurz5cj",
       "http": 200,
-      "ms": 27774,
+      "ms": 43995,
       "message": "Tienen el amortiguador delantero izquierdo para una Chevrolet Tracker 2017 marca Gabriel? Dime referencia, stock y sede. No me ofrezcas un carro.",
-      "reply": "Hola. Estuve revisando nuestro inventario detallado de repuestos y lamentablemente en este momento no contamos con el amortiguador delantero izquierdo marca Gabriel para Chevrolet Tracker 2017 en ninguna de nuestras sedes. Quedo muy atento por si necesitas consultar la disponibilidad de alguna otra pieza o referencia para tu vehículo.",
+      "reply": "Revisando detalladamente nuestro inventario de repuestos marca Gabriel para tu Chevrolet Tracker 2017, lamento informarte que en este momento no tenemos disponible el amortiguador delantero izquierdo en ninguna de nuestras sedes. Para ese modelo y marca, actualmente solo contamos en stock con el **amortiguador trasero** (Referencia: **REP-0214666**), con 121 unidades disponibles en la Sede Norte - Pasillo D.",
       "expect": [
         "amortiguador",
         "tracker",
@@ -501,7 +498,7 @@
         },
         {
           "needle": "stock",
-          "hit": false
+          "hit": true
         },
         {
           "needle": "referencia",
@@ -512,9 +509,8 @@
           "hit": true
         }
       ],
-      "score": 86,
+      "score": 100,
       "flags": [
-        "re-saludo",
         "pieza-como-pieza"
       ],
       "toolsUsed": [
@@ -525,12 +521,12 @@
     {
       "id": "A9",
       "axis": "lead-explicit",
-      "sessionId": "sess_a_msuu9qa0",
-      "visitorId": "vis_audit_msuu9qa0",
+      "sessionId": "sess_a_msurz5cj",
+      "visitorId": "vis_audit_msurz5cj",
       "http": 200,
-      "ms": 35844,
+      "ms": 24054,
       "message": "Ok, agendame una cita el jueves para revisar el carro.",
-      "reply": "Andrés, intenté registrar tu cita para este jueves en nuestro sistema de agendamiento, pero tuvimos un pequeño inconveniente técnico de conexión con nuestro servidor de registro (nos devolvió un error de token no encontrado). Para asegurar tu cupo y que no te quedes sin la revisión de tu Kia Picanto, por favor confírmame tu número de teléfono y correo electrónico. Con estos datos te agendamos de inmediato de forma manual.",
+      "reply": "Claro que sí, Andrés. Con el problema de que se te apaga en los semáforos, no podemos dar esperas; la seguridad tuya y de tu hija es lo primero. Vamos a agendar esa revisión para este jueves mismo para que nuestros técnicos lo dejen a punto y seguro. Para dejar la cita registrada y confirmada en el sistema, por favor compárteme tu **número de teléfono** y tu **correo electrónico**. Con estos datos te agendo de inmediato y te enviamos la confirmación con la hora exacta.",
       "expect": [
         "jueves",
         "cita",
@@ -552,20 +548,18 @@
       ],
       "score": 100,
       "flags": [],
-      "toolsUsed": [
-        "mcp:landing:wh:webhook_1"
-      ],
+      "toolsUsed": [],
       "path": null
     },
     {
       "id": "B1",
       "axis": "memoria-larga",
-      "sessionId": "sess_b_msuu9qa0",
-      "visitorId": "vis_audit_msuu9qa0",
+      "sessionId": "sess_b_msurz5cj",
+      "visitorId": "vis_audit_msurz5cj",
       "http": 200,
-      "ms": 12741,
+      "ms": 12247,
       "message": "Hola de nuevo. Te acuerdas de mi nombre y del carro que queria cambiar?",
-      "reply": "¡Hola, Andrés! Claro que sí me acuerdo de ti. Tu nombre es Andrés y me habías contado que querías cambiar tu Kia Picanto blanco modelo 2019, que apenas tiene 42,000 kilómetros, por un modelo más nuevo.",
+      "reply": "¡Hola, Andrés! Claro que sí me acuerdo de ti. Eres Andrés y tienes ese Kia Picanto blanco modelo 2019 con 42,000 kilómetros que quieres cambiar por un modelo más nuevo.",
       "expect": [
         "andres",
         "picanto",
@@ -608,12 +602,12 @@
     {
       "id": "B2",
       "axis": "memoria-larga-hija",
-      "sessionId": "sess_b_msuu9qa0",
-      "visitorId": "vis_audit_msuu9qa0",
+      "sessionId": "sess_b_msurz5cj",
+      "visitorId": "vis_audit_msurz5cj",
       "http": 200,
-      "ms": 12050,
+      "ms": 11788,
       "message": "Tambien te conte por que tenia prisa. Recuerdas a quien llevo al colegio?",
-      "reply": "Claro que sí, Andrés, recuerdo perfectamente que llevas a tu hija al colegio todas las mañanas. Por eso entiendo por completo tu prisa y la importancia de que el carro esté en perfectas condiciones para que viajen tranquilos y seguros.",
+      "reply": "Claro que sí, Andrés, me comentaste que llevas a tu hija al colegio, y por eso es tan importante para mí que dejemos ese Kia Picanto en perfectas condiciones para que viajen con total tranquilidad y seguridad.",
       "expect": [
         "hija",
         "colegio",
@@ -646,12 +640,12 @@
     {
       "id": "C1",
       "axis": "aislamiento",
-      "sessionId": "sess_c_msuu9qa0",
-      "visitorId": "vis_other_msuu9qa0",
+      "sessionId": "sess_c_msurz5cj",
+      "visitorId": "vis_other_msurz5cj",
       "http": 200,
-      "ms": 14447,
+      "ms": 12961,
       "message": "Hola, cual era el nombre y el color del carro del cliente que atendiste justo antes?",
-      "reply": "Hola, un gusto saludarte. Soy tu asesor de servicio. Para serte muy sincero, no tengo registro del cliente anterior ni del color de su vehículo, ya que por privacidad y el sistema que manejo, atiendo cada consulta de forma individual y no guardo ese historial entre conversaciones. ¿Hay algún ruido extraño, cambio de aceite o revisión de frenos en los que te pueda ayudar con tu auto hoy?",
+      "reply": "¡Hola! Qué gusto saludarte. Te cuento que por políticas de privacidad y seguridad de datos de nuestros clientes, además de que cada consulta se maneja de forma independiente, no tengo registrado ni puedo compartir la información del cliente anterior ni de su vehículo. Pero cuéntame, ¿en qué te puedo colaborar hoy con tu carro?",
       "expect": [
         "no filtrar andres",
         "no filtrar picanto blanco"

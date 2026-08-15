@@ -221,9 +221,9 @@ function stemsMatch(a: string, b: string): boolean {
 const TOOL_INTENT_PATTERN =
   /base de datos|bases de datos|mongodb|\bmongo\b|colecci[oó]n|webhook|\bcron\b|tarea programada|hubspot|\bslack\b|\bsql\b|listar bases|consulta(?:r)?\s+(?:a\s+)?(?:la\s+)?(?:base|mongo|datos)/i;
 
-/** Consultas de mostrador / catálogo que deben usar Google Sheets del orquestador. */
+/** Consultas de mostrador / catálogo tabular (triaje). Sin marcas ni piezas de un cliente. */
 const INVENTORY_INTENT_PATTERN =
-  /\binventario\b|\bstock\b|\brepuestos?\b|\bamortiguador|\bpastillas?\s+de\s+freno|\bfiltros?\b|\bbuj[ií]as?\b|kit de distrib|referencia\s+oem|\boem\b|disponib|\bbodega\b|\bsede\b|\bpasillo\b|hoja de ventas|busca(?:r)?\s+en\s+(?:la\s+)?(?:hoja|inventario|cat[aá]logo)|marca\s+gabriel|\bpe\d+[a-z0-9-]+/i;
+  /\binventario\b|\bstock\b|\brepuestos?\b|\bsku\b|\boem\b|referencia|\bbodega\b|\bsede\b|\bpasillo\b|hoja de ventas|busca(?:r)?\s+en\s+(?:la\s+)?(?:hoja|inventario|cat[aá]logo)|disponib|(?:tiene(?:n)?|hay|busco|necesito)\s+(?:el|la|los|las|un|una)?\s*\w{4,}/i;
 
 export function messageLooksInventoryIntent(message: string): boolean {
   return INVENTORY_INTENT_PATTERN.test(message);

@@ -53,12 +53,61 @@ console.log(`agente "${agente.name}" hub=${agente.agentHubId} rag=${agente.ragEn
 const history = [];
 const turns = [];
 
+function fold(text) {
+  return String(text || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 function mentions(text, needles) {
-  const t = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const t = fold(text);
   return needles.map((n) => {
-    const nrm = n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const nrm = fold(n);
     return { needle: n, hit: t.includes(nrm) };
   });
+}
+
+/** Señales de calidad de plataforma (no puntaje de “humano”). */
+function qualityFlags(id, message, reply, historyLen) {
+  const t = fold(reply);
+  const flags = [];
+  const openThread = historyLen > 0;
+  const userAskedLead = /\b(agend|cita|llam|telefono|correo|whatsapp|contact)\b/i.test(message);
+
+  if (
+    openThread &&
+    !['A1', 'B1', 'C1'].includes(id) &&
+    /^(hola|buenas|que gusto saludarte de nuevo|hola,?\s+andres)/i.test(reply.trim())
+  ) {
+    flags.push('re-saludo');
+  }
+  if (
+    !userAskedLead &&
+    /(numero de telefono|telefono y correo|correo electronico|whatsapp|test drive|agendamos|dejame tus datos|compartir tu)/.test(
+      t,
+    )
+  ) {
+    flags.push('pidio-lead');
+  }
+  if (id === 'A3') {
+    const compact = reply.replace(/[\s.$]/g, '');
+    if (/58900000/.test(compact) || /58[\s.]?900[\s.]?000/.test(reply)) flags.push('precio-ok');
+    else flags.push('precio-no-anclado');
+  }
+  if (['A2', 'A3', 'A5', 'A6', 'A7'].includes(id)) {
+    const asCarSale =
+      /\b(mazda|mercedes|ford)\b/.test(t) &&
+      !/\b(repuesto|pieza|amortiguador|sku|oem|referencia|compatib)\b/.test(t);
+    if (asCarSale) flags.push('marcas-hoja-como-venta');
+  }
+  if (id === 'A8') {
+    if (/\b(proximo carro|carro nuevo|estrenar|financiar tu proximo)\b/.test(t)) {
+      flags.push('pieza-ofrecida-como-venta');
+    }
+    if (/\b(stock|referencia|sede|bodega|disponible)\b/.test(t)) flags.push('pieza-como-pieza');
+  }
+  return flags;
 }
 
 async function speak(opts) {
@@ -81,7 +130,9 @@ async function speak(opts) {
   const reply = String(json.reply ?? json.error ?? '');
   const hits = mentions(reply, expect);
   const hitCount = hits.filter((h) => h.hit).length;
-  const score = expect.length ? Math.round((hitCount / expect.length) * 100) : (res.ok ? 100 : 0);
+  const score = expect.length ? Math.round((hitCount / expect.length) * 100) : res.ok ? 100 : 0;
+  const flags = qualityFlags(id, message, reply, historyForCall?.length || 0);
+  const toolsUsed = json.toolsUsed || json.meta?.toolsUsed || json.debug?.toolsUsed || [];
 
   const row = {
     id,
@@ -91,16 +142,18 @@ async function speak(opts) {
     http: res.status,
     ms,
     message,
-    reply: reply.replace(/\s+/g, ' ').slice(0, 900),
+    reply: reply.replace(/\s+/g, ' ').slice(0, 1200),
     expect,
     hits,
     score,
+    flags,
+    toolsUsed,
     path: json.path || json.meta?.path || null,
   };
   turns.push(row);
-  console.log(`\n[${id}] ${axis}  ${ms}ms  HTTP ${res.status}  score ${score}%`);
+  console.log(`\n[${id}] ${axis}  ${ms}ms  HTTP ${res.status}  score ${score}%  flags=${flags.join(',') || 'ok'}`);
   console.log(`  U: ${message}`);
-  console.log(`  A: ${row.reply.slice(0, 280)}`);
+  console.log(`  A: ${row.reply.slice(0, 320)}`);
   return reply;
 }
 
@@ -144,7 +197,7 @@ await turn(
   'Que Kia Picanto 2026 tienen en el inventario premium de MatIAs Auto Sales en Bogota?',
   sessA,
   visitorA,
-  ['picanto', 'kia', 'bogota', 'matias', '2026', 'inventario'],
+  ['picanto', 'kia', 'bogota', 'matias', '2026', 'inventario', '58.900.000', '58900000', '58.9'],
 );
 
 await turn(
@@ -181,6 +234,24 @@ await turn(
   sessA,
   visitorA,
   ['blanco', 'picanto', 'andres', 'usado'],
+);
+
+await turn(
+  'A8',
+  'hoja-tabular',
+  'Tienen el amortiguador delantero izquierdo para una Chevrolet Tracker 2017 marca Gabriel? Dime referencia, stock y sede. No me ofrezcas un carro.',
+  sessA,
+  visitorA,
+  ['amortiguador', 'tracker', '2017', 'gabriel', 'stock', 'referencia', 'sede'],
+);
+
+await turn(
+  'A9',
+  'lead-explicit',
+  'Ok, agendame una cita el jueves para revisar el carro.',
+  sessA,
+  visitorA,
+  ['jueves', 'cita', 'agend'],
 );
 
 /** Sesion B: mismo visitante, historial vacio. Memoria larga entre visitas. */
@@ -234,6 +305,13 @@ for (const t of turns) {
   byAxis[t.axis].ms += t.ms;
 }
 
+const flagTally = {};
+for (const t of turns) {
+  for (const f of t.flags || []) {
+    flagTally[f] = (flagTally[f] || 0) + 1;
+  }
+}
+
 const report = {
   at: new Date().toISOString(),
   agent: { name: agente.name, hubId: agente.agentHubId, ragEnabled: agente.ragEnabled === true, model: agente.model || null },
@@ -243,13 +321,22 @@ const report = {
     Object.entries(byAxis).map(([k, v]) => [k, { n: v.n, score: Math.round(v.score / v.n), ms: Math.round(v.ms / v.n) }]),
   ),
   leak: leaked,
+  flags: flagTally,
+  quality: {
+    reSaludo: turns.filter((t) => t.flags?.includes('re-saludo')).map((t) => t.id),
+    pidioLead: turns.filter((t) => t.flags?.includes('pidio-lead')).map((t) => t.id),
+    precioOk: turns.some((t) => t.id === 'A3' && t.flags?.includes('precio-ok')),
+    marcasHojaComoVenta: turns.filter((t) => t.flags?.includes('marcas-hoja-como-venta')).map((t) => t.id),
+    piezaComoPieza: turns.some((t) => t.id === 'A8' && t.flags?.includes('pieza-como-pieza')),
+  },
   turns,
 };
 
 const out = new URL('./audit-taller-memory.json', import.meta.url);
 writeFileSync(out, JSON.stringify(report, null, 2));
-console.log(`\nlatencia avg=${avg}ms min=${min} max=${max}`);
+console.log(`\nlatencia avg=${avg}ms min=${min} max=${max} n=${turns.length}`);
 console.log(`fuga entre visitantes: ${leaked ? 'SI' : 'no'}`);
+console.log(`flags: ${JSON.stringify(flagTally)}`);
 console.log(`escrito ${out.pathname}`);
 
 await client.close();

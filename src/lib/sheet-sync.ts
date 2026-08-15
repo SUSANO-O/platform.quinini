@@ -8,8 +8,9 @@ import {
   extractGid,
   extractSpreadsheetId,
   extractAgentSheets,
-  parseSimpleCsv,
-  sheetDataRowsToA1Range,
+  parseGvizCsvChunk,
+  splitSheetRowsForMongo,
+  SHEET_GVIZ_DEFAULT_MAX_COL,
   type SheetEntry,
 } from '@/lib/agent-sheets';
 import {
@@ -21,8 +22,9 @@ import {
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent, SheetSnapshot, SheetSyncUsage, Subscription } from '@/lib/db/models';
 
-const SYNC_CHUNK_ROWS = 200;
-const MAX_SYNC_ROWS = 20_000;
+const SYNC_CHUNK_ROWS = 800;
+const MAX_SYNC_ROWS = 350_000;
+const MONGO_CHUNK_ROWS = 4_000;
 const FETCH_TIMEOUT_MS = 25_000;
 
 export type SheetSyncRunResult = {
@@ -42,7 +44,7 @@ async function fetchGvizChunk(
   sheetName: string | undefined,
   range: string,
   includeHeader: boolean,
-): Promise<{ header: string[]; rows: string[][] } | null> {
+): Promise<{ header: string[]; rows: string[][]; lineCount: number } | null> {
   const url = buildGvizCsvUrl({ spreadsheetId, gid, sheetName, range });
   const res = await fetch(url, {
     headers: { 'User-Agent': 'Botiva-SheetSync/1.0' },
@@ -50,11 +52,53 @@ async function fetchGvizChunk(
   });
   if (!res.ok) return null;
   const text = await res.text();
-  const parsed = parseSimpleCsv(text);
-  if (!includeHeader && parsed.rows.length > 0) {
-    return { header: [], rows: parsed.rows };
+  if (/"status"\s*:\s*"error"|INVALID_QUERY|NO_COLUMN/.test(text)) return null;
+  return parseGvizCsvChunk(text, includeHeader);
+}
+
+async function persistSnapshotChunks(params: {
+  userId: string;
+  agentId: string;
+  entry: SheetEntry;
+  spreadsheetId: string;
+  gid: string;
+  header: string[];
+  rows: string[][];
+  byteSize: number;
+  rowCount: number;
+  complete: boolean;
+}): Promise<void> {
+  const col = SheetSnapshot.collection;
+  try {
+    await col.dropIndex('agentId_1_sheetEntryId_1');
+  } catch {
+    /* índice viejo ya no existe */
   }
-  return parsed;
+  await SheetSnapshot.deleteMany({
+    agentId: params.agentId,
+    sheetEntryId: params.entry.id,
+  });
+  const now = new Date();
+  const parts = splitSheetRowsForMongo(params.rows, MONGO_CHUNK_ROWS);
+  const docs = parts.map((part, chunkIndex) => ({
+    userId: params.userId,
+    agentId: params.agentId,
+    sheetEntryId: params.entry.id,
+    sheetName: params.entry.name,
+    spreadsheetId: params.spreadsheetId,
+    tabGid: params.gid,
+    tabTitle: params.entry.tabTitle || '',
+    header: params.header,
+    rows: part,
+    byteSize: estimateByteSize(params.header, part),
+    rowCount: part.length,
+    totalRows: params.rowCount,
+    chunkIndex,
+    complete: params.complete,
+    syncedAt: now,
+    syncError: null,
+  }));
+  if (docs.length) await SheetSnapshot.insertMany(docs);
 }
 
 function estimateByteSize(header: string[], rows: string[][]): number {
@@ -77,55 +121,56 @@ async function syncOneSheet(params: {
 
   const gid = params.entry.tabGid || extractGid(params.entry.url) || '0';
   const sheetName = params.entry.tabTitle?.trim() || undefined;
+  const maxCol = SHEET_GVIZ_DEFAULT_MAX_COL;
 
   let header: string[] = [];
   const allRows: string[][] = [];
-  let offset = 0;
+  let from = 1;
+  let hitEnd = false;
 
-  while (offset < MAX_SYNC_ROWS) {
-    const to = offset + SYNC_CHUNK_ROWS;
-    const range =
-      offset === 0
-        ? `A1:ZZ${SYNC_CHUNK_ROWS + 1}`
-        : sheetDataRowsToA1Range(offset, to);
-    const chunk = await fetchGvizChunk(spreadsheetId, gid, sheetName, range, offset === 0);
-    if (!chunk) break;
-    if (offset === 0 && chunk.header.length) header = chunk.header;
-    if (!chunk.rows.length) break;
+  while (allRows.length < MAX_SYNC_ROWS) {
+    const take = Math.min(SYNC_CHUNK_ROWS, MAX_SYNC_ROWS - allRows.length);
+    const to = from + take - 1;
+    const range = `A${from}:${maxCol}${to}`;
+    const chunk = await fetchGvizChunk(spreadsheetId, gid, sheetName, range, from === 1);
+    if (!chunk || chunk.lineCount === 0) {
+      hitEnd = true;
+      break;
+    }
+    if (from === 1 && chunk.header.length) header = chunk.header;
+    if (!chunk.rows.length) {
+      hitEnd = true;
+      break;
+    }
     allRows.push(...chunk.rows);
-    if (chunk.rows.length < SYNC_CHUNK_ROWS) break;
-    offset += chunk.rows.length;
+    from = to + 1;
+    if (chunk.lineCount < take) {
+      hitEnd = true;
+      break;
+    }
   }
 
   if (!header.length && !allRows.length) {
     return { ok: false, byteSize: 0, rowCount: 0, error: 'Sin datos o sheet no accesible' };
   }
 
+  const complete = hitEnd && allRows.length < MAX_SYNC_ROWS;
   const byteSize = estimateByteSize(header, allRows);
   const rowCount = allRows.length;
 
   if (!params.dryRun) {
-    await SheetSnapshot.findOneAndUpdate(
-      { agentId: params.agentId, sheetEntryId: params.entry.id },
-      {
-        $set: {
-          userId: params.userId,
-          agentId: params.agentId,
-          sheetEntryId: params.entry.id,
-          sheetName: params.entry.name,
-          spreadsheetId,
-          tabGid: gid,
-          tabTitle: params.entry.tabTitle || '',
-          header,
-          rows: allRows,
-          byteSize,
-          rowCount,
-          syncedAt: new Date(),
-          syncError: null,
-        },
-      },
-      { upsert: true },
-    );
+    await persistSnapshotChunks({
+      userId: params.userId,
+      agentId: params.agentId,
+      entry: params.entry,
+      spreadsheetId,
+      gid,
+      header,
+      rows: allRows,
+      byteSize,
+      rowCount,
+      complete,
+    });
   }
 
   return { ok: true, byteSize, rowCount };

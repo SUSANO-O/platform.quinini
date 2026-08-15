@@ -3,8 +3,12 @@ import {
   applyTabToUrl,
   buildSpreadsheetUrl,
   formatSheetToolDescription,
+  looksLikeSheetDataRow,
+  parseGvizCsvChunk,
   parseSpreadsheetTabsFromHtml,
   sanitizeSheetName,
+  sheetDataRowsToA1Range,
+  splitSheetRowsForMongo,
 } from '@/lib/agent-sheets';
 
 describe('parseSpreadsheetTabsFromHtml', () => {
@@ -63,5 +67,44 @@ describe('sanitizeSheetName', () => {
 describe('buildSpreadsheetUrl', () => {
   it('construye URL con gid', () => {
     expect(buildSpreadsheetUrl('abc', '7')).toContain('#gid=7');
+  });
+});
+
+describe('parseGvizCsvChunk', () => {
+  const csv = [
+    '"REP-0000004","Eléctrico","Bombillo"',
+    '"REP-0000005","Lubricantes","Aceite"',
+    '"REP-0000006","Frenos","Disco"',
+  ].join('\n');
+
+  it('un chunk de continuación no pierde la primera fila (falso EOF 399)', () => {
+    const { rows } = parseGvizCsvChunk(csv, false);
+    expect(rows).toHaveLength(3);
+    expect(rows[0]?.[0]).toBe('REP-0000004');
+    expect(rows[2]?.[0]).toBe('REP-0000006');
+  });
+
+  it('si la primera fila es un REP, no la usa como nombre de columna', () => {
+    const { header, rows } = parseGvizCsvChunk(csv, true);
+    expect(looksLikeSheetDataRow(['REP-0000004', 'Eléctrico'])).toBe(true);
+    expect(header[0]).toBe('referencia');
+    expect(rows[0]?.[0]).toBe('REP-0000004');
+    expect(rows).toHaveLength(3);
+  });
+});
+
+describe('sheetDataRowsToA1Range', () => {
+  it('no pide columnas ZZ (truncaban el CSV del sync)', () => {
+    expect(sheetDataRowsToA1Range(200, 400)).toMatch(/^A202:Z401$/);
+  });
+});
+
+describe('splitSheetRowsForMongo', () => {
+  it('parte por debajo del límite de 16MB', () => {
+    const rows = Array.from({ length: 9000 }, (_, i) => [`REP-${i}`, 'Chevrolet']);
+    const chunks = splitSheetRowsForMongo(rows, 4000);
+    expect(chunks).toHaveLength(3);
+    expect(chunks[0]).toHaveLength(4000);
+    expect(chunks[2]).toHaveLength(1000);
   });
 });
