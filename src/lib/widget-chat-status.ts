@@ -1,9 +1,17 @@
 /**
  * Fases y mensajes de estado SSE para /api/widget/chat/stream.
- * El widget muestra estos textos en la tarjeta de pensamiento (Fase 1+2).
+ * El widget muestra estos textos en la tarjeta de pensamiento (Fase 1).
  */
 
 import { agentSkillsNeedMcpTools } from '@/lib/agent-skills-mcp';
+import { needsKnowledgeLookup } from '@/lib/widget-counter-rhythm';
+
+/** Re-exportado para tests E2E y scripts. */
+export const WIDGET_STATUS_PULSE_MS = 4500;
+
+const INVENTORY_TURN_RE = /\binventario\b/i;
+const REASONING_TURN_RE =
+  /\b(?:retoma|permuta|cu[aá]nto\s+me\s+falt|diferencia|tasaci[oó]n|razona)\b/i;
 
 export type WidgetChatStatusPhase =
   | 'prepare'
@@ -133,6 +141,32 @@ export function hintsFromAgentDoc(doc: {
   };
 }
 
+/** Mensaje de status según fase y el texto del visitante (catálogo vs cálculo). */
+export function widgetChatStatusForUserMessage(
+  userMessage: string,
+  phase: WidgetChatStatusPhase,
+  detail?: string,
+): string {
+  const msg = typeof userMessage === 'string' ? userMessage.trim() : '';
+  if (msg) {
+    if (phase === 'rag' || phase === 'hub' || phase === 'mcp' || phase === 'tools') {
+      if (REASONING_TURN_RE.test(msg)) {
+        return 'Calculando con las cifras ya conocidas…';
+      }
+      if (needsKnowledgeLookup(msg) && INVENTORY_TURN_RE.test(msg)) {
+        return 'Consultando catálogo y precios…';
+      }
+      if (needsKnowledgeLookup(msg)) {
+        return 'Consultando precios y fichas…';
+      }
+    }
+    if (phase === 'model' && REASONING_TURN_RE.test(msg)) {
+      return 'Razonando con las cifras del hilo…';
+    }
+  }
+  return widgetChatStatusMessage(phase, detail);
+}
+
 export function emitWidgetChatStatus(
   enqueue: (data: Record<string, unknown>) => void,
   phase: WidgetChatStatusPhase,
@@ -143,6 +177,38 @@ export function emitWidgetChatStatus(
     phase,
     message: widgetChatStatusMessage(phase, detail),
   });
+}
+
+export function emitWidgetChatStatusForTurn(
+  enqueue: (data: Record<string, unknown>) => void,
+  userMessage: string,
+  phase: WidgetChatStatusPhase,
+  detail?: string,
+): void {
+  enqueue({
+    type: 'status',
+    phase,
+    message: widgetChatStatusForUserMessage(userMessage, phase, detail),
+  });
+}
+
+/** Mantiene el indicador vivo en turnos largos (hub/MCP ~20–30 s). */
+export async function runWithWidgetStatusPulse<T>(
+  enqueue: (data: Record<string, unknown>) => void,
+  userMessage: string,
+  phase: WidgetChatStatusPhase,
+  work: () => Promise<T>,
+  detail?: string,
+): Promise<T> {
+  emitWidgetChatStatusForTurn(enqueue, userMessage, phase, detail);
+  const timer = setInterval(() => {
+    emitWidgetChatStatusForTurn(enqueue, userMessage, phase, detail);
+  }, WIDGET_STATUS_PULSE_MS);
+  try {
+    return await work();
+  } finally {
+    clearInterval(timer);
+  }
 }
 
 type AgentHintsDoc = {

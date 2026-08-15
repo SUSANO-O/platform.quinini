@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   hintsFromAgentDoc,
+  runWithWidgetStatusPulse,
+  widgetChatStatusForUserMessage,
   widgetChatStatusMessage,
 } from '@/lib/widget-chat-status';
 
@@ -42,6 +44,33 @@ describe('widget-chat-status', () => {
     });
     expect(hints.hasSkills).toBe(true);
     expect(hints.hasMcpTools).toBe(false);
+  });
+
+  it('A3 inventario: mensaje contextual en fase rag/hub', () => {
+    const msg =
+      'Que Kia Picanto 2026 tienen en el inventario premium de MatIAs Auto Sales en Bogota?';
+    expect(widgetChatStatusForUserMessage(msg, 'rag')).toBe('Consultando catálogo y precios…');
+    expect(widgetChatStatusForUserMessage(msg, 'hub')).toBe('Consultando catálogo y precios…');
+  });
+
+  it('A6 retoma: mensaje contextual en fase model/hub', () => {
+    const msg =
+      'Si el Picanto nuevo del inventario vale lo que ustedes manejan, cuanto me faltaria para el cambio? Razona en voz alta.';
+    expect(widgetChatStatusForUserMessage(msg, 'model')).toBe('Razonando con las cifras del hilo…');
+    expect(widgetChatStatusForUserMessage(msg, 'hub')).toBe('Calculando con las cifras ya conocidas…');
+  });
+
+  it('runWithWidgetStatusPulse emite status inicial y ejecuta trabajo', async () => {
+    const events: Array<Record<string, unknown>> = [];
+    const out = await runWithWidgetStatusPulse(
+      (data) => events.push(data),
+      'hola',
+      'prepare',
+      async () => 'ok',
+    );
+    expect(out).toBe('ok');
+    expect(events.length).toBeGreaterThanOrEqual(1);
+    expect(events[0]?.type).toBe('status');
   });
 });
 

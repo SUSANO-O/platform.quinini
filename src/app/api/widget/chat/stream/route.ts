@@ -52,19 +52,21 @@ import {
   shouldUsePriorImage,
 } from '@/lib/widget-chat-vision-context';
 import { isTrivialMessage } from '@/lib/trivial-message';
+import { needsKnowledgeLookup } from '@/lib/widget-counter-rhythm';
 import {
   loadSessionVisionEnrichment,
   persistSessionVisionAnalysis,
 } from '@/lib/widget-session-context';
 import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-enrich';
 import { schedulePersistWidgetTranscript } from '@/lib/widget-transcript';
-import { agentHasAnyWebhook } from '@/lib/agent-webhooks';
 import { tryServeWidgetChatViaDirectInference } from '@/lib/widget-chat-direct-inference';
 import { tryServeWidgetChatViaHubMcp } from '@/lib/widget-chat-direct-mcp';
 import { normalizeVisitorId } from '@/lib/widget-visitor';
 import {
   emitWidgetChatStatus,
+  emitWidgetChatStatusForTurn,
   loadAgentStreamHints,
+  runWithWidgetStatusPulse,
   type WidgetChatStreamHints,
 } from '@/lib/widget-chat-status';
 import { emitStreamTokensFromText } from '@/lib/widget-stream-reply';
@@ -311,23 +313,7 @@ export async function POST(req: NextRequest) {
 
         prefetchedAgentHintsDoc = agentDoc;
 
-        // ── Multi-webhook detection — fuerza fallback al endpoint non-stream ──
-        try {
-          if (agentDoc && agentHasAnyWebhook(agentDoc)) {
-            logWidgetFlow('🔀', 'stream:skip', 'agente con webhooks → forzando fallback non-stream', {
-              traceId,
-              agentId: parsedAgentId,
-            });
-            latencyTrace.mark('auth');
-            finalizeWidgetChatTrace(latencyTrace, { ok: false, errorCode: 'STREAM_NOT_SUPPORTED' });
-            return new Response(
-              sseEvent({ type: 'error', message: 'stream_unavailable', code: 'STREAM_NOT_SUPPORTED' }),
-              { status: 503, headers: { 'Content-Type': 'text/event-stream', ...corsHeaders(origin) } },
-            );
-          }
-        } catch (e) {
-          logWidgetFlow('⚠️', 'stream:webhookCheckErr', e instanceof Error ? e.message : String(e));
-        }
+        // Agentes con webhook siguen el mismo proxy hub; Fase 1 emite status SSE durante la espera.
 
         try {
           const active =
@@ -520,9 +506,18 @@ export async function POST(req: NextRequest) {
       });
 
       try {
-        emitWidgetChatStatus(enqueue, 'prepare');
+        const userMsgForStatus = userDisplayMessage || parsedMessage;
+        emitWidgetChatStatusForTurn(enqueue, userMsgForStatus, 'prepare');
         if (faqTrackOwnerId) {
           emitWidgetChatStatus(enqueue, 'enrich');
+        }
+        if (userMsgForStatus.trim() && needsKnowledgeLookup(userMsgForStatus)) {
+          emitWidgetChatStatusForTurn(enqueue, userMsgForStatus, 'rag');
+        } else if (
+          userMsgForStatus.trim() &&
+          /\b(?:retoma|permuta|cu[aá]nto\s+me\s+falt|diferencia|razona)\b/i.test(userMsgForStatus)
+        ) {
+          emitWidgetChatStatusForTurn(enqueue, userMsgForStatus, 'hub');
         }
         if (imageEnrichment?.images?.length) {
           emitWidgetChatStatus(enqueue, 'vision');
@@ -923,7 +918,7 @@ export async function POST(req: NextRequest) {
             );
           }
           if (streamHints.ragEnabled) {
-            emitWidgetChatStatus(enqueue, 'rag');
+            emitWidgetChatStatusForTurn(enqueue, streamMsg, 'rag');
           }
         } catch (hintsErr) {
           logWidgetFlow('⚠️', 'stream:hintsErr', hintsErr instanceof Error ? hintsErr.message : String(hintsErr));
@@ -1022,18 +1017,19 @@ export async function POST(req: NextRequest) {
           ...widgetMessageProbe(streamMsg),
         });
         if (streamHints?.hasMcpTools) {
-          emitWidgetChatStatus(enqueue, 'mcp');
+          emitWidgetChatStatusForTurn(enqueue, streamMsg, 'mcp');
         } else if (streamHints?.hasWebhookTools) {
-          emitWidgetChatStatus(enqueue, 'tools');
+          emitWidgetChatStatusForTurn(enqueue, streamMsg, 'tools');
         }
-        emitWidgetChatStatus(enqueue, 'hub');
         const res = await latencyTrace.span('hub', () =>
-          fetchHubWidgetChat(base, {
-            method: 'POST',
-            headers,
-            body: hubBody,
-            signal: AbortSignal.timeout(120_000),
-          }),
+          runWithWidgetStatusPulse(enqueue, streamMsg, 'hub', () =>
+            fetchHubWidgetChat(base, {
+              method: 'POST',
+              headers,
+              body: hubBody,
+              signal: AbortSignal.timeout(120_000),
+            }),
+          ),
         );
 
         const json = await res.json() as {
@@ -1078,7 +1074,7 @@ export async function POST(req: NextRequest) {
         const images = Array.isArray(json.images) && json.images.length ? json.images : undefined;
         const usedModel =
           typeof json.usedModel === 'string' && json.usedModel.trim() ? json.usedModel.trim() : undefined;
-        emitWidgetChatStatus(enqueue, 'model');
+        emitWidgetChatStatusForTurn(enqueue, streamMsg, 'model');
         await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, fullReply));
         enqueue(
           attachAssistNavToPayload(

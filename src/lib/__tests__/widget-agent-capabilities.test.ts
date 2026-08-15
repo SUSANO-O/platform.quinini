@@ -58,7 +58,7 @@ describe('widget-agent-capabilities', () => {
   it('pregunta financiera no es tool-intent', () => {
     expect(messageLooksToolIntent('como puedo mejorar mis finanzas personales')).toBe(false);
     expect(messageLooksToolIntent('tienes conexion a base de datos')).toBe(true);
-    expect(messageLooksToolIntent('¿Tiene amortiguador Tracker 2017?')).toBe(true);
+    expect(messageLooksToolIntent('¿Tienen el SKU ABC-123 en bodega?')).toBe(true);
   });
 
   it('indexa hojas google-sheets como capacidad sheet', () => {

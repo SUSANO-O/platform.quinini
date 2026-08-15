@@ -26,6 +26,7 @@ import {
   shouldRecallConversationMemory,
 } from '@/lib/widget-conversation-recall';
 import { retrieveRagContextBlock } from '@/lib/rag-embeddings-index';
+import { widgetChatStatusForUserMessage } from '@/lib/widget-chat-status';
 
 export type DirectInferenceResult = {
   reply: string;
@@ -341,6 +342,7 @@ export async function tryServeWidgetChatViaDirectInference(params: {
   /** Documentos del panel: solo si el turno pide inventario, precio o ficha. */
   const hubIdForRag = typeof ca.agentHubId === 'string' ? ca.agentHubId.trim() : '';
   if (needsKnowledgeLookup(message) && ca.ragEnabled === true && hubIdForRag) {
+    params.onStatus?.('rag', widgetChatStatusForUserMessage(message, 'rag'));
     const ragBlock = await retrieveRagContextBlock({ agentHubId: hubIdForRag, query: message });
     if (ragBlock) {
       contextBlock = mergeContextBlocks(contextBlock, ragBlock);
@@ -357,7 +359,7 @@ export async function tryServeWidgetChatViaDirectInference(params: {
     agentMax: resolvedMaxTokens,
   });
 
-  params.onStatus?.('model', 'Generando respuesta…');
+  params.onStatus?.('model', widgetChatStatusForUserMessage(message, 'model'));
 
   try {
     const res = await hubFetch(

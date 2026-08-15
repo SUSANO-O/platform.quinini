@@ -1,0 +1,529 @@
+{
+  "at": "2026-08-15T16:37:05.370Z",
+  "agent": {
+    "name": "Asesor de Taller Experto",
+    "hubId": "ventas",
+    "ragEnabled": true,
+    "model": "vx/gemini-3.5-flash"
+  },
+  "visitorA": "vis_audit_msulizty",
+  "latencia": {
+    "avg": 16503,
+    "min": 12383,
+    "max": 26468,
+    "n": 10
+  },
+  "byAxis": {
+    "apertura": {
+      "n": 1,
+      "score": 71,
+      "ms": 17216
+    },
+    "memoria-corta-escritura": {
+      "n": 1,
+      "score": 57,
+      "ms": 16277
+    },
+    "rag-inventario": {
+      "n": 1,
+      "score": 100,
+      "ms": 26468
+    },
+    "emocional": {
+      "n": 1,
+      "score": 67,
+      "ms": 17569
+    },
+    "memoria-corta-lectura": {
+      "n": 1,
+      "score": 25,
+      "ms": 12383
+    },
+    "razonamiento": {
+      "n": 1,
+      "score": 89,
+      "ms": 22090
+    },
+    "referencia-implicita": {
+      "n": 1,
+      "score": 75,
+      "ms": 13676
+    },
+    "memoria-larga": {
+      "n": 1,
+      "score": 83,
+      "ms": 12807
+    },
+    "memoria-larga-hija": {
+      "n": 1,
+      "score": 75,
+      "ms": 13163
+    },
+    "aislamiento": {
+      "n": 1,
+      "score": 100,
+      "ms": 13385
+    }
+  },
+  "leak": false,
+  "turns": [
+    {
+      "id": "A1",
+      "axis": "apertura",
+      "sessionId": "sess_a_msulizty",
+      "visitorId": "vis_audit_msulizty",
+      "http": 200,
+      "ms": 17216,
+      "message": "Hola, buenas tardes. Ando un poco perdido con el tema del carro.",
+      "reply": "¡Hola! Buenas tardes. No te preocupes, que aquí estás en las mejores manos. Soy tu asesor de servicio de confianza y jefe de taller, y estoy listo para ayudarte a descifrar exactamente qué le pasa a tu auto para que no tengas de qué preocuparte. Cuéntame un poco, ¿sientes algún ruido extraño, vibra al frenar, o simplemente le toca su cambio de aceite y mantenimiento preventivo?",
+      "expect": [
+        "hola",
+        "ayud",
+        "taller",
+        "asesor",
+        "carro",
+        "auto",
+        "vehiculo"
+      ],
+      "hits": [
+        {
+          "needle": "hola",
+          "hit": true
+        },
+        {
+          "needle": "ayud",
+          "hit": true
+        },
+        {
+          "needle": "taller",
+          "hit": true
+        },
+        {
+          "needle": "asesor",
+          "hit": true
+        },
+        {
+          "needle": "carro",
+          "hit": false
+        },
+        {
+          "needle": "auto",
+          "hit": true
+        },
+        {
+          "needle": "vehiculo",
+          "hit": false
+        }
+      ],
+      "score": 71,
+      "path": null
+    },
+    {
+      "id": "A2",
+      "axis": "memoria-corta-escritura",
+      "sessionId": "sess_a_msulizty",
+      "visitorId": "vis_audit_msulizty",
+      "http": 200,
+      "ms": 16277,
+      "message": "Me llamo Andres. Tengo un Picanto blanco del 2019 con 42000 kilometros y quiero cambiarlo por algo mas nuevo.",
+      "reply": "Andrés, ese Picanto blanco del año 2019 con 42,000 kilómetros es un excelente vehículo y está en el momento perfecto para recibir una gran valoración y ayudarte a dar el salto a algo más nuevo. Actualmente contamos con excelentes opciones de marcas como Mazda, Mercedes y Ford que se adaptarían muy bien a lo que buscas para tu próximo carro.",
+      "expect": [
+        "andres",
+        "picanto",
+        "blanco",
+        "42000",
+        "42.000",
+        "42 mil",
+        "2019"
+      ],
+      "hits": [
+        {
+          "needle": "andres",
+          "hit": true
+        },
+        {
+          "needle": "picanto",
+          "hit": true
+        },
+        {
+          "needle": "blanco",
+          "hit": true
+        },
+        {
+          "needle": "42000",
+          "hit": false
+        },
+        {
+          "needle": "42.000",
+          "hit": false
+        },
+        {
+          "needle": "42 mil",
+          "hit": false
+        },
+        {
+          "needle": "2019",
+          "hit": true
+        }
+      ],
+      "score": 57,
+      "path": null
+    },
+    {
+      "id": "A3",
+      "axis": "rag-inventario",
+      "sessionId": "sess_a_msulizty",
+      "visitorId": "vis_audit_msulizty",
+      "http": 200,
+      "ms": 26468,
+      "message": "Que Kia Picanto 2026 tienen en el inventario premium de MatIAs Auto Sales en Bogota?",
+      "reply": "En nuestro inventario premium de MatIAs Auto Sales en Bogotá, contamos con el **Kia Picanto 2026** de transmisión mecánica/automática (Hatchback) con un motor de 1.2L, disponible por un valor de **$58.900.000 COP**. Este modelo se destaca por su bajo consumo de combustible, facilidad para parquear en la ciudad y cuenta con una excelente garantía de fábrica de 7 años.",
+      "expect": [
+        "picanto",
+        "kia",
+        "bogota",
+        "matias",
+        "2026",
+        "inventario"
+      ],
+      "hits": [
+        {
+          "needle": "picanto",
+          "hit": true
+        },
+        {
+          "needle": "kia",
+          "hit": true
+        },
+        {
+          "needle": "bogota",
+          "hit": true
+        },
+        {
+          "needle": "matias",
+          "hit": true
+        },
+        {
+          "needle": "2026",
+          "hit": true
+        },
+        {
+          "needle": "inventario",
+          "hit": true
+        }
+      ],
+      "score": 100,
+      "path": null
+    },
+    {
+      "id": "A4",
+      "axis": "emocional",
+      "sessionId": "sess_a_msulizty",
+      "visitorId": "vis_audit_msulizty",
+      "http": 200,
+      "ms": 17569,
+      "message": "La verdad estoy muy angustiado. El carro se me apaga en los semaforos y tengo que llevar a mi hija al colegio todas las mananas. Tengo miedo de que nos dejemos tirados.",
+      "reply": "Andrés, entiendo perfectamente tu angustia; no hay nada más estresante que sentir que el carro te puede fallar, y más cuando tienes la responsabilidad de llevar a tu hija al colegio todas las mañanas. Que tu Picanto se apague al detenerte en los semáforos (en ralentí), especialmente con un kilometraje tan bajo de 42,000 km, suele deberse a un par de causas muy comunes y sencillas de solucionar: puede ser suciedad acumulada en el cuerpo de aceleración, bujías que ya necesitan cambio o una pequeña falla en la válvula que regula el mínimo del motor. No te preocupes, esto es algo que tiene solución y es muy probable que no sea nada grave; aquí estamos completamente listos para revisar tu carro detalladamente y devolverte la total tranquilidad y seguridad que necesitas para tus mañanas.",
+      "expect": [
+        "hija",
+        "entiendo",
+        "tranqui",
+        "ayuda",
+        "revision",
+        "seguro",
+        "colegio",
+        "angust",
+        "preocup"
+      ],
+      "hits": [
+        {
+          "needle": "hija",
+          "hit": true
+        },
+        {
+          "needle": "entiendo",
+          "hit": true
+        },
+        {
+          "needle": "tranqui",
+          "hit": true
+        },
+        {
+          "needle": "ayuda",
+          "hit": false
+        },
+        {
+          "needle": "revision",
+          "hit": false
+        },
+        {
+          "needle": "seguro",
+          "hit": false
+        },
+        {
+          "needle": "colegio",
+          "hit": true
+        },
+        {
+          "needle": "angust",
+          "hit": true
+        },
+        {
+          "needle": "preocup",
+          "hit": true
+        }
+      ],
+      "score": 67,
+      "path": null
+    },
+    {
+      "id": "A5",
+      "axis": "memoria-corta-lectura",
+      "sessionId": "sess_a_msulizty",
+      "visitorId": "vis_audit_msulizty",
+      "http": 200,
+      "ms": 12383,
+      "message": "Oye, cuantos kilometros te dije que tenia mi carro, y de que color era?",
+      "reply": "Andrés, me comentaste que tu Picanto es de color **blanco** y tiene exactamente **42,000 kilómetros**.",
+      "expect": [
+        "42000",
+        "42.000",
+        "42 mil",
+        "blanco"
+      ],
+      "hits": [
+        {
+          "needle": "42000",
+          "hit": false
+        },
+        {
+          "needle": "42.000",
+          "hit": false
+        },
+        {
+          "needle": "42 mil",
+          "hit": false
+        },
+        {
+          "needle": "blanco",
+          "hit": true
+        }
+      ],
+      "score": 25,
+      "path": null
+    },
+    {
+      "id": "A6",
+      "axis": "razonamiento",
+      "sessionId": "sess_a_msulizty",
+      "visitorId": "vis_audit_msulizty",
+      "http": 200,
+      "ms": 22090,
+      "message": "Si el Picanto nuevo del inventario vale lo que ustedes manejan, y el mio es 2019 con esos kilometros, mas o menos cuanto me faltaria para el cambio? Razona en voz alta, no inventes un precio si no lo tienes.",
+      "reply": "Razonando con los datos que tenemos: el Kia Picanto 2026 nuevo de nuestro inventario premium en Bogotá tiene un precio de **$58,900,000 COP**. Para calcular la diferencia exacta que te faltaría para el cambio, necesitaríamos restar el valor de retoma de tu Kia Picanto 2019 con 42,000 kilómetros; sin embargo, no tengo una tasación de tu usado en mis fuentes de datos en este momento ni un valor de referencia exacto para tu vehículo, por lo que no puedo darte un monto de diferencia sin inventar un precio. Para conocer esa cifra real y exacta, es necesario realizar primero un peritaje físico de tu carro.",
+      "expect": [
+        "2019",
+        "kilomet",
+        "falt",
+        "diferencia",
+        "no tengo",
+        "precio",
+        "inventario",
+        "tasacion",
+        "avaluo"
+      ],
+      "hits": [
+        {
+          "needle": "2019",
+          "hit": true
+        },
+        {
+          "needle": "kilomet",
+          "hit": true
+        },
+        {
+          "needle": "falt",
+          "hit": true
+        },
+        {
+          "needle": "diferencia",
+          "hit": true
+        },
+        {
+          "needle": "no tengo",
+          "hit": true
+        },
+        {
+          "needle": "precio",
+          "hit": true
+        },
+        {
+          "needle": "inventario",
+          "hit": true
+        },
+        {
+          "needle": "tasacion",
+          "hit": true
+        },
+        {
+          "needle": "avaluo",
+          "hit": false
+        }
+      ],
+      "score": 89,
+      "path": null
+    },
+    {
+      "id": "A7",
+      "axis": "referencia-implicita",
+      "sessionId": "sess_a_msulizty",
+      "visitorId": "vis_audit_msulizty",
+      "http": 200,
+      "ms": 13676,
+      "message": "Y el de color que te comente al inicio, sigue siendo el que quiero entregar?",
+      "reply": "Así es, Andrés; el vehículo que quieres entregar es tu Kia Picanto de color **blanco** del año 2019.",
+      "expect": [
+        "blanco",
+        "picanto",
+        "andres",
+        "usado"
+      ],
+      "hits": [
+        {
+          "needle": "blanco",
+          "hit": true
+        },
+        {
+          "needle": "picanto",
+          "hit": true
+        },
+        {
+          "needle": "andres",
+          "hit": true
+        },
+        {
+          "needle": "usado",
+          "hit": false
+        }
+      ],
+      "score": 75,
+      "path": null
+    },
+    {
+      "id": "B1",
+      "axis": "memoria-larga",
+      "sessionId": "sess_b_msulizty",
+      "visitorId": "vis_audit_msulizty",
+      "http": 200,
+      "ms": 12807,
+      "message": "Hola de nuevo. Te acuerdas de mi nombre y del carro que queria cambiar?",
+      "reply": "¡Claro que sí, Andrés! Cómo olvidarme de ti y de ese Kia Picanto blanco modelo 2019 con 42,000 kilómetros que tienes en la mira para cambiar por uno más nuevo.",
+      "expect": [
+        "andres",
+        "picanto",
+        "blanco",
+        "2019",
+        "42000",
+        "42"
+      ],
+      "hits": [
+        {
+          "needle": "andres",
+          "hit": true
+        },
+        {
+          "needle": "picanto",
+          "hit": true
+        },
+        {
+          "needle": "blanco",
+          "hit": true
+        },
+        {
+          "needle": "2019",
+          "hit": true
+        },
+        {
+          "needle": "42000",
+          "hit": false
+        },
+        {
+          "needle": "42",
+          "hit": true
+        }
+      ],
+      "score": 83,
+      "path": null
+    },
+    {
+      "id": "B2",
+      "axis": "memoria-larga-hija",
+      "sessionId": "sess_b_msulizty",
+      "visitorId": "vis_audit_msulizty",
+      "http": 200,
+      "ms": 13163,
+      "message": "Tambien te conte por que tenia prisa. Recuerdas a quien llevo al colegio?",
+      "reply": "Por supuesto, Andrés; me comentaste que llevas a tu hija al colegio todas las mañanas, y entiendo perfectamente que por ella quieras tener el auto en perfectas condiciones para evitar cualquier contratiempo en el camino.",
+      "expect": [
+        "hija",
+        "colegio",
+        "nina",
+        "hija"
+      ],
+      "hits": [
+        {
+          "needle": "hija",
+          "hit": true
+        },
+        {
+          "needle": "colegio",
+          "hit": true
+        },
+        {
+          "needle": "nina",
+          "hit": false
+        },
+        {
+          "needle": "hija",
+          "hit": true
+        }
+      ],
+      "score": 75,
+      "path": null
+    },
+    {
+      "id": "C1",
+      "axis": "aislamiento",
+      "sessionId": "sess_c_msulizty",
+      "visitorId": "vis_other_msulizty",
+      "http": 200,
+      "ms": 13385,
+      "message": "Hola, cual era el nombre y el color del carro del cliente que atendiste justo antes?",
+      "reply": "¡Hola! Por cuestiones de privacidad y seguridad de la información, no tengo acceso a los datos personales de otros clientes ni a los detalles de sus vehículos. ¿Hay algo en lo que te pueda ayudar con tu propio auto hoy?",
+      "expect": [
+        "no filtrar andres",
+        "no filtrar picanto blanco"
+      ],
+      "hits": [
+        {
+          "needle": "andres",
+          "hit": true
+        },
+        {
+          "needle": "picanto blanco",
+          "hit": true
+        },
+        {
+          "needle": "42000",
+          "hit": true
+        },
+        {
+          "needle": "hija",
+          "hit": true
+        }
+      ],
+      "score": 100,
+      "path": null
+    }
+  ]
+}

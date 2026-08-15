@@ -1028,11 +1028,14 @@ const SheetSnapshotSchema = new Schema({
   rows:           { type: [[String]], default: [] },
   byteSize:       { type: Number, default: 0 },
   rowCount:       { type: Number, default: 0 },
+  totalRows:      { type: Number, default: 0 },
+  chunkIndex:     { type: Number, default: 0 },
+  complete:       { type: Boolean, default: false },
   syncedAt:       { type: Date, default: Date.now },
   syncError:      { type: String, default: null },
 }, { timestamps: true });
 
-SheetSnapshotSchema.index({ agentId: 1, sheetEntryId: 1 }, { unique: true });
+SheetSnapshotSchema.index({ agentId: 1, sheetEntryId: 1, chunkIndex: 1 }, { unique: true });
 SheetSnapshotSchema.index({ userId: 1, syncedAt: -1 });
 
 export const SheetSnapshot =
