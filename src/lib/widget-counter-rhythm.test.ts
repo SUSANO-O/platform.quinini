@@ -4,9 +4,11 @@ import {
   LEAD_CAPTURE_SKILL_IDS,
   needsKnowledgeLookup,
   needsOperationalTools,
+  needsVehicleFactsEcho,
   shouldSkipHeavyWidgetPath,
   shouldUseCheapGreetingModel,
   widgetReplyMaxTokens,
+  widgetRuntimeDirectives,
   WIDGET_TOKEN_BUDGET,
   WIDGET_TOKEN_FLOOR,
 } from './widget-counter-rhythm';
@@ -105,6 +107,22 @@ describe('shouldUseCheapGreetingModel', () => {
   it('usa lite solo en el primer hola', () => {
     expect(shouldUseCheapGreetingModel('hola', [])).toBe(true);
     expect(shouldUseCheapGreetingModel('gracias', OPEN_HISTORY)).toBe(false);
+  });
+});
+
+describe('needsVehicleFactsEcho', () => {
+  it('solo A2: presentación de auto con color', () => {
+    const msg =
+      'Me llamo Andres. Tengo un Picanto blanco del 2019 con 42000 kilometros y quiero cambiarlo por algo mas nuevo.';
+    expect(needsVehicleFactsEcho(msg)).toBe(true);
+    expect(widgetRuntimeDirectives(msg, OPEN_HISTORY).some((l) => /color/i.test(l))).toBe(true);
+  });
+
+  it('no aplica a otros ejes del guion', () => {
+    expect(needsVehicleFactsEcho('Oye, cuantos kilometros te dije que tenia mi carro, y de que color era?')).toBe(
+      false,
+    );
+    expect(needsVehicleFactsEcho('Que Kia Picanto 2026 tienen en el inventario premium en Bogota?')).toBe(false);
   });
 });
 

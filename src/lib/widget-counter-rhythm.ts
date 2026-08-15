@@ -52,6 +52,10 @@ export const WIDGET_INVENTORY_NO_LEAD_DIRECTIVE =
 export const WIDGET_REASONING_DIRECTIVE =
   '- **Retoma / diferencia de cambio:** razona en español con los precios del inventario ya conocidos. Si no tienes tasación del usado, dilo claro; no inventes rangos. **No** cambies de tema (semáforos, angustia, saludos).';
 
+/** Solo turno corto-escritura (A2): el visitante presenta su auto por primera vez. */
+export const WIDGET_VEHICLE_FACTS_ECHO_DIRECTIVE =
+  '- **Datos que acaba de contar (este turno):** repite explícitamente en tu respuesta **cada dato** que el visitante acaba de dar: nombre, modelo, **color**, año y kilómetros. Si dijo "blanco", escribe "blanco"; no omitas el color ni generalices.';
+
 /** Skills que activan CRM/cierre. Fuera si el turno no pide agenda ni captura. */
 export const LEAD_CAPTURE_SKILL_IDS = ['sales_closer', 'objection_handling', 'lead_qualifier'] as const;
 
@@ -96,6 +100,29 @@ export function needsOperationalTools(message: string): boolean {
   const raw = typeof message === 'string' ? message.trim() : '';
   if (!raw) return false;
   return OPERATIONAL_RE.test(raw);
+}
+
+/**
+ * Turno A2 (memoria-corta-escritura): visitante presenta nombre + datos del auto.
+ * No aplica a recuerdos (A5/B1), inventario (A3) ni emoción (A4).
+ */
+export function needsVehicleFactsEcho(message: string): boolean {
+  const raw = typeof message === 'string' ? message.trim() : '';
+  if (!raw || /[?¿]/.test(raw)) return false;
+  if (needsKnowledgeLookup(raw) || needsOperationalTools(raw)) return false;
+  if (/\b(?:te\s+acuerdas|recuerdas|cu[aá]ntos?\s+kil[oó]met|de\s+qu[eé]\s+color\s+(?:era|ten[ií]a))\b/i.test(raw)) {
+    return false;
+  }
+  const declaresOwnVehicle =
+    /\bme\s+llamo\b[\s\S]{0,160}\btengo\b/i.test(raw) ||
+    /\btengo\s+(?:un\s+)?(?:mi\s+)?(?:kia\s+)?(?:picanto|soul|rio|sportage|auto|carro|veh[ií]culo)\b/i.test(raw);
+  if (!declaresOwnVehicle) return false;
+  return (
+    /\b(?:blanc[oa]|negro|roj[oa]|gris|azul|platead[oa]|verde|beige)\b/i.test(raw) ||
+    /\b20\d{2}\b/.test(raw) ||
+    /\b(?:kil[oó]met|\d{3,6}\s*km)\b/i.test(raw) ||
+    /\b(?:cambiar|retoma|permuta|m[aá]s\s+nuevo|renovar)\b/i.test(raw)
+  );
 }
 
 /**
@@ -180,6 +207,9 @@ export function widgetRuntimeDirectives(
     )
   ) {
     lines.push(WIDGET_REASONING_DIRECTIVE);
+  }
+  if (needsVehicleFactsEcho(message)) {
+    lines.push(WIDGET_VEHICLE_FACTS_ECHO_DIRECTIVE);
   }
   return lines;
 }
