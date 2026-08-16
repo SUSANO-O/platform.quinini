@@ -227,6 +227,7 @@
     "testimonials": {
       "title": "Lo que dicen nuestros clientes",
       "subtitle": "Empresas reales usando BotIvA para atender clientes, calificar leads y escalar sin contratar.",
+      "scrollHint": "Desliza para ver más →",
       "items": [
         {
           "quote": "Implementamos BotIvA en nuestra concesionaria y en dos semanas ya respondía el 70% de las consultas sin intervención humana. El onboarding fue muy sencillo.",

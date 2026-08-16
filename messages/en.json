@@ -227,6 +227,7 @@
     "testimonials": {
       "title": "What our customers say",
       "subtitle": "Real businesses using BotIvA to serve customers, qualify leads, and scale without hiring.",
+      "scrollHint": "Swipe to see more →",
       "items": [
         {
           "quote": "We deployed BotIvA in our dealership and within two weeks it was answering 70% of inquiries without human intervention. The onboarding was very straightforward.",

@@ -100,6 +100,7 @@ export default async function LandingPage() {
     testimonials: {
       title: t('testimonials.title'),
       subtitle: t('testimonials.subtitle'),
+      scrollHint: t('testimonials.scrollHint'),
       items: TESTIMONIALS,
     },
     training: {
