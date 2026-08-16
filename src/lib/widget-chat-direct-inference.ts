@@ -169,12 +169,12 @@ export async function tryServeWidgetChatViaDirectInference(params: {
   if (isImageModel(storedModel)) return null;
 
   // Fast-path de saludos: barato por /api/models aunque el agente tenga skills MCP.
-  // Continuidad (recuerdo, emoción, hechos): sin RAG/skills/MCP; el modelo del agente basta.
+  // AIBackHub también vacía tools en trivial; evitamos el pipeline MCP pesado.
   const trivial = isTrivialMessage(message, parsed.history);
   const skipHeavy = shouldSkipHeavyWidgetPath(message, parsed.history);
   const cheapGreeting = shouldUseCheapGreetingModel(message, parsed.history);
 
-  if (!skipHeavy && (await agentNeedsMcpWidgetChat(ca))) {
+  if (!trivial && (await agentNeedsMcpWidgetChat(ca))) {
     logWidgetFlow('⏭️', 'infer:skip', 'agente con MCP/skills-tools — requiere /api/mcp/widget-chat', {
       agentId: id,
       agentHubId: ca.agentHubId,

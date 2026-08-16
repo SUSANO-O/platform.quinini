@@ -147,6 +147,43 @@ export async function prepareHandoffInboxSession(input: HandoffSessionInput): Pr
   }
 }
 
+/**
+ * «Devolver al bot» / «Atiendo yo»: el guard del widget busca por chatSessionId.
+ * Hay que alinear todas las filas abiertas del mismo chat, no solo el ho_*.
+ */
+export async function setInboxHumanModeForChat(input: {
+  userId: string;
+  sessionId: string;
+  humanMode: boolean;
+}): Promise<{ ok: true; sessionId: string; humanMode: boolean } | { ok: false }> {
+  const userId = String(input.userId).trim();
+  const sessionId = String(input.sessionId).trim();
+  if (!userId || !sessionId) return { ok: false };
+
+  const updated = await ConversationSession.findOneAndUpdate(
+    { sessionId, userId },
+    { $set: { humanMode: input.humanMode } },
+    { new: true },
+  ).lean() as { sessionId?: string; chatSessionId?: string | null } | null;
+
+  if (!updated) return { ok: false };
+
+  const chatSessionId =
+    (typeof updated.chatSessionId === 'string' && updated.chatSessionId.trim()) ||
+    sessionId;
+
+  await ConversationSession.updateMany(
+    {
+      userId,
+      inboxStatus: { $ne: 'resolved' },
+      $or: [{ sessionId: chatSessionId }, { chatSessionId }],
+    },
+    { $set: { humanMode: input.humanMode } },
+  );
+
+  return { ok: true, sessionId, humanMode: input.humanMode };
+}
+
 /** @deprecated Usar prepareHandoffInboxSession */
 export async function upsertHandoffInboxSession(input: HandoffSessionInput): Promise<string | null> {
   return prepareHandoffInboxSession(input);

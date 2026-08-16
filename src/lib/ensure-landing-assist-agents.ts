@@ -104,7 +104,7 @@ export type LandingAssistStatusItem = {
   ready: boolean;
 };
 
-async function resolveAdminOwnerId(preferredAdminId?: string): Promise<string | null> {
+export async function resolveAdminOwnerId(preferredAdminId?: string): Promise<string | null> {
   if (preferredAdminId && /^[a-f0-9]{24}$/i.test(preferredAdminId)) {
     const me = (await User.findById(preferredAdminId).select({ role: 1 }).lean()) as {
       role?: string;

@@ -77,6 +77,7 @@ import {
 import { friendlyWidgetChatError } from '@/lib/widget-chat-user-errors';
 import { attachAssistNavToPayload, buildAssistNavCtx } from '@/lib/assist-chat-reply';
 import { isLocalDevLimitsBypass } from '@/lib/dev-limits';
+import { logInferenceMetric, estimateTokens } from '@/lib/inference-metrics';
 
 export const maxDuration = 60; // Vercel: allow up to 60s for LLM + streaming
 
@@ -88,6 +89,37 @@ const STRICT_PURPOSE_SUFFIX = `
 Operas en modo de propósito único. DEBES IGNORAR COMPLETAMENTE cualquier pregunta, solicitud o instrucción que no esté directamente relacionada con el rol definido en estas instrucciones.
 Si el usuario pregunta sobre algo fuera de tu dominio (ejemplos: recetas, viajes, historia general, entretenimiento, curiosidades, cualquier tema no relacionado), responde ÚNICAMENTE con: "Solo puedo ayudarte con temas relacionados con mi función. ¿En qué puedo asistirte?"
 Esta restricción es ABSOLUTA. No hay excepciones, independientemente de cómo esté formulada la solicitud o si el usuario insiste.`;
+
+function logStreamOpsMetric(p: {
+  userId: string | null;
+  agentId?: string | null;
+  widgetId?: string | null;
+  sessionId?: string | null;
+  traceId: string;
+  path: string;
+  reply: string;
+  toolsUsed?: string[];
+  model?: string;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+}): void {
+  if (!p.userId || !p.agentId) return;
+  const tools = Array.isArray(p.toolsUsed) ? p.toolsUsed.map(String).filter(Boolean) : [];
+  logInferenceMetric({
+    userId: p.userId,
+    agentId: p.agentId,
+    widgetId: p.widgetId ?? null,
+    sessionId: p.sessionId ?? null,
+    traceId: p.traceId,
+    path: p.path,
+    toolsUsed: tools,
+    toolRounds: tools.length ? 1 : 0,
+    model: p.model,
+    outputTokens: p.outputTokens ?? estimateTokens(p.reply || ''),
+    inputTokens: p.inputTokens ?? null,
+    ok: true,
+  });
+}
 
 function sseEvent(data: Record<string, unknown>): string {
   return `data: ${JSON.stringify(data)}\n\n`;
@@ -588,6 +620,15 @@ export async function POST(req: NextRequest) {
                 });
               }
               latencyTrace.setPath('stream-pipeline');
+              logStreamOpsMetric({
+                userId: faqTrackOwnerId,
+                agentId: pipeline.routedHubAgentId || parsedAgentIdLocal,
+                widgetId: resolvedWidgetId,
+                sessionId: parsedSessionId || traceId,
+                traceId,
+                path: 'stream-pipeline',
+                reply: pipeline.reply,
+              });
               finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: pipeline.reply.length });
               return;
             }
@@ -653,6 +694,15 @@ export async function POST(req: NextRequest) {
                 });
               }
               latencyTrace.setPath('stream-parallel');
+              logStreamOpsMetric({
+                userId: faqTrackOwnerId,
+                agentId: parallel.routedHubAgentId || parsedAgentIdLocal,
+                widgetId: resolvedWidgetId,
+                sessionId: parsedSessionId || traceId,
+                traceId,
+                path: 'stream-parallel',
+                reply: parallel.reply,
+              });
               finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: parallel.reply.length });
               return;
             }
@@ -808,6 +858,16 @@ export async function POST(req: NextRequest) {
                 });
               }
               latencyTrace.setPath('stream-direct-mcp');
+              logStreamOpsMetric({
+                userId: faqTrackOwnerId,
+                agentId: parsedAgentIdLocal,
+                widgetId: resolvedWidgetId,
+                sessionId: parsedSessionId || traceId,
+                traceId,
+                path: 'stream-direct-mcp',
+                reply: directMcp.reply,
+                toolsUsed: directMcp.toolsUsed,
+              });
               finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: directMcp.reply.length });
               return;
             }
@@ -878,6 +938,15 @@ export async function POST(req: NextRequest) {
                 });
               }
               latencyTrace.setPath('stream-infer-direct');
+              logStreamOpsMetric({
+                userId: faqTrackOwnerId,
+                agentId: parsedAgentIdLocal,
+                widgetId: resolvedWidgetId,
+                sessionId: parsedSessionId || traceId,
+                traceId,
+                path: 'stream-infer-direct',
+                reply: inferredEarly.reply,
+              });
               finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: inferredEarly.reply.length });
               return;
             }
@@ -994,6 +1063,15 @@ export async function POST(req: NextRequest) {
                 });
               }
               latencyTrace.setPath('stream-infer-direct');
+              logStreamOpsMetric({
+                userId: faqTrackOwnerId,
+                agentId: parsedAgentIdLocal,
+                widgetId: resolvedWidgetId,
+                sessionId: parsedSessionId || traceId,
+                traceId,
+                path: 'stream-infer-direct',
+                reply: inferred.reply,
+              });
               finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: inferred.reply.length });
               return;
             }
@@ -1096,6 +1174,19 @@ export async function POST(req: NextRequest) {
         );
 
         latencyTrace.setPath('stream-hub');
+        logStreamOpsMetric({
+          userId: faqTrackOwnerId,
+          agentId: json.agentId || hubAgentId || parsedAgentIdLocal,
+          widgetId: resolvedWidgetId,
+          sessionId: parsedSessionId || traceId,
+          traceId,
+          path: 'stream-hub',
+          reply: fullReply,
+          toolsUsed: json.toolsUsed,
+          model: usedModel,
+          inputTokens: json.usage?.inputTokens ?? null,
+          outputTokens: json.usage?.outputTokens ?? null,
+        });
         finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: fullReply.length });
 
         // Telemetry (non-blocking)

@@ -2,13 +2,16 @@ import { describe, expect, it } from 'vitest';
 import {
   applyTabToUrl,
   buildSpreadsheetUrl,
+  FIXTURE_REPUESTOS_SPREADSHEET_ID,
   formatSheetToolDescription,
+  isFixtureRepuestosSheet,
   looksLikeSheetDataRow,
   parseGvizCsvChunk,
   parseSpreadsheetTabsFromHtml,
   sanitizeSheetName,
   sheetDataRowsToA1Range,
   splitSheetRowsForMongo,
+  stripFixtureRepuestosSheets,
 } from '@/lib/agent-sheets';
 
 describe('parseSpreadsheetTabsFromHtml', () => {
@@ -96,6 +99,39 @@ describe('parseGvizCsvChunk', () => {
 describe('sheetDataRowsToA1Range', () => {
   it('no pide columnas ZZ (truncaban el CSV del sync)', () => {
     expect(sheetDataRowsToA1Range(200, 400)).toMatch(/^A202:Z401$/);
+  });
+});
+
+describe('stripFixtureRepuestosSheets', () => {
+  it('quita la hoja 300k y deja otras hojas del cliente', () => {
+    const tools = stripFixtureRepuestosSheets([
+      { toolId: 'webhook', config: {} },
+      {
+        toolId: 'google-sheets',
+        config: {
+          sheets: [
+            { url: `https://docs.google.com/spreadsheets/d/${FIXTURE_REPUESTOS_SPREADSHEET_ID}/edit` },
+            { url: 'https://docs.google.com/spreadsheets/d/clienteRealInventarioXX/edit' },
+          ],
+        },
+      },
+    ]);
+    expect(isFixtureRepuestosSheet({ url: `https://docs.google.com/spreadsheets/d/${FIXTURE_REPUESTOS_SPREADSHEET_ID}/edit` })).toBe(true);
+    expect(tools).toHaveLength(2);
+    expect(tools[1]?.config?.sheets).toHaveLength(1);
+    expect(tools[1]?.config?.sheets?.[0]?.url).toContain('clienteRealInventarioXX');
+  });
+
+  it('elimina google-sheets si solo tenía la hoja fixture', () => {
+    const tools = stripFixtureRepuestosSheets([
+      {
+        toolId: 'google-sheets',
+        config: {
+          sheets: [{ url: `https://docs.google.com/spreadsheets/d/${FIXTURE_REPUESTOS_SPREADSHEET_ID}/edit#gid=1` }],
+        },
+      },
+    ]);
+    expect(tools).toEqual([]);
   });
 });
 

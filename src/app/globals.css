@@ -1790,6 +1790,14 @@ label {
   stroke: rgba(0, 0, 0, 0.12);
 }
 
+.dashboard-root-texture .conv-wave__bar--widget {
+  fill: #111111;
+}
+
+.dashboard-root-texture .conv-wave__bar--api {
+  fill: #737373;
+}
+
 .dashboard-root-texture .conv-wave__line--widget {
   stroke: #111111;
 }
@@ -5913,6 +5921,11 @@ button.dashboard-meta-chip:disabled {
   color: var(--muted-foreground);
 }
 
+.conv-wave-panel__range-note {
+  color: var(--muted-foreground);
+  opacity: 0.85;
+}
+
 .conv-wave-panel__peak--muted {
   opacity: 0.7;
   font-weight: 500;
@@ -5980,7 +5993,49 @@ button.dashboard-meta-chip:disabled {
 
 .conv-wave {
   width: 100%;
-  padding: 0.35rem 0.15rem 0;
+  padding: 0.15rem 0 0;
+}
+
+.conv-wave__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 12px;
+  background: rgba(var(--brand-primary-rgb), 0.04);
+  border: 1px solid var(--border-subtle);
+}
+
+@media (min-width: 640px) {
+  .conv-wave__stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.conv-wave__stat-label {
+  display: block;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  margin-bottom: 0.1rem;
+}
+
+.conv-wave__stat-value {
+  font-size: 0.8125rem;
+  font-weight: 800;
+  color: var(--foreground);
+  letter-spacing: -0.01em;
+}
+
+.conv-wave__stat-muted {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+.conv-wave__chart-wrap {
+  position: relative;
 }
 
 .conv-wave__svg {
@@ -5988,6 +6043,7 @@ button.dashboard-meta-chip:disabled {
   height: auto;
   display: block;
   overflow: visible;
+  min-height: 160px;
 }
 
 .conv-wave__plane {
@@ -6007,6 +6063,122 @@ button.dashboard-meta-chip:disabled {
   stroke: rgba(var(--brand-primary-rgb), 0.18);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
+}
+
+.conv-wave__grid--v {
+  stroke-dasharray: 3 4;
+  opacity: 0.55;
+}
+
+.conv-wave__y-label {
+  fill: var(--muted-foreground);
+  font-size: 8px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.conv-wave__cursor-line {
+  stroke: rgba(var(--brand-primary-rgb), 0.35);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 4 3;
+}
+
+.conv-wave__point {
+  stroke: var(--card);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.conv-wave__point--widget {
+  fill: var(--primary);
+}
+
+.conv-wave__point--api {
+  fill: #38bdf8;
+}
+
+.conv-wave__hit {
+  cursor: crosshair;
+}
+
+.conv-wave__tooltip {
+  position: absolute;
+  top: 0;
+  transform: translate(-50%, -100%) translateY(-6px);
+  min-width: 9rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-surface);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.conv-wave__tooltip-date {
+  margin: 0 0 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.conv-wave__tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.15rem 0 0;
+  font-size: 0.625rem;
+  color: var(--muted-foreground);
+}
+
+.conv-wave__tooltip-row strong {
+  margin-left: auto;
+  color: var(--foreground);
+  font-weight: 800;
+}
+
+.conv-wave__tooltip-row--muted {
+  padding-top: 0.2rem;
+  margin-top: 0.25rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.conv-wave__legend-hint {
+  margin-left: auto;
+  font-size: 0.5625rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  opacity: 0.75;
+}
+
+@media (max-width: 640px) {
+  .conv-wave__legend-hint {
+    display: none;
+  }
+}
+
+.conv-wave__bar {
+  transition: opacity 0.12s ease, filter 0.12s ease;
+}
+
+.conv-wave__bar--widget {
+  fill: var(--primary);
+  opacity: 0.88;
+}
+
+.conv-wave__bar--api {
+  fill: #38bdf8;
+  opacity: 0.88;
+}
+
+.conv-wave__bar--dim {
+  opacity: 0.35;
+}
+
+.conv-wave__bar--active {
+  opacity: 1;
+  filter: brightness(1.06);
 }
 
 .conv-wave__line {
@@ -6044,9 +6216,10 @@ button.dashboard-meta-chip:disabled {
 
 .conv-wave__legend {
   display: flex;
-  gap: 1rem;
-  margin-top: 0.5rem;
-  justify-content: center;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+  margin-top: 0.55rem;
 }
 
 .conv-wave__legend-item {

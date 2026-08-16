@@ -29,5 +29,6 @@ next-env.d.ts
 
 .vercel
 reports/
+scripts/lab-widget.generated.json
 
 # Keep BotIvA Cursor skill/rules trackable

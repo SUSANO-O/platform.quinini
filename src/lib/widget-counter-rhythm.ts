@@ -276,8 +276,30 @@ export function replyDriftsFromTurn(params: {
 }
 
 /**
- * HubSpot, webhook de lead y skills de cierre: solo si el visitante pide
- * agenda/envío o confirma una pregunta de esas tools.
+ * En hilo abierto quita un saludo de apertura. El modelo de fase 2 a veces
+ * ve solo el turno actual y dice «Hola» otra vez.
+ */
+export function stripLeadingRegreet(
+  reply: string,
+  history?: HistoryTurn[] | null,
+): string {
+  const text = typeof reply === 'string' ? reply.trim() : '';
+  if (!text) return text;
+  if (!historyHasOpenThread(history)) return text;
+  if (!TURN_REGREET_RE.test(text)) return text;
+  const stripped = text
+    .replace(
+      /^(?:¡?\s*)?(?:hola|buenas(?:\s+(?:tardes|d[ií]as|noches))?|qu[eé]\s+gusto\s+saludarte)(?:\s*[,:]?\s*[^.!?\n]{0,48})?[.!?…]?\s*/i,
+      '',
+    )
+    .trim();
+  return stripped || text;
+}
+
+/**
+ * Skills de cierre y pedir contacto: solo si el visitante pide agenda/envío
+ * o confirma una pregunta de esas tools. La alta HubSpot automática (2 de 3
+ * campos ya dichos) no usa esta función.
  */
 export function leadCaptureToolsAllowed(
   message: string,

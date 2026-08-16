@@ -90,7 +90,16 @@ export function DashboardActivityMetrics({
               </span>
             )}
           </div>
-          <p className="conv-wave-panel__range">{rangeLabel(dateRange.preset)}</p>
+          <p className="conv-wave-panel__range">
+            {rangeLabel(dateRange.preset)}
+            {usage && (
+              <span className="conv-wave-panel__range-note" title="El contador gris es el uso facturable del mes calendario">
+                {' · '}
+                Mes actual: {monthlyUsed.toLocaleString('es')}
+                {monthlyLimit != null && <> / {formatQuotaLimit(monthlyLimit)}</>}
+              </span>
+            )}
+          </p>
         </div>
         {!loading && activity && (
           <div className="conv-wave-panel__totals">

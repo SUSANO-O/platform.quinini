@@ -8,6 +8,7 @@ import {
   shouldSkipHeavyWidgetPath,
   shouldUseCheapGreetingModel,
   replyDriftsFromTurn,
+  stripLeadingRegreet,
   widgetReplyMaxTokens,
   widgetRuntimeDirectives,
   WIDGET_TOKEN_BUDGET,
@@ -226,6 +227,33 @@ describe('replyDriftsFromTurn', () => {
         history: scared,
       }),
     ).toBe(true);
+  });
+});
+
+describe('stripLeadingRegreet', () => {
+  it('quita un Hola a mitad de hilo y deja el resto', () => {
+    expect(
+      stripLeadingRegreet(
+        'Hola. Estuve revisando nuestro inventario y no contamos con el amortiguador delantero.',
+        OPEN_HISTORY,
+      ),
+    ).toBe('Estuve revisando nuestro inventario y no contamos con el amortiguador delantero.');
+    expect(
+      stripLeadingRegreet(
+        'Hola, Andrés. He verificado en inventario y hay stock del REP-0214666.',
+        OPEN_HISTORY,
+      ),
+    ).toBe('He verificado en inventario y hay stock del REP-0214666.');
+  });
+
+  it('no toca el saludo del primer turno ni una respuesta sin Hola', () => {
+    expect(stripLeadingRegreet('Hola. ¿En qué te puedo ayudar?', [])).toBe('Hola. ¿En qué te puedo ayudar?');
+    expect(
+      stripLeadingRegreet(
+        'Encontré el amortiguador trasero REP-0214666 en Bogotá, stock 3.',
+        OPEN_HISTORY,
+      ),
+    ).toBe('Encontré el amortiguador trasero REP-0214666 en Bogotá, stock 3.');
   });
 });
 
