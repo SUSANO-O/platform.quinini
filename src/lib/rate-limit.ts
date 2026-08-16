@@ -102,6 +102,22 @@ async function redisCheck(
   }
 }
 
+function envPositiveInt(name: string, fallback: number): number {
+  const n = parseInt(process.env[name] ?? '', 10);
+  if (!Number.isFinite(n) || n < 1) return fallback;
+  return Math.min(10_000, Math.floor(n));
+}
+
+/** Chat widget: tope por IP / minuto. Default 240 (antes 120). */
+export function widgetChatIpLimitPerMin(): number {
+  return envPositiveInt('WIDGET_CHAT_RATE_LIMIT_PER_MINUTE', 240);
+}
+
+/** Chat widget: tope por IP+agente / minuto. Default 96 (antes 48). */
+export function widgetChatAgentLimitPerMin(): number {
+  return envPositiveInt('WIDGET_CHAT_PER_AGENT_RATE_LIMIT_PER_MINUTE', 96);
+}
+
 // ── Interfaz pública ───────────────────────────────────────────────────────
 
 export async function checkRateLimitAsync(

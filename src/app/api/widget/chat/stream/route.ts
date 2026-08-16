@@ -29,7 +29,7 @@ import { checkConversationQuota } from '@/lib/quota';
 import { trackWidgetChatUsage } from '@/lib/platform-agent-utils';
 import { detectWidgetMeteringChannel } from '@/lib/metering';
 import { trackWidgetUserMessageForFaqCandidates } from '@/lib/widget-faq-tracker';
-import { checkRateLimitAsync, getClientIp } from '@/lib/rate-limit';
+import { checkRateLimitAsync, getClientIp, widgetChatIpLimitPerMin } from '@/lib/rate-limit';
 import { getActiveVariant } from '@/lib/ab-testing';
 import { isOriginAllowed } from '@/lib/widget-origin-check';
 import { extractAndGuardMessage } from '@/lib/message-guard';
@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
   const latencyTrace = new WidgetChatTrace({ traceId, stream: true });
 
   const ip = getClientIp(req);
-  const rlGlobal = await checkRateLimitAsync('widget-chat-ip', ip, 120, 60_000);
+  const rlGlobal = await checkRateLimitAsync('widget-chat-ip', ip, widgetChatIpLimitPerMin(), 60_000);
   if (!rlGlobal.success) {
     return new Response(
       sseEvent({ type: 'error', message: 'Demasiadas solicitudes. Intenta en unos segundos.', code: 'AGENT_COOLDOWN' }),

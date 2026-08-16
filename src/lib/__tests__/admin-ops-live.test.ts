@@ -4,11 +4,96 @@ import {
   ADMIN_OPS_LIVE_SLUG,
   buildLiveAgentView,
   expandTurnToConsoleLines,
+  fillLiveTimeline,
   foldTopAgents,
   isAdminOpsLiveSlug,
+  niceChartAxis,
+  pointHasLatency,
   speedScore,
   successScore,
+  trafficWho,
 } from '../admin-ops-live';
+describe('trafficWho', () => {
+  it('nombra quién tiene tráfico, no un ratio mudo', () => {
+    const view = buildLiveAgentView({
+      current: [
+        { agentId: 'x', name: 'LifeOS Hub - Central', requests: 1, okRequests: 1, avgTotalMs: 18400 },
+      ],
+    });
+    const who = trafficWho(view.agents, view.othersCollapsed);
+    expect(who.names).toEqual(['LifeOS Hub - Central']);
+    expect(who.active).toBe(1);
+    expect(who.more).toBe(0);
+  });
+
+  it('no lista Otros como nombre y suma los colapsados', () => {
+    const rows = Array.from({ length: 6 }, (_, i) => ({
+      agentId: `a${i}`,
+      name: `Agente ${i}`,
+      requests: 3,
+      okRequests: 3,
+      avgTotalMs: 1000,
+    }));
+    const view = buildLiveAgentView({ current: rows, maxAgents: 2 });
+    const who = trafficWho(view.agents, view.othersCollapsed);
+    expect(who.names).not.toContain('Otros');
+    expect(who.more).toBe(4);
+    expect(who.active).toBe(who.names.length + who.more);
+  });
+});
+
+describe('fillLiveTimeline', () => {
+  it('rellena minutos vacíos para poder dibujar con un solo turno', () => {
+    const filled = fillLiveTimeline(
+      [{ minute: '16:18', requests: 1, avgSec: 18.4 }],
+      15,
+      '2026-08-16T21:18:40.000Z',
+    );
+    expect(filled).toHaveLength(15);
+    expect(filled[0].minute).toBe('16:04');
+    expect(filled[filled.length - 1].minute).toBe('16:18');
+    const hit = filled.find((p) => p.minute === '16:18');
+    expect(hit).toEqual({ minute: '16:18', requests: 1, avgSec: 18.4 });
+    expect(filled.filter((p) => p.requests === 0).length).toBe(14);
+  });
+
+  it('un minuto sin turnos no cuenta como latencia 0 s', () => {
+    expect(pointHasLatency({ minute: '18:26', requests: 0, avgSec: 0 })).toBe(false);
+    expect(pointHasLatency({ minute: '18:22', requests: 4, avgSec: 24.1 })).toBe(true);
+  });
+});
+
+describe('niceChartAxis', () => {
+  it('redondea 47 s a ticks 0–50 de 10 en 10, no 0 / 24 / 47', () => {
+    const axis = niceChartAxis(47);
+    expect(axis.max).toBe(50);
+    expect(axis.ticks).toEqual([0, 10, 20, 30, 40, 50]);
+  });
+
+  it('escala turnos a enteros cómodos', () => {
+    const axis = niceChartAxis(12, { integer: true });
+    expect(axis.max).toBeGreaterThanOrEqual(12);
+    expect(axis.ticks[0]).toBe(0);
+    expect(axis.ticks[axis.ticks.length - 1]).toBe(axis.max);
+  });
+});
+
+describe('fillLiveTimeline 24h', () => {
+  it('en 24 h agrupa por hora, no 1440 puntos', () => {
+    const filled = fillLiveTimeline(
+      [
+        { minute: '16:05', requests: 2, avgSec: 10 },
+        { minute: '16:40', requests: 2, avgSec: 20 },
+      ],
+      1440,
+      '2026-08-16T21:18:00.000Z',
+    );
+    expect(filled).toHaveLength(24);
+    const sixteen = filled.find((p) => p.minute === '16:00');
+    expect(sixteen?.requests).toBe(4);
+    expect(sixteen?.avgSec).toBe(15);
+  });
+});
 
 describe('admin-ops-live slug', () => {
   it('acepta solo el slug cifrado', () => {

@@ -10,7 +10,6 @@ import {
 } from '@/components/ui/icons';
 import { TOOL_MAP } from '@/lib/agent-plans';
 import { avatarStyleFromSeed } from '@/lib/flow-editor/geometry';
-import { AgentInitialsBadge } from '@/components/dashboard/agent-initials-badge';
 import { DashboardButton, DashboardButtonLink } from '@/components/dashboard/dashboard-button';
 import {
   DashboardDropdownMenu,
@@ -99,16 +98,6 @@ export function AgentListCard({
     <DashboardResourceCard
       inactive={isDisabled}
       accentColor={accent}
-      avatar={
-        <AgentInitialsBadge
-          name={agent.name}
-          seed={agent._id}
-          inactive={isDisabled}
-          platform={isPlatform}
-          filled
-          size="sm"
-        />
-      }
       statusLabel={isDisabled ? 'Inactivo' : 'Activo'}
       statusOn={!isDisabled}
       headerAction={
