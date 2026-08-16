@@ -1171,24 +1171,100 @@ label {
 }
 
 .landing-how-card--compact .landing-how-card__body {
-  padding: 0.7rem 0.9rem 0.85rem;
+  padding: 0.85rem 1rem 1rem;
   min-height: 0;
 }
 
 .landing-how-card--compact .landing-how-card__n {
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.35rem;
   font-size: 0.58rem;
 }
 
-.landing-how-card--compact .landing-card-title {
+.landing-how-card--compact .landing-how-card__title {
   font-size: 0.9375rem;
-  margin-bottom: 0.35rem !important;
+  margin: 0 !important;
+  padding-right: 1.75rem;
+  line-height: 1.35;
+}
+
+.landing-how-card__title {
+  margin: 0;
+}
+
+.landing-how-card__hint {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--brand-primary);
+  background: rgba(var(--brand-primary-rgb), 0.08);
+  border: 1px solid rgba(var(--brand-primary-rgb), 0.15);
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.landing-how-card:hover .landing-how-card__hint,
+.landing-how-card:focus-within .landing-how-card__hint {
+  opacity: 0;
+  transform: scale(0.85);
+}
+
+.landing-how-card__tooltip {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.85rem 1rem;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 0 0 16px 16px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition:
+    opacity 0.2s ease,
+    visibility 0.2s ease,
+    transform 0.2s ease;
+  z-index: 2;
+}
+
+.landing-how-card__tooltip p {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+  color: #64748b;
+}
+
+.landing-how-card:hover .landing-how-card__tooltip,
+.landing-how-card:focus-within .landing-how-card__tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+@media (hover: none) {
+  .landing-how-card:active .landing-how-card__tooltip,
+  .landing-how-card:focus-within .landing-how-card__tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
 }
 
 .landing-how-card--compact .landing-body-sm {
-  font-size: 0.8125rem;
-  line-height: 1.5;
-  -webkit-line-clamp: 2;
+  display: none;
 }
 
 .landing-how-card {
@@ -1201,6 +1277,15 @@ label {
   background: #fff;
   box-shadow: 0 8px 28px rgba(15, 23, 42, 0.04);
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  cursor: default;
+  outline: none;
+}
+
+.landing-how-card:focus-visible {
+  border-color: color-mix(in srgb, var(--brand-primary) 45%, transparent);
+  box-shadow:
+    0 16px 40px rgba(15, 23, 42, 0.08),
+    0 0 0 3px rgba(var(--brand-primary-rgb), 0.18);
 }
 
 .landing-how-card:hover {
@@ -1218,18 +1303,16 @@ label {
 }
 
 .landing-how-card__body {
+  position: relative;
   padding: 1rem 1.15rem 1.2rem;
   display: flex;
   flex-direction: column;
   flex: 1;
-  min-height: 7.5rem;
+  min-height: 4.5rem;
 }
 
 .landing-how-card__body .landing-body-sm {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  display: none;
 }
 
 .landing-how-card__n {
