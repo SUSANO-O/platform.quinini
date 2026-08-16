@@ -25,9 +25,11 @@ const widgets = await landing
   .find({ active: { $ne: false } }, { projection: { agentId: 1, afhubToken: 1, name: 1 } })
   .toArray();
 
+const preferWidgetId = (process.env.AUDIT_WIDGET_ID || '').trim();
 let agente = null;
 let token = '';
 let widgetName = '';
+const candidates = [];
 for (const w of widgets) {
   if (!w.afhubToken?.startsWith('wt_') || !ObjectId.isValid(w.agentId)) continue;
   const c = await landing.collection('clientagents').findOne(
@@ -35,11 +37,17 @@ for (const w of widgets) {
     { projection: { name: 1, agentHubId: 1, ragEnabled: 1, enabledMcpToolIds: 1, model: 1 } },
   );
   if (!c) continue;
-  if (!/taller/i.test(String(c.name))) continue;
-  agente = c;
-  token = w.afhubToken;
-  widgetName = String(w.name || '');
-  break;
+  if (!/taller/i.test(String(c.name)) && !/taller/i.test(String(w.name || ''))) continue;
+  candidates.push({ w, c });
+}
+const picked =
+  candidates.find((x) => String(x.w._id) === preferWidgetId) ||
+  candidates.find((x) => /lab|fixture/i.test(String(x.c.name)) || /lab|fixture/i.test(String(x.w.name || ''))) ||
+  candidates[0];
+if (picked) {
+  agente = picked.c;
+  token = picked.w.afhubToken;
+  widgetName = String(picked.w.name || '');
 }
 
 if (!agente) {
