@@ -17,6 +17,107 @@ export function isAdminOpsLiveSlug(slug: string | undefined | null): boolean {
   return slug === ADMIN_OPS_LIVE_SLUG;
 }
 
+export type LiveTimelinePoint = {
+  minute: string;
+  requests: number;
+  avgSec: number;
+};
+
+export function trafficWho(
+  agents: LiveAgentPoint[],
+  othersCollapsed = 0,
+): { names: string[]; more: number; active: number } {
+  const names = agents
+    .filter((a) => a.agentId !== '_others' && a.requests > 0)
+    .map((a) => a.label);
+  const more = Math.max(0, othersCollapsed);
+  return { names, more, active: names.length + more };
+}
+
+function bogotaHourMinute(iso: string): { hour: number; minute: number } {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/Bogota',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    hourCycle: 'h23',
+  }).formatToParts(new Date(iso));
+  return {
+    hour: Number(parts.find((p) => p.type === 'hour')?.value ?? 0),
+    minute: Number(parts.find((p) => p.type === 'minute')?.value ?? 0),
+  };
+}
+
+function clockKey(totalMin: number, step: number): string {
+  let m = totalMin % (24 * 60);
+  if (m < 0) m += 24 * 60;
+  const hour = Math.floor(m / 60) % 24;
+  const minute = step === 60 ? 0 : m % 60;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+/** Rellena huecos de la ventana para que el gráfico pinte desde el primer turno. */
+export function pointHasLatency(point: Pick<LiveTimelinePoint, 'requests' | 'avgSec'>): boolean {
+  return point.requests > 0 && Number.isFinite(point.avgSec);
+}
+
+/** Eje Y redondeado (evita ticks tipo 0 / 24 / 47). */
+export function niceChartAxis(
+  value: number,
+  opts?: { integer?: boolean; minMax?: number },
+): { max: number; ticks: number[] } {
+  const minMax = opts?.minMax ?? (opts?.integer ? 4 : 5);
+  const raw = Math.max(Number.isFinite(value) ? value : 0, minMax);
+  const exp = Math.floor(Math.log10(raw));
+  const mag = 10 ** exp;
+  const n = raw / mag;
+  const nice = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+  let max = nice * mag;
+  if (opts?.integer) max = Math.max(max, Math.ceil(raw));
+  if (max < raw) max = nice === 10 ? 10 * mag * 10 : (n <= 5 ? 10 : 2) * mag;
+  const step =
+    max <= 10 ? (opts?.integer ? 2 : 2) : max <= 20 ? 5 : max <= 50 ? 10 : max <= 100 ? 20 : max / 5;
+  const ticks: number[] = [];
+  for (let t = 0; t <= max + 1e-9; t += step) {
+    ticks.push(Math.round(t * 10) / 10);
+  }
+  if (ticks[ticks.length - 1] !== max) ticks.push(max);
+  return { max, ticks };
+}
+
+export function fillLiveTimeline(
+  sparse: LiveTimelinePoint[],
+  windowMin: number,
+  nowIso: string,
+): LiveTimelinePoint[] {
+  const step = windowMin >= 1440 ? 60 : 1;
+  const n = Math.max(1, Math.round(windowMin / step));
+  const byKey = new Map<string, LiveTimelinePoint>();
+  for (const p of sparse) {
+    const key = step === 60 ? `${String(p.minute).slice(0, 2).padStart(2, '0')}:00` : p.minute;
+    const prev = byKey.get(key);
+    if (!prev) {
+      byKey.set(key, { minute: key, requests: p.requests, avgSec: p.avgSec });
+      continue;
+    }
+    const requests = prev.requests + p.requests;
+    const avgSec =
+      requests > 0
+        ? Math.round(((prev.avgSec * prev.requests + p.avgSec * p.requests) / requests) * 10) / 10
+        : 0;
+    byKey.set(key, { minute: key, requests, avgSec });
+  }
+
+  const { hour, minute } = bogotaHourMinute(nowIso);
+  const endMin = hour * 60 + (step === 60 ? 0 : minute);
+  const out: LiveTimelinePoint[] = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const key = clockKey(endMin - i * step, step);
+    out.push(byKey.get(key) ?? { minute: key, requests: 0, avgSec: 0 });
+  }
+  return out;
+}
+
 export type AgentLatencyRow = {
   agentId: string;
   name?: string;

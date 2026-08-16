@@ -19,7 +19,7 @@ export function DashboardResourceCard({
 }: {
   inactive?: boolean;
   accentColor?: string;
-  avatar: ReactNode;
+  avatar?: ReactNode;
   statusLabel: string;
   statusOn?: boolean;
   title: string;
@@ -52,7 +52,7 @@ export function DashboardResourceCard({
       <header className="resource-card__head">
         <div className="resource-card__topline">
           <div className="resource-card__identity">
-            <div className="resource-card__avatar-slot">{avatar}</div>
+            {avatar ? <div className="resource-card__avatar-slot">{avatar}</div> : null}
             <div className="resource-card__status-row">
               <span className={`resource-card__dot${statusOn ? ' is-on' : ''}`} aria-hidden />
               <span className={`resource-card__status${statusOn ? ' is-on' : ''}`}>

@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { ADMIN_OPS_LIVE_API } from '@/lib/admin-ops-live';
-import type { LiveAgentPoint } from '@/lib/admin-ops-live';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { ADMIN_OPS_LIVE_API, fillLiveTimeline, trafficWho, type LiveAgentPoint } from '@/lib/admin-ops-live';
 import { AdminOpsMatrixConsole } from '@/components/admin/admin-ops-matrix-console';
+import { OpsComboChart, OpsSparkBars, OpsSparkLine } from '@/components/admin/admin-ops-live-charts';
 import { BRAND, STATE } from '@/lib/brand-colors';
 
 type LivePayload = {
@@ -121,65 +121,114 @@ function AgentRow({ agent }: { agent: LiveAgentPoint }) {
   );
 }
 
-function TimelineChart({ points, meanSec }: { points: LivePayload['timeline']; meanSec: number }) {
-  if (points.length < 2) {
-    return (
-      <p style={{ margin: 0, fontSize: 13, color: C.mute }}>
-        Aún no hay suficientes minutos en la ventana para dibujar la curva.
-      </p>
-    );
-  }
-
-  const w = 720;
-  const h = 200;
-  const pad = { t: 16, r: 12, b: 28, l: 40 };
-  const innerW = w - pad.l - pad.r;
-  const innerH = h - pad.t - pad.b;
-  const maxSec = Math.max(5, meanSec * 1.4, ...points.map((p) => p.avgSec));
-  const xAt = (i: number) => pad.l + (i / (points.length - 1)) * innerW;
-  const yAt = (sec: number) => pad.t + innerH * (1 - sec / maxSec);
-  const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${xAt(i).toFixed(1)},${yAt(p.avgSec).toFixed(1)}`).join(' ');
-  const area = `${d} L ${xAt(points.length - 1).toFixed(1)},${pad.t + innerH} L ${xAt(0).toFixed(1)},${pad.t + innerH} Z`;
-  const labelIdx = [0, Math.floor((points.length - 1) / 2), points.length - 1];
-  const yTicks = [0, 0.5, 1];
-
+function TrafficCard({
+  names,
+  more,
+  active,
+  idle,
+}: {
+  names: string[];
+  more: number;
+  active: number;
+  idle: number;
+}) {
+  const shown = names.slice(0, 4);
+  const hidden = names.length - shown.length + more;
+  const headline =
+    active === 0
+      ? 'Nadie en esta ventana'
+      : names.length === 1 && more === 0
+        ? names[0]
+        : null;
   return (
-    <svg
-      viewBox={`0 0 ${w} ${h}`}
-      width="100%"
-      height={200}
-      preserveAspectRatio="xMidYMid meet"
-      role="img"
-      aria-label="Latencia media del conjunto, en segundos, por minuto"
+    <article
+      style={{
+        border: `1px solid ${C.line}`,
+        borderRadius: 8,
+        padding: '12px 14px',
+        minWidth: 0,
+        gridColumn: 'span 1',
+      }}
     >
-      {yTicks.map((t) => {
-        const sec = maxSec * (1 - t);
-        const y = pad.t + innerH * t;
-        return (
-          <g key={t}>
-            <line x1={pad.l} x2={w - pad.r} y1={y} y2={y} stroke={C.line} />
-            <text x={pad.l - 8} y={y + 4} textAnchor="end" fill={C.mute} fontSize={11}>
-              {sec.toFixed(0)}s
-            </text>
-          </g>
-        );
-      })}
-      <line
-        x1={pad.l}
-        x2={w - pad.r}
-        y1={yAt(meanSec)}
-        y2={yAt(meanSec)}
-        stroke={C.now}
-        strokeDasharray="4 4"
-      />
-      <path d={area} fill={C.now} opacity={0.12} />
-      <path d={d} fill="none" stroke={C.now} strokeWidth={2} />
-      {labelIdx.map((i) => (
-        <text key={points[i].minute} x={xAt(i)} y={h - 8} textAnchor="middle" fill={C.mute} fontSize={11}>
-          {points[i].minute}
-        </text>
-      ))}
-    </svg>
+      <div style={{ fontSize: 11, color: C.mute }}>Con tráfico</div>
+      {headline ? (
+        <div
+          title={headline}
+          style={{
+            fontSize: 18,
+            fontWeight: 800,
+            marginTop: 4,
+            lineHeight: 1.25,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {headline}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+          {shown.map((name) => (
+            <span
+              key={name}
+              title={name}
+              style={{
+                maxWidth: 180,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                fontSize: 12,
+                fontWeight: 700,
+                padding: '4px 8px',
+                borderRadius: 6,
+                background: 'rgba(40,164,184,0.16)',
+                color: C.success,
+              }}
+            >
+              {name}
+            </span>
+          ))}
+          {hidden > 0 ? (
+            <span style={{ fontSize: 12, color: C.mute, alignSelf: 'center' }}>+{hidden}</span>
+          ) : null}
+        </div>
+      )}
+      <div style={{ fontSize: 12, color: C.mute, marginTop: 6 }}>
+        {active === 1 ? '1 activo' : `${active} activos`}
+        {' · '}
+        {idle} en silencio
+      </div>
+    </article>
+  );
+}
+
+function KpiCard({
+  label,
+  value,
+  warn,
+  spark,
+}: {
+  label: string;
+  value: string;
+  warn?: boolean;
+  spark?: ReactNode;
+}) {
+  return (
+    <article style={{ border: `1px solid ${C.line}`, borderRadius: 8, padding: '12px 14px', minWidth: 0 }}>
+      <div style={{ fontSize: 11, color: C.mute }}>{label}</div>
+      <div
+        style={{
+          fontSize: 22,
+          fontWeight: 800,
+          marginTop: 4,
+          fontVariantNumeric: 'tabular-nums',
+          color: warn ? C.err : C.text,
+        }}
+      >
+        {value}
+      </div>
+      {spark ? <div style={{ marginTop: 8 }}>{spark}</div> : null}
+    </article>
   );
 }
 
@@ -214,6 +263,7 @@ export function AdminOpsLivePanel() {
       }
     };
     void tick();
+    // HTTPS + cookie (TLS). No WebSocket: Vercel no sostiene sockets y un admin no justifica el fan-out.
     const id = window.setInterval(() => void tick(), 5000);
     return () => {
       cancelled = true;
@@ -224,6 +274,18 @@ export function AdminOpsLivePanel() {
 
   const agents = data?.view.agents ?? [];
   const errorHigh = (data?.summary.errorRate ?? 0) >= 10;
+  const who = useMemo(
+    () => trafficWho(agents, data?.view.othersCollapsed ?? 0),
+    [agents, data?.view.othersCollapsed],
+  );
+  const timeline = useMemo(
+    () =>
+      data
+        ? fillLiveTimeline(data.timeline, data.windowMin, data.generatedAt)
+        : [],
+    [data],
+  );
+  const idle = Math.max(0, (data?.summary.agentTotal ?? 0) - who.active);
 
   return (
     <div style={{ background: C.bg, color: C.text, borderRadius: 8, padding: 20, minHeight: 'calc(100vh - 48px)' }}>
@@ -266,7 +328,7 @@ export function AdminOpsLivePanel() {
                 background: C.speed,
               }}
             />
-            En vivo
+            En vivo · HTTPS 5 s
           </span>
           <div role="group" aria-label="Ventana" style={{ display: 'flex', gap: 4 }}>
             {([15, 60, 1440] as const).map((m) => (
@@ -297,44 +359,46 @@ export function AdminOpsLivePanel() {
       )}
       {loading && !data && <p style={{ color: C.mute }}>Cargando…</p>}
 
-      <AdminOpsMatrixConsole />
-
       {data && (
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
             gap: 12,
-            marginBottom: 20,
+            marginBottom: 16,
           }}
         >
-          {[
-            { k: 'Con tráfico', v: `${data.summary.agentsWithTraffic} de ${data.summary.agentTotal}` },
-            { k: 'Turnos', v: String(data.summary.requests) },
-            {
-              k: 'Error',
-              v: `${data.summary.errorRate}%`.replace('.', ','),
-              warn: errorHigh,
-            },
-            { k: 'Latencia media', v: fmtSec(data.summary.avgSec) },
-          ].map((s) => (
-            <div key={s.k} style={{ border: `1px solid ${C.line}`, borderRadius: 8, padding: '12px 14px' }}>
-              <div style={{ fontSize: 11, color: C.mute }}>{s.k}</div>
-              <div
-                style={{
-                  fontSize: 22,
-                  fontWeight: 800,
-                  marginTop: 4,
-                  fontVariantNumeric: 'tabular-nums',
-                  color: s.warn ? C.err : C.text,
-                }}
-              >
-                {s.v}
-              </div>
-            </div>
-          ))}
+          <TrafficCard names={who.names} more={who.more} active={who.active} idle={idle} />
+          <KpiCard
+            label="Turnos"
+            value={String(data.summary.requests)}
+            spark={<OpsSparkBars points={timeline} />}
+          />
+          <KpiCard
+            label="Error"
+            value={`${data.summary.errorRate}%`.replace('.', ',')}
+            warn={errorHigh}
+          />
+          <KpiCard
+            label="Latencia media"
+            value={fmtSec(data.summary.avgSec)}
+            spark={<OpsSparkLine points={timeline} />}
+          />
         </div>
       )}
+
+      {data && (
+        <section style={{ border: `1px solid ${C.line}`, borderRadius: 8, padding: 16, marginBottom: 16 }}>
+          <h2 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700 }}>Turnos y latencia</h2>
+          <p style={{ margin: '0 0 12px', fontSize: 12, color: C.mute }}>
+            Barras (eje derecho) = mensajes por minuto. Línea (eje izquierdo) = segundos solo
+            cuando hubo tráfico: un hueco no es 0 s. Media {fmtSec(data.summary.avgSec)}.
+          </p>
+          <OpsComboChart points={timeline} meanSec={data.summary.avgSec} />
+        </section>
+      )}
+
+      <AdminOpsMatrixConsole />
 
       {data && agents.length === 0 && (
         <p role="status" style={{ color: C.mute, fontSize: 13 }}>
@@ -353,16 +417,6 @@ export function AdminOpsLivePanel() {
             </p>
           )}
         </div>
-      )}
-
-      {data && data.timeline.length > 0 && (
-        <section style={{ border: `1px solid ${C.line}`, borderRadius: 8, padding: 16 }}>
-          <h2 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700 }}>Latencia del conjunto</h2>
-          <p style={{ margin: '0 0 12px', fontSize: 12, color: C.mute }}>
-            Segundos por minuto · media {fmtSec(data.summary.avgSec)}
-          </p>
-          <TimelineChart points={data.timeline} meanSec={data.summary.avgSec} />
-        </section>
       )}
     </div>
   );

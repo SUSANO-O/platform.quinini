@@ -21,7 +21,7 @@ import { detectWidgetMeteringChannel } from '@/lib/metering';
 import { checkConversationQuota } from '@/lib/quota';
 import { dispatchSaasWebhook } from '@/lib/saas-webhook-outbound';
 import { getAgentLimits } from '@/lib/agent-plans';
-import { checkRateLimitAsync, getClientIp } from '@/lib/rate-limit';
+import { checkRateLimitAsync, getClientIp, widgetChatAgentLimitPerMin, widgetChatIpLimitPerMin } from '@/lib/rate-limit';
 import { isLocalDevLimitsBypass } from '@/lib/dev-limits';
 import { trackWidgetUserMessageForFaqCandidates } from '@/lib/widget-faq-tracker';
 import { isOriginAllowed } from '@/lib/widget-origin-check';
@@ -171,9 +171,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── Rate limit paso 1: por IP global — 120/min ───────────────────────────────────
+  // ── Rate limit paso 1: por IP global (default 240/min) ───────────────────────────
   const ip = getClientIp(req);
-  const rlGlobal = await checkRateLimitAsync('widget-chat-ip', ip, 120, 60_000);
+  const rlGlobal = await checkRateLimitAsync('widget-chat-ip', ip, widgetChatIpLimitPerMin(), 60_000);
   if (!rlGlobal.success) {
     logSecurityEvent({ event: 'rate_limited', ip, origin, code: 'landing_ip' });
     return NextResponse.json(landingWidgetCooldown('landing_ip', rlGlobal.retryAfter, requestIdEarly), {
@@ -231,12 +231,17 @@ export async function POST(req: NextRequest) {
   let multiAgentMeta: MultiAgentRoutingMeta | null = null;
   let orchestratorName = 'Asistente';
 
-  // ── Rate limit paso 2: IP + agentId — 48/min por widget ─────────────────────────
+  // ── Rate limit paso 2: IP + agentId (default 96/min por widget) ─────────────────
   try {
     const parsedForRl = JSON.parse(rawBody) as { agentId?: unknown };
     const agentIdForRl = typeof parsedForRl?.agentId === 'string' ? parsedForRl.agentId.trim().slice(0, 100) : '';
     if (agentIdForRl) {
-      const rlAgent = await checkRateLimitAsync('widget-chat-agent', `${ip}:${agentIdForRl}`, 48, 60_000);
+      const rlAgent = await checkRateLimitAsync(
+        'widget-chat-agent',
+        `${ip}:${agentIdForRl}`,
+        widgetChatAgentLimitPerMin(),
+        60_000,
+      );
       if (!rlAgent.success) {
         logSecurityEvent({ event: 'rate_limited', ip, origin, agentId: agentIdForRl, code: 'landing_agent' });
         return NextResponse.json(

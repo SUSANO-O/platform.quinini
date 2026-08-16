@@ -1,5 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { checkRateLimit, getClientIp } from '../rate-limit';
+import { afterEach, describe, it, expect, beforeEach } from 'vitest';
+import {
+  checkRateLimit,
+  getClientIp,
+  widgetChatAgentLimitPerMin,
+  widgetChatIpLimitPerMin,
+} from '../rate-limit';
 
 // checkRateLimit is the sync in-memory version — safe to test without Redis
 describe('checkRateLimit (in-memory)', () => {
@@ -93,5 +98,31 @@ describe('getClientIp', () => {
     const req = makeReq({ 'x-forwarded-for': '  1.2.3.4  ,  10.0.0.1  ' });
     const ip = getClientIp(req);
     expect(ip).not.toContain(' ');
+  });
+});
+
+describe('widget chat rate limit defaults', () => {
+  const prevIp = process.env.WIDGET_CHAT_RATE_LIMIT_PER_MINUTE;
+  const prevAgent = process.env.WIDGET_CHAT_PER_AGENT_RATE_LIMIT_PER_MINUTE;
+
+  afterEach(() => {
+    if (prevIp === undefined) delete process.env.WIDGET_CHAT_RATE_LIMIT_PER_MINUTE;
+    else process.env.WIDGET_CHAT_RATE_LIMIT_PER_MINUTE = prevIp;
+    if (prevAgent === undefined) delete process.env.WIDGET_CHAT_PER_AGENT_RATE_LIMIT_PER_MINUTE;
+    else process.env.WIDGET_CHAT_PER_AGENT_RATE_LIMIT_PER_MINUTE = prevAgent;
+  });
+
+  it('defaults to doubled landing caps', () => {
+    delete process.env.WIDGET_CHAT_RATE_LIMIT_PER_MINUTE;
+    delete process.env.WIDGET_CHAT_PER_AGENT_RATE_LIMIT_PER_MINUTE;
+    expect(widgetChatIpLimitPerMin()).toBe(240);
+    expect(widgetChatAgentLimitPerMin()).toBe(96);
+  });
+
+  it('honors env overrides', () => {
+    process.env.WIDGET_CHAT_RATE_LIMIT_PER_MINUTE = '400';
+    process.env.WIDGET_CHAT_PER_AGENT_RATE_LIMIT_PER_MINUTE = '200';
+    expect(widgetChatIpLimitPerMin()).toBe(400);
+    expect(widgetChatAgentLimitPerMin()).toBe(200);
   });
 });
