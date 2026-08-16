@@ -410,7 +410,7 @@ label {
 
 .landing-page .landing-body-sm {
   font-size: 0.9375rem;
-  line-height: 1.6;
+  line-height: 1.68;
   letter-spacing: -0.01em;
   color: #64748b;
 }
@@ -645,7 +645,7 @@ label {
 .landing-section {
   position: relative;
   z-index: 1;
-  padding: clamp(3.5rem, 8vw, 5.5rem) 0;
+  padding: clamp(4rem, 9vw, 6.25rem) 0;
 }
 
 .landing-section--soft {
@@ -657,12 +657,12 @@ label {
 .landing-section__head {
   text-align: center;
   max-width: 40rem;
-  margin: 0 auto 2.5rem;
+  margin: 0 auto clamp(2.75rem, 5vw, 3.5rem);
 }
 
 .landing-split {
   display: grid;
-  gap: 2rem;
+  gap: clamp(2.25rem, 5vw, 3rem);
   align-items: center;
 }
 
@@ -690,7 +690,7 @@ label {
 .landing-agent-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 0.85rem;
+  gap: 1.1rem;
 }
 
 @media (min-width: 640px) {
@@ -709,7 +709,7 @@ label {
   display: block;
   text-decoration: none;
   color: inherit;
-  padding: 1.15rem 1.2rem 1.2rem;
+  padding: 1.35rem 1.35rem 1.4rem;
   border-radius: 18px;
   border: 1px solid rgba(15, 23, 42, 0.08);
   background:
@@ -740,7 +740,7 @@ label {
 
 .landing-feature-grid {
   display: grid;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 @media (min-width: 800px) {
@@ -750,7 +750,7 @@ label {
 }
 
 .landing-feature {
-  padding: 1.35rem 1.25rem;
+  padding: 1.5rem 1.35rem;
   border-radius: 18px;
   border: 1px solid rgba(15, 23, 42, 0.08);
   background: #fff;
@@ -765,9 +765,123 @@ label {
   color: var(--feature-accent, var(--brand-primary));
 }
 
+/* Widget demo panel — más aire + orden mobile (chat primero) */
+.landing-widget-panel__grid {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(2rem, 5vw, 2.75rem);
+  padding: clamp(1.35rem, 4vw, 2.25rem);
+}
+
+.landing-widget-panel__chat {
+  order: -1;
+}
+
+@media (min-width: 900px) {
+  .landing-widget-panel__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2.75rem;
+    align-items: start;
+  }
+
+  .landing-widget-panel__chat {
+    order: 0;
+  }
+}
+
+.landing-widget-panel__label {
+  display: block;
+  margin-bottom: 1.15rem !important;
+}
+
+.landing-widget-benefit {
+  padding: 1.1rem 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.landing-widget-benefit:first-child {
+  padding-top: 0.25rem;
+}
+
+.landing-widget-benefit:last-child {
+  border-bottom: none;
+  padding-bottom: 0.25rem;
+}
+
+@media (max-width: 899px) {
+  .landing-widget-panel__benefits {
+    padding-top: 0.35rem;
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+  }
+
+  .landing-widget-panel__chrome {
+    flex-wrap: wrap;
+    row-gap: 0.65rem !important;
+  }
+}
+
+/* Testimonios — scroll horizontal en móvil, grid en desktop */
+.landing-testimonials-section .landing-section__head {
+  margin-bottom: 1.75rem;
+}
+
+.landing-quote-scroll-hint {
+  display: block;
+  margin: 0 0 0.85rem;
+  text-align: center;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #94a3b8;
+}
+
+@media (min-width: 800px) {
+  .landing-quote-scroll-hint {
+    display: none;
+  }
+}
+
+.landing-quote-scroll {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  padding: 0.25rem 0 1rem;
+  margin: 0 calc(-1 * clamp(1rem, 4vw, 1.5rem));
+  padding-left: clamp(1rem, 4vw, 1.5rem);
+  padding-right: clamp(1rem, 4vw, 1.5rem);
+}
+
+.landing-quote-scroll .landing-quote {
+  flex: 0 0 min(88vw, 340px);
+  scroll-snap-align: start;
+  min-height: 100%;
+}
+
+@media (min-width: 800px) {
+  .landing-quote-scroll {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
+    overflow: visible;
+    margin: 0;
+    padding: 0;
+    scroll-snap-type: none;
+  }
+
+  .landing-quote-scroll .landing-quote {
+    flex: unset;
+    min-height: auto;
+  }
+}
+
 .landing-quote-grid {
   display: grid;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 @media (min-width: 800px) {
@@ -777,16 +891,16 @@ label {
 }
 
 .landing-quote {
-  padding: 1.35rem 1.25rem;
+  padding: 1.5rem 1.35rem;
   border-radius: 18px;
   border: 1px solid rgba(15, 23, 42, 0.08);
   background: #fff;
 }
 
 .landing-quote__text {
-  margin: 0 0 1.25rem;
+  margin: 0 0 1.5rem;
   font-size: 0.9375rem;
-  line-height: 1.55;
+  line-height: 1.65;
   letter-spacing: -0.01em;
 }
 

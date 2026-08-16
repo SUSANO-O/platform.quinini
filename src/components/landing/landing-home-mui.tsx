@@ -56,7 +56,7 @@ export type LandingCopy = {
     socialProof: string;
     benefits: { color: string; title: string; desc: string }[];
   };
-  testimonials: { title: string; subtitle: string; items: { quote: string; author: string; role: string; company: string }[] };
+  testimonials: { title: string; subtitle: string; scrollHint: string; items: { quote: string; author: string; role: string; company: string }[] };
   training: {
     badge: string;
     title: string;
@@ -311,6 +311,7 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
 
           <Paper
             elevation={0}
+            className="landing-widget-panel"
             sx={{
               border: '1px solid rgba(15,23,42,0.08)',
               overflow: 'hidden',
@@ -322,6 +323,7 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
               direction="row"
               alignItems="center"
               spacing={1}
+              className="landing-widget-panel__chrome"
               sx={{ px: 2, py: 1.5, bgcolor: 'rgba(15,23,42,0.03)', borderBottom: '1px solid rgba(15,23,42,0.08)' }}
             >
               <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#ef4444' }} />
@@ -336,27 +338,32 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
               </Button>
             </Stack>
 
-            <Grid container spacing={3} sx={{ p: { xs: 2, md: 3 } }}>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Typography className="landing-label" sx={{ mb: 1.25 }}>
+            <div className="landing-widget-panel__grid">
+              <div className="landing-widget-panel__benefits">
+                <Typography className="landing-label landing-widget-panel__label">
                   {copy.widget.whyTitle}
                 </Typography>
-                <Stack spacing={2}>
+                <Stack spacing={0} className="landing-widget-benefits">
                   {copy.widget.benefits.map((b) => (
-                    <Stack key={b.title} direction="row" spacing={1.5} alignItems="flex-start">
-                      <CheckCircleOutlineIcon size={18} style={{ color: b.color, marginTop: 2 }} />
-                      <Box>
-                        <Typography sx={{ fontWeight: 650, fontSize: '0.9rem', letterSpacing: '-0.02em' }}>
-                          {b.title}
-                        </Typography>
-                        <Typography className="landing-body-sm">{b.desc}</Typography>
-                      </Box>
-                    </Stack>
+                    <div key={b.title} className="landing-widget-benefit">
+                      <Stack direction="row" spacing={1.75} alignItems="flex-start">
+                        <CheckCircleOutlineIcon size={20} style={{ color: b.color, marginTop: 3, flexShrink: 0 }} />
+                        <Box>
+                          <Typography sx={{ fontWeight: 650, fontSize: '0.9375rem', letterSpacing: '-0.02em', lineHeight: 1.35, mb: 0.35 }}>
+                            {b.title}
+                          </Typography>
+                          <Typography className="landing-body-sm" sx={{ lineHeight: 1.65 }}>
+                            {b.desc}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </div>
                   ))}
                 </Stack>
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Typography className="landing-label" sx={{ mb: 1.25 }}>
+              </div>
+
+              <div className="landing-widget-panel__chat">
+                <Typography className="landing-label landing-widget-panel__label">
                   {copy.widget.chatSampleTitle}
                 </Typography>
                 <Paper variant="outlined" sx={{ overflow: 'hidden', borderRadius: '16px' }}>
@@ -364,7 +371,7 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
                     direction="row"
                     alignItems="center"
                     spacing={1.25}
-                    sx={{ px: 2, py: 1.5, bgcolor: '#fff', borderBottom: '1px solid rgba(15,23,42,0.08)' }}
+                    sx={{ px: 2, py: 1.75, bgcolor: '#fff', borderBottom: '1px solid rgba(15,23,42,0.08)' }}
                   >
                     <BotivaOrbLogo size={36} className="shrink-0" />
                     <Box>
@@ -376,26 +383,26 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
                       </Typography>
                     </Box>
                   </Stack>
-                  <Stack spacing={1.5} sx={{ p: 2, bgcolor: '#f8fafc', minHeight: 180 }}>
-                    <Stack direction="row" spacing={1} alignItems="flex-end" sx={{ alignSelf: 'flex-start', maxWidth: '88%' }}>
+                  <Stack spacing={1.75} sx={{ p: 2.25, bgcolor: '#f8fafc', minHeight: { xs: 200, md: 220 } }}>
+                    <Stack direction="row" spacing={1.25} alignItems="flex-end" sx={{ alignSelf: 'flex-start', maxWidth: '88%' }}>
                       <BotivaOrbLogo size={22} className="shrink-0" style={{ marginBottom: 2 }} />
-                      <Paper sx={{ p: 1.25, borderRadius: '14px', flex: 1 }} elevation={0}>
-                        <Typography variant="body2">{copy.widget.msg1}</Typography>
+                      <Paper sx={{ p: 1.35, borderRadius: '14px', flex: 1 }} elevation={0}>
+                        <Typography variant="body2" sx={{ lineHeight: 1.55 }}>{copy.widget.msg1}</Typography>
                       </Paper>
                     </Stack>
-                    <Paper sx={{ p: 1.25, alignSelf: 'flex-end', maxWidth: '80%', bgcolor: R, color: '#fff', borderRadius: '14px' }} elevation={0}>
-                      <Typography variant="body2">{copy.widget.msg2}</Typography>
+                    <Paper sx={{ p: 1.35, alignSelf: 'flex-end', maxWidth: '80%', bgcolor: R, color: '#fff', borderRadius: '14px' }} elevation={0}>
+                      <Typography variant="body2" sx={{ lineHeight: 1.55 }}>{copy.widget.msg2}</Typography>
                     </Paper>
-                    <Stack direction="row" spacing={1} alignItems="flex-end" sx={{ alignSelf: 'flex-start', maxWidth: '88%' }}>
+                    <Stack direction="row" spacing={1.25} alignItems="flex-end" sx={{ alignSelf: 'flex-start', maxWidth: '88%' }}>
                       <BotivaOrbLogo size={22} className="shrink-0" style={{ marginBottom: 2 }} />
-                      <Paper sx={{ p: 1.25, borderRadius: '14px', flex: 1 }} elevation={0}>
-                        <Typography variant="body2">{copy.widget.msg3}</Typography>
+                      <Paper sx={{ p: 1.35, borderRadius: '14px', flex: 1 }} elevation={0}>
+                        <Typography variant="body2" sx={{ lineHeight: 1.55 }}>{copy.widget.msg3}</Typography>
                       </Paper>
                     </Stack>
                   </Stack>
                   <Divider />
-                  <Box sx={{ p: 1.5 }}>
-                    <Paper variant="outlined" sx={{ px: 1.5, py: 1, borderRadius: '999px' }}>
+                  <Box sx={{ p: 1.75 }}>
+                    <Paper variant="outlined" sx={{ px: 1.5, py: 1.1, borderRadius: '999px' }}>
                       <Typography variant="caption" color="text.secondary">
                         {copy.widget.inputPlaceholder}
                       </Typography>
@@ -403,18 +410,18 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
                   </Box>
                 </Paper>
                 {copy.widget.socialProof ? (
-                  <Typography variant="caption" color="text.secondary" display="block" textAlign="center" sx={{ mt: 1.5 }}>
+                  <Typography variant="caption" color="text.secondary" display="block" textAlign="center" sx={{ mt: 2, lineHeight: 1.5 }}>
                     {copy.widget.socialProof}
                   </Typography>
                 ) : null}
-              </Grid>
-            </Grid>
+              </div>
+            </div>
           </Paper>
         </Container>
       </section>
 
       {/* TESTIMONIALS */}
-      <section className="landing-section landing-section--soft">
+      <section className="landing-section landing-section--soft landing-testimonials-section">
         <Container maxWidth="lg">
           <div className="landing-section__head">
             <h2 className="landing-section-title" style={{ margin: '0 0 0.75rem' }}>
@@ -424,7 +431,10 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
               {copy.testimonials.subtitle}
             </p>
           </div>
-          <div className="landing-quote-grid">
+          <p className="landing-quote-scroll-hint" aria-hidden>
+            {copy.testimonials.scrollHint}
+          </p>
+          <div className="landing-quote-scroll">
             {copy.testimonials.items.map((item, i) => (
               <article key={item.author} className="landing-quote">
                 <p className="landing-quote__text">&ldquo;{item.quote}&rdquo;</p>
@@ -442,7 +452,7 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
                     <Typography sx={{ fontWeight: 650, fontSize: '0.875rem', letterSpacing: '-0.02em' }}>
                       {item.author}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.45, mt: 0.15 }}>
                       {item.role} · {item.company}
                     </Typography>
                   </div>
