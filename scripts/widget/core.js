@@ -8,7 +8,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.6.159';
+  var VERSION = '1.6.160';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -4078,7 +4078,8 @@
     var humanModeActive = false;
     var humanModeTimer = null;
     var humanPollTimer = null;
-    var humanLastPoll = new Date().toISOString();
+    var inboxWatchTimer = null;
+    var humanLastPoll = new Date(0).toISOString();
     var humanTimeoutOffered = false;
     var humanPollCount = 0;
     var HUMAN_POLL_MAX = 1200; // ~1h a 3s/poll: tope de seguridad.
@@ -4346,6 +4347,13 @@
       saveChatToSession();
     }
 
+    function widgetInboxMessagesUrl(sinceIso) {
+      return cfg.host.replace(/\/$/, '') + '/api/widget/messages'
+        + '?sessionId=' + encodeURIComponent(chatSessionId)
+        + '&since=' + encodeURIComponent(sinceIso)
+        + '&token=' + encodeURIComponent(String(cfg.token).trim());
+    }
+
     function pollHumanMessages() {
       if (!humanModeActive || !chatSessionId || !cfg.token) return;
       // Tope de seguridad: evita polling infinito si nunca se resuelve.
@@ -4354,11 +4362,7 @@
         deactivateHumanMode();
         return;
       }
-      var pollUrl = cfg.host.replace(/\/$/, '') + '/api/widget/messages'
-        + '?sessionId=' + encodeURIComponent(chatSessionId)
-        + '&since=' + encodeURIComponent(humanLastPoll)
-        + '&token=' + encodeURIComponent(String(cfg.token).trim());
-      fetch(pollUrl)
+      fetch(widgetInboxMessagesUrl(humanLastPoll))
         .then(function (r) { return r.json(); })
         .then(function (data) {
           if (!humanModeActive) return;
@@ -4398,29 +4402,36 @@
         .catch(function () { /* silencioso: reintenta en el próximo tick */ });
     }
 
+    /** Si el inbox ya está en modo humano, el widget entra al poll (también si el visitante no envió el form). */
+    function applyHumanInboxJoin(data, opts) {
+      opts = opts || {};
+      if (!(data && data.humanMode === true && data.resolved !== true)) return false;
+      if (humanModeActive) return true;
+      var pending = Array.isArray(data.messages) ? data.messages : [];
+      activateHumanMode(data.now);
+      if (pending.length) {
+        pending.forEach(function (m) { addHumanMessage(m, { silent: opts.silentPending }); });
+        if (!isOpen) showUnreadHumanNotice();
+      }
+      if (!opts.skipBanner) {
+        addMessage('bot', opts.takeover
+          ? 'Un agente se unió a esta conversación. Te responderá aquí mismo.'
+          : 'Sigues conectado con un agente. Escríbele aquí y te responderá en este chat.');
+      }
+      return true;
+    }
+
     // Verifica al abrir el widget (o al cargar) si la sesión sigue en modo humano.
     function checkHumanModeOnOpen(opts) {
       opts = opts || {};
       if (humanModeActive || !chatSessionId || !cfg.token) return;
-      var url = cfg.host.replace(/\/$/, '') + '/api/widget/messages'
-        + '?sessionId=' + encodeURIComponent(chatSessionId)
-        + '&since=' + encodeURIComponent(new Date(0).toISOString())
-        + '&token=' + encodeURIComponent(String(cfg.token).trim());
-      fetch(url)
+      fetch(widgetInboxMessagesUrl(new Date(0).toISOString()))
         .then(function (r) { return r.json(); })
         .then(function (data) {
-          if (data && data.humanMode === true && data.resolved !== true) {
-            var pending = Array.isArray(data.messages) ? data.messages : [];
-            activateHumanMode(data.now);
-            if (pending.length) {
-              pending.forEach(function (m) { addHumanMessage(m, { silent: true }); });
-              if (!isOpen) showUnreadHumanNotice();
-            }
-            if (!opts.skipReconnectBanner) {
-              addMessage('bot', 'Sigues conectado con un agente. Escríbele aquí y te responderá en este chat.');
-            }
-            return;
-          }
+          if (applyHumanInboxJoin(data, {
+            skipBanner: opts.skipReconnectBanner,
+            silentPending: true,
+          })) return;
           if (historyIsUserOnly(history)) {
             resetToWelcomeChat();
           }
@@ -4428,13 +4439,28 @@
         .catch(function () { /* silencioso */ });
     }
 
+    function watchInboxTakeover() {
+      if (humanModeActive || !chatSessionId || !cfg.token) return;
+      fetch(widgetInboxMessagesUrl(new Date(0).toISOString()))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          applyHumanInboxJoin(data, { takeover: true, silentPending: false });
+        })
+        .catch(function () { /* silencioso */ });
+    }
+
     function activateHumanMode(initialCursor) {
       if (humanModeActive) return;
       humanModeActive = true;
-      humanLastPoll = initialCursor || new Date().toISOString();
+      // Sin cursor de servidor: epoch. El reloj del cliente adelantado perdía mensajes del inbox.
+      humanLastPoll = (typeof initialCursor === 'string' && initialCursor)
+        ? initialCursor
+        : new Date(0).toISOString();
       humanTimeoutOffered = false;
       humanPollCount = 0;
-      // Iniciar polling cada 3s.
+      if (humanPollTimer) { clearInterval(humanPollTimer); humanPollTimer = null; }
+      // Primer poll ya; luego cada 3s.
+      pollHumanMessages();
       humanPollTimer = setInterval(pollHumanMessages, 3000);
       // Timeout de fallback: si handoffTimeout > 0 y no hay respuesta, ofrecer WhatsApp.
       var timeoutMin = typeof cfg.handoffTimeout === 'number' ? cfg.handoffTimeout : 5;
@@ -4924,6 +4950,9 @@
         clearTimeout(fabResizeTimer);
       }
       window.removeEventListener('afhub:show-launcher', onShowLauncherRequest);
+      if (humanPollTimer) { clearInterval(humanPollTimer); humanPollTimer = null; }
+      if (inboxWatchTimer) { clearInterval(inboxWatchTimer); inboxWatchTimer = null; }
+      if (humanModeTimer) { clearTimeout(humanModeTimer); humanModeTimer = null; }
       root.remove();
       delete INSTANCES[id];
     }
@@ -6261,6 +6290,7 @@
 
     if (cfg.autoOpen || shouldRestoreChatUiOpen(cfg)) setTimeout(open, 80);
     else setTimeout(function () { checkHumanModeOnOpen({ skipReconnectBanner: true }); }, 400);
+    inboxWatchTimer = setInterval(watchInboxTakeover, 3500);
     setTimeout(consumeAssistPostNavFollowUp, 600);
     emitEvent('widget_loaded');
     try {

@@ -14,6 +14,16 @@ export type WidgetHumanModePollAction = 'keep' | 'resolved' | 'bot_resumed';
 export const WIDGET_BOT_RESUMED_MESSAGE =
   'El asistente retomó la conversación. Puedes seguir escribiendo aquí.';
 
+export const WIDGET_HUMAN_JOINED_MESSAGE =
+  'Un agente se unió a esta conversación. Te responderá aquí mismo.';
+
+/** El visitante debe pasar a polling de inbox (humano activo, no resuelto). */
+export function shouldJoinHumanInbox(
+  data: WidgetHumanModePollData | null | undefined,
+): boolean {
+  return Boolean(data && data.humanMode === true && data.resolved !== true);
+}
+
 export function decideWidgetHumanModePollAction(
   data: WidgetHumanModePollData | null | undefined,
 ): WidgetHumanModePollAction {
