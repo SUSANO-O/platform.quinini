@@ -14,6 +14,8 @@ import {
   resolveWidgetRoutingCapabilities,
   triageByKeywords,
   overrideTriageForInventorySheets,
+  overrideTriageForInventoryFollowUp,
+  overrideTriageForCrmOnOrchestrator,
   validateMultiAgentMode,
   type TeamMember,
 } from '../widget-multi-agent';
@@ -117,6 +119,116 @@ describe('widget-multi-agent', () => {
     );
     const fixed = overrideTriageForInventorySheets(
       'Busca en el inventario amortiguador Tracker 2017 Gabriel',
+      team,
+      wrong,
+      'o1',
+    );
+    expect(fixed.target.id).toBe('o1');
+  });
+
+  it('override de follow-up de hoja no deriva promoción/cuál al closer sin tools', () => {
+    const orchCaps = buildAgentCapabilityProfile({
+      agent: {
+        name: 'Asesor Taller',
+        tools: [
+          {
+            toolId: 'google-sheets',
+            config: {
+              sheets: [
+                {
+                  id: 'sh_1',
+                  name: 'sheet_1',
+                  description: 'Inventario',
+                  url: 'https://docs.google.com/spreadsheets/d/abc/edit',
+                },
+              ],
+            },
+          },
+        ],
+      },
+      skillCatalog: DEFAULT_AGENT_SKILLS_CATALOG,
+    });
+    const closerCaps = buildAgentCapabilityProfile({
+      agent: {
+        name: 'Closer Financiero & Peritaje',
+        skillsConfig: [{ id: 'sales_closer', enabled: true }],
+      },
+      skillCatalog: DEFAULT_AGENT_SKILLS_CATALOG,
+    });
+    const team: TeamMember[] = [
+      {
+        id: 'o1',
+        hubId: 'ventas',
+        name: 'Asesor Taller',
+        description: 'taller',
+        role: 'orchestrator',
+        capabilities: orchCaps,
+      },
+      {
+        id: 's1',
+        hubId: 'closer',
+        name: 'Closer Financiero & Peritaje',
+        description: 'financiamiento',
+        role: 'specialist',
+        capabilities: closerCaps,
+      },
+    ];
+    const history = [
+      {
+        role: 'model',
+        content:
+          'Sí, lo tenemos. Referencia 474-B5869, 6 unidades en stock, Bodega Principal - Pasillo B, $1.056.000 (aplica promoción).',
+      },
+    ];
+    const wrong = { target: team[1]!, method: 'llm' as const, score: 8 };
+    const cual = overrideTriageForInventoryFollowUp('cual', team, wrong, 'o1', history);
+    expect(cual.target.id).toBe('o1');
+    const promo = overrideTriageForInventoryFollowUp(
+      'que hago para la promocion?',
+      team,
+      wrong,
+      'o1',
+      history,
+    );
+    expect(promo.target.id).toBe('o1');
+  });
+
+  it('override de CRM mantiene orquestador con HubSpot si el closer no lo tiene', () => {
+    const orchCaps = buildAgentCapabilityProfile({
+      agent: {
+        name: 'Asesor Taller',
+        enabledMcpToolIds: [
+          'mcp:hubspot:hubspot_search_contacts',
+          'mcp:hubspot:hubspot_create_contact',
+        ],
+      },
+      skillCatalog: DEFAULT_AGENT_SKILLS_CATALOG,
+    });
+    const closerCaps = buildAgentCapabilityProfile({
+      agent: { name: 'Closer Financiero & Peritaje' },
+      skillCatalog: DEFAULT_AGENT_SKILLS_CATALOG,
+    });
+    const team: TeamMember[] = [
+      {
+        id: 'o1',
+        hubId: 'ventas',
+        name: 'Asesor Taller',
+        description: 'taller',
+        role: 'orchestrator',
+        capabilities: orchCaps,
+      },
+      {
+        id: 's1',
+        hubId: 'closer',
+        name: 'Closer Financiero & Peritaje',
+        description: 'financiamiento',
+        role: 'specialist',
+        capabilities: closerCaps,
+      },
+    ];
+    const wrong = { target: team[1]!, method: 'llm' as const, score: 8 };
+    const fixed = overrideTriageForCrmOnOrchestrator(
+      'vale gracias como me contacto?',
       team,
       wrong,
       'o1',
