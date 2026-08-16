@@ -112,7 +112,7 @@ export const TOOLS: ToolDef[] = [
     id: 'mongodb',
     name: 'MongoDB (cliente)',
     icon: '🍃',
-    description: 'Consulta datos en un clúster MongoDB del cliente vía MCP en AIBackHub (política por conexión).',
+    description: 'Consulta datos en un clúster MongoDB del cliente (política por conexión).',
     minPlan: 'plus',
     configFields: [
       { key: 'connectionUri', label: 'Connection URI', placeholder: 'mongodb+srv://…', required: true },
@@ -123,7 +123,7 @@ export const TOOLS: ToolDef[] = [
     id: 'postgres',
     name: 'PostgreSQL (cliente)',
     icon: '🐘',
-    description: 'Consulta datos en PostgreSQL del cliente vía MCP en AIBackHub (solo lectura por defecto).',
+    description: 'Consulta datos en PostgreSQL del cliente (solo lectura por defecto).',
     minPlan: 'plus',
     configFields: [
       { key: 'connectionUri', label: 'Connection URI', placeholder: 'postgresql://…', required: true },

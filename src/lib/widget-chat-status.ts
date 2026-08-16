@@ -7,7 +7,20 @@ import { agentSkillsNeedMcpTools } from '@/lib/agent-skills-mcp';
 import { needsKnowledgeLookup } from '@/lib/widget-counter-rhythm';
 
 /** Re-exportado para tests E2E y scripts. */
-export const WIDGET_STATUS_PULSE_MS = 4500;
+export const WIDGET_STATUS_PULSE_MS = 1200;
+
+const PHASE_TICK_LINES: Partial<Record<WidgetChatStatusPhase, string[]>> = {
+  prepare: ['Organizando tu mensaje…', 'Un momento…'],
+  enrich: ['Revisando lo que ya hablamos…', 'Ordenando el hilo…'],
+  validate: ['Confirmando la sesión…'],
+  resolve: ['Conectando con tu asistente…'],
+  hub: ['Pensando la respuesta…', 'Procesando tu mensaje…', 'Ya casi…'],
+  model: ['Redactando…', 'Afinando la respuesta…', 'Casi listo…'],
+  rag: ['Buscando en la base de conocimiento…', 'Revisando documentos…'],
+  tools: ['Consultando datos…', 'Un segundo más…'],
+  mcp: ['Consultando integraciones…', 'Recuperando información…'],
+  triage: ['Viendo cómo ayudarte mejor…', 'Un momento…'],
+};
 
 const INVENTORY_TURN_RE = /\binventario\b/i;
 const REASONING_TURN_RE =
@@ -167,6 +180,25 @@ export function widgetChatStatusForUserMessage(
   return widgetChatStatusMessage(phase, detail);
 }
 
+/** Rota el copy de la tarjeta de pensamiento si la fase no cambia. */
+export function widgetChatStatusTick(
+  phase: WidgetChatStatusPhase,
+  elapsedMs: number,
+  detail?: string,
+  serverMessage?: string,
+): string {
+  const base = (typeof serverMessage === 'string' && serverMessage.trim())
+    ? serverMessage.trim()
+    : widgetChatStatusMessage(phase, detail);
+  const extras = PHASE_TICK_LINES[phase] ?? [];
+  const lines = [base];
+  for (const extra of extras) {
+    if (extra && extra !== base) lines.push(extra);
+  }
+  const step = Math.max(0, Math.floor(elapsedMs / WIDGET_STATUS_PULSE_MS));
+  return lines[step % lines.length];
+}
+
 export function emitWidgetChatStatus(
   enqueue: (data: Record<string, unknown>) => void,
   phase: WidgetChatStatusPhase,
@@ -201,8 +233,18 @@ export async function runWithWidgetStatusPulse<T>(
   detail?: string,
 ): Promise<T> {
   emitWidgetChatStatusForTurn(enqueue, userMessage, phase, detail);
+  const startedAt = Date.now();
   const timer = setInterval(() => {
-    emitWidgetChatStatusForTurn(enqueue, userMessage, phase, detail);
+    enqueue({
+      type: 'status',
+      phase,
+      message: widgetChatStatusTick(
+        phase,
+        Date.now() - startedAt,
+        detail,
+        widgetChatStatusForUserMessage(userMessage, phase, detail),
+      ),
+    });
   }, WIDGET_STATUS_PULSE_MS);
   try {
     return await work();

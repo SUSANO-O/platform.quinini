@@ -4,6 +4,7 @@ import {
   runWithWidgetStatusPulse,
   widgetChatStatusForUserMessage,
   widgetChatStatusMessage,
+  widgetChatStatusTick,
 } from '@/lib/widget-chat-status';
 
 describe('widget-chat-status', () => {
@@ -58,6 +59,14 @@ describe('widget-chat-status', () => {
       'Si el Picanto nuevo del inventario vale lo que ustedes manejan, cuanto me faltaria para el cambio? Razona en voz alta.';
     expect(widgetChatStatusForUserMessage(msg, 'model')).toBe('Razonando con las cifras del hilo…');
     expect(widgetChatStatusForUserMessage(msg, 'hub')).toBe('Calculando con las cifras ya conocidas…');
+  });
+
+  it('widgetChatStatusTick rota el copy si la fase no cambia', () => {
+    const first = widgetChatStatusTick('model', 0);
+    const later = widgetChatStatusTick('model', 2500);
+    expect(first).toBe('Generando respuesta…');
+    expect(later).not.toBe(first);
+    expect(later.length).toBeGreaterThan(4);
   });
 
   it('runWithWidgetStatusPulse emite status inicial y ejecuta trabajo', async () => {

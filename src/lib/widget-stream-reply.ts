@@ -5,9 +5,9 @@
  */
 
 const MIN_CHARS_TO_CHUNK = 48;
-const MAX_REVEAL_MS = 2800;
-const MIN_CHUNK_DELAY_MS = 8;
-const MAX_CHUNK_DELAY_MS = 32;
+const MAX_REVEAL_MS = 700;
+const MIN_CHUNK_DELAY_MS = 6;
+const MAX_CHUNK_DELAY_MS = 18;
 
 /** Trocea texto preservando espacios (por grupos de ~3 palabras). */
 export function splitTextForStreamTokens(text: string): string[] {

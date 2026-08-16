@@ -15,6 +15,10 @@ import {
   DashboardMenuDivider,
   DashboardMenuItem,
 } from '@/components/dashboard/dashboard-dropdown-menu';
+import {
+  DashboardResourceCard,
+  ResourceCardTag,
+} from '@/components/dashboard/dashboard-resource-card';
 import { WidgetAvatar } from '@/components/dashboard/widget-avatar';
 import { WidgetEmbedPanel } from '@/components/dashboard/widget-embed-panel';
 
@@ -96,37 +100,20 @@ export function WidgetListCard({
   const agentLabel = w.agentName?.trim() || 'Sin agente';
 
   return (
-    <article
-      className={`widget-card card-texture${isActive ? '' : ' widget-card--off'}${expanded ? ' is-open' : ''}`}
-      style={{ ['--resource-accent' as string]: w.color }}
-    >
-      <div className="widget-card__accent" aria-hidden />
-
-      <header className="widget-card__head">
-        <div className="widget-card__identity">
-          <WidgetAvatar widgetId={w._id} color={w.color} avatarUrl={w.avatar} size="md" />
-          <div className="widget-card__head-text">
-            <div className="widget-card__status-row">
-              <span className={`widget-card__dot${isActive ? ' is-on' : ''}`} aria-hidden />
-              <span className={`widget-card__status${isActive ? ' is-on' : ''}`}>
-                {isActive ? 'Activo' : 'Inactivo'}
-              </span>
-            </div>
-            <p className="widget-card__title" title={w.name}>
-              {w.name}
-            </p>
-            <p className="widget-card__subtitle" title={agentLabel}>
-              {agentLabel}
-            </p>
-          </div>
-        </div>
-
+    <DashboardResourceCard
+      className={expanded ? 'is-open' : ''}
+      inactive={!isActive}
+      accentColor={w.color}
+      avatar={<WidgetAvatar widgetId={w._id} color={w.color} avatarUrl={w.avatar} size="md" />}
+      statusLabel={isActive ? 'Activo' : 'Inactivo'}
+      statusOn={isActive}
+      headerAction={
         <DashboardDropdownMenu
           placement="bottom"
           trigger={({ open, toggle }) => (
             <DashboardButton
               variant="icon"
-              className={`widget-card__menu${open ? ' is-open' : ''}`}
+              className={`resource-card__menu${open ? ' is-open' : ''}`}
               aria-label="Más acciones"
               aria-expanded={open}
               onClick={toggle}
@@ -157,45 +144,48 @@ export function WidgetListCard({
             Eliminar
           </DashboardMenuItem>
         </DashboardDropdownMenu>
-      </header>
-
-      <div className="widget-card__tags">
-        <span className="widget-card__tag">{formatPosition(w.position)}</span>
-        <span className="widget-card__tag">{formatTheme(w.theme)}</span>
-        <span className="widget-card__tag">{formatUpdatedLabel(w.createdAt)}</span>
-        {w.multiAgentEnabled ? (
-          <span className="widget-card__tag widget-card__tag--accent">{multiLabel(w.multiAgentMode)}</span>
-        ) : null}
-      </div>
-
-      <footer className="widget-card__footer">
-        <DashboardButtonLink
-          href={`/dashboard/widget-builder?edit=${w._id}`}
-          variant="primary"
-          className="widget-card__btn"
-        >
-          Editar
-        </DashboardButtonLink>
-        <DashboardButtonLink
-          href={`/dashboard/widget-preview?id=${w._id}`}
-          variant="secondary"
-          className="widget-card__btn"
-          title="Probar el chat"
-        >
-          Probar
-        </DashboardButtonLink>
-      </footer>
-
-      {expanded ? (
-        <div className="widget-card__embed">
+      }
+      title={w.name}
+      subtitle={agentLabel}
+      tags={
+        <>
+          <ResourceCardTag>{formatPosition(w.position)}</ResourceCardTag>
+          <ResourceCardTag>{formatTheme(w.theme)}</ResourceCardTag>
+          <ResourceCardTag>{formatUpdatedLabel(w.createdAt)}</ResourceCardTag>
+          {w.multiAgentEnabled ? (
+            <ResourceCardTag accent>{multiLabel(w.multiAgentMode)}</ResourceCardTag>
+          ) : null}
+        </>
+      }
+      actions={
+        <>
+          <DashboardButtonLink
+            href={`/dashboard/widget-builder?edit=${w._id}`}
+            variant="secondary"
+            className="resource-card__btn"
+          >
+            Editar
+          </DashboardButtonLink>
+          <DashboardButtonLink
+            href={`/dashboard/widget-preview?id=${w._id}`}
+            variant="secondary"
+            className="resource-card__btn resource-card__btn--muted"
+            title="Probar el chat"
+          >
+            Probar
+          </DashboardButtonLink>
+        </>
+      }
+      embed={
+        expanded ? (
           <WidgetEmbedPanel
             snippet={buildSnippet(w, origin)}
             token={w.afhubToken}
             copied={copied}
             onCopySnippet={onCopyCode}
           />
-        </div>
-      ) : null}
-    </article>
+        ) : null
+      }
+    />
   );
 }

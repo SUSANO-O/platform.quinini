@@ -34,9 +34,10 @@ describe('widget-stream-reply', () => {
     expect(tokens.map((t) => t.text).join('')).toBe(long);
   });
 
-  it('streamChunkDelayMs acota el retardo', () => {
+  it('streamChunkDelayMs acota el retardo y no alarga ~3s la revelación', () => {
     expect(streamChunkDelayMs(1)).toBe(0);
-    expect(streamChunkDelayMs(200)).toBeGreaterThanOrEqual(8);
-    expect(streamChunkDelayMs(200)).toBeLessThanOrEqual(32);
+    expect(streamChunkDelayMs(200)).toBeGreaterThanOrEqual(6);
+    expect(streamChunkDelayMs(200)).toBeLessThanOrEqual(18);
+    expect(streamChunkDelayMs(10) * 9).toBeLessThan(900);
   });
 });

@@ -144,12 +144,12 @@ function formatMcpLastSync(iso?: string): string | null {
 
 function mcpConnectionBadgeStyle(s: McpServerGroup): { label: string; bg: string; color: string } {
   if (s.syncStatus === 'ok') {
-    return { label: '✓ MCP sync OK', bg: 'rgba(34,197,94,0.12)', color: '#22c55e' };
+    return { label: 'Conectado', bg: 'rgba(34,197,94,0.12)', color: '#22c55e' };
   }
   if (s.syncStatus === 'error') {
-    return { label: 'Error sync MCP', bg: 'rgba(239,68,68,0.12)', color: '#ef4444' };
+    return { label: 'Error', bg: 'rgba(239,68,68,0.12)', color: '#ef4444' };
   }
-  return { label: 'Pendiente MCP', bg: 'rgba(217,119,6,0.12)', color: '#d97706' };
+  return { label: 'Pendiente', bg: 'rgba(217,119,6,0.12)', color: '#d97706' };
 }
 
 interface ToolConfig { toolId: string; config: Record<string, unknown> }
@@ -762,14 +762,53 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     return map;
   }, [mcpIntegrations]);
 
-  const planToolsStandalone = useMemo(
-    () => TOOLS.filter((t) => !mcpIntegrationByPlanToolId.has(t.id)),
-    [mcpIntegrationByPlanToolId],
+  const mcpServerNeedsAccount = useCallback((s: McpServerGroup) => {
+    const integ = mcpIntegrations.find((i) => i.key === s.integrationKey);
+    if (integ) return integ.needsCredentials;
+    if ((s.credentialFields?.length ?? 0) > 0) return true;
+    const k = s.integrationKey.replace(/-/g, '_').toLowerCase();
+    return k !== 'weather' && k !== 'websearch' && k !== 'web_search';
+  }, [mcpIntegrations]);
+
+  const accountMcpServers = useMemo(
+    () => syncedMcpServers.filter((s) => mcpServerNeedsAccount(s)),
+    [syncedMcpServers, mcpServerNeedsAccount],
   );
 
-  const planToolsViaMcp = useMemo(
-    () => TOOLS.filter((t) => mcpIntegrationByPlanToolId.has(t.id)),
-    [mcpIntegrationByPlanToolId],
+  const pendingAccountMcpServers = useMemo(
+    () => pendingOrErrorMcpServers.filter((s) => mcpServerNeedsAccount(s)),
+    [pendingOrErrorMcpServers, mcpServerNeedsAccount],
+  );
+
+  const planToolNeedsAccount = useCallback((toolId: string) => {
+    if (
+      toolId === 'web-search' ||
+      toolId === 'google-sheets' ||
+      toolId === 'file-upload' ||
+      toolId === 'webhook'
+    ) {
+      return false;
+    }
+    if (
+      toolId === 'gmail' ||
+      toolId === 'slack' ||
+      toolId === 'google-calendar' ||
+      toolId === 'hubspot' ||
+      toolId === 'whatsapp' ||
+      toolId === 'notion' ||
+      toolId === 'mongodb' ||
+      toolId === 'postgres' ||
+      toolId === 'zapier'
+    ) {
+      return true;
+    }
+    const integ = mcpIntegrationByPlanToolId.get(toolId);
+    return Boolean(integ?.needsCredentials);
+  }, [mcpIntegrationByPlanToolId]);
+
+  const planToolsSimple = useMemo(
+    () => TOOLS.filter((t) => !planToolNeedsAccount(t.id)),
+    [planToolNeedsAccount],
   );
 
   async function save(patch: Record<string, unknown>) {
@@ -2571,7 +2610,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           {/* Diferencia visible: datos del hub (catálogo) + Mongo del agente */}
           <div
             role="region"
-            aria-label="Cuentas MCP frente a herramientas del plan"
+            aria-label="Cuentas conectadas y herramientas del plan"
             style={{
               marginBottom: 16,
               display: 'grid',
@@ -2589,17 +2628,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 padding: '12px 14px',
               }}
             >
-              <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: R }}>1 · Cuentas (MCP)</p>
+              <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: R }}>1 · Cuentas MCP conectadas</p>
               <p style={{ margin: '6px 0 0', fontSize: 11, lineHeight: 1.45, color: 'var(--muted-foreground)' }}>
-                Credenciales en el hub. Catálogo vivo:{' '}
-                {mcpIntegrations.length
-                  ? mcpIntegrations.map((i) => i.name).join(', ')
-                  : 'cargando…'}
+                Gmail, HubSpot, Slack y otras que piden iniciar sesión o una clave.
               </p>
               <p style={{ margin: '8px 0 0', fontSize: 11, fontWeight: 600 }}>
-                {mcpServers.length} conectada{mcpServers.length === 1 ? '' : 's'}
-                {unifiedCounts ? ` · ${unifiedCounts.mcp} tools MCP en hub` : ''}
-                {mcpToolIds.length ? ` · ${mcpToolIds.length} activas en este agente` : ''}
+                {accountMcpServers.length} conectada{accountMcpServers.length === 1 ? '' : 's'}
               </p>
             </div>
             <div
@@ -2609,13 +2643,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 padding: '12px 14px',
               }}
             >
-              <p style={{ margin: 0, fontSize: 12, fontWeight: 800 }}>2 · Tools del plan (Mongo)</p>
+              <p style={{ margin: 0, fontSize: 12, fontWeight: 800 }}>2 · Herramientas del plan</p>
               <p style={{ margin: '6px 0 0', fontSize: 11, lineHeight: 1.45, color: 'var(--muted-foreground)' }}>
-                Guardadas en el agente (`tools`). No sustituyen conectar la cuenta MCP.
-                {unifiedCounts ? ` Hub también expone ${unifiedCounts.builtin} tools farm builtin.` : ''}
+                Búsqueda web, hojas y similares: se activan aquí, sin cuenta extra.
               </p>
               <p style={{ margin: '8px 0 0', fontSize: 11, fontWeight: 600 }}>
-                {tools.length}/{limits.toolsPerAgent} seleccionadas
+                {tools.filter((t) => !planToolNeedsAccount(t.toolId)).length}/{limits.toolsPerAgent} seleccionadas
               </p>
             </div>
           </div>
@@ -2632,7 +2665,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               <Loader2 size={22} className="animate-spin mx-auto mb-2 block" style={{ color: R }} />
               <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', margin: 0 }}>Cargando integraciones MCP...</p>
             </AgentEditorSection>
-          ) : syncedMcpServers.length > 0 ? (
+          ) : accountMcpServers.length > 0 ? (
             <>
               <AgentEditorSection>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
@@ -2642,59 +2675,37 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   </span>
                 </div>
                 <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: '0 0 10px', lineHeight: 1.5 }}>
-                  Tools descubiertas al sincronizar cada cuenta. La selección se guarda en Mongo del agente (`enabledMcpToolIds`).
+                  Elige qué herramientas puede usar el agente. Pulsa <strong>Guardar herramientas</strong> al final de esta pestaña.
                 </p>
-                {!readOnly && (
-                  <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '0 0 10px', lineHeight: 1.45 }}>
-                    Marca o desmarca las tools y pulsa <strong>Guardar herramientas</strong> (al final de esta pestaña): la selección se guarda aquí y en AIBackHub como{' '}
-                    <code style={{ fontSize: '10px' }}>enabledToolIds</code> para el widget y el chat con MCP.
-                  </p>
-                )}
-                {mcpAgentHubLink ? (
+                {mcpAgentHubLink &&
+                !(mcpAgentHubLink.catalogSyncStatus === 'synced' && mcpAgentHubLink.hasAgentHubId) ? (
                   <div
                     style={{
-                      fontSize: '11px',
+                      fontSize: '12px',
                       lineHeight: 1.5,
                       padding: '10px 12px',
                       borderRadius: '10px',
                       border: '1px solid var(--border)',
-                      background: 'rgba(var(--brand-primary-rgb),0.06)',
+                      background: 'rgba(217,119,6,0.08)',
                       marginBottom: '14px',
                       color: 'var(--foreground)',
                     }}
                   >
-                    <p style={{ margin: '0 0 6px', fontWeight: 700 }}>Dos niveles de “sync” (no son lo mismo)</p>
-                    <p style={{ margin: 0, color: 'var(--muted-foreground)' }}>
-                      <strong>1) Catálogo AIBackHub</strong> (agente landing ↔ hub):{' '}
-                      {mcpAgentHubLink.catalogSyncStatus === 'synced' && mcpAgentHubLink.hasAgentHubId
-                        ? (
-                          <>
-                            OK — id en catálogo:{' '}
-                            <code style={{ fontSize: '10px' }}>{mcpAgentHubLink.agentHubId}</code>
-                          </>
-                          )
-                        : mcpAgentHubLink.catalogSyncStatus === 'pending'
-                          ? 'pendiente. Espera unos segundos tras crear el agente o ve a Mis agentes y fuerza sincronización.'
-                          : mcpAgentHubLink.catalogSyncStatus === 'failed'
-                            ? 'No se pudo conectar con Stargate. Inténtalo de nuevo en unos minutos o vuelve a sincronizar desde Mis agentes.'
-                            : `estado “${mcpAgentHubLink.catalogSyncStatus}”.`}
-                    </p>
-                    <p style={{ margin: '8px 0 0', color: 'var(--muted-foreground)' }}>
-                      <strong>2) Conexión MCP</strong> (hub ↔ servidor MCP remoto): el distintivo verde en cada tarjeta indica
-                      que el hub pudo conectar a tu URL, validar credenciales si aplica y obtener la lista de tools. Las
-                      credenciales de la conexión se guardan en el hub y persisten; la fecha de la última comprobación
-                      aparece bajo el nombre del servidor.
-                    </p>
+                    {mcpAgentHubLink.catalogSyncStatus === 'failed'
+                      ? 'Este agente aún no está listo. Vuelve a Mis agentes y reintenta; hasta entonces las integraciones no se usarán en el chat.'
+                      : 'Este agente se está activando. En unos segundos las integraciones estarán disponibles en el chat.'}
                   </div>
                 ) : null}
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {syncedMcpServers.map((srv) => {
+                  {accountMcpServers.map((srv) => {
                     const MCP_ICONS: Record<string, string> = {
                       gmail: '📧', hubspot: '🏢', slack: '💬',
                       google_calendar: '📅', googleCalendar: '📅',
+                      google_maps: '🗺️', jira: '🎫',
                       weather: '🌤️', webSearch: '🔍', web_search: '🔍',
                       mongodb: '🍃', postgres: '🐘',
+                      whatsapp: '📱', notion: '📝', zapier: '⚡',
                     };
                     const icon = MCP_ICONS[srv.integrationKey] ?? '🔌';
                     const allSelected = srv.tools.every((t) => mcpToolIds.includes(t.id));
@@ -2718,7 +2729,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                             <p style={{ fontSize: '13px', fontWeight: 700, margin: 0 }}>{srv.serverName}</p>
                             <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: 0 }}>
                               {srv.tools.length} tool{srv.tools.length !== 1 ? 's' : ''} disponible{srv.tools.length !== 1 ? 's' : ''}
-                              {lastSyncLabel ? ` · última comprobación hub↔MCP: ${lastSyncLabel}` : ''}
+                              {lastSyncLabel ? ` · ${lastSyncLabel}` : ''}
                             </p>
                             {srv.syncStatus === 'error' && srv.lastSyncError ? (
                               <p style={{ fontSize: '10px', color: '#ef4444', margin: '4px 0 0', lineHeight: 1.35 }}>
@@ -2747,7 +2758,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                                   cursor: 'pointer', whiteSpace: 'nowrap',
                                 }}
                               >
-                                <RefreshCw size={12} /> Sync
+                                <RefreshCw size={12} /> Actualizar
                               </button>
                               <button
                                 type="button"
@@ -2849,16 +2860,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 </div>
               </AgentEditorSection>
             </>
-          ) : mcpServers.length === 0 && !mcpLoading ? (
+          ) : accountMcpServers.length === 0 && pendingAccountMcpServers.length === 0 && !mcpLoading ? (
             <AgentEditorSection innerStyle={{ textAlign: 'center', padding: '28px 16px' }}>
                 <KeyRound size={24} style={{ color: 'var(--muted-foreground)', margin: '0 auto 10px' }} />
-                <p style={{ fontWeight: 600, fontSize: '13px', margin: '0 0 6px' }}>Paso 1: aún no hay cuentas MCP</p>
+                <p style={{ fontWeight: 600, fontSize: '13px', margin: '0 0 6px' }}>Aún no hay cuentas conectadas</p>
                 <p style={{ color: 'var(--muted-foreground)', fontSize: '12px', margin: '0 0 12px', lineHeight: 1.5 }}>
-                  Conecta una cuenta del catálogo de arriba
-                  {mcpIntegrations.length
-                    ? ` (${mcpIntegrations.filter((i) => i.needsCredentials).map((i) => i.name).slice(0, 5).join(', ')}${mcpIntegrations.length > 5 ? '…' : ''})`
-                    : ''}
-                  . Sin cuenta, esas tools no se ejecutan aunque las marques abajo.
+                  Conecta Gmail, HubSpot, Slack, Calendar, MongoDB u otra cuenta del catálogo de arriba.
                 </p>
                 <button
                   onClick={loadMcp}
@@ -2878,11 +2885,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           ) : null}
 
           {/* Pending/Error MCP connections */}
-          {pendingOrErrorMcpServers.length > 0 && (
+          {pendingAccountMcpServers.length > 0 && (
             <AgentEditorSection bar="cool">
               <p className={SECTION_TITLE} style={{ margin: '0 0 10px' }}>Integraciones pendientes / con error</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {pendingOrErrorMcpServers.map((srv) => {
+                {pendingAccountMcpServers.map((srv) => {
                   const pb = mcpConnectionBadgeStyle(srv);
                   const pLast = formatMcpLastSync(srv.lastSyncAt);
                   return (
@@ -2959,132 +2966,84 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             </AgentEditorSection>
           )}
 
-          {/* ── Tools del plan (Mongo agent.tools) ── */}
+          {/* ── Tools del plan (sin cuenta: búsqueda, hojas, archivos, webhook) ── */}
           <AgentEditorSection>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
               <p className={SECTION_TITLE} style={{ margin: 0 }}>2 · Herramientas del plan</p>
-              <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{tools.length}/{limits.toolsPerAgent} seleccionadas</span>
+              <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                {tools.filter((t) => !planToolNeedsAccount(t.toolId)).length}/{limits.toolsPerAgent} seleccionadas
+              </span>
             </div>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: '0 0 12px', lineHeight: 1.5 }}>
-              Se guardan en Mongo del agente. Las que coinciden con el catálogo MCP del hub se marcan abajo: la cuenta va en el paso 1.
+              Búsqueda web, hojas, archivos y webhook: se activan aquí, sin conectar una cuenta.
             </p>
 
-            {planToolsStandalone.length > 0 && (
-              <>
-                <p style={{ fontSize: 11, fontWeight: 700, margin: '0 0 8px', color: 'var(--muted-foreground)' }}>
-                  Sin cuenta MCP
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: 14 }}>
-                  {planToolsStandalone.map((tool) => {
-                    const available = limits.availableToolIds.includes(tool.id);
-                    const selected = tools.some((t) => t.toolId === tool.id);
-                    const maxed = tools.length >= limits.toolsPerAgent && !selected;
-                    return (
-                      <button key={tool.id} type="button"
-                        onClick={() => !readOnly && available && !maxed ? toggleToolSelection(tool.id) : undefined}
-                        disabled={readOnly}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px',
-                          borderRadius: '10px', textAlign: 'left', cursor: readOnly || !available || maxed ? 'not-allowed' : 'pointer',
-                          border: `1px solid ${selected ? R : 'var(--border)'}`,
-                          background: selected ? 'rgba(var(--brand-primary-rgb),0.07)' : 'transparent',
-                          opacity: readOnly || !available || maxed ? 0.45 : 1,
-                        }}
-                      >
-                        <span style={{ fontSize: '18px' }}>{tool.icon}</span>
-                        <div style={{ flex: 1 }}>
-                          <p style={{ fontSize: '13px', fontWeight: 700, margin: 0, color: selected ? R : 'var(--foreground)' }}>{tool.name}</p>
-                          <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: 0 }}>{tool.description}</p>
-                        </div>
-                        {!available && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}><Lock size={9} /> {tool.minPlan}+</span>}
-                        {selected && <span style={{ width: 16, height: 16, borderRadius: '50%', background: R, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <span style={{ color: '#fff', fontSize: '9px', fontWeight: 900 }}>✓</span>
-                        </span>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-
-            {planToolsViaMcp.length > 0 && (
-              <>
-                <p style={{ fontSize: 11, fontWeight: 700, margin: '0 0 8px', color: 'var(--muted-foreground)' }}>
-                  Mismo servicio que una cuenta MCP (catálogo hub)
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {planToolsViaMcp.map((tool) => {
-                    const integ = mcpIntegrationByPlanToolId.get(tool.id);
-                    const available = limits.availableToolIds.includes(tool.id);
-                    const selected = tools.some((t) => t.toolId === tool.id);
-                    const maxed = tools.length >= limits.toolsPerAgent && !selected;
-                    const connected = mcpServers.some(
-                      (s) =>
-                        s.integrationKey === integ?.key ||
-                        s.integrationKey.replace(/_/g, '-') === tool.id ||
-                        s.integrationKey.replace(/-/g, '_') === tool.id.replace(/-/g, '_'),
-                    );
-                    return (
-                      <button key={tool.id} type="button"
-                        onClick={() => !readOnly && available && !maxed ? toggleToolSelection(tool.id) : undefined}
-                        disabled={readOnly}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px',
-                          borderRadius: '10px', textAlign: 'left', cursor: readOnly || !available || maxed ? 'not-allowed' : 'pointer',
-                          border: `1px solid ${selected ? R : 'var(--border)'}`,
-                          background: selected ? 'rgba(var(--brand-primary-rgb),0.07)' : 'transparent',
-                          opacity: readOnly || !available || maxed ? 0.45 : 1,
-                        }}
-                      >
-                        <span style={{ fontSize: '18px' }}>{tool.icon}</span>
-                        <div style={{ flex: 1 }}>
-                          <p style={{ fontSize: '13px', fontWeight: 700, margin: 0, color: selected ? R : 'var(--foreground)' }}>{tool.name}</p>
-                          <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: 0 }}>
-                            {integ
-                              ? `En el hub: ${integ.name}. La cuenta se conecta en el paso 1 (MCP).`
-                              : tool.description}
-                          </p>
-                        </div>
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            padding: '2px 8px',
-                            borderRadius: 20,
-                            flexShrink: 0,
-                            background: connected ? 'rgba(34,197,94,0.12)' : 'rgba(217,119,6,0.12)',
-                            color: connected ? '#22c55e' : '#d97706',
-                          }}
-                        >
-                          {connected ? 'Cuenta OK' : 'Falta cuenta MCP'}
-                        </span>
-                        {!available && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}><Lock size={9} /> {tool.minPlan}+</span>}
-                        {selected && <span style={{ width: 16, height: 16, borderRadius: '50%', background: R, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <span style={{ color: '#fff', fontSize: '9px', fontWeight: 900 }}>✓</span>
-                        </span>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {planToolsSimple.map((tool) => {
+                const available = limits.availableToolIds.includes(tool.id);
+                const selected = tools.some((t) => t.toolId === tool.id);
+                const maxed = tools.length >= limits.toolsPerAgent && !selected;
+                return (
+                  <button key={tool.id} type="button"
+                    onClick={() => !readOnly && available && !maxed ? toggleToolSelection(tool.id) : undefined}
+                    disabled={readOnly}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px',
+                      borderRadius: '10px', textAlign: 'left', cursor: readOnly || !available || maxed ? 'not-allowed' : 'pointer',
+                      border: `1px solid ${selected ? R : 'var(--border)'}`,
+                      background: selected ? 'rgba(var(--brand-primary-rgb),0.07)' : 'transparent',
+                      opacity: readOnly || !available || maxed ? 0.45 : 1,
+                    }}
+                  >
+                    <span style={{ fontSize: '18px' }}>{tool.icon}</span>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: '13px', fontWeight: 700, margin: 0, color: selected ? R : 'var(--foreground)' }}>{tool.name}</p>
+                      <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: 0 }}>{tool.description}</p>
+                    </div>
+                    {!available && <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}><Lock size={9} /> {tool.minPlan}+</span>}
+                    {selected && <span style={{ width: 16, height: 16, borderRadius: '50%', background: R, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <span style={{ color: '#fff', fontSize: '9px', fontWeight: 900 }}>✓</span>
+                    </span>}
+                  </button>
+                );
+              })}
+            </div>
           </AgentEditorSection>
 
           {/* Config fields for selected tools */}
           {tools.map((t) => {
             const def = TOOL_MAP[t.toolId];
             const mcpTwin = mcpIntegrationByPlanToolId.get(t.toolId);
-            // Si el catálogo hub ya cubre este servicio, no pedir API key duplicada aquí
-            if (mcpTwin && t.toolId !== 'webhook' && t.toolId !== 'google-sheets') {
+            if (planToolNeedsAccount(t.toolId) && t.toolId !== 'webhook' && t.toolId !== 'google-sheets') {
               return (
                 <AgentEditorSection key={t.toolId} bar="cool">
                   <p className={SECTION_TITLE} style={{ margin: '0 0 6px' }}>
                     {def?.icon} {def?.name ?? t.toolId} — cuenta MCP
                   </p>
                   <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: 'var(--muted-foreground)' }}>
-                    Este servicio se autentica con la conexión MCP «{mcpTwin.name}» (paso 1).
-                    No hace falta pegar otra API key aquí.
+                    {mcpTwin
+                      ? `Conéctalo en el paso 1 con «${mcpTwin.name}». No hace falta pegar otra clave aquí.`
+                      : 'Conéctalo en el paso 1 (cuentas MCP). No hace falta pegar otra clave aquí.'}
                   </p>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => toggleToolSelection(t.toolId)}
+                      style={{
+                        marginTop: 10,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        padding: '6px 12px',
+                        borderRadius: 8,
+                        border: '1px solid var(--border)',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        color: 'var(--muted-foreground)',
+                      }}
+                    >
+                      Quitar de herramientas del plan
+                    </button>
+                  )}
                 </AgentEditorSection>
               );
             }

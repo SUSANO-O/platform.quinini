@@ -11,6 +11,7 @@ export function AgentInitialsBadge({
   platform = false,
   accentColor,
   size = 'md',
+  filled = false,
   className = '',
 }: {
   name: string;
@@ -20,6 +21,7 @@ export function AgentInitialsBadge({
   platform?: boolean;
   accentColor?: string;
   size?: 'sm' | 'md';
+  filled?: boolean;
   className?: string;
 }) {
   const initials = initialsFromName(name);
@@ -36,6 +38,10 @@ export function AgentInitialsBadge({
     background = 'var(--muted)';
     border = 'var(--border-subtle)';
     color = 'var(--muted-foreground)';
+  } else if (filled) {
+    background = accentColor || palette.color;
+    border = 'transparent';
+    color = '#fff';
   } else if (platform) {
     background = 'rgba(var(--brand-cool-rgb), 0.1)';
     border = 'rgba(var(--brand-cool-rgb), 0.18)';

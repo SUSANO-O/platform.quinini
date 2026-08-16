@@ -540,19 +540,17 @@ export async function POST(req: NextRequest) {
       try {
         const userMsgForStatus = userDisplayMessage || parsedMessage;
         emitWidgetChatStatusForTurn(enqueue, userMsgForStatus, 'prepare');
-        if (faqTrackOwnerId) {
-          emitWidgetChatStatus(enqueue, 'enrich');
-        }
-        if (userMsgForStatus.trim() && needsKnowledgeLookup(userMsgForStatus)) {
+        if (imageEnrichment?.images?.length) {
+          emitWidgetChatStatus(enqueue, 'vision');
+        } else if (userMsgForStatus.trim() && needsKnowledgeLookup(userMsgForStatus)) {
           emitWidgetChatStatusForTurn(enqueue, userMsgForStatus, 'rag');
         } else if (
           userMsgForStatus.trim() &&
           /\b(?:retoma|permuta|cu[aá]nto\s+me\s+falt|diferencia|razona)\b/i.test(userMsgForStatus)
         ) {
           emitWidgetChatStatusForTurn(enqueue, userMsgForStatus, 'hub');
-        }
-        if (imageEnrichment?.images?.length) {
-          emitWidgetChatStatus(enqueue, 'vision');
+        } else {
+          emitWidgetChatStatusForTurn(enqueue, userMsgForStatus, 'model');
         }
 
         if (multiAgentCtx) {
