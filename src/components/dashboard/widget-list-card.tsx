@@ -4,11 +4,14 @@ import {
   Code2,
   Download,
   MoreVertical,
+  Pause,
+  Play,
   Power,
   PowerOff,
   Share2,
   Trash2,
 } from '@/components/ui/icons';
+import { AgentInitialsBadge } from '@/components/dashboard/agent-initials-badge';
 import { DashboardButton, DashboardButtonLink } from '@/components/dashboard/dashboard-button';
 import {
   DashboardDropdownMenu,
@@ -98,13 +101,29 @@ export function WidgetListCard({
   buildSnippet: (w: WidgetListItem, origin: string) => string;
 }) {
   const agentLabel = w.agentName?.trim() || 'Sin agente';
+  const subtitle = w.agentName?.trim()
+    ? `Chat publicado · ${agentLabel}`
+    : 'Sin agente asignado';
 
   return (
     <DashboardResourceCard
       className={expanded ? 'is-open' : ''}
       inactive={!isActive}
       accentColor={w.color}
-      avatar={<WidgetAvatar widgetId={w._id} color={w.color} avatarUrl={w.avatar} size="md" />}
+      avatar={
+        w.avatar ? (
+          <WidgetAvatar widgetId={w._id} color={w.color} avatarUrl={w.avatar} size="md" />
+        ) : (
+          <AgentInitialsBadge
+            name={w.name}
+            seed={w._id}
+            accentColor={w.color}
+            inactive={!isActive}
+            filled
+            size="sm"
+          />
+        )
+      }
       statusLabel={isActive ? 'Activo' : 'Inactivo'}
       statusOn={isActive}
       headerAction={
@@ -126,6 +145,10 @@ export function WidgetListCard({
             {isActive ? <PowerOff size={13} /> : <Power size={13} />}
             {isActive ? 'Desactivar' : 'Activar'}
           </DashboardMenuItem>
+          <DashboardMenuItem href={`/dashboard/widget-preview?id=${w._id}`}>
+            <Play size={13} />
+            Probar chat
+          </DashboardMenuItem>
           <DashboardMenuItem onClick={onToggleCode}>
             <Code2 size={13} />
             Código embed
@@ -146,7 +169,8 @@ export function WidgetListCard({
         </DashboardDropdownMenu>
       }
       title={w.name}
-      subtitle={agentLabel}
+      subtitle={subtitle}
+      subtitleTitle={agentLabel}
       tags={
         <>
           <ResourceCardTag>{formatPosition(w.position)}</ResourceCardTag>
@@ -164,16 +188,18 @@ export function WidgetListCard({
             variant="secondary"
             className="resource-card__btn"
           >
-            Editar
+            Configurar
           </DashboardButtonLink>
-          <DashboardButtonLink
-            href={`/dashboard/widget-preview?id=${w._id}`}
+          <DashboardButton
             variant="secondary"
             className="resource-card__btn resource-card__btn--muted"
-            title="Probar el chat"
+            disabled={toggling}
+            title={isActive ? 'Desactivar widget' : 'Activar widget'}
+            onClick={onToggleActive}
           >
-            Probar
-          </DashboardButtonLink>
+            {isActive ? <Pause size={12} /> : <Play size={12} />}
+            {isActive ? 'Pausar' : 'Activar'}
+          </DashboardButton>
         </>
       }
       embed={
