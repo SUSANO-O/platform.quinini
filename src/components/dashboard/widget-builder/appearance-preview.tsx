@@ -6,6 +6,7 @@ import { initialsFromName } from '@/lib/flow-editor/geometry';
 import type { WidgetConfig } from '@/lib/widget-builder';
 import { aiBeamShowsInput, aiBeamShowsMessages } from '@/lib/widget-builder';
 import { BorderBeamField } from '@/components/ui/border-beam-field';
+import { ThinkingIconMark } from '@/components/dashboard/widget-builder/thinking-icon-mark';
 import { widgetPositionLabel } from './ui';
 
 type PreviewCfg = Pick<
@@ -40,6 +41,8 @@ type PreviewCfg = Pick<
   | 'scrollHaloBlur'
   | 'scrollHaloTop'
   | 'scrollHaloBottom'
+  | 'thinkingIconEnabled'
+  | 'thinkingIcon'
 >;
 
 function parseRadiusPx(value: string): number {
@@ -210,10 +213,17 @@ export function WidgetBuilderAppearancePreview({ cfg }: { cfg: PreviewCfg }) {
                   duration={cfg.aiBeamSpeed}
                   colorVariant={beamVariant}
                 >
-                  <div className="wb-preview__thinking-card">
-                    <p className="wb-preview__thinking-caption">Consultando documentos indexados…</p>
-                    <p className="wb-preview__thinking-sub">Buscando en la base de conocimiento</p>
-                    <p className="wb-preview__thinking-state">Pensando</p>
+                  <div
+                    className="wb-preview__thinking-card"
+                    style={{ ['--wb-accent' as string]: cfg.color }}
+                  >
+                    <div className="wb-preview__thinking-row">
+                      <p className="wb-preview__thinking-caption">Pensando</p>
+                      {cfg.thinkingIconEnabled ? (
+                        <ThinkingIconMark kind={cfg.thinkingIcon || 'rubik'} />
+                      ) : null}
+                    </div>
+                    <p className="wb-preview__thinking-state">Buscando en la base de conocimiento</p>
                   </div>
                 </BorderBeamField>
               ) : null}

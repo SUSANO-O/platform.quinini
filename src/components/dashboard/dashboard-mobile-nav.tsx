@@ -11,11 +11,11 @@ import IconButton from '@mui/material/IconButton';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import Badge from '@mui/material/Badge';
 import Paper from '@mui/material/Paper';
 import { X as CloseIcon } from '@/components/ui/icons';
 import {
   buildDashboardNavGroups,
+  InboxBadge,
   SIDEBAR_TOUR_KEY_BY_HREF,
   isActive,
   type SidebarUser,
@@ -123,8 +123,8 @@ export function DashboardMobileNav({
                       <Icon size={20} strokeWidth={1.75} aria-hidden />
                     </ListItemIcon>
                     <ListItemText primary={item.label} />
-                    {item.href === '/dashboard/inbox' && inboxOpenCount > 0 ? (
-                      <Badge badgeContent={inboxOpenCount > 99 ? '99+' : inboxOpenCount} color="error" />
+                    {item.href === '/dashboard/inbox' ? (
+                      <InboxBadge count={inboxOpenCount} collapsed={false} />
                     ) : null}
                   </ListItemButton>
                 );

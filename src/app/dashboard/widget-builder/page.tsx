@@ -37,6 +37,7 @@ import {
   mergeWidgetAppearanceFromApi,
   normalizeAiBeamFields,
   normalizeScrollHaloFields,
+  normalizeThinkingIconFields,
   pickWidgetAppearancePatch,
   WIDGET_STEP_DESCRIPTIONS,
   WIDGET_WIZARD_STEPS,
@@ -380,6 +381,7 @@ export default function WidgetBuilderPage() {
               ),
               ...normalizeAiBeamFields(widget as Record<string, unknown>),
               ...normalizeScrollHaloFields(widget as Record<string, unknown>),
+              ...normalizeThinkingIconFields(widget as Record<string, unknown>),
             });
             if (Array.isArray(widget.shortcuts)) {
               setShortcuts((widget.shortcuts as WidgetShortcut[]).map((s) => ({

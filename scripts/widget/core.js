@@ -8,7 +8,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.6.142';
+  var VERSION = '1.6.159';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -503,6 +503,8 @@
     scrollHaloBlur: 10,
     scrollHaloTop: true,
     scrollHaloBottom: true,
+    thinkingIconEnabled: true,
+    thinkingIcon: 'rubik',
     /** Idioma BCP-47 para STT/TTS, por defecto detecta del navegador */
     voiceLang: '',
     /** Nombre exacto de la voz SpeechSynthesis; vacío = auto */
@@ -726,7 +728,9 @@
           'scrollHaloOpacity',
           'scrollHaloBlur',
           'scrollHaloTop',
-          'scrollHaloBottom'
+          'scrollHaloBottom',
+          'thinkingIconEnabled',
+          'thinkingIcon'
         ];
         var ri;
         for (ri = 0; ri < remoteWins.length; ri++) {
@@ -897,6 +901,9 @@
     merged.scrollHaloBlur = scrollHalo.blur;
     merged.scrollHaloTop = scrollHalo.top;
     merged.scrollHaloBottom = scrollHalo.bottom;
+    var thinkingIcon = normalizeThinkingIconConfig(merged);
+    merged.thinkingIconEnabled = thinkingIcon.enabled;
+    merged.thinkingIcon = thinkingIcon.kind;
     return merged;
   }
 
@@ -3310,7 +3317,7 @@
       return { title: s, sub: '' };
     }
 
-    /** Badge inferior desvanecido: etapa corta (tools, delegación, etc.). */
+    /** Líneas que rotan en el footer gris (detalle SSE + copy de espera). */
     function thinkingRotationLines(phase, serverMsg) {
       var base = sanitizeThinkingStatusText(serverMsg) || widgetStatusCaptionForPhase(phase);
       var extras = {
@@ -3360,19 +3367,23 @@
       if (phase !== rawPhase) server = widgetStatusCaptionForPhase(phase);
       var lines = thinkingRotationLines(phase, server);
       var idx = Math.floor(rotElapsed / 1100) % lines.length;
-      if (capEl.getAttribute('data-rot') === String(idx) + ':' + phase) return;
-      capEl.setAttribute('data-rot', String(idx) + ':' + phase);
-      capEl.textContent = lines[idx];
-      var footer = thinkingFooterForElapsed(el.getAttribute('data-phase') || '', elapsed);
+      var rotKey = String(idx) + ':' + phase;
+      if (capEl.getAttribute('data-rot') === rotKey) return;
+      capEl.setAttribute('data-rot', rotKey);
+      var stage = thinkingFooterForElapsed(el.getAttribute('data-phase') || '', elapsed);
       var stateEl = el.querySelector('.afhub-thinking-state');
       var footerEl = el.querySelector('.afhub-thinking-footer');
-      if (stateEl) {
-        if (footer) {
-          stateEl.textContent = footer;
-          if (footerEl) footerEl.style.display = '';
-        } else {
+      if (stage) {
+        capEl.textContent = stage;
+        if (stateEl) {
+          stateEl.textContent = lines[idx];
+          if (footerEl) footerEl.style.visibility = 'visible';
+        }
+      } else {
+        capEl.textContent = lines[idx];
+        if (stateEl) {
           stateEl.textContent = '';
-          if (footerEl) footerEl.style.display = 'none';
+          if (footerEl) footerEl.style.visibility = 'hidden';
         }
       }
     }
@@ -3397,13 +3408,16 @@
       return '';
     }
 
-    /** Caption = mensaje SSE; footer = etapa desvanecida abajo. */
+    /** Caption negra = etapa corta; footer gris = mensaje SSE (detalle). */
     function resolveThinkingDisplay(statusLabel, statusPhase) {
       var server = sanitizeThinkingStatusText(statusLabel);
       var phase = String(statusPhase || '').trim();
-      var caption = server || widgetStatusCaptionForPhase(phase);
-      var footer = thinkingFooterState(phase);
-      return { caption: caption, sub: '', footer: footer };
+      var detail = server || widgetStatusCaptionForPhase(phase);
+      var stage = thinkingFooterState(phase);
+      if (stage) {
+        return { caption: stage, sub: '', footer: detail, detail: detail };
+      }
+      return { caption: detail, sub: '', footer: '', detail: detail };
     }
 
     /** @deprecated use resolveThinkingDisplay */
@@ -3481,7 +3495,7 @@
       var footerEl = el.querySelector('.afhub-thinking-footer');
       var stateEl = el.querySelector('.afhub-thinking-state');
       if (capEl && capEl.getAttribute('data-slow') !== '1') {
-        capEl.setAttribute('data-server', display.caption || '');
+        capEl.setAttribute('data-server', display.detail || display.footer || display.caption || '');
         capEl.removeAttribute('data-rot');
         capEl.textContent = display.caption;
         capEl.style.display = '';
@@ -3493,15 +3507,296 @@
       if (stateEl) {
         if (display.footer) {
           stateEl.textContent = display.footer;
-          if (footerEl) footerEl.style.display = '';
+          if (footerEl) footerEl.style.visibility = 'visible';
         } else {
           stateEl.textContent = '';
-          if (footerEl) footerEl.style.display = 'none';
+          if (footerEl) footerEl.style.visibility = 'hidden';
         }
       }
       if (statusPhase) el.setAttribute('data-phase', String(statusPhase));
       else el.removeAttribute('data-phase');
       thinkingRotateStartedAt = Date.now();
+    }
+
+    var stopRubikTurns = null;
+    var RUBIK_STEP = 5.55;
+    var RUBIK_TURN_MS = 2100;
+
+    function thinkingRubikTile(side, color) {
+      return (
+        '<span class="afhub-rk-tile afhub-rk-tile--' +
+        side +
+        (color ? ' afhub-rk-tile--' + color : ' afhub-rk-tile--inner') +
+        '">' +
+        (color ? '<span class="afhub-rk-sticker"></span>' : '') +
+        '</span>'
+      );
+    }
+
+    function thinkingRubikCubie(x, y, z) {
+      return (
+        '<span class="afhub-rk-cubie" data-x="' +
+        x +
+        '" data-y="' +
+        y +
+        '" data-z="' +
+        z +
+        '" style="transform:translate3d(' +
+        x * RUBIK_STEP +
+        'px,' +
+        -y * RUBIK_STEP +
+        'px,' +
+        z * RUBIK_STEP +
+        'px)">' +
+        thinkingRubikTile('front', z === 1 ? 'g' : '') +
+        thinkingRubikTile('back', z === -1 ? 'b' : '') +
+        thinkingRubikTile('right', x === 1 ? 'r' : '') +
+        thinkingRubikTile('left', x === -1 ? 'o' : '') +
+        thinkingRubikTile('top', y === 1 ? 'w' : '') +
+        thinkingRubikTile('bottom', y === -1 ? 'y' : '') +
+        '</span>'
+      );
+    }
+
+    function thinkingRubikHtml() {
+      var html = '<span class="afhub-thinking-cube">';
+      var x;
+      var y;
+      var z;
+      for (x = -1; x <= 1; x++) {
+        for (y = -1; y <= 1; y++) {
+          for (z = -1; z <= 1; z++) {
+            if (x === 0 && y === 0 && z === 0) continue;
+            html += thinkingRubikCubie(x, y, z);
+          }
+        }
+      }
+      return html + '</span>';
+    }
+
+    function bakeRubikCubie(el, axis, deg) {
+      var x = Number(el.getAttribute('data-x'));
+      var y = Number(el.getAttribute('data-y'));
+      var z = Number(el.getAttribute('data-z'));
+      var nx = x;
+      var ny = y;
+      var nz = z;
+      if (axis === 'y') {
+        if (deg > 0) {
+          nx = z;
+          nz = -x;
+        } else {
+          nx = -z;
+          nz = x;
+        }
+      } else if (axis === 'x') {
+        if (deg > 0) {
+          ny = -z;
+          nz = y;
+        } else {
+          ny = z;
+          nz = -y;
+        }
+      } else if (deg > 0) {
+        nx = -y;
+        ny = x;
+      } else {
+        nx = y;
+        ny = -x;
+      }
+      el.setAttribute('data-x', String(nx));
+      el.setAttribute('data-y', String(ny));
+      el.setAttribute('data-z', String(nz));
+      var add =
+        axis === 'x'
+          ? 'rotateX(' + deg + 'deg)'
+          : axis === 'y'
+            ? 'rotateY(' + deg + 'deg)'
+            : 'rotateZ(' + deg + 'deg)';
+      var prev = el.getAttribute('data-r') || '';
+      el.setAttribute('data-r', add + (prev ? ' ' + prev : ''));
+      el.style.transform =
+        'translate3d(' +
+        nx * RUBIK_STEP +
+        'px,' +
+        -ny * RUBIK_STEP +
+        'px,' +
+        nz * RUBIK_STEP +
+        'px) ' +
+        (el.getAttribute('data-r') || '');
+    }
+
+    function applyRubikMoveInstant(cube, axis, layer, deg) {
+      var cubies = cube.querySelectorAll('.afhub-rk-cubie');
+      var slice = [];
+      var i;
+      for (i = 0; i < cubies.length; i++) {
+        if (Number(cubies[i].getAttribute('data-' + axis)) === layer) slice.push(cubies[i]);
+      }
+      for (i = 0; i < slice.length; i++) bakeRubikCubie(slice[i], axis, deg);
+    }
+
+    function rubikRand(n) {
+      return Math.floor(Math.random() * n);
+    }
+
+    function randomRubikMove(prev) {
+      var axes = ['x', 'y', 'z'];
+      var layers = [-1, 0, 1];
+      var degs = [90, -90];
+      var move = [axes[rubikRand(3)], layers[rubikRand(3)], degs[rubikRand(2)]];
+      var guard = 0;
+      while (
+        prev &&
+        guard < 10 &&
+        prev[0] === move[0] &&
+        prev[1] === move[1] &&
+        prev[2] === -move[2]
+      ) {
+        move = [axes[rubikRand(3)], layers[rubikRand(3)], degs[rubikRand(2)]];
+        guard += 1;
+      }
+      return move;
+    }
+
+    function scrambleRubikCube(cube) {
+      var count = 14 + rubikRand(9);
+      var moves = [];
+      var prev = null;
+      var i;
+      var move;
+      for (i = 0; i < count; i++) {
+        move = randomRubikMove(prev);
+        applyRubikMoveInstant(cube, move[0], move[1], move[2]);
+        moves.push(move);
+        prev = move;
+      }
+      return moves;
+    }
+
+    function playRubikMove(cube, axis, layer, deg, done) {
+      var cubies = cube.querySelectorAll('.afhub-rk-cubie');
+      var slice = [];
+      var i;
+      for (i = 0; i < cubies.length; i++) {
+        if (Number(cubies[i].getAttribute('data-' + axis)) === layer) slice.push(cubies[i]);
+      }
+      if (!slice.length) {
+        done();
+        return;
+      }
+      var spin = document.createElement('span');
+      spin.className = 'afhub-rk-spin';
+      cube.appendChild(spin);
+      for (i = 0; i < slice.length; i++) spin.appendChild(slice[i]);
+      var rot =
+        axis === 'x'
+          ? 'rotateX(' + deg + 'deg)'
+          : axis === 'y'
+            ? 'rotateY(' + deg + 'deg)'
+            : 'rotateZ(' + deg + 'deg)';
+      var finished = false;
+      function finish() {
+        if (finished) return;
+        finished = true;
+        spin.removeEventListener('transitionend', onEnd);
+        for (i = 0; i < slice.length; i++) bakeRubikCubie(slice[i], axis, deg);
+        while (spin.firstChild) cube.appendChild(spin.firstChild);
+        if (spin.parentNode) spin.parentNode.removeChild(spin);
+        done();
+      }
+      function onEnd(evt) {
+        if (evt && evt.target !== spin) return;
+        finish();
+      }
+      spin.addEventListener('transitionend', onEnd);
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          spin.style.transform = rot;
+        });
+      });
+      setTimeout(finish, RUBIK_TURN_MS + 120);
+    }
+
+    function startRubikTurns(cube) {
+      if (!cube) return function () {};
+      var reduce =
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduce) return function () {};
+      var stopped = false;
+      var timers = [];
+      function later(fn, ms) {
+        var t = setTimeout(fn, ms);
+        timers.push(t);
+        return t;
+      }
+      function assemble() {
+        if (stopped || !cube.isConnected) return;
+        var moves = scrambleRubikCube(cube);
+        var i = moves.length - 1;
+        function step() {
+          if (stopped || !cube.isConnected) return;
+          if (i < 0) {
+            later(assemble, 900);
+            return;
+          }
+          var move = moves[i];
+          i -= 1;
+          playRubikMove(cube, move[0], move[1], -move[2], function () {
+            later(step, 600);
+          });
+        }
+        later(step, 280);
+      }
+      assemble();
+      return function () {
+        stopped = true;
+        var t;
+        for (t = 0; t < timers.length; t++) clearTimeout(timers[t]);
+      };
+    }
+
+    function thinkingGlyphHtml() {
+      var icon = normalizeThinkingIconConfig(cfg);
+      if (!icon.enabled) return '';
+      if (icon.kind === 'spark') {
+        return (
+          '<span class="afhub-thinking-glyph afhub-thinking-glyph--spark" aria-hidden="true">' +
+            '<svg class="afhub-thinking-spark" viewBox="0 0 16 16" width="13" height="13">' +
+              '<path fill="currentColor" d="M8 .4 9.05 6.45 15.6 8 9.05 9.55 8 15.6 6.95 9.55.4 8l6.55-1.55z"/>' +
+            '</svg>' +
+          '</span>'
+        );
+      }
+      if (icon.kind === 'orb') {
+        return '<span class="afhub-thinking-glyph afhub-thinking-glyph--orb" aria-hidden="true"><span class="afhub-thinking-orb"></span></span>';
+      }
+      if (icon.kind === 'atom') {
+        return (
+          '<span class="afhub-thinking-glyph afhub-thinking-glyph--atom" aria-hidden="true">' +
+            '<span class="afhub-thinking-atom">' +
+              '<span class="afhub-thinking-atom-core"></span>' +
+              '<span class="afhub-thinking-atom-ring"></span>' +
+              '<span class="afhub-thinking-atom-ring afhub-thinking-atom-ring--b"></span>' +
+            '</span>' +
+          '</span>'
+        );
+      }
+      if (icon.kind === 'pulse') {
+        return (
+          '<span class="afhub-thinking-glyph afhub-thinking-glyph--pulse" aria-hidden="true">' +
+            '<span class="afhub-thinking-pulse-ring"></span>' +
+            '<span class="afhub-thinking-pulse-ring afhub-thinking-pulse-ring--b"></span>' +
+            '<span class="afhub-thinking-pulse-dot"></span>' +
+          '</span>'
+        );
+      }
+      return (
+        '<span class="afhub-thinking-glyph afhub-thinking-glyph--rubik" aria-hidden="true">' +
+          thinkingRubikHtml() +
+        '</span>'
+      );
     }
 
     function renderThinkingCard(el, statusLabel, statusPhase) {
@@ -3512,9 +3807,12 @@
         '</div>' +
         '<div class="afhub-thinking-inner">' +
           '<div class="afhub-thinking-body">' +
-            '<p class="afhub-thinking-caption" data-server="' + escapeHtml(display.caption) + '">' + escapeHtml(display.caption) + '</p>' +
+            '<div class="afhub-thinking-row">' +
+              '<p class="afhub-thinking-caption" data-server="' + escapeHtml(display.detail || display.footer || display.caption) + '">' + escapeHtml(display.caption) + '</p>' +
+              thinkingGlyphHtml() +
+            '</div>' +
           '</div>' +
-          '<div class="afhub-thinking-footer"' + (display.footer ? '' : ' style="display:none"') + '>' +
+          '<div class="afhub-thinking-footer"' + (display.footer ? '' : ' style="visibility:hidden"') + '>' +
             '<span class="afhub-thinking-state">' + escapeHtml(display.footer) + '</span>' +
           '</div>' +
           '<span class="afhub-thinking-elapsed"></span>' +
@@ -3554,6 +3852,7 @@
       messages.appendChild(row);
       messages.scrollTop = messages.scrollHeight;
       startTypingTimer();
+      stopRubikTurns = startRubikTurns(el.querySelector('.afhub-thinking-cube'));
     }
 
     function updateTypingStatus(statusLabel, statusPhase) {
@@ -3576,6 +3875,10 @@
     }
 
     function hideTyping() {
+      if (typeof stopRubikTurns === 'function') {
+        stopRubikTurns();
+        stopRubikTurns = null;
+      }
       clearTypingTimer();
       setInputAgentBusy(false);
       var row = document.getElementById(typingRowId);
@@ -6323,6 +6626,13 @@
     };
   }
 
+  function normalizeThinkingIconConfig(cfg) {
+    var enabled = !(cfg && cfg.thinkingIconEnabled === false);
+    var kind = String((cfg && cfg.thinkingIcon) || 'rubik').toLowerCase();
+    if (['rubik', 'spark', 'orb', 'atom', 'pulse'].indexOf(kind) === -1) kind = 'rubik';
+    return { enabled: enabled, kind: kind };
+  }
+
   function resolveScrollHaloAccent(haloCfg, brandHex) {
     if (haloCfg.colorMode === 'custom' && haloCfg.color) return haloCfg.color;
     var scrollHaloRgb = hexToRgbOrb(brandHex);
@@ -6652,6 +6962,10 @@
         rootId +
         ' .afhub-thinking-pulse,#' + rootId + ' .afhub-skel-line,#' + rootId + ' .afhub-thinking-dots span { animation:none !important; } #' +
         rootId +
+        ' .afhub-thinking-cube { animation:none !important; } #' +
+        rootId +
+        ' .afhub-thinking-spark,#' + rootId + ' .afhub-thinking-orb,#' + rootId + ' .afhub-thinking-atom-ring,#' + rootId + ' .afhub-thinking-pulse-ring { animation:none !important; } #' +
+        rootId +
         ' .afhub-msg--streaming .afhub-msg-text::after { animation:none !important; opacity:0 !important; } #' +
         rootId +
         ' .afhub-fab-hint-float { animation:none !important; } #' +
@@ -6745,7 +7059,7 @@
       '#' + rootId + ' .afhub-chat.afhub-settings-open .afhub-messages-shell,' +
       '#' + rootId + ' .afhub-chat.afhub-settings-open .afhub-shortcuts-wrap { z-index:0; }' +
       '#' + rootId + '[data-afhub-v="top"] .afhub-chat { transform:scale(.84) translateY(-14px); }' +
-      '#' + rootId + ' .afhub-chat.visible { transform:scale(1) translateY(0); opacity:1; pointer-events:auto; box-shadow:0 16px 48px rgba(15,23,42,.14),0 4px 12px rgba(15,23,42,.08); }' +
+      '#' + rootId + ' .afhub-chat.visible { transform:none; will-change:opacity; opacity:1; pointer-events:auto; box-shadow:0 16px 48px rgba(15,23,42,.14),0 4px 12px rgba(15,23,42,.08); }' +
       '#' + rootId + ' .afhub-chat.afhub-chat--sidebar {' +
         'transition:' +
           'transform .28s cubic-bezier(.34,1.2,.64,1),' +
@@ -7070,8 +7384,8 @@
       '#' + rootId + ' .afhub-tool-tag { font-size:10px; line-height:1.25; letter-spacing:.02em; padding:2px 6px; border-radius:6px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:rgba(0,0,0,.06); color:#5a5a6e; border:1px solid rgba(0,0,0,.08); }' +
       '#' + rootId + ' .afhub-img-wrap { margin-top:10px; max-width:100%; display:flex; flex-direction:column; gap:8px; }' +
       '#' + rootId + ' .afhub-widget-img { display:block; width:100%; max-width:100%; height:auto; vertical-align:middle; }' +
-      '#' + rootId + ' .afhub-msg.bot.afhub-thinking-card { background:transparent !important; border:none !important; box-shadow:none !important; border-radius:14px !important; padding:1px !important; overflow:visible !important; clip-path:none !important; -webkit-clip-path:none !important; }' +
-      '#' + rootId + ' .afhub-thinking-card { display:flex; flex-direction:column; align-items:stretch; justify-content:center; gap:0; padding:1px; width:100%; max-width:100%; min-width:0; align-self:stretch; border-radius:14px; border:none; background:transparent; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; animation:afhub-thinking-in .28s ease-out; position:relative; isolation:isolate; overflow:visible; contain:none; clip-path:none; -webkit-clip-path:none; transition:opacity .22s ease; }' +
+      '#' + rootId + ' .afhub-msg.bot.afhub-thinking-card { background:transparent !important; border:none !important; box-shadow:none !important; border-radius:14px !important; padding:1px !important; width:212px !important; max-width:100% !important; flex:none !important; align-self:flex-start !important; overflow:visible !important; clip-path:none !important; -webkit-clip-path:none !important; }' +
+      '#' + rootId + ' .afhub-thinking-card { display:flex; flex-direction:column; align-items:stretch; justify-content:center; gap:0; padding:1px; width:212px; max-width:100%; min-width:0; flex:none; align-self:flex-start; border-radius:14px; border:none; background:transparent; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; animation:afhub-thinking-in .28s ease-out; position:relative; isolation:isolate; overflow:visible; contain:none; clip-path:none; -webkit-clip-path:none; transition:opacity .22s ease; box-sizing:border-box; }' +
       '#' + rootId + ' .afhub-thinking-card.afhub-thinking-card--pulse { animation:afhub-thinking-in .28s ease-out, afhub-thinking-caption-pulse .32s ease; }' +
       '#' + rootId + ' .afhub-thinking-card::before { content:""; position:absolute; inset:-1px; border-radius:inherit; pointer-events:none; z-index:0; opacity:var(--afhub-beam-glow,.28); filter:blur(4px) saturate(1.15); background:' + rainbowBeamVivid + '; animation:afhub-border-beam-spin var(--afhub-beam-speed-msg,6s) linear infinite, afhub-thinking-glow-pulse 3s ease-in-out infinite; will-change:--afhub-beam-angle,opacity; }' +
       '#' + rootId + ' .afhub-thinking-beam-ring { position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:1; opacity:calc(var(--afhub-beam-intensity,1) * .72); box-sizing:border-box; padding:1px; overflow:hidden; -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0); -webkit-mask-composite:xor; mask-composite:exclude; }' +
@@ -7082,9 +7396,46 @@
       '#' + rootId + '.afhub-ai-beam-scope-input .afhub-thinking-beam-ring,' +
       '#' + rootId + '.afhub-ai-beam-scope-input .afhub-thinking-card::before { display:none !important; }' +
       '#' + rootId + '.afhub-ai-beam-scope-messages .afhub-input-beam-ring { display:none !important; }' +
-      '#' + rootId + ' .afhub-msg-row--typing .afhub-msg-stack { flex:1; min-width:0; width:100%; max-width:100%; }' +
-      '#' + rootId + ' .afhub-thinking-inner { position:relative; z-index:2; display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; gap:10px; padding:12px 14px; border-radius:13px; background:' + msgBubbleBg + '; border:' + msgBubbleBorder + '; box-shadow:' + msgBubbleShadow + '; min-width:0; width:100%; box-sizing:border-box; }' +
+      '#' + rootId + ' .afhub-msg-row--typing .afhub-msg-stack { flex:0 1 auto; min-width:0; width:auto; max-width:100%; }' +
+      '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen .afhub-msg-row--typing .afhub-msg-stack { flex:0 1 auto; width:auto; max-width:100%; }' +
+      '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen .afhub-msg.bot.afhub-thinking-card { width:212px !important; max-width:100% !important; }' +
+      '#' + rootId + ' .afhub-thinking-inner { position:relative; z-index:2; display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; gap:4px; padding:10px 12px; border-radius:13px; background:' + msgBubbleBg + '; border:' + msgBubbleBorder + '; box-shadow:' + msgBubbleShadow + '; min-width:0; width:100%; min-height:62px; box-sizing:border-box; overflow:visible; }' +
       '#' + rootId + ' .afhub-thinking-body { display:flex; flex-direction:column; gap:4px; min-width:0; }' +
+      '#' + rootId + ' .afhub-thinking-row { display:flex; align-items:center; gap:8px; min-width:0; overflow:visible; }' +
+      '#' + rootId + ' .afhub-thinking-glyph { flex:none; width:22px; height:22px; display:flex; align-items:center; justify-content:center; perspective:64px; overflow:visible; transform-style:preserve-3d; }' +
+      '#' + rootId + ' .afhub-thinking-cube { width:17px; height:17px; position:relative; transform-style:preserve-3d; transform:rotateX(-26deg) rotateY(38deg); }' +
+      '#' + rootId + ' .afhub-rk-spin { position:absolute; left:0; top:0; width:17px; height:17px; transform-style:preserve-3d; transform-origin:50% 50%; transition:transform 2.1s cubic-bezier(.4,0,.2,1); }' +
+      '#' + rootId + ' .afhub-rk-cubie { position:absolute; left:50%; top:50%; width:4.9px; height:4.9px; margin:-2.45px 0 0 -2.45px; transform-style:preserve-3d; }' +
+      '#' + rootId + ' .afhub-rk-tile { position:absolute; inset:0; box-sizing:border-box; background:#111; border-radius:0.35px; backface-visibility:hidden; -webkit-backface-visibility:hidden; }' +
+      '#' + rootId + ' .afhub-rk-sticker { position:absolute; inset:0.52px; border-radius:0.55px; box-shadow:inset 0 0.45px 0 rgba(255,255,255,.38), inset 0 -0.3px 0 rgba(0,0,0,.22); }' +
+      '#' + rootId + ' .afhub-rk-tile--front { transform:rotateY(0deg) translateZ(2.48px); }' +
+      '#' + rootId + ' .afhub-rk-tile--back { transform:rotateY(180deg) translateZ(2.48px); }' +
+      '#' + rootId + ' .afhub-rk-tile--right { transform:rotateY(90deg) translateZ(2.48px); }' +
+      '#' + rootId + ' .afhub-rk-tile--left { transform:rotateY(-90deg) translateZ(2.48px); }' +
+      '#' + rootId + ' .afhub-rk-tile--top { transform:rotateX(90deg) translateZ(2.48px); }' +
+      '#' + rootId + ' .afhub-rk-tile--bottom { transform:rotateX(-90deg) translateZ(2.48px); }' +
+      '#' + rootId + ' .afhub-rk-tile--inner { background:#0a0a0a; }' +
+      '#' + rootId + ' .afhub-rk-tile--w .afhub-rk-sticker { background:linear-gradient(155deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,.08) 34%,transparent 52%),#f6f6f6; }' +
+      '#' + rootId + ' .afhub-rk-tile--y .afhub-rk-sticker { background:linear-gradient(155deg,rgba(255,255,255,.42) 0%,rgba(255,255,255,.06) 34%,transparent 52%),#ffd400; }' +
+      '#' + rootId + ' .afhub-rk-tile--r .afhub-rk-sticker { background:linear-gradient(155deg,rgba(255,255,255,.34) 0%,rgba(255,255,255,.05) 34%,transparent 52%),#d20a2e; }' +
+      '#' + rootId + ' .afhub-rk-tile--o .afhub-rk-sticker { background:linear-gradient(155deg,rgba(255,255,255,.34) 0%,rgba(255,255,255,.05) 34%,transparent 52%),#ff6a00; }' +
+      '#' + rootId + ' .afhub-rk-tile--b .afhub-rk-sticker { background:linear-gradient(155deg,rgba(255,255,255,.34) 0%,rgba(255,255,255,.05) 34%,transparent 52%),#0055c8; }' +
+      '#' + rootId + ' .afhub-rk-tile--g .afhub-rk-sticker { background:linear-gradient(155deg,rgba(255,255,255,.34) 0%,rgba(255,255,255,.05) 34%,transparent 52%),#009e55; }' +
+      '#' + rootId + ' .afhub-thinking-glyph { color:' +
+        (isHexColor(cfg.color) ? cfg.color : '#6366f1') +
+        '; }' +
+      '#' + rootId + ' .afhub-thinking-spark { display:block; animation:afhub-thinking-spark 8s ease-in-out infinite; }' +
+      '#' + rootId + ' .afhub-thinking-orb { width:10px; height:10px; border-radius:50%; background:radial-gradient(circle at 32% 28%,#fff 0%,currentColor 42%,#111 100%); box-shadow:0 0 6px ' +
+        colorRgba(cfg.color, 0.5) +
+        '; animation:afhub-thinking-orb 2.8s ease-in-out infinite; }' +
+      '#' + rootId + ' .afhub-thinking-atom { position:relative; width:14px; height:14px; }' +
+      '#' + rootId + ' .afhub-thinking-atom-core { position:absolute; inset:5px; border-radius:50%; background:currentColor; }' +
+      '#' + rootId + ' .afhub-thinking-atom-ring { position:absolute; inset:0; border:1px solid currentColor; border-radius:50%; animation:afhub-thinking-atom 4.8s linear infinite; }' +
+      '#' + rootId + ' .afhub-thinking-atom-ring--b { animation-duration:3.6s; animation-direction:reverse; transform:rotateX(70deg); }' +
+      '#' + rootId + ' .afhub-thinking-glyph--pulse { position:relative; }' +
+      '#' + rootId + ' .afhub-thinking-pulse-dot { width:5px; height:5px; border-radius:50%; background:currentColor; position:relative; z-index:1; }' +
+      '#' + rootId + ' .afhub-thinking-pulse-ring { position:absolute; width:5px; height:5px; border-radius:50%; border:1px solid currentColor; animation:afhub-thinking-pulse-ring 2.2s ease-out infinite; }' +
+      '#' + rootId + ' .afhub-thinking-pulse-ring--b { animation-delay:1.1s; }' +
       '#' + rootId + ' .afhub-thinking-head,' +
       '#' + rootId + ' .afhub-thinking-pulse,' +
       '#' + rootId + ' .afhub-thinking-titles,' +
@@ -7095,16 +7446,16 @@
       '#' + rootId + ' .afhub-skel-line--md,' +
       '#' + rootId + ' .afhub-skel-line--sm,' +
       '#' + rootId + ' .afhub-thinking-dots { display:none !important; }' +
-      '#' + rootId + ' .afhub-thinking-caption { display:-webkit-box; margin:0; flex:none; min-width:0; font-size:13px; font-weight:500; letter-spacing:-.015em; color:#1c1c1e; text-align:left; line-height:1.35; white-space:normal; overflow:hidden; -webkit-line-clamp:2; -webkit-box-orient:vertical; transition:opacity .2s ease; text-decoration:none; border:none; background:transparent; -webkit-text-fill-color:currentColor; -webkit-background-clip:border-box; background-clip:border-box; user-select:none; -webkit-user-select:none; }' +
+      '#' + rootId + ' .afhub-thinking-caption { display:block; margin:0; flex:1; min-width:0; font-size:13px; font-weight:600; letter-spacing:-.015em; color:#1c1c1e; text-align:left; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:opacity .2s ease; text-decoration:none; border:none; background:transparent; -webkit-text-fill-color:currentColor; -webkit-background-clip:border-box; background-clip:border-box; user-select:none; -webkit-user-select:none; }' +
       '#' + rootId + ' .afhub-thinking-sub { display:-webkit-box; margin:0; font-size:11px; font-weight:400; letter-spacing:.01em; color:#9ca3af; line-height:1.35; white-space:normal; overflow:hidden; -webkit-line-clamp:2; -webkit-box-orient:vertical; transition:opacity .2s ease; text-decoration:none; border:none; background:transparent; -webkit-text-fill-color:currentColor; -webkit-background-clip:border-box; background-clip:border-box; user-select:none; -webkit-user-select:none; }' +
-      '#' + rootId + ' .afhub-thinking-footer { display:flex; align-items:center; min-height:14px; padding-top:2px; border-top:none; }' +
-      '#' + rootId + ' .afhub-thinking-state { display:inline-block; font-size:11px; font-weight:500; letter-spacing:.02em; line-height:1; opacity:.72; background:linear-gradient(90deg,#9ca3af 0%,#cbd5e1 42%,#9ca3af 84%); background-size:220% 100%; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; animation:afhub-thinking-shimmer 2.4s ease-in-out infinite; }' +
+      '#' + rootId + ' .afhub-thinking-footer { display:flex; align-items:center; min-height:14px; height:14px; padding-top:0; border-top:none; overflow:hidden; }' +
+      '#' + rootId + ' .afhub-thinking-state { display:block; min-width:0; max-width:100%; font-size:11px; font-weight:500; letter-spacing:.02em; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; opacity:.72; background:linear-gradient(90deg,#9ca3af 0%,#cbd5e1 42%,#9ca3af 84%); background-size:220% 100%; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; animation:afhub-thinking-shimmer 2.4s ease-in-out infinite; }' +
       '#' + rootId + ' .afhub-thinking-meta { display:none; }' +
       '#' + rootId + ' .afhub-thinking-elapsed { display:none; font-size:10px; font-weight:600; letter-spacing:.03em; color:#9ca3af; font-variant-numeric:tabular-nums; }' +
-      '#' + rootId + '.afhub-widget--debug .afhub-thinking-card { border-radius:14px; padding:1.5px; width:100%; min-width:0; clip-path:none; -webkit-clip-path:none; }' +
-      '#' + rootId + '.afhub-widget--debug .afhub-thinking-inner { border-radius:13px; padding:12px 14px; gap:10px; }' +
+      '#' + rootId + '.afhub-widget--debug .afhub-thinking-card { border-radius:14px; padding:1.5px; width:212px; max-width:100%; min-width:0; clip-path:none; -webkit-clip-path:none; }' +
+      '#' + rootId + '.afhub-widget--debug .afhub-thinking-inner { border-radius:13px; padding:10px 12px; gap:4px; min-height:62px; }' +
       '#' + rootId + '.afhub-widget--debug .afhub-thinking-caption,' +
-      '#' + rootId + '.afhub-widget--debug .afhub-thinking-sub { -webkit-line-clamp:unset; display:block; }' +
+      '#' + rootId + '.afhub-widget--debug .afhub-thinking-sub { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }' +
       '#' + rootId + '.afhub-widget--debug .afhub-thinking-meta { display:flex; justify-content:flex-start; min-height:14px; }' +
       '#' + rootId + '.afhub-widget--debug .afhub-thinking-elapsed { display:inline; margin-left:auto; -webkit-text-fill-color:#9ca3af; background:none; animation:none; }' +
       '#' + rootId + ' .afhub-multi-agent-tag { display:inline-flex; align-items:center; margin-bottom:8px; font-size:10px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; padding:3px 8px; border-radius:999px; color:' + cfg.color + '; background:' + cfg.color + '14; border:1px solid ' + cfg.color + '33; }' +
@@ -7376,6 +7727,10 @@
       '#' + rootId + ' .afhub-voice-stop:hover { background:rgba(239,68,68,.08); }' +
       '@keyframes afhub-bounce { to { transform:translateY(-6px); opacity:.4; } }' +
       '@keyframes afhub-thinking-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }' +
+      '@keyframes afhub-thinking-spark { 0%,100%{transform:rotate(0deg) scale(1)} 20%{transform:rotate(70deg) scale(1.08)} 40%{transform:rotate(0deg) scale(1)} 60%{transform:rotate(-55deg) scale(.94)} 80%{transform:rotate(0deg) scale(1)} }' +
+      '@keyframes afhub-thinking-orb { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(.82);opacity:.72} }' +
+      '@keyframes afhub-thinking-atom { from{transform:rotateY(0deg) rotateZ(18deg)} to{transform:rotateY(360deg) rotateZ(18deg)} }' +
+      '@keyframes afhub-thinking-pulse-ring { 0%{transform:scale(1);opacity:.7} 100%{transform:scale(2.8);opacity:0} }' +
       '@keyframes afhub-thinking-caption-pulse { 0% { opacity:.72; } 100% { opacity:1; } }' +
       '@keyframes afhub-thinking-shimmer { 0% { background-position:100% 50%; } 100% { background-position:0% 50%; } }' +
       '@keyframes afhub-msg-fade-in { from { opacity:0; transform:translateY(6px) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } }' +

@@ -1,6 +1,7 @@
 import { BRAND } from '@/lib/brand-colors';
 import { DEFAULT_AI_BEAM } from '@/lib/widget-ai-beam';
 import { DEFAULT_SCROLL_HALO } from '@/lib/widget-scroll-halo';
+import { DEFAULT_THINKING_ICON } from '@/lib/widget-thinking-icon';
 import type { WidgetConfig } from './types';
 
 export const DEFAULT_WIDGET_CONFIG: WidgetConfig = {
@@ -41,4 +42,5 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig = {
   pipelineConfig: null,
   ...DEFAULT_AI_BEAM,
   ...DEFAULT_SCROLL_HALO,
+  ...DEFAULT_THINKING_ICON,
 };
