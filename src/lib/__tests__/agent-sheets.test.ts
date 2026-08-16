@@ -94,6 +94,15 @@ describe('parseGvizCsvChunk', () => {
     expect(rows[0]?.[0]).toBe('REP-0000004');
     expect(rows).toHaveLength(3);
   });
+
+  it('si hay más columnas que el encabezado sintético, rellena col_N', () => {
+    const wide = `"${['REP-0000004', ...Array.from({ length: 16 }, (_, i) => `v${i}`)].join('","')}"`;
+    const { header } = parseGvizCsvChunk(wide, true);
+    expect(header).toHaveLength(17);
+    expect(header[14]).toBe('nota');
+    expect(header[15]).toBe('col_16');
+    expect(header[16]).toBe('col_17');
+  });
 });
 
 describe('sheetDataRowsToA1Range', () => {

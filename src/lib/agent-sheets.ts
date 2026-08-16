@@ -345,7 +345,7 @@ export function parseSimpleCsv(csv: string): { header: string[]; rows: string[][
 }
 
 function fallbackHeaderForWidth(width: number): string[] {
-  const base = [...SHEET_DATA_FALLBACK_HEADER];
+  const base: string[] = [...SHEET_DATA_FALLBACK_HEADER];
   while (base.length < width) base.push(`col_${base.length + 1}`);
   return base.slice(0, Math.max(width, 1));
 }
