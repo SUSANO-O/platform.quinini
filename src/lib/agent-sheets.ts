@@ -24,6 +24,8 @@ export interface SheetEntry {
   range?:      string;   // opcional, ej. "Inventario!A1:F50"
   /** Sync nocturno 3 AM → Mongo (Plus+). Default false. */
   nightlySyncEnabled?: boolean;
+  /** Cabeceras por las que filtrar la matriz; vacío = todas. */
+  filterHeaders?: string[];
 }
 
 /** Sanea nombre a identificador LLM-safe. */
@@ -106,7 +108,7 @@ export function applyTabToUrl(url: string, tab: Pick<SheetTab, 'gid' | 'title'>)
 
 /** Texto combinado para la tool del LLM (cuándo + qué extraer). */
 export function formatSheetToolDescription(
-  entry: Pick<SheetEntry, 'description' | 'matrixNeed' | 'tabTitle' | 'name'>,
+  entry: Pick<SheetEntry, 'description' | 'matrixNeed' | 'tabTitle' | 'name' | 'filterHeaders'>,
 ): string {
   const parts: string[] = [];
   if (entry.tabTitle?.trim()) parts.push(`Pestaña: "${entry.tabTitle.trim()}".`);
@@ -114,7 +116,22 @@ export function formatSheetToolDescription(
   if (when) parts.push(`CUÁNDO USAR: ${when}`);
   const need = entry.matrixNeed?.trim();
   if (need) parts.push(`QUÉ NECESITAS DE LA MATRIZ: ${need}`);
+  const headers = normalizeFilterHeaders(entry.filterHeaders);
+  if (headers.length) parts.push(`FILTRAR POR CABECERAS: ${headers.join(', ')}`);
   return parts.join('\n\n') || `Hoja ${entry.name}`;
+}
+
+export function normalizeFilterHeaders(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const h of raw) {
+    if (typeof h !== 'string') continue;
+    const t = h.trim();
+    if (!t) continue;
+    if (out.some((x) => x.toLowerCase() === t.toLowerCase())) continue;
+    out.push(t);
+  }
+  return out;
 }
 
 function decodeJsQuotedString(raw: string): string {
@@ -249,6 +266,9 @@ export function extractSheetEntries(
       ...(tabGid ? { tabGid } : {}),
       ...(typeof e.range === 'string' && e.range.trim() ? { range: e.range.trim() } : {}),
       nightlySyncEnabled: e.nightlySyncEnabled === true,
+      ...(normalizeFilterHeaders(e.filterHeaders).length
+        ? { filterHeaders: normalizeFilterHeaders(e.filterHeaders) }
+        : {}),
     });
   }
   return out;
@@ -319,6 +339,39 @@ export function buildGvizCsvUrl(params: {
   return u.toString();
 }
 
+export function parseSheetHeaderRow(csv: string): string[] {
+  const first = String(csv || '').split(/\r?\n/).find((l) => l.trim()) ?? '';
+  return parseCsvLine(first).map((c) => c.trim()).filter(Boolean);
+}
+
+export async function fetchPublicSpreadsheetHeaders(params: {
+  spreadsheetId: string;
+  gid?: string | null;
+}): Promise<{ headers: string[]; error?: string }> {
+  const url = buildGvizCsvUrl({
+    spreadsheetId: params.spreadsheetId,
+    gid: params.gid,
+    range: `A1:${SHEET_GVIZ_DEFAULT_MAX_COL}8`,
+  });
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Botiva-SheetsHeaders/1.0)' },
+      signal: AbortSignal.timeout(15_000),
+      redirect: 'follow',
+    });
+    if (!res.ok) {
+      return { headers: [], error: `No accesible (HTTP ${res.status}). ¿El archivo es público?` };
+    }
+    const csv = await res.text();
+    const headers = resolveSheetFilterHeaders(csv);
+    if (!headers.length) return { headers: [], error: 'No se leyeron cabeceras de la pestaña.' };
+    return { headers };
+  } catch (e) {
+    return { headers: [], error: e instanceof Error ? e.message : 'Error al leer cabeceras' };
+  }
+}
+
 function parseCsvLine(line: string): string[] {
   const out: string[] = [];
   let cur = '';
@@ -348,6 +401,30 @@ function fallbackHeaderForWidth(width: number): string[] {
   const base: string[] = [...SHEET_DATA_FALLBACK_HEADER];
   while (base.length < width) base.push(`col_${base.length + 1}`);
   return base.slice(0, Math.max(width, 1));
+}
+
+/** Primera celda tipo SKU / TIPO: es encabezado, no un ítem. */
+export function looksLikeSheetHeaderRow(cells: string[] | undefined): boolean {
+  if (!cells?.length) return false;
+  if (looksLikeSheetDataRow(cells)) return false;
+  const first = String(cells[0] || '').trim();
+  if (!first) return false;
+  if (/^\d+$/.test(first)) return false;
+  if (/[A-Za-zÁÉÍÓÚáéíóúñÑ]/.test(first) && /\d/.test(first)) return false;
+  return /[\p{L}]{2,}/u.test(first);
+}
+
+/** Cabeceras reales de la hoja; nunca una fila REP-* / ítem. */
+export function resolveSheetFilterHeaders(csv: string): string[] {
+  const lines = String(csv || '').split(/\r?\n/).filter((l) => l.trim() !== '');
+  const records = lines.map((l) => parseCsvLine(l).map((c) => c.trim()));
+  for (const row of records) {
+    if (!looksLikeSheetHeaderRow(row)) continue;
+    const headers = row.filter(Boolean);
+    if (headers.length) return headers;
+  }
+  const width = records[0]?.length ?? 0;
+  return fallbackHeaderForWidth(width);
 }
 
 /**

@@ -2,7 +2,6 @@
 
 import {
   Copy,
-  GitBranch,
   MoreVertical,
   Pause,
   Pencil,
@@ -12,6 +11,7 @@ import {
 import { avatarStyleFromSeed } from '@/lib/flow-editor/geometry';
 import { flowStatusLabel, parseFlowTags } from '@/lib/flow-admin';
 import type { FlowListItem } from '@/lib/flow-editor/types';
+import { AgentInitialsBadge } from '@/components/dashboard/agent-initials-badge';
 import { DashboardButton, DashboardButtonLink } from '@/components/dashboard/dashboard-button';
 import {
   DashboardDropdownMenu,
@@ -58,17 +58,13 @@ export function FlowListCard({
       inactive={!published}
       accentColor={accent}
       avatar={
-        <div
-          className="resource-card__icon-badge"
-          style={{
-            color: accent,
-            background: `${accent}14`,
-            boxShadow: `inset 0 0 0 1px ${accent}28`,
-          }}
-          aria-hidden
-        >
-          <GitBranch size={16} />
-        </div>
+        <AgentInitialsBadge
+          name={flow.name}
+          seed={flow.id}
+          inactive={!published}
+          filled
+          size="sm"
+        />
       }
       statusLabel={flowStatusLabel(flow.status)}
       statusOn={published}
@@ -121,7 +117,7 @@ export function FlowListCard({
         <>
           <DashboardButtonLink
             href={`/dashboard/flows/${flow.id}/edit`}
-            variant="primary"
+            variant="secondary"
             className="resource-card__btn"
           >
             <Pencil size={12} />
@@ -130,7 +126,7 @@ export function FlowListCard({
           <DashboardButtonLink
             href={`/dashboard/flows/${flow.id}`}
             variant="secondary"
-            className="resource-card__btn"
+            className="resource-card__btn resource-card__btn--muted"
           >
             Abrir
           </DashboardButtonLink>

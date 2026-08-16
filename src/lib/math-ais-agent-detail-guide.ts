@@ -34,7 +34,7 @@ export const AGENT_DETAIL_TABS = [
     section: 4,
     path: '/dashboard/agents/{agentId}',
     description:
-      'Paso 1: conectar cuentas MCP (Gmail, HubSpot, Calendar, Slack, Maps, MongoDB, PostgreSQL). Paso 2: activar tools del plan. Built-in: webhook, google-sheets, slack, etc. Requiere cuenta conectada en Integraciones MCP.',
+      'Paso 1: conectar cuentas MCP (Gmail, HubSpot, Calendar, Slack, MongoDB, PostgreSQL, WhatsApp, Notion, Zapier). Paso 2: activar herramientas del plan sin cuenta extra (web search, Google Sheets, file-upload, webhook). No duplicar el mismo servicio en ambos pasos.',
   },
   {
     id: 'rag',

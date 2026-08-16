@@ -1527,6 +1527,7 @@
     var typingId = 'afhub-typing-' + id;
     var typingTimerHandle = null;
     var typingStartedAt = 0;
+    var thinkingRotateStartedAt = 0;
     var isOpen = false;
     var isLoading = false;
     var lastAssistUserMessage = '';
@@ -3310,6 +3311,72 @@
     }
 
     /** Badge inferior desvanecido: etapa corta (tools, delegación, etc.). */
+    function thinkingRotationLines(phase, serverMsg) {
+      var base = sanitizeThinkingStatusText(serverMsg) || widgetStatusCaptionForPhase(phase);
+      var extras = {
+        prepare: ['Organizando tu mensaje…', 'Un momento…'],
+        enrich: ['Revisando lo que ya hablamos…', 'Ordenando el hilo…'],
+        validate: ['Confirmando la sesión…'],
+        resolve: ['Conectando con tu asistente…'],
+        hub: ['Pensando la respuesta…', 'Procesando tu mensaje…', 'Ya casi…'],
+        model: ['Redactando…', 'Afinando la respuesta…', 'Casi listo…'],
+        rag: ['Buscando en la base de conocimiento…', 'Revisando documentos…'],
+        tools: ['Consultando datos…', 'Un segundo más…'],
+        mcp: ['Consultando integraciones…', 'Recuperando información…'],
+        triage: ['Viendo cómo ayudarte mejor…', 'Un momento…'],
+        start: ['Pensando la respuesta…', 'Ya casi…'],
+      };
+      var more = extras[phase] || extras.hub;
+      var lines = [base];
+      for (var i = 0; i < more.length; i++) {
+        if (more[i] && more[i] !== base) lines.push(more[i]);
+      }
+      return lines;
+    }
+
+    function thinkingFooterForElapsed(phase, elapsedMs) {
+      var visual = visualThinkingPhase(phase, elapsedMs);
+      return thinkingFooterState(visual);
+    }
+
+    /** Si el servidor se queda en prepare/enrich, el copy pasa a “generando”. */
+    function visualThinkingPhase(phase, elapsedMs) {
+      var p = String(phase || '').trim();
+      if ((p === 'prepare' || p === 'enrich' || p === 'validate') && elapsedMs >= 1100) {
+        return 'model';
+      }
+      return p || 'model';
+    }
+
+    function applyThinkingRotation(el) {
+      if (!el) return;
+      var capEl = el.querySelector('.afhub-thinking-caption');
+      if (!capEl || capEl.getAttribute('data-slow') === '1') return;
+      var elapsed = Date.now() - typingStartedAt;
+      var rotElapsed = Date.now() - (thinkingRotateStartedAt || typingStartedAt);
+      var rawPhase = el.getAttribute('data-phase') || '';
+      var phase = visualThinkingPhase(rawPhase, elapsed);
+      var server = capEl.getAttribute('data-server') || '';
+      if (phase !== rawPhase) server = widgetStatusCaptionForPhase(phase);
+      var lines = thinkingRotationLines(phase, server);
+      var idx = Math.floor(rotElapsed / 1100) % lines.length;
+      if (capEl.getAttribute('data-rot') === String(idx) + ':' + phase) return;
+      capEl.setAttribute('data-rot', String(idx) + ':' + phase);
+      capEl.textContent = lines[idx];
+      var footer = thinkingFooterForElapsed(el.getAttribute('data-phase') || '', elapsed);
+      var stateEl = el.querySelector('.afhub-thinking-state');
+      var footerEl = el.querySelector('.afhub-thinking-footer');
+      if (stateEl) {
+        if (footer) {
+          stateEl.textContent = footer;
+          if (footerEl) footerEl.style.display = '';
+        } else {
+          stateEl.textContent = '';
+          if (footerEl) footerEl.style.display = 'none';
+        }
+      }
+    }
+
     function thinkingFooterState(statusPhase) {
       var phase = String(statusPhase || '').trim();
       if (phase === 'rag') return 'Consultando docs';
@@ -3357,6 +3424,7 @@
     function startTypingTimer() {
       clearTypingTimer();
       typingStartedAt = Date.now();
+      thinkingRotateStartedAt = typingStartedAt;
       typingTimerHandle = setInterval(function () {
         var el = document.getElementById(typingId);
         if (!el) {
@@ -3373,6 +3441,8 @@
             var subSlow = el.querySelector('.afhub-thinking-sub');
             if (subSlow) subSlow.style.display = 'none';
           }
+        } else {
+          applyThinkingRotation(el);
         }
 
         var elapsedEl = el.querySelector('.afhub-thinking-elapsed');
@@ -3384,7 +3454,7 @@
         } else {
           elapsedEl.textContent = sec + ' s';
         }
-      }, 1000);
+      }, 400);
     }
 
     function setInputAgentBusy(busy) {
@@ -3411,6 +3481,8 @@
       var footerEl = el.querySelector('.afhub-thinking-footer');
       var stateEl = el.querySelector('.afhub-thinking-state');
       if (capEl && capEl.getAttribute('data-slow') !== '1') {
+        capEl.setAttribute('data-server', display.caption || '');
+        capEl.removeAttribute('data-rot');
         capEl.textContent = display.caption;
         capEl.style.display = '';
       }
@@ -3429,6 +3501,7 @@
       }
       if (statusPhase) el.setAttribute('data-phase', String(statusPhase));
       else el.removeAttribute('data-phase');
+      thinkingRotateStartedAt = Date.now();
     }
 
     function renderThinkingCard(el, statusLabel, statusPhase) {
@@ -3439,7 +3512,7 @@
         '</div>' +
         '<div class="afhub-thinking-inner">' +
           '<div class="afhub-thinking-body">' +
-            '<p class="afhub-thinking-caption">' + escapeHtml(display.caption) + '</p>' +
+            '<p class="afhub-thinking-caption" data-server="' + escapeHtml(display.caption) + '">' + escapeHtml(display.caption) + '</p>' +
           '</div>' +
           '<div class="afhub-thinking-footer"' + (display.footer ? '' : ' style="display:none"') + '>' +
             '<span class="afhub-thinking-state">' + escapeHtml(display.footer) + '</span>' +
@@ -4960,16 +5033,18 @@
               ? 'Consultando especialistas…'
               : cfg.multiAgentEnabled
                 ? 'Analizando tu consulta…'
-                : '';
+                : widgetStatusCaptionForUserMessage(displayText, 'model');
+      var initialPhase = userImagesPayload.length
+        ? 'vision'
+        : cfg.multiAgentEnabled
+          ? 'triage'
+          : 'model';
       setInputAgentBusy(true);
-      if (initialTyping) {
-        var initialPhase = userImagesPayload.length ? 'vision' : 'triage';
-        showTyping(initialTyping, initialPhase);
-      }
+      showTyping(initialTyping, initialPhase);
 
       // ── SSE Streaming (cuando el servidor lo soporta) ──────────────────────
       var useStream = cfg.stream !== false && typeof window.ReadableStream !== 'undefined';
-      var streamRevealMinChars = 32;
+      var streamRevealMinChars = 8;
 
       if (useStream) {
         try {

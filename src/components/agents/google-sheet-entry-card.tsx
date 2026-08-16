@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Loader2, RefreshCw, Trash2, ChevronDown, ChevronUp } from '@/components/ui/icons';
 import {
   applyTabToUrl,
@@ -35,6 +35,9 @@ export function GoogleSheetEntryCard({
   const [tabsLoading, setTabsLoading] = useState(false);
   const [tabsError, setTabsError] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [headers, setHeaders] = useState<string[]>([]);
+  const [headersLoading, setHeadersLoading] = useState(false);
+  const [headersError, setHeadersError] = useState('');
 
   const spreadsheetId = extractSpreadsheetId(entry.url);
   const selectedGid = entry.tabGid || extractGid(entry.url) || '';
@@ -69,6 +72,51 @@ export function GoogleSheetEntryCard({
       setTabsLoading(false);
     }
   }, [spreadsheetId, entry.url]);
+
+  const loadHeaders = useCallback(async () => {
+    if (!spreadsheetId || !selectedGid) {
+      setHeaders([]);
+      return;
+    }
+    setHeadersLoading(true);
+    setHeadersError('');
+    try {
+      const res = await fetch(
+        `/api/sheets/headers?url=${encodeURIComponent(entry.url)}&gid=${encodeURIComponent(selectedGid)}`,
+        { credentials: 'include' },
+      );
+      const data = await res.json() as { headers?: string[]; error?: string };
+      if (!res.ok) {
+        setHeaders([]);
+        setHeadersError(typeof data.error === 'string' ? data.error : 'No se pudieron leer las cabeceras.');
+        return;
+      }
+      setHeaders(Array.isArray(data.headers) ? data.headers.filter((h) => typeof h === 'string' && h.trim()) : []);
+    } catch {
+      setHeadersError('Error de red al leer cabeceras.');
+      setHeaders([]);
+    } finally {
+      setHeadersLoading(false);
+    }
+  }, [spreadsheetId, selectedGid, entry.url]);
+
+  useEffect(() => {
+    if (!spreadsheetId || !selectedGid) return;
+    const t = setTimeout(() => { void loadHeaders(); }, 400);
+    return () => clearTimeout(t);
+  }, [spreadsheetId, selectedGid, loadHeaders]);
+
+  const staleFilterKey = useRef('');
+  useEffect(() => {
+    if (!headers.length || !entry.filterHeaders?.length) return;
+    const key = headers.join('|');
+    if (staleFilterKey.current === key) return;
+    const overlap = entry.filterHeaders.filter((h) => headers.includes(h));
+    if (overlap.length === 0) {
+      staleFilterKey.current = key;
+      onUpdate({ filterHeaders: [] });
+    }
+  }, [headers, entry.filterHeaders, onUpdate]);
 
   useEffect(() => {
     if (!spreadsheetId || readOnly) return;
@@ -281,6 +329,99 @@ export function GoogleSheetEntryCard({
             disabled={readOnly}
           />
         </div>
+
+        <fieldset
+          aria-label="Cabeceras para filtrar"
+          style={{
+            margin: 0,
+            padding: '10px 12px',
+            borderRadius: 10,
+            border: '1px solid var(--border)',
+            background: 'var(--background)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '0 4px' }}>
+              Cabeceras para filtrar
+            </span>
+            {!readOnly ? (
+              <button
+                type="button"
+                onClick={() => void loadHeaders()}
+                disabled={headersLoading || !spreadsheetId || !selectedGid}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: 'var(--primary)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: headersLoading || !spreadsheetId || !selectedGid ? 'not-allowed' : 'pointer',
+                  opacity: headersLoading || !spreadsheetId || !selectedGid ? 0.5 : 1,
+                }}
+              >
+                {headersLoading ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                {headersLoading ? 'Leyendo…' : 'Actualizar cabeceras'}
+              </button>
+            ) : null}
+          </div>
+          <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: '0 0 8px', lineHeight: 1.45 }}>
+            Elige las columnas de esta pestaña (SKU, TIPO, PRECIO…). Si no marcas ninguna, se usan todas. No elijas filas de datos.
+          </p>
+          {headersError ? (
+            <p style={{ fontSize: 10, color: '#d97706', margin: '0 0 6px' }}>{headersError}</p>
+          ) : null}
+          {headersLoading ? (
+            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0 }}>Leyendo cabeceras…</p>
+          ) : headers.length === 0 ? (
+            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0 }}>
+              Elige una pestaña para listar las cabeceras.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {headers.map((h) => {
+                const selected = !entry.filterHeaders?.length || entry.filterHeaders.includes(h);
+                return (
+                  <label
+                    key={h}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: readOnly ? 'not-allowed' : 'pointer',
+                      opacity: readOnly ? 0.55 : 1,
+                      padding: '4px 8px',
+                      borderRadius: 8,
+                      border: `1px solid ${selected ? 'rgba(var(--brand-primary-rgb),0.45)' : 'var(--border)'}`,
+                      background: selected ? 'rgba(var(--brand-primary-rgb),0.08)' : 'transparent',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      disabled={readOnly}
+                      onChange={() => {
+                        const current = entry.filterHeaders?.length ? [...entry.filterHeaders] : [...headers];
+                        const next = current.includes(h)
+                          ? current.filter((x) => x !== h)
+                          : [...current, h];
+                        const ordered = headers.filter((name) => next.includes(name));
+                        onUpdate({
+                          filterHeaders: ordered.length === headers.length ? [] : ordered,
+                        });
+                      }}
+                    />
+                    {h}
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </fieldset>
 
         <button
           type="button"

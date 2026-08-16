@@ -54,10 +54,19 @@ const INTEGRATION_ICONS: Record<string, string> = {
   mongodb: '🍃',
   postgres: '🐘',
   jira: '🎫',
+  google_maps: '🗺️',
+  whatsapp: '📱',
+  notion: '📝',
+  zapier: '⚡',
 };
 
 /** Integraciones con prueba de URI en la landing (`/api/mcp/data-sources/test`). */
 const DATA_SOURCE_INTEGRATION_KEYS = new Set(['mongodb', 'postgres']);
+
+function catalogNeedsAccount(c: CatalogEntry): boolean {
+  const k = c.key.replace(/-/g, '_').toLowerCase();
+  return k !== 'weather' && k !== 'websearch' && k !== 'web_search';
+}
 
 function integrationIcon(key: string): string {
   return INTEGRATION_ICONS[key] ?? '🔌';
@@ -145,7 +154,10 @@ export function McpLandingConnectForm({
   const stdPreviewMatchRef = useRef<string>('');
   const [dsTest, setDsTest] = useState<DsTestPreview>({ kind: 'idle' });
 
-  const primaryCatalog = useMemo(() => catalog, [catalog]);
+  const primaryCatalog = useMemo(
+    () => catalog.filter((c) => catalogNeedsAccount(c)),
+    [catalog],
+  );
 
   const entry = useMemo(
     () => catalog.find((c) => c.key === integrationKey),
@@ -636,13 +648,13 @@ export function McpLandingConnectForm({
             Paso 1 — Conectar una cuenta (MCP)
           </h3>
           <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-            Esto guarda credenciales (OAuth / token) en el hub. No es lo mismo que marcar una tool del plan más abajo:
-            sin cuenta conectada, Gmail o HubSpot no funcionan aunque los veas en la lista del plan.
+            Gmail, HubSpot, Slack, Calendar, MongoDB y similares se conectan aquí (OAuth o clave).
+            Búsqueda web, hojas, archivos y webhook se activan más abajo, en herramientas del plan.
           </p>
           <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-500">Plan actual: {plan}</p>
         </div>
 
-        {primaryCatalog.length > 0 && (
+        {primaryCatalog.length > 0 ? (
           <div
             className="grid gap-3 sm:grid-cols-2"
             role="list"
@@ -650,6 +662,10 @@ export function McpLandingConnectForm({
           >
             {primaryCatalog.map((c) => renderIntegrationCard(c))}
           </div>
+        ) : (
+          <p className="text-xs text-zinc-500">
+            No hay cuentas MCP en el catálogo (solo tools sin login, como el clima).
+          </p>
         )}
 
       </div>

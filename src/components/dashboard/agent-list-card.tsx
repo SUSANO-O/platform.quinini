@@ -1,8 +1,9 @@
 'use client';
 
 import {
-  CircleOff,
   MoreVertical,
+  Pause,
+  Play,
   Power,
   PowerOff,
   Trash2,
@@ -104,6 +105,7 @@ export function AgentListCard({
           seed={agent._id}
           inactive={isDisabled}
           platform={isPlatform}
+          filled
           size="sm"
         />
       }
@@ -172,7 +174,7 @@ export function AgentListCard({
         <>
           <DashboardButtonLink
             href={`/dashboard/agents/${agent._id}`}
-            variant="primary"
+            variant="secondary"
             className={isPlatform ? 'resource-card__btn resource-card__btn--full' : 'resource-card__btn'}
           >
             {isPlatform ? 'Ver agente' : 'Configurar'}
@@ -180,12 +182,12 @@ export function AgentListCard({
           {!isPlatform ? (
             <DashboardButton
               variant="secondary"
-              className="resource-card__btn"
+              className="resource-card__btn resource-card__btn--muted"
               disabled={toggling === agent._id || deleting === agent._id}
               title={isDisabled ? 'Activar agente' : 'Desactivar agente'}
               onClick={() => onToggleStatus(agent)}
             >
-              <CircleOff size={12} />
+              {isDisabled ? <Play size={12} /> : <Pause size={12} />}
               {isDisabled ? 'Activar' : 'Pausar'}
             </DashboardButton>
           ) : null}

@@ -12,6 +12,8 @@ import {
   sheetDataRowsToA1Range,
   splitSheetRowsForMongo,
   stripFixtureRepuestosSheets,
+  extractSheetEntries,
+  resolveSheetFilterHeaders,
 } from '@/lib/agent-sheets';
 
 describe('parseSpreadsheetTabsFromHtml', () => {
@@ -58,6 +60,55 @@ describe('formatSheetToolDescription', () => {
     expect(text).toContain('Pestaña: "Inventario"');
     expect(text).toContain('CUÁNDO USAR');
     expect(text).toContain('QUÉ NECESITAS DE LA MATRIZ');
+  });
+
+  it('lista las cabeceras elegidas para filtrar', () => {
+    const text = formatSheetToolDescription({
+      name: 'sheet_1',
+      description: 'Inventario',
+      filterHeaders: ['referencia', 'precio'],
+    });
+    expect(text).toContain('FILTRAR POR CABECERAS: referencia, precio');
+  });
+});
+
+describe('extractSheetEntries filterHeaders', () => {
+  it('persiste el selector de cabeceras', () => {
+    const entries = extractSheetEntries({
+      sheets: [{
+        id: 'sh_1',
+        name: 'sheet_1',
+        description: 'cuando pregunten stock',
+        url: 'https://docs.google.com/spreadsheets/d/abc123XYZABC123XYZABC/edit',
+        filterHeaders: ['precio', 'referencia', ''],
+      }],
+    });
+    expect(entries[0]?.filterHeaders).toEqual(['precio', 'referencia']);
+  });
+});
+
+describe('resolveSheetFilterHeaders', () => {
+  it('no usa una fila REP-* (Bombillo, Chevrolet) como cabeceras', () => {
+    const csv = [
+      '"REP-0000004","Eléctrico","Bombillo Halógeno H4","TYC","Chevrolet","Aveo","2018-2020","Nuevo","84","878149"',
+      '"REP-0000005","Lubricantes","Aceite de transmisión 75W-90","Fremax","Chevrolet","Tracker"',
+    ].join('\n');
+    const headers = resolveSheetFilterHeaders(csv);
+    expect(headers).not.toContain('REP-0000004');
+    expect(headers).not.toContain('Bombillo Halógeno H4');
+    expect(headers).not.toContain('Chevrolet');
+    expect(headers[0]).toBe('referencia');
+  });
+
+  it('usa SKU TIPO PRODUCTO cuando esa es la primera fila real', () => {
+    const csv = [
+      '"SKU","TIPO","PRODUCTO","MARCA","CARRO","MODELO","AÑO","ESTADO","STOCK","PRECIOU","PRECIO TOTAL","SEDE","TIME","OBSERVATION"',
+      '"REP-0000004","Eléctrico","Bombillo Halógeno H4","TYC","Chevrolet","Aveo","2018-2020","Nuevo","84","878149","613000","Sede Norte - Pasillo D","2024-06-10","Alta rotación"',
+    ].join('\n');
+    expect(resolveSheetFilterHeaders(csv)).toEqual([
+      'SKU', 'TIPO', 'PRODUCTO', 'MARCA', 'CARRO', 'MODELO', 'AÑO', 'ESTADO',
+      'STOCK', 'PRECIOU', 'PRECIO TOTAL', 'SEDE', 'TIME', 'OBSERVATION',
+    ]);
   });
 });
 
