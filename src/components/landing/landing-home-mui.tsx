@@ -201,18 +201,25 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
             <Grid container spacing={1.5}>
             {copy.how.steps.map((s, idx) => (
               <Grid key={s.title} size={{ xs: 12, sm: 6, lg: 4 }}>
-                <article className="landing-how-card landing-how-card--compact">
+                <article
+                  className="landing-how-card landing-how-card--compact"
+                  tabIndex={0}
+                  aria-label={`${s.title}. ${s.desc}`}
+                >
                   <div className="landing-how-card__media">
                     <HowStepMock variant={s.variant} />
                   </div>
                   <div className="landing-how-card__body">
                     <p className="landing-how-card__n">0{idx + 1}</p>
-                    <h3 className="landing-card-title" style={{ margin: '0 0 0.45rem' }}>
+                    <h3 className="landing-card-title landing-how-card__title">
                       {s.title}
                     </h3>
-                    <p className="landing-body-sm" style={{ margin: 0 }}>
-                      {s.desc}
-                    </p>
+                    <span className="landing-how-card__hint" aria-hidden>
+                      +
+                    </span>
+                    <div className="landing-how-card__tooltip" role="tooltip">
+                      <p>{s.desc}</p>
+                    </div>
                   </div>
                 </article>
               </Grid>
