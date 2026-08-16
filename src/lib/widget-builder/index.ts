@@ -22,3 +22,12 @@ export {
   pickWidgetScrollHaloPatch,
 } from '@/lib/widget-scroll-halo';
 export type { ScrollHaloColorMode, ScrollHaloConfig } from '@/lib/widget-scroll-halo';
+export {
+  DEFAULT_THINKING_ICON,
+  THINKING_ICON_OPTIONS,
+  THINKING_ICONS,
+  normalizeThinkingIcon,
+  normalizeThinkingIconFields,
+  thinkingIconLabel,
+} from '@/lib/widget-thinking-icon';
+export type { ThinkingIconConfig, ThinkingIconId } from '@/lib/widget-thinking-icon';

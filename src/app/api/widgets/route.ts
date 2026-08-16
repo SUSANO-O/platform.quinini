@@ -14,6 +14,7 @@ import { normalizeHandoffNotifyMode, normalizeWidgetSupportFields } from '@/lib/
 import { applySoloWidgetDefaults } from '@/lib/solo-plan-limits';
 import { normalizeAiBeamFields } from '@/lib/widget-ai-beam';
 import { normalizeScrollHaloFields } from '@/lib/widget-scroll-halo';
+import { normalizeThinkingIconFields } from '@/lib/widget-thinking-icon';
 
 function getUserId(req: NextRequest): string | null {
   const token = req.cookies.get('afhub_session')?.value;
@@ -148,6 +149,7 @@ export async function POST(req: NextRequest) {
     ...restNormalized,
     ...normalizeAiBeamFields(restNormalized as Record<string, unknown>),
     ...normalizeScrollHaloFields(restNormalized as Record<string, unknown>),
+    ...normalizeThinkingIconFields(restNormalized as Record<string, unknown>),
     name: nameStr,
     userId,
     afhubToken,

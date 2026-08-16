@@ -1,6 +1,7 @@
 import type { HandoffNotifyMode } from '@/lib/handoff-notify';
 import type { PipelineConfig } from '@/lib/widget-pipeline-ui';
 import type { AiBeamPalette, AiBeamScope } from '@/lib/widget-ai-beam';
+import type { ThinkingIconId } from '@/lib/widget-thinking-icon';
 
 export interface WidgetShortcut {
   id: string;
@@ -75,6 +76,9 @@ export interface WidgetConfig {
   scrollHaloBlur: number;
   scrollHaloTop: boolean;
   scrollHaloBottom: boolean;
+  /** Icono animado en la tarjeta “pensando”. */
+  thinkingIconEnabled: boolean;
+  thinkingIcon: ThinkingIconId;
 }
 
 export interface ClientAgentRow {

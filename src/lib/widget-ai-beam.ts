@@ -1,6 +1,7 @@
 /** Borde mágico / modo AI del widget (input + tarjeta “pensando”). */
 import type { WidgetConfig } from '@/lib/widget-builder/types';
 import { normalizeScrollHaloFields } from '@/lib/widget-scroll-halo';
+import { normalizeThinkingIconFields } from '@/lib/widget-thinking-icon';
 
 export const AI_BEAM_SCOPES = ['off', 'input', 'messages', 'both'] as const;
 export type AiBeamScope = (typeof AI_BEAM_SCOPES)[number];
@@ -125,6 +126,7 @@ export function pickWidgetAppearancePatch(cfg: Record<string, unknown>): Record<
     policyLinkLabel: cfg.policyLinkLabel,
     ...normalizeAiBeamFields(cfg),
     ...normalizeScrollHaloFields(cfg),
+    ...normalizeThinkingIconFields(cfg),
   };
 }
 
@@ -159,5 +161,6 @@ export function mergeWidgetAppearanceFromApi<T extends WidgetConfig>(
     policyLinkLabel: String(widget.policyLinkLabel ?? prev.policyLinkLabel),
     ...normalizeAiBeamFields(widget),
     ...normalizeScrollHaloFields(widget),
+    ...normalizeThinkingIconFields(widget),
   };
 }

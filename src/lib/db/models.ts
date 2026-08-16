@@ -166,6 +166,9 @@ const WidgetSchema = new Schema({
   scrollHaloBlur: { type: Number, default: 10 },
   scrollHaloTop: { type: Boolean, default: true },
   scrollHaloBottom: { type: Boolean, default: true },
+  /** Icono animado a la derecha de la etapa en la tarjeta “pensando”. */
+  thinkingIconEnabled: { type: Boolean, default: true },
+  thinkingIcon: { type: String, enum: ['rubik', 'spark', 'orb', 'atom', 'pulse'], default: 'rubik' },
   /** Teléfono WhatsApp (con código de país); el SDK ofrece enlace si humanSupportEnabled. */
   humanSupportPhone: { type: String, default: '' },
   /** Si false, no se muestra oferta WhatsApp por palabras clave ni enlaces wa.me. */

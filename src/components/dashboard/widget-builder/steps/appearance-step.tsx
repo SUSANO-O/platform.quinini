@@ -4,12 +4,14 @@ import type { CSSProperties } from 'react';
 import { AvatarEditor } from '@/components/ui/AvatarEditor';
 import { Sparkles } from '@/components/ui/icons';
 import { BRAND } from '@/lib/brand-colors';
-import type { AiBeamScope, WidgetConfig, WidgetConfigPatch } from '@/lib/widget-builder';
+import type { AiBeamScope, ThinkingIconId, WidgetConfig, WidgetConfigPatch } from '@/lib/widget-builder';
 import {
+  THINKING_ICON_OPTIONS,
   WIDGET_BUILDER_UI_ACCENT,
   aiBeamScopeLabel,
 } from '@/lib/widget-builder';
 import { WidgetBuilderAppearancePreview } from '@/components/dashboard/widget-builder/appearance-preview';
+import { ThinkingIconMark } from '@/components/dashboard/widget-builder/thinking-icon-mark';
 import {
   WidgetBuilderColorField,
   WidgetBuilderField,
@@ -115,6 +117,8 @@ export function WidgetBuilderAppearanceStep({
     | 'scrollHaloBlur'
     | 'scrollHaloTop'
     | 'scrollHaloBottom'
+    | 'thinkingIconEnabled'
+    | 'thinkingIcon'
   >;
   onChange: (patch: WidgetConfigPatch) => void;
   autoSave?: boolean;
@@ -294,6 +298,51 @@ export function WidgetBuilderAppearanceStep({
                 />
               </>
             ) : null}
+          </WidgetBuilderSection>
+
+          <WidgetBuilderSection
+            tourId="widget-builder-thinking-icon"
+            title="Icono de pensando"
+            description="El icono a la derecha de la etapa (Cubo, destello, orbe…). Puedes apagarlo o cambiarlo."
+            bodyClassName="widget-builder-section__body--grid"
+          >
+            <div className="widget-builder-field widget-builder-field--full widget-builder-ai-beam-head">
+              <div className="widget-builder-ai-beam-head__text">
+                <p className="widget-builder-visual-toggles__label">Mostrar icono</p>
+                <p className="widget-builder-visual-toggles__hint">
+                  {cfg.thinkingIconEnabled ? 'Visible en la tarjeta de espera' : 'Oculto'}
+                </p>
+              </div>
+              <WidgetBuilderSwitch
+                checked={cfg.thinkingIconEnabled}
+                accentColor={WIDGET_BUILDER_UI_ACCENT}
+                onChange={(checked) => onChange({ thinkingIconEnabled: checked })}
+                ariaLabel="Mostrar icono de pensando"
+              />
+            </div>
+            <WidgetBuilderField className="widget-builder-field--full">
+              <WidgetBuilderLabel>Estilo</WidgetBuilderLabel>
+              <div className="widget-builder-thinking-icons" role="group" aria-label="Estilo del icono de pensando">
+                {THINKING_ICON_OPTIONS.map((opt) => {
+                  const active = cfg.thinkingIcon === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      title={opt.hint}
+                      aria-pressed={active}
+                      disabled={!cfg.thinkingIconEnabled}
+                      className={`widget-builder-thinking-icons__btn${active ? ' is-active' : ''}`}
+                      style={active ? ({ ['--wb-accent' as string]: cfg.color } as CSSProperties) : undefined}
+                      onClick={() => onChange({ thinkingIcon: opt.id as ThinkingIconId })}
+                    >
+                      <ThinkingIconMark kind={opt.id} />
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </WidgetBuilderField>
           </WidgetBuilderSection>
 
           <WidgetBuilderSection

@@ -26,6 +26,7 @@ import {
   normalizeScrollHaloHeight,
   normalizeScrollHaloOpacity,
 } from '@/lib/widget-scroll-halo';
+import { normalizeThinkingIcon } from '@/lib/widget-thinking-icon';
 import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 import { SOLO_WIDGET_LOCKED } from '@/lib/solo-plan-limits';
 
@@ -81,6 +82,8 @@ const PATCHABLE = [
   'scrollHaloBlur',
   'scrollHaloTop',
   'scrollHaloBottom',
+  'thinkingIconEnabled',
+  'thinkingIcon',
 ] as const;
 
 type PatchableKey = (typeof PATCHABLE)[number];
@@ -148,7 +151,7 @@ export async function PATCH(
   for (const key of PATCHABLE) {
     if (!(key in raw)) continue;
     const v = raw[key];
-    if (key === 'autoOpen' || key === 'fabDismissible' || key === 'voiceEnabled' || key === 'imageUploadEnabled' || key === 'micEnabled' || key === 'active' || key === 'handoffEnabled' || key === 'humanSupportEnabled' || key === 'feedbackEnabled' || key === 'policyEnabled' || key === 'scrollHaloEnabled' || key === 'scrollHaloTop' || key === 'scrollHaloBottom') {
+    if (key === 'autoOpen' || key === 'fabDismissible' || key === 'voiceEnabled' || key === 'imageUploadEnabled' || key === 'micEnabled' || key === 'active' || key === 'handoffEnabled' || key === 'humanSupportEnabled' || key === 'feedbackEnabled' || key === 'policyEnabled' || key === 'scrollHaloEnabled' || key === 'scrollHaloTop' || key === 'scrollHaloBottom' || key === 'thinkingIconEnabled') {
       $set[key] = Boolean(v);
       continue;
     }
@@ -217,6 +220,10 @@ export async function PATCH(
     }
     if (key === 'scrollHaloBlur') {
       $set.scrollHaloBlur = normalizeScrollHaloBlur(v);
+      continue;
+    }
+    if (key === 'thinkingIcon') {
+      $set.thinkingIcon = normalizeThinkingIcon(v);
       continue;
     }
     if (typeof v === 'string') {

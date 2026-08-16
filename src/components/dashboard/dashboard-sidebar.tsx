@@ -33,7 +33,6 @@ import { canUseApiAccess, canUseConversationFlows, effectiveProductPlan, isApiOn
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import Badge from '@mui/material/Badge';
 import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
 import Box from '@mui/material/Box';
@@ -136,21 +135,19 @@ function SoftDivider({ margin }: { margin?: string }) {
   return <Divider aria-hidden sx={{ borderColor: 'divider', margin: margin ?? '8px 0 12px' }} />;
 }
 
-function InboxBadge({ count, collapsed }: { count: number; collapsed: boolean }) {
+export function InboxBadge({ count, collapsed }: { count: number; collapsed: boolean }) {
   if (count <= 0) return null;
   return (
-    <Badge
-      badgeContent={count > 99 ? '99+' : count}
-      color="error"
+    <span
+      className={
+        collapsed
+          ? 'dashboard-sidebar-inbox-badge dashboard-sidebar-inbox-badge--dot'
+          : 'dashboard-sidebar-inbox-badge'
+      }
       aria-label={`${count} solicitudes pendientes`}
-      sx={{
-        ml: collapsed ? 0 : 'auto',
-        position: collapsed ? 'absolute' : 'static',
-        top: collapsed ? 4 : undefined,
-        right: collapsed ? 6 : undefined,
-        '& .MuiBadge-badge': { fontSize: 10, height: 16, minWidth: 16 },
-      }}
-    />
+    >
+      {collapsed ? null : count > 99 ? '99+' : count}
+    </span>
   );
 }
 
@@ -352,6 +349,7 @@ function SidebarNav({
   return (
     <nav
       id="dashboard-sidebar-nav"
+      className="dashboard-sidebar-nav"
       style={{
         flex: 1,
         minHeight: 0,
