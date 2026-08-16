@@ -225,8 +225,16 @@ const TOOL_INTENT_PATTERN =
 const INVENTORY_INTENT_PATTERN =
   /\binventario\b|\bstock\b|\brepuestos?\b|\bsku\b|\boem\b|referencia|\bbodega\b|\bsede\b|\bpasillo\b|hoja de ventas|busca(?:r)?\s+en\s+(?:la\s+)?(?:hoja|inventario|cat[aá]logo)|disponib|(?:tiene(?:n)?|hay|busco|necesito)\s+(?:el|la|los|las|un|una)?\s*\w{4,}/i;
 
+/** El visitante pide que lo contacten o deja datos. Sin vertical. */
+const CONTACT_INTENT_PATTERN =
+  /\b(?:contact(?:ar(?:me|nos|te|los|les)?|o|enme|arme)|me\s+contact(?:an|en|e)|c[oó]mo\s+me\s+(?:contacto|comunico)|c[oó]mo\s+(?:los|les|te)\s+contacto|hablar\s+con|comunica(?:rme|nos)|d[eé]j(?:o|ame|enme)\s+(?:mis\s+)?datos)\b/i;
+
 export function messageLooksInventoryIntent(message: string): boolean {
   return INVENTORY_INTENT_PATTERN.test(message);
+}
+
+export function messageLooksContactIntent(message: string): boolean {
+  return CONTACT_INTENT_PATTERN.test(String(message || ''));
 }
 
 export function messageLooksToolIntent(message: string): boolean {
@@ -240,6 +248,12 @@ export function memberHasSheetInventoryCapability(member: {
     member.capabilities?.items.some((i) => i.kind === 'sheet' || (i.kind === 'tool' && i.id === 'google-sheets')) ??
     false
   );
+}
+
+export function memberHasHubspotCapability(member: {
+  capabilities?: AgentCapabilityProfile;
+}): boolean {
+  return member.capabilities?.items.some((i) => i.kind === 'mcp' && i.id === 'hubspot') ?? false;
 }
 
 function appendDomainCapability(agent: AgentDocForCapabilities, items: AgentCapabilityItem[]): void {

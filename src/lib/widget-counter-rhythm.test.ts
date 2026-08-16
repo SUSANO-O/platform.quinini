@@ -92,8 +92,10 @@ describe('leadCaptureToolsAllowed', () => {
     expect(LEAD_CAPTURE_SKILL_IDS).toContain('sales_closer');
   });
 
-  it('las enciende si piden cita o confirman una pregunta de agenda', () => {
+  it('las enciende si piden cita, contacto o confirman una pregunta de agenda', () => {
     expect(leadCaptureToolsAllowed('agéndame una cita de peritaje', OPEN_HISTORY)).toBe(true);
+    expect(leadCaptureToolsAllowed('vale gracias como me contacto?', OPEN_HISTORY)).toBe(true);
+    expect(leadCaptureToolsAllowed('quiero que me contacten', OPEN_HISTORY)).toBe(true);
     const asked = [{ role: 'model', content: '¿Agendo el peritaje para el jueves?' }];
     expect(leadCaptureToolsAllowed('ok', asked)).toBe(true);
   });
@@ -112,6 +114,7 @@ describe('shouldSkipHeavyWidgetPath', () => {
       shouldSkipHeavyWidgetPath('Que Kia Picanto 2026 tienen en el inventario premium en Bogota?', OPEN_HISTORY),
     ).toBe(false);
     expect(shouldSkipHeavyWidgetPath('agéndame una cita de peritaje', OPEN_HISTORY)).toBe(false);
+    expect(shouldSkipHeavyWidgetPath('como me contacto?', OPEN_HISTORY)).toBe(false);
   });
 
   it('un ok tras una pregunta del bot no se acelera', () => {

@@ -10,7 +10,9 @@ import { listSkillCatalog } from '@/lib/skill-catalog-service';
 import {
   buildAgentCapabilityProfile,
   formatCapabilitySummaryForLlm,
+  memberHasHubspotCapability,
   memberHasSheetInventoryCapability,
+  messageLooksContactIntent,
   messageLooksInventoryIntent,
   messageLooksToolIntent,
   scoreMemberCapabilityMatch,
@@ -477,10 +479,79 @@ export function overrideTriageForInventorySheets(
   primaryOrchestratorId?: string,
 ): TriageResult {
   if (!messageLooksInventoryIntent(message)) return triage;
+  return keepOrchestratorIfCapable(
+    team,
+    triage,
+    primaryOrchestratorId,
+    memberHasSheetInventoryCapability,
+  );
+}
+
+const CATALOG_REPLY_RE =
+  /\$\s*\d|\bstock\b|\bunidades\b|\bpasillo\b|\bsede\b|\bbodega\b|\breferencia\b|\bREP-\d/i;
+const INVENTORY_FOLLOW_RE =
+  /promoci[oó]n|descuento|oferta|cu[aá]l\b|c[oó]mo\s+(?:la\s+)?aplico|m[aá]s\s+info/i;
+
+function lastModelContent(
+  history?: Array<{ role?: string; content?: string } | null> | null,
+): string {
+  if (!Array.isArray(history)) return '';
+  for (let i = history.length - 1; i >= 0; i--) {
+    const h = history[i];
+    if (!h || typeof h !== 'object') continue;
+    const role = String(h.role || '');
+    if (role !== 'model' && role !== 'assistant') continue;
+    return typeof h.content === 'string' ? h.content : '';
+  }
+  return '';
+}
+
+/** Tras una respuesta de hoja (stock/precio), "cuál" / promoción no van al closer sin tools. */
+export function overrideTriageForInventoryFollowUp(
+  message: string,
+  team: TeamMember[],
+  triage: TriageResult,
+  primaryOrchestratorId?: string,
+  history?: Array<{ role?: string; content?: string } | null> | null,
+): TriageResult {
+  if (!INVENTORY_FOLLOW_RE.test(String(message || ''))) return triage;
+  if (!CATALOG_REPLY_RE.test(lastModelContent(history))) return triage;
+  return keepOrchestratorIfCapable(
+    team,
+    triage,
+    primaryOrchestratorId,
+    memberHasSheetInventoryCapability,
+  );
+}
+
+/** Pedir contacto: CRM del orquestador, no un sub-agente sin HubSpot. */
+export function overrideTriageForCrmOnOrchestrator(
+  message: string,
+  team: TeamMember[],
+  triage: TriageResult,
+  primaryOrchestratorId?: string,
+): TriageResult {
+  if (!messageLooksContactIntent(message)) return triage;
+  return keepOrchestratorIfCapable(
+    team,
+    triage,
+    primaryOrchestratorId,
+    memberHasHubspotCapability,
+  );
+}
+
+function keepOrchestratorIfCapable(
+  team: TeamMember[],
+  triage: TriageResult,
+  primaryOrchestratorId: string | undefined,
+  capable: (member: TeamMember) => boolean,
+): TriageResult {
   const primaryId = normalizeAgentId(primaryOrchestratorId);
-  const orchestrator = primaryId ? team.find((m) => m.id === primaryId) : team.find((m) => m.role === 'orchestrator');
-  if (!orchestrator || !memberHasSheetInventoryCapability(orchestrator)) return triage;
-  if (memberHasSheetInventoryCapability(triage.target)) return triage;
+  const orchestrator = primaryId
+    ? team.find((m) => m.id === primaryId)
+    : team.find((m) => m.role === 'orchestrator');
+  if (!orchestrator || !capable(orchestrator)) return triage;
+  if (capable(triage.target)) return triage;
   return {
     target: orchestrator,
     method: 'keyword',
@@ -693,8 +764,24 @@ export async function applyMultiAgentRouting(params: {
   }
 
   const message = typeof parsed.message === 'string' ? parsed.message : '';
+  const history = Array.isArray(parsed.history)
+    ? parsed.history.filter((h): h is { role?: string; content?: string } => Boolean(h) && typeof h === 'object')
+    : undefined;
   let triage = await triageWidgetMessage(message, team, params.config.orchestratorAgentId);
   triage = overrideTriageForInventorySheets(
+    message,
+    team,
+    triage,
+    params.config.orchestratorAgentId,
+  );
+  triage = overrideTriageForInventoryFollowUp(
+    message,
+    team,
+    triage,
+    params.config.orchestratorAgentId,
+    history,
+  );
+  triage = overrideTriageForCrmOnOrchestrator(
     message,
     team,
     triage,
@@ -1238,14 +1325,37 @@ export async function executeParallelMultiAgentFlow(params: {
   if (!getAgentflowhubBaseUrl() || !params.hubSecret.trim()) return null;
 
   let message = '';
+  let history: Array<{ role?: string; content?: string }> | undefined;
   try {
-    const parsed = JSON.parse(params.rawBody) as { message?: string };
+    const parsed = JSON.parse(params.rawBody) as { message?: string; history?: unknown[] };
     message = typeof parsed.message === 'string' ? parsed.message : '';
+    history = Array.isArray(parsed.history)
+      ? parsed.history.filter((h): h is { role?: string; content?: string } => Boolean(h) && typeof h === 'object')
+      : undefined;
   } catch {
     return null;
   }
 
-  const triage = await triageWidgetMessage(message, team, params.config.orchestratorAgentId);
+  let triage = await triageWidgetMessage(message, team, params.config.orchestratorAgentId);
+  triage = overrideTriageForInventorySheets(
+    message,
+    team,
+    triage,
+    params.config.orchestratorAgentId,
+  );
+  triage = overrideTriageForInventoryFollowUp(
+    message,
+    team,
+    triage,
+    params.config.orchestratorAgentId,
+    history,
+  );
+  triage = overrideTriageForCrmOnOrchestrator(
+    message,
+    team,
+    triage,
+    params.config.orchestratorAgentId,
+  );
   params.onPhase?.('triage', buildMultiAgentStatusMessage('triage'));
   const primaryOrch = team.find((m) => m.id === params.config.orchestratorAgentId) ?? team[0];
   const route = resolveRoutableHubAgentId(primaryOrch, triage.target);

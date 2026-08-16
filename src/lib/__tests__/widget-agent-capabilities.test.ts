@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildAgentCapabilityProfile,
+  memberHasHubspotCapability,
+  messageLooksContactIntent,
   messageLooksToolIntent,
   scoreMemberCapabilityMatch,
 } from '../widget-agent-capabilities';
@@ -59,6 +61,26 @@ describe('widget-agent-capabilities', () => {
     expect(messageLooksToolIntent('como puedo mejorar mis finanzas personales')).toBe(false);
     expect(messageLooksToolIntent('tienes conexion a base de datos')).toBe(true);
     expect(messageLooksToolIntent('¿Tienen el SKU ABC-123 en bodega?')).toBe(true);
+  });
+
+  it('detecta pedido de contacto y HubSpot en el perfil', () => {
+    expect(messageLooksContactIntent('vale gracias como me contacto?')).toBe(true);
+    expect(messageLooksContactIntent('cuánto cuesta el plan?')).toBe(false);
+    const profile = buildAgentCapabilityProfile({
+      agent: {
+        name: 'Asesor Taller',
+        enabledMcpToolIds: ['mcp:hubspot:hubspot_create_contact'],
+      },
+      skillCatalog: DEFAULT_AGENT_SKILLS_CATALOG,
+    });
+    expect(
+      memberHasHubspotCapability({
+        name: 'Asesor Taller',
+        description: '',
+        role: 'orchestrator',
+        capabilities: profile,
+      }),
+    ).toBe(true);
   });
 
   it('indexa hojas google-sheets como capacidad sheet', () => {

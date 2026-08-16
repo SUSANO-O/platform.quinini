@@ -99,9 +99,9 @@ export const LEAD_CAPTURE_SKILL_IDS = ['sales_closer', 'objection_handling', 'le
 const KNOWLEDGE_RE =
   /\b(?:precio|precios|cuesta|costar|valor|cotiz(?:ar|aci[oó]n)?|inventario|stock|disponible|cat[aá]logo|brochure|ficha|financi(?:a|aci[oó]n)|cuota|entrada|garant[ií]a|retoma|permuta|cu[aá]nto\s+(?:me\s+)?(?:falt|cuesta|vale|sale|dan)|lista\s+de\s+precios|tienen?\s+(?:en\s+)?(?:el\s+)?(?:inventario|cat[aá]logo)|qu[eé]\s+(?:modelos?|versiones?|planes?|productos?|servicios?))\b/i;
 
-/** Cita, envío, webhook: MCP / calendario / HubSpot sí. */
+/** Cita, envío, contacto, webhook: MCP / calendario / HubSpot sí. */
 const OPERATIONAL_RE =
-  /\b(?:ag[eé]nd|cita|reserv|whatsapp|webhook|env[ií]a(?:me|le)?\s+(?:un\s+)?(?:correo|email|mail)|ll[aá]ma(?:me)?)\b/i;
+  /\b(?:ag[eé]nd|cita|reserv|whatsapp|webhook|env[ií]a(?:me|le)?\s+(?:un\s+)?(?:correo|email|mail)|ll[aá]ma(?:me)?|contact(?:ar(?:me|nos|te|los|les)?|o|enme|arme)|me\s+contact(?:an|en|e)|c[oó]mo\s+me\s+(?:contacto|comunico)|hablar\s+con|comunica(?:rme|nos)|d[eé]j(?:o|ame|enme)\s+(?:mis\s+)?datos)\b/i;
 
 const SHORT_PROCEED = new Set(['ok', 'oka', 'okay', 'vale', 'dale', 'listo', 'si', 'sí', 'yes']);
 
@@ -297,9 +297,9 @@ export function stripLeadingRegreet(
 }
 
 /**
- * Skills de cierre y pedir contacto: solo si el visitante pide agenda/envío
- * o confirma una pregunta de esas tools. La alta HubSpot automática (2 de 3
- * campos ya dichos) no usa esta función.
+ * Skills de cierre y pedir contacto: solo si el visitante pide agenda, envío
+ * o contacto, o confirma una pregunta de esas tools. La alta HubSpot automática
+ * (2 de 3 campos ya dichos) no usa esta función.
  */
 export function leadCaptureToolsAllowed(
   message: string,
