@@ -112,7 +112,7 @@ function AgentRow({ agent }: { agent: LiveAgentPoint }) {
         </div>
         <div style={{ fontSize: 12, color: C.mute, marginTop: 4 }}>
           p95 {fmtSec(agent.p95Sec)}
-          {delta == null
+          {prev == null || delta == null
             ? ' · sin dato anterior'
             : ` · antes ${fmtSec(prev)} (${delta > 0 ? '+' : ''}${fmtSec(delta)})`}
         </div>
