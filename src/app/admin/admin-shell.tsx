@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useAuthSplashLoading } from '@/hooks/use-auth-splash-loading';
 import { useEffect, useState } from 'react';
 import { AiLoadingScreen } from '@/components/ui/ai-loading-screen';
+import { ADMIN_OPS_LIVE_PATH } from '@/lib/admin-ops-live';
 import { LayoutDashboard, Users, LogOut, Shield, UserPlus, BarChart3, Wallet, Box, Network, Bot, Cpu, Menu, X, KeyRound, Activity, FileText, Zap, Sparkles, Clock } from '@/components/ui/icons';
 
 const NAV: Array<{ href: string; label: string; icon: typeof LayoutDashboard; highlight?: boolean }> = [
@@ -14,6 +15,7 @@ const NAV: Array<{ href: string; label: string; icon: typeof LayoutDashboard; hi
   { href: '/admin/skills', label: 'Skills globales', icon: Sparkles, highlight: true },
   { href: '/admin/inference-metrics', label: 'Tokens & Costo LLM', icon: Zap, highlight: true },
   { href: '/admin/widget-latency', label: 'Latencia widget', icon: Clock, highlight: true },
+  { href: ADMIN_OPS_LIVE_PATH, label: 'Observabilidad live', icon: Activity, highlight: true },
   { href: '/admin/user-margins', label: 'Margen por usuario', icon: Wallet, highlight: true },
   { href: '/admin/widget-analytics', label: 'Widgets / uso', icon: BarChart3 },
   { href: '/admin/model-stats', label: 'Modelos', icon: Cpu },

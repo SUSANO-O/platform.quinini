@@ -41,6 +41,38 @@ export function generateSheetId(): string {
   return 'sh_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 }
 
+/** Hoja demo BD_Repuestos_300k — fixture de laboratorio, no inventario de producto. */
+export const FIXTURE_REPUESTOS_SPREADSHEET_ID = '1-VXSM_Fd1mAb2WX_m67PYifzPD5mUqICXMG4IUOF3QE';
+
+export function isFixtureRepuestosSheet(entry: { url?: string } | null | undefined): boolean {
+  const id = extractSpreadsheetId(String(entry?.url || ''));
+  return id === FIXTURE_REPUESTOS_SPREADSHEET_ID;
+}
+
+type LandingToolRow = {
+  toolId: string;
+  config?: { sheets?: Array<{ url?: string }> };
+};
+
+/** Quita la CSV de 300k del agente de producto. Deja otras hojas del cliente. */
+export function stripFixtureRepuestosSheets<T extends LandingToolRow>(tools: T[]): T[] {
+  const out: T[] = [];
+  for (const tool of tools) {
+    if (tool.toolId !== 'google-sheets') {
+      out.push(tool);
+      continue;
+    }
+    const sheets = Array.isArray(tool.config?.sheets) ? tool.config.sheets : [];
+    const kept = sheets.filter((s) => !isFixtureRepuestosSheet(s));
+    if (!kept.length) continue;
+    out.push({
+      ...tool,
+      config: { ...(tool.config || {}), sheets: kept },
+    });
+  }
+  return out;
+}
+
 /** Extrae el spreadsheetId de cualquier formato de URL de Google Sheets. */
 export function extractSpreadsheetId(url: string): string | null {
   if (!url) return null;

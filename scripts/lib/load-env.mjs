@@ -33,8 +33,21 @@ export function loadWidgetTestEnv() {
   loadEnvFile(resolve(landingRoot, '../AIBackHub/.env'));
 }
 
-export const DEFAULT_WIDGET_ID = '6a03a54c4f69fa7fa9027170';
-export const DEFAULT_AGENT_ID = '69d5084c78e0af3d5536fe95';
+export const PROD_WIDGET_ID = '6a03a54c4f69fa7fa9027170';
+export const PROD_AGENT_ID = '69d5084c78e0af3d5536fe95';
+
+function readLabWidget() {
+  try {
+    return JSON.parse(readFileSync(resolve(landingRoot, 'scripts/lab-widget.generated.json'), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+const labWidget = readLabWidget();
+/** Tests pesados: widget lab del admin. Si aún no existe, cae al preview de producto. */
+export const DEFAULT_WIDGET_ID = labWidget?.widgetId || PROD_WIDGET_ID;
+export const DEFAULT_AGENT_ID = labWidget?.agentId || PROD_AGENT_ID;
 
 export function getBaseUrl() {
   return (process.env.BASE_URL || 'http://localhost:3201').replace(/\/$/, '');

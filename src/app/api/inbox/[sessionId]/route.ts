@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { ConversationSession, WidgetMessage, Widget } from '@/lib/db/models';
-import { inboxSessionFilter, inboxTranscriptSessionId, transcriptSessionIdCandidates } from '@/lib/inbox-handoff';
+import { inboxSessionFilter, inboxTranscriptSessionId, setInboxHumanModeForChat, transcriptSessionIdCandidates } from '@/lib/inbox-handoff';
 import { enrichInboxContact } from '@/lib/inbox-visitor-display';
 import { deleteInboxSessionForUser } from '@/lib/inbox-delete';
 import { verifySessionToken } from '@/lib/auth';
@@ -121,13 +121,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   await connectDB();
-  const updated = await ConversationSession.findOneAndUpdate(
-    { sessionId, userId },
-    { $set: { humanMode: body.humanMode } },
-    { new: true },
-  ).lean();
+  const updated = await setInboxHumanModeForChat({
+    userId,
+    sessionId,
+    humanMode: body.humanMode,
+  });
 
-  if (!updated) return NextResponse.json({ error: 'Sesión no encontrada.' }, { status: 404 });
+  if (!updated.ok) return NextResponse.json({ error: 'Sesión no encontrada.' }, { status: 404 });
   return NextResponse.json({ ok: true, sessionId, humanMode: body.humanMode });
 }
 

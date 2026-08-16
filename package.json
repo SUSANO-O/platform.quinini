@@ -41,6 +41,8 @@
     "enable:model-catalog": "node --env-file=.env scripts/enable-model-catalog.mjs",
     "sync:huggingface-catalog": "node --env-file=.env scripts/sync-huggingface-catalog.mjs",
     "inspect:widget": "node --env-file=.env scripts/inspect-widget.mjs",
+    "ensure:prod-lab": "npx tsx --env-file=.env scripts/ensure-prod-sales-and-lab.mts",
+    "ensure:prod-sales": "npx tsx --env-file=.env scripts/ensure-prod-sales-agent.mts",
     "stress:landing": "node --env-file=.env scripts/stress-landing.mjs",
     "stress:landing:widget": "node --env-file=.env scripts/stress-landing.mjs --mode widget",
     "stress:landing:multiagent": "node --env-file=.env scripts/stress-landing.mjs --mode multiagent --concurrency 5 --duration 20",

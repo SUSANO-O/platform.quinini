@@ -3925,7 +3925,13 @@
       messages.appendChild(wrap);
       messages.scrollTop = messages.scrollHeight;
       if (mid) ackHumanRead(mid); // visto si el chat está visible
-      if (!opts.silent) onHumanMessageArrived();
+      if (!opts.silent) {
+        onHumanMessageArrived();
+        if (text) {
+          history.push({ role: 'assistant', content: '[Atención personal] ' + text });
+          saveChatToSession();
+        }
+      }
     }
 
     function resetHumanModeState(msg) {
@@ -3995,8 +4001,12 @@
           if (Array.isArray(data.deletedIds) && data.deletedIds.length) {
             data.deletedIds.forEach(function (id) { removeHumanMessageById(id); });
           }
-          // Sesión resuelta por el agente.
-          if (data.resolved === true) {
+          // Resuelta → despedida. Devolver al bot (humanMode false, inbox abierta) → el AI retoma.
+          var pollAction = (!data) ? 'keep'
+            : (data.resolved === true) ? 'resolved'
+            : (data.humanMode === false) ? 'bot_resumed'
+            : 'keep';
+          if (pollAction === 'resolved') {
             if (feedbackQs.length && !feedbackAlreadyDone()) {
               // Cerrar modo humano y ofrecer la encuesta final.
               deactivateHumanMode();
@@ -4005,6 +4015,8 @@
             } else {
               deactivateHumanMode('La conversación con el agente ha finalizado. ¿Puedo ayudarte en algo más?');
             }
+          } else if (pollAction === 'bot_resumed') {
+            deactivateHumanMode('El asistente retomó la conversación. Puedes seguir escribiendo aquí.');
           }
         })
         .catch(function () { /* silencioso: reintenta en el próximo tick */ });
