@@ -3,6 +3,8 @@
  * derivados de telemetría real (éxito / rapidez), no de un juez LLM.
  */
 
+import { COLOMBIA_OFFSET_MS } from '@/lib/colombia-time';
+
 export const ADMIN_OPS_LIVE_SLUG = '7c3a9f12e8b04d61';
 export const ADMIN_OPS_LIVE_PATH = `/admin/ops/${ADMIN_OPS_LIVE_SLUG}`;
 export const ADMIN_OPS_LIVE_API = `/api/admin/ops/${ADMIN_OPS_LIVE_SLUG}/live`;
@@ -12,6 +14,63 @@ export const ADMIN_OPS_CONSOLE_API = `/api/admin/ops/${ADMIN_OPS_LIVE_SLUG}/cons
 export const SPEED_SLOW_MS = 40_000;
 export const DEFAULT_LIVE_WINDOW_MIN = 15;
 export const MAX_LIVE_AGENTS = 24;
+/** 15 min, 60 min, 24 h, 7 d, 30 d (TTL de WidgetChatLatency). */
+export const LIVE_WINDOW_MINS = [15, 60, 1440, 10_080, 43_200] as const;
+export const LIVE_WINDOW_MIN_SET = new Set<number>(LIVE_WINDOW_MINS);
+
+export function liveWindowLabel(min: number): string {
+  if (min === 1440) return '24 h';
+  if (min >= 1440 && min % 1440 === 0) return `${min / 1440} d`;
+  return `${min} min`;
+}
+
+/** Paso del gráfico: minuto, hora o día. */
+export function liveTimelineStepMin(windowMin: number): number {
+  if (windowMin >= 43_200) return 1440;
+  if (windowMin >= 1440) return 60;
+  return 1;
+}
+
+/** Formato $dateToString (Colombia vía resta de offset). */
+export function liveTimelineMongoFormat(windowMin: number): string {
+  if (windowMin >= 43_200) return '%Y-%m-%d';
+  if (windowMin > 1440) return '%m-%d %H:00';
+  return '%H:%M';
+}
+
+function colombiaShifted(iso: string): Date {
+  return new Date(new Date(iso).getTime() - COLOMBIA_OFFSET_MS);
+}
+
+export function liveTimelineBucketKey(iso: string, windowMin: number): string {
+  const s = colombiaShifted(iso);
+  const y = s.getUTCFullYear();
+  const mo = String(s.getUTCMonth() + 1).padStart(2, '0');
+  const da = String(s.getUTCDate()).padStart(2, '0');
+  const h = String(s.getUTCHours()).padStart(2, '0');
+  const mi = String(s.getUTCMinutes()).padStart(2, '0');
+  if (windowMin >= 43_200) return `${y}-${mo}-${da}`;
+  if (windowMin > 1440) return `${mo}-${da} ${h}:00`;
+  if (windowMin >= 1440) return `${h}:00`;
+  return `${h}:${mi}`;
+}
+
+function floorColombia(iso: string, stepMin: number): Date {
+  const s = colombiaShifted(iso);
+  if (stepMin >= 1440) s.setUTCHours(0, 0, 0, 0);
+  else if (stepMin >= 60) s.setUTCMinutes(0, 0, 0);
+  else s.setUTCSeconds(0, 0);
+  return new Date(s.getTime() + COLOMBIA_OFFSET_MS);
+}
+
+/** Etiqueta corta del eje X (día/mes en ventanas largas). */
+export function formatTimelineTick(minute: string): string {
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(minute);
+  if (day) return `${day[3]}/${day[2]}`;
+  const hour = /^(\d{2})-(\d{2}) \d{2}:\d{2}$/.exec(minute);
+  if (hour) return `${hour[2]}/${hour[1]}`;
+  return minute;
+}
 
 export function isAdminOpsLiveSlug(slug: string | undefined | null): boolean {
   return slug === ADMIN_OPS_LIVE_SLUG;
@@ -85,27 +144,49 @@ export function niceChartAxis(
   return { max, ticks };
 }
 
+function mergeTimelinePoint(
+  byKey: Map<string, LiveTimelinePoint>,
+  key: string,
+  p: LiveTimelinePoint,
+): void {
+  const prev = byKey.get(key);
+  if (!prev) {
+    byKey.set(key, { minute: key, requests: p.requests, avgSec: p.avgSec });
+    return;
+  }
+  const requests = prev.requests + p.requests;
+  const avgSec =
+    requests > 0
+      ? Math.round(((prev.avgSec * prev.requests + p.avgSec * p.requests) / requests) * 10) / 10
+      : 0;
+  byKey.set(key, { minute: key, requests, avgSec });
+}
+
 export function fillLiveTimeline(
   sparse: LiveTimelinePoint[],
   windowMin: number,
   nowIso: string,
 ): LiveTimelinePoint[] {
-  const step = windowMin >= 1440 ? 60 : 1;
+  const step = liveTimelineStepMin(windowMin);
   const n = Math.max(1, Math.round(windowMin / step));
   const byKey = new Map<string, LiveTimelinePoint>();
   for (const p of sparse) {
-    const key = step === 60 ? `${String(p.minute).slice(0, 2).padStart(2, '0')}:00` : p.minute;
-    const prev = byKey.get(key);
-    if (!prev) {
-      byKey.set(key, { minute: key, requests: p.requests, avgSec: p.avgSec });
-      continue;
+    const key =
+      windowMin <= 1440 && step === 60
+        ? `${String(p.minute).slice(0, 2).padStart(2, '0')}:00`
+        : p.minute;
+    mergeTimelinePoint(byKey, key, p);
+  }
+
+  if (windowMin > 1440) {
+    const end = floorColombia(nowIso, step);
+    const out: LiveTimelinePoint[] = [];
+    for (let i = n - 1; i >= 0; i--) {
+      const t = new Date(end.getTime() - i * step * 60_000);
+      const key = liveTimelineBucketKey(t.toISOString(), windowMin);
+      out.push(byKey.get(key) ?? { minute: key, requests: 0, avgSec: 0 });
     }
-    const requests = prev.requests + p.requests;
-    const avgSec =
-      requests > 0
-        ? Math.round(((prev.avgSec * prev.requests + p.avgSec * p.requests) / requests) * 10) / 10
-        : 0;
-    byKey.set(key, { minute: key, requests, avgSec });
+    return out;
   }
 
   const { hour, minute } = bogotaHourMinute(nowIso);

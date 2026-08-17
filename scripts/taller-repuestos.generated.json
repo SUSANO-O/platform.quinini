@@ -1,0 +1,15 @@
+{
+  "agentId": "69d5084c78e0af3d5536fe95",
+  "widgetId": "6a03a54c4f69fa7fa9027170",
+  "subAgentIds": [
+    "6a03a2ff4f69fa7fa9027163",
+    "6a82644dc11d41310ac0021c",
+    "6a82644cc11d41310ac00213"
+  ],
+  "scheduledTasks": [
+    "Informe agotamiento diario",
+    "Resumen semanal bodega"
+  ],
+  "hubId": "ventas",
+  "previewPath": "/dashboard/widget-preview?id=6a03a54c4f69fa7fa9027170"
+}

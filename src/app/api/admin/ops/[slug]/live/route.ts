@@ -1,5 +1,5 @@
 /**
- * GET /api/admin/ops/:slug/live?window=15
+ * GET /api/admin/ops/:slug/live?window=15|60|1440|10080|43200
  * Agregado live por agente. Slug ofuscado; acceso solo sesión admin.
  */
 
@@ -11,16 +11,17 @@ import { ClientAgent, WidgetChatLatency } from '@/lib/db/models';
 import {
   ADMIN_OPS_LIVE_SLUG,
   DEFAULT_LIVE_WINDOW_MIN,
+  LIVE_WINDOW_MIN_SET,
   MAX_LIVE_AGENTS,
   buildLiveAgentView,
   isAdminOpsLiveSlug,
+  liveTimelineMongoFormat,
   type AgentLatencyRow,
 } from '@/lib/admin-ops-live';
 import { COLOMBIA_OFFSET_MS } from '@/lib/colombia-time';
 
 type Params = { params: Promise<{ slug: string }> };
 
-const WINDOW_MIN_ALLOWED = new Set([15, 60, 1440]);
 
 type AggRow = {
   _id?: string;
@@ -100,7 +101,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const url = new URL(req.url);
   const windowMinRaw = Number(url.searchParams.get('window') || DEFAULT_LIVE_WINDOW_MIN);
-  const windowMin = WINDOW_MIN_ALLOWED.has(windowMinRaw) ? windowMinRaw : DEFAULT_LIVE_WINDOW_MIN;
+  const windowMin = LIVE_WINDOW_MIN_SET.has(windowMinRaw) ? windowMinRaw : DEFAULT_LIVE_WINDOW_MIN;
 
   const to = new Date();
   const from = new Date(to.getTime() - windowMin * 60_000);
@@ -117,7 +118,7 @@ export async function GET(req: NextRequest, { params }: Params) {
         $group: {
           _id: {
             $dateToString: {
-              format: '%H:%M',
+              format: liveTimelineMongoFormat(windowMin),
               date: { $subtract: ['$createdAt', COLOMBIA_OFFSET_MS] },
               timezone: 'UTC',
             },

@@ -1,6 +1,6 @@
 'use client';
 
-import { niceChartAxis, pointHasLatency, type LiveTimelinePoint } from '@/lib/admin-ops-live';
+import { formatTimelineTick, niceChartAxis, pointHasLatency, type LiveTimelinePoint } from '@/lib/admin-ops-live';
 import { BRAND, STATE } from '@/lib/brand-colors';
 
 const MUTE = '#9aa3ad';
@@ -249,7 +249,7 @@ export function OpsComboChart({
       })}
       {xLabels.map((i) => (
         <text key={`${points[i].minute}-lbl`} x={xAt(i)} y={h - 10} textAnchor="middle" fill={MUTE} fontSize={11}>
-          {points[i].minute}
+          {formatTimelineTick(points[i].minute)}
         </text>
       ))}
     </svg>

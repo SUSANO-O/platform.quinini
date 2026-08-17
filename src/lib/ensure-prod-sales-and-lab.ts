@@ -1,5 +1,5 @@
 /**
- * Preview 6a03a54c = taller de servicio (producto).
+ * Preview 6a03a54c = departamento de repuestos (producto).
  * Lab en perfil admin = fixture 300k / pruebas pesadas.
  */
 import { randomBytes } from 'crypto';
@@ -7,7 +7,6 @@ import { writeFileSync } from 'fs';
 import { resolve } from 'path';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent, Widget } from '@/lib/db/models';
-import { stripFixtureRepuestosSheets } from '@/lib/agent-sheets';
 import {
   canAttemptHubSync,
   ensureClientAgentHubSynced,
@@ -15,38 +14,16 @@ import {
 } from '@/lib/aibackhub-sync';
 import { resolveAdminOwnerId } from '@/lib/ensure-landing-assist-agents';
 import {
-  PROD_TALLER_NAME,
-  PROD_TALLER_SHORTCUTS,
-  PROD_TALLER_SUBTITLE,
-  PROD_TALLER_SYSTEM_PROMPT,
-  PROD_TALLER_WELCOME,
-  PROD_TALLER_WIDGET_NAME,
-  stripSalesFaqs,
-  stripSalesSkills,
-  stripSalesSkillsConfig,
-} from '@/lib/prod-taller-identity';
+  ensureProdTallerRepuestos,
+  PROD_AGENT_ID,
+  PROD_WIDGET_ID,
+} from '@/lib/ensure-prod-taller-repuestos';
+import { PROD_TALLER_NAME } from '@/lib/prod-taller-identity';
 
-export const PROD_WIDGET_ID = '6a03a54c4f69fa7fa9027170';
-export const PROD_AGENT_ID = '69d5084c78e0af3d5536fe95';
+export { PROD_AGENT_ID, PROD_WIDGET_ID };
 export const LAB_AGENT_NAME = 'Lab Taller (fixture)';
 export const LAB_WIDGET_NAME = 'Lab Taller (fixture)';
 export const LAB_CLOSER_NAME = 'Lab Closer (fixture)';
-
-const PROD_FACTS_RULE = {
-  id: 'prod-no-invented-stock',
-  title: 'No inventar inventario',
-  enabled: true,
-  priority: 200,
-  category: 'general',
-  tone: 'profesional',
-  shortAnswers: true,
-  complaintPolicy: '',
-  unknownAnswerPolicy:
-    'Si el dato no está en RAG ni en una herramienta, di que no lo tienes. No inventes stock, precios ni citas.',
-  interpretedRule:
-    'Nunca cites SKU, sedes, pasillos ni existencias que no hayan salido de una herramienta o del RAG de este agente.',
-  notes: 'Producto vs laboratorio',
-};
 
 function cloneAgentFields(src: Record<string, unknown>, patch: Record<string, unknown>) {
   const skip = new Set(['_id', 'id', 'createdAt', 'updatedAt', '__v']);
@@ -149,52 +126,13 @@ export async function ensureProdSalesAndLabTaller(options?: {
     await labWidget.save();
   }
 
-  const strippedTools = stripFixtureRepuestosSheets(
-    (Array.isArray(prodAgent.tools) ? prodAgent.tools : []) as Array<{
-      toolId: string;
-      config?: { sheets?: Array<{ url?: string }> };
-    }>,
-  );
-  const rules = Array.isArray(prodAgent.behaviorRules) ? [...prodAgent.behaviorRules] : [];
-  if (!rules.some((r) => r && typeof r === 'object' && (r as { id?: string }).id === PROD_FACTS_RULE.id)) {
-    rules.push(PROD_FACTS_RULE);
-  }
-
-  prodAgent.name = PROD_TALLER_NAME;
-  prodAgent.description = 'Taller de servicio y citas. No vende vehículos.';
-  prodAgent.systemPrompt = PROD_TALLER_SYSTEM_PROMPT;
-  prodAgent.tools = strippedTools as typeof prodAgent.tools;
-  prodAgent.behaviorRules = rules.filter((r) => {
-    const text = JSON.stringify(r ?? {});
-    return !/cerrador de ventas|financi|test drive|embudo comercial/i.test(text);
-  }) as typeof prodAgent.behaviorRules;
-  prodAgent.skills = stripSalesSkills(prodAgent.skills);
-  prodAgent.skillsConfig = stripSalesSkillsConfig(
-    (prodAgent.skillsConfig ?? []) as Array<{ id?: string; skillId?: string }>,
-  ) as typeof prodAgent.skillsConfig;
-  prodAgent.agentFaqs = stripSalesFaqs(
-    (prodAgent.agentFaqs ?? []) as Array<{ question?: string }>,
-  ) as typeof prodAgent.agentFaqs;
-  prodAgent.ragEnabled = false;
-  prodAgent.subAgentIds = [];
-  prodAgent.syncStatus = 'pending';
-  await prodAgent.save();
-
-  prodWidget.name = PROD_TALLER_WIDGET_NAME;
-  prodWidget.subtitle = PROD_TALLER_SUBTITLE;
-  prodWidget.welcome = PROD_TALLER_WELCOME;
-  prodWidget.fabHint = 'Asesor de taller';
-  prodWidget.shortcuts = PROD_TALLER_SHORTCUTS;
-  await prodWidget.save();
+  // Producto: departamento de repuestos (prompt, subtareas, crons, hoja inventarios).
+  await ensureProdTallerRepuestos();
 
   let labHubId: string | null =
     typeof labAgent.agentHubId === 'string' && labAgent.agentHubId.trim() ? labAgent.agentHubId.trim() : null;
 
   if (canAttemptHubSync()) {
-    const prodFresh = await ClientAgent.findById(PROD_AGENT_ID);
-    if (prodFresh) {
-      await syncHubCatalogFromLandingAgentDoc(prodFresh).catch(() => {});
-    }
     labHubId = (await ensureClientAgentHubSynced(String(labAgent._id), adminUserId)) || labHubId;
     const labFresh = await ClientAgent.findById(labAgent._id);
     if (labFresh) {
