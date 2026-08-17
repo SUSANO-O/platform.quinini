@@ -62,6 +62,9 @@ steps:
       - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE_NAME}:$SHORT_SHA
       - --region=${_REGION}
       - --platform=managed
+      - --port=3201
+      - --allow-unauthenticated
+      - --ingress=all
       # Conserva env vars y secrets de runtime ya configurados en el servicio.
 
 images:

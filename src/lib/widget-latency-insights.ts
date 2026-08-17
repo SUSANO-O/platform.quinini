@@ -1,6 +1,9 @@
 /**
  * Análisis de cuellos de botella y recomendaciones accionables
  * para /admin/widget-latency.
+ *
+ * `direct-mcp` es el *camino de código* (Gemini vía capa MCP), no “HubSpot corrió”.
+ * Si ese path y `infer-direct` tardan igual, el cuello es el modelo.
  */
 
 export type LatencyPathRow = { path: string; requests: number; avgTotalMs: number };
@@ -44,6 +47,8 @@ export type WidgetLatencyInsights = {
   dominantPhaseGroup: PhaseGroupKey | null;
   dominantPhaseLabel: string | null;
   dominantPhaseAvgMs: number;
+  streamSharePct: number;
+  nonStreamSharePct: number;
   pathGroups: Array<{
     key: PathGroupKey;
     label: string;
@@ -63,10 +68,10 @@ export type WidgetLatencyInsights = {
 };
 
 const PATH_GROUP_LABELS: Record<PathGroupKey, string> = {
-  hub: 'Proxy Hub (AgentFlowhub → AIBackHub)',
-  multi_agent: 'Multi-agente (triaje/handoff)',
-  direct_mcp: 'MCP directo (webhooks/tools)',
-  infer_direct: 'Inferencia directa (/api/models)',
+  hub: 'Proxy Hub → motor',
+  multi_agent: 'Triaje / handoff (LLM extra)',
+  direct_mcp: 'Motor MCP (Gemini; tools si las hay)',
+  infer_direct: 'Inferencia directa (mismo modelo)',
   pipeline_parallel: 'Pipeline / Parallel (2+ LLM)',
   auth_overhead: 'Auth / validación (Mongo)',
   human_mode: 'Modo humano',
@@ -76,11 +81,11 @@ const PATH_GROUP_LABELS: Record<PathGroupKey, string> = {
 
 const PHASE_GROUP_LABELS: Record<PhaseGroupKey, string> = {
   hub: 'Consulta al Hub',
-  multi_agent: 'Multi-agente',
-  direct_mcp: 'MCP / tools',
-  infer_direct: 'Inferencia directa',
+  multi_agent: 'Triaje LLM extra',
+  direct_mcp: 'Bloque motor MCP (incluye LLM)',
+  infer_direct: 'Inferencia del agente',
   auth: 'Auth / enrich',
-  reveal: 'Reveal progresivo (Fase 3)',
+  reveal: 'Reveal progresivo',
   vision: 'Visión / OCR',
   other: 'Otras fases',
 };
@@ -113,13 +118,62 @@ function classifyPhase(phase: string): PhaseGroupKey {
   return 'other';
 }
 
+function fmtSec(ms: number): string {
+  if (ms < 1000) return `${Math.round(ms)} ms`;
+  return `${(ms / 1000).toFixed(1)} s`;
+}
+
+function avgsClose(a: number, b: number, ratio = 0.25): boolean {
+  const m = Math.max(a, b, 1);
+  return Math.abs(a - b) / m <= ratio;
+}
+
+function streamSplit(byPath: LatencyPathRow[]): {
+  streamSharePct: number;
+  nonStreamSharePct: number;
+  streamAvgMs: number;
+  nonStreamAvgMs: number;
+} {
+  let streamN = 0;
+  let streamMs = 0;
+  let nonN = 0;
+  let nonMs = 0;
+  for (const row of byPath) {
+    const p = row.path.toLowerCase();
+    if (p.startsWith('stream')) {
+      streamN += row.requests;
+      streamMs += row.avgTotalMs * row.requests;
+    } else if (p.includes('non-stream') || p.startsWith('non-stream')) {
+      nonN += row.requests;
+      nonMs += row.avgTotalMs * row.requests;
+    }
+  }
+  const total = streamN + nonN;
+  return {
+    streamSharePct: total > 0 ? Math.round((streamN / total) * 1000) / 10 : 0,
+    nonStreamSharePct: total > 0 ? Math.round((nonN / total) * 1000) / 10 : 0,
+    streamAvgMs: streamN > 0 ? Math.round(streamMs / streamN) : 0,
+    nonStreamAvgMs: nonN > 0 ? Math.round(nonMs / nonN) : 0,
+  };
+}
+
+function isModelSaturated(
+  pathGroups: WidgetLatencyInsights['pathGroups'],
+): boolean {
+  const mcp = pathGroups.find((g) => g.key === 'direct_mcp');
+  const infer = pathGroups.find((g) => g.key === 'infer_direct');
+  if (!mcp || !infer || mcp.requests < 20 || infer.requests < 20) return false;
+  if (mcp.avgTotalMs < 12_000 || infer.avgTotalMs < 12_000) return false;
+  return avgsClose(mcp.avgTotalMs, infer.avgTotalMs, 0.25);
+}
+
 function buildRecommendations(
-  dominantPath: PathGroupKey | null,
-  dominantPhase: PhaseGroupKey | null,
   pathGroups: WidgetLatencyInsights['pathGroups'],
   phaseGroups: WidgetLatencyInsights['phaseGroups'],
   avgTotalMs: number,
   revealAvgMs: number,
+  split: ReturnType<typeof streamSplit>,
+  modelSaturated: boolean,
 ): LatencyRecommendation[] {
   const recs: LatencyRecommendation[] = [];
 
@@ -127,68 +181,82 @@ function buildRecommendations(
   const multiPhase = phaseGroups.find((g) => g.key === 'multi_agent');
   const hubGroup = pathGroups.find((g) => g.key === 'hub');
   const mcpGroup = pathGroups.find((g) => g.key === 'direct_mcp');
-  const revealGroup = phaseGroups.find((g) => g.key === 'reveal');
+  const inferGroup = pathGroups.find((g) => g.key === 'infer_direct');
 
-  if (dominantPath === 'pipeline_parallel' || (pipelineGroup && pipelineGroup.sharePct >= 25)) {
+  if (modelSaturated) {
     recs.push({
       priority: 'alta',
-      title: 'Multi-agente pipeline/parallel activo',
+      title: 'El modelo está saturado (no las tools)',
       action:
-        'En Widget Builder, desactiva multi-agente en agentes que no necesiten especialistas. Usa un solo agente cuando baste.',
-      impact: 'Puede reducir 50–75% del tiempo (evita 2–4 llamadas LLM por mensaje).',
-      category: 'pipeline_parallel',
-    });
-  }
-
-  if (
-    dominantPath === 'multi_agent' ||
-    dominantPhase === 'multi_agent' ||
-    (multiPhase && multiPhase.shareOfPhaseTimePct >= 20)
-  ) {
-    recs.push({
-      priority: 'alta',
-      title: 'Triaje multi-agente consume tiempo',
-      action:
-        'Desactiva multiAgentEnabled o cambia a modo simple (sin pipeline/parallel). Considera modelo flash solo para triaje.',
-      impact: '−30% a −60% en agentes con routing complejo.',
-      category: 'multi_agent',
-    });
-  }
-
-  if (dominantPath === 'hub' || dominantPath === 'direct_mcp' || (hubGroup && hubGroup.sharePct >= 40)) {
-    recs.push({
-      priority: 'alta',
-      title: 'El Hub/MCP es el cuello principal',
-      action:
-        'Revisa tools y MCP habilitadas por agente (deja solo las necesarias). Limita rondas de tools. Para agentes simples sin MCP, fuerza inferencia directa.',
-      impact: '−30% a −60% si hay muchas rondas tool + LLM.',
-      category: 'hub',
-    });
-  }
-
-  if (dominantPath === 'direct_mcp' || (mcpGroup && mcpGroup.sharePct >= 15)) {
-    recs.push({
-      priority: 'alta',
-      title: 'MCP / webhooks dominan el path',
-      action:
-        'Audita enabledMcpToolIds y webhooks. Cada ronda suma LLM + API externa. Desactiva tools que no uses en producción.',
-      impact: 'Alto en agentes HubSpot/sheets/webhook.',
-      category: 'direct_mcp',
-    });
-  }
-
-  if (dominantPath === 'infer_direct') {
-    recs.push({
-      priority: 'media',
-      title: 'Inferencia directa (sin hub)',
-      action:
-        'Ya estás en el camino rápido. Optimiza modelo (flash vs pro), reduce historial y skills innecesarias.',
-      impact: 'Marginal si el modelo sigue siendo pesado.',
+        'Motor MCP e inferencia directa tardan casi igual. Eso es espera a Gemini/el LLM, no HubSpot ni webhooks. Semáforo de inflight; no apagues MCP por esta métrica.',
+      impact: 'Quitar tools no baja una media de ~27 s si ambos caminos están lentos.',
       category: 'infer_direct',
     });
   }
 
-  if (revealGroup && revealAvgMs >= 800) {
+  if (pipelineGroup && pipelineGroup.sharePct >= 25) {
+    recs.push({
+      priority: 'alta',
+      title: 'Pipeline/parallel apila 2+ LLM por turno',
+      action:
+        'Cada mensaje dispara varias inferencias. Usa pipeline solo si el producto lo necesita; si no, un orquestador. No es lo mismo que apagar el equipo de ventas.',
+      impact: 'Evitar 2–4 llamadas LLM por mensaje cuando el modo no aporta.',
+      category: 'pipeline_parallel',
+    });
+  }
+
+  if (multiPhase && (multiPhase.avgMs >= 3_000 || multiPhase.shareOfPhaseTimePct >= 20)) {
+    recs.push({
+      priority: 'alta',
+      title: 'El triaje suma un LLM extra por turno',
+      action:
+        'Casi cada mensaje llama a un modelo de triaje y luego al agente. Si el equipo hace falta, no lo apagues: clasificador barato/flash o saltar triaje bajo carga.',
+      impact: 'Quitar ese infer extra recorta ~30–50% del tiempo de turno, sin matar el handoff.',
+      category: 'multi_agent',
+    });
+  }
+
+  if (!modelSaturated && hubGroup && hubGroup.sharePct >= 25) {
+    recs.push({
+      priority: 'alta',
+      title: 'La mayoría del tráfico pasa por el proxy Hub',
+      action:
+        'Revisa AGENTFLOWHUB_URL y el health del Hub. Este path es el proxy, no “MCP/tools”.',
+      impact: 'Si el Hub está lento o caído, todo este porcentaje se arrastra.',
+      category: 'hub',
+    });
+  }
+
+  if (
+    !modelSaturated
+    && mcpGroup
+    && inferGroup
+    && mcpGroup.requests >= 20
+    && inferGroup.requests >= 20
+    && mcpGroup.avgTotalMs > inferGroup.avgTotalMs * 1.3
+  ) {
+    recs.push({
+      priority: 'media',
+      title: 'El camino MCP es más lento que inferencia directa',
+      action:
+        'Ahí sí puede haber rondas de tools. Revisa tools/MCP de ese agente; no confundir con saturación del modelo.',
+      impact: 'Solo aplica si MCP es claramente más lento que /api/models.',
+      category: 'direct_mcp',
+    });
+  }
+
+  if (split.nonStreamSharePct >= 60 && avgTotalMs >= 15_000) {
+    recs.push({
+      priority: 'media',
+      title: 'Esta muestra es casi toda non-stream',
+      action:
+        'El widget de producción ya streamea. Un % alto de non-stream suele ser inyector o clientes viejos. Filtra `stream-*` para ver visitantes.',
+      impact: `Ahora ${split.nonStreamSharePct}% non-stream (~${fmtSec(split.nonStreamAvgMs)}) vs ${split.streamSharePct}% stream (~${fmtSec(split.streamAvgMs)}).`,
+      category: 'general',
+    });
+  }
+
+  if (revealAvgMs >= 800) {
     recs.push({
       priority: 'media',
       title: 'Reveal progresivo añade delay artificial',
@@ -199,13 +267,13 @@ function buildRecommendations(
     });
   }
 
-  if (avgTotalMs >= 15_000) {
+  if (avgTotalMs >= 15_000 && split.streamAvgMs >= 15_000) {
     recs.push({
-      priority: 'alta',
-      title: 'Latencia total muy alta (≥ 15 s)',
+      priority: 'media',
+      title: 'Aun en stream el total sigue alto',
       action:
-        'Prioridad: streaming real TTFT en AIBackHub (el usuario ve texto en 1–3 s aunque el total siga alto).',
-      impact: 'Mejora percepción inmediata; no reduce tiempo total del LLM.',
+        'Streaming mejora percepción (TTFT), no el tiempo total. El recorte real está en triaje extra + cola del modelo.',
+      impact: 'El usuario ve texto antes; la media de 27 s no baja sola.',
       category: 'general',
     });
   }
@@ -215,7 +283,7 @@ function buildRecommendations(
       priority: 'baja',
       title: 'Sin cuello claro aún',
       action:
-        'Genera más tráfico real en el widget (stream y non-stream). Filtra por agentId para ver un agente específico.',
+        'Genera más tráfico real en el widget (stream). Filtra por agentId para ver un agente específico.',
       impact: 'Más datos → decisiones más precisas.',
       category: 'general',
     });
@@ -237,6 +305,7 @@ export function analyzeWidgetLatencyInsights(input: {
 }): WidgetLatencyInsights {
   const { totalRequests, avgTotalMs, byPath, byPhase } = input;
   const hasEnoughData = totalRequests >= 5;
+  const split = streamSplit(byPath);
 
   const pathGroupMap = new Map<PathGroupKey, { requests: number; totalMs: number }>();
   for (const row of byPath) {
@@ -282,23 +351,36 @@ export function analyzeWidgetLatencyInsights(input: {
   const dominantPathGroup = pathGroups[0]?.requests ? pathGroups[0].key : null;
   const dominantPhaseGroup = phaseGroups[0]?.samples ? phaseGroups[0].key : null;
   const revealAvg = phaseGroups.find((g) => g.key === 'reveal')?.avgMs ?? 0;
+  const modelSaturated = isModelSaturated(pathGroups);
 
   const recommendations = buildRecommendations(
-    dominantPathGroup,
-    dominantPhaseGroup,
     pathGroups,
     phaseGroups,
     avgTotalMs,
     revealAvg,
+    split,
+    modelSaturated,
   );
 
   let decisionSummary = 'Aún no hay suficientes requests. Usa el widget en producción o staging y vuelve a revisar.';
   if (hasEnoughData && dominantPathGroup) {
-    const pg = pathGroups[0];
-    decisionSummary = `El ${pg.sharePct}% de los mensajes pasan por «${pg.label}» (prom. ${pg.avgTotalMs} ms). `;
-    if (dominantPhaseGroup) {
-      const ph = phaseGroups[0];
-      decisionSummary += `La fase más costosa es «${ph.label}» (~${ph.avgMs} ms, ${ph.shareOfPhaseTimePct}% del tiempo medido).`;
+    const mcp = pathGroups.find((g) => g.key === 'direct_mcp');
+    const infer = pathGroups.find((g) => g.key === 'infer_direct');
+    const triage = phaseGroups.find((g) => g.key === 'multi_agent');
+    if (modelSaturated && mcp && infer) {
+      decisionSummary =
+        `Motor MCP (${fmtSec(mcp.avgTotalMs)}) e inferencia directa (${fmtSec(infer.avgTotalMs)}) tardan casi igual: el cuello es el modelo, no webhooks.`;
+      if (triage && triage.avgMs >= 3_000) {
+        decisionSummary +=
+          ` La fase más cara es el triaje LLM (~${fmtSec(triage.avgMs)}, un infer extra).`;
+      }
+    } else {
+      const pg = pathGroups[0];
+      decisionSummary = `El ${pg.sharePct}% de los mensajes pasan por «${pg.label}» (prom. ${fmtSec(pg.avgTotalMs)}). `;
+      if (dominantPhaseGroup) {
+        const ph = phaseGroups[0];
+        decisionSummary += `La fase más costosa es «${ph.label}» (~${fmtSec(ph.avgMs)}, ${ph.shareOfPhaseTimePct}% del tiempo medido).`;
+      }
     }
   }
 
@@ -311,6 +393,8 @@ export function analyzeWidgetLatencyInsights(input: {
     dominantPhaseGroup,
     dominantPhaseLabel: dominantPhaseGroup ? PHASE_GROUP_LABELS[dominantPhaseGroup] : null,
     dominantPhaseAvgMs: phaseGroups[0]?.avgMs ?? 0,
+    streamSharePct: split.streamSharePct,
+    nonStreamSharePct: split.nonStreamSharePct,
     pathGroups,
     phaseGroups,
     recommendations,

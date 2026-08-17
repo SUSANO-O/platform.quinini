@@ -222,8 +222,9 @@ export default function WidgetLatencyPage() {
           <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Centro de decisiones — latencia</h1>
         </div>
         <p style={{ color: 'var(--muted-foreground)', fontSize: 13, margin: '0 0 20px', maxWidth: 760 }}>
-          Identifica si el cuello es <strong>hub</strong>, <strong>multi-agente</strong> o <strong>MCP</strong> y qué
-          acción tomar esta semana.
+          Separa <strong>triaje LLM extra</strong>, <strong>espera al modelo</strong> y <strong>proxy Hub</strong>.
+          «Motor MCP» es el camino de código (Gemini), no prueba de que corrieran tools.
+          Las trazas caducan a <strong>30 días</strong>: un rango mayor no inventa historial.
         </p>
 
         {loading && <p style={{ color: 'var(--muted-foreground)' }}>Cargando…</p>}
@@ -280,6 +281,20 @@ export default function WidgetLatencyPage() {
                           }}
                         >
                           Fase: {insights.dominantPhaseLabel} (~{fmtMs(insights.dominantPhaseAvgMs)})
+                        </span>
+                      )}
+                      {insights.nonStreamSharePct >= 50 && (
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            padding: '4px 10px',
+                            borderRadius: 999,
+                            background: 'rgba(99,102,241,0.15)',
+                            color: '#4338ca',
+                          }}
+                        >
+                          {insights.nonStreamSharePct}% non-stream (inyector / clientes viejos)
                         </span>
                       )}
                     </div>
