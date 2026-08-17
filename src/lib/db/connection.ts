@@ -15,13 +15,25 @@ function configureMongoDns(): void {
   }
 }
 
-const MONGO_OPTIONS = {
-  bufferCommands: false,
-  maxPoolSize: 10,
-  minPoolSize: 2,
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,
-} as const;
+/** Pool mínimo para Vercel: 1 socket por isolate, 0 idle. */
+export function mongoServerlessOptions() {
+  return {
+    bufferCommands: false,
+    maxPoolSize: 1,
+    minPoolSize: 0,
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+  } as const;
+}
+
+export function canReuseMongoConnection(readyState: number | undefined | null): boolean {
+  return readyState === 1;
+}
+
+export function markMongoConnectFailed(cache: { conn: unknown; promise: unknown }): void {
+  cache.conn = null;
+  cache.promise = null;
+}
 
 interface MongooseCache {
   conn: typeof mongoose | null;
@@ -38,13 +50,24 @@ global._mongooseCache = cached;
 
 export async function connectDB(): Promise<typeof mongoose> {
   if (!MONGODB_URI) throw new Error('MONGODB_URI no está definido');
-  if (cached.conn) return cached.conn;
+
+  if (cached.conn && canReuseMongoConnection(cached.conn.connection.readyState)) {
+    return cached.conn;
+  }
+  if (cached.conn) {
+    markMongoConnectFailed(cached);
+  }
 
   if (!cached.promise) {
     configureMongoDns();
-    cached.promise = mongoose.connect(MONGODB_URI, MONGO_OPTIONS);
+    cached.promise = mongoose.connect(MONGODB_URI, mongoServerlessOptions());
   }
 
-  cached.conn = await cached.promise;
-  return cached.conn;
+  try {
+    cached.conn = await cached.promise;
+    return cached.conn;
+  } catch (err) {
+    markMongoConnectFailed(cached);
+    throw err;
+  }
 }

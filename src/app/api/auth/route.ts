@@ -74,8 +74,6 @@ function setCookie(res: NextResponse, token: string) {
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
 
-  await connectDB();
-
   try {
     const body = await req.json();
     const { action } = body;
@@ -88,6 +86,8 @@ export async function POST(req: NextRequest) {
       res.cookies.set(LANDING_UNLOCK_COOKIE, '', { maxAge: 0, path: '/' });
       return res;
     }
+
+    await connectDB();
 
     const { email, password, displayName } = body;
 
@@ -353,8 +353,8 @@ export async function GET(req: NextRequest) {
   const userId = verifySessionToken(token);
   if (!userId) return noCache(NextResponse.json({ user: null }));
 
-  await connectDB();
   try {
+    await connectDB();
     const user = await User.findById(userId);
     if (!user) return noCache(NextResponse.json({ user: null }));
 
