@@ -1,7 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ADMIN_OPS_LIVE_API, fillLiveTimeline, trafficWho, type LiveAgentPoint } from '@/lib/admin-ops-live';
+import {
+  ADMIN_OPS_LIVE_API,
+  LIVE_WINDOW_MINS,
+  fillLiveTimeline,
+  liveWindowLabel,
+  trafficWho,
+  type LiveAgentPoint,
+} from '@/lib/admin-ops-live';
 import { AdminOpsMatrixConsole } from '@/components/admin/admin-ops-matrix-console';
 import { OpsComboChart, OpsSparkBars, OpsSparkLine } from '@/components/admin/admin-ops-live-charts';
 import { BRAND, STATE } from '@/lib/brand-colors';
@@ -330,8 +337,8 @@ export function AdminOpsLivePanel() {
             />
             En vivo · HTTPS 5 s
           </span>
-          <div role="group" aria-label="Ventana" style={{ display: 'flex', gap: 4 }}>
-            {([15, 60, 1440] as const).map((m) => (
+          <div role="group" aria-label="Ventana" style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {LIVE_WINDOW_MINS.map((m) => (
               <button
                 key={m}
                 type="button"
@@ -347,7 +354,7 @@ export function AdminOpsLivePanel() {
                   cursor: 'pointer',
                 }}
               >
-                {m === 1440 ? '24 h' : `${m} min`}
+                {liveWindowLabel(m)}
               </button>
             ))}
           </div>

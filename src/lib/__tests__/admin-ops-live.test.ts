@@ -2,11 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
   ADMIN_OPS_LIVE_PATH,
   ADMIN_OPS_LIVE_SLUG,
+  LIVE_WINDOW_MINS,
   buildLiveAgentView,
   expandTurnToConsoleLines,
   fillLiveTimeline,
   foldTopAgents,
+  formatTimelineTick,
   isAdminOpsLiveSlug,
+  liveTimelineMongoFormat,
+  liveWindowLabel,
   niceChartAxis,
   pointHasLatency,
   speedScore,
@@ -92,6 +96,49 @@ describe('fillLiveTimeline 24h', () => {
     const sixteen = filled.find((p) => p.minute === '16:00');
     expect(sixteen?.requests).toBe(4);
     expect(sixteen?.avgSec).toBe(15);
+  });
+});
+
+describe('ventanas 7 d y 30 d', () => {
+  it('ofrece 7 d y 30 d además de 15 / 60 / 24 h', () => {
+    expect([...LIVE_WINDOW_MINS]).toEqual([15, 60, 1440, 10_080, 43_200]);
+    expect(liveWindowLabel(15)).toBe('15 min');
+    expect(liveWindowLabel(1440)).toBe('24 h');
+    expect(liveWindowLabel(10_080)).toBe('7 d');
+    expect(liveWindowLabel(43_200)).toBe('30 d');
+    expect(liveTimelineMongoFormat(15)).toBe('%H:%M');
+    expect(liveTimelineMongoFormat(10_080)).toBe('%m-%d %H:00');
+    expect(liveTimelineMongoFormat(43_200)).toBe('%Y-%m-%d');
+  });
+
+  it('en 7 d agrupa por hora con fecha, sin enrollar el reloj de 24 h', () => {
+    const filled = fillLiveTimeline(
+      [{ minute: '08-16 16:00', requests: 3, avgSec: 12 }],
+      10_080,
+      '2026-08-16T21:18:00.000Z',
+    );
+    expect(filled).toHaveLength(168);
+    expect(filled[0].minute).toBe('08-09 17:00');
+    expect(filled[filled.length - 1].minute).toBe('08-16 16:00');
+    expect(filled.filter((p) => p.minute === '08-16 16:00')).toHaveLength(1);
+    expect(filled[filled.length - 1]).toEqual({ minute: '08-16 16:00', requests: 3, avgSec: 12 });
+  });
+
+  it('en 30 d agrupa por día calendario Bogotá', () => {
+    const filled = fillLiveTimeline(
+      [{ minute: '2026-08-16', requests: 8, avgSec: 9 }],
+      43_200,
+      '2026-08-16T21:18:00.000Z',
+    );
+    expect(filled).toHaveLength(30);
+    expect(filled[0].minute).toBe('2026-07-18');
+    expect(filled[filled.length - 1]).toEqual({ minute: '2026-08-16', requests: 8, avgSec: 9 });
+  });
+
+  it('acorta ticks largos en el eje X', () => {
+    expect(formatTimelineTick('16:18')).toBe('16:18');
+    expect(formatTimelineTick('08-16 16:00')).toBe('16/08');
+    expect(formatTimelineTick('2026-08-16')).toBe('16/08');
   });
 });
 
