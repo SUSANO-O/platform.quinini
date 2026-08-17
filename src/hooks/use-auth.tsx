@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = useCallback(async () => {
     try {
       const r = await fetch('/api/auth');
-      const data = await r.json();
+      const data = await r.json().catch(() => ({ user: null }));
       setUser(data.user || null);
       setLandingAccessLockRequired(Boolean(data.landingAccessLockRequired));
     } catch {
@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Hydrate from API (reads session cookie)
   useEffect(() => {
     fetch('/api/auth')
-      .then((r) => r.json())
+      .then((r) => r.json().catch(() => ({ user: null })))
       .then((data) => {
         setUser(data.user || null);
         setLandingAccessLockRequired(Boolean(data.landingAccessLockRequired));
@@ -92,8 +92,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'login', email, password, cfToken }),
     });
-    const data = await res.json();
-    if (!res.ok) return { error: data.error || 'Error al iniciar sesi?n.', code: data.code as string | undefined };
+    const data = await res.json().catch(() => ({} as { error?: string; code?: string }));
+    if (!res.ok) return { error: data.error || 'Error al iniciar sesión.', code: data.code as string | undefined };
     if (data.requires2FA) return { requires2FA: true, tempToken: data.tempToken as string };
     if (data.requiresLandingAccessCode) {
       return { requiresLandingAccessCode: true, tempToken: data.tempToken as string };
