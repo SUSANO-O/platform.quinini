@@ -15,6 +15,15 @@ import {
   type WebhookEntry,
 } from '@/lib/agent-webhooks';
 import {
+  WEBHOOK_AGENT_DECISION_OPTION,
+  WEBHOOK_EVENT_AGENT_DECISION,
+  WEBHOOK_EVENT_GROUPS,
+  eventsFromUiValue,
+  primaryWebhookEvent,
+  webhookEventMeta,
+  type WebhookEventUiValue,
+} from '@/lib/agent-webhook-events';
+import {
   extractSheetEntries, generateSheetId, sanitizeSheetName,
   type SheetEntry,
 } from '@/lib/agent-sheets';
@@ -1030,15 +1039,23 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   }
   function updateWebhook(toolId: string, whId: string, patch: Partial<WebhookEntry>) {
     const cur = getWebhookEntries({ toolId, config: tools.find((x) => x.toolId === toolId)?.config ?? {} });
-    const next = cur.map((w) => w.id === whId
-      ? {
-          ...w,
-          ...patch,
-          ...(patch.name !== undefined ? { name: sanitizeWebhookName(patch.name) } : {}),
-        }
-      : w,
-    );
+    const next = cur.map((w) => {
+      if (w.id !== whId) return w;
+      const merged = {
+        ...w,
+        ...patch,
+        ...(patch.name !== undefined ? { name: sanitizeWebhookName(patch.name) } : {}),
+      };
+      if (patch.events === undefined && 'events' in patch) {
+        delete merged.events;
+      }
+      return merged;
+    });
     setWebhookEntries(toolId, next);
+  }
+  function setWebhookEventMode(toolId: string, whId: string, mode: WebhookEventUiValue) {
+    const events = eventsFromUiValue(mode);
+    updateWebhook(toolId, whId, events ? { events } : { events: undefined });
   }
   function removeWebhook(toolId: string, whId: string) {
     const cur = getWebhookEntries({ toolId, config: tools.find((x) => x.toolId === toolId)?.config ?? {} });
@@ -3067,8 +3084,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                     )}
                   </div>
                   <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '0 0 14px', lineHeight: 1.5 }}>
-                    Configura uno o varios webhooks. El LLM decide cuál disparar según la <strong>descripción de la tarea</strong> que escribas.
-                    Cada webhook puede apuntar a un flujo distinto en n8n / Zapier / tu API.
+                    Configura webhooks y elige el <strong>evento de disparo</strong>. Los eventos marcados como activos ya tienen pipeline en el motor;
+                    los demás se guardan como contrato para próximas versiones. También puedes dejar <strong>Decisión del agente</strong> (sin evento fijo).
                   </p>
 
                   {entries.length === 0 ? (
@@ -3077,7 +3094,10 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                      {entries.map((w, idx) => (
+                      {entries.map((w, idx) => {
+                        const eventMode = primaryWebhookEvent(w.events);
+                        const eventMeta = webhookEventMeta(eventMode);
+                        return (
                         <div key={w.id} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 14, background: 'var(--muted)' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                             <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted-foreground)' }}>WEBHOOK #{idx + 1}</span>
@@ -3124,15 +3144,57 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
                             <div>
                               <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
-                                Descripción de la tarea <span style={{ color: '#ef4444' }}>*</span>
-                                <span style={{ marginLeft: 6, color: 'var(--muted-foreground)', fontWeight: 400 }}>(el LLM lee esto para decidir cuándo invocarlo)</span>
+                                Evento de disparo <span style={{ color: '#ef4444' }}>*</span>
+                              </label>
+                              <select
+                                className="landing-input"
+                                style={{ ...inp, cursor: readOnly ? 'not-allowed' : 'pointer' }}
+                                value={eventMode}
+                                onChange={(e) => setWebhookEventMode(t.toolId, w.id, e.target.value as WebhookEventUiValue)}
+                                disabled={readOnly}
+                              >
+                                <option value={WEBHOOK_EVENT_AGENT_DECISION}>
+                                  {WEBHOOK_AGENT_DECISION_OPTION.label}
+                                </option>
+                                {WEBHOOK_EVENT_GROUPS.map((group) => (
+                                  <optgroup key={group.category} label={group.categoryLabel}>
+                                    {group.events.map((ev) => (
+                                      <option key={ev.id} value={ev.id}>
+                                        {ev.label}{ev.status === 'planned' ? ' (próximamente)' : ''}
+                                      </option>
+                                    ))}
+                                  </optgroup>
+                                ))}
+                              </select>
+                              <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: '6px 0 0', lineHeight: 1.45 }}>
+                                {eventMeta.hint}
+                                {eventMeta.status === 'planned' && eventMode !== WEBHOOK_EVENT_AGENT_DECISION ? (
+                                  <span style={{ display: 'block', marginTop: 4, color: '#d97706' }}>
+                                    Próximamente: se guardará la suscripción; el POST automático llegará en una actualización del motor.
+                                  </span>
+                                ) : null}
+                              </p>
+                            </div>
+
+                            <div>
+                              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+                                Descripción de la tarea {eventMeta.serverOwned ? '' : <span style={{ color: '#ef4444' }}>*</span>}
+                                <span style={{ marginLeft: 6, color: 'var(--muted-foreground)', fontWeight: 400 }}>
+                                  {eventMeta.serverOwned
+                                    ? '(opcional; referencia para ti)'
+                                    : '(el agente lee esto para decidir cuándo invocarlo)'}
+                                </span>
                               </label>
                               <textarea
                                 className="landing-input"
                                 style={{ ...inp, minHeight: 60, resize: 'vertical', fontFamily: 'inherit' }}
                                 value={w.description}
                                 onChange={(e) => updateWebhook(t.toolId, w.id, { description: e.target.value })}
-                                placeholder="Cuando el usuario pida leer su buzón de correos, escribe los datos en su Google Sheet, etc."
+                                placeholder={
+                                  eventMeta.serverOwned
+                                    ? 'Ej.: cuando el visitante deja email o teléfono para cotización'
+                                    : 'Cuando el usuario pida leer su buzón de correos, escribe los datos en su Google Sheet, etc.'
+                                }
                                 disabled={readOnly}
                               />
                             </div>
@@ -3169,7 +3231,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                             </div>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
 
