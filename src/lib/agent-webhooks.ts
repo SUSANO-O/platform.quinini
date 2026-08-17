@@ -14,6 +14,17 @@ export interface WebhookEntry {
   description: string;          // descripción que el LLM lee para decidir cuándo invocarlo
   url:         string;
   secret?:     string;
+  /** Si existe, manda sobre la descripción (p. ej. `lead_captured` = servidor). */
+  events?:     string[];
+}
+
+function parseWebhookEvents(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const events = raw
+    .filter((x): x is string => typeof x === 'string')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  return events.length > 0 ? events : undefined;
 }
 
 /** Sanea un nombre a un identificador válido (`[a-z0-9_]`, max 48). Útil como function name del LLM. */
@@ -57,12 +68,14 @@ export function extractWebhookEntries(
       const e = w as Record<string, unknown>;
       const url = typeof e.url === 'string' ? e.url.trim() : '';
       if (!url && !opts.includeIncomplete) continue;
+      const events = parseWebhookEvents(e.events);
       out.push({
         id:          typeof e.id === 'string' && e.id ? e.id : generateWebhookId(),
         name:        sanitizeWebhookName(typeof e.name === 'string' ? e.name : 'webhook'),
         description: typeof e.description === 'string' ? e.description.trim() : '',
         url,
         ...(typeof e.secret === 'string' && e.secret.trim() ? { secret: e.secret.trim() } : {}),
+        ...(events ? { events } : {}),
       });
     }
     // En modo UI, devolver el array tal cual (aunque esté vacío) para que se vea la entrada nueva
