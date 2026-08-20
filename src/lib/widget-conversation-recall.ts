@@ -10,19 +10,30 @@
  */
 
 import { getAibackhubBaseUrl, hubCreateHeaders, hubFetch } from '@/lib/aibackhub-sync';
+import { needsConversationMemoryRecall } from '@/lib/widget-counter-rhythm';
 
 const RECALL_TIMEOUT_MS = 6_000;
 const RECALL_TOP_K = 3;
 
 /**
- * Los saludos y mensajes triviales no justifican el coste del embedding de la
- * query, y sin sessionId el recall no puede acotarse a esta conversacion.
+ * Solo cuando el mensaje pide un recuerdo (no en cada FAQ/catálogo).
+ * Sin sessionId/visitorId no hay nada que acotar.
  */
 export function shouldRecallConversationMemory(params: {
   trivial: boolean;
   sessionId: string;
+  message?: string;
+  visitorId?: string;
 }): boolean {
-  return !params.trivial && params.sessionId.trim().length > 0;
+  if (params.trivial) return false;
+  const sid = params.sessionId.trim();
+  const vid = typeof params.visitorId === 'string' ? params.visitorId.trim() : '';
+  if (!sid && !vid) return false;
+  if (typeof params.message === 'string') {
+    return needsConversationMemoryRecall(params.message);
+  }
+  // Sin mensaje (llamadas legacy): no gastar embedding.
+  return false;
 }
 
 /** Une contexto de sesion y memoria descartando bloques vacios o repetidos. */

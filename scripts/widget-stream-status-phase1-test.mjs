@@ -102,14 +102,28 @@ function assert(cond, msg) {
   if (!cond) throw new Error(msg);
 }
 
-const { token, agentId } = await loadAgentAndToken();
-const sid = `sess_phase1_${Date.now()}`;
+/** Contrato Fase 0: prepare primero; sin rag/model/hub de adorno como 2º status. */
+function assertHonestBoot(statuses, label) {
+  assert(statuses.length >= 1, `${label}: al menos un status`);
+  assert(statuses[0].phase === 'prepare', `${label}: primer status debe ser prepare (fue ${statuses[0].phase})`);
+  if (statuses.length >= 2) {
+    const second = statuses[1].phase;
+    const anticipatory = new Set(['rag', 'model', 'hub', 'vision', 'skills', 'mcp', 'tools']);
+    if (anticipatory.has(second)) {
+      throw new Error(`${label}: status anticipatorio tras prepare: ${second}`);
+    }
+  }
+}
 
-console.log('Fase 1 — status SSE antes de tokens\n');
+const { token, agentId } = await loadAgentAndToken();
+const sid = `sess_phase0_${Date.now()}`;
+
+console.log('Fase 0 — status SSE honestos (boot prepare)\n');
 
 const hola = await chatStream(agentId, token, 'Hola, buenas tardes.', sid);
-assert(hola.statuses.length >= 1, 'saludo: al menos un evento status');
-console.log(`✓ saludo: ${hola.statuses.length} status, ${hola.tokens.length} tokens`);
+assertHonestBoot(hola.statuses, 'saludo');
+assert(hola.tokens.length >= 1 || hola.done?.reply, 'saludo: respuesta recibida');
+console.log(`✓ saludo: phases=${hola.statuses.map((s) => s.phase).join('→')} tokens=${hola.tokens.length}`);
 
 const inv = await chatStream(
   agentId,
@@ -117,15 +131,9 @@ const inv = await chatStream(
   'Que Kia Picanto 2026 tienen en el inventario premium de MatIAs Auto Sales en Bogota?',
   `${sid}_a3`,
 );
-assert(inv.statuses.length >= 1, 'inventario: al menos un status');
-const invMsg = inv.statuses.map((s) => s.message).join(' ');
-const invPhases = inv.statuses.map((s) => s.phase).join(' ');
-assert(
-  /inventario|precio|documento/i.test(invMsg) || invPhases.includes('rag'),
-  `inventario: mensaje o fase rag (${invMsg})`,
-);
+assertHonestBoot(inv.statuses, 'inventario');
 assert(inv.tokens.length >= 1 || inv.done?.reply, 'inventario: respuesta recibida');
-console.log(`✓ A3 inventario: ${inv.statuses[0]?.message}`);
+console.log(`✓ inventario: phases=${inv.statuses.map((s) => s.phase).join('→')}`);
 
 const ret = await chatStream(
   agentId,
@@ -133,9 +141,8 @@ const ret = await chatStream(
   'Si el Picanto nuevo del inventario vale lo que ustedes manejan, cuanto me faltaria para el cambio? Razona en voz alta.',
   `${sid}_a6`,
 );
-assert(ret.statuses.length >= 1, 'retoma: al menos un status');
-const retMsg = ret.statuses.map((s) => s.message).join(' ');
-assert(/retoma|inventario|precio|catálogo|Calculando|Razonando|Evaluando/i.test(retMsg), `retoma: mensaje contextual (${retMsg})`);
-console.log(`✓ A6 retoma: ${ret.statuses[0]?.message}`);
+assertHonestBoot(ret.statuses, 'retoma');
+assert(ret.tokens.length >= 1 || ret.done?.reply, 'retoma: respuesta recibida');
+console.log(`✓ retoma: phases=${ret.statuses.map((s) => s.phase).join('→')}`);
 
-console.log('\nFase 1 stream status: PASS');
+console.log('\nFase 0 stream status honesty: PASS');

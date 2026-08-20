@@ -4,27 +4,7 @@
  */
 
 import { agentSkillsNeedMcpTools } from '@/lib/agent-skills-mcp';
-import { needsKnowledgeLookup } from '@/lib/widget-counter-rhythm';
-
-/** Re-exportado para tests E2E y scripts. */
-export const WIDGET_STATUS_PULSE_MS = 1200;
-
-const PHASE_TICK_LINES: Partial<Record<WidgetChatStatusPhase, string[]>> = {
-  prepare: ['Organizando tu mensaje…', 'Un momento…'],
-  enrich: ['Revisando lo que ya hablamos…', 'Ordenando el hilo…'],
-  validate: ['Confirmando la sesión…'],
-  resolve: ['Conectando con tu asistente…'],
-  hub: ['Pensando la respuesta…', 'Procesando tu mensaje…', 'Ya casi…'],
-  model: ['Redactando…', 'Afinando la respuesta…', 'Casi listo…'],
-  rag: ['Buscando en la base de conocimiento…', 'Revisando documentos…'],
-  tools: ['Consultando datos…', 'Un segundo más…'],
-  mcp: ['Consultando integraciones…', 'Recuperando información…'],
-  triage: ['Viendo cómo ayudarte mejor…', 'Un momento…'],
-};
-
-const INVENTORY_TURN_RE = /\binventario\b/i;
-const REASONING_TURN_RE =
-  /\b(?:retoma|permuta|cu[aá]nto\s+me\s+falt|diferencia|tasaci[oó]n|razona)\b/i;
+import { isNumericReasoningTurn, needsKnowledgeLookup } from '@/lib/widget-counter-rhythm';
 
 export type WidgetChatStatusPhase =
   | 'prepare'
@@ -46,6 +26,39 @@ export type WidgetChatStatusPhase =
   | 'model'
   | 'hub'
   | 'start';
+
+/** Re-exportado para tests E2E y scripts. Intervalo más largo = menos titileo. */
+export const WIDGET_STATUS_PULSE_MS = 1800;
+
+/** Solo fases de espera real: el resto emite un status y no rota copy. */
+export const PULSE_ELIGIBLE_PHASES: ReadonlySet<WidgetChatStatusPhase> = new Set([
+  'hub',
+  'tools',
+  'mcp',
+  'triage',
+  'parallel',
+  'pipeline',
+  'handoff',
+]);
+
+export function shouldPulseStatusPhase(phase: WidgetChatStatusPhase): boolean {
+  return PULSE_ELIGIBLE_PHASES.has(phase);
+}
+
+const PHASE_TICK_LINES: Partial<Record<WidgetChatStatusPhase, string[]>> = {
+  prepare: ['Organizando tu mensaje…', 'Un momento…'],
+  enrich: ['Revisando lo que ya hablamos…', 'Ordenando el hilo…'],
+  validate: ['Confirmando la sesión…'],
+  resolve: ['Conectando con tu asistente…'],
+  hub: ['Pensando la respuesta…', 'Procesando tu mensaje…', 'Ya casi…'],
+  model: ['Redactando…', 'Afinando la respuesta…', 'Casi listo…'],
+  rag: ['Buscando en la base de conocimiento…', 'Revisando documentos…'],
+  tools: ['Consultando datos…', 'Un segundo más…'],
+  mcp: ['Consultando integraciones…', 'Recuperando información…'],
+  triage: ['Viendo cómo ayudarte mejor…', 'Un momento…'],
+};
+
+const INVENTORY_TURN_RE = /\binventario\b/i;
 
 export function widgetChatStatusMessage(
   phase: WidgetChatStatusPhase,
@@ -159,11 +172,12 @@ export function widgetChatStatusForUserMessage(
   userMessage: string,
   phase: WidgetChatStatusPhase,
   detail?: string,
+  history?: Array<{ role?: string; content?: string } | null> | null,
 ): string {
   const msg = typeof userMessage === 'string' ? userMessage.trim() : '';
   if (msg) {
     if (phase === 'rag' || phase === 'hub' || phase === 'mcp' || phase === 'tools') {
-      if (REASONING_TURN_RE.test(msg)) {
+      if (isNumericReasoningTurn(msg, history)) {
         return 'Calculando con las cifras ya conocidas…';
       }
       if (needsKnowledgeLookup(msg) && INVENTORY_TURN_RE.test(msg)) {
@@ -173,7 +187,7 @@ export function widgetChatStatusForUserMessage(
         return 'Consultando precios y fichas…';
       }
     }
-    if (phase === 'model' && REASONING_TURN_RE.test(msg)) {
+    if (phase === 'model' && isNumericReasoningTurn(msg, history)) {
       return 'Razonando con las cifras del hilo…';
     }
   }
@@ -224,7 +238,7 @@ export function emitWidgetChatStatusForTurn(
   });
 }
 
-/** Mantiene el indicador vivo en turnos largos (hub/MCP ~20–30 s). */
+/** Mantiene el indicador vivo solo en fases largas (hub/tools/mcp…). */
 export async function runWithWidgetStatusPulse<T>(
   enqueue: (data: Record<string, unknown>) => void,
   userMessage: string,
@@ -232,18 +246,28 @@ export async function runWithWidgetStatusPulse<T>(
   work: () => Promise<T>,
   detail?: string,
 ): Promise<T> {
+  const initialMsg = widgetChatStatusForUserMessage(userMessage, phase, detail);
   emitWidgetChatStatusForTurn(enqueue, userMessage, phase, detail);
+
+  if (!shouldPulseStatusPhase(phase)) {
+    return work();
+  }
+
   const startedAt = Date.now();
+  let lastMessage = initialMsg;
   const timer = setInterval(() => {
+    const next = widgetChatStatusTick(
+      phase,
+      Date.now() - startedAt,
+      detail,
+      widgetChatStatusForUserMessage(userMessage, phase, detail),
+    );
+    if (next === lastMessage) return;
+    lastMessage = next;
     enqueue({
       type: 'status',
       phase,
-      message: widgetChatStatusTick(
-        phase,
-        Date.now() - startedAt,
-        detail,
-        widgetChatStatusForUserMessage(userMessage, phase, detail),
-      ),
+      message: next,
     });
   }, WIDGET_STATUS_PULSE_MS);
   try {

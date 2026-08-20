@@ -4,6 +4,7 @@
  */
 
 import { logWidgetFlow } from '@/lib/debug-widget-flow';
+import { buildWidgetTurnObsFields } from '@/lib/widget-turn-observability';
 
 export type WidgetChatLatencyPhase =
   | 'vision'
@@ -58,6 +59,14 @@ export type WidgetChatLatencySummary = {
   widgetId: string | null;
   sessionId: string | null;
   replyLen: number | null;
+  /** Fases SSE `type:status` en orden (dedupe consecutivo). */
+  ssePhases: string[];
+  toolsUsed: string[];
+  promptChars: number | null;
+  promptTokensEst: number | null;
+  inputTokens: number | null;
+  statusHonest: boolean;
+  lyingReason: string | null;
 };
 
 const SLOW_REQUEST_MS = 15_000;
@@ -70,6 +79,10 @@ export class WidgetChatTrace {
   private ok = true;
   private errorCode: string | null = null;
   private replyLen: number | null = null;
+  private readonly ssePhases: string[] = [];
+  private toolsUsed: string[] = [];
+  private promptChars: number | null = null;
+  private inputTokens: number | null = null;
 
   constructor(private meta: WidgetChatTraceMeta) {}
 
@@ -108,10 +121,42 @@ export class WidgetChatTrace {
     this.replyLen = Number.isFinite(len) ? Math.max(0, Math.floor(len)) : null;
   }
 
+  /** Registra fase SSE; ignora ticks consecutivos idénticos. */
+  recordSsePhase(phase: string | undefined | null): void {
+    const p = typeof phase === 'string' ? phase.trim() : '';
+    if (!p) return;
+    if (this.ssePhases[this.ssePhases.length - 1] === p) return;
+    if (this.ssePhases.length < 40) this.ssePhases.push(p);
+  }
+
+  setToolsUsed(tools: string[] | undefined | null): void {
+    if (!Array.isArray(tools)) return;
+    this.toolsUsed = [...new Set(tools.map(String).filter(Boolean))].slice(0, 40);
+  }
+
+  setPromptChars(chars: number | null | undefined): void {
+    if (chars == null || !Number.isFinite(chars)) return;
+    this.promptChars = Math.max(0, Math.floor(chars));
+  }
+
+  setInputTokens(tokens: number | null | undefined): void {
+    if (tokens == null || !Number.isFinite(tokens)) return;
+    this.inputTokens = Math.max(0, Math.floor(tokens));
+  }
+
   finish(opts?: { ok?: boolean; errorCode?: string | null }): WidgetChatLatencySummary {
     if (opts?.ok === false) this.ok = false;
     if (opts?.errorCode) this.errorCode = opts.errorCode;
     const totalMs = Date.now() - this.startedAt;
+    const obs = buildWidgetTurnObsFields({
+      path: this.path,
+      ssePhases: this.ssePhases,
+      toolsUsed: this.toolsUsed,
+      promptChars: this.promptChars,
+      inputTokens: this.inputTokens,
+      replyLen: this.replyLen,
+      totalMs,
+    });
     return {
       traceId: this.meta.traceId,
       totalMs,
@@ -124,13 +169,56 @@ export class WidgetChatTrace {
       widgetId: this.meta.widgetId ?? null,
       sessionId: this.meta.sessionId ?? null,
       replyLen: this.replyLen,
+      ssePhases: obs.ssePhases,
+      toolsUsed: obs.toolsUsed,
+      promptChars: obs.promptChars,
+      promptTokensEst: obs.promptTokensEst,
+      inputTokens: obs.inputTokens,
+      statusHonest: obs.statusHonest,
+      lyingReason: obs.lyingReason,
     };
   }
 
   logSummary(summary?: WidgetChatLatencySummary): void {
     const s = summary ?? this.finish();
     const slow = s.totalMs >= SLOW_REQUEST_MS;
-    if (process.env.DEBUG_WIDGET_FLOW?.trim() !== '1' && !slow) return;
+    const debugOn = process.env.DEBUG_WIDGET_FLOW?.trim() === '1';
+    const lying = !s.statusHonest;
+
+    if (lying) {
+      console.warn(
+        `⚠️ [widget-flow|landing|turn:lying-status] status mentiroso ${JSON.stringify({
+          traceId: s.traceId,
+          path: s.path,
+          ssePhases: s.ssePhases,
+          lyingReason: s.lyingReason,
+          agentId: s.agentId,
+        })}`,
+      );
+    }
+
+    if (!debugOn && !slow && !lying) return;
+
+    const obs = buildWidgetTurnObsFields({
+      path: s.path,
+      ssePhases: s.ssePhases,
+      toolsUsed: s.toolsUsed,
+      promptChars: s.promptChars,
+      inputTokens: s.inputTokens,
+      replyLen: s.replyLen,
+      totalMs: s.totalMs,
+    });
+
+    if (debugOn || lying) {
+      logWidgetFlow('📊', 'turn:obs', 'resumen turno', {
+        traceId: s.traceId,
+        ...obs,
+        agentId: s.agentId,
+        widgetId: s.widgetId,
+      });
+    }
+
+    if (!debugOn && !slow) return;
 
     const emoji = slow ? '🐢' : '⏱️';
     const segment = slow ? 'latency:slow' : 'latency:ok';
@@ -148,6 +236,11 @@ export class WidgetChatTrace {
       replyLen: s.replyLen,
       agentId: s.agentId,
       widgetId: s.widgetId,
+      ssePhases: s.ssePhases,
+      toolsUsed: s.toolsUsed,
+      statusHonest: s.statusHonest,
+      promptTokensEst: s.promptTokensEst,
+      inputTokens: s.inputTokens,
     });
   }
 }
@@ -170,6 +263,13 @@ export function persistWidgetChatLatency(summary: WidgetChatLatencySummary): voi
         ok: summary.ok,
         errorCode: summary.errorCode,
         replyLen: summary.replyLen,
+        ssePhases: summary.ssePhases,
+        toolsUsed: summary.toolsUsed,
+        promptChars: summary.promptChars,
+        promptTokensEst: summary.promptTokensEst,
+        inputTokens: summary.inputTokens,
+        statusHonest: summary.statusHonest,
+        lyingReason: summary.lyingReason,
       });
     } catch (e) {
       if (process.env.NODE_ENV !== 'production') {
@@ -181,9 +281,19 @@ export function persistWidgetChatLatency(summary: WidgetChatLatencySummary): voi
 
 export function finalizeWidgetChatTrace(
   trace: WidgetChatTrace,
-  opts?: { ok?: boolean; errorCode?: string | null; replyLen?: number },
+  opts?: {
+    ok?: boolean;
+    errorCode?: string | null;
+    replyLen?: number;
+    toolsUsed?: string[];
+    promptChars?: number | null;
+    inputTokens?: number | null;
+  },
 ): void {
   if (opts?.replyLen != null) trace.setReplyLen(opts.replyLen);
+  if (opts?.toolsUsed) trace.setToolsUsed(opts.toolsUsed);
+  if (opts?.promptChars != null) trace.setPromptChars(opts.promptChars);
+  if (opts?.inputTokens != null) trace.setInputTokens(opts.inputTokens);
   const summary = trace.finish({ ok: opts?.ok, errorCode: opts?.errorCode });
   trace.logSummary(summary);
   if (summary.userId && summary.agentId) {

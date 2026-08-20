@@ -52,7 +52,6 @@ import {
   shouldUsePriorImage,
 } from '@/lib/widget-chat-vision-context';
 import { isTrivialMessage } from '@/lib/trivial-message';
-import { needsKnowledgeLookup } from '@/lib/widget-counter-rhythm';
 import {
   loadSessionVisionEnrichment,
   persistSessionVisionAnalysis,
@@ -65,10 +64,9 @@ import { normalizeVisitorId } from '@/lib/widget-visitor';
 import {
   emitWidgetChatStatus,
   emitWidgetChatStatusForTurn,
-  loadAgentStreamHints,
   runWithWidgetStatusPulse,
-  type WidgetChatStreamHints,
 } from '@/lib/widget-chat-status';
+import { landingBootStatusPhases } from '@/lib/widget-stream-boot-status';
 import { emitStreamTokensFromText } from '@/lib/widget-stream-reply';
 import {
   finalizeWidgetChatTrace,
@@ -245,13 +243,6 @@ export async function POST(req: NextRequest) {
     config: WidgetMultiAgentConfig;
     plan: string;
   } | null = null;
-  let prefetchedAgentHintsDoc: {
-    skills?: string[];
-    skillsConfig?: Array<{ id?: string; enabled?: boolean }>;
-    ragEnabled?: boolean;
-    enabledMcpToolIds?: string[];
-    tools?: Array<{ toolId?: string }>;
-  } | null = null;
 
   // Validate wt_ token and quota
   if (widgetToken.startsWith('wt_') && parsedAgentId) {
@@ -287,30 +278,12 @@ export async function POST(req: NextRequest) {
           );
         }
         faqTrackOwnerId = w.userId;
-        const agentFilter = /^[a-f0-9]{24}$/i.test(parsedAgentId)
-          ? { _id: parsedAgentId }
-          : { agentHubId: parsedAgentId };
 
-        const [quota, subDoc, agentDoc] = await Promise.all([
+        const [quota, subDoc] = await Promise.all([
           checkConversationQuota(w.userId),
           Subscription.findOne({ userId: w.userId })
             .select({ status: 1, plan: 1 })
             .lean() as Promise<{ status?: string; plan?: string } | null>,
-          ClientAgent.findOne(agentFilter)
-            .select({
-              tools: 1,
-              skills: 1,
-              skillsConfig: 1,
-              ragEnabled: 1,
-              enabledMcpToolIds: 1,
-            })
-            .lean() as Promise<{
-              tools?: Array<{ toolId?: string; config?: unknown }>;
-              skills?: string[];
-              skillsConfig?: Array<{ id?: string; enabled?: boolean }>;
-              ragEnabled?: boolean;
-              enabledMcpToolIds?: string[];
-            } | null>,
         ]);
 
         if (!quota.allowed) {
@@ -342,8 +315,6 @@ export async function POST(req: NextRequest) {
         } catch {
           /* fail-open */
         }
-
-        prefetchedAgentHintsDoc = agentDoc;
 
         // Agentes con webhook siguen el mismo proxy hub; Fase 1 emite status SSE durante la espera.
 
@@ -512,6 +483,9 @@ export async function POST(req: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       const enqueue = (data: Record<string, unknown>) => {
+        if (data.type === 'status' && typeof data.phase === 'string') {
+          latencyTrace.recordSsePhase(data.phase);
+        }
         controller.enqueue(encoder.encode(sseEvent(data)));
       };
 
@@ -528,8 +502,6 @@ export async function POST(req: NextRequest) {
       };
       if (widgetToken) headers['X-Widget-Token'] = widgetToken;
 
-      let streamHints: WidgetChatStreamHints | null = null;
-
       latencyTrace.setMeta({
         userId: faqTrackOwnerId,
         agentId: parsedAgentIdLocal || parsedAgentId,
@@ -539,25 +511,19 @@ export async function POST(req: NextRequest) {
 
       try {
         const userMsgForStatus = userDisplayMessage || parsedMessage;
-        emitWidgetChatStatusForTurn(enqueue, userMsgForStatus, 'prepare');
-        if (imageEnrichment?.images?.length) {
-          emitWidgetChatStatus(enqueue, 'vision');
-        } else if (userMsgForStatus.trim() && needsKnowledgeLookup(userMsgForStatus)) {
-          emitWidgetChatStatusForTurn(enqueue, userMsgForStatus, 'rag');
-        } else if (
-          userMsgForStatus.trim() &&
-          /\b(?:retoma|permuta|cu[aá]nto\s+me\s+falt|diferencia|razona)\b/i.test(userMsgForStatus)
-        ) {
-          emitWidgetChatStatusForTurn(enqueue, userMsgForStatus, 'hub');
-        } else {
-          emitWidgetChatStatusForTurn(enqueue, userMsgForStatus, 'model');
+        // Boot honesto: solo prepare (+ triage si multiagente). Sin rag/model/hub de adorno.
+        const bootPhases = landingBootStatusPhases(
+          Boolean(multiAgentCtx?.config.multiAgentEnabled),
+        );
+        for (const phase of bootPhases) {
+          if (phase === 'prepare') {
+            emitWidgetChatStatusForTurn(enqueue, userMsgForStatus, 'prepare');
+          } else {
+            emitWidgetChatStatus(enqueue, phase);
+          }
         }
 
         if (multiAgentCtx) {
-          if (multiAgentCtx.config.multiAgentEnabled) {
-            emitWidgetChatStatus(enqueue, 'triage');
-          }
-
           if (multiAgentCtx.config.multiAgentEnabled && multiAgentCtx.config.multiAgentMode === 'pipeline' && hubSecret) {
             const pipeline = await latencyTrace.span('multi_pipeline', () => executePipelineMultiAgentFlow({
               rawBody: hubBody,
@@ -866,7 +832,11 @@ export async function POST(req: NextRequest) {
                 reply: directMcp.reply,
                 toolsUsed: directMcp.toolsUsed,
               });
-              finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: directMcp.reply.length });
+              finalizeWidgetChatTrace(latencyTrace, {
+                ok: true,
+                replyLen: directMcp.reply.length,
+                toolsUsed: directMcp.toolsUsed,
+              });
               return;
             }
           } catch (mcpErr) {
@@ -945,7 +915,10 @@ export async function POST(req: NextRequest) {
                 path: 'stream-infer-direct',
                 reply: inferredEarly.reply,
               });
-              finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: inferredEarly.reply.length });
+              finalizeWidgetChatTrace(latencyTrace, {
+                ok: true,
+                replyLen: inferredEarly.reply.length,
+              });
               return;
             }
           } catch (inferEarlyErr) {
@@ -971,24 +944,6 @@ export async function POST(req: NextRequest) {
         const hubAgentId = hubAgentResolve.hubAgentId || parsedAgentIdLocal;
         if (hubAgentResolve.hubAgentId) {
           parsedAgentIdLocal = hubAgentResolve.hubAgentId;
-        }
-
-        try {
-          streamHints = await latencyTrace.span('hints', () =>
-            loadAgentStreamHints(parsedAgentIdLocal, faqTrackOwnerId, prefetchedAgentHintsDoc ?? undefined),
-          );
-          if (streamHints.hasSkills) {
-            emitWidgetChatStatus(
-              enqueue,
-              'skills',
-              streamHints.skillCount === 1 ? '1 habilidad' : `${streamHints.skillCount} habilidades`,
-            );
-          }
-          if (streamHints.ragEnabled) {
-            emitWidgetChatStatusForTurn(enqueue, userMsgForStatus, 'rag');
-          }
-        } catch (hintsErr) {
-          logWidgetFlow('⚠️', 'stream:hintsErr', hintsErr instanceof Error ? hintsErr.message : String(hintsErr));
         }
 
         if (hubSecret && widgetToken.startsWith('wt_')) {
@@ -1092,11 +1047,7 @@ export async function POST(req: NextRequest) {
           agentId: hubAgentId || parsedAgentId || undefined,
           ...widgetMessageProbe(streamMsg),
         });
-        if (streamHints?.hasMcpTools) {
-          emitWidgetChatStatusForTurn(enqueue, streamMsg, 'mcp');
-        } else if (streamHints?.hasWebhookTools) {
-          emitWidgetChatStatusForTurn(enqueue, streamMsg, 'tools');
-        }
+        // Pulse solo en hub (espera real). tools/mcp/model los emite el motor si aplican.
         const res = await latencyTrace.span('hub', () =>
           runWithWidgetStatusPulse(enqueue, streamMsg, 'hub', () =>
             fetchHubWidgetChat(base, {
@@ -1150,7 +1101,6 @@ export async function POST(req: NextRequest) {
         const images = Array.isArray(json.images) && json.images.length ? json.images : undefined;
         const usedModel =
           typeof json.usedModel === 'string' && json.usedModel.trim() ? json.usedModel.trim() : undefined;
-        emitWidgetChatStatusForTurn(enqueue, streamMsg, 'model');
         await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, fullReply));
         enqueue(
           attachAssistNavToPayload(
@@ -1185,7 +1135,12 @@ export async function POST(req: NextRequest) {
           inputTokens: json.usage?.inputTokens ?? null,
           outputTokens: json.usage?.outputTokens ?? null,
         });
-        finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: fullReply.length });
+        finalizeWidgetChatTrace(latencyTrace, {
+          ok: true,
+          replyLen: fullReply.length,
+          toolsUsed: json.toolsUsed,
+          inputTokens: json.usage?.inputTokens ?? null,
+        });
 
         // Telemetry (non-blocking)
         if (widgetToken.startsWith('wt_') && parsedAgentId) {

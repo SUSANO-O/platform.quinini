@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   hintsFromAgentDoc,
   runWithWidgetStatusPulse,
+  shouldPulseStatusPhase,
   widgetChatStatusForUserMessage,
   widgetChatStatusMessage,
   widgetChatStatusTick,
+  WIDGET_STATUS_PULSE_MS,
 } from '@/lib/widget-chat-status';
 
 describe('widget-chat-status', () => {
@@ -61,12 +63,35 @@ describe('widget-chat-status', () => {
     expect(widgetChatStatusForUserMessage(msg, 'hub')).toBe('Calculando con las cifras ya conocidas…');
   });
 
+  it('FAQ diferencia sin cifras: no fuerza Calculando', () => {
+    const msg = 'Cuál es la diferencia entre el plan Pro y el Starter?';
+    expect(widgetChatStatusForUserMessage(msg, 'hub')).not.toMatch(/Calculando/i);
+  });
+
+  it('retoma sin cifras ni razona: no Calculando hasta que haya números en hilo', () => {
+    expect(widgetChatStatusForUserMessage('Quiero una retoma de mi carro', 'hub')).not.toMatch(
+      /Calculando/i,
+    );
+    expect(
+      widgetChatStatusForUserMessage('Quiero una retoma de mi carro', 'hub', undefined, [
+        { role: 'user', content: 'Tengo 42000 km' },
+      ]),
+    ).toBe('Calculando con las cifras ya conocidas…');
+  });
+
   it('widgetChatStatusTick rota el copy si la fase no cambia', () => {
-    const first = widgetChatStatusTick('model', 0);
-    const later = widgetChatStatusTick('model', 2500);
-    expect(first).toBe('Generando respuesta…');
+    const first = widgetChatStatusTick('hub', 0);
+    const later = widgetChatStatusTick('hub', WIDGET_STATUS_PULSE_MS + 100);
+    expect(first.length).toBeGreaterThan(4);
     expect(later).not.toBe(first);
-    expect(later.length).toBeGreaterThan(4);
+  });
+
+  it('shouldPulseStatusPhase: solo esperas largas', () => {
+    expect(shouldPulseStatusPhase('hub')).toBe(true);
+    expect(shouldPulseStatusPhase('tools')).toBe(true);
+    expect(shouldPulseStatusPhase('prepare')).toBe(false);
+    expect(shouldPulseStatusPhase('model')).toBe(false);
+    expect(shouldPulseStatusPhase('resolve')).toBe(false);
   });
 
   it('runWithWidgetStatusPulse emite status inicial y ejecuta trabajo', async () => {
@@ -78,8 +103,38 @@ describe('widget-chat-status', () => {
       async () => 'ok',
     );
     expect(out).toBe('ok');
-    expect(events.length).toBeGreaterThanOrEqual(1);
+    expect(events.length).toBe(1);
     expect(events[0]?.type).toBe('status');
   });
-});
 
+  it('runWithWidgetStatusPulse no pulsa prepare aunque el trabajo dure', async () => {
+    const events: Array<Record<string, unknown>> = [];
+    await runWithWidgetStatusPulse(
+      (data) => events.push(data),
+      'hola',
+      'prepare',
+      async () => {
+        await new Promise((r) => setTimeout(r, Math.min(WIDGET_STATUS_PULSE_MS + 200, 2200)));
+        return 'ok';
+      },
+    );
+    expect(events.filter((e) => e.type === 'status')).toHaveLength(1);
+  });
+
+  it('runWithWidgetStatusPulse en hub puede emitir ticks con copy distinto', async () => {
+    const events: Array<Record<string, unknown>> = [];
+    await runWithWidgetStatusPulse(
+      (data) => events.push(data),
+      'consulta larga',
+      'hub',
+      async () => {
+        await new Promise((r) => setTimeout(r, WIDGET_STATUS_PULSE_MS + 400));
+        return 'ok';
+      },
+    );
+    const statuses = events.filter((e) => e.type === 'status');
+    expect(statuses.length).toBeGreaterThanOrEqual(2);
+    const messages = statuses.map((e) => String(e.message || ''));
+    expect(new Set(messages).size).toBeGreaterThanOrEqual(2);
+  }, 10_000);
+});

@@ -2,17 +2,48 @@ import { describe, expect, it } from 'vitest';
 import { mergeContextBlocks, shouldRecallConversationMemory } from './widget-conversation-recall';
 
 describe('shouldRecallConversationMemory', () => {
-  it('recuerda en un mensaje normal con sesion', () => {
-    expect(shouldRecallConversationMemory({ trivial: false, sessionId: 'sess_abc' })).toBe(true);
+  it('recuerda solo si el mensaje pide un recuerdo', () => {
+    expect(
+      shouldRecallConversationMemory({
+        trivial: false,
+        sessionId: 'sess_abc',
+        message: 'Oye, cuantos kilometros te dije que tenia mi carro?',
+      }),
+    ).toBe(true);
+  });
+
+  it('no gasta embedding en catálogo/FAQ', () => {
+    expect(
+      shouldRecallConversationMemory({
+        trivial: false,
+        sessionId: 'sess_abc',
+        message: 'cuánto cuesta el plan Pro?',
+      }),
+    ).toBe(false);
   });
 
   it('no gasta un embedding en saludos', () => {
-    expect(shouldRecallConversationMemory({ trivial: true, sessionId: 'sess_abc' })).toBe(false);
+    expect(
+      shouldRecallConversationMemory({
+        trivial: true,
+        sessionId: 'sess_abc',
+        message: 'hola',
+      }),
+    ).toBe(false);
   });
 
-  it('sin sessionId no hay nada que acotar', () => {
-    expect(shouldRecallConversationMemory({ trivial: false, sessionId: '' })).toBe(false);
-    expect(shouldRecallConversationMemory({ trivial: false, sessionId: '   ' })).toBe(false);
+  it('sin sessionId ni visitorId no hay nada que acotar', () => {
+    expect(
+      shouldRecallConversationMemory({
+        trivial: false,
+        sessionId: '',
+        message: 'te acuerdas del color?',
+      }),
+    ).toBe(false);
+  });
+
+  it('sin message no recall (legacy safe)', () => {
+    expect(shouldRecallConversationMemory({ trivial: false, sessionId: 'sess_abc' })).toBe(false);
   });
 });
 
