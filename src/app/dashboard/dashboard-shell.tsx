@@ -279,11 +279,14 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const router = useRouter();
   const pathname = usePathname();
   const isFlowEditorRoute = /^\/dashboard\/flows\/[^/]+\/edit$/.test(pathname);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
+  // Siempre cerrada al montar / recargar. El usuario puede abrirla en la sesión;
+  // no restauramos el estado expandido desde localStorage.
   useEffect(() => {
+    setSidebarCollapsed(true);
     try {
-      setSidebarCollapsed(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1');
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, '1');
     } catch {
       /* noop */
     }
