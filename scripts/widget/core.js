@@ -8,7 +8,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.6.162';
+  var VERSION = '1.6.163';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -373,6 +373,8 @@
   /** Papelera para borrar conversación */
   var ICON_TRASH =
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+  var ICON_SEARCH =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
   /** Accesos rápidos (atajos del widget) */
   var ICON_SHORTCUTS =
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>';
@@ -1844,6 +1846,11 @@
         '<span>Nueva conversación</span>' +
       '</button>';
     settingsMenuHtml +=
+      '<button type="button" class="afhub-settings-item afhub-settings-history-search">' +
+        ICON_SEARCH +
+        '<span>Buscar en historial</span>' +
+      '</button>';
+    settingsMenuHtml +=
       '<button type="button" class="afhub-settings-item afhub-settings-clear">' +
         ICON_TRASH +
         '<span>Borrar conversación</span>' +
@@ -1901,6 +1908,20 @@
     messagesShell.appendChild(messages);
     messagesShell.appendChild(scrollHaloTop);
     messagesShell.appendChild(scrollHaloBottom);
+
+    var historySearchBar = document.createElement('div');
+    historySearchBar.className = 'afhub-history-search';
+    historySearchBar.hidden = true;
+    historySearchBar.innerHTML =
+      '<div class="afhub-history-search-inner">' +
+      '<input type="search" class="afhub-history-search-input" placeholder="Buscar mensaje o palabra…" autocomplete="off" enterkeyhint="search" />' +
+      '<span class="afhub-history-search-meta" aria-live="polite"></span>' +
+      '<button type="button" class="afhub-history-search-close" aria-label="Cerrar búsqueda">' + ICON_X + '</button>' +
+      '</div>';
+    messagesShell.insertBefore(historySearchBar, messages);
+    var historySearchInput = historySearchBar.querySelector('.afhub-history-search-input');
+    var historySearchMeta = historySearchBar.querySelector('.afhub-history-search-meta');
+    var historySearchClose = historySearchBar.querySelector('.afhub-history-search-close');
     chat.appendChild(messagesShell);
 
     var messagesLastScrollTop = 0;
@@ -4627,10 +4648,24 @@
 
       recordQuickFeedback(aff ? 'up' : 'down');
       addMessage('bot', cfg.feedbackThanks || '¡Gracias por tu feedback!', { noFeedback: true });
-      var cb = feedbackOnDone;
-      feedbackOnDone = null;
-      if (typeof cb === 'function') setTimeout(cb, 800);
+      scheduleAfterFeedbackSuccess(feedbackOnDone);
       return true;
+    }
+
+    /** Tras feedback exitoso: breve gracias y reinicio limpio (sin historial). */
+    var feedbackResetTimer = null;
+    function scheduleAfterFeedbackSuccess(pendingCb) {
+      var cb = pendingCb || null;
+      feedbackOnDone = null;
+      if (feedbackResetTimer) {
+        clearTimeout(feedbackResetTimer);
+        feedbackResetTimer = null;
+      }
+      feedbackResetTimer = setTimeout(function () {
+        feedbackResetTimer = null;
+        startNewConversation();
+        if (typeof cb === 'function') cb();
+      }, 1200);
     }
 
     function submitFeedback() {
@@ -4668,7 +4703,7 @@
       }
       try { sessionStorage.setItem('afhub-fb-done:' + chatSessionId, '1'); } catch (e) { /* */ }
       try { emitEvent('survey_submitted', { count: res.answers.length }); } catch (e) { /* */ }
-      // Reemplazar la encuesta por el agradecimiento, en línea (sin popup).
+      // Reemplazar la encuesta por el agradecimiento, luego reiniciar conversación.
       if (feedbackCard) {
         feedbackCard.innerHTML =
           '<div class="afhub-fb-inner afhub-fb-thanks">' +
@@ -4676,9 +4711,8 @@
           '<span>' + fbEsc(cfg.feedbackThanks) + '</span></div>';
         feedbackCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
-      feedbackCard = null; // ya no hay encuesta activa (el agradecimiento queda en el chat)
-      var cb = feedbackOnDone; feedbackOnDone = null;
-      if (typeof cb === 'function') setTimeout(cb, 1600);
+      feedbackCard = null;
+      scheduleAfterFeedbackSuccess(feedbackOnDone);
     }
     function openFeedbackSurvey(onDone) {
       if (!feedbackQs.length) { if (typeof onDone === 'function') onDone(); return; }
@@ -4774,6 +4808,11 @@
 
     function startNewConversation() {
       if (isLoading) return;
+      if (feedbackResetTimer) {
+        clearTimeout(feedbackResetTimer);
+        feedbackResetTimer = null;
+      }
+      closeHistorySearch();
       emitEvent('widget_closed');
       resetHumanModeState();
       clearPersistedChatState(cfg);
@@ -6056,6 +6095,122 @@
         startNewConversation();
       });
     }
+
+    var historySearchHits = [];
+    var historySearchHitIdx = -1;
+
+    function clearHistorySearchHighlights() {
+      var prev = messages.querySelectorAll('.afhub-msg--search-hit, .afhub-msg--search-dim');
+      for (var i = 0; i < prev.length; i++) {
+        prev[i].classList.remove('afhub-msg--search-hit', 'afhub-msg--search-dim');
+      }
+      historySearchHits = [];
+      historySearchHitIdx = -1;
+      if (historySearchMeta) historySearchMeta.textContent = '';
+    }
+
+    function collectSearchableMessages() {
+      var nodes = messages.querySelectorAll('.afhub-msg.user, .afhub-msg.bot');
+      var out = [];
+      for (var i = 0; i < nodes.length; i++) {
+        var el = nodes[i];
+        if (el.classList.contains('afhub-fb-card') || el.classList.contains('afhub-fb-offer') || el.classList.contains('afhub-thinking-card')) {
+          continue;
+        }
+        var txt = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+        if (txt.length < 1) continue;
+        out.push({ el: el, text: txt });
+      }
+      return out;
+    }
+
+    function runHistorySearch(query) {
+      clearHistorySearchHighlights();
+      var needle = String(query || '').trim().toLowerCase();
+      if (needle.length < 1) {
+        if (historySearchMeta) historySearchMeta.textContent = '';
+        return;
+      }
+      var all = collectSearchableMessages();
+      var hits = [];
+      for (var i = 0; i < all.length; i++) {
+        if (all[i].text.toLowerCase().indexOf(needle) !== -1) hits.push(all[i].el);
+        else all[i].el.classList.add('afhub-msg--search-dim');
+      }
+      historySearchHits = hits;
+      if (historySearchMeta) {
+        historySearchMeta.textContent = hits.length
+          ? hits.length + (hits.length === 1 ? ' resultado' : ' resultados')
+          : 'Sin coincidencias';
+      }
+      if (hits.length) {
+        historySearchHitIdx = 0;
+        hits[0].classList.add('afhub-msg--search-hit');
+        hits[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    function closeHistorySearch() {
+      if (!historySearchBar) return;
+      historySearchBar.hidden = true;
+      chat.classList.remove('afhub-history-search-open');
+      if (historySearchInput) historySearchInput.value = '';
+      clearHistorySearchHighlights();
+    }
+
+    function openHistorySearch() {
+      setSettingsMenuOpen(false);
+      historySearchBar.hidden = false;
+      chat.classList.add('afhub-history-search-open');
+      clearHistorySearchHighlights();
+      if (historySearchInput) {
+        historySearchInput.value = '';
+        historySearchInput.focus();
+      }
+      if (historySearchMeta) historySearchMeta.textContent = 'Escribe una palabra…';
+    }
+
+    var historySearchMenuItem = settingsMenu.querySelector('.afhub-settings-history-search');
+    if (historySearchMenuItem) {
+      historySearchMenuItem.addEventListener('click', function () {
+        openHistorySearch();
+      });
+    }
+    if (historySearchClose) {
+      historySearchClose.addEventListener('click', function () {
+        closeHistorySearch();
+      });
+    }
+    if (historySearchInput) {
+      var historySearchDebounce = null;
+      historySearchInput.addEventListener('input', function () {
+        if (historySearchDebounce) clearTimeout(historySearchDebounce);
+        var q = historySearchInput.value;
+        historySearchDebounce = setTimeout(function () {
+          runHistorySearch(q);
+        }, 120);
+      });
+      historySearchInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeHistorySearch();
+          return;
+        }
+        if (e.key === 'Enter' && historySearchHits.length) {
+          e.preventDefault();
+          historySearchHitIdx = (historySearchHitIdx + 1) % historySearchHits.length;
+          for (var h = 0; h < historySearchHits.length; h++) {
+            historySearchHits[h].classList.toggle('afhub-msg--search-hit', h === historySearchHitIdx);
+          }
+          historySearchHits[historySearchHitIdx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if (historySearchMeta) {
+            historySearchMeta.textContent =
+              historySearchHitIdx + 1 + ' / ' + historySearchHits.length;
+          }
+        }
+      });
+    }
+
     /** Opción Borrar conversación */
     var clearBtnEl = settingsMenu.querySelector('.afhub-settings-clear');
     if (clearBtnEl) {
@@ -6749,6 +6904,12 @@
         dp + '.afhub-settings-menu { background:#252530; border-color:rgba(255,255,255,.1); box-shadow:0 16px 48px rgba(0,0,0,.45); }' +
         dp + '.afhub-settings-item { color:#ececf1; }' +
         dp + '.afhub-settings-item:hover { background:rgba(255,255,255,.08); color:#fff; }' +
+        dp + '.afhub-history-search-inner { background:rgba(37,37,48,.92); border-color:rgba(255,255,255,.1); box-shadow:none; }' +
+        dp + '.afhub-history-search-input { color:#ececf1; }' +
+        dp + '.afhub-history-search-meta { color:#71717a; }' +
+        dp + '.afhub-history-search-close { color:#a1a1aa; }' +
+        dp + '.afhub-history-search-close:hover { background:rgba(255,255,255,.08); color:#fff; }' +
+        dp + '.afhub-msg.afhub-msg--search-hit { outline-color:rgba(255,255,255,.35); }' +
         dp + '.afhub-msg.bot,' + dp + '.afhub-msg-row--bot .afhub-msg { background:' + msgBubbleBg + '; color:#ececf1; border:' + msgBubbleBorder + '; box-shadow:' + msgBubbleShadow + '; }' +
         dp + '.afhub-msg.user { background:' + userBubbleBg + '; color:' + userBubbleColor + '; border:' + userBubbleBorder + '; box-shadow:' + userBubbleShadow + '; }' +
         dp + '.afhub-msg.user .afhub-msg-link { color:#fff; text-decoration:underline; }' +
@@ -7210,6 +7371,16 @@
       '#' + rootId + ' .afhub-settings-item svg { width:16px; height:16px; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-settings-clear { color:#dc2626; }' +
       '#' + rootId + ' .afhub-settings-clear:hover { background:rgba(220,38,38,.08); }' +
+      '#' + rootId + ' .afhub-history-search { flex:none; padding:8px 12px 0; background:transparent; z-index:3; }' +
+      '#' + rootId + ' .afhub-history-search[hidden] { display:none !important; }' +
+      '#' + rootId + ' .afhub-history-search-inner { display:flex; align-items:center; gap:8px; padding:6px 8px 6px 10px; border-radius:12px; background:rgba(255,255,255,.78); border:1px solid rgba(0,0,0,.08); box-shadow:0 1px 4px rgba(15,23,42,.04); }' +
+      '#' + rootId + ' .afhub-history-search-input { flex:1; min-width:0; border:none; outline:none; background:transparent; font:inherit; font-size:13px; color:#111; }' +
+      '#' + rootId + ' .afhub-history-search-meta { flex:none; font-size:10px; font-weight:600; color:#94a3b8; white-space:nowrap; max-width:88px; overflow:hidden; text-overflow:ellipsis; }' +
+      '#' + rootId + ' .afhub-history-search-close { flex:none; width:26px; height:26px; border:none; border-radius:8px; background:transparent; color:#64748b; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0; }' +
+      '#' + rootId + ' .afhub-history-search-close:hover { background:rgba(0,0,0,.06); color:#111; }' +
+      '#' + rootId + ' .afhub-history-search-close svg { width:14px; height:14px; }' +
+      '#' + rootId + ' .afhub-msg.afhub-msg--search-dim { opacity:.34; }' +
+      '#' + rootId + ' .afhub-msg.afhub-msg--search-hit { outline:2px solid ' + colorRgba(cfg.color, 0.55) + '; outline-offset:2px; }' +
       '#' + rootId + ' .afhub-close-btn { margin-left:0; }' +
       '#' + rootId + ' .afhub-messages-shell { flex:1 1 0; min-height:0; position:relative; display:flex; flex-direction:column; overflow:hidden; z-index:1; }' +
       '#' + rootId + ' .afhub-scroll-halo { position:absolute; left:0; right:0; height:' + widgetScrollHaloHeight + 'px; pointer-events:none; z-index:12; opacity:0; transition:opacity .28s ease; }' +
