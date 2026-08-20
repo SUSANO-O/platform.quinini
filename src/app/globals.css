@@ -7473,34 +7473,74 @@ button.dashboard-meta-chip:disabled {
 .widget-builder-page {
   position: relative;
   min-height: 100%;
+  width: 100%;
 }
 
 .widget-builder-page__grid {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  max-width: 1440px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
   padding: 0.5rem 0.75rem 2rem;
+  box-sizing: border-box;
 }
 
-@media (min-width: 1280px) {
+/* Rail de pasos + main: mismo layout desde md (no esperar a xl) */
+@media (min-width: 768px) {
   .widget-builder-page__grid {
     display: grid;
     grid-template-columns: 13rem minmax(0, 1fr);
-    gap: 1.5rem;
+    gap: 1.25rem;
     align-items: start;
-    padding-bottom: 2rem;
+    padding: 0.65rem 1rem 2rem;
   }
 
-  .widget-builder-page__grid > .builder-rail {
+  .widget-builder-page__grid > .builder-rail,
+  .widget-builder-page__grid > .widget-builder-rail {
     grid-column: 1;
     grid-row: 1;
+    position: sticky;
+    top: 0.75rem;
+    align-self: start;
+    width: 13rem;
+    max-width: 13rem;
+    min-width: 13rem;
   }
 
   .widget-builder-page__main {
     grid-column: 2;
+    min-width: 0;
   }
+}
+
+@media (min-width: 1280px) {
+  .widget-builder-page__grid {
+    grid-template-columns: 14rem minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+
+  .widget-builder-page__grid > .builder-rail,
+  .widget-builder-page__grid > .widget-builder-rail {
+    width: 14rem;
+    max-width: 14rem;
+    min-width: 14rem;
+  }
+}
+
+/* Tip con altura fija: el texto del tip no empuja el layout al cambiar de paso */
+.widget-builder-rail__tip {
+  min-height: 6.25rem;
+  box-sizing: border-box;
+}
+
+.widget-builder-rail__tip .dashboard-builder-rail__tip-text {
+  min-height: 3.15em;
+}
+
+.widget-builder-rail .dashboard-builder-rail__head {
+  min-height: 2.75rem;
 }
 
 .widget-builder-form-card {
@@ -7509,19 +7549,18 @@ button.dashboard-meta-chip:disabled {
   background: var(--card);
   box-shadow: var(--shadow-surface);
   padding: 1rem 1.125rem;
+  /* Mismo ancho en todos los pasos — no saltar al cambiar de wizard */
   width: 100%;
-  max-width: 48rem;
-  margin-inline: auto;
+  max-width: none;
+  margin-inline: 0;
+  box-sizing: border-box;
+  min-height: min(70vh, 42rem);
 }
 
 @media (min-width: 640px) {
   .widget-builder-form-card {
     padding: 1.125rem 1.25rem;
   }
-}
-
-.widget-builder-form-card--appearance {
-  max-width: 72rem;
 }
 
 .widget-builder-appearance {
@@ -7544,7 +7583,7 @@ button.dashboard-meta-chip:disabled {
 
 @media (min-width: 1280px) {
   .widget-builder-appearance {
-    grid-template-columns: minmax(0, 1fr) 22rem;
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 22rem);
   }
 }
 
@@ -9438,9 +9477,20 @@ button.dashboard-meta-chip:disabled {
 .widget-builder-stepper {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   gap: 0.5rem;
-  margin-bottom: 1rem;
+  margin: 0 0 0.75rem;
+  min-height: 1.75rem;
+  box-sizing: border-box;
+}
+
+/* Evitar que display:flex anule Tailwind md:hidden — solo móvil */
+@media (min-width: 768px) {
+  .widget-builder-stepper {
+    display: none !important;
+    margin: 0;
+    min-height: 0;
+  }
 }
 
 .widget-builder-stepper__dot {
@@ -9590,16 +9640,11 @@ button.dashboard-meta-chip:disabled {
   }
 }
 
-/* Paso 4 — Publicar */
-.widget-builder-form-card--publish {
-  padding-top: 0;
-  max-width: 42rem;
-}
-
 .widget-builder-publish {
   display: flex;
   flex-direction: column;
   gap: 1.125rem;
+  max-width: 42rem;
 }
 
 .widget-builder-publish__hero {
