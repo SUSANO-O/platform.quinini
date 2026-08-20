@@ -1839,7 +1839,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   style={inp}
                   value={fastPathModel}
                   onChange={(e) => setFastPathModel(e.target.value)}
-                  placeholder="Ej: gemini-2.5-flash (vacío = auto-seleccionar)"
+                  placeholder="Ej: gemini-2.5-flash-lite (vacío = auto barato)"
                   disabled={readOnly}
                 />
               </div>
