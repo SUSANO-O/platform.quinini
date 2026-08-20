@@ -20,8 +20,12 @@ import {
   Layers,
   Sparkles,
   ExternalLink,
+  Zap,
+  Webhook,
 } from '@/components/ui/icons';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
+import { extractAgentWebhooks } from '@/lib/agent-webhooks';
+import { getEventDefinition } from '@/lib/agent-event-catalog';
 
 interface WidgetShortcut {
   id: string;
@@ -393,6 +397,26 @@ export default function WidgetPreviewPage() {
   const totalMcpTools = mcpServers.reduce((s, g) => s + g.tools.length, 0);
   const syncedServers = mcpServers.filter((s) => s.syncStatus === 'ok');
   const builtInTools = agent?.tools?.filter((t) => !t.toolId.startsWith('mcp:') && !t.toolId.startsWith('std:')) ?? [];
+  const agentWebhooks = agent ? extractAgentWebhooks(agent) : [];
+  const webhookEventRows = agentWebhooks.map((wh) => {
+    const eventIds = wh.events?.length ? wh.events : [];
+    return {
+      id: wh.id,
+      name: wh.name,
+      description: wh.description,
+      hasUrl: Boolean(wh.url?.trim()),
+      events: eventIds.map((rawId) => {
+        const def = getEventDefinition(rawId);
+        return {
+          id: def?.id ?? rawId,
+          label: def?.label ?? rawId,
+          status: def?.status ?? ('planned' as const),
+          owner: def?.owner,
+        };
+      }),
+    };
+  });
+  const totalEventBindings = webhookEventRows.reduce((n, row) => n + row.events.length, 0);
   const subAgentCount = subAgents.length || agent?.subAgentIds?.length || 0;
   const isMultiAgentWidget = widget?.multiAgentEnabled === true || subAgentCount > 0;
   const enabledShortcuts = widget?.shortcuts?.filter((s) => s.enabled !== false) ?? [];
@@ -830,6 +854,8 @@ export default function WidgetPreviewPage() {
                   { label: 'Skills', value: String(agent.skills?.length ?? 0) },
                   { label: 'Sub-agentes', value: String(subAgentCount) },
                   { label: 'Atajos', value: String(enabledShortcuts.length) },
+                  { label: 'Webhooks', value: String(agentWebhooks.length) },
+                  { label: 'Eventos', value: String(totalEventBindings) },
                 ]}
               />
             </InfoCard>
@@ -914,6 +940,154 @@ export default function WidgetPreviewPage() {
                 </div>
               </div>
             )}
+
+            {/* Eventos / acciones (webhooks del agente) */}
+            <div
+              style={{
+                marginTop: 12,
+                paddingTop: 10,
+                borderTop: '1px solid color-mix(in oklab, var(--foreground) 8%, transparent)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  marginBottom: 6,
+                }}
+              >
+                <span
+                  style={{
+                    fontWeight: 700,
+                    fontSize: 12,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                  }}
+                >
+                  <Zap size={13} aria-hidden />
+                  Eventos y acciones
+                  <span style={{ fontWeight: 600, color: 'var(--muted-foreground)' }}>
+                    ({agentWebhooks.length} webhook{agentWebhooks.length === 1 ? '' : 's'}
+                    {totalEventBindings > 0 ? ` · ${totalEventBindings} evento${totalEventBindings === 1 ? '' : 's'}` : ''})
+                  </span>
+                </span>
+                {agent?._id ? (
+                  <Link
+                    href={`/dashboard/agents/${agent._id}`}
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: 'var(--primary)',
+                      textDecoration: 'none',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Configurar
+                  </Link>
+                ) : null}
+              </div>
+              <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '0 0 8px', lineHeight: 1.4 }}>
+                Webhooks del agente y los eventos de disparo asignados (p. ej. captura de lead).
+              </p>
+              {webhookEventRows.length === 0 ? (
+                <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0, marginLeft: 4 }}>
+                  Ningún webhook configurado. Añádelos en el agente → herramientas → webhook.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {webhookEventRows.map((row) => (
+                    <div
+                      key={row.id}
+                      style={{
+                        padding: '8px 10px',
+                        borderRadius: 8,
+                        border: '1px solid color-mix(in oklab, var(--foreground) 8%, transparent)',
+                        background: 'color-mix(in oklab, var(--foreground) 3%, transparent)',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          marginBottom: row.events.length || row.description ? 4 : 0,
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <Webhook size={12} aria-hidden />
+                        <code
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: 'var(--foreground)',
+                          }}
+                        >
+                          {row.name}
+                        </code>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 600,
+                            padding: '1px 6px',
+                            borderRadius: 99,
+                            background: row.hasUrl
+                              ? 'color-mix(in oklab, #22c55e 14%, transparent)'
+                              : 'color-mix(in oklab, #f59e0b 16%, transparent)',
+                            color: row.hasUrl ? '#15803d' : '#b45309',
+                          }}
+                        >
+                          {row.hasUrl ? 'URL lista' : 'Sin URL'}
+                        </span>
+                      </div>
+                      {row.description ? (
+                        <p
+                          style={{
+                            fontSize: 11,
+                            color: 'var(--muted-foreground)',
+                            margin: '0 0 6px',
+                            lineHeight: 1.35,
+                          }}
+                        >
+                          {row.description}
+                        </p>
+                      ) : null}
+                      {row.events.length === 0 ? (
+                        <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0 }}>
+                          Sin eventos asignados — se dispara como acción LLM / descripción.
+                        </p>
+                      ) : (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {row.events.map((ev) => (
+                            <span
+                              key={`${row.id}-${ev.id}`}
+                              title={ev.id}
+                              style={{
+                                fontSize: 11,
+                                padding: '2px 8px',
+                                borderRadius: 99,
+                                background:
+                                  ev.status === 'active'
+                                    ? 'color-mix(in oklab, #0d9488 15%, transparent)'
+                                    : 'color-mix(in oklab, var(--foreground) 7%, transparent)',
+                                color: ev.status === 'active' ? '#0d9488' : 'var(--muted-foreground)',
+                                border: '1px solid color-mix(in oklab, var(--foreground) 10%, transparent)',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {ev.label}
+                              {ev.status !== 'active' ? ' · planeado' : ''}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </InfoCard>
 
           {/* Embed Card */}
