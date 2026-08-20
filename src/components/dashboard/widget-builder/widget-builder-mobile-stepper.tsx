@@ -2,11 +2,10 @@
 
 import { WIDGET_WIZARD_STEPS } from '@/lib/widget-builder';
 
+/** Stepper solo para móvil. Siempre montado (todos los pasos) para no saltar el layout. */
 export function WidgetBuilderMobileStepper({ wizardStep }: { wizardStep: number }) {
-  if (wizardStep === WIDGET_WIZARD_STEPS.length - 1) return null;
-
   return (
-    <div className="widget-builder-stepper md:hidden" aria-hidden>
+    <div className="widget-builder-stepper" aria-hidden>
       {WIDGET_WIZARD_STEPS.map((s, i) => (
         <span
           key={s.id}

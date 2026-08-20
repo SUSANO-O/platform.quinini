@@ -89,7 +89,7 @@ export function BuilderRail({
     <div className={`builder-rail ${className}`.trim()}>
       {/* ── Vertical (md+) ─────────────────────────────────────────────── */}
       <nav
-        className="dashboard-builder-rail builder-rail__nav hidden md:flex md:flex-col md:w-52 md:shrink-0 md:sticky md:top-4 self-start"
+        className="dashboard-builder-rail builder-rail__nav hidden md:flex md:flex-col md:w-full md:shrink-0 md:sticky md:top-4 self-start"
         role="tablist"
         aria-label={ariaLabel}
       >
