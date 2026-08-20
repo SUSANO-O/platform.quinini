@@ -15,10 +15,10 @@ export const DEFAULT_THINKING_ICON: ThinkingIconConfig = {
 
 export const THINKING_ICON_OPTIONS: { id: ThinkingIconId; label: string; hint: string }[] = [
   { id: 'rubik', label: 'Cubo', hint: 'Cubo de Rubik en 3D' },
-  { id: 'spark', label: 'Destello', hint: 'Estrella que gira' },
-  { id: 'orb', label: 'Orbe', hint: 'Esfera con pulso' },
-  { id: 'atom', label: 'Átomo', hint: 'Órbitas alrededor del núcleo' },
-  { id: 'pulse', label: 'Pulso', hint: 'Anillos que se expanden' },
+  { id: 'spark', label: 'Cristal', hint: 'Prisma que gira con destellos' },
+  { id: 'orb', label: 'Planeta', hint: 'Esfera con anillo orbital' },
+  { id: 'atom', label: 'Órbita', hint: 'Núcleo con electrones en 3D' },
+  { id: 'pulse', label: 'Radar', hint: 'Barrido con eco y blip' },
 ];
 
 export function normalizeThinkingIcon(raw: unknown): ThinkingIconId {
