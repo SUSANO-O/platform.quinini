@@ -333,7 +333,11 @@ export function WidgetBuilderAppearanceStep({
                       aria-pressed={active}
                       disabled={!cfg.thinkingIconEnabled}
                       className={`widget-builder-thinking-icons__btn${active ? ' is-active' : ''}`}
-                      style={active ? ({ ['--wb-accent' as string]: cfg.color } as CSSProperties) : undefined}
+                      style={
+                        {
+                          ['--wb-accent' as string]: cfg.color,
+                        } as CSSProperties
+                      }
                       onClick={() => onChange({ thinkingIcon: opt.id as ThinkingIconId })}
                     >
                       <ThinkingIconMark kind={opt.id} />

@@ -3518,9 +3518,7 @@
       thinkingRotateStartedAt = Date.now();
     }
 
-    var stopRubikTurns = null;
     var RUBIK_STEP = 5.55;
-    var RUBIK_TURN_MS = 2100;
 
     function thinkingRubikTile(side, color) {
       return (
@@ -3574,211 +3572,46 @@
       return html + '</span>';
     }
 
-    function bakeRubikCubie(el, axis, deg) {
-      var x = Number(el.getAttribute('data-x'));
-      var y = Number(el.getAttribute('data-y'));
-      var z = Number(el.getAttribute('data-z'));
-      var nx = x;
-      var ny = y;
-      var nz = z;
-      if (axis === 'y') {
-        if (deg > 0) {
-          nx = z;
-          nz = -x;
-        } else {
-          nx = -z;
-          nz = x;
-        }
-      } else if (axis === 'x') {
-        if (deg > 0) {
-          ny = -z;
-          nz = y;
-        } else {
-          ny = z;
-          nz = -y;
-        }
-      } else if (deg > 0) {
-        nx = -y;
-        ny = x;
-      } else {
-        nx = y;
-        ny = -x;
-      }
-      el.setAttribute('data-x', String(nx));
-      el.setAttribute('data-y', String(ny));
-      el.setAttribute('data-z', String(nz));
-      var add =
-        axis === 'x'
-          ? 'rotateX(' + deg + 'deg)'
-          : axis === 'y'
-            ? 'rotateY(' + deg + 'deg)'
-            : 'rotateZ(' + deg + 'deg)';
-      var prev = el.getAttribute('data-r') || '';
-      el.setAttribute('data-r', add + (prev ? ' ' + prev : ''));
-      el.style.transform =
-        'translate3d(' +
-        nx * RUBIK_STEP +
-        'px,' +
-        -ny * RUBIK_STEP +
-        'px,' +
-        nz * RUBIK_STEP +
-        'px) ' +
-        (el.getAttribute('data-r') || '');
-    }
-
-    function applyRubikMoveInstant(cube, axis, layer, deg) {
-      var cubies = cube.querySelectorAll('.afhub-rk-cubie');
-      var slice = [];
-      var i;
-      for (i = 0; i < cubies.length; i++) {
-        if (Number(cubies[i].getAttribute('data-' + axis)) === layer) slice.push(cubies[i]);
-      }
-      for (i = 0; i < slice.length; i++) bakeRubikCubie(slice[i], axis, deg);
-    }
-
-    function rubikRand(n) {
-      return Math.floor(Math.random() * n);
-    }
-
-    function randomRubikMove(prev) {
-      var axes = ['x', 'y', 'z'];
-      var layers = [-1, 0, 1];
-      var degs = [90, -90];
-      var move = [axes[rubikRand(3)], layers[rubikRand(3)], degs[rubikRand(2)]];
-      var guard = 0;
-      while (
-        prev &&
-        guard < 10 &&
-        prev[0] === move[0] &&
-        prev[1] === move[1] &&
-        prev[2] === -move[2]
-      ) {
-        move = [axes[rubikRand(3)], layers[rubikRand(3)], degs[rubikRand(2)]];
-        guard += 1;
-      }
-      return move;
-    }
-
-    function scrambleRubikCube(cube) {
-      var count = 14 + rubikRand(9);
-      var moves = [];
-      var prev = null;
-      var i;
-      var move;
-      for (i = 0; i < count; i++) {
-        move = randomRubikMove(prev);
-        applyRubikMoveInstant(cube, move[0], move[1], move[2]);
-        moves.push(move);
-        prev = move;
-      }
-      return moves;
-    }
-
-    function playRubikMove(cube, axis, layer, deg, done) {
-      var cubies = cube.querySelectorAll('.afhub-rk-cubie');
-      var slice = [];
-      var i;
-      for (i = 0; i < cubies.length; i++) {
-        if (Number(cubies[i].getAttribute('data-' + axis)) === layer) slice.push(cubies[i]);
-      }
-      if (!slice.length) {
-        done();
-        return;
-      }
-      var spin = document.createElement('span');
-      spin.className = 'afhub-rk-spin';
-      cube.appendChild(spin);
-      for (i = 0; i < slice.length; i++) spin.appendChild(slice[i]);
-      var rot =
-        axis === 'x'
-          ? 'rotateX(' + deg + 'deg)'
-          : axis === 'y'
-            ? 'rotateY(' + deg + 'deg)'
-            : 'rotateZ(' + deg + 'deg)';
-      var finished = false;
-      function finish() {
-        if (finished) return;
-        finished = true;
-        spin.removeEventListener('transitionend', onEnd);
-        for (i = 0; i < slice.length; i++) bakeRubikCubie(slice[i], axis, deg);
-        while (spin.firstChild) cube.appendChild(spin.firstChild);
-        if (spin.parentNode) spin.parentNode.removeChild(spin);
-        done();
-      }
-      function onEnd(evt) {
-        if (evt && evt.target !== spin) return;
-        finish();
-      }
-      spin.addEventListener('transitionend', onEnd);
-      requestAnimationFrame(function () {
-        requestAnimationFrame(function () {
-          spin.style.transform = rot;
-        });
-      });
-      setTimeout(finish, RUBIK_TURN_MS + 120);
-    }
-
-    function startRubikTurns(cube) {
-      if (!cube) return function () {};
-      var reduce =
-        typeof window.matchMedia === 'function' &&
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      if (reduce) return function () {};
-      var stopped = false;
-      var timers = [];
-      function later(fn, ms) {
-        var t = setTimeout(fn, ms);
-        timers.push(t);
-        return t;
-      }
-      function assemble() {
-        if (stopped || !cube.isConnected) return;
-        var moves = scrambleRubikCube(cube);
-        var i = moves.length - 1;
-        function step() {
-          if (stopped || !cube.isConnected) return;
-          if (i < 0) {
-            later(assemble, 900);
-            return;
-          }
-          var move = moves[i];
-          i -= 1;
-          playRubikMove(cube, move[0], move[1], -move[2], function () {
-            later(step, 600);
-          });
-        }
-        later(step, 280);
-      }
-      assemble();
-      return function () {
-        stopped = true;
-        var t;
-        for (t = 0; t < timers.length; t++) clearTimeout(timers[t]);
-      };
-    }
-
     function thinkingGlyphHtml() {
       var icon = normalizeThinkingIconConfig(cfg);
       if (!icon.enabled) return '';
       if (icon.kind === 'spark') {
         return (
           '<span class="afhub-thinking-glyph afhub-thinking-glyph--spark" aria-hidden="true">' +
-            '<svg class="afhub-thinking-spark" viewBox="0 0 16 16" width="13" height="13">' +
-              '<path fill="currentColor" d="M8 .4 9.05 6.45 15.6 8 9.05 9.55 8 15.6 6.95 9.55.4 8l6.55-1.55z"/>' +
-            '</svg>' +
+            '<span class="afhub-ic-crystal">' +
+              '<span class="afhub-ic-crystal__core">' +
+                '<span class="afhub-ic-crystal__facet afhub-ic-crystal__facet--n"></span>' +
+                '<span class="afhub-ic-crystal__facet afhub-ic-crystal__facet--e"></span>' +
+                '<span class="afhub-ic-crystal__facet afhub-ic-crystal__facet--s"></span>' +
+                '<span class="afhub-ic-crystal__facet afhub-ic-crystal__facet--w"></span>' +
+                '<span class="afhub-ic-crystal__spark"></span>' +
+              '</span>' +
+            '</span>' +
           '</span>'
         );
       }
       if (icon.kind === 'orb') {
-        return '<span class="afhub-thinking-glyph afhub-thinking-glyph--orb" aria-hidden="true"><span class="afhub-thinking-orb"></span></span>';
+        return (
+          '<span class="afhub-thinking-glyph afhub-thinking-glyph--orb" aria-hidden="true">' +
+            '<span class="afhub-ic-planet">' +
+              '<span class="afhub-ic-planet__glow"></span>' +
+              '<span class="afhub-ic-planet__sphere">' +
+                '<span class="afhub-ic-planet__shine"></span>' +
+                '<span class="afhub-ic-planet__band"></span>' +
+              '</span>' +
+              '<span class="afhub-ic-planet__ring"></span>' +
+            '</span>' +
+          '</span>'
+        );
       }
       if (icon.kind === 'atom') {
         return (
           '<span class="afhub-thinking-glyph afhub-thinking-glyph--atom" aria-hidden="true">' +
-            '<span class="afhub-thinking-atom">' +
-              '<span class="afhub-thinking-atom-core"></span>' +
-              '<span class="afhub-thinking-atom-ring"></span>' +
-              '<span class="afhub-thinking-atom-ring afhub-thinking-atom-ring--b"></span>' +
+            '<span class="afhub-ic-orbit">' +
+              '<span class="afhub-ic-orbit__core"></span>' +
+              '<span class="afhub-ic-orbit__ring afhub-ic-orbit__ring--a"><span class="afhub-ic-orbit__e"></span></span>' +
+              '<span class="afhub-ic-orbit__ring afhub-ic-orbit__ring--b"><span class="afhub-ic-orbit__e"></span></span>' +
+              '<span class="afhub-ic-orbit__ring afhub-ic-orbit__ring--c"><span class="afhub-ic-orbit__e"></span></span>' +
             '</span>' +
           '</span>'
         );
@@ -3786,9 +3619,15 @@
       if (icon.kind === 'pulse') {
         return (
           '<span class="afhub-thinking-glyph afhub-thinking-glyph--pulse" aria-hidden="true">' +
-            '<span class="afhub-thinking-pulse-ring"></span>' +
-            '<span class="afhub-thinking-pulse-ring afhub-thinking-pulse-ring--b"></span>' +
-            '<span class="afhub-thinking-pulse-dot"></span>' +
+            '<span class="afhub-ic-radar">' +
+              '<span class="afhub-ic-radar__disc"></span>' +
+              '<span class="afhub-ic-radar__grid"></span>' +
+              '<span class="afhub-ic-radar__ring"></span>' +
+              '<span class="afhub-ic-radar__ring afhub-ic-radar__ring--mid"></span>' +
+              '<span class="afhub-ic-radar__sweep"></span>' +
+              '<span class="afhub-ic-radar__blip"></span>' +
+              '<span class="afhub-ic-radar__cross"></span>' +
+            '</span>' +
           '</span>'
         );
       }
@@ -3852,7 +3691,6 @@
       messages.appendChild(row);
       messages.scrollTop = messages.scrollHeight;
       startTypingTimer();
-      stopRubikTurns = startRubikTurns(el.querySelector('.afhub-thinking-cube'));
     }
 
     function updateTypingStatus(statusLabel, statusPhase) {
@@ -3875,10 +3713,6 @@
     }
 
     function hideTyping() {
-      if (typeof stopRubikTurns === 'function') {
-        stopRubikTurns();
-        stopRubikTurns = null;
-      }
       clearTypingTimer();
       setInputAgentBusy(false);
       var row = document.getElementById(typingRowId);
@@ -6992,9 +6826,7 @@
         rootId +
         ' .afhub-thinking-pulse,#' + rootId + ' .afhub-skel-line,#' + rootId + ' .afhub-thinking-dots span { animation:none !important; } #' +
         rootId +
-        ' .afhub-thinking-cube { animation:none !important; } #' +
-        rootId +
-        ' .afhub-thinking-spark,#' + rootId + ' .afhub-thinking-orb,#' + rootId + ' .afhub-thinking-atom-ring,#' + rootId + ' .afhub-thinking-pulse-ring { animation:none !important; } #' +
+        ' .afhub-thinking-cube,#' + rootId + ' .afhub-ic-crystal__core,#' + rootId + ' .afhub-ic-crystal__spark,#' + rootId + ' .afhub-ic-planet,#' + rootId + ' .afhub-ic-planet__ring,#' + rootId + ' .afhub-ic-orbit,#' + rootId + ' .afhub-ic-orbit__ring--a,#' + rootId + ' .afhub-ic-orbit__ring--b,#' + rootId + ' .afhub-ic-orbit__ring--c,#' + rootId + ' .afhub-ic-radar__sweep,#' + rootId + ' .afhub-ic-radar__blip { animation:none !important; } #' +
         rootId +
         ' .afhub-msg--streaming .afhub-msg-text::after { animation:none !important; opacity:0 !important; } #' +
         rootId +
@@ -7433,39 +7265,56 @@
       '#' + rootId + ' .afhub-thinking-body { display:flex; flex-direction:column; gap:4px; min-width:0; }' +
       '#' + rootId + ' .afhub-thinking-row { display:flex; align-items:center; gap:8px; min-width:0; overflow:visible; }' +
       '#' + rootId + ' .afhub-thinking-glyph { flex:none; width:22px; height:22px; display:flex; align-items:center; justify-content:center; perspective:64px; overflow:visible; transform-style:preserve-3d; }' +
-      '#' + rootId + ' .afhub-thinking-cube { width:17px; height:17px; position:relative; transform-style:preserve-3d; transform:rotateX(-26deg) rotateY(38deg); }' +
-      '#' + rootId + ' .afhub-rk-spin { position:absolute; left:0; top:0; width:17px; height:17px; transform-style:preserve-3d; transform-origin:50% 50%; transition:transform 2.1s cubic-bezier(.4,0,.2,1); }' +
+      '#' + rootId + ' .afhub-thinking-cube { width:17px; height:17px; position:relative; transform-style:preserve-3d; transform:rotateX(-26deg) rotateY(38deg); animation:afhub-rk-tumble 5.2s linear infinite; }' +
+      '#' + rootId + ' .afhub-rk-spin { position:absolute; left:0; top:0; width:17px; height:17px; transform-style:preserve-3d; transform-origin:50% 50%; }' +
       '#' + rootId + ' .afhub-rk-cubie { position:absolute; left:50%; top:50%; width:4.9px; height:4.9px; margin:-2.45px 0 0 -2.45px; transform-style:preserve-3d; }' +
-      '#' + rootId + ' .afhub-rk-tile { position:absolute; inset:0; box-sizing:border-box; background:#111; border-radius:0.35px; backface-visibility:hidden; -webkit-backface-visibility:hidden; }' +
-      '#' + rootId + ' .afhub-rk-sticker { position:absolute; inset:0.52px; border-radius:0.55px; box-shadow:inset 0 0.45px 0 rgba(255,255,255,.38), inset 0 -0.3px 0 rgba(0,0,0,.22); }' +
+      '#' + rootId + ' .afhub-rk-tile { position:absolute; inset:0; box-sizing:border-box; background:#1a1a1e; border-radius:0.35px; backface-visibility:hidden; -webkit-backface-visibility:hidden; }' +
+      '#' + rootId + ' .afhub-rk-sticker { position:absolute; inset:0.28px; border-radius:0.4px; box-shadow:inset 0 0.4px 0 rgba(255,255,255,.42), inset 0 -0.25px 0 rgba(0,0,0,.2); }' +
       '#' + rootId + ' .afhub-rk-tile--front { transform:rotateY(0deg) translateZ(2.48px); }' +
       '#' + rootId + ' .afhub-rk-tile--back { transform:rotateY(180deg) translateZ(2.48px); }' +
       '#' + rootId + ' .afhub-rk-tile--right { transform:rotateY(90deg) translateZ(2.48px); }' +
       '#' + rootId + ' .afhub-rk-tile--left { transform:rotateY(-90deg) translateZ(2.48px); }' +
       '#' + rootId + ' .afhub-rk-tile--top { transform:rotateX(90deg) translateZ(2.48px); }' +
       '#' + rootId + ' .afhub-rk-tile--bottom { transform:rotateX(-90deg) translateZ(2.48px); }' +
-      '#' + rootId + ' .afhub-rk-tile--inner { background:#0a0a0a; }' +
-      '#' + rootId + ' .afhub-rk-tile--w .afhub-rk-sticker { background:linear-gradient(155deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,.08) 34%,transparent 52%),#f6f6f6; }' +
-      '#' + rootId + ' .afhub-rk-tile--y .afhub-rk-sticker { background:linear-gradient(155deg,rgba(255,255,255,.42) 0%,rgba(255,255,255,.06) 34%,transparent 52%),#ffd400; }' +
-      '#' + rootId + ' .afhub-rk-tile--r .afhub-rk-sticker { background:linear-gradient(155deg,rgba(255,255,255,.34) 0%,rgba(255,255,255,.05) 34%,transparent 52%),#d20a2e; }' +
-      '#' + rootId + ' .afhub-rk-tile--o .afhub-rk-sticker { background:linear-gradient(155deg,rgba(255,255,255,.34) 0%,rgba(255,255,255,.05) 34%,transparent 52%),#ff6a00; }' +
-      '#' + rootId + ' .afhub-rk-tile--b .afhub-rk-sticker { background:linear-gradient(155deg,rgba(255,255,255,.34) 0%,rgba(255,255,255,.05) 34%,transparent 52%),#0055c8; }' +
-      '#' + rootId + ' .afhub-rk-tile--g .afhub-rk-sticker { background:linear-gradient(155deg,rgba(255,255,255,.34) 0%,rgba(255,255,255,.05) 34%,transparent 52%),#009e55; }' +
+      '#' + rootId + ' .afhub-rk-tile--inner { background:#1a1a1e; }' +
+      '#' + rootId + ' .afhub-rk-tile--w .afhub-rk-sticker { background:linear-gradient(160deg,rgba(255,255,255,.65) 0%,transparent 45%),#fff; }' +
+      '#' + rootId + ' .afhub-rk-tile--y .afhub-rk-sticker { background:linear-gradient(160deg,rgba(255,255,255,.4) 0%,transparent 45%),#ffe600; }' +
+      '#' + rootId + ' .afhub-rk-tile--r .afhub-rk-sticker { background:linear-gradient(160deg,rgba(255,255,255,.32) 0%,transparent 45%),#ff2b45; }' +
+      '#' + rootId + ' .afhub-rk-tile--o .afhub-rk-sticker { background:linear-gradient(160deg,rgba(255,255,255,.32) 0%,transparent 45%),#ff8f1a; }' +
+      '#' + rootId + ' .afhub-rk-tile--b .afhub-rk-sticker { background:linear-gradient(160deg,rgba(255,255,255,.32) 0%,transparent 45%),#2b7bff; }' +
+      '#' + rootId + ' .afhub-rk-tile--g .afhub-rk-sticker { background:linear-gradient(160deg,rgba(255,255,255,.32) 0%,transparent 45%),#12c96a; }' +
       '#' + rootId + ' .afhub-thinking-glyph { color:' +
         (isHexColor(cfg.color) ? cfg.color : '#6366f1') +
         '; }' +
-      '#' + rootId + ' .afhub-thinking-spark { display:block; animation:afhub-thinking-spark 8s ease-in-out infinite; }' +
-      '#' + rootId + ' .afhub-thinking-orb { width:10px; height:10px; border-radius:50%; background:radial-gradient(circle at 32% 28%,#fff 0%,currentColor 42%,#111 100%); box-shadow:0 0 6px ' +
-        colorRgba(cfg.color, 0.5) +
-        '; animation:afhub-thinking-orb 2.8s ease-in-out infinite; }' +
-      '#' + rootId + ' .afhub-thinking-atom { position:relative; width:14px; height:14px; }' +
-      '#' + rootId + ' .afhub-thinking-atom-core { position:absolute; inset:5px; border-radius:50%; background:currentColor; }' +
-      '#' + rootId + ' .afhub-thinking-atom-ring { position:absolute; inset:0; border:1px solid currentColor; border-radius:50%; animation:afhub-thinking-atom 4.8s linear infinite; }' +
-      '#' + rootId + ' .afhub-thinking-atom-ring--b { animation-duration:3.6s; animation-direction:reverse; transform:rotateX(70deg); }' +
-      '#' + rootId + ' .afhub-thinking-glyph--pulse { position:relative; }' +
-      '#' + rootId + ' .afhub-thinking-pulse-dot { width:5px; height:5px; border-radius:50%; background:currentColor; position:relative; z-index:1; }' +
-      '#' + rootId + ' .afhub-thinking-pulse-ring { position:absolute; width:5px; height:5px; border-radius:50%; border:1px solid currentColor; animation:afhub-thinking-pulse-ring 2.2s ease-out infinite; }' +
-      '#' + rootId + ' .afhub-thinking-pulse-ring--b { animation-delay:1.1s; }' +
+      '#' + rootId + ' .afhub-ic-crystal{width:18px;height:18px;display:grid;place-items:center;perspective:48px;}' +
+      '#' + rootId + ' .afhub-ic-crystal__core{position:relative;width:12px;height:16px;transform-style:preserve-3d;animation:afhub-ic-crystal-spin 4.8s linear infinite;}' +
+      '#' + rootId + ' .afhub-ic-crystal__facet{position:absolute;inset:0;clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%);opacity:.92;}' +
+      '#' + rootId + ' .afhub-ic-crystal__facet--n{background:linear-gradient(160deg,#fff 0%,currentColor 55%,#222 100%);transform:translateZ(2px);}' +
+      '#' + rootId + ' .afhub-ic-crystal__facet--e{background:linear-gradient(220deg,#ccc,currentColor);transform:rotateY(90deg) translateZ(2px);opacity:.75;}' +
+      '#' + rootId + ' .afhub-ic-crystal__facet--s{background:linear-gradient(20deg,#333,currentColor);transform:rotateY(180deg) translateZ(2px);opacity:.7;}' +
+      '#' + rootId + ' .afhub-ic-crystal__facet--w{background:linear-gradient(300deg,#bbb,currentColor);transform:rotateY(-90deg) translateZ(2px);opacity:.8;}' +
+      '#' + rootId + ' .afhub-ic-crystal__spark{position:absolute;top:2px;left:50%;width:3px;height:3px;margin-left:-1.5px;border-radius:50%;background:#fff;box-shadow:0 0 6px #fff,0 0 10px currentColor;animation:afhub-ic-crystal-glint 2.4s ease-in-out infinite;transform:translateZ(4px);}' +
+      '#' + rootId + ' .afhub-ic-planet{position:relative;width:18px;height:18px;display:grid;place-items:center;transform-style:preserve-3d;animation:afhub-ic-planet-float 3.2s ease-in-out infinite;}' +
+      '#' + rootId + ' .afhub-ic-planet__glow{position:absolute;inset:1px;border-radius:50%;background:radial-gradient(circle,' + colorRgba(cfg.color, 0.45) + ',transparent 70%);filter:blur(2px);}' +
+      '#' + rootId + ' .afhub-ic-planet__sphere{position:relative;width:12px;height:12px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#fff 0%,' + colorRgba(cfg.color, 0.7) + ' 22%,currentColor 58%,#0a0a0c 100%);box-shadow:inset -2px -1px 3px rgba(0,0,0,.35),0 0 8px ' + colorRgba(cfg.color, 0.45) + ';overflow:hidden;z-index:1;}' +
+      '#' + rootId + ' .afhub-ic-planet__shine{position:absolute;top:1.5px;left:2px;width:4px;height:3px;border-radius:50%;background:rgba(255,255,255,.85);}' +
+      '#' + rootId + ' .afhub-ic-planet__band{position:absolute;left:-10%;top:42%;width:120%;height:3px;background:linear-gradient(90deg,transparent,rgba(0,0,0,.35),transparent);opacity:.55;transform:rotate(-18deg);}' +
+      '#' + rootId + ' .afhub-ic-planet__ring{position:absolute;width:18px;height:6px;border:1.5px solid ' + colorRgba(cfg.color, 0.85) + ';border-radius:50%;transform:rotateX(68deg) rotateZ(-18deg);box-shadow:0 0 4px ' + colorRgba(cfg.color, 0.4) + ';animation:afhub-ic-planet-ring 5s linear infinite;z-index:2;}' +
+      '#' + rootId + ' .afhub-ic-orbit{position:relative;width:18px;height:18px;transform-style:preserve-3d;animation:afhub-ic-orbit-tilt 8s linear infinite;}' +
+      '#' + rootId + ' .afhub-ic-orbit__core{position:absolute;inset:6.5px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,currentColor 55%,#111);box-shadow:0 0 6px currentColor;z-index:2;}' +
+      '#' + rootId + ' .afhub-ic-orbit__ring{position:absolute;inset:0;border:1.2px solid ' + colorRgba(cfg.color, 0.75) + ';border-radius:50%;transform-style:preserve-3d;}' +
+      '#' + rootId + ' .afhub-ic-orbit__ring--a{animation:afhub-ic-orbit-spin-a 2.8s linear infinite;}' +
+      '#' + rootId + ' .afhub-ic-orbit__ring--b{transform:rotateX(70deg);animation:afhub-ic-orbit-spin-b 3.6s linear infinite reverse;}' +
+      '#' + rootId + ' .afhub-ic-orbit__ring--c{transform:rotateY(70deg) rotateZ(40deg);animation:afhub-ic-orbit-spin-c 4.4s linear infinite;}' +
+      '#' + rootId + ' .afhub-ic-orbit__e{position:absolute;top:-2px;left:calc(50% - 2px);width:4px;height:4px;border-radius:50%;background:#fff;box-shadow:0 0 4px currentColor;}' +
+      '#' + rootId + ' .afhub-ic-radar{position:relative;width:18px;height:18px;border-radius:50%;overflow:hidden;}' +
+      '#' + rootId + ' .afhub-ic-radar__disc{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 50% 50%,' + colorRgba(cfg.color, 0.18) + ' 0%,transparent 62%),#0f141a;box-shadow:inset 0 0 0 1px ' + colorRgba(cfg.color, 0.35) + ';}' +
+      '#' + rootId + ' .afhub-ic-radar__grid{position:absolute;inset:0;background:linear-gradient(' + colorRgba(cfg.color, 0.22) + ' 1px,transparent 1px),linear-gradient(90deg,' + colorRgba(cfg.color, 0.22) + ' 1px,transparent 1px);background-size:50% 50%;background-position:center;opacity:.35;border-radius:50%;}' +
+      '#' + rootId + ' .afhub-ic-radar__ring{position:absolute;inset:2px;border:1px solid ' + colorRgba(cfg.color, 0.45) + ';border-radius:50%;}' +
+      '#' + rootId + ' .afhub-ic-radar__ring--mid{inset:5px;opacity:.7;}' +
+      '#' + rootId + ' .afhub-ic-radar__cross{position:absolute;inset:0;background:linear-gradient(currentColor,currentColor) center/100% 1px no-repeat,linear-gradient(currentColor,currentColor) center/1px 100% no-repeat;opacity:.28;}' +
+      '#' + rootId + ' .afhub-ic-radar__sweep{position:absolute;inset:0;background:conic-gradient(from 0deg,transparent 0deg,' + colorRgba(cfg.color, 0.55) + ' 50deg,transparent 70deg);animation:afhub-ic-radar-sweep 2.4s linear infinite;border-radius:50%;}' +
+      '#' + rootId + ' .afhub-ic-radar__blip{position:absolute;top:3px;right:4px;width:3px;height:3px;border-radius:50%;background:#fff;box-shadow:0 0 5px currentColor;animation:afhub-ic-radar-blip 2.4s ease-in-out infinite;}' +
       '#' + rootId + ' .afhub-thinking-head,' +
       '#' + rootId + ' .afhub-thinking-pulse,' +
       '#' + rootId + ' .afhub-thinking-titles,' +
@@ -7758,6 +7607,17 @@
       '@keyframes afhub-bounce { to { transform:translateY(-6px); opacity:.4; } }' +
       '@keyframes afhub-thinking-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }' +
       '@keyframes afhub-thinking-spark { 0%,100%{transform:rotate(0deg) scale(1)} 20%{transform:rotate(70deg) scale(1.08)} 40%{transform:rotate(0deg) scale(1)} 60%{transform:rotate(-55deg) scale(.94)} 80%{transform:rotate(0deg) scale(1)} }' +
+      '@keyframes afhub-rk-tumble { from{transform:rotateX(-26deg) rotateY(38deg)} to{transform:rotateX(-26deg) rotateY(398deg)} }' +
+      '@keyframes afhub-ic-crystal-spin{from{transform:rotateX(18deg) rotateY(0deg)}to{transform:rotateX(18deg) rotateY(360deg)}}' +
+      '@keyframes afhub-ic-crystal-glint{0%,100%{opacity:.35;transform:translateZ(4px) scale(.7)}40%{opacity:1;transform:translateZ(4px) scale(1.2)}}' +
+      '@keyframes afhub-ic-planet-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.5px)}}' +
+      '@keyframes afhub-ic-planet-ring{from{transform:rotateX(68deg) rotateZ(-18deg) rotateY(0deg)}to{transform:rotateX(68deg) rotateZ(-18deg) rotateY(360deg)}}' +
+      '@keyframes afhub-ic-orbit-spin-a{to{transform:rotateZ(360deg)}}' +
+      '@keyframes afhub-ic-orbit-spin-b{from{transform:rotateX(70deg) rotateZ(0deg)}to{transform:rotateX(70deg) rotateZ(360deg)}}' +
+      '@keyframes afhub-ic-orbit-spin-c{from{transform:rotateY(70deg) rotateZ(40deg)}to{transform:rotateY(70deg) rotateZ(400deg)}}' +
+      '@keyframes afhub-ic-orbit-tilt{from{transform:rotateZ(0deg)}to{transform:rotateZ(360deg)}}' +
+      '@keyframes afhub-ic-radar-sweep{to{transform:rotate(360deg)}}' +
+      '@keyframes afhub-ic-radar-blip{0%,70%,100%{opacity:.2;transform:scale(.7)}15%,35%{opacity:1;transform:scale(1.2)}}' +
       '@keyframes afhub-thinking-orb { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(.82);opacity:.72} }' +
       '@keyframes afhub-thinking-atom { from{transform:rotateY(0deg) rotateZ(18deg)} to{transform:rotateY(360deg) rotateZ(18deg)} }' +
       '@keyframes afhub-thinking-pulse-ring { 0%{transform:scale(1);opacity:.7} 100%{transform:scale(2.8);opacity:0} }' +

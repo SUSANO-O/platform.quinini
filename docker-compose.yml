@@ -1,0 +1,31 @@
+# Landing BotIvA (platform.quinini) — puerto host 3201.
+# Habla con hub (:9010) y motor (:9003) vía host.docker.internal.
+# NEXT_PUBLIC_* se inyectan en build (ver Dockerfile).
+
+services:
+  landing:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3201}
+        NEXT_PUBLIC_AGENTFLOWHUB_URL: ${NEXT_PUBLIC_AGENTFLOWHUB_URL:-http://localhost:9010}
+        NEXT_PUBLIC_AGENTFLOW_API_URL: ${NEXT_PUBLIC_AGENTFLOW_API_URL:-http://localhost:4000}
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}
+        NEXT_PUBLIC_ASSIST_SCRIPT_URL: ${NEXT_PUBLIC_ASSIST_SCRIPT_URL:-}
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+        NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
+    ports:
+      - "3201:3201"
+    env_file:
+      - .env
+    environment:
+      PORT: 3201
+      HOSTNAME: 0.0.0.0
+      NODE_ENV: production
+      # Server-side: contenedores hermanos en el host
+      BACKEND_URL: http://host.docker.internal:9003
+      AUTH_BACKEND_URL: http://host.docker.internal:9003
+      AGENTFLOWHUB_URL: http://host.docker.internal:9010
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

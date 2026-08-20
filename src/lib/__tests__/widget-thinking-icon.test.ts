@@ -37,5 +37,9 @@ describe('widget-thinking-icon', () => {
 
   it('thinkingIconLabel devuelve el nombre en español', () => {
     expect(thinkingIconLabel('rubik')).toBe('Cubo');
+    expect(thinkingIconLabel('spark')).toBe('Cristal');
+    expect(thinkingIconLabel('orb')).toBe('Planeta');
+    expect(thinkingIconLabel('atom')).toBe('Órbita');
+    expect(thinkingIconLabel('pulse')).toBe('Radar');
   });
 });
