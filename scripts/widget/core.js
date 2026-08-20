@@ -8,7 +8,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.6.160';
+  var VERSION = '1.6.162';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -2604,8 +2604,23 @@
       return t.replace(/\s+$/, '');
     }
 
+    /** Meta-instrucciones que el modelo a veces regurgita al visitante. */
+    function stripVisibleMetaInstructionLeak(raw) {
+      var out = String(raw || '').trim();
+      if (!out) return out;
+      var headerRe = /^\s*\[(?:INSTRUCCI[OÓ]N(?:ES)?|INSTRUCTION|SYSTEM(?:\s+PROMPT)?|REGLA(?:S)?|IMPORTANTE|ALTA\s+PRIORIDAD|PRIORIDAD[^\]]*)[^\]]*\]\s*/i;
+      var lineRe = /^(?:Aseg[uú]rate|Evita(?:\s+cualquier)?|No\s+(?:muestres|reveles|cites|incluyas)|Never\s+|Do\s+not\s+|Remember\s+to\s+|Prioriza\s+siempre|Responde\s+de\s+forma\s+concisa)[^\n]*\n*/i;
+      for (var g = 0; g < 6; g++) {
+        if (!headerRe.test(out)) break;
+        out = out.replace(headerRe, '').replace(/^\s+/, '');
+        while (lineRe.test(out)) out = out.replace(lineRe, '').replace(/^\s+/, '');
+      }
+      out = out.replace(/^\s*Aseg[uú]rate de que tu respuesta sea concisa[^\n]*\n+(?:Evita[^\n]*\n+)*/i, '').trim();
+      return out;
+    }
+
     function botReplyForDisplay(raw) {
-      var t = stripHandoffPrefix(stripAssistNavBlock(String(raw || '')));
+      var t = stripVisibleMetaInstructionLeak(stripHandoffPrefix(stripAssistNavBlock(String(raw || ''))));
       return cfg.showMcpUi ? t : stripHubSpotProducerNotes(t);
     }
 
@@ -2904,46 +2919,61 @@
       return Math.min(32, Math.max(8, Math.floor(2800 / n)));
     }
 
+    function revealBotReplyProgressively(fullText, finalizeFn) {
+      // Sin reveal por trozos: reescribir HTML cada ~10–30ms hacía titilar la burbuja.
+      // El streaming SSE ya da sensación de escritura cuando está activo.
+      var opts = finalizeFn && finalizeFn.opts;
+      var bubble = addMessage('bot', fullText, opts);
+      if (finalizeFn) finalizeFn(bubble, fullText);
+      speakBotReplyIfEnabled(fullText, bubble);
+    }
+
+    var _streamPaintTimer = null;
+    var _streamPaintPending = null;
+
     function updateStreamBubble(bubble, streamReply) {
       if (!bubble) return;
-      var streamShown = botReplyForDisplay(streamReply);
-      var textEl = bubble.querySelector('.afhub-msg-text');
-      if (textEl) {
-        textEl.innerHTML = formatBotHtml(streamShown);
-      } else {
+      _streamPaintPending = { bubble: bubble, reply: streamReply };
+      if (_streamPaintTimer) return;
+      _streamPaintTimer = setTimeout(function () {
+        _streamPaintTimer = null;
+        var job = _streamPaintPending;
+        _streamPaintPending = null;
+        if (!job || !job.bubble || !job.bubble.isConnected) return;
+        var streamShown = botReplyForDisplay(job.reply);
+        var textEl = job.bubble.querySelector('.afhub-msg-text');
+        if (textEl) {
+          textEl.innerHTML = formatBotHtml(streamShown);
+        } else {
+          var html = formatBotHtmlWrapped(streamShown);
+          var wrap = document.createElement('div');
+          wrap.innerHTML = html;
+          var inner = wrap.firstChild;
+          if (inner) job.bubble.insertBefore(inner, job.bubble.firstChild);
+        }
+        messages.scrollTop = messages.scrollHeight;
+      }, 48);
+    }
+
+    function flushStreamBubblePaint() {
+      if (_streamPaintTimer) {
+        clearTimeout(_streamPaintTimer);
+        _streamPaintTimer = null;
+      }
+      if (!_streamPaintPending) return;
+      var job = _streamPaintPending;
+      _streamPaintPending = null;
+      if (!job.bubble || !job.bubble.isConnected) return;
+      var streamShown = botReplyForDisplay(job.reply);
+      var textEl = job.bubble.querySelector('.afhub-msg-text');
+      if (textEl) textEl.innerHTML = formatBotHtml(streamShown);
+      else {
         var html = formatBotHtmlWrapped(streamShown);
         var wrap = document.createElement('div');
         wrap.innerHTML = html;
         var inner = wrap.firstChild;
-        if (inner) bubble.insertBefore(inner, bubble.firstChild);
+        if (inner) job.bubble.insertBefore(inner, job.bubble.firstChild);
       }
-      messages.scrollTop = messages.scrollHeight;
-    }
-
-    function revealBotReplyProgressively(fullText, finalizeFn) {
-      var parts = splitTextForReveal(fullText);
-      if (parts.length <= 1) {
-        var single = addMessage('bot', fullText, finalizeFn && finalizeFn.opts);
-        if (finalizeFn) finalizeFn(single, fullText);
-        return;
-      }
-      var bubble = addMessage('bot', '', { streaming: true });
-      var acc = '';
-      var delay = revealDelayForParts(parts.length);
-      var idx = 0;
-      function step() {
-        if (idx >= parts.length) {
-          bubble.classList.remove('afhub-msg--streaming');
-          if (finalizeFn) finalizeFn(bubble, fullText);
-          speakBotReplyIfEnabled(fullText, bubble);
-          return;
-        }
-        acc += parts[idx];
-        idx++;
-        updateStreamBubble(bubble, acc);
-        setTimeout(step, delay);
-      }
-      step();
     }
 
     var lastMsgDateKey = '';
@@ -3662,11 +3692,17 @@
       if (!el) return;
       var capEl = el.querySelector('.afhub-thinking-caption');
       if (capEl && capEl.getAttribute('data-slow') === '1') return;
+      var before = capEl ? capEl.textContent : '';
       applyThinkingDisplay(el, statusLabel, statusPhase);
-      el.classList.add('afhub-thinking-card--pulse');
-      setTimeout(function () {
-        if (el.isConnected) el.classList.remove('afhub-thinking-card--pulse');
-      }, 320);
+      var after = el.querySelector('.afhub-thinking-caption');
+      var afterText = after ? after.textContent : '';
+      // Solo un pulso suave si el texto cambió de verdad (evita titileo por SSE de status).
+      if (afterText && afterText !== before) {
+        el.classList.add('afhub-thinking-card--pulse');
+        setTimeout(function () {
+          if (el.isConnected) el.classList.remove('afhub-thinking-card--pulse');
+        }, 220);
+      }
     }
 
     function showTyping(statusLabel, statusPhase) {
@@ -5299,6 +5335,7 @@
               streamBubble = addMessage('bot', finalReply, { streaming: true });
             }
             if (streamBubble) {
+              flushStreamBubblePaint();
               var te2 = streamBubble.querySelector('.afhub-msg-text');
               if (te2) te2.innerHTML = formatBotHtml(finalReply);
               streamBubble.classList.remove('afhub-msg--streaming');
@@ -7196,10 +7233,11 @@
       '#' + rootId + ' .afhub-msg-avatar svg { width:14px; height:14px; color:#64748b; }' +
       '#' + rootId + ' .afhub-date-divider { align-self:center; text-align:center; margin:14px 0 10px; width:100%; }' +
       '#' + rootId + ' .afhub-date-divider span { display:inline-block; font-size:10px; font-weight:600; letter-spacing:.03em; text-transform:capitalize; color:#94a3b8; background:rgba(255,255,255,.42); padding:4px 11px; border-radius:999px; border:none; box-shadow:0 1px 4px rgba(15,23,42,.04); }' +
-      '#' + rootId + ' .afhub-msg { max-width:86%; padding:13px 17px; border-radius:20px; font-size:14.5px; line-height:1.58; letter-spacing:-.012em; word-wrap:break-word; animation:afhub-msg-fade-in .32s ' + macSpring + '; position:relative; -webkit-backdrop-filter:none; backdrop-filter:none; }' +
+      '#' + rootId + ' .afhub-msg { max-width:86%; padding:13px 17px; border-radius:20px; font-size:14.5px; line-height:1.58; letter-spacing:-.012em; word-wrap:break-word; animation:afhub-msg-fade-in .28s ' + macSpring + ' both; position:relative; -webkit-backdrop-filter:none; backdrop-filter:none; }' +
+      '#' + rootId + ' .afhub-msg--streaming { animation:none !important; opacity:1 !important; transform:none !important; }' +
       '#' + rootId + ' .afhub-msg.user { white-space:pre-wrap; background:' + userBubbleBg + '; color:' + userBubbleColor + '; align-self:flex-end; border-radius:20px 20px 6px 20px; border:' + userBubbleBorder + '; box-shadow:' + userBubbleShadow + '; }' +
       '#' + rootId + ' .afhub-msg-rich { white-space:normal; }' +
-      '#' + rootId + ' .afhub-msg--streaming .afhub-msg-text::after { content:""; display:inline-block; width:2px; height:.95em; margin-left:2px; vertical-align:text-bottom; background:currentColor; opacity:.55; animation:afhub-stream-cursor .85s step-end infinite; }' +
+      '#' + rootId + ' .afhub-msg--streaming .afhub-msg-text::after { content:""; display:inline-block; width:2px; height:.95em; margin-left:2px; vertical-align:text-bottom; background:currentColor; opacity:.45; animation:afhub-stream-cursor 1.05s step-end infinite; }' +
       '#' + rootId + ' .afhub-msg.bot { background:' + msgBubbleBg + '; color:#111111; align-self:flex-start; border-radius:20px 20px 20px 6px; border:' + msgBubbleBorder + '; box-shadow:' + msgBubbleShadow + '; }' +
       '#' + rootId + ' .afhub-human-wrap { align-self:flex-start; max-width:88%; width:100%; display:flex; flex-direction:column; gap:4px; }' +
       '#' + rootId + ' .afhub-human-meta { display:flex; align-items:center; gap:6px; padding:0 2px; }' +
@@ -7248,8 +7286,8 @@
       '#' + rootId + ' .afhub-widget-img { display:block; width:100%; max-width:100%; height:auto; vertical-align:middle; }' +
       '#' + rootId + ' .afhub-msg.bot.afhub-thinking-card { background:transparent !important; border:none !important; box-shadow:none !important; border-radius:14px !important; padding:1px !important; width:212px !important; max-width:100% !important; flex:none !important; align-self:flex-start !important; overflow:visible !important; clip-path:none !important; -webkit-clip-path:none !important; }' +
       '#' + rootId + ' .afhub-thinking-card { display:flex; flex-direction:column; align-items:stretch; justify-content:center; gap:0; padding:1px; width:212px; max-width:100%; min-width:0; flex:none; align-self:flex-start; border-radius:14px; border:none; background:transparent; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; animation:afhub-thinking-in .28s ease-out; position:relative; isolation:isolate; overflow:visible; contain:none; clip-path:none; -webkit-clip-path:none; transition:opacity .22s ease; box-sizing:border-box; }' +
-      '#' + rootId + ' .afhub-thinking-card.afhub-thinking-card--pulse { animation:afhub-thinking-in .28s ease-out, afhub-thinking-caption-pulse .32s ease; }' +
-      '#' + rootId + ' .afhub-thinking-card::before { content:""; position:absolute; inset:-1px; border-radius:inherit; pointer-events:none; z-index:0; opacity:var(--afhub-beam-glow,.28); filter:blur(4px) saturate(1.15); background:' + rainbowBeamVivid + '; animation:afhub-border-beam-spin var(--afhub-beam-speed-msg,6s) linear infinite, afhub-thinking-glow-pulse 3s ease-in-out infinite; will-change:--afhub-beam-angle,opacity; }' +
+      '#' + rootId + ' .afhub-thinking-card.afhub-thinking-card--pulse { animation:afhub-thinking-caption-pulse .22s ease; }' +
+      '#' + rootId + ' .afhub-thinking-card::before { content:""; position:absolute; inset:-1px; border-radius:inherit; pointer-events:none; z-index:0; opacity:var(--afhub-beam-glow,.22); filter:blur(4px) saturate(1.1); background:' + rainbowBeamVivid + '; animation:afhub-border-beam-spin var(--afhub-beam-speed-msg,6s) linear infinite; will-change:--afhub-beam-angle; }' +
       '#' + rootId + ' .afhub-thinking-beam-ring { position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:1; opacity:calc(var(--afhub-beam-intensity,1) * .72); box-sizing:border-box; padding:1px; overflow:hidden; -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0); -webkit-mask-composite:xor; mask-composite:exclude; }' +
       '#' + rootId + ' .afhub-thinking-beam-spin { position:absolute; inset:0; border-radius:inherit; background:' + rainbowBeamVivid + '; filter:saturate(1.15) brightness(1.02); animation:afhub-border-beam-spin var(--afhub-beam-speed-msg,6s) linear infinite; will-change:--afhub-beam-angle; }' +
       '#' + rootId + '.afhub-ai-beam-scope-off .afhub-input-beam-ring,' +
