@@ -162,10 +162,57 @@ export function needsStatedFactsEcho(message: string): boolean {
 
 export const needsVehicleFactsEcho = needsStatedFactsEcho;
 
+/**
+ * Recall vectorial solo si el visitante pide un recuerdo del hilo/visitas.
+ * Catálogo, FAQ y saludos no gastan embedding ni contaminan el prompt.
+ */
+const MEMORY_RECALL_RE =
+  /\b(?:te\s+acuerdas|recuerdas(?:\s+que)?|te\s+dije|te\s+coment[eé]|te\s+hab[ií]a\s+(?:dicho|comentado)|mencion[eé]|al\s+inicio|antes\s+(?:te\s+)?(?:dije|coment)|de\s+qu[eé]\s+color(?:\s+(?:era|ten[ií]a))?|cu[aá]ntos?\s+kil[oó]met|qu[eé]\s+te\s+dije|lo\s+que\s+te\s+(?:dije|coment)|el\s+de\s+color\s+que\s+te\s+coment)\b/i;
+
+export function needsConversationMemoryRecall(message: string): boolean {
+  const raw = widgetTurnUserText(message);
+  if (!raw) return false;
+  return MEMORY_RECALL_RE.test(raw);
+}
+
 const TURN_EMOTION_RE = /\b(?:angust|miedo|preocup|estr[eé]s|zozobra|temor)/i;
 const TURN_REGREET_RE = /^(?:¡?\s*)?(?:hola|buenas|qu[eé]\s+gusto\s+saludarte)/i;
-const TURN_REASONING_RE =
-  /\b(?:razona|razonamiento|cu[aá]nto\s+me\s+faltar|diferencia|retoma|permuta|tasaci[oó]n|aval[uú]o)\b/i;
+/** Intención de cálculo explícita (status + directriz). */
+const TURN_REASONING_EXPLICIT_RE =
+  /\b(?:razona|razonamiento|cu[aá]nto\s+me\s+falt|tasaci[oó]n|aval[uú]o)\b/i;
+/** Palabras que solo son razonamiento si hay cifras en el hilo. */
+const TURN_REASONING_IF_FIGURES_RE = /\b(?:diferencia|retoma|permuta)\b/i;
+
+function threadHasNumericFigures(
+  message: string,
+  history?: HistoryTurn[] | null,
+): boolean {
+  if (/\d/.test(message)) return true;
+  if (!Array.isArray(history)) return false;
+  for (const h of history.slice(-8)) {
+    if (!h || typeof h !== 'object') continue;
+    const content = typeof h.content === 'string' ? h.content : '';
+    if (/\d/.test(content)) return true;
+  }
+  return false;
+}
+
+/**
+ * ¿Mostrar “calculando…” / inyectar directriz de cifras?
+ * No fuerza cálculo en FAQ tipo “diferencia entre planes” sin números.
+ */
+export function isNumericReasoningTurn(
+  message: string,
+  history?: HistoryTurn[] | null,
+): boolean {
+  const turn = widgetTurnUserText(message);
+  if (!turn) return false;
+  if (TURN_REASONING_EXPLICIT_RE.test(turn)) return true;
+  if (TURN_REASONING_IF_FIGURES_RE.test(turn)) {
+    return threadHasNumericFigures(turn, history);
+  }
+  return false;
+}
 
 const FOCUS_STOP = new Set([
   'este',
@@ -247,7 +294,7 @@ function replyLeaksPriorEmotion(params: {
 }
 
 function turnNeedsFocusGuard(message: string): boolean {
-  return needsKnowledgeLookup(message) || needsOperationalTools(message) || TURN_REASONING_RE.test(message);
+  return needsKnowledgeLookup(message) || needsOperationalTools(message) || isNumericReasoningTurn(message);
 }
 
 /**
@@ -375,7 +422,7 @@ export function widgetRuntimeDirectives(
   if (needsKnowledgeLookup(turn) && !allowLead) {
     lines.push(WIDGET_INVENTORY_NO_LEAD_DIRECTIVE);
   }
-  if (TURN_REASONING_RE.test(turn)) {
+  if (isNumericReasoningTurn(turn, history)) {
     lines.push(WIDGET_REASONING_DIRECTIVE);
   }
   if (needsStatedFactsEcho(turn)) {

@@ -1,5 +1,7 @@
 import createNextIntlPlugin from 'next-intl/plugin';
 import type { NextConfig } from 'next';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 // @ts-ignore -- next-pwa still ships loose typings
 import withPWAInit from 'next-pwa';
 import { getAgentflowApiOriginsForCsp } from './src/lib/agentflow-api-url';
@@ -17,6 +19,8 @@ const withPWA = withPWAInit({
 });
 
 const nextConfig: NextConfig = {
+  // Evita que Next tome el package-lock del monorepo padres (agentes/) como root.
+  outputFileTracingRoot: path.join(path.dirname(fileURLToPath(import.meta.url))),
   output: 'standalone',
   poweredByHeader: false,
   productionBrowserSourceMaps: false,

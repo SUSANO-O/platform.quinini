@@ -43,4 +43,30 @@ describe('widget-chat-latency', () => {
     expect(summary.replyLen).toBe(240);
     expect(summary.agentId).toBe('a1');
   });
+
+  it('recordSsePhase + tools + tokens en finish', () => {
+    const trace = new WidgetChatTrace({ traceId: 't4' });
+    trace.recordSsePhase('prepare');
+    trace.recordSsePhase('prepare');
+    trace.recordSsePhase('hub');
+    trace.setToolsUsed(['sheet_read', 'sheet_read']);
+    trace.setPromptChars(800);
+    trace.setInputTokens(180);
+    trace.setPath('stream-direct-mcp');
+    const summary = trace.finish();
+    expect(summary.ssePhases).toEqual(['prepare', 'hub']);
+    expect(summary.toolsUsed).toEqual(['sheet_read']);
+    expect(summary.promptTokensEst).toBe(200);
+    expect(summary.inputTokens).toBe(180);
+    expect(summary.statusHonest).toBe(true);
+  });
+
+  it('status mentiroso si rag tras prepare', () => {
+    const trace = new WidgetChatTrace({ traceId: 't5' });
+    trace.recordSsePhase('prepare');
+    trace.recordSsePhase('rag');
+    const summary = trace.finish();
+    expect(summary.statusHonest).toBe(false);
+    expect(summary.lyingReason).toMatch(/anticipatorio/);
+  });
 });

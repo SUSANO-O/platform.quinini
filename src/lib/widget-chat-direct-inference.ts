@@ -323,7 +323,12 @@ export async function tryServeWidgetChatViaDirectInference(params: {
   let contextBlock =
     typeof parsed.sessionContextBlock === 'string' ? parsed.sessionContextBlock : '';
 
-  if (shouldRecallConversationMemory({ trivial, sessionId: chatSessionId })) {
+  if (shouldRecallConversationMemory({
+    trivial,
+    sessionId: chatSessionId,
+    message,
+    visitorId,
+  })) {
     const memoryBlock = await recallConversationContextBlock({
       /** Mismo id con el que afterWidgetChatSuccess escribe este turno. */
       agentId: params.parsedAgentId,

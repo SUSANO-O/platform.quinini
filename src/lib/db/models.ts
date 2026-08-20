@@ -977,6 +977,14 @@ const WidgetChatLatencySchema = new Schema({
   ok:         { type: Boolean, default: true },
   errorCode:  { type: String, default: null },
   replyLen:   { type: Number, default: null },
+  /** Observabilidad F4: fases SSE, tools, tokens, honestidad de status. */
+  ssePhases:        { type: [String], default: [] },
+  toolsUsed:        { type: [String], default: [] },
+  promptChars:      { type: Number, default: null },
+  promptTokensEst:  { type: Number, default: null },
+  inputTokens:      { type: Number, default: null },
+  statusHonest:     { type: Boolean, default: true },
+  lyingReason:      { type: String, default: null },
   createdAt:  { type: Date, default: Date.now, expires: 30 * 24 * 60 * 60 },
 }, { timestamps: false });
 

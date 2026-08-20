@@ -3,6 +3,8 @@ import {
   leadCaptureToolsAllowed,
   LEAD_CAPTURE_SKILL_IDS,
   needsKnowledgeLookup,
+  needsConversationMemoryRecall,
+  isNumericReasoningTurn,
   needsOperationalTools,
   needsVehicleFactsEcho,
   shouldSkipHeavyWidgetPath,
@@ -69,6 +71,50 @@ describe('needsKnowledgeLookup', () => {
     expect(needsKnowledgeLookup('Y el de color que te comente al inicio, sigue siendo el que quiero entregar?')).toBe(
       false,
     );
+  });
+});
+
+describe('needsConversationMemoryRecall', () => {
+  it('sí en recuerdos explícitos', () => {
+    expect(
+      needsConversationMemoryRecall(
+        'Oye, cuantos kilometros te dije que tenia mi carro, y de que color era?',
+      ),
+    ).toBe(true);
+    expect(
+      needsConversationMemoryRecall(
+        'Y el de color que te comente al inicio, sigue siendo el que quiero entregar?',
+      ),
+    ).toBe(true);
+  });
+
+  it('no en catálogo ni saludo', () => {
+    expect(needsConversationMemoryRecall('cuánto cuesta el plan Pro?')).toBe(false);
+    expect(needsConversationMemoryRecall('hola')).toBe(false);
+  });
+});
+
+describe('isNumericReasoningTurn', () => {
+  it('razona / cuanto me falta: sí', () => {
+    expect(
+      isNumericReasoningTurn(
+        'Si el Picanto nuevo vale lo del inventario, cuanto me faltaria? Razona en voz alta.',
+      ),
+    ).toBe(true);
+  });
+
+  it('diferencia FAQ sin cifras: no', () => {
+    expect(isNumericReasoningTurn('Cuál es la diferencia entre el plan Pro y el Starter?')).toBe(
+      false,
+    );
+  });
+
+  it('retoma con cifras en hilo: sí', () => {
+    expect(
+      isNumericReasoningTurn('Quiero una retoma', [
+        { role: 'user', content: 'Tengo 42000 km' },
+      ]),
+    ).toBe(true);
   });
 });
 
