@@ -394,15 +394,76 @@ export function historyHasOpenThread(history?: HistoryTurn[] | null): boolean {
 }
 
 /**
- * Lite solo en el primer “hola”. En un hilo abierto el modelo del agente
- * mantiene el tono; el barato saluda otra vez y rompe la conversación.
+ * Lite en saludo frío y en ecos cortos seguros (gracias / chao / ok sin pregunta previa).
+ * En hilo abierto NO acelera un “hola” de nuevo: el modelo barato vuelve a saludar y rompe el tono.
  */
 export function shouldUseCheapGreetingModel(
   message: string,
   history?: SimpleTurn[] | HistoryTurn[] | null,
 ): boolean {
   const hist = Array.isArray(history) ? (history as SimpleTurn[]) : undefined;
-  return isTrivialMessage(widgetTurnUserText(message), hist) && !historyHasOpenThread(history);
+  const turn = widgetTurnUserText(message);
+  if (!isTrivialMessage(turn, hist)) return false;
+  if (!historyHasOpenThread(history)) return true;
+  if (isReopenGreetingOnly(turn)) return false;
+  return true;
+}
+
+/** Solo un saludo de apertura (“hola”, “buenas tardes”), no “gracias” / “ok” / “chao”. */
+export function isReopenGreetingOnly(message: string): boolean {
+  const raw = widgetTurnUserText(message)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[.,;:!¡¿?()"'`~\-_/\\]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!raw) return false;
+  const openers = new Set([
+    'hola',
+    'holi',
+    'holis',
+    'ola',
+    'hey',
+    'ey',
+    'hi',
+    'hello',
+    'buenas',
+    'buenos',
+    'buenos dias',
+    'buen dia',
+    'buenas tardes',
+    'buena tarde',
+    'buenas noches',
+    'buena noche',
+    'que tal',
+    'hola hola',
+  ]);
+  if (openers.has(raw)) return true;
+  const tokens = raw.split(' ').filter(Boolean);
+  if (tokens.length === 0 || tokens.length > 4) return false;
+  const openerTok = new Set([
+    'hola',
+    'holi',
+    'holis',
+    'ola',
+    'hey',
+    'ey',
+    'hi',
+    'hello',
+    'buenas',
+    'buenos',
+    'dias',
+    'tardes',
+    'noches',
+    'que',
+    'tal',
+    'buen',
+    'dia',
+    'tarde',
+    'noche',
+  ]);
+  return tokens.every((t) => openerTok.has(t));
 }
 
 export function shouldSkipHeavyWidgetPath(
