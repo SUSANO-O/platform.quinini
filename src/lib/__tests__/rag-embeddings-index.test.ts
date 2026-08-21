@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { diffRagSourcesForIndex, ragSourceFileName } from '../rag-embeddings-index';
+import { diffRagSourcesForIndex, ragSourceFileName, buildLexicalRagContextFromSources } from '../rag-embeddings-index';
 
 describe('ragSourceFileName', () => {
   /** El motor elige el parser por la extension, y por ahi busca al borrar. */
@@ -49,5 +49,15 @@ describe('diffRagSourcesForIndex', () => {
   it('ignora filas vacias que el panel crea al pulsar Agregar texto', () => {
     const d = diffRagSourcesForIndex([], [{ name: '', content: '   ' }]);
     expect(d.toIndex).toEqual([]);
+  });
+});
+
+describe('buildLexicalRagContextFromSources', () => {
+  it('lee el doc con precio si el índice no aportó nada', () => {
+    const block = buildLexicalRagContextFromSources('precio Picanto GT', [
+      { name: 'RAG.json', content: 'Picanto GT Line 58900000 COP' },
+      { name: 'otro.txt', content: 'Horario de taller' },
+    ]);
+    expect(block).toMatch(/58900000/);
   });
 });
