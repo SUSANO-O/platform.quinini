@@ -172,9 +172,10 @@ describe('shouldSkipHeavyWidgetPath', () => {
 });
 
 describe('shouldUseCheapGreetingModel', () => {
-  it('usa lite solo en el primer hola', () => {
+  it('usa lite en el primer hola y en ecos cortos del hilo', () => {
     expect(shouldUseCheapGreetingModel('hola', [])).toBe(true);
-    expect(shouldUseCheapGreetingModel('gracias', OPEN_HISTORY)).toBe(false);
+    expect(shouldUseCheapGreetingModel('gracias', OPEN_HISTORY)).toBe(true);
+    expect(shouldUseCheapGreetingModel('hola', OPEN_HISTORY)).toBe(false);
   });
 });
 

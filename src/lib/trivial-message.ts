@@ -52,7 +52,9 @@ function normalize(text: string): string {
 function lastModelTurnIsQuestion(history?: SimpleTurn[]): boolean {
   if (!history || history.length === 0) return false;
   const last = history[history.length - 1];
-  if (!last || last.role !== 'model') return false;
+  if (!last) return false;
+  const role = String(last.role || '');
+  if (role !== 'model' && role !== 'assistant') return false;
   return /[?¿]/.test(last.content);
 }
 

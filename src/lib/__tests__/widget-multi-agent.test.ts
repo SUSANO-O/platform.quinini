@@ -12,6 +12,7 @@ import {
   resolveParallelContributors,
   resolveRoutableHubAgentId,
   resolveWidgetRoutingCapabilities,
+  shouldSkipMultiAgentForTrivialTurn,
   triageByKeywords,
   overrideTriageForInventorySheets,
   overrideTriageForInventoryFollowUp,
@@ -28,6 +29,14 @@ import {
 } from '../widget-pipeline-ui';
 
 describe('widget-multi-agent', () => {
+  it('salta triaje multiagente en saludos y ecos cortos', () => {
+    expect(shouldSkipMultiAgentForTrivialTurn('Hola')).toBe(true);
+    expect(shouldSkipMultiAgentForTrivialTurn('gracias', [{ role: 'model', content: 'Listo' }])).toBe(true);
+    expect(
+      shouldSkipMultiAgentForTrivialTurn('ok', [{ role: 'model', content: '¿Agendo el peritaje?' }]),
+    ).toBe(false);
+  });
+
   it('Business y Enterprise pueden usar multi-agente', () => {
     expect(isMultiAgentPlanEligible('business')).toBe(true);
     expect(isMultiAgentPlanEligible('enterprise')).toBe(true);

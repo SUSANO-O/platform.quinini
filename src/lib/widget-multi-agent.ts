@@ -7,6 +7,7 @@
 import { ClientAgent, ScheduledTask } from '@/lib/db/models';
 import { fetchCatalogAgentFromHub } from '@/lib/aibackhub-sync';
 import { listSkillCatalog } from '@/lib/skill-catalog-service';
+import { isTrivialMessage } from '@/lib/trivial-message';
 import {
   buildAgentCapabilityProfile,
   formatCapabilitySummaryForLlm,
@@ -644,13 +645,38 @@ async function triageByLlm(
   }
 }
 
+/**
+ * Saludos / ecos cortos no necesitan triaje LLM (~5s). Quedan en el agente del widget.
+ * Conservador: si `isTrivialMessage` dice no (p. ej. "ok" tras pregunta), sí se triajea.
+ */
+export function shouldSkipMultiAgentForTrivialTurn(
+  message: string,
+  history?: Array<{ role?: string; content?: string }> | null,
+): boolean {
+  const hist = Array.isArray(history)
+    ? history.map((h) => ({
+        role: typeof h?.role === 'string' ? h.role : 'user',
+        content: typeof h?.content === 'string' ? h.content : '',
+      }))
+    : undefined;
+  return isTrivialMessage(message, hist);
+}
+
 export async function triageWidgetMessage(
   message: string,
   team: TeamMember[],
   primaryOrchestratorId?: string,
+  history?: Array<{ role?: string; content?: string }> | null,
 ): Promise<TriageResult> {
   if (!message.trim() || team.length <= 1) {
     return { target: team[0], method: 'default' };
+  }
+  if (shouldSkipMultiAgentForTrivialTurn(message, history)) {
+    const primary =
+      team.find((m) => m.id === normalizeAgentId(primaryOrchestratorId)) ??
+      team.find((m) => m.role === 'orchestrator') ??
+      team[0];
+    return { target: primary, method: 'default' };
   }
   const primaryId = normalizeAgentId(primaryOrchestratorId);
   const keywordResult = triageByKeywords(message, team, primaryOrchestratorId);
@@ -752,10 +778,6 @@ export async function applyMultiAgentRouting(params: {
   userId: string;
   plan: string;
 }): Promise<{ body: string; routedHubAgentId: string; meta: MultiAgentRoutingMeta } | null> {
-  const team = await loadWidgetTeam(params.config, params.userId);
-  const caps = resolveWidgetRoutingCapabilities(params.config, team, params.plan);
-  if (!caps.triage || team.length <= 1) return null;
-
   let parsed: { message?: string; agentId?: string; history?: unknown[] };
   try {
     parsed = JSON.parse(params.rawBody) as typeof parsed;
@@ -767,7 +789,14 @@ export async function applyMultiAgentRouting(params: {
   const history = Array.isArray(parsed.history)
     ? parsed.history.filter((h): h is { role?: string; content?: string } => Boolean(h) && typeof h === 'object')
     : undefined;
-  let triage = await triageWidgetMessage(message, team, params.config.orchestratorAgentId);
+  // Saludo/eco: sin triaje LLM ni sync de especialistas (~5s en local).
+  if (shouldSkipMultiAgentForTrivialTurn(message, history)) return null;
+
+  const team = await loadWidgetTeam(params.config, params.userId);
+  const caps = resolveWidgetRoutingCapabilities(params.config, team, params.plan);
+  if (!caps.triage || team.length <= 1) return null;
+
+  let triage = await triageWidgetMessage(message, team, params.config.orchestratorAgentId, history);
   triage = overrideTriageForInventorySheets(
     message,
     team,
@@ -1194,8 +1223,12 @@ export async function executePipelineMultiAgentFlow(params: {
 
   let message = '';
   try {
-    const parsed = JSON.parse(params.rawBody) as { message?: string };
+    const parsed = JSON.parse(params.rawBody) as { message?: string; history?: unknown[] };
     message = typeof parsed.message === 'string' ? parsed.message : '';
+    const history = Array.isArray(parsed.history)
+      ? parsed.history.filter((h): h is { role?: string; content?: string } => Boolean(h) && typeof h === 'object')
+      : undefined;
+    if (shouldSkipMultiAgentForTrivialTurn(message, history)) return null;
   } catch {
     return null;
   }
@@ -1336,7 +1369,9 @@ export async function executeParallelMultiAgentFlow(params: {
     return null;
   }
 
-  let triage = await triageWidgetMessage(message, team, params.config.orchestratorAgentId);
+  if (shouldSkipMultiAgentForTrivialTurn(message, history)) return null;
+
+  let triage = await triageWidgetMessage(message, team, params.config.orchestratorAgentId, history);
   triage = overrideTriageForInventorySheets(
     message,
     team,
