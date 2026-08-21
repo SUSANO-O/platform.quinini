@@ -123,6 +123,62 @@ export async function indexRagSourceEmbeddings(params: {
 
 const RECALL_TIMEOUT_MS = 8_000;
 
+const LEXICAL_STOP = new Set([
+  'a', 'al', 'de', 'del', 'la', 'las', 'el', 'los', 'un', 'una', 'y', 'o', 'en', 'con', 'por', 'para',
+  'que', 'qué', 'como', 'cómo', 'the', 'and', 'or', 'of', 'to', 'in', 'on', 'for',
+]);
+
+function normalizeLexical(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Lectura directa de ragSources cuando el índice vectorial está vacío. */
+export function buildLexicalRagContextFromSources(
+  query: string,
+  sources: RagSourceLike[] | null | undefined,
+  opts?: { maxSources?: number; maxChars?: number },
+): string {
+  const maxSources = opts?.maxSources ?? 3;
+  const maxChars = opts?.maxChars ?? 3500;
+  const tokens = normalizeLexical(query)
+    .split(' ')
+    .filter((t) => t.length >= 2 && !LEXICAL_STOP.has(t));
+  const docs = (sources ?? []).filter((s) => String(s.content ?? '').trim());
+  if (!docs.length) return '';
+
+  const ranked = docs
+    .map((s) => {
+      const content = String(s.content);
+      const hay = normalizeLexical(content);
+      const score = tokens.length ? tokens.reduce((n, t) => n + (hay.includes(t) ? 1 : 0), 0) : 1;
+      return { name: ragSourceIndexName(s), content, score };
+    })
+    .filter((r) => r.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, maxSources);
+
+  if (!ranked.length) return '';
+
+  const parts: string[] = [];
+  let used = 0;
+  for (const p of ranked) {
+    const slice = p.content.slice(0, Math.max(200, maxChars - used));
+    const block = `[Fuente: ${p.name}]\n${slice}`;
+    if (used + block.length > maxChars && parts.length > 0) break;
+    parts.push(block);
+    used += block.length;
+  }
+  return parts.length
+    ? `Contexto de documentos (lectura directa; indexado pendiente o vacío):\n\n${parts.join('\n\n')}`
+    : '';
+}
+
 /**
  * Busca en los documentos del agente y devuelve un bloque listo para el prompt.
  *
@@ -130,14 +186,18 @@ const RECALL_TIMEOUT_MS = 8_000;
  * no a los que tienen documentos, así que un agente con base de conocimiento y
  * sin herramientas respondía como si no la tuviera. Nunca lanza; quedarse sin
  * contexto es peor respuesta, no un fallo del chat.
+ * Si el índice está vacío y hay `sourcesFallback`, lee el texto guardado.
  */
 export async function retrieveRagContextBlock(params: {
   agentHubId: string;
   query: string;
+  sourcesFallback?: RagSourceLike[] | null;
 }): Promise<string> {
   const agentId = params.agentHubId.trim();
   const query = params.query.trim();
-  if (!getAibackhubBaseUrl() || !agentId || !query) return '';
+  if (!getAibackhubBaseUrl() || !agentId || !query) {
+    return buildLexicalRagContextFromSources(query, params.sourcesFallback);
+  }
 
   try {
     const res = await hubFetch(
@@ -149,14 +209,16 @@ export async function retrieveRagContextBlock(params: {
       },
       RECALL_TIMEOUT_MS,
     );
-    if (!res.ok) return '';
-
-    const json = (await res.json().catch(() => ({}))) as { data?: { context?: string } };
-    const texto = json.data?.context;
-    return typeof texto === 'string' ? texto.trim() : '';
+    if (res.ok) {
+      const json = (await res.json().catch(() => ({}))) as { data?: { context?: string } };
+      const texto = json.data?.context;
+      if (typeof texto === 'string' && texto.trim()) return texto.trim();
+    }
   } catch {
-    return '';
+    /* fall through to lexical */
   }
+
+  return buildLexicalRagContextFromSources(query, params.sourcesFallback);
 }
 
 /** Borra los vectores de un documento eliminado, para que deje de responder. */

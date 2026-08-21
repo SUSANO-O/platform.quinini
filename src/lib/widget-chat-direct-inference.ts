@@ -348,7 +348,11 @@ export async function tryServeWidgetChatViaDirectInference(params: {
   const hubIdForRag = typeof ca.agentHubId === 'string' ? ca.agentHubId.trim() : '';
   if (needsKnowledgeLookup(message) && ca.ragEnabled === true && hubIdForRag) {
     params.onStatus?.('rag', widgetChatStatusForUserMessage(message, 'rag'));
-    const ragBlock = await retrieveRagContextBlock({ agentHubId: hubIdForRag, query: message });
+    const ragBlock = await retrieveRagContextBlock({
+      agentHubId: hubIdForRag,
+      query: message,
+      sourcesFallback: Array.isArray(ca.ragSources) ? ca.ragSources : undefined,
+    });
     if (ragBlock) {
       contextBlock = mergeContextBlocks(contextBlock, ragBlock);
       logWidgetFlow('📚', 'infer:rag', 'contexto de documentos recuperado', {
