@@ -61,7 +61,7 @@ export const WIDGET_TURN_FOCUS_DIRECTIVE =
 
 /** Un retry de orquestación si el modelo ignora el enfoque. */
 export const WIDGET_TURN_FOCUS_RETRY =
-  '[Corrección de enfoque: no saludes de nuevo. Responde solo a este mensaje. No retomes emoción ni síntomas de otro turno si el visitante no los nombra ahora. Si este mensaje pide un recuerdo, respóndelo.]';
+  '[Corrección de enfoque: no saludes de nuevo. Responde solo a este mensaje. No retomes emoción ni síntomas de otro turno si el visitante no los nombra ahora. Si este mensaje pide un recuerdo, respóndelo. Si pide cuánto falta o un cálculo con cifras, razona con los números conocidos (precio de lista, km, año); si falta un dato dilo claro — no sustituyas el cálculo por un eco de color o kilometraje.]';
 
 export const WIDGET_INVENTORY_NO_LEAD_DIRECTIVE =
   '- **Catálogo / precio de lista:** entrega solo datos del documento o RAG. **No** cierres pidiendo contacto ni agendamiento en el mismo mensaje.';
@@ -293,6 +293,28 @@ function replyLeaksPriorEmotion(params: {
   return false;
 }
 
+/**
+ * El cálculo ya está en la respuesta (cifras / “no tengo retoma”).
+ * Evita que un “entiendo tu angustia…” al inicio tire un buen A6 al eco de km/color.
+ */
+export function replyAnswersNumericReasoning(reply: string): boolean {
+  const r = typeof reply === 'string' ? reply : '';
+  if (!r.trim()) return false;
+  const hasFigure = /\d{2,}/.test(r);
+  const hasCalcCue =
+    /\b(?:falt|diferencia|precio|retoma|permuta|lista|inventario|cop|tasaci[oó]n|aval[uú]o|peritaje)\b/i.test(
+      r,
+    ) || /\$/.test(r);
+  if (hasFigure && hasCalcCue) return true;
+  if (
+    /\bno\s+tengo\b/i.test(r) &&
+    /\b(?:precio|retoma|dato|cifra|valor|tasaci[oó]n|aval[uú]o|peritaje)\b/i.test(r)
+  ) {
+    return true;
+  }
+  return false;
+}
+
 function turnNeedsFocusGuard(message: string): boolean {
   return needsKnowledgeLookup(message) || needsOperationalTools(message) || isNumericReasoningTurn(message);
 }
@@ -314,9 +336,14 @@ export function replyDriftsFromTurn(params: {
     return true;
   }
   if (turnNeedsFocusGuard(message) && TURN_EMOTION_RE.test(reply) && !TURN_EMOTION_RE.test(message)) {
-    return true;
+    if (!(isNumericReasoningTurn(message, params.history) && replyAnswersNumericReasoning(reply))) {
+      return true;
+    }
   }
   if (replyLeaksPriorEmotion({ message, reply, history: params.history })) {
+    if (isNumericReasoningTurn(message, params.history) && replyAnswersNumericReasoning(reply)) {
+      return false;
+    }
     return true;
   }
   return false;

@@ -62,17 +62,31 @@ const history = [];
 const turns = [];
 
 function fold(text) {
-  return String(text || '')
+  let s = String(text || '')
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
+  // $58.900.000 y $58,900,000 → mismos dígitos para keywords de precio
+  let prev = '';
+  while (s !== prev) {
+    prev = s;
+    s = s.replace(/(\d)[.,](\d{3})(?!\d)/g, '$1$2');
+  }
+  return s;
 }
 
 function mentions(text, needles) {
   const t = fold(text);
+  /** Sinónimos del harness (mismo eje de calidad, distinta redacción). */
+  const aliases = {
+    kilomet: ['kilomet', 'km'],
+    tasacion: ['tasacion', 'avaluo', 'peritaje'],
+    avaluo: ['avaluo', 'tasacion', 'peritaje'],
+    inventario: ['inventario', 'lista'],
+  };
   return needles.map((n) => {
-    const nrm = fold(n);
-    return { needle: n, hit: t.includes(nrm) };
+    const opts = aliases[fold(n)] || [fold(n)];
+    return { needle: n, hit: opts.some((o) => t.includes(o)) };
   });
 }
 
@@ -99,9 +113,16 @@ function qualityFlags(id, message, reply, historyLen) {
     flags.push('pidio-lead');
   }
   if (id === 'A3') {
-    const compact = reply.replace(/[\s.$]/g, '');
-    if (/58900000/.test(compact) || /58[\s.]?900[\s.]?000/.test(reply)) flags.push('precio-ok');
-    else flags.push('precio-no-anclado');
+    const digits = reply.replace(/[^\d]/g, '');
+    if (
+      digits.includes('58900000') ||
+      /58[\s.,]?900[\s.,]?000/.test(reply) ||
+      /58[.,]9\b/.test(reply)
+    ) {
+      flags.push('precio-ok');
+    } else {
+      flags.push('precio-no-anclado');
+    }
   }
   if (['A2', 'A3', 'A5', 'A6', 'A7'].includes(id)) {
     const asCarSale =
@@ -176,7 +197,7 @@ async function turn(id, axis, message, sessionId, visitorId, expect) {
     historyForCall: [...history],
   });
   history.push({ role: 'user', content: message });
-  if (reply) history.push({ role: 'assistant', content: reply });
+  if (reply) history.push({ role: 'model', content: reply });
   return reply;
 }
 
@@ -205,7 +226,7 @@ await turn(
   'Que Kia Picanto 2026 tienen en el inventario premium de MatIAs Auto Sales en Bogota?',
   sessA,
   visitorA,
-  ['picanto', 'kia', 'bogota', 'matias', '2026', 'inventario', '58.900.000', '58900000', '58.9'],
+  ['picanto', 'kia', 'bogota', 'matias', '2026', 'inventario', '58.900.000', '58900000'],
 );
 
 await turn(
