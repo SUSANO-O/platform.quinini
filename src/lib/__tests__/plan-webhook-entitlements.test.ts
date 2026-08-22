@@ -87,14 +87,17 @@ describe('webhook entitlements (plan-catalog)', () => {
     expect(canUseApiAccess('solo', 'active')).toBe(false);
   });
 
-  it('VALID_FEATURE_OVERRIDES incluye las 7 claves de override', () => {
+  it('VALID_FEATURE_OVERRIDES incluye las 9 claves de override', () => {
+    // Creció de 7 a 9: se sumaron sheet_nightly_sync y conversation_flows
+    // (ver FEATURE_OVERRIDES en plan-catalog.ts).
     expect(VALID_FEATURE_OVERRIDES).toEqual(
       expect.arrayContaining([
-        'scheduled_tasks', 'whatsapp', 'outbound_webhook',
-        'escalation_slack', 'escalation_tickets', 'api_access', 'custom_integration',
+        'scheduled_tasks', 'sheet_nightly_sync', 'whatsapp', 'outbound_webhook',
+        'escalation_slack', 'escalation_tickets', 'api_access', 'conversation_flows',
+        'custom_integration',
       ]),
     );
-    expect(VALID_FEATURE_OVERRIDES).toHaveLength(7);
+    expect(VALID_FEATURE_OVERRIDES).toHaveLength(9);
   });
 
   it('api_develop plan: REST sí, webhooks de producto no', () => {
@@ -105,13 +108,15 @@ describe('webhook entitlements (plan-catalog)', () => {
     expect(formatApiAccessFeature('team')).toContain('Add-on');
   });
 
-  it('agent webhook: Team+ only (legacy Basic still entitled)', () => {
+  // 'basic', 'starter' y 'growth' eran planes legacy — ya no existen en
+  // PAID_PLAN_IDS (ver 'sellable paid plans exclude legacy tiers' abajo,
+  // planes legacy eliminados, usuarios migrados a Plus). Se sacan de estos
+  // tests: probarlos no refleja ningún cliente real hoy.
+  it('agent webhook: Team+ only', () => {
     expect(canUseAgentWebhookTool('free')).toBe(false);
     expect(canUseAgentWebhookTool('solo')).toBe(false);
-    expect(canUseAgentWebhookTool('basic')).toBe(true);
     expect(canUseAgentWebhookTool('team')).toBe(true);
     expect(canUseAgentWebhookTool('plus')).toBe(true);
-    expect(canUseAgentWebhookTool('starter')).toBe(true);
   });
 
   it('outbound webhook: Plus+ with active subscription', () => {
@@ -120,23 +125,18 @@ describe('webhook entitlements (plan-catalog)', () => {
     expect(canUseOutboundSaasWebhook('team', 'active')).toBe(false);
     expect(canUseOutboundSaasWebhook('plus', 'active')).toBe(true);
     expect(canUseOutboundSaasWebhook('plus', 'trialing')).toBe(true);
-    expect(canUseOutboundSaasWebhook('starter', 'active')).toBe(true);
-    expect(canUseOutboundSaasWebhook('growth', 'active')).toBe(true);
   });
 
   it('outbound webhook blocked when subscription inactive', () => {
     expect(canUseOutboundSaasWebhook('plus', 'canceled')).toBe(false);
-    expect(canUseOutboundSaasWebhook('starter', 'canceled')).toBe(false);
     expect(effectiveProductPlan('plus', 'canceled')).toBe('free');
   });
 
   it('escalation Slack: Team+ with active subscription', () => {
     expect(canUseEscalationSlack('free', 'free')).toBe(false);
     expect(canUseEscalationSlack('solo', 'active')).toBe(false);
-    expect(canUseEscalationSlack('basic', 'active')).toBe(false);
     expect(canUseEscalationSlack('team', 'active')).toBe(true);
     expect(canUseEscalationSlack('plus', 'active')).toBe(true);
-    expect(canUseEscalationSlack('starter', 'active')).toBe(true);
   });
 
   it('feature flags for pricing table', () => {

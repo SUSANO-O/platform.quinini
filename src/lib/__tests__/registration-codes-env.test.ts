@@ -7,22 +7,25 @@ import {
 } from '../registration-codes-env';
 
 describe('registration-codes-env', () => {
+  // 'basic' era un plan legacy — ya no existe en PLAN_ORDER (planes legacy
+  // eliminados, ver plan-catalog.ts), así que parseRegistrationCodesEnv lo
+  // rechaza correctamente ahora. Se reemplaza por 'plus', un plan vigente.
   it('parses CODIGO:plan pairs with default trial days', () => {
-    const map = parseRegistrationCodesEnv('BETA-BASIC:basic, VIP-SOLO:solo ');
-    expect(map.get('BETA-BASIC')).toEqual({ plan: 'basic', trialDays: 7 });
+    const map = parseRegistrationCodesEnv('BETA-PLUS:plus, VIP-SOLO:solo ');
+    expect(map.get('BETA-PLUS')).toEqual({ plan: 'plus', trialDays: 7 });
     expect(map.get('VIP-SOLO')).toEqual({ plan: 'solo', trialDays: 7 });
   });
 
   it('parses optional trial days as third segment', () => {
-    const map = parseRegistrationCodesEnv('TAM1:team:30,BETA:basic:15');
+    const map = parseRegistrationCodesEnv('TAM1:team:30,BETA:plus:15');
     expect(map.get('TAM1')).toEqual({ plan: 'team', trialDays: 30 });
-    expect(map.get('BETA')).toEqual({ plan: 'basic', trialDays: 15 });
+    expect(map.get('BETA')).toEqual({ plan: 'plus', trialDays: 15 });
   });
 
   it('ignores invalid plans', () => {
-    const map = parseRegistrationCodesEnv('BAD:notaplan,BETA-BASIC:basic');
+    const map = parseRegistrationCodesEnv('BAD:notaplan,BETA-PLUS:plus');
     expect(map.size).toBe(1);
-    expect(map.get('BETA-BASIC')?.plan).toBe('basic');
+    expect(map.get('BETA-PLUS')?.plan).toBe('plus');
   });
 
   it('normalizeTrialDays clamps range', () => {

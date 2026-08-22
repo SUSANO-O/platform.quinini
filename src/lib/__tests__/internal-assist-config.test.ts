@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { resolveAssistScriptUrl, resolveInternalAssistBoot } from '@/lib/internal-assist-config';
+import {
+  resolveAssistScriptUrl,
+  resolveInternalAssistBoot,
+  WIDGET_SDK_VERSION,
+} from '@/lib/internal-assist-config';
 
 describe('resolveInternalAssistBoot', () => {
   it('returns app defaults for dashboard context', () => {
@@ -7,7 +11,9 @@ describe('resolveInternalAssistBoot', () => {
     expect(cfg.agentId).toBe('math-ais');
     expect(cfg.position).toBe('bottom-right');
     expect(cfg.host).toBe('https://app.example.com');
-    expect(cfg.color).toBe('#006B7D');
+    // Contexto 'app' (dashboard) usa un neutro oscuro; el teal #006B7D es el
+    // default de 'marketing' (ver test de abajo) — no del dashboard.
+    expect(cfg.color).toBe('#111111');
   });
 
   it('returns marketing defaults', () => {
@@ -35,8 +41,10 @@ describe('resolveInternalAssistBoot', () => {
 
 describe('resolveAssistScriptUrl', () => {
   it('defaults to /assist.js on origin', () => {
+    // Contra la constante en vivo, no un número pisado — así no vuelve a
+    // desactualizarse en cada bump de WIDGET_SDK_VERSION.
     expect(resolveAssistScriptUrl('https://botiva.example.com')).toBe(
-      'https://botiva.example.com/assist.js?v=1.6.77',
+      `https://botiva.example.com/assist.js?v=${WIDGET_SDK_VERSION}`,
     );
   });
 });

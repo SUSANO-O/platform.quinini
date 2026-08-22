@@ -215,11 +215,28 @@ describe('replyDriftsFromTurn', () => {
   });
 
   it('marca emoción arrastrada en un cálculo si el mensaje no la nombra', () => {
+    // Dos condiciones para que dispare, ambas ausentes en la fixture original:
+    // 1) el token emocional de la reply debe calzar EXACTO (sin stemming) con
+    //    uno de un turno previo — "angustia" en la reply necesita "angustia"
+    //    en el historial, no "angustiado"/"miedo".
+    // 2) el tema del turno previo no puede solaparse con el del mensaje actual
+    //    (si comparten palabra distintiva, replyLeaksPriorEmotion asume que
+    //    es el mismo tema y no marca drift) — por eso el previo habla de
+    //    "plata/alcanza", no de "cambio" (mismo tema que el mensaje actual).
+    // 3) replyAnswersNumericReasoning exime SIEMPRE que la reply traiga cifra
+    //    + palabra de cálculo real (ver comentario en la fuente: "evita que
+    //    un 'entiendo tu angustia' tire un buen A6 al eco de km/color") — así
+    //    que la reply acá se queda solo en la empatía, sin calcular, para no
+    //    caer en esa excepción intencional.
+    const scared = [
+      ...OPEN_HISTORY,
+      { role: 'user', content: 'Tengo mucha angustia por si no me alcanza la plata.' },
+    ];
     expect(
       replyDriftsFromTurn({
         message: 'Cuanto me faltaria para el cambio? Razona en voz alta.',
-        reply: 'Entiendo tu angustia. El de lista vale 58.900.000; no tengo retoma.',
-        history: OPEN_HISTORY,
+        reply: 'Entiendo tu angustia, dame un momento para revisarlo.',
+        history: scared,
       }),
     ).toBe(true);
   });
