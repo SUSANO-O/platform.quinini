@@ -1,15 +1,33 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   canReuseMongoConnection,
+  isVercelRuntime,
   markMongoConnectFailed,
   mongoServerlessOptions,
 } from '../db/connection';
 
 describe('mongoServerlessOptions', () => {
-  it('no retiene conexiones idle (Vercel)', () => {
+  const originalVercel = process.env.VERCEL;
+
+  afterEach(() => {
+    process.env.VERCEL = originalVercel;
+  });
+
+  it('en Vercel: pool de 1 socket, sin idle (un isolate = ~1 request a la vez)', () => {
+    process.env.VERCEL = '1';
+    expect(isVercelRuntime()).toBe(true);
     const opts = mongoServerlessOptions();
     expect(opts.minPoolSize).toBe(0);
     expect(opts.maxPoolSize).toBe(1);
+    expect(opts.bufferCommands).toBe(false);
+  });
+
+  it('fuera de Vercel (Docker/Cloud Run, proceso persistente): pool > 1 para no serializar requests concurrentes', () => {
+    process.env.VERCEL = undefined;
+    delete process.env.VERCEL;
+    expect(isVercelRuntime()).toBe(false);
+    const opts = mongoServerlessOptions();
+    expect(opts.maxPoolSize).toBeGreaterThan(1);
     expect(opts.bufferCommands).toBe(false);
   });
 });
