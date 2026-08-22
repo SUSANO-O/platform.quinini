@@ -16,6 +16,14 @@ export class LandingWorld extends World {
     this.last = { res, json }
     return this.last
   }
+
+  async postJson(path, body, headers = {}) {
+    return this.fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify(body),
+    })
+  }
 }
 
 setWorldConstructor(LandingWorld)
