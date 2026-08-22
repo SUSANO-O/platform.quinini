@@ -164,6 +164,34 @@ export type HubCatalogAgent = {
 };
 
 /**
+ * Cache corto de `fetchCatalogAgentFromHub` — se llama en CADA mensaje del widget chat
+ * (una vez por el agente primario vía `ensureClientAgentHubSynced`, y una vez por cada
+ * especialista sin MCP local vía `enrichTeamCapabilitiesFromHub`). El agente casi nunca
+ * cambia entre mensajes, así que bajo concurrencia esas GETs redundantes a AIBackHub se
+ * multiplican y compiten entre sí — visto en la prueba de carga (múltiples GET casi
+ * simultáneos al mismo agentHubId). TTL corto porque un editor puede guardar cambios
+ * en la landing y esperar verlos reflejados casi al instante; se invalida además al
+ * escribir (`pushClientAgentToHubCatalog`).
+ */
+const HUB_AGENT_CACHE_TTL_MS = 20_000;
+const hubAgentCache = new Map<string, { data: HubCatalogAgent | null; expiresAt: number }>();
+/**
+ * Single-flight: si ya hay un fetch en curso para este agentHubId, las llamadas
+ * concurrentes esperan esa MISMA promesa en vez de disparar la suya. Sin esto, el
+ * TTL de arriba no ayuda en el caso real que causaba el problema: varios requests
+ * de chat que arrancan casi al mismo tiempo con el cache todavía frío — todos pasan
+ * el check de cache ANTES de que el primero termine y cachee, así que las 5
+ * llamadas simultáneas seguían pegándole a la red por separado (confirmado con
+ * una corrida de carga real: el TTL solo no bajó el p95).
+ */
+const hubAgentInFlight = new Map<string, Promise<HubCatalogAgent | null>>();
+
+export function invalidateHubAgentCache(agentHubId?: string): void {
+  if (agentHubId) hubAgentCache.delete(agentHubId.trim());
+  else hubAgentCache.clear();
+}
+
+/**
  * GET /api/agents en AIBackHub — lista completa del catálogo (para importar plataforma a la landing).
  */
 export async function fetchHubAgentsList(): Promise<HubCatalogAgent[]> {
@@ -353,6 +381,8 @@ export async function pushClientAgentToHubCatalog(agent: {
         res.status,
         errText.slice(0, 400),
       );
+    } else {
+      invalidateHubAgentCache(hid);
     }
     return res.ok;
   } catch (e) {
@@ -617,23 +647,43 @@ export async function postCreateLandingAgentOnHubCatalog(
  */
 export async function fetchCatalogAgentFromHub(agentHubId: string): Promise<HubCatalogAgent | null> {
   const base = getAibackhubBaseUrl();
-  if (!base || !agentHubId.trim()) return null;
-  const url = `${base}/api/agents/${encodeURIComponent(agentHubId)}`;
-  try {
-    const res = await fetch(url, {
-      headers: hubCreateHeaders(),
-      cache: 'no-store',
-      signal: AbortSignal.timeout(15_000),
-    });
-    if (!res.ok) return null;
-    const json = (await res.json()) as { success?: boolean; data?: HubCatalogAgent };
-    const data = json?.data ?? (json as unknown as HubCatalogAgent);
-    if (!data || typeof data !== 'object' || typeof (data as HubCatalogAgent).id !== 'string') {
-      return null;
+  const id = agentHubId.trim();
+  if (!base || !id) return null;
+
+  const cached = hubAgentCache.get(id);
+  if (cached && cached.expiresAt > Date.now()) return cached.data;
+
+  const inFlight = hubAgentInFlight.get(id);
+  if (inFlight) return inFlight;
+
+  const promise = (async (): Promise<HubCatalogAgent | null> => {
+    const url = `${base}/api/agents/${encodeURIComponent(id)}`;
+    let result: HubCatalogAgent | null = null;
+    try {
+      const res = await fetch(url, {
+        headers: hubCreateHeaders(),
+        cache: 'no-store',
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (res.ok) {
+        const json = (await res.json()) as { success?: boolean; data?: HubCatalogAgent };
+        const data = json?.data ?? (json as unknown as HubCatalogAgent);
+        if (data && typeof data === 'object' && typeof (data as HubCatalogAgent).id === 'string') {
+          result = data as HubCatalogAgent;
+        }
+      }
+    } catch {
+      result = null;
     }
-    return data as HubCatalogAgent;
-  } catch {
-    return null;
+    hubAgentCache.set(id, { data: result, expiresAt: Date.now() + HUB_AGENT_CACHE_TTL_MS });
+    return result;
+  })();
+
+  hubAgentInFlight.set(id, promise);
+  try {
+    return await promise;
+  } finally {
+    hubAgentInFlight.delete(id);
   }
 }
 

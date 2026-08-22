@@ -15,11 +15,26 @@ function configureMongoDns(): void {
   }
 }
 
-/** Pool mínimo para Vercel: 1 socket por isolate, 0 idle. */
+/**
+ * En Vercel cada isolate atiende ~1 request a la vez → pool de 1 socket alcanza y
+ * evita conexiones ociosas. Pero este MISMO módulo también corre en un proceso
+ * Node persistente (Docker local, Cloud Run) que sí atiende varios requests
+ * concurrentes sobre el mismo proceso — ahí un pool de 1 serializa TODAS las
+ * queries Mongo de TODOS los requests concurrentes entre sí, sin importar cuánta
+ * CPU sobre. Confirmado con una prueba de carga real: bajo concurrencia=5, el
+ * motor MCP (aparte, en otro servicio) procesaba cada request en ~11-15s en
+ * paralelo genuino, pero el cliente veía 25-56s — la demora estaba acá, antes de
+ * siquiera reenviar el request al motor.
+ */
+export function isVercelRuntime(): boolean {
+  return process.env.VERCEL === '1';
+}
+
 export function mongoServerlessOptions() {
+  const onVercel = isVercelRuntime();
   return {
     bufferCommands: false,
-    maxPoolSize: 1,
+    maxPoolSize: onVercel ? 1 : 10,
     minPoolSize: 0,
     serverSelectionTimeoutMS: 5000,
     socketTimeoutMS: 45000,
