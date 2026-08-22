@@ -119,6 +119,31 @@ function extractReply(json: Record<string, unknown>): string {
   return '';
 }
 
+/**
+ * Regla general: si el TEXTO del modelo (ya desenvuelto del sobre HTTP por
+ * extractReply) es a su vez un JSON puro con un campo `reply` de texto, esa
+ * es la respuesta que el modelo quería mostrar — típico de agentes/prompts
+ * que hablan en un protocolo estructurado (routers tipo
+ * {"action":"...", "reply":"..."}). Sin esto, el widget muestra el JSON
+ * crudo en pantalla. Mismo criterio que matias-backend/gemini-mcp-widget-chat.ts
+ * (softenJsonOnlyAssistantText) — el camino de inferencia directa de Landing
+ * no pasa por ese archivo, así que necesita su propia copia.
+ */
+export function softenJsonOnlyReply(text: string): string {
+  const t = text.trim();
+  if (t.length < 2) return text;
+  const looksJson = t.startsWith('{') && t.endsWith('}');
+  if (!looksJson) return text;
+  try {
+    const parsed = JSON.parse(t) as Record<string, unknown>;
+    if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed)) return text;
+    const nestedReply = typeof parsed.reply === 'string' ? parsed.reply.trim() : '';
+    return nestedReply || text;
+  } catch {
+    return text;
+  }
+}
+
 export async function tryServeWidgetChatViaDirectInference(params: {
   parsedAgentId: string;
   rawBody: string;
@@ -403,7 +428,7 @@ export async function tryServeWidgetChatViaDirectInference(params: {
       return null;
     }
 
-    const reply = extractReply(json);
+    const reply = softenJsonOnlyReply(extractReply(json));
     if (!reply) {
       logWidgetFlow('❌', 'infer:empty', 'respuesta vacía');
       return null;
