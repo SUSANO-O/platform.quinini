@@ -488,40 +488,45 @@ export async function POST(req: NextRequest) {
             ...(parsedAgentId.match(/^[a-f0-9]{24}$/i) ? [{ _id: parsedAgentId }] : []),
             { agentHubId: parsedAgentId },
           ];
-          const ca = await ClientAgent.findOne({
-            $and: [{ $or: agentOr }, { $or: [{ userId: w.userId }, { isPlatform: true }] }],
-          })
-            .select({ hubspotAutoCaptureContacts: 1, agentHubId: 1, isPlatform: 1 })
-            .lean() as {
-            hubspotAutoCaptureContacts?: boolean;
-            agentHubId?: string;
-            isPlatform?: boolean;
-          } | null;
+          // ClientAgent.findOne (para hubspotAutoCaptureContacts) e
+          // isInternalAppAssistWidget no dependen entre sí — solo el orden en
+          // que se ESCRIBEN sus resultados en `j` importa (ca primero, assist
+          // pisa después si aplica), no el orden en que se resuelven las
+          // llamadas. Se lanzan juntas en vez de una tras otra.
+          const [ca, assistCheck] = await Promise.all([
+            ClientAgent.findOne({
+              $and: [{ $or: agentOr }, { $or: [{ userId: w.userId }, { isPlatform: true }] }],
+            })
+              .select({ hubspotAutoCaptureContacts: 1, agentHubId: 1, isPlatform: 1 })
+              .lean() as Promise<{
+              hubspotAutoCaptureContacts?: boolean;
+              agentHubId?: string;
+              isPlatform?: boolean;
+            } | null>,
+            import('@/lib/assist-session-identity').then(async (m) => {
+              const isAssist = await m.isInternalAppAssistWidget({
+                widgetId: resolvedWidgetId || w.id,
+                agentId: parsedAgentId,
+              });
+              return { isAssist, module: m };
+            }),
+          ]);
           let j = JSON.parse(bodyToForward) as Record<string, unknown>;
           j.hubspotAutoCaptureContacts = ca?.hubspotAutoCaptureContacts === true;
 
           // Assist dashboard (Math-ais): contexto del usuario logueado (sin HubSpot).
           try {
-            const {
-              identityFromSessionCookie,
-              injectAssistContextIntoChatBody,
-              isInternalAppAssistWidget,
-            } = await import('@/lib/assist-session-identity');
-            const isAssist = await isInternalAppAssistWidget({
-              widgetId: resolvedWidgetId || w.id,
-              agentId: parsedAgentId,
-            });
-            if (isAssist) {
+            if (assistCheck.isAssist) {
               isAssistWidget = true;
               j.hubspotAutoCaptureContacts = false;
-              const identity = await identityFromSessionCookie(
+              const identity = await assistCheck.module.identityFromSessionCookie(
                 req.cookies.get('afhub_session')?.value,
               );
               if (identity) {
                 j.visitorUserId = identity.userId;
                 const pagePath =
                   typeof j.pagePath === 'string' ? j.pagePath : undefined;
-                j = await injectAssistContextIntoChatBody(j, identity, pagePath, {
+                j = await assistCheck.module.injectAssistContextIntoChatBody(j, identity, pagePath, {
                   hasUserImage: Boolean(imageEnrichment?.images?.length),
                 });
               }
@@ -782,6 +787,7 @@ export async function POST(req: NextRequest) {
             config: multiConfig,
             userId: w.userId,
             plan: planForRoute,
+            trace: latencyTrace,
           }),
           );
           if (routing) {

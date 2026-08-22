@@ -146,11 +146,30 @@ export async function ensureSkillCatalogSeeded(): Promise<void> {
   await syncCatalogMetaFromDefaults();
 }
 
+/**
+ * Caché en memoria de `listSkillCatalog` (por combinación de opts). El catálogo
+ * casi no cambia (solo por acción de un admin), pero `ensureSkillCatalogSeeded`
+ * hace un `find` + un `for` de `updateOne` por skill por defecto en CADA
+ * llamada — y `loadWidgetTeam` la llama en cada turno de chat multiagente.
+ * TTL corto (no "para siempre") para que una edición de admin se refleje
+ * pronto igual; las mutaciones de abajo además invalidan al toque.
+ */
+const CATALOG_CACHE_TTL_MS = 30_000;
+const catalogCache = new Map<string, { data: AgentSkillCatalogEntry[]; expiresAt: number }>();
+
+export function invalidateSkillCatalogCache(): void {
+  catalogCache.clear();
+}
+
 export async function listSkillCatalog(opts?: {
   includeDisabled?: boolean;
   kind?: 'capability' | 'profile';
   category?: string;
 }): Promise<AgentSkillCatalogEntry[]> {
+  const cacheKey = JSON.stringify(opts ?? {});
+  const cached = catalogCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.data;
+
   await ensureSkillCatalogSeeded();
   const filter: Record<string, unknown> = {};
   if (!opts?.includeDisabled) filter.catalogEnabled = { $ne: false };
@@ -158,7 +177,9 @@ export async function listSkillCatalog(opts?: {
   if (opts?.category?.trim()) filter.category = opts.category.trim();
 
   const docs = await SkillCatalog.find(filter).sort({ kind: 1, category: 1, sortOrder: 1, defaultPriority: 1 }).lean();
-  return docs.map((d) => docToEntry(d as Parameters<typeof docToEntry>[0]));
+  const entries = docs.map((d) => docToEntry(d as Parameters<typeof docToEntry>[0]));
+  catalogCache.set(cacheKey, { data: entries, expiresAt: Date.now() + CATALOG_CACHE_TTL_MS });
+  return entries;
 }
 
 export async function getSkillCatalogById(skillId: string): Promise<AgentSkillCatalogEntry | null> {
@@ -233,6 +254,7 @@ export async function createSkillCatalogEntry(
     sortOrder: data.sortOrder ?? 0,
     updatedBy: updatedBy || null,
   });
+  invalidateSkillCatalogCache();
   return docToEntry(doc.toObject());
 }
 
@@ -276,12 +298,14 @@ export async function updateSkillCatalogEntry(
   }
   if (updatedBy) existing.updatedBy = updatedBy;
   await existing.save();
+  invalidateSkillCatalogCache();
   return docToEntry(existing.toObject());
 }
 
 export async function deleteSkillCatalogEntry(skillId: string): Promise<boolean> {
   await connectDB();
   const res = await SkillCatalog.deleteOne({ skillId: normalizeSkillId(skillId) });
+  invalidateSkillCatalogCache();
   return res.deletedCount > 0;
 }
 
@@ -290,5 +314,6 @@ export async function reseedSkillCatalogFromDefaults(updatedBy?: string): Promis
   await SkillCatalog.deleteMany({});
   const docs = DEFAULT_AGENT_SKILLS_CATALOG.map((s, i) => seedDocFromDefault(s, i, updatedBy));
   const inserted = await SkillCatalog.insertMany(docs);
+  invalidateSkillCatalogCache();
   return inserted.length;
 }
