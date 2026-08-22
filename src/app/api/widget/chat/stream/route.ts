@@ -331,89 +331,112 @@ export async function POST(req: NextRequest) {
           console.warn('[widget/chat/stream] multi-agent context skipped:', routeErr);
         }
 
-        try {
-          rawBody = await enrichWidgetChatBody({
-            rawBody,
-            ownerUserId: w.userId,
-            widgetId: resolvedWidgetId || w.id,
-          });
-          const reparse = JSON.parse(rawBody) as { sessionId?: string; visitorId?: string; message?: string };
-          if (typeof reparse.sessionId === 'string' && reparse.sessionId.trim()) {
-            parsedSessionId = reparse.sessionId.trim();
-          }
-          parsedVisitorId = normalizeVisitorId(reparse.visitorId) ?? parsedVisitorId;
-          if (typeof reparse.message === 'string') parsedMessage = reparse.message;
-        } catch (enrichErr) {
-          console.warn('[widget/chat/stream] enrich body skipped:', enrichErr);
-        }
+        // enrichWidgetChatBody (reescribe rawBody) e isInternalAppAssistWidget
+        // (solo necesita widgetId/agentId, no rawBody) no dependen entre sí — se
+        // lanzan juntas en vez de una tras otra. El import del módulo assist se
+        // deja en marcha aquí y se resuelve más abajo, sin duplicarlo.
+        const assistModulePromise = import('@/lib/assist-session-identity');
 
-        // Assist dashboard (Math-ais): contexto del usuario logueado (sin HubSpot).
-        try {
-          const {
-            identityFromSessionCookie,
-            injectAssistContextIntoChatBody,
-            isInternalAppAssistWidget,
-          } = await import('@/lib/assist-session-identity');
-          const isAssist = await isInternalAppAssistWidget({
-            widgetId: resolvedWidgetId || w.id,
-            agentId: parsedAgentId,
-          });
-          if (isAssist) {
-            let j = JSON.parse(rawBody) as Record<string, unknown>;
-            j.hubspotAutoCaptureContacts = false;
-            isAssistWidget = true;
-            const identity = await identityFromSessionCookie(
-              req.cookies.get('afhub_session')?.value,
-            );
-            if (identity) {
-              j.visitorUserId = identity.userId;
-              const pagePath = typeof j.pagePath === 'string' ? j.pagePath : undefined;
-              j = await injectAssistContextIntoChatBody(j, identity, pagePath, {
-                hasUserImage: Boolean(imageEnrichment?.images?.length),
+        const [, isAssist] = await Promise.all([
+          (async () => {
+            try {
+              rawBody = await enrichWidgetChatBody({
+                rawBody,
+                ownerUserId: w.userId,
+                widgetId: resolvedWidgetId || w.id,
               });
+              const reparse = JSON.parse(rawBody) as { sessionId?: string; visitorId?: string; message?: string };
+              if (typeof reparse.sessionId === 'string' && reparse.sessionId.trim()) {
+                parsedSessionId = reparse.sessionId.trim();
+              }
+              parsedVisitorId = normalizeVisitorId(reparse.visitorId) ?? parsedVisitorId;
+              if (typeof reparse.message === 'string') parsedMessage = reparse.message;
+            } catch (enrichErr) {
+              console.warn('[widget/chat/stream] enrich body skipped:', enrichErr);
             }
-            rawBody = JSON.stringify(j);
-          }
-        } catch (idErr) {
-          console.warn('[widget/chat/stream] assist identity inject skipped:', idErr);
-        }
+          })(),
+          assistModulePromise
+            .then((m) =>
+              m.isInternalAppAssistWidget({
+                widgetId: resolvedWidgetId || w.id,
+                agentId: parsedAgentId,
+              }),
+            )
+            .catch(() => false),
+        ]);
 
+        // A partir de aquí rawBody/parsedSessionId ya están enriquecidos. La
+        // inyección de contexto assist (necesita el rawBody enriquecido) y el
+        // lookup de vision previo (necesita el parsedSessionId enriquecido) no
+        // dependen entre sí — también corren juntas.
         const visionWidgetId = resolvedWidgetId || w.id;
-        if (imageEnrichment && visionWidgetId && parsedSessionId) {
-          void persistSessionVisionAnalysis(
-            visionWidgetId,
-            parsedSessionId,
-            w.userId,
-            imageEnrichment,
-          ).catch(() => {});
-        } else if (
-          !imageEnrichment &&
-          visionWidgetId &&
-          parsedSessionId &&
-          !isTrivialMessage(guardResult.text || '')
-        ) {
-          try {
-            const prior = await loadSessionVisionEnrichment(
-              visionWidgetId,
-              parsedSessionId,
-              w.userId,
-              guardResult.text || '',
-            );
-            if (
-              prior &&
-              shouldUsePriorImage({
-                message: guardResult.text || '',
-                analyzedAt: prior.analyzedAt,
-                trivial: false,
-              })
-            ) {
-              activeVisionEnrichment = prior.enrichment;
-            }
-          } catch {
-            /* ignore */
-          }
-        }
 
+        await Promise.all([
+          (async () => {
+            // Assist dashboard (Math-ais): contexto del usuario logueado (sin HubSpot).
+            if (!isAssist) return;
+            try {
+              const { identityFromSessionCookie, injectAssistContextIntoChatBody } =
+                await assistModulePromise;
+              let j = JSON.parse(rawBody) as Record<string, unknown>;
+              j.hubspotAutoCaptureContacts = false;
+              isAssistWidget = true;
+              const identity = await identityFromSessionCookie(
+                req.cookies.get('afhub_session')?.value,
+              );
+              if (identity) {
+                j.visitorUserId = identity.userId;
+                const pagePath = typeof j.pagePath === 'string' ? j.pagePath : undefined;
+                j = await injectAssistContextIntoChatBody(j, identity, pagePath, {
+                  hasUserImage: Boolean(imageEnrichment?.images?.length),
+                });
+              }
+              rawBody = JSON.stringify(j);
+            } catch (idErr) {
+              console.warn('[widget/chat/stream] assist identity inject skipped:', idErr);
+            }
+          })(),
+          (async () => {
+            if (imageEnrichment && visionWidgetId && parsedSessionId) {
+              void persistSessionVisionAnalysis(
+                visionWidgetId,
+                parsedSessionId,
+                w.userId,
+                imageEnrichment,
+              ).catch(() => {});
+            } else if (
+              !imageEnrichment &&
+              visionWidgetId &&
+              parsedSessionId &&
+              !isTrivialMessage(guardResult.text || '')
+            ) {
+              try {
+                const prior = await loadSessionVisionEnrichment(
+                  visionWidgetId,
+                  parsedSessionId,
+                  w.userId,
+                  guardResult.text || '',
+                );
+                if (
+                  prior &&
+                  shouldUsePriorImage({
+                    message: guardResult.text || '',
+                    analyzedAt: prior.analyzedAt,
+                    trivial: false,
+                  })
+                ) {
+                  activeVisionEnrichment = prior.enrichment;
+                }
+              } catch {
+                /* ignore */
+              }
+            }
+          })(),
+        ]);
+
+        // finalizeWidgetChatBodyWithVision necesita el rawBody final (post
+        // inyección assist) y activeVisionEnrichment (post lookup de arriba),
+        // así que corre después de que ambas ramas anteriores terminaron.
         if (activeVisionEnrichment?.analyses?.length && parsedAgentId) {
           try {
             rawBody = await finalizeWidgetChatBodyWithVision({
@@ -677,6 +700,7 @@ export async function POST(req: NextRequest) {
             config: multiAgentCtx.config,
             userId: multiAgentCtx.userId,
             plan: multiAgentCtx.plan,
+            trace: latencyTrace,
           }));
           if (routing) {
             hubBody = routing.body;

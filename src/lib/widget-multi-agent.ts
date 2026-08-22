@@ -28,6 +28,7 @@ import {
   hubCreateHeaders,
 } from '@/lib/aibackhub-sync';
 import { signRequest, SIGNATURE_HEADER } from '@/lib/hub-signature';
+import type { WidgetChatTrace } from '@/lib/widget-chat-latency';
 import {
   isCompoundCreativeRequest,
   normalizePipelineConfig,
@@ -38,6 +39,15 @@ import {
 } from '@/lib/widget-pipeline-ui';
 
 export { isCompoundCreativeRequest, shouldRunPipeline } from '@/lib/widget-pipeline-ui';
+
+/**
+ * Sub-fases opcionales dentro del span 'multi_triage' del caller (Fase 2a de
+ * instrumentación — separa cuánto de "triaje" es en realidad carga de equipo /
+ * hub, para no ajustar timeouts a ciegas). Solo `span`: nada de `mark`, porque
+ * `mark()` usa el cursor global de tiempo del trace y produciría deltas
+ * incorrectas si se llama desde dentro de un span ya abierto por el caller.
+ */
+type MultiAgentTraceSpanner = Pick<WidgetChatTrace, 'span'>;
 
 export const MULTI_AGENT_PLANS = new Set(['business', 'enterprise']);
 export const MULTI_AGENT_MAX_TEAM = 5;
@@ -217,22 +227,25 @@ export function resolveRoutableHubAgentId(
 }
 
 async function hydrateTeamHubIds(members: TeamMember[], userId: string): Promise<TeamMember[]> {
-  const hydrated: TeamMember[] = [];
-  for (const member of members) {
-    if (resolveHubAgentId(member)) {
-      hydrated.push(member);
-      continue;
-    }
-    const hubId = await ensureClientAgentHubSynced(member.id, userId);
-    hydrated.push({ ...member, hubId: hubId ?? null });
-  }
-  return hydrated;
+  // Cada miembro se sincroniza independientemente — Promise.all conserva el
+  // orden de `members` en el resultado (no el orden de finalización), igual
+  // que el `for` secuencial de antes.
+  return Promise.all(
+    members.map(async (member) => {
+      if (resolveHubAgentId(member)) return member;
+      const hubId = await ensureClientAgentHubSynced(member.id, userId);
+      return { ...member, hubId: hubId ?? null };
+    }),
+  );
 }
 
 export async function loadWidgetTeam(
   config: WidgetMultiAgentConfig,
   userId: string,
+  trace?: MultiAgentTraceSpanner,
 ): Promise<TeamMember[]> {
+  const spanned = <T>(phase: string, fn: () => Promise<T>): Promise<T> =>
+    trace ? trace.span(phase, fn) : fn();
   const primaryId = normalizeAgentId(config.orchestratorAgentId);
   if (!primaryId) return [];
 
@@ -263,111 +276,127 @@ export async function loadWidgetTeam(
     vision: 1,
   } as const;
 
-  const orchestrators = await ClientAgent.find({
-    _id: { $in: orchIds },
-    status: 'active',
-    type: 'agent',
-    $or: [{ userId }, { isPlatform: true }],
-  })
-    .select(agentCapabilityFields)
-    .lean();
-
-  const orchById = new Map(orchestrators.map((o) => [String(o._id), o]));
-  const orderedOrchs = orchIds.map((id) => orchById.get(id)).filter(Boolean) as typeof orchestrators;
-  if (!orderedOrchs.length) return [];
-
-  const specialistIdSet = new Set<string>();
-  for (const orch of orderedOrchs) {
-    const oid = String(orch._id);
-    for (const raw of orch.subAgentIds ?? []) {
-      const sid = String(raw).trim();
-      if (!sid || sid === oid) continue;
-      if (useFilter && !specialistFilter.has(sid)) continue;
-      specialistIdSet.add(sid);
-    }
-  }
-
-  const specialists = specialistIdSet.size
-    ? await ClientAgent.find({
-        _id: { $in: [...specialistIdSet] },
-        status: 'active',
-        $or: [{ userId }, { isPlatform: true }],
-      })
-        .select({ ...agentCapabilityFields, parentAgentId: 1 })
-        .lean()
-    : [];
-
-  const specById = new Map(specialists.map((s) => [String(s._id), s]));
-  const allAgentIds = [...orderedOrchs.map((o) => String(o._id)), ...specialists.map((s) => String(s._id))];
-
-  const [skillCatalog, cronRows] = await Promise.all([
-    listSkillCatalog(),
-    ScheduledTask.find({
-      agentId: { $in: allAgentIds },
-      enabled: true,
+  // Sospechoso #0 (el que resultó más grande en la primera muestra local):
+  // las queries de Mongo (agentes + crons + catálogo de skills) que arman
+  // `members`, medidas aparte de hydrate/enrich de abajo.
+  const built = await spanned('multi_triage_build', async () => {
+    const orchestrators = await ClientAgent.find({
+      _id: { $in: orchIds },
+      status: 'active',
+      type: 'agent',
+      $or: [{ userId }, { isPlatform: true }],
     })
-      .select({ agentId: 1, name: 1, action: 1, enabled: 1 })
-      .lean(),
-  ]);
+      .select(agentCapabilityFields)
+      .lean();
 
-  const cronsByAgent = new Map<string, ScheduledTaskSummary[]>();
-  for (const row of cronRows) {
-    const aid = String(row.agentId ?? '').trim();
-    if (!aid) continue;
-    const list = cronsByAgent.get(aid) ?? [];
-    list.push({
-      name: String(row.name ?? '').trim() || 'tarea',
-      actionType: String((row.action as { type?: string } | undefined)?.type ?? 'agent_run'),
-      enabled: row.enabled !== false,
-    });
-    cronsByAgent.set(aid, list);
-  }
+    const orchById = new Map(orchestrators.map((o) => [String(o._id), o]));
+    const orderedOrchs = orchIds.map((id) => orchById.get(id)).filter(Boolean) as typeof orchestrators;
+    if (!orderedOrchs.length) return null;
 
-  const docById = new Map<string, AgentDocForCapabilities>();
-  for (const doc of [...orderedOrchs, ...specialists]) {
-    docById.set(String(doc._id), doc as AgentDocForCapabilities);
-  }
+    const specialistIdSet = new Set<string>();
+    for (const orch of orderedOrchs) {
+      const oid = String(orch._id);
+      for (const raw of orch.subAgentIds ?? []) {
+        const sid = String(raw).trim();
+        if (!sid || sid === oid) continue;
+        if (useFilter && !specialistFilter.has(sid)) continue;
+        specialistIdSet.add(sid);
+      }
+    }
 
-  const members: TeamMember[] = [];
-  for (const orch of orderedOrchs) {
-    const oid = String(orch._id);
-    members.push({
-      id: oid,
-      hubId: orch.agentHubId ? String(orch.agentHubId) : null,
-      name: orch.name ?? 'Orquestador',
-      description: (orch.description ?? '').trim(),
-      role: 'orchestrator',
-      parentOrchestratorId: oid,
-      capabilities: buildAgentCapabilityProfile({
-        agent: docById.get(oid) ?? (orch as AgentDocForCapabilities),
-        skillCatalog,
-        scheduledTasks: cronsByAgent.get(oid) ?? [],
-      }),
-    });
-    for (const raw of orch.subAgentIds ?? []) {
-      const sid = String(raw).trim();
-      if (!sid || sid === oid) continue;
-      if (useFilter && !specialistFilter.has(sid)) continue;
-      const s = specById.get(sid);
-      if (!s) continue;
+    const specialists = specialistIdSet.size
+      ? await ClientAgent.find({
+          _id: { $in: [...specialistIdSet] },
+          status: 'active',
+          $or: [{ userId }, { isPlatform: true }],
+        })
+          .select({ ...agentCapabilityFields, parentAgentId: 1 })
+          .lean()
+      : [];
+
+    const specById = new Map(specialists.map((s) => [String(s._id), s]));
+    const allAgentIds = [...orderedOrchs.map((o) => String(o._id)), ...specialists.map((s) => String(s._id))];
+
+    const [skillCatalog, cronRows] = await Promise.all([
+      listSkillCatalog(),
+      ScheduledTask.find({
+        agentId: { $in: allAgentIds },
+        enabled: true,
+      })
+        .select({ agentId: 1, name: 1, action: 1, enabled: 1 })
+        .lean(),
+    ]);
+
+    const cronsByAgent = new Map<string, ScheduledTaskSummary[]>();
+    for (const row of cronRows) {
+      const aid = String(row.agentId ?? '').trim();
+      if (!aid) continue;
+      const list = cronsByAgent.get(aid) ?? [];
+      list.push({
+        name: String(row.name ?? '').trim() || 'tarea',
+        actionType: String((row.action as { type?: string } | undefined)?.type ?? 'agent_run'),
+        enabled: row.enabled !== false,
+      });
+      cronsByAgent.set(aid, list);
+    }
+
+    const docById = new Map<string, AgentDocForCapabilities>();
+    for (const doc of [...orderedOrchs, ...specialists]) {
+      docById.set(String(doc._id), doc as AgentDocForCapabilities);
+    }
+
+    const members: TeamMember[] = [];
+    for (const orch of orderedOrchs) {
+      const oid = String(orch._id);
       members.push({
-        id: sid,
-        hubId: s.agentHubId ? String(s.agentHubId) : null,
-        name: s.name ?? 'Especialista',
-        description: (s.description ?? '').trim(),
-        role: 'specialist',
+        id: oid,
+        hubId: orch.agentHubId ? String(orch.agentHubId) : null,
+        name: orch.name ?? 'Orquestador',
+        description: (orch.description ?? '').trim(),
+        role: 'orchestrator',
         parentOrchestratorId: oid,
         capabilities: buildAgentCapabilityProfile({
-          agent: docById.get(sid) ?? (s as AgentDocForCapabilities),
+          agent: docById.get(oid) ?? (orch as AgentDocForCapabilities),
           skillCatalog,
-          scheduledTasks: cronsByAgent.get(sid) ?? [],
+          scheduledTasks: cronsByAgent.get(oid) ?? [],
         }),
       });
+      for (const raw of orch.subAgentIds ?? []) {
+        const sid = String(raw).trim();
+        if (!sid || sid === oid) continue;
+        if (useFilter && !specialistFilter.has(sid)) continue;
+        const s = specById.get(sid);
+        if (!s) continue;
+        members.push({
+          id: sid,
+          hubId: s.agentHubId ? String(s.agentHubId) : null,
+          name: s.name ?? 'Especialista',
+          description: (s.description ?? '').trim(),
+          role: 'specialist',
+          parentOrchestratorId: oid,
+          capabilities: buildAgentCapabilityProfile({
+            agent: docById.get(sid) ?? (s as AgentDocForCapabilities),
+            skillCatalog,
+            scheduledTasks: cronsByAgent.get(sid) ?? [],
+          }),
+        });
+      }
     }
-  }
 
-  const hydrated = await hydrateTeamHubIds(members, userId);
-  return enrichTeamCapabilitiesFromHub(hydrated, docById, skillCatalog, cronsByAgent);
+    return { members, docById, skillCatalog, cronsByAgent };
+  });
+  if (!built) return [];
+  const { members, docById, skillCatalog, cronsByAgent } = built;
+
+  // Sospechoso #1: hydrateTeamHubIds sincroniza hubId por miembro EN SERIE
+  // (un `for` con `await` adentro), no en paralelo.
+  const hydrated = await spanned('multi_triage_hub_sync', () => hydrateTeamHubIds(members, userId));
+  // Sospechoso #2: por especialista sin MCP local, un fetch a AgentFlowhub con
+  // su propio timeout de 15s (aibackhub-sync.ts) — sí en paralelo entre sí,
+  // pero cada uno puede tardar hasta ese máximo.
+  return spanned('multi_triage_hub_enrich', () =>
+    enrichTeamCapabilitiesFromHub(hydrated, docById, skillCatalog, cronsByAgent),
+  );
 }
 
 async function enrichTeamCapabilitiesFromHub(
@@ -680,6 +709,29 @@ export async function triageWidgetMessage(
   }
   const primaryId = normalizeAgentId(primaryOrchestratorId);
   const keywordResult = triageByKeywords(message, team, primaryOrchestratorId);
+
+  // El bloque de abajo descarta la respuesta del LLM y devuelve keywordResult de
+  // todos modos cuando kwScore >= 10, o cuando el target es el orquestador principal
+  // con kwScore >= 6 — en ambos casos el resultado final no depende de lo que diga
+  // el LLM. Evitamos pagar esa llamada (~3s, a veces >15s) cuando ya sabemos que se
+  // va a ignorar. La condición que sí depende de la respuesta del LLM (target
+  // specialist por keyword pero LLM prefiere orquestador) sigue evaluándose más
+  // abajo, sin cambios, para todo lo que no entre en este atajo.
+  if (keywordResult.method === 'keyword') {
+    const kwScore = keywordResult.score ?? 0;
+    if (kwScore >= 10) {
+      return keywordResult;
+    }
+    if (
+      primaryId &&
+      keywordResult.target.id === primaryId &&
+      kwScore >= 6 &&
+      !messageLooksToolIntent(message)
+    ) {
+      return keywordResult;
+    }
+  }
+
   const llm = await triageByLlm(message, team, primaryOrchestratorId);
 
   if (
@@ -777,6 +829,8 @@ export async function applyMultiAgentRouting(params: {
   config: WidgetMultiAgentConfig;
   userId: string;
   plan: string;
+  /** Fase 2a: sub-fases opcionales dentro del span 'multi_triage' del caller. */
+  trace?: MultiAgentTraceSpanner;
 }): Promise<{ body: string; routedHubAgentId: string; meta: MultiAgentRoutingMeta } | null> {
   let parsed: { message?: string; agentId?: string; history?: unknown[] };
   try {
@@ -792,11 +846,15 @@ export async function applyMultiAgentRouting(params: {
   // Saludo/eco: sin triaje LLM ni sync de especialistas (~5s en local).
   if (shouldSkipMultiAgentForTrivialTurn(message, history)) return null;
 
-  const team = await loadWidgetTeam(params.config, params.userId);
+  const team = await loadWidgetTeam(params.config, params.userId, params.trace);
   const caps = resolveWidgetRoutingCapabilities(params.config, team, params.plan);
   if (!caps.triage || team.length <= 1) return null;
 
-  let triage = await triageWidgetMessage(message, team, params.config.orchestratorAgentId, history);
+  let triage = params.trace
+    ? await params.trace.span('multi_triage_llm', () =>
+        triageWidgetMessage(message, team, params.config.orchestratorAgentId, history),
+      )
+    : await triageWidgetMessage(message, team, params.config.orchestratorAgentId, history);
   triage = overrideTriageForInventorySheets(
     message,
     team,
