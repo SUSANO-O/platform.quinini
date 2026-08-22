@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildMultiAgentStatusMessage,
   buildParallelSynthesisPrompt,
@@ -14,6 +14,7 @@ import {
   resolveWidgetRoutingCapabilities,
   shouldSkipMultiAgentForTrivialTurn,
   triageByKeywords,
+  triageWidgetMessage,
   overrideTriageForInventorySheets,
   overrideTriageForInventoryFollowUp,
   overrideTriageForCrmOnOrchestrator,
@@ -679,5 +680,112 @@ describe('widget-multi-agent', () => {
     expect(v.ok).toBe(true);
     expect(v.contentAgentNames).toContain('AutoExpert');
     expect(v.creativeAgentNames).toContain('Studio');
+  });
+
+  describe('triageWidgetMessage — evita llamar al LLM cuando el keyword-match ya es definitivo', () => {
+    const originalBackendUrl = process.env.BACKEND_URL;
+    const originalFetch = global.fetch;
+    let fetchMock: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      // BACKEND_URL presente ⇒ si el código llamara al LLM, sí intentaría el fetch
+      // (getAibackhubBaseUrl() no corta antes). Así el mock es un chequeo real.
+      process.env.BACKEND_URL = 'http://127.0.0.1:9003';
+      fetchMock = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ text: '{"agentId":"should-not-be-used"}' }), { status: 200 }),
+      );
+      global.fetch = fetchMock as unknown as typeof global.fetch;
+    });
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+      if (originalBackendUrl === undefined) delete process.env.BACKEND_URL;
+      else process.env.BACKEND_URL = originalBackendUrl;
+    });
+
+    it('kwScore >= 10 (match directo de especialista): no llama al LLM y rutea por keyword', async () => {
+      const billingCaps = buildAgentCapabilityProfile({
+        agent: {
+          name: 'Closer Financiero & Peritaje',
+          skillsConfig: [
+            {
+              id: 'customer_service',
+              enabled: true,
+              config: { prompt_extension: 'Gestión de reembolsos, cobros y suscripciones.' },
+            },
+          ],
+        },
+        skillCatalog: DEFAULT_AGENT_SKILLS_CATALOG,
+      });
+      const team: TeamMember[] = [
+        { id: 'o1', hubId: 'hub-o', name: 'Ventas', description: 'vehículos', role: 'orchestrator' },
+        {
+          id: 's1',
+          hubId: 'hub-f',
+          name: 'Closer Financiero & Peritaje',
+          description: '',
+          role: 'specialist',
+          capabilities: billingCaps,
+        },
+      ];
+      const message = 'Necesito un reembolso de mi suscripción';
+
+      // Precondición documentada: este mensaje sí produce kwScore >= 10 por keyword.
+      const kw = triageByKeywords(message, team, 'o1');
+      expect(kw.score ?? 0).toBeGreaterThanOrEqual(10);
+
+      const result = await triageWidgetMessage(message, team, 'o1');
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(result.method).toBe('keyword');
+      expect(result.target.id).toBe('s1');
+    });
+
+    it('kwScore >= 6 y target = orquestador principal: no llama al LLM y rutea al orquestador', async () => {
+      const billingCaps = buildAgentCapabilityProfile({
+        agent: { name: 'Billing', description: 'facturación y pagos' },
+        skillCatalog: DEFAULT_AGENT_SKILLS_CATALOG,
+      });
+      const team: TeamMember[] = [
+        { id: 'o1', hubId: 'hub-o', name: 'Recepción', description: 'atención general', role: 'orchestrator' },
+        {
+          id: 's1',
+          hubId: 'hub-b',
+          name: 'Billing',
+          description: 'facturación y pagos',
+          role: 'specialist',
+          capabilities: billingCaps,
+        },
+      ];
+      const message = 'una consulta variada sobre el servicio';
+
+      const kw = triageByKeywords(message, team, 'o1');
+      expect(kw.method).toBe('keyword');
+      expect(kw.target.id).toBe('o1');
+      expect(kw.score ?? 0).toBeGreaterThanOrEqual(6);
+      expect(kw.score ?? 0).toBeLessThan(10);
+
+      const result = await triageWidgetMessage(message, team, 'o1');
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(result.method).toBe('keyword');
+      expect(result.target.id).toBe('o1');
+    });
+
+    it('sin match de keyword (score bajo, sin orquestador principal): sí consulta al LLM como antes', async () => {
+      const team: TeamMember[] = [
+        { id: 'o1', hubId: 'hub-o', name: 'Recepción', description: 'atención general', role: 'orchestrator' },
+        { id: 's1', hubId: 'hub-s', name: 'Soporte', description: 'soporte técnico', role: 'specialist' },
+      ];
+      const message = 'una consulta variada sobre el servicio';
+
+      // Sin primaryOrchestratorId: el fallback que sube el score del orquestador no aplica.
+      const kw = triageByKeywords(message, team);
+      expect(kw.score ?? 0).toBeLessThan(6);
+
+      await triageWidgetMessage(message, team);
+
+      expect(fetchMock).toHaveBeenCalled();
+    });
   });
 });
