@@ -31,4 +31,4 @@ npm run dev    # http://localhost:3201
 
 - [docs/widget-troubleshooting.md](./docs/widget-troubleshooting.md)
 - [../ARCHITECTURE.md](../ARCHITECTURE.md)
-node
+node<!-- CI gate check: 2026-08-22T22:45:14Z -->
