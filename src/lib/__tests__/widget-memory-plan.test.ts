@@ -3,10 +3,13 @@ import { historyRetentionDays, maxWidgetHistoryTurns } from '@/lib/widget-memory
 
 describe('widget-memory-plan', () => {
   it('maxWidgetHistoryTurns escala por plan', () => {
-    expect(maxWidgetHistoryTurns('free')).toBe(20);
-    expect(maxWidgetHistoryTurns('team')).toBe(40);
-    expect(maxWidgetHistoryTurns('enterprise')).toBe(60);
-    expect(maxWidgetHistoryTurns('unknown_plan')).toBe(20);
+    // Escala de PLAN_WIDGET_HISTORY_TURNS bajó en algún punto (controlar
+    // costo/calidad — ver comentario en la fuente); estos números siguen la
+    // tabla actual, no la original con la que se escribió este test.
+    expect(maxWidgetHistoryTurns('free')).toBe(6);
+    expect(maxWidgetHistoryTurns('team')).toBe(12);
+    expect(maxWidgetHistoryTurns('enterprise')).toBe(32);
+    expect(maxWidgetHistoryTurns('unknown_plan')).toBe(6);
   });
 
   it('historyRetentionDays usa catálogo de planes', () => {

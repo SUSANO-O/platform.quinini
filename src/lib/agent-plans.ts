@@ -181,7 +181,10 @@ const ALL_TOOL_IDS = TOOLS.map((t) => t.id);
 
 const TOOLS_BY_PLAN: Record<string, string[]> = {
   free: ['web-search'],
-  solo: ['web-search', 'google-sheets'],
+  // toolsPerAgent de 'solo' es 0 (PLAN_TOOLS_LIMITS) — chat-only por diseño.
+  // Antes esta lista traía 2 tools "disponibles" que el cap de 0 igual
+  // bloqueaba siempre: UI confusa (se muestran como opción, nunca usables).
+  solo: [],
   api_develop: [],
   team: ['web-search', 'webhook', 'gmail', 'slack', 'google-sheets'],
   plus: ['web-search', 'webhook', 'gmail', 'slack', 'google-sheets', 'file-upload', 'google-calendar', 'hubspot', 'notion'],
