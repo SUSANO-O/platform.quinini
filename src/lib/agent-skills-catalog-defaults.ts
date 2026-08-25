@@ -350,7 +350,7 @@ export const DEFAULT_AGENT_SKILLS_CATALOG: AgentSkillCatalogEntry[] = [
     defaultPriority: 53,
     config: {
       prompt_extension:
-        'Escalamiento a Jira (N2): antes de crear, busca issues similares (JQL). Al crear incluye: sintoma, pasos L1, impacto y contacto. Confirma con el usuario salvo politica documentada. Usa proyecto por defecto de la conexion si no se indica. Combina con tech_support_l1 y escalation_playbook; no inventes claves de proyecto.',
+        'Escalamiento a Jira (N2): antes de crear, busca issues similares (JQL). Al crear incluye: sintoma, pasos L1, impacto y contacto. Confirma con el usuario salvo politica documentada. Usa proyecto por defecto de la conexion si no se indica. Combina con tech_support_l1 y escalation_playbook; no inventes claves de proyecto. Si el problema YA tiene un ticket abierto en Slack (skill slack_escalation, tenes el ticketId en el historial de esta conversacion) y el caso requiere ingenieria, incluí como ULTIMA linea de la descripcion del issue, tal cual y en su propia linea: "Slack ticket ref: {ticketId}" (reemplazando {ticketId} por el id real) — sin eso el estado de Jira no se sincroniza de vuelta al ticket de Slack. No inventes un ticketId si no lo tenes en el historial; en ese caso omití esa linea.',
       active_tools: [
         'mcp:jira:jira_search_issues',
         'mcp:jira:jira_get_issue',

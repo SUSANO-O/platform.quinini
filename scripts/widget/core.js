@@ -7173,8 +7173,11 @@
         dp + '.afhub-handoff-modal h4 { color:#fff; }' +
         dp + '.afhub-handoff-desc,' + dp + '.afhub-handoff-modal label { color:#a1a1aa; }' +
         dp + '.afhub-handoff-input { background:#1e1e28 !important; color:#ececf1 !important; border-color:rgba(255,255,255,.12) !important; -webkit-text-fill-color:#ececf1; }' +
-        dp + '.afhub-ticket-attach-btn { background:#1e1e28 !important; color:#ececf1 !important; border-color:rgba(255,255,255,.12) !important; }' +
-        dp + '.afhub-ticket-thumb { border-color:rgba(255,255,255,.12); }' +
+        dp + '.afhub-ticket-attach-btn { background:rgba(255,255,255,.04) !important; color:#ececf1 !important; border-color:rgba(255,255,255,.12) !important; }' +
+        dp + '.afhub-ticket-attach-btn:hover { background:rgba(255,255,255,.08) !important; }' +
+        dp + '.afhub-ticket-thumb { border-color:rgba(255,255,255,.12); box-shadow:0 1px 3px rgba(0,0,0,.3); }' +
+        dp + '.afhub-ticket-modal { scrollbar-color:rgba(255,255,255,.22) transparent; }' +
+        dp + '.afhub-ticket-modal::-webkit-scrollbar-thumb { background:rgba(255,255,255,.22); }' +
         dp + '.afhub-msg.afhub-fb-card,' + dp + '.afhub-msg.afhub-fb-offer { background:' + msgBubbleBg + '; border:' + msgBubbleBorder + '; box-shadow:' + msgBubbleShadow + '; -webkit-backdrop-filter:none; backdrop-filter:none; color:#ececf1; }' +
         dp + '.afhub-fb-title { color:#ececf1; }' +
         dp + '.afhub-fb-label { color:#a1a1aa; }' +
@@ -7896,14 +7899,20 @@
       '#' + rootId + ' .afhub-handoff-submit { flex:1; padding:9px; border-radius:8px; border:none !important; background:' + cfg.color + ' !important; color:#fff !important; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; appearance:none; -webkit-appearance:none; }' +
       '#' + rootId + ' .afhub-handoff-submit:hover { filter:brightness(0.95); }' +
       '#' + rootId + ' .afhub-handoff-submit:disabled { opacity:.6; cursor:wait; }' +
-      '#' + rootId + ' .afhub-ticket-attach-row { margin-bottom:8px; }' +
-      '#' + rootId + ' .afhub-ticket-attach-btn { width:100%; padding:8px; border-radius:8px; border:1px dashed #d1d5db !important; background:#fff !important; color:#374151 !important; font-size:11px; font-weight:600; cursor:pointer; font-family:inherit; appearance:none; -webkit-appearance:none; }' +
-      '#' + rootId + ' .afhub-ticket-attach-btn:hover { background:#f3f4f6 !important; border-color:#9ca3af !important; }' +
-      '#' + rootId + ' .afhub-ticket-attach-btn:disabled { opacity:.5; cursor:not-allowed; }' +
-      '#' + rootId + ' .afhub-ticket-thumbs { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }' +
-      '#' + rootId + ' .afhub-ticket-thumb { position:relative; width:44px; height:44px; border-radius:8px; overflow:hidden; border:1px solid #d1d5db; }' +
+      '#' + rootId + ' .afhub-ticket-modal { max-height:min(80vh,540px); overflow-y:auto; -webkit-overflow-scrolling:touch; scrollbar-width:thin; scrollbar-color:rgba(0,0,0,.18) transparent; }' +
+      '#' + rootId + ' .afhub-ticket-modal::-webkit-scrollbar { width:6px; }' +
+      '#' + rootId + ' .afhub-ticket-modal::-webkit-scrollbar-thumb { background:rgba(0,0,0,.18); border-radius:3px; }' +
+      '#' + rootId + ' .afhub-ticket-modal::-webkit-scrollbar-track { background:transparent; }' +
+      '#' + rootId + ' .afhub-ticket-modal label { margin-bottom:6px; }' +
+      '#' + rootId + ' .afhub-ticket-attach-row { margin:2px 0 10px; }' +
+      '#' + rootId + ' .afhub-ticket-attach-btn { width:100%; padding:9px 10px; border-radius:10px; border:1px solid rgba(0,0,0,.08) !important; background:rgba(0,0,0,.02) !important; color:#4b5563 !important; font-size:11.5px; font-weight:600; cursor:pointer; font-family:inherit; appearance:none; -webkit-appearance:none; letter-spacing:.01em; transition:background .15s,border-color .15s; }' +
+      '#' + rootId + ' .afhub-ticket-attach-btn:hover { background:rgba(0,0,0,.05) !important; border-color:rgba(0,0,0,.14) !important; }' +
+      '#' + rootId + ' .afhub-ticket-attach-btn:disabled { opacity:.45; cursor:not-allowed; }' +
+      '#' + rootId + ' .afhub-ticket-thumbs { display:flex; gap:8px; margin:0 0 10px; flex-wrap:wrap; }' +
+      '#' + rootId + ' .afhub-ticket-thumb { position:relative; width:48px; height:48px; border-radius:10px; overflow:hidden; border:1px solid rgba(0,0,0,.08); box-shadow:0 1px 3px rgba(0,0,0,.08); }' +
       '#' + rootId + ' .afhub-ticket-thumb img { width:100%; height:100%; object-fit:cover; display:block; }' +
-      '#' + rootId + ' .afhub-ticket-thumb-remove { position:absolute; top:0; right:0; width:16px; height:16px; line-height:14px; border:none; border-radius:0 0 0 6px; background:rgba(0,0,0,.6); color:#fff; font-size:11px; cursor:pointer; padding:0; }' +
+      '#' + rootId + ' .afhub-ticket-thumb-remove { position:absolute; top:2px; right:2px; width:16px; height:16px; line-height:15px; text-align:center; border:none; border-radius:50%; background:rgba(0,0,0,.55); color:#fff; font-size:11px; cursor:pointer; padding:0; transition:background .15s; }' +
+      '#' + rootId + ' .afhub-ticket-thumb-remove:hover { background:rgba(0,0,0,.75); }' +
       '#' + rootId + ' .afhub-shortcuts-wrap { display:none; flex-shrink:0; border-top:none; background:' + chatSurfaceBg + '; box-shadow:none; }' +
       '#' + rootId + ' .afhub-shortcuts-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; padding:4px 14px; background:transparent; border:none; cursor:default; font-family:inherit; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-shortcuts-toggle-label { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:#94a3b8; opacity:1; }' +
