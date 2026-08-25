@@ -6530,9 +6530,9 @@
     }
 
     var baseSend = send;
-    send = function (textArg) {
+    send = function (textArg, sendOpts) {
       if (flowCtrl && flowCtrl.onSend(textArg, baseSend)) return;
-      return baseSend(textArg);
+      return baseSend(textArg, sendOpts);
     };
 
     sendBtn.addEventListener('click', function () { queueOrSend(); });
