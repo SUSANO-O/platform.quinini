@@ -133,7 +133,7 @@ export async function POST(
         ok: true,
         ticketId: json.data?.ticketId,
         url: json.data?.url,
-        message: 'Ticket creado. Nuestro equipo te contactará pronto.',
+        message: 'Gracias por tus datos, nos comunicaremos muy pronto.',
       }),
     );
   } catch (err) {

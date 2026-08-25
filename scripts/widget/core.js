@@ -2197,43 +2197,74 @@
       chat.insertBefore(voiceBar, inputArea);
     }
 
-    var handoffOverlay = document.createElement('div');
-    handoffOverlay.className = 'afhub-handoff-overlay';
-    handoffOverlay.innerHTML =
-      '<div class="afhub-handoff-modal" role="dialog" aria-labelledby="afhub-handoff-title">' +
-      '<h4 id="afhub-handoff-title">Atención personalizada</h4>' +
-      '<p class="afhub-handoff-desc">Déjanos tus datos y te contactaremos lo antes posible.</p>' +
-      '<label>Nombre<input class="afhub-handoff-input" name="name" type="text" placeholder="Tu nombre" autocomplete="name"></label>' +
-      '<label>Email<input class="afhub-handoff-input" name="email" type="email" placeholder="correo@ejemplo.com" autocomplete="email"></label>' +
-      '<label>Teléfono<input class="afhub-handoff-input" name="phone" type="tel" placeholder="+34 600 000 000" autocomplete="tel"></label>' +
-      '<label>Mensaje (opcional)<textarea class="afhub-handoff-input afhub-handoff-textarea" name="message" rows="2" placeholder="¿En qué podemos ayudarte?"></textarea></label>' +
-      '<p class="afhub-handoff-error" style="display:none"></p>' +
-      '<div class="afhub-handoff-actions">' +
-      '<button type="button" class="afhub-handoff-cancel">Cancelar</button>' +
-      '<button type="button" class="afhub-handoff-submit">Enviar solicitud</button>' +
-      '</div></div>';
+    // ── Componente compartido: modal de formulario embebido (handoff / ticket) ──
+    // Evita duplicar el HTML del modal en cada flujo; cada llamado solo declara sus campos.
+    function buildEmbeddedFormOverlay(cfg) {
+      function esc(s) { return String(s == null ? '' : s); }
+      var fieldsHtml = cfg.fields.map(function (f) {
+        var isTextarea = f.type === 'textarea';
+        var attrs = 'class="afhub-handoff-input' + (isTextarea ? ' afhub-handoff-textarea' : '') + '" name="' + f.name + '"';
+        if (f.placeholder) attrs += ' placeholder="' + esc(f.placeholder) + '"';
+        if (!isTextarea) attrs += ' type="' + f.type + '"';
+        if (f.autocomplete) attrs += ' autocomplete="' + f.autocomplete + '"';
+        var control = isTextarea
+          ? '<textarea ' + attrs + ' rows="' + (f.rows || 2) + '"></textarea>'
+          : '<input ' + attrs + '>';
+        return '<label>' + esc(f.label) + control + '</label>';
+      }).join('');
+      var overlay = document.createElement('div');
+      overlay.className = 'afhub-handoff-overlay' + (cfg.overlayExtraClass ? ' ' + cfg.overlayExtraClass : '');
+      overlay.innerHTML =
+        '<div class="afhub-handoff-modal' + (cfg.modalExtraClass ? ' ' + cfg.modalExtraClass : '') + '" role="dialog" aria-labelledby="' + cfg.titleId + '">' +
+        '<h4 id="' + cfg.titleId + '">' + esc(cfg.title) + '</h4>' +
+        '<p class="afhub-handoff-desc">' + esc(cfg.description) + '</p>' +
+        fieldsHtml +
+        (cfg.extraHtml || '') +
+        '<p class="afhub-handoff-error' + (cfg.errorExtraClass ? ' ' + cfg.errorExtraClass : '') + '" style="display:none"></p>' +
+        '<div class="afhub-handoff-actions">' +
+        '<button type="button" class="afhub-handoff-cancel' + (cfg.cancelExtraClass ? ' ' + cfg.cancelExtraClass : '') + '">Cancelar</button>' +
+        '<button type="button" class="afhub-handoff-submit' + (cfg.submitExtraClass ? ' ' + cfg.submitExtraClass : '') + '">' + esc(cfg.submitLabel) + '</button>' +
+        '</div></div>';
+      return overlay;
+    }
+
+    var handoffOverlay = buildEmbeddedFormOverlay({
+      titleId: 'afhub-handoff-title',
+      title: 'Atención personalizada',
+      description: 'Déjanos tus datos y te contactaremos lo antes posible.',
+      fields: [
+        { label: 'Nombre', name: 'name', type: 'text', placeholder: 'Tu nombre', autocomplete: 'name' },
+        { label: 'Email', name: 'email', type: 'email', placeholder: 'correo@ejemplo.com', autocomplete: 'email' },
+        { label: 'Teléfono', name: 'phone', type: 'tel', placeholder: '+34 600 000 000', autocomplete: 'tel' },
+        { label: 'Mensaje (opcional)', name: 'message', type: 'textarea', rows: 2, placeholder: '¿En qué podemos ayudarte?' },
+      ],
+      submitLabel: 'Enviar solicitud',
+    });
     chat.appendChild(handoffOverlay);
 
-    var ticketOverlay = document.createElement('div');
-    ticketOverlay.className = 'afhub-handoff-overlay afhub-ticket-overlay';
-    ticketOverlay.innerHTML =
-      '<div class="afhub-handoff-modal afhub-ticket-modal" role="dialog" aria-labelledby="afhub-ticket-title">' +
-      '<h4 id="afhub-ticket-title">Abrir ticket de soporte</h4>' +
-      '<p class="afhub-handoff-desc">Contanos tu problema y te contactamos por email.</p>' +
-      '<label>Nombre<input class="afhub-handoff-input" name="name" type="text" placeholder="Tu nombre" autocomplete="name"></label>' +
-      '<label>Email<input class="afhub-handoff-input" name="email" type="email" placeholder="correo@ejemplo.com" autocomplete="email"></label>' +
-      '<label>Descripción breve<textarea class="afhub-handoff-input afhub-handoff-textarea" name="description" rows="3" placeholder="¿Qué problema tenés?"></textarea></label>' +
-      '<label>Link de video (opcional)<input class="afhub-handoff-input" name="videoUrl" type="url" placeholder="https://..."></label>' +
-      '<div class="afhub-ticket-attach-row">' +
-      '<button type="button" class="afhub-ticket-attach-btn">📎 Adjuntar imagen (máx. 3)</button>' +
-      '<input type="file" class="afhub-ticket-file-input" accept="image/*" multiple style="display:none">' +
-      '</div>' +
-      '<div class="afhub-ticket-thumbs"></div>' +
-      '<p class="afhub-handoff-error afhub-ticket-error" style="display:none"></p>' +
-      '<div class="afhub-handoff-actions">' +
-      '<button type="button" class="afhub-handoff-cancel afhub-ticket-cancel">Cancelar</button>' +
-      '<button type="button" class="afhub-handoff-submit afhub-ticket-submit">Crear ticket</button>' +
-      '</div></div>';
+    var ticketOverlay = buildEmbeddedFormOverlay({
+      overlayExtraClass: 'afhub-ticket-overlay',
+      modalExtraClass: 'afhub-ticket-modal',
+      titleId: 'afhub-ticket-title',
+      title: 'Abrir ticket de soporte',
+      description: 'Contanos tu problema y te contactamos por email.',
+      fields: [
+        { label: 'Nombre', name: 'name', type: 'text', placeholder: 'Tu nombre', autocomplete: 'name' },
+        { label: 'Email', name: 'email', type: 'email', placeholder: 'correo@ejemplo.com', autocomplete: 'email' },
+        { label: 'Descripción breve', name: 'description', type: 'textarea', rows: 3, placeholder: '¿Qué problema tenés?' },
+        { label: 'Link de video (opcional)', name: 'videoUrl', type: 'url', placeholder: 'https://...' },
+      ],
+      extraHtml:
+        '<div class="afhub-ticket-attach-row">' +
+        '<button type="button" class="afhub-ticket-attach-btn">📎 Adjuntar imagen (máx. 3)</button>' +
+        '<input type="file" class="afhub-ticket-file-input" accept="image/*" multiple style="display:none">' +
+        '</div>' +
+        '<div class="afhub-ticket-thumbs"></div>',
+      errorExtraClass: 'afhub-ticket-error',
+      cancelExtraClass: 'afhub-ticket-cancel',
+      submitExtraClass: 'afhub-ticket-submit',
+      submitLabel: 'Crear ticket',
+    });
     chat.appendChild(ticketOverlay);
     if (shortcutsOverlay) chat.appendChild(shortcutsOverlay);
 
@@ -4625,14 +4656,14 @@
       feedbackOfferShown = true;
       var wrap = document.createElement('div');
       wrap.className = 'afhub-msg bot afhub-fb-offer';
-      wrap.style.cssText = 'display:flex;flex-direction:column;gap:8px;align-items:flex-start;margin-bottom:8px';
+      wrap.style.cssText = 'display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center;margin-bottom:8px';
       var p = document.createElement('div');
       p.style.cssText = 'font-size:13px;line-height:1.5';
       p.textContent = '¡Con gusto! 🙌 Antes de irte, ¿nos dejas tu opinión?';
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.textContent = 'Calificar';
-      btn.style.cssText = 'background:' + cfg.color + ';color:#fff;border:none;border-radius:10px;padding:7px 18px;font-size:12px;font-weight:700;cursor:pointer';
+      btn.style.cssText = 'background:' + cfg.color + ';color:#fff;border:none;border-radius:10px;padding:8px 22px;font-size:12px;font-weight:700;cursor:pointer';
       btn.addEventListener('click', function () { openFeedbackSurvey(null); });
       wrap.appendChild(p);
       wrap.appendChild(btn);
@@ -5565,7 +5596,7 @@
             var finalReply = botReplyForDisplay(finalRaw);
             if (/\[\[OPEN_TICKET_FORM\]\]/.test(finalReply)) {
               finalReply = finalReply.replace(/\[\[OPEN_TICKET_FORM\]\]/g, '').trim();
-              if (!finalReply) finalReply = 'Contame los detalles en este formulario 👇';
+              if (!finalReply) finalReply = 'Contame los detalles en este formulario 👇 Si no se abre solo, tocá el botón 🎫 (al lado de enviar).';
               try { openTicketModal(); } catch (_e) { /* noop */ }
             }
             var stTools = doneEvt.toolsUsed;
@@ -5662,7 +5693,7 @@
         var reply = botReplyForDisplay(replyRaw);
         if (/\[\[OPEN_TICKET_FORM\]\]/.test(reply)) {
           reply = reply.replace(/\[\[OPEN_TICKET_FORM\]\]/g, '').trim();
-          if (!reply) reply = 'Contame los detalles en este formulario 👇';
+          if (!reply) reply = 'Contame los detalles en este formulario 👇 Si no se abre solo, tocá el botón 🎫 (al lado de enviar).';
           try { openTicketModal(); } catch (_e) { /* noop */ }
         }
         resolvedAgentId = data.agentId || resolvedAgentId;
@@ -7531,7 +7562,7 @@
         'border:' + msgBubbleBorder + ';' +
         'box-shadow:' + msgBubbleShadow + ';background:' + msgBubbleBg + ';' +
       '}' +
-      '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen .afhub-fb-actions { justify-content:flex-start; margin-top:12px; }' +
+      '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen .afhub-fb-actions { justify-content:center; margin-top:12px; }' +
       '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen .afhub-fb-submit {' +
         'flex:0 0 auto;min-width:128px;padding:11px 22px;border-radius:12px;' +
         'box-shadow:0 6px 18px ' + cfg.color + '2e;' +
@@ -7811,34 +7842,34 @@
       '#' + rootId + ' .afhub-msg.afhub-fb-card,' +
       '#' + rootId + ' .afhub-msg.afhub-fb-offer {' +
         'align-self:stretch;max-width:100%;width:100%;box-sizing:border-box;' +
-        'background:' + msgBubbleBg + ';border:none;border-radius:16px;padding:14px 14px 12px;' +
+        'background:' + msgBubbleBg + ';border:none;border-radius:16px;padding:18px 18px 16px;' +
         'box-shadow:' + msgBubbleShadow + ';' +
         '-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);' +
       '}' +
-      '#' + rootId + ' .afhub-fb-inner { display:flex; flex-direction:column; gap:10px; }' +
+      '#' + rootId + ' .afhub-fb-inner { display:flex; flex-direction:column; align-items:center; text-align:center; gap:12px; }' +
       '#' + rootId + ' .afhub-fb-title {' +
         'font-family:inherit;' +
-        'font-size:13px;font-weight:700;letter-spacing:-.01em;line-height:1.3;color:#111827;margin:0;' +
+        'font-size:13.5px;font-weight:700;letter-spacing:-.01em;line-height:1.3;color:#111827;margin:0;' +
       '}' +
-      '#' + rootId + ' .afhub-fb-q { display:flex; flex-direction:column; gap:5px; }' +
+      '#' + rootId + ' .afhub-fb-q { display:flex; flex-direction:column; align-items:center; gap:7px; width:100%; }' +
       '#' + rootId + ' .afhub-fb-label { font-size:11.5px; font-weight:600; color:#4b5563; line-height:1.3; }' +
       '#' + rootId + ' .afhub-fb-req { color:#ef4444; font-weight:700; }' +
-      '#' + rootId + ' .afhub-fb-stars { display:flex; align-items:center; gap:0; }' +
+      '#' + rootId + ' .afhub-fb-stars { display:flex; align-items:center; justify-content:center; gap:2px; }' +
       '#' + rootId + ' .afhub-fb-star {' +
         'appearance:none;-webkit-appearance:none;background:transparent;border:none;cursor:pointer;' +
-        'padding:2px 3px;margin:0;line-height:1;border-radius:6px;color:#d1d5db;' +
+        'padding:3px 4px;margin:0;line-height:1;border-radius:6px;color:#d1d5db;' +
         'transition:color .12s ease,transform .12s ease,background .12s ease;' +
       '}' +
       '#' + rootId + ' .afhub-fb-star:hover,' +
-      '#' + rootId + ' .afhub-fb-star:focus-visible { background:rgba(245,179,1,.12); outline:none; transform:scale(1.06); }' +
+      '#' + rootId + ' .afhub-fb-star:focus-visible { background:rgba(245,179,1,.12); outline:none; transform:scale(1.1); }' +
       '#' + rootId + ' .afhub-fb-star-icon {' +
-        'font-size:20px;line-height:1;display:block;font-family:system-ui,"Apple Color Emoji","Segoe UI Symbol",sans-serif;' +
+        'font-size:23px;line-height:1;display:block;font-family:system-ui,"Apple Color Emoji","Segoe UI Symbol",sans-serif;' +
       '}' +
       '#' + rootId + ' .afhub-fb-star.is-on { color:#f5b301; }' +
       '#' + rootId + ' .afhub-fb-star.is-on .afhub-fb-star-icon {' +
         'filter:drop-shadow(0 1px 1px rgba(245,179,1,.3));' +
       '}' +
-      '#' + rootId + ' .afhub-fb-choices { display:flex; flex-wrap:wrap; gap:6px; }' +
+      '#' + rootId + ' .afhub-fb-choices { display:flex; flex-wrap:wrap; justify-content:center; gap:6px; }' +
       '#' + rootId + ' .afhub-fb-choices--stack { flex-direction:column; align-items:stretch; }' +
       '#' + rootId + ' .afhub-fb-choice { cursor:pointer; margin:0; position:relative; }' +
       '#' + rootId + ' .afhub-fb-choice input { position:absolute; opacity:0; pointer-events:none; width:0; height:0; }' +
@@ -7856,18 +7887,18 @@
         'box-shadow:0 2px 8px ' + cfg.color + '33;' +
       '}' +
       '#' + rootId + ' .afhub-fb-text {' +
-        'width:100%;box-sizing:border-box;border:none;border-radius:8px;' +
-        'padding:7px 9px;font-size:12px;font-family:inherit;resize:vertical;min-height:48px;' +
+        'width:100%;box-sizing:border-box;border:none;border-radius:8px;text-align:left;' +
+        'padding:8px 10px;font-size:12px;font-family:inherit;resize:vertical;min-height:48px;' +
         'background:rgba(255,255,255,.75);color:#111827;line-height:1.35;' +
         'transition:border-color .12s,box-shadow .12s;' +
       '}' +
       '#' + rootId + ' .afhub-fb-text:focus { outline:none; border-color:' + cfg.color + '; box-shadow:0 0 0 2px ' + cfg.color + '22; }' +
       '#' + rootId + ' .afhub-fb-error { display:none; color:#dc2626; font-size:11px; font-weight:600; margin:0; }' +
       '#' + rootId + ' .afhub-fb-error:not([hidden]) { display:block; }' +
-      '#' + rootId + ' .afhub-fb-actions { display:flex; align-items:center; gap:8px; margin-top:0; flex-wrap:wrap; }' +
+      '#' + rootId + ' .afhub-fb-actions { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:2px; flex-wrap:wrap; }' +
       '#' + rootId + ' .afhub-fb-submit {' +
-        'flex:0 0 auto;min-width:88px;background:' + cfg.color + ';color:#fff;border:none;border-radius:8px;' +
-        'padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;line-height:1.2;font-family:inherit;' +
+        'flex:0 0 auto;min-width:96px;background:' + cfg.color + ';color:#fff;border:none;border-radius:8px;' +
+        'padding:8px 18px;font-size:12px;font-weight:700;cursor:pointer;line-height:1.2;font-family:inherit;' +
         'box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 2px 8px ' + b16 + ';' +
         'transition:filter .12s,box-shadow .12s,transform .12s;' +
       '}' +
@@ -7878,32 +7909,32 @@
         'font-weight:600;font-family:inherit;border-radius:6px;transition:color .12s,background .12s;' +
       '}' +
       '#' + rootId + ' .afhub-fb-skip:hover { color:#374151; background:rgba(15,23,42,.04); }' +
-      '#' + rootId + ' .afhub-fb-thanks { display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:#111827; }' +
+      '#' + rootId + ' .afhub-fb-thanks { display:flex; align-items:center; justify-content:center; gap:8px; font-size:12.5px; font-weight:600; color:#111827; padding:4px 0; }' +
       '#' + rootId + ' .afhub-fb-check {' +
         'display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:999px;' +
         'background:#22c55e;color:#fff;font-size:12px;line-height:1;flex-shrink:0;font-weight:700;' +
       '}' +
       '#' + rootId + ' .afhub-handoff-overlay { display:none; position:absolute; inset:0; z-index:30; background:rgba(0,0,0,.45); align-items:center; justify-content:center; padding:16px; box-sizing:border-box; }' +
       '#' + rootId + ' .afhub-handoff-overlay.visible { display:flex; }' +
-      '#' + rootId + ' .afhub-handoff-modal { width:100%; max-width:320px; background:rgba(255,255,255,.88); border-radius:16px; padding:20px 18px; box-shadow:0 0 0 0.5px rgba(0,0,0,.08),0 24px 64px rgba(0,0,0,.22); font-family:inherit; color:#1c1c1e; -webkit-backdrop-filter:blur(28px) saturate(180%); backdrop-filter:blur(28px) saturate(180%); }' +
-      '#' + rootId + ' .afhub-handoff-modal h4 { margin:0 0 6px; font-size:15px; font-weight:800; color:#111827; }' +
-      '#' + rootId + ' .afhub-handoff-desc { margin:0 0 12px; font-size:12px; color:#6b7280; line-height:1.4; }' +
-      '#' + rootId + ' .afhub-handoff-modal label { display:block; margin-bottom:8px; font-size:11px; font-weight:600; color:#374151; }' +
-      '#' + rootId + ' .afhub-handoff-input { display:block; width:100%; margin-top:4px; padding:8px 10px; border:1px solid #d1d5db; border-radius:8px; font-size:13px; font-family:inherit; box-sizing:border-box; color:#111827 !important; background:#fff !important; -webkit-text-fill-color:#111827; caret-color:' + cfg.color + '; }' +
+      '#' + rootId + ' .afhub-handoff-modal { width:100%; max-width:304px; background:rgba(255,255,255,.9); border-radius:14px; padding:16px 15px; box-shadow:0 0 0 0.5px rgba(0,0,0,.06),0 18px 48px rgba(0,0,0,.18); font-family:inherit; color:#1c1c1e; -webkit-backdrop-filter:blur(28px) saturate(180%); backdrop-filter:blur(28px) saturate(180%); }' +
+      '#' + rootId + ' .afhub-handoff-modal h4 { margin:0 0 4px; font-size:13.5px; font-weight:750; letter-spacing:-.01em; color:#111827; }' +
+      '#' + rootId + ' .afhub-handoff-desc { margin:0 0 10px; font-size:11.5px; color:#6b7280; line-height:1.4; }' +
+      '#' + rootId + ' .afhub-handoff-modal label { display:block; margin-bottom:6px; font-size:10.5px; font-weight:600; color:#4b5563; }' +
+      '#' + rootId + ' .afhub-handoff-input { display:block; width:100%; margin-top:3px; padding:7px 9px; border:1px solid rgba(0,0,0,.1); border-radius:7px; font-size:12.5px; font-family:inherit; box-sizing:border-box; color:#111827 !important; background:#fff !important; -webkit-text-fill-color:#111827; caret-color:' + cfg.color + '; transition:border-color .15s; }' +
+      '#' + rootId + ' .afhub-handoff-input:focus { border-color:' + cfg.color + '66; outline:none; }' +
       '#' + rootId + ' .afhub-handoff-input::placeholder { color:#9ca3af; opacity:1; }' +
-      '#' + rootId + ' .afhub-handoff-textarea { resize:vertical; min-height:52px; }' +
-      '#' + rootId + ' .afhub-handoff-error { margin:0 0 8px; font-size:11px; color:#dc2626; font-weight:600; }' +
-      '#' + rootId + ' .afhub-handoff-actions { display:flex; gap:8px; margin-top:4px; }' +
-      '#' + rootId + ' .afhub-handoff-cancel { flex:1; padding:9px; border-radius:8px; border:1px solid #d1d5db !important; background:#fff !important; color:#374151 !important; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; appearance:none; -webkit-appearance:none; }' +
+      '#' + rootId + ' .afhub-handoff-textarea { resize:vertical; min-height:44px; }' +
+      '#' + rootId + ' .afhub-handoff-error { margin:0 0 6px; font-size:10.5px; color:#dc2626; font-weight:600; }' +
+      '#' + rootId + ' .afhub-handoff-actions { display:flex; gap:6px; margin-top:2px; }' +
+      '#' + rootId + ' .afhub-handoff-cancel { flex:1; padding:7px; border-radius:7px; border:1px solid rgba(0,0,0,.1) !important; background:#fff !important; color:#374151 !important; font-size:11.5px; font-weight:600; cursor:pointer; font-family:inherit; appearance:none; -webkit-appearance:none; }' +
       '#' + rootId + ' .afhub-handoff-cancel:hover { background:#f3f4f6 !important; color:#111827 !important; border-color:#9ca3af !important; }' +
-      '#' + rootId + ' .afhub-handoff-submit { flex:1; padding:9px; border-radius:8px; border:none !important; background:' + cfg.color + ' !important; color:#fff !important; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; appearance:none; -webkit-appearance:none; }' +
+      '#' + rootId + ' .afhub-handoff-submit { flex:1; padding:7px; border-radius:7px; border:none !important; background:' + cfg.color + ' !important; color:#fff !important; font-size:11.5px; font-weight:700; cursor:pointer; font-family:inherit; appearance:none; -webkit-appearance:none; }' +
       '#' + rootId + ' .afhub-handoff-submit:hover { filter:brightness(0.95); }' +
       '#' + rootId + ' .afhub-handoff-submit:disabled { opacity:.6; cursor:wait; }' +
       '#' + rootId + ' .afhub-ticket-modal { max-height:min(80vh,540px); overflow-y:auto; -webkit-overflow-scrolling:touch; scrollbar-width:thin; scrollbar-color:rgba(0,0,0,.18) transparent; }' +
       '#' + rootId + ' .afhub-ticket-modal::-webkit-scrollbar { width:6px; }' +
       '#' + rootId + ' .afhub-ticket-modal::-webkit-scrollbar-thumb { background:rgba(0,0,0,.18); border-radius:3px; }' +
       '#' + rootId + ' .afhub-ticket-modal::-webkit-scrollbar-track { background:transparent; }' +
-      '#' + rootId + ' .afhub-ticket-modal label { margin-bottom:6px; }' +
       '#' + rootId + ' .afhub-ticket-attach-row { margin:2px 0 10px; }' +
       '#' + rootId + ' .afhub-ticket-attach-btn { width:100%; padding:9px 10px; border-radius:10px; border:1px solid rgba(0,0,0,.08) !important; background:rgba(0,0,0,.02) !important; color:#4b5563 !important; font-size:11.5px; font-weight:600; cursor:pointer; font-family:inherit; appearance:none; -webkit-appearance:none; letter-spacing:.01em; transition:background .15s,border-color .15s; }' +
       '#' + rootId + ' .afhub-ticket-attach-btn:hover { background:rgba(0,0,0,.05) !important; border-color:rgba(0,0,0,.14) !important; }' +

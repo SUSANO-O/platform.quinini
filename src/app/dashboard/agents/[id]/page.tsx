@@ -49,7 +49,7 @@ import {
   Image as ImageIcon, File, Link2, AlignLeft, CheckCircle2,
   AlertCircle, X, KeyRound, RefreshCw, Sparkles, HelpCircle,
   Phone, MessageCircle, Check,
-  Copy, Eye, Search, Clock, Lightbulb,
+  Copy, Eye, Search, Clock, Lightbulb, ChevronDown, ChevronUp,
 } from '@/components/ui/icons';
 import ScheduledTasksTab from '@/components/agents/ScheduledTasksTab';
 import WhatsAppTab from '@/components/agents/WhatsAppTab';
@@ -387,6 +387,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [mcpIntegrations, setMcpIntegrations] = useState<McpIntegrationMeta[]>([]);
   const [unifiedCounts, setUnifiedCounts] = useState<{ mcp: number; builtin: number } | null>(null);
   const enabledMcpSavedRef = useRef<string[] | undefined>(undefined);
+  const [toolsSearch, setToolsSearch] = useState('');
+  const [collapsedMcpServers, setCollapsedMcpServers] = useState<Set<string>>(new Set());
   useEffect(() => {
     enabledMcpSavedRef.current = agent?.enabledMcpToolIds;
   }, [agent?.enabledMcpToolIds]);
@@ -788,6 +790,37 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     () => pendingOrErrorMcpServers.filter((s) => mcpServerNeedsAccount(s)),
     [pendingOrErrorMcpServers, mcpServerNeedsAccount],
   );
+
+  const totalMcpToolCount = useMemo(
+    () => accountMcpServers.reduce((n, s) => n + s.tools.length, 0),
+    [accountMcpServers],
+  );
+
+  const filteredAccountMcpServers = useMemo(() => {
+    const q = toolsSearch.trim().toLowerCase();
+    if (!q) return accountMcpServers;
+    return accountMcpServers
+      .map((srv) => ({
+        ...srv,
+        tools: srv.tools.filter(
+          (t) =>
+            t.name.toLowerCase().includes(q) ||
+            t.id.toLowerCase().includes(q) ||
+            (t.description || '').toLowerCase().includes(q) ||
+            srv.serverName.toLowerCase().includes(q),
+        ),
+      }))
+      .filter((srv) => srv.tools.length > 0);
+  }, [accountMcpServers, toolsSearch]);
+
+  const toggleMcpServerCollapsed = useCallback((connectionId: string) => {
+    setCollapsedMcpServers((prev) => {
+      const next = new Set(prev);
+      if (next.has(connectionId)) next.delete(connectionId);
+      else next.add(connectionId);
+      return next;
+    });
+  }, []);
 
   const planToolNeedsAccount = useCallback((toolId: string) => {
     if (
@@ -2714,8 +2747,51 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   </div>
                 ) : null}
 
+                {totalMcpToolCount > 6 && (
+                  <div style={{ position: 'relative', marginBottom: '14px' }}>
+                    <Search
+                      size={14}
+                      style={{
+                        position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)',
+                        color: 'var(--muted-foreground)', pointerEvents: 'none',
+                      }}
+                    />
+                    <input
+                      type="text"
+                      value={toolsSearch}
+                      onChange={(e) => setToolsSearch(e.target.value)}
+                      placeholder="Buscar herramienta por nombre o integración..."
+                      style={{
+                        width: '100%', padding: '8px 10px 8px 32px', borderRadius: '9px',
+                        border: '1px solid var(--border)', background: 'var(--background)',
+                        fontSize: '12.5px', color: 'var(--foreground)', boxSizing: 'border-box',
+                      }}
+                    />
+                    {toolsSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setToolsSearch('')}
+                        aria-label="Limpiar búsqueda"
+                        style={{
+                          position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                          border: 'none', background: 'transparent', cursor: 'pointer',
+                          color: 'var(--muted-foreground)', display: 'flex', padding: 2,
+                        }}
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {toolsSearch && filteredAccountMcpServers.length === 0 && (
+                  <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: '0 0 14px', textAlign: 'center', padding: '10px 0' }}>
+                    Ninguna herramienta coincide con "{toolsSearch}".
+                  </p>
+                )}
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {accountMcpServers.map((srv) => {
+                  {filteredAccountMcpServers.map((srv) => {
                     const MCP_ICONS: Record<string, string> = {
                       gmail: '📧', hubspot: '🏢', slack: '💬',
                       google_calendar: '📅', googleCalendar: '📅',
@@ -2727,8 +2803,10 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                     const icon = MCP_ICONS[srv.integrationKey] ?? '🔌';
                     const allSelected = srv.tools.every((t) => mcpToolIds.includes(t.id));
                     const someSelected = srv.tools.some((t) => mcpToolIds.includes(t.id));
+                    const selectedCount = srv.tools.filter((t) => mcpToolIds.includes(t.id)).length;
                     const badge = mcpConnectionBadgeStyle(srv);
                     const lastSyncLabel = formatMcpLastSync(srv.lastSyncAt);
+                    const isCollapsed = collapsedMcpServers.has(srv.connectionId);
 
                     return (
                       <div key={srv.connectionId} style={{
@@ -2737,24 +2815,36 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       }}>
                         {/* Server header */}
                         <div style={{
-                          display: 'flex', alignItems: 'center', gap: '10px',
+                          display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
                           padding: '12px 14px', background: 'rgba(var(--brand-primary-rgb),0.04)',
-                          borderBottom: '1px solid var(--border)',
+                          borderBottom: isCollapsed ? 'none' : '1px solid var(--border)',
                         }}>
-                          <span style={{ fontSize: '20px' }}>{icon}</span>
-                          <div style={{ flex: 1 }}>
-                            <p style={{ fontSize: '13px', fontWeight: 700, margin: 0 }}>{srv.serverName}</p>
-                            <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: 0 }}>
-                              {srv.tools.length} tool{srv.tools.length !== 1 ? 's' : ''} disponible{srv.tools.length !== 1 ? 's' : ''}
-                              {lastSyncLabel ? ` · ${lastSyncLabel}` : ''}
-                            </p>
-                            {srv.syncStatus === 'error' && srv.lastSyncError ? (
-                              <p style={{ fontSize: '10px', color: '#ef4444', margin: '4px 0 0', lineHeight: 1.35 }}>
-                                {srv.lastSyncError.slice(0, 220)}
-                                {srv.lastSyncError.length > 220 ? '…' : ''}
+                          <button
+                            type="button"
+                            onClick={() => toggleMcpServerCollapsed(srv.connectionId)}
+                            aria-expanded={!isCollapsed}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 160,
+                              border: 'none', background: 'transparent', padding: 0, margin: 0,
+                              cursor: 'pointer', textAlign: 'left', color: 'inherit', font: 'inherit',
+                            }}
+                          >
+                            <span style={{ fontSize: '20px' }}>{icon}</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontSize: '13px', fontWeight: 700, margin: 0 }}>{srv.serverName}</p>
+                              <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: 0 }}>
+                                {selectedCount}/{srv.tools.length} seleccionada{srv.tools.length !== 1 ? 's' : ''}
+                                {lastSyncLabel ? ` · ${lastSyncLabel}` : ''}
                               </p>
-                            ) : null}
-                          </div>
+                              {srv.syncStatus === 'error' && srv.lastSyncError ? (
+                                <p style={{ fontSize: '10px', color: '#ef4444', margin: '4px 0 0', lineHeight: 1.35 }}>
+                                  {srv.lastSyncError.slice(0, 220)}
+                                  {srv.lastSyncError.length > 220 ? '…' : ''}
+                                </p>
+                              ) : null}
+                            </div>
+                            {isCollapsed ? <ChevronDown size={16} style={{ color: 'var(--muted-foreground)', flexShrink: 0 }} /> : <ChevronUp size={16} style={{ color: 'var(--muted-foreground)', flexShrink: 0 }} />}
+                          </button>
                           <span style={{
                             fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
                             background: badge.bg, color: badge.color,
@@ -2816,6 +2906,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         </div>
 
                         {/* Tools list */}
+                        {!isCollapsed && (
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                           {srv.tools.map((tool, ti) => {
                             const selected = mcpToolIds.includes(tool.id);
@@ -2854,23 +2945,29 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                                   {tool.description && (
                                     <p style={{
                                       fontSize: '11px', color: 'var(--muted-foreground)', margin: '1px 0 0',
-                                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                      lineHeight: 1.4, display: '-webkit-box',
+                                      WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
                                     }}>
                                       {tool.description}
                                     </p>
                                   )}
                                 </div>
-                                <code style={{
-                                  fontSize: '9px', color: 'var(--muted-foreground)',
-                                  background: 'var(--background)', padding: '2px 6px',
-                                  borderRadius: '4px', flexShrink: 0,
-                                }}>
+                                <code
+                                  title={tool.id}
+                                  style={{
+                                    fontSize: '9px', color: 'var(--muted-foreground)', opacity: 0.7,
+                                    background: 'var(--background)', padding: '2px 6px',
+                                    borderRadius: '4px', flexShrink: 0, alignSelf: 'flex-start',
+                                    maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                  }}
+                                >
                                   {tool.id}
                                 </code>
                               </button>
                             );
                           })}
                         </div>
+                        )}
                       </div>
                     );
                   })}

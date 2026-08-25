@@ -51,8 +51,8 @@ interface SystemStatus {
   services: { name: string; status: string; latencyMs: number | null }[];
 }
 
-const POOL_ACCENT_WIDGET = '#111111';
-const POOL_ACCENT_API = '#737373';
+const POOL_ACCENT_WIDGET = '#2a78d6';
+const POOL_ACCENT_API = '#eb6834';
 
 function Skel({ w, h, r = 6 }: { w: string | number; h: number; r?: number }) {
   return (

@@ -68,9 +68,9 @@ function formatHour(h: number) {
   return `${h - 12} PM`;
 }
 
-const CHART_ACCENT = '#111111';
+const CHART_ACCENT = '#2a78d6';
 const CHART_MUTED = 'var(--muted-foreground)';
-const CHART_SURFACE = 'rgba(0, 0, 0, 0.04)';
+const CHART_SURFACE = 'rgba(42, 120, 214, 0.06)';
 
 const STATUS_COLOR: Record<string, string> = {
   operational: STATE.success,
@@ -373,7 +373,7 @@ export default function DashboardPage() {
                               <span className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>{m.sessions}</span>
                               <div className="w-full rounded-t-md" style={{
                                 height: `${pct}%`, minHeight: 4,
-                                background: `linear-gradient(180deg, #525252, ${CHART_ACCENT})`, opacity: 0.92,
+                                background: `linear-gradient(180deg, #86b6ef, ${CHART_ACCENT})`, opacity: 0.92,
                               }} />
                               <span className="text-[9px]" style={{ color: 'var(--muted-foreground)' }}>{m.month.slice(5)}</span>
                             </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { BarChart3, Activity } from '@/components/ui/icons';
 
 export type WavePoint = { date: string; agents: number; api: number; sessions?: number };
 
@@ -47,6 +48,21 @@ function slotCenterX(idx: number, slotW: number): number {
   return PAD.l + idx * slotW + slotW / 2;
 }
 
+type WavePathPoint = { x: number; y: number };
+
+function buildLinePath(points: WavePathPoint[]): string {
+  if (!points.length) return '';
+  return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+}
+
+function buildAreaPath(points: WavePathPoint[], baseline: number): string {
+  if (!points.length) return '';
+  const line = buildLinePath(points);
+  const first = points[0]!;
+  const last = points[points.length - 1]!;
+  return `${line} L ${last.x} ${baseline} L ${first.x} ${baseline} Z`;
+}
+
 export function ConversationWaveChart({
   data,
   showApi,
@@ -59,6 +75,7 @@ export function ConversationWaveChart({
   error?: boolean;
 }) {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const [mode, setMode] = useState<'bars' | 'wave'>('bars');
 
   const stats = useMemo(() => {
     if (!data.length) return null;
@@ -132,6 +149,9 @@ export function ConversationWaveChart({
   const active = activeIdx >= 0 ? data[activeIdx] : null;
   const activeCenterX = activeIdx >= 0 ? slotCenterX(activeIdx, slotW) : 0;
 
+  const widgetPoints = data.map((d, i) => ({ x: slotCenterX(i, slotW), y: baseline - barH(d.agents) }));
+  const apiPoints = hasApiData ? data.map((d, i) => ({ x: slotCenterX(i, slotW), y: baseline - barH(d.api) })) : [];
+
   return (
     <div className="conv-wave">
       {stats && (
@@ -161,13 +181,34 @@ export function ConversationWaveChart({
         </div>
       )}
 
+      <div className="conv-wave__mode-toggle-row">
+        <div className="conv-wave__mode-toggle" role="group" aria-label="Tipo de gráfico">
+          <button
+            type="button"
+            className={`conv-wave__mode-btn${mode === 'bars' ? ' is-active' : ''}`}
+            aria-pressed={mode === 'bars'}
+            onClick={() => setMode('bars')}
+          >
+            <BarChart3 size={12} /> Barras
+          </button>
+          <button
+            type="button"
+            className={`conv-wave__mode-btn${mode === 'wave' ? ' is-active' : ''}`}
+            aria-pressed={mode === 'wave'}
+            onClick={() => setMode('wave')}
+          >
+            <Activity size={12} /> Onda
+          </button>
+        </div>
+      </div>
+
       <div className="conv-wave__chart-wrap">
         <svg
           viewBox={`0 0 ${W} ${H}`}
           className="conv-wave__svg"
           preserveAspectRatio="none"
           role="img"
-          aria-label="Gráfico de barras de conversaciones por día"
+          aria-label={mode === 'bars' ? 'Gráfico de barras de conversaciones por día' : 'Gráfico de onda de conversaciones por día'}
           onMouseLeave={() => setHoverIdx(null)}
         >
           <rect x={PAD.l} y={PAD.t} width={innerW} height={innerH} className="conv-wave__plane" rx={8} />
@@ -198,7 +239,7 @@ export function ConversationWaveChart({
             />
           ))}
 
-          {data.map((d, i) => {
+          {mode === 'bars' && data.map((d, i) => {
             const cx = slotCenterX(i, slotW);
             const dim = hoverIdx != null && hoverIdx !== i;
             const activeBar = hoverIdx === i;
@@ -231,15 +272,6 @@ export function ConversationWaveChart({
                       className={`conv-wave__bar conv-wave__bar--api${dim ? ' conv-wave__bar--dim' : ''}${activeBar ? ' conv-wave__bar--active' : ''}`}
                     />
                   )}
-                  <rect
-                    x={PAD.l + i * slotW}
-                    y={PAD.t}
-                    width={slotW}
-                    height={innerH}
-                    fill="transparent"
-                    className="conv-wave__hit"
-                    onMouseEnter={() => setHoverIdx(i)}
-                  />
                 </g>
               );
             }
@@ -257,18 +289,53 @@ export function ConversationWaveChart({
                     className={`conv-wave__bar conv-wave__bar--widget${dim ? ' conv-wave__bar--dim' : ''}${activeBar ? ' conv-wave__bar--active' : ''}`}
                   />
                 )}
-                <rect
-                  x={PAD.l + i * slotW}
-                  y={PAD.t}
-                  width={slotW}
-                  height={innerH}
-                  fill="transparent"
-                  className="conv-wave__hit"
-                  onMouseEnter={() => setHoverIdx(i)}
-                />
               </g>
             );
           })}
+
+          {mode === 'wave' && (
+            <g>
+              <path d={buildAreaPath(widgetPoints, baseline)} className="conv-wave__area conv-wave__area--widget" />
+              {hasApiData && (
+                <path d={buildAreaPath(apiPoints, baseline)} className="conv-wave__area conv-wave__area--api" />
+              )}
+              <path d={buildLinePath(widgetPoints)} fill="none" className="conv-wave__line conv-wave__line--widget" />
+              {hasApiData && (
+                <path d={buildLinePath(apiPoints)} fill="none" className="conv-wave__line conv-wave__line--api" />
+              )}
+              {widgetPoints.map((p, i) => (
+                <circle
+                  key={`pw-${data[i]!.date}`}
+                  cx={p.x}
+                  cy={p.y}
+                  r={hoverIdx === i ? 4.5 : 3}
+                  className={`conv-wave__point conv-wave__point--widget${hoverIdx === i ? ' conv-wave__point--active' : ''}`}
+                />
+              ))}
+              {hasApiData && apiPoints.map((p, i) => (
+                <circle
+                  key={`pa-${data[i]!.date}`}
+                  cx={p.x}
+                  cy={p.y}
+                  r={hoverIdx === i ? 4.5 : 3}
+                  className={`conv-wave__point conv-wave__point--api${hoverIdx === i ? ' conv-wave__point--active' : ''}`}
+                />
+              ))}
+            </g>
+          )}
+
+          {data.map((d, i) => (
+            <rect
+              key={`hit-${d.date}`}
+              x={PAD.l + i * slotW}
+              y={PAD.t}
+              width={slotW}
+              height={innerH}
+              fill="transparent"
+              className="conv-wave__hit"
+              onMouseEnter={() => setHoverIdx(i)}
+            />
+          ))}
 
           {hoverIdx != null && (
             <line
