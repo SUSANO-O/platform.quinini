@@ -1856,6 +1856,19 @@
         ICON_TRASH +
         '<span>Borrar conversación</span>' +
       '</button>';
+    // Accesos a handoff/ticket también en el menú de ajustes: en mobile el botón dedicado
+    // se oculta (poco espacio en la fila del input) y esta es la única forma de llegar.
+    if (cfg.handoffEnabled !== false) {
+      settingsMenuHtml +=
+        '<button type="button" class="afhub-settings-item afhub-settings-handoff">' +
+          ICON_USER +
+          '<span>Hablar con una persona</span>' +
+        '</button>' +
+        '<button type="button" class="afhub-settings-item afhub-settings-ticket">' +
+          ICON_TICKET +
+          '<span>Abrir ticket de soporte</span>' +
+        '</button>';
+    }
 
     var settingsMenu = document.createElement('div');
     settingsMenu.className = 'afhub-settings-menu';
@@ -6508,6 +6521,22 @@
         if (ok) startNewConversation();
       });
     }
+
+    /** Handoff / ticket también desde el menú de ajustes (ver nota junto a settingsMenuHtml) */
+    var handoffMenuItem = settingsMenu.querySelector('.afhub-settings-handoff');
+    if (handoffMenuItem) {
+      handoffMenuItem.addEventListener('click', function () {
+        setSettingsMenuOpen(false);
+        openHandoffModal();
+      });
+    }
+    var ticketMenuItem = settingsMenu.querySelector('.afhub-settings-ticket');
+    if (ticketMenuItem) {
+      ticketMenuItem.addEventListener('click', function () {
+        setSettingsMenuOpen(false);
+        openTicketModal();
+      });
+    }
     if (cfg.flowId && cfg.flowToken && typeof createFlowController === 'function') {
       flowCtrl = createFlowController({
         cfg: cfg,
@@ -8108,6 +8137,10 @@
       '#' + rootId + ' .afhub-handoff-icon:active { background:rgba(0,0,0,.1); }' +
       '#' + rootId + ' .afhub-handoff-icon svg { width:16px; height:16px; stroke-width:2.25; }' +
       '#' + rootId + ' .afhub-handoff-icon--disabled { opacity:.45; cursor:not-allowed; pointer-events:none; }' +
+      /* Mobile: la fila del input no tiene lugar para 5 íconos + texto — "Hablar con una
+         persona" y "Abrir ticket" quedan en el menú de ajustes (⋮), y el input recupera el
+         espacio que perdía. */
+      '@media (hover:none),(max-width:768px){#' + rootId + ' .afhub-handoff-icon{display:none;}}' +
       '#' + rootId + ' .afhub-mic { width:28px; height:28px; border-radius:50%; border:none; cursor:pointer; background:transparent; color:#8e8e93; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background .14s,color .14s; padding:0; }' +
       '#' + rootId + ' .afhub-mic:hover { background:rgba(0,0,0,.06); color:#636366; }' +
       '#' + rootId + ' .afhub-mic--active { background:rgba(255,59,48,.12) !important; color:#ff3b30 !important; animation:none; }' +
