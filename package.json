@@ -103,6 +103,12 @@
     "web-push": "^3.6.7",
     "zustand": "^5.0.14"
   },
+  "overrides": {
+    "next": {
+      "postcss": "^8.5.26"
+    },
+    "sharp": "^0.35.3"
+  },
   "_stripe_commented": {
     "_note": "Stripe desactivado — migrado a Paddle. Para reactivar: npm install stripe @stripe/stripe-js @stripe/react-stripe-js",
     "_stripe": "^22.0.0",

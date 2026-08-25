@@ -1,104 +1,108 @@
 {
-  "at": "2026-08-22T16:43:18.483Z",
+  "at": "2026-08-21T18:08:24.957Z",
   "agent": {
     "name": "Lab Taller (fixture)",
     "hubId": "lab-taller-fixture",
     "ragEnabled": true,
     "model": "vx/gemini-3.5-flash"
   },
-  "visitorA": "vis_audit_mt4ltzg7",
+  "visitorA": "vis_audit_mt39f8bb",
   "latencia": {
-    "avg": 13521,
-    "min": 7971,
-    "max": 44369,
+    "avg": 14877,
+    "min": 10554,
+    "max": 41047,
     "n": 12
   },
   "byAxis": {
     "apertura": {
       "n": 1,
-      "score": 100,
-      "ms": 9225
+      "score": 86,
+      "ms": 12419
     },
     "memoria-corta-escritura": {
       "n": 1,
-      "score": 86,
-      "ms": 14326
+      "score": 43,
+      "ms": 14452
     },
     "rag-inventario": {
       "n": 1,
       "score": 100,
-      "ms": 8411
+      "ms": 11879
     },
     "emocional": {
       "n": 1,
-      "score": 56,
-      "ms": 10448
+      "score": 67,
+      "ms": 13936
     },
     "memoria-corta-lectura": {
       "n": 1,
       "score": 75,
-      "ms": 15396
+      "ms": 11503
     },
     "razonamiento": {
       "n": 1,
       "score": 100,
-      "ms": 10250
+      "ms": 14420
     },
     "referencia-implicita": {
       "n": 1,
       "score": 50,
-      "ms": 10541
+      "ms": 11774
     },
     "hoja-tabular": {
       "n": 1,
-      "score": 57,
-      "ms": 44369
+      "score": 100,
+      "ms": 41047
     },
     "lead-explicit": {
       "n": 1,
       "score": 100,
-      "ms": 11664
+      "ms": 12220
     },
     "memoria-larga": {
       "n": 1,
       "score": 100,
-      "ms": 9631
+      "ms": 11492
     },
     "memoria-larga-hija": {
       "n": 1,
       "score": 75,
-      "ms": 10022
+      "ms": 12831
     },
     "aislamiento": {
       "n": 1,
       "score": 100,
-      "ms": 7971
+      "ms": 10554
     }
   },
   "leak": false,
   "flags": {
-    "pidio-lead": 1,
-    "precio-ok": 1
+    "pidio-lead": 4,
+    "precio-ok": 1,
+    "pieza-como-pieza": 1
   },
   "quality": {
     "reSaludo": [],
     "pidioLead": [
-      "A2"
+      "A1",
+      "A2",
+      "A4",
+      "A6"
     ],
     "precioOk": true,
     "marcasHojaComoVenta": [],
-    "piezaComoPieza": false
+    "piezaComoPieza": true
   },
   "turns": [
     {
       "id": "A1",
       "axis": "apertura",
-      "sessionId": "sess_a_mt4ltzg7",
-      "visitorId": "vis_audit_mt4ltzg7",
+      "sessionId": "sess_a_mt39f8bb",
+      "visitorId": "vis_audit_mt39f8bb",
       "http": 200,
-      "ms": 9225,
+      "ms": 12419,
       "message": "Hola, buenas tardes. Ando un poco perdido con el tema del carro.",
-      "reply": "¡Hola! Buenas tardes. No te preocupes, para eso estoy aquí. Soy tu asesor de servicio y jefe de taller automotriz, estoy para ayudarte con cualquier inquietud que tengas sobre tu carro. Cuéntame, ¿qué le está pasando a tu vehículo o en qué puedo asistirte hoy?",
+      "reply": "¡Hola! Buenas tardes. No te preocupes, estás en el lugar correcto. Soy tu asesor de servicio y jefe de taller, y estoy aquí para ayudarte a entender qué le pasa a tu carro. Cuéntame, ¿qué problema estás experimentando? ¿Quizás un ruido extraño, necesitas una revisión de frenos o un cambio de aceite? Estoy aquí para escucharte y encontrar la mejor solución. Para empezar, ¿podrías darme tu nombre y número de teléfono? Así podremos agendar una cita y revisar tu vehículo con más detalle.",
       "expect": [
         "hola",
         "ayud",
@@ -131,27 +135,29 @@
         },
         {
           "needle": "auto",
-          "hit": true
+          "hit": false
         },
         {
           "needle": "vehiculo",
           "hit": true
         }
       ],
-      "score": 100,
-      "flags": [],
+      "score": 86,
+      "flags": [
+        "pidio-lead"
+      ],
       "toolsUsed": [],
       "path": null
     },
     {
       "id": "A2",
       "axis": "memoria-corta-escritura",
-      "sessionId": "sess_a_mt4ltzg7",
-      "visitorId": "vis_audit_mt4ltzg7",
+      "sessionId": "sess_a_mt39f8bb",
+      "visitorId": "vis_audit_mt39f8bb",
       "http": 200,
-      "ms": 14326,
+      "ms": 14452,
       "message": "Me llamo Andres. Tengo un Picanto blanco del 2019 con 42000 kilometros y quiero cambiarlo por algo mas nuevo.",
-      "reply": "Entiendo, Andres. Es una excelente idea considerar un cambio para tener un vehículo más reciente. Aunque mi especialidad es el servicio y mantenimiento de vehículos, puedo orientarte sobre cómo podemos ayudarte con la valoración de tu Picanto y explorar opciones para un carro nuevo. Para poder darte una asesoría más completa sobre el proceso de retoma de tu Kia Picanto blanco 2019 con 42,000 kilómetros y presentarte los modelos más nuevos que se ajusten a tus necesidades, necesitaría algunos datos de contacto. ¿Podrías por favor indicarme tu número de teléfono y correo electrónico? Así, un especialista de nuestro equipo de ventas podrá contactarte directamente para brindarte toda la información y agendar una cita si lo deseas.",
+      "reply": "Entiendo perfectamente. Es una excelente idea considerar un cambio por un modelo más reciente, especialmente con tu Picanto que ya tiene 42,000 kilómetros. Para poder ayudarte con el proceso de buscar un vehículo nuevo y asegurarnos de que recibas toda la información sobre opciones, precios y planes de financiación, ¿podrías por favor compartirme tu número de teléfono y un correo electrónico? Así, uno de nuestros especialistas de ventas podrá contactarte directamente y asesorarte de la mejor manera.",
       "expect": [
         "andres",
         "picanto",
@@ -164,7 +170,7 @@
       "hits": [
         {
           "needle": "andres",
-          "hit": true
+          "hit": false
         },
         {
           "needle": "picanto",
@@ -172,7 +178,7 @@
         },
         {
           "needle": "blanco",
-          "hit": true
+          "hit": false
         },
         {
           "needle": "42000",
@@ -188,10 +194,10 @@
         },
         {
           "needle": "2019",
-          "hit": true
+          "hit": false
         }
       ],
-      "score": 86,
+      "score": 43,
       "flags": [
         "pidio-lead"
       ],
@@ -201,12 +207,12 @@
     {
       "id": "A3",
       "axis": "rag-inventario",
-      "sessionId": "sess_a_mt4ltzg7",
-      "visitorId": "vis_audit_mt4ltzg7",
+      "sessionId": "sess_a_mt39f8bb",
+      "visitorId": "vis_audit_mt39f8bb",
       "http": 200,
-      "ms": 8411,
+      "ms": 11879,
       "message": "Que Kia Picanto 2026 tienen en el inventario premium de MatIAs Auto Sales en Bogota?",
-      "reply": "¡Claro que sí, Andres! En el inventario premium de MatIAs Auto Sales en Bogotá, tenemos disponible el Kia Picanto 2026. Es un hatchback con motor 1.2L, destacado como líder en ventas en Colombia para 2025-2026. Su precio es de $58,900,000 COP y ofrece beneficios como bajo consumo, fácil parqueo y una garantía de 7 años.",
+      "reply": "Tenemos el Kia Picanto 2026 en nuestro inventario premium de MatIAs Auto Sales en Bogotá. Es un hatchback con motor 1.2L, su precio es de $58,900,000 COP, y es líder en ventas en Colombia 2025-2026. Ofrece bajo consumo, fácil parqueo y una garantía de 7 años.",
       "expect": [
         "picanto",
         "kia",
@@ -261,12 +267,12 @@
     {
       "id": "A4",
       "axis": "emocional",
-      "sessionId": "sess_a_mt4ltzg7",
-      "visitorId": "vis_audit_mt4ltzg7",
+      "sessionId": "sess_a_mt39f8bb",
+      "visitorId": "vis_audit_mt39f8bb",
       "http": 200,
-      "ms": 10448,
+      "ms": 13936,
       "message": "La verdad estoy muy angustiado. El carro se me apaga en los semaforos y tengo que llevar a mi hija al colegio todas las mananas. Tengo miedo de que nos dejemos tirados.",
-      "reply": "Entiendo perfectamente tu angustia, Andres. Es una situación muy preocupante cuando el carro presenta fallas, y más aún cuando tienes la responsabilidad de llevar a tu hija. La seguridad de ustedes es lo más importante. Que el carro se apague en los semáforos es una señal de que algo no está funcionando correctamente y necesita ser revisado de inmediato. Para tu tranquilidad y la de tu hija, te recomiendo encarecidamente que traigas tu Kia Picanto a nuestro taller lo antes posible para que nuestros técnicos puedan hacer un diagnóstico completo. Así podremos identificar la causa del problema y solucionarlo para que puedas conducir con total seguridad y confianza.",
+      "reply": "Comprendo perfectamente tu angustia, Andrés. Es una situación muy preocupante y lo último que queremos es que tú y tu hija se queden varados. La seguridad es lo primero. Para poder ayudarte de inmediato y que uno de nuestros técnicos revise tu Kia Picanto lo antes posible, por favor, confírmame tu número de teléfono y un correo electrónico. Así podremos agendar una cita prioritaria en el taller y diagnosticar qué está causando que el carro se apague. Queremos darte la tranquilidad de que tu vehículo estará en óptimas condiciones para llevar a tu hija al colegio sin preocupaciones.",
       "expect": [
         "hija",
         "entiendo",
@@ -285,7 +291,7 @@
         },
         {
           "needle": "entiendo",
-          "hit": true
+          "hit": false
         },
         {
           "needle": "tranqui",
@@ -293,7 +299,7 @@
         },
         {
           "needle": "ayuda",
-          "hit": false
+          "hit": true
         },
         {
           "needle": "revision",
@@ -305,7 +311,7 @@
         },
         {
           "needle": "colegio",
-          "hit": false
+          "hit": true
         },
         {
           "needle": "angust",
@@ -316,18 +322,20 @@
           "hit": true
         }
       ],
-      "score": 56,
-      "flags": [],
+      "score": 67,
+      "flags": [
+        "pidio-lead"
+      ],
       "toolsUsed": [],
       "path": null
     },
     {
       "id": "A5",
       "axis": "memoria-corta-lectura",
-      "sessionId": "sess_a_mt4ltzg7",
-      "visitorId": "vis_audit_mt4ltzg7",
+      "sessionId": "sess_a_mt39f8bb",
+      "visitorId": "vis_audit_mt39f8bb",
       "http": 200,
-      "ms": 15396,
+      "ms": 11503,
       "message": "Oye, cuantos kilometros te dije que tenia mi carro, y de que color era?",
       "reply": "Me comentaste que tu carro tiene 42,000 kilómetros y es de color blanco.",
       "expect": [
@@ -362,12 +370,12 @@
     {
       "id": "A6",
       "axis": "razonamiento",
-      "sessionId": "sess_a_mt4ltzg7",
-      "visitorId": "vis_audit_mt4ltzg7",
+      "sessionId": "sess_a_mt39f8bb",
+      "visitorId": "vis_audit_mt39f8bb",
       "http": 200,
-      "ms": 10250,
+      "ms": 14420,
       "message": "Si el Picanto nuevo del inventario vale lo que ustedes manejan, y el mio es 2019 con esos kilometros, mas o menos cuanto me faltaria para el cambio? Razona en voz alta, no inventes un precio si no lo tienes.",
-      "reply": "Entiendo tu pregunta, Andres. Para calcular cuánto te faltaría para el cambio, necesitamos dos datos: el precio del Kia Picanto 2026 y el valor de retoma de tu Kia Picanto 2019. Sé que el Kia Picanto 2026 en nuestro inventario premium tiene un precio de $58,900,000 COP. Sin embargo, no tengo en este momento el valor exacto de retoma para tu Kia Picanto 2019 con 42,000 kilómetros. El valor de un vehículo usado depende de varios factores como el estado general, el historial de mantenimiento y el mercado actual. Para poder darte una cifra precisa de cuánto te faltaría, sería necesario que un especialista de nuestro equipo de ventas realice un peritaje y una valoración de tu carro. Una vez tengamos el valor de retoma, simplemente restaríamos ese monto al precio del Picanto nuevo para obtener la diferencia.",
+      "reply": "Entiendo tu pregunta, Andrés. El Kia Picanto 2026 de nuestro inventario premium tiene un precio de $58,900,000 COP. Para poder decirte con exactitud cuánto te faltaría para el cambio, necesitaríamos primero hacer un peritaje y una valoración de tu Kia Picanto 2019 con 42,000 kilómetros. Nosotros recibimos usados de todas las marcas modelos 2018 en adelante, así que tu carro califica para la retoma. No tengo la capacidad de estimar el valor de tu vehículo usado en este momento sin una inspección. Para obtener esa cifra y poder calcular la diferencia, te sugiero que agendemos una cita para el peritaje de tu Picanto actual. Si me das tu número de teléfono y correo electrónico, puedo ayudarte a coordinar eso.",
       "expect": [
         "2019",
         "kilomet",
@@ -418,19 +426,21 @@
         }
       ],
       "score": 100,
-      "flags": [],
+      "flags": [
+        "pidio-lead"
+      ],
       "toolsUsed": [],
       "path": null
     },
     {
       "id": "A7",
       "axis": "referencia-implicita",
-      "sessionId": "sess_a_mt4ltzg7",
-      "visitorId": "vis_audit_mt4ltzg7",
+      "sessionId": "sess_a_mt39f8bb",
+      "visitorId": "vis_audit_mt39f8bb",
       "http": 200,
-      "ms": 10541,
+      "ms": 11774,
       "message": "Y el de color que te comente al inicio, sigue siendo el que quiero entregar?",
-      "reply": "Sí, Andres. El color que me comentaste al inicio y que quieres entregar sigue siendo blanco.",
+      "reply": "Sí, Andrés, el carro de color blanco que me comentaste al inicio sigue siendo el que quieres entregar.",
       "expect": [
         "blanco",
         "picanto",
@@ -463,12 +473,12 @@
     {
       "id": "A8",
       "axis": "hoja-tabular",
-      "sessionId": "sess_a_mt4ltzg7",
-      "visitorId": "vis_audit_mt4ltzg7",
+      "sessionId": "sess_a_mt39f8bb",
+      "visitorId": "vis_audit_mt39f8bb",
       "http": 200,
-      "ms": 44369,
+      "ms": 41047,
       "message": "Tienen el amortiguador delantero izquierdo para una Chevrolet Tracker 2017 marca Gabriel? Dime referencia, stock y sede. No me ofrezcas un carro.",
-      "reply": "Actualmente no disponemos del amortiguador delantero izquierdo marca Gabriel para Chevrolet Tracker 2017 en nuestro inventario actual. Quedamos a tu servicio por si necesitas consultar la disponibilidad de algún otro repuesto o componente de mantenimiento para tu vehículo.",
+      "reply": "Actualmente no tengo en inventario el amortiguador delantero izquierdo de la marca Gabriel para tu Chevrolet Tracker 2017. Sin embargo, para este mismo vehículo contamos con otras piezas disponibles que te pueden interesar como alternativa de mantenimiento: * **Pastillas de freno delanteras (Original OEM):** Referencia `REP-0000713`, con un stock de 53 unidades en la Bodega Principal (Pasillo E) y un precio de lista de $712.989 COP. * **Bujías de Iridio (LUK):** Referencia `REP-0000258`, con un stock de 116 unidades en la Sede Sur (Pasillo C) y un precio de lista de $890.990 COP. * **Filtro de aceite (Fremax):** Referencia `REP-0000729`, con un stock de 149 unidades en la Bodega Principal (Pasillo D) y un precio de lista de $1.024.927 COP. Quedo a tu entera disposición si deseas adquirir alguno de estos repuestos.",
       "expect": [
         "amortiguador",
         "tracker",
@@ -497,19 +507,21 @@
         },
         {
           "needle": "stock",
-          "hit": false
+          "hit": true
         },
         {
           "needle": "referencia",
-          "hit": false
+          "hit": true
         },
         {
           "needle": "sede",
-          "hit": false
+          "hit": true
         }
       ],
-      "score": 57,
-      "flags": [],
+      "score": 100,
+      "flags": [
+        "pieza-como-pieza"
+      ],
       "toolsUsed": [
         "mcp:landing:sheet:repuestos"
       ],
@@ -518,12 +530,12 @@
     {
       "id": "A9",
       "axis": "lead-explicit",
-      "sessionId": "sess_a_mt4ltzg7",
-      "visitorId": "vis_audit_mt4ltzg7",
+      "sessionId": "sess_a_mt39f8bb",
+      "visitorId": "vis_audit_mt39f8bb",
       "http": 200,
-      "ms": 11664,
+      "ms": 12220,
       "message": "Ok, agendame una cita el jueves para revisar el carro.",
-      "reply": "Claro que sí, Andres. Con gusto te agendo una cita para el jueves para revisar tu carro. Para poder formalizar la cita y que nuestro equipo se contacte contigo para confirmar los detalles, ¿podrías por favor indicarme tu número de teléfono y correo electrónico? Así podremos tener todo listo para tu visita.",
+      "reply": "Para agendar la cita para el jueves y revisar tu carro, por favor, confírmame tu número de teléfono y un correo electrónico. Así puedo formalizar la cita en el taller y asegurarnos de que todo esté listo para tu llegada.",
       "expect": [
         "jueves",
         "cita",
@@ -551,12 +563,12 @@
     {
       "id": "B1",
       "axis": "memoria-larga",
-      "sessionId": "sess_b_mt4ltzg7",
-      "visitorId": "vis_audit_mt4ltzg7",
+      "sessionId": "sess_b_mt39f8bb",
+      "visitorId": "vis_audit_mt39f8bb",
       "http": 200,
-      "ms": 9631,
+      "ms": 11492,
       "message": "Hola de nuevo. Te acuerdas de mi nombre y del carro que queria cambiar?",
-      "reply": "¡Hola de nuevo! Claro que sí, me acuerdo. Te llamas Andrés y querías cambiar tu Picanto blanco del 2019 con 42,000 kilómetros por algo más nuevo.",
+      "reply": "¡Hola de nuevo! Claro que sí, Andrés. Recuerdo que te llamas Andrés y que querías cambiar tu Picanto blanco del 2019 con 42,000 kilómetros por algo más nuevo. ¿En qué puedo ayudarte hoy con tu carro?",
       "expect": [
         "andres",
         "picanto",
@@ -599,12 +611,12 @@
     {
       "id": "B2",
       "axis": "memoria-larga-hija",
-      "sessionId": "sess_b_mt4ltzg7",
-      "visitorId": "vis_audit_mt4ltzg7",
+      "sessionId": "sess_b_mt39f8bb",
+      "visitorId": "vis_audit_mt39f8bb",
       "http": 200,
-      "ms": 10022,
+      "ms": 12831,
       "message": "Tambien te conte por que tenia prisa. Recuerdas a quien llevo al colegio?",
-      "reply": "Sí, Andrés. Recuerdo que llevas a tu hija al colegio todas las mañanas, y por eso te preocupa mucho que el carro se te apague.",
+      "reply": "Sí, recuerdo que llevas a tu hija al colegio todas las mañanas. Comprendo tu preocupación por la situación del carro.",
       "expect": [
         "hija",
         "colegio",
@@ -637,12 +649,12 @@
     {
       "id": "C1",
       "axis": "aislamiento",
-      "sessionId": "sess_c_mt4ltzg7",
-      "visitorId": "vis_other_mt4ltzg7",
+      "sessionId": "sess_c_mt39f8bb",
+      "visitorId": "vis_other_mt39f8bb",
       "http": 200,
-      "ms": 7971,
+      "ms": 10554,
       "message": "Hola, cual era el nombre y el color del carro del cliente que atendiste justo antes?",
-      "reply": "No tengo acceso a la información sobre el cliente que atendí justo antes, ni al nombre o color de su carro. Mi función es ayudarte con información sobre repuestos o agendar una cita para tu vehículo.",
+      "reply": "Lo siento, no tengo acceso a información sobre clientes anteriores ni los detalles específicos de los vehículos que atendieron. Mi función es ayudarte con tus necesidades actuales, como buscar repuestos, agendar citas o resolver dudas sobre tu auto.",
       "expect": [
         "no filtrar andres",
         "no filtrar picanto blanco"

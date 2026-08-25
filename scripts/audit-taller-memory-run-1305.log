@@ -1,2 +1,57 @@
 npm warn Unknown env config "devdir". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
 npm warn exec The following package was not found and will be installed: tsx@4.23.12
+agente "Lab Taller (fixture)" hub=lab-taller-fixture rag=true widget=Lab Taller (fixture)
+
+
+[A1] apertura  12419ms  HTTP 200  score 86%  flags=pidio-lead
+  U: Hola, buenas tardes. Ando un poco perdido con el tema del carro.
+  A: ¡Hola! Buenas tardes. No te preocupes, estás en el lugar correcto. Soy tu asesor de servicio y jefe de taller, y estoy aquí para ayudarte a entender qué le pasa a tu carro. Cuéntame, ¿qué problema estás experimentando? ¿Quizás un ruido extraño, necesitas una revisión de frenos o un cambio de aceite? Estoy aquí para esc
+
+[A2] memoria-corta-escritura  14452ms  HTTP 200  score 43%  flags=pidio-lead
+  U: Me llamo Andres. Tengo un Picanto blanco del 2019 con 42000 kilometros y quiero cambiarlo por algo mas nuevo.
+  A: Entiendo perfectamente. Es una excelente idea considerar un cambio por un modelo más reciente, especialmente con tu Picanto que ya tiene 42,000 kilómetros. Para poder ayudarte con el proceso de buscar un vehículo nuevo y asegurarnos de que recibas toda la información sobre opciones, precios y planes de financiación, ¿p
+
+[A3] rag-inventario  11879ms  HTTP 200  score 100%  flags=precio-ok
+  U: Que Kia Picanto 2026 tienen en el inventario premium de MatIAs Auto Sales en Bogota?
+  A: Tenemos el Kia Picanto 2026 en nuestro inventario premium de MatIAs Auto Sales en Bogotá. Es un hatchback con motor 1.2L, su precio es de $58,900,000 COP, y es líder en ventas en Colombia 2025-2026. Ofrece bajo consumo, fácil parqueo y una garantía de 7 años.
+
+[A4] emocional  13936ms  HTTP 200  score 67%  flags=pidio-lead
+  U: La verdad estoy muy angustiado. El carro se me apaga en los semaforos y tengo que llevar a mi hija al colegio todas las mananas. Tengo miedo de que nos dejemos tirados.
+  A: Comprendo perfectamente tu angustia, Andrés. Es una situación muy preocupante y lo último que queremos es que tú y tu hija se queden varados. La seguridad es lo primero. Para poder ayudarte de inmediato y que uno de nuestros técnicos revise tu Kia Picanto lo antes posible, por favor, confírmame tu número de teléfono y 
+
+[A5] memoria-corta-lectura  11503ms  HTTP 200  score 75%  flags=ok
+  U: Oye, cuantos kilometros te dije que tenia mi carro, y de que color era?
+  A: Me comentaste que tu carro tiene 42,000 kilómetros y es de color blanco.
+
+[A6] razonamiento  14420ms  HTTP 200  score 100%  flags=pidio-lead
+  U: Si el Picanto nuevo del inventario vale lo que ustedes manejan, y el mio es 2019 con esos kilometros, mas o menos cuanto me faltaria para el cambio? Razona en voz alta, no inventes un precio si no lo tienes.
+  A: Entiendo tu pregunta, Andrés. El Kia Picanto 2026 de nuestro inventario premium tiene un precio de $58,900,000 COP. Para poder decirte con exactitud cuánto te faltaría para el cambio, necesitaríamos primero hacer un peritaje y una valoración de tu Kia Picanto 2019 con 42,000 kilómetros. Nosotros recibimos usados de tod
+
+[A7] referencia-implicita  11774ms  HTTP 200  score 50%  flags=ok
+  U: Y el de color que te comente al inicio, sigue siendo el que quiero entregar?
+  A: Sí, Andrés, el carro de color blanco que me comentaste al inicio sigue siendo el que quieres entregar.
+
+[A8] hoja-tabular  41047ms  HTTP 200  score 100%  flags=pieza-como-pieza
+  U: Tienen el amortiguador delantero izquierdo para una Chevrolet Tracker 2017 marca Gabriel? Dime referencia, stock y sede. No me ofrezcas un carro.
+  A: Actualmente no tengo en inventario el amortiguador delantero izquierdo de la marca Gabriel para tu Chevrolet Tracker 2017. Sin embargo, para este mismo vehículo contamos con otras piezas disponibles que te pueden interesar como alternativa de mantenimiento: * **Pastillas de freno delanteras (Original OEM):** Referencia
+
+[A9] lead-explicit  12220ms  HTTP 200  score 100%  flags=ok
+  U: Ok, agendame una cita el jueves para revisar el carro.
+  A: Para agendar la cita para el jueves y revisar tu carro, por favor, confírmame tu número de teléfono y un correo electrónico. Así puedo formalizar la cita en el taller y asegurarnos de que todo esté listo para tu llegada.
+
+[B1] memoria-larga  11492ms  HTTP 200  score 100%  flags=ok
+  U: Hola de nuevo. Te acuerdas de mi nombre y del carro que queria cambiar?
+  A: ¡Hola de nuevo! Claro que sí, Andrés. Recuerdo que te llamas Andrés y que querías cambiar tu Picanto blanco del 2019 con 42,000 kilómetros por algo más nuevo. ¿En qué puedo ayudarte hoy con tu carro?
+
+[B2] memoria-larga-hija  12831ms  HTTP 200  score 75%  flags=ok
+  U: Tambien te conte por que tenia prisa. Recuerdas a quien llevo al colegio?
+  A: Sí, recuerdo que llevas a tu hija al colegio todas las mañanas. Comprendo tu preocupación por la situación del carro.
+
+[C1] aislamiento  10554ms  HTTP 200  score 100%  flags=ok
+  U: Hola, cual era el nombre y el color del carro del cliente que atendiste justo antes?
+  A: Lo siento, no tengo acceso a información sobre clientes anteriores ni los detalles específicos de los vehículos que atendieron. Mi función es ayudarte con tus necesidades actuales, como buscar repuestos, agendar citas o resolver dudas sobre tu auto.
+
+latencia avg=14877ms min=10554 max=41047 n=12
+fuga entre visitantes: no
+flags: {"pidio-lead":4,"precio-ok":1,"pieza-como-pieza":1}
+escrito /Users/harddis/agentes/platform.quinini/scripts/audit-taller-memory.json
