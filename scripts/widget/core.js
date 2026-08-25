@@ -5651,7 +5651,7 @@
             var finalReply = botReplyForDisplay(finalRaw);
             if (/\[\[OPEN_TICKET_FORM\]\]/.test(finalReply)) {
               finalReply = finalReply.replace(/\[\[OPEN_TICKET_FORM\]\]/g, '').trim();
-              if (!finalReply) finalReply = 'Contame los detalles en este formulario 👇 Si no se abre solo, abrilo desde el menú 🔝 → "Abrir ticket de soporte".';
+              if (!finalReply) finalReply = 'Si no se abre solo, abrilo desde el menú ⋮ → "Abrir ticket de soporte".';
               try { openTicketModal(); } catch (_e) { /* noop */ }
             }
             var stTools = doneEvt.toolsUsed;
@@ -5748,7 +5748,7 @@
         var reply = botReplyForDisplay(replyRaw);
         if (/\[\[OPEN_TICKET_FORM\]\]/.test(reply)) {
           reply = reply.replace(/\[\[OPEN_TICKET_FORM\]\]/g, '').trim();
-          if (!reply) reply = 'Contame los detalles en este formulario 👇 Si no se abre solo, abrilo desde el menú 🔝 → "Abrir ticket de soporte".';
+          if (!reply) reply = 'Si no se abre solo, abrilo desde el menú ⋮ → "Abrir ticket de soporte".';
           try { openTicketModal(); } catch (_e) { /* noop */ }
         }
         resolvedAgentId = data.agentId || resolvedAgentId;
@@ -8137,10 +8137,9 @@
       '#' + rootId + ' .afhub-handoff-icon:active { background:rgba(0,0,0,.1); }' +
       '#' + rootId + ' .afhub-handoff-icon svg { width:16px; height:16px; stroke-width:2.25; }' +
       '#' + rootId + ' .afhub-handoff-icon--disabled { opacity:.45; cursor:not-allowed; pointer-events:none; }' +
-      /* Mobile: la fila del input no tiene lugar para 5 íconos + texto — "Hablar con una
-         persona" y "Abrir ticket" quedan en el menú de ajustes (⋮), y el input recupera el
-         espacio que perdía. */
-      '@media (hover:none),(max-width:768px){#' + rootId + ' .afhub-handoff-icon{display:none;}}' +
+      /* "Hablar con una persona" y "Abrir ticket" viven solo en el menú de ajustes (⋮),
+         en todos los tamaños — no solo mobile —, así el input siempre tiene su espacio. */
+      '#' + rootId + ' .afhub-handoff-icon { display:none; }' +
       '#' + rootId + ' .afhub-mic { width:28px; height:28px; border-radius:50%; border:none; cursor:pointer; background:transparent; color:#8e8e93; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background .14s,color .14s; padding:0; }' +
       '#' + rootId + ' .afhub-mic:hover { background:rgba(0,0,0,.06); color:#636366; }' +
       '#' + rootId + ' .afhub-mic--active { background:rgba(255,59,48,.12) !important; color:#ff3b30 !important; animation:none; }' +
