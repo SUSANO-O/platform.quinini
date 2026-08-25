@@ -4,7 +4,7 @@
  * Mantener APP_VERSION en sync con package.json.
  */
 
-export const APP_VERSION = '1.2.0';
+export const APP_VERSION = '1.3.0';
 
 export type ReleaseNoteItem = {
   title: string;
@@ -23,6 +23,79 @@ export type AppRelease = {
 };
 
 export const APP_RELEASES: AppRelease[] = [
+  {
+    version: '1.3.0',
+    date: '2026-08-25',
+    title: 'Tickets desde el chat, sync con Jira y gráficos con color',
+    summary:
+      'Tus visitantes ya pueden abrir un ticket de soporte sin salir del chat (con fotos y video), el estado se sincroniza solo con Jira si lo usas, y el panel vuelve a tener color en sus gráficos.',
+    features: [
+      {
+        audience: 'all',
+        title: 'Ticket de soporte desde el widget',
+        description:
+          'Botón 🎫 dedicado junto al de enviar, o el propio asistente lo abre cuando detecta que el visitante quiere reportar un problema. Permite adjuntar hasta 3 imágenes y un link de video.',
+      },
+      {
+        audience: 'all',
+        title: 'Escalación a Slack por agente',
+        description:
+          'Nueva skill "Escalación Slack (tickets)": el agente puede crear, comentar, consultar y cerrar tickets directo en un canal de Slack, sin necesidad de Jira.',
+      },
+      {
+        audience: 'all',
+        title: 'Sincronización Jira → Slack',
+        description:
+          'Si tu equipo de desarrollo usa Jira, el estado del ticket en Slack se actualiza solo cuando cambia el issue vinculado (vía Automation de Jira).',
+      },
+      {
+        audience: 'all',
+        title: 'Gráfico de conversaciones: barras u onda',
+        description:
+          'Nuevo selector en el gráfico del panel para verlo como barras o como línea/área — el que prefieras.',
+      },
+      {
+        audience: 'internal',
+        title: 'Endpoint de ticket sin LLM',
+        description: 'POST /api/widgets/[id]/ticket + POST /api/mcp/widget-ticket en AIBackHub, para creación determinística desde el formulario.',
+      },
+      {
+        audience: 'internal',
+        title: 'Webhook Jira → Slack',
+        description: 'POST /webhooks/jira/issue-updated, autenticado con secreto propio, fuera de /api.',
+      },
+    ],
+    fixes: [
+      {
+        audience: 'all',
+        title: 'Filtro de fechas del panel',
+        description:
+          'Elegir "Hoy" o "Últimos 7 días" ahora sí cambia satisfacción, sentiment y tasas de escalamiento — antes solo se filtraba por mes completo.',
+      },
+      {
+        audience: 'all',
+        title: 'Color de vuelta en los gráficos',
+        description:
+          'El gráfico de conversaciones y las tarjetas de uso vuelven a tener color (antes monocromo) para leerse mejor de un vistazo.',
+      },
+      {
+        audience: 'all',
+        title: 'Pestaña Herramientas del agente',
+        description:
+          'Buscador de herramientas, integraciones colapsables y contador "seleccionadas/total" por conexión (Slack, HubSpot, Jira, etc.).',
+      },
+      {
+        audience: 'internal',
+        title: 'Sync de conexión Slack',
+        description: 'runMcpConnectionSync nunca tenía implementado el caso "slack" — quedaba en pending para siempre.',
+      },
+      {
+        audience: 'internal',
+        title: 'Skills con snapshot congelado',
+        description: 'El catálogo de skills en Mongo solo insertaba IDs nuevos, nunca actualizaba prompt_extension de los existentes.',
+      },
+    ],
+  },
   {
     version: '1.2.0',
     date: '2026-08-12',

@@ -1973,46 +1973,58 @@ label {
   color: var(--foreground);
 }
 
-/* Gráficos y métricas — monocromo (sin azules/teal en series) */
+/* Gráficos y métricas — serie 1 azul, serie 2 naranja (paleta categórica validada) */
 .dashboard-root-texture .conv-wave__plane {
-  fill: rgba(0, 0, 0, 0.03);
-  stroke: rgba(0, 0, 0, 0.08);
+  fill: rgba(42, 120, 214, 0.035);
+  stroke: rgba(42, 120, 214, 0.12);
 }
 
 .dashboard-root-texture .conv-wave__grid {
-  stroke: rgba(0, 0, 0, 0.06);
+  stroke: rgba(42, 120, 214, 0.09);
 }
 
 .dashboard-root-texture .conv-wave__baseline {
-  stroke: rgba(0, 0, 0, 0.12);
+  stroke: rgba(42, 120, 214, 0.18);
 }
 
 .dashboard-root-texture .conv-wave__bar--widget {
-  fill: #111111;
+  fill: #2a78d6;
 }
 
 .dashboard-root-texture .conv-wave__bar--api {
-  fill: #737373;
+  fill: #eb6834;
 }
 
 .dashboard-root-texture .conv-wave__line--widget {
-  stroke: #111111;
+  stroke: #2a78d6;
 }
 
 .dashboard-root-texture .conv-wave__line--api {
-  stroke: #737373;
+  stroke: #eb6834;
 }
 
 .dashboard-root-texture .conv-wave__area--widget {
-  fill: #111111;
+  fill: #2a78d6;
 }
 
 .dashboard-root-texture .conv-wave__area--api {
-  fill: #737373;
+  fill: #eb6834;
+}
+
+.dashboard-root-texture .conv-wave__point--widget {
+  fill: #2a78d6;
+}
+
+.dashboard-root-texture .conv-wave__point--api {
+  fill: #eb6834;
+}
+
+.dashboard-root-texture .conv-wave__dot--widget {
+  background: #2a78d6;
 }
 
 .dashboard-root-texture .conv-wave__dot--api {
-  background: #737373;
+  background: #eb6834;
 }
 
 .dashboard-root-texture .dashboard-pool-card__bar-track {
@@ -6358,7 +6370,7 @@ button.dashboard-meta-chip:disabled {
 }
 
 .conv-wave__cursor-line {
-  stroke: rgba(var(--brand-primary-rgb), 0.35);
+  stroke: rgba(42, 120, 214, 0.4);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
   stroke-dasharray: 4 3;
@@ -6371,11 +6383,11 @@ button.dashboard-meta-chip:disabled {
 }
 
 .conv-wave__point--widget {
-  fill: var(--primary);
+  fill: #2a78d6;
 }
 
 .conv-wave__point--api {
-  fill: #38bdf8;
+  fill: #eb6834;
 }
 
 .conv-wave__hit {
@@ -6443,13 +6455,13 @@ button.dashboard-meta-chip:disabled {
 }
 
 .conv-wave__bar--widget {
-  fill: var(--primary);
-  opacity: 0.88;
+  fill: #2a78d6;
+  opacity: 0.9;
 }
 
 .conv-wave__bar--api {
-  fill: #38bdf8;
-  opacity: 0.88;
+  fill: #eb6834;
+  opacity: 0.9;
 }
 
 .conv-wave__bar--dim {
@@ -6469,11 +6481,11 @@ button.dashboard-meta-chip:disabled {
 }
 
 .conv-wave__line--widget {
-  stroke: var(--primary);
+  stroke: #2a78d6;
 }
 
 .conv-wave__line--api {
-  stroke: #38bdf8;
+  stroke: #eb6834;
 }
 
 .conv-wave__area {
@@ -6481,11 +6493,11 @@ button.dashboard-meta-chip:disabled {
 }
 
 .conv-wave__area--widget {
-  fill: var(--primary);
+  fill: #2a78d6;
 }
 
 .conv-wave__area--api {
-  fill: #38bdf8;
+  fill: #eb6834;
 }
 
 .conv-wave__axis-label {
@@ -6519,11 +6531,62 @@ button.dashboard-meta-chip:disabled {
 }
 
 .conv-wave__dot--widget {
-  background: var(--primary);
+  background: #2a78d6;
 }
 
 .conv-wave__dot--api {
-  background: #38bdf8;
+  background: #eb6834;
+}
+
+.conv-wave__point {
+  stroke: var(--card);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  transition: r 0.12s ease;
+}
+
+.conv-wave__point--active {
+  filter: brightness(1.08);
+}
+
+.conv-wave__mode-toggle-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: -0.3rem 0 0.5rem;
+}
+
+.conv-wave__mode-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: rgba(42, 120, 214, 0.06);
+  border: 1px solid var(--border-subtle);
+}
+
+.conv-wave__mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.28rem 0.6rem;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.conv-wave__mode-btn:hover {
+  color: var(--foreground);
+}
+
+.conv-wave__mode-btn.is-active {
+  background: #2a78d6;
+  color: #fff;
 }
 
 .conv-wave-empty {

@@ -145,10 +145,13 @@ export async function GET(
 
   // ── Métricas avanzadas: handoffs + sentiment + duración desde ConversationSession ──
   // Estos sí dependen de eventos formales. Devolvemos lo que haya, sin bloquear el resto.
+  // `month` acota por índice; `startedAt` acota al rango exacto elegido (si no, "Hoy"/"Últimos 7
+  // días" mostraban los mismos números que "Este mes" porque solo se filtraba por mes completo).
   const formalSessions = await ConversationSession.find({
     widgetId: id,
     userId,
     month: { $in: monthKeys },
+    startedAt: { $gte: sinceUTC, $lte: untilUTC },
   }).select({
     month: 1, durationSec: 1, sentiment: 1, escalated: 1, dropped: 1, resolved: 1,
   }).lean() as Array<{
@@ -185,7 +188,7 @@ export async function GET(
 
   // ── Satisfacción ──
   const feedbacks = await WidgetFeedback.find({
-    widgetId: id, userId, createdAt: { $gte: sinceUTC },
+    widgetId: id, userId, createdAt: { $gte: sinceUTC, $lte: untilUTC },
   }).select({ score: 1 }).lean() as { score?: number | null }[];
   const fbScored = feedbacks.filter(f => typeof f.score === 'number') as { score: number }[];
   const fbAvg = fbScored.length
