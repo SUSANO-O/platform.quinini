@@ -12,13 +12,15 @@ import { useEffect, useState } from 'react';
 import {
   MessageSquare,
   TrendingUp, ArrowUpRight, Clock,
-  BarChart2, Users, UserCheck, X, Loader2,
+  BarChart2, Users, UserCheck, X, Loader2, Activity,
 } from '@/components/ui/icons';
 
 import { STATE } from '@/lib/brand-colors';
 import { countOwnedMainAgents } from '@/lib/agent-plans';
 import { resolveRange, type DateRange } from '@/lib/date-range';
 import { DateRangePicker } from '@/components/dashboard/date-range-picker';
+import { DashboardMetricModal, DashboardMetricShortcut } from '@/components/dashboard/dashboard-metric-modal';
+import { MiniBarHistogram, MetricBarRow } from '@/components/dashboard/mini-bar-histogram';
 
 interface UsageData extends DashboardUsageData {}
 
@@ -41,7 +43,9 @@ interface WidgetAnalytics {
     avgMessagesPerSession: number;
     escalationRate: number;
     dropOffRate: number;
+    resolutionRate: number;
   };
+  sentiment?: { positive: number; neutral: number; negative: number };
   peakHour: number | null;
   hourDistribution?: number[];
   byMonth: { month: string; sessions: number; conversations: number }[];
@@ -110,6 +114,9 @@ export default function DashboardPage() {
   const [feedbackList,     setFeedbackList]     = useState<FeedbackItem[]>([]);
   const [loadingFeedback,  setLoadingFeedback]  = useState(false);
   const [inboxOpenCount,   setInboxOpenCount]   = useState<number | null>(null);
+  const [hourModalOpen,    setHourModalOpen]    = useState(false);
+  const [sentimentModalOpen, setSentimentModalOpen] = useState(false);
+  const [resultsModalOpen, setResultsModalOpen] = useState(false);
 
   const coreMetricsReady =
     usage !== null && agentCount !== null && widgetCount !== null;
@@ -382,10 +389,107 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                    <DashboardMetricShortcut
+                      icon={<Clock size={12} />}
+                      label="Ver distribución por hora"
+                      onClick={() => setHourModalOpen(true)}
+                    />
+                    <DashboardMetricShortcut
+                      icon={<Activity size={12} />}
+                      label="Ver sentiment"
+                      onClick={() => setSentimentModalOpen(true)}
+                    />
+                    <DashboardMetricShortcut
+                      icon={<UserCheck size={12} />}
+                      label="Resumen de resultados"
+                      onClick={() => setResultsModalOpen(true)}
+                    />
+                  </div>
                 </div>
               )}
           </section>
         )}
+
+        <DashboardMetricModal
+          open={hourModalOpen}
+          onClose={() => setHourModalOpen(false)}
+          title="Distribución por hora"
+          description="Mensajes recibidos en cada hora del día (hora Colombia), sobre el periodo del widget seleccionado."
+        >
+          {widgetAnalytics?.hourDistribution && (
+            <MiniBarHistogram
+              values={widgetAnalytics.hourDistribution}
+              labels={Array.from({ length: 24 }, (_, h) => (h % 3 === 0 ? formatHour(h).replace(' ', '') : ''))}
+              height={140}
+            />
+          )}
+        </DashboardMetricModal>
+
+        <DashboardMetricModal
+          open={sentimentModalOpen}
+          onClose={() => setSentimentModalOpen(false)}
+          title="Sentiment de las conversaciones"
+          description="Tono detectado en las sesiones del periodo del widget seleccionado."
+        >
+          {widgetAnalytics?.sentiment && (() => {
+            const s = widgetAnalytics.sentiment;
+            const total = s.positive + s.neutral + s.negative;
+            const rows: { label: string; value: number; color: string }[] = [
+              { label: 'Positivo', value: s.positive, color: STATE.success },
+              { label: 'Neutral', value: s.neutral, color: 'var(--muted-foreground)' },
+              { label: 'Negativo', value: s.negative, color: STATE.error },
+            ];
+            return total === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--muted-foreground)', margin: 0 }}>
+                Sin conversaciones con sentiment registrado en este periodo.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {rows.map((r) => (
+                  <MetricBarRow
+                    key={r.label}
+                    label={r.label}
+                    value={`${r.value} · ${Math.round((r.value / total) * 100)}%`}
+                    pct={(r.value / total) * 100}
+                    color={r.color}
+                  />
+                ))}
+              </div>
+            );
+          })()}
+        </DashboardMetricModal>
+
+        <DashboardMetricModal
+          open={resultsModalOpen}
+          onClose={() => setResultsModalOpen(false)}
+          title="Resumen de resultados"
+          description="Cómo terminan las conversaciones del periodo del widget seleccionado."
+        >
+          {widgetAnalytics && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <MetricBarRow
+                label="Resueltas"
+                value={`${widgetAnalytics.summary.resolutionRate}%`}
+                pct={widgetAnalytics.summary.resolutionRate}
+                color={STATE.success}
+              />
+              <MetricBarRow
+                label="Escaladas a humano"
+                value={`${widgetAnalytics.summary.escalationRate}%`}
+                pct={widgetAnalytics.summary.escalationRate}
+                color={CHART_ACCENT}
+              />
+              <MetricBarRow
+                label="Abandonadas"
+                value={`${widgetAnalytics.summary.dropOffRate}%`}
+                pct={widgetAnalytics.summary.dropOffRate}
+                color={STATE.error}
+              />
+            </div>
+          )}
+        </DashboardMetricModal>
 
       {/* Modal: respuestas de la encuesta de satisfacción */}
       {feedbackModalOpen && (
