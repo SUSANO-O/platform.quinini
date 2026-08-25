@@ -350,6 +350,7 @@
   var ICON_COPY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
   var ICON_MIC_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
   var ICON_USER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+  var ICON_TICKET = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4V9z"/><line x1="12" y1="7" x2="12" y2="17" stroke-dasharray="2 2"/></svg>';
   var ICON_VOLUME_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>';
   var ICON_VOLUME_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
   /** Barra lateral anclada al borde de la ventana */
@@ -2162,6 +2163,17 @@
       inputArea.appendChild(handoffBtn);
     }
 
+    var ticketBtn = null;
+    if (cfg.handoffEnabled !== false) {
+      ticketBtn = document.createElement('button');
+      ticketBtn.className = 'afhub-handoff-icon afhub-ticket-icon';
+      ticketBtn.type = 'button';
+      ticketBtn.innerHTML = ICON_TICKET;
+      ticketBtn.setAttribute('aria-label', 'Abrir ticket de soporte');
+      ticketBtn.setAttribute('title', 'Abrir ticket de soporte');
+      inputArea.appendChild(ticketBtn);
+    }
+
     var sendBtn = document.createElement('button');
     sendBtn.className = 'afhub-send';
     sendBtn.innerHTML = ICON_SEND;
@@ -2178,6 +2190,7 @@
       if (attachBtn) attachBtn.disabled = true;
       if (shortcutsBtn) shortcutsBtn.disabled = true;
       if (handoffBtn) handoffBtn.disabled = true;
+      if (ticketBtn) ticketBtn.disabled = true;
       inputArea.classList.add('afhub-input-area--disabled');
     }
     if (voiceBar) {
@@ -2200,6 +2213,28 @@
       '<button type="button" class="afhub-handoff-submit">Enviar solicitud</button>' +
       '</div></div>';
     chat.appendChild(handoffOverlay);
+
+    var ticketOverlay = document.createElement('div');
+    ticketOverlay.className = 'afhub-handoff-overlay afhub-ticket-overlay';
+    ticketOverlay.innerHTML =
+      '<div class="afhub-handoff-modal afhub-ticket-modal" role="dialog" aria-labelledby="afhub-ticket-title">' +
+      '<h4 id="afhub-ticket-title">Abrir ticket de soporte</h4>' +
+      '<p class="afhub-handoff-desc">Contanos tu problema y te contactamos por email.</p>' +
+      '<label>Nombre<input class="afhub-handoff-input" name="name" type="text" placeholder="Tu nombre" autocomplete="name"></label>' +
+      '<label>Email<input class="afhub-handoff-input" name="email" type="email" placeholder="correo@ejemplo.com" autocomplete="email"></label>' +
+      '<label>Descripción breve<textarea class="afhub-handoff-input afhub-handoff-textarea" name="description" rows="3" placeholder="¿Qué problema tenés?"></textarea></label>' +
+      '<label>Link de video (opcional)<input class="afhub-handoff-input" name="videoUrl" type="url" placeholder="https://..."></label>' +
+      '<div class="afhub-ticket-attach-row">' +
+      '<button type="button" class="afhub-ticket-attach-btn">📎 Adjuntar imagen (máx. 3)</button>' +
+      '<input type="file" class="afhub-ticket-file-input" accept="image/*" multiple style="display:none">' +
+      '</div>' +
+      '<div class="afhub-ticket-thumbs"></div>' +
+      '<p class="afhub-handoff-error afhub-ticket-error" style="display:none"></p>' +
+      '<div class="afhub-handoff-actions">' +
+      '<button type="button" class="afhub-handoff-cancel afhub-ticket-cancel">Cancelar</button>' +
+      '<button type="button" class="afhub-handoff-submit afhub-ticket-submit">Crear ticket</button>' +
+      '</div></div>';
+    chat.appendChild(ticketOverlay);
     if (shortcutsOverlay) chat.appendChild(shortcutsOverlay);
 
     // ── Encuesta de satisfacción (inline dentro del chat, no popup) ──
@@ -3965,6 +4000,144 @@
         });
     }
 
+    // ── Formulario "Abrir ticket" (soporte vía Slack, sin pasar por el LLM) ──
+    var ticketPendingImages = []; // { file, previewUrl }
+
+    function openTicketModal() {
+      if (widgetDisabled) return;
+      ticketOverlay.classList.add('visible');
+      var errEl = ticketOverlay.querySelector('.afhub-ticket-error');
+      if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+    }
+
+    function closeTicketModal() {
+      ticketOverlay.classList.remove('visible');
+    }
+
+    function renderTicketThumbs() {
+      var wrap = ticketOverlay.querySelector('.afhub-ticket-thumbs');
+      if (!wrap) return;
+      wrap.innerHTML = '';
+      ticketPendingImages.forEach(function (img, idx) {
+        var box = document.createElement('div');
+        box.className = 'afhub-ticket-thumb';
+        box.innerHTML = '<img src="' + img.previewUrl + '" alt="Adjunto"><button type="button" class="afhub-ticket-thumb-remove" aria-label="Quitar imagen">×</button>';
+        var rm = box.querySelector('.afhub-ticket-thumb-remove');
+        if (rm) {
+          rm.addEventListener('click', function () {
+            ticketPendingImages.splice(idx, 1);
+            renderTicketThumbs();
+          });
+        }
+        wrap.appendChild(box);
+      });
+      var attachBtnEl = ticketOverlay.querySelector('.afhub-ticket-attach-btn');
+      if (attachBtnEl) attachBtnEl.disabled = ticketPendingImages.length >= 3;
+    }
+
+    async function handleTicketFiles(fileList) {
+      var errEl = ticketOverlay.querySelector('.afhub-ticket-error');
+      for (var i = 0; i < fileList.length; i++) {
+        if (ticketPendingImages.length >= 3) break;
+        var file = fileList[i];
+        if (!/^image\//i.test(file.type || '')) continue;
+        if (file.size > 10 * 1024 * 1024) {
+          if (errEl) { errEl.textContent = 'Cada imagen debe pesar menos de 10 MB.'; errEl.style.display = 'block'; }
+          continue;
+        }
+        var previewUrl = await new Promise(function (resolve) {
+          var reader = new FileReader();
+          reader.onload = function () { resolve(String(reader.result || '')); };
+          reader.onerror = function () { resolve(''); };
+          reader.readAsDataURL(file);
+        });
+        if (previewUrl) ticketPendingImages.push({ file: file, previewUrl: previewUrl });
+      }
+      renderTicketThumbs();
+    }
+
+    function resolveWidgetIdForTicket() {
+      return String(cfg.widgetId || '').trim();
+    }
+
+    function submitTicketRequest() {
+      var wid = resolveWidgetIdForTicket();
+      var errEl = ticketOverlay.querySelector('.afhub-ticket-error');
+      if (!wid || !cfg.token || !String(cfg.token).trim()) {
+        if (errEl) { errEl.textContent = 'Configuración incompleta. Recarga la página e inténtalo de nuevo.'; errEl.style.display = 'block'; }
+        return;
+      }
+      var nameEl = ticketOverlay.querySelector('[name="name"]');
+      var emailEl = ticketOverlay.querySelector('[name="email"]');
+      var descEl = ticketOverlay.querySelector('[name="description"]');
+      var videoEl = ticketOverlay.querySelector('[name="videoUrl"]');
+      var submitBtn = ticketOverlay.querySelector('.afhub-ticket-submit');
+      var name = nameEl && nameEl.value ? String(nameEl.value).trim() : '';
+      var email = emailEl && emailEl.value ? String(emailEl.value).trim() : '';
+      var description = descEl && descEl.value ? String(descEl.value).trim() : '';
+      var videoUrl = videoEl && videoEl.value ? String(videoEl.value).trim() : '';
+      if (!name || !email || !description) {
+        if (errEl) { errEl.textContent = 'Nombre, email y descripción son requeridos.'; errEl.style.display = 'block'; }
+        return;
+      }
+      if (errEl) errEl.style.display = 'none';
+      if (submitBtn) submitBtn.disabled = true;
+
+      var uploads = ticketPendingImages.map(function (img) { return uploadVisitorAttachment(img.file); });
+      Promise.all(uploads)
+        .then(function (attachments) {
+          var imageUrls = attachments.map(function (a) { return a && a.url ? a.url : ''; }).filter(Boolean);
+          var endpoint = cfg.host.replace(/\/$/, '') + '/api/widgets/' + encodeURIComponent(wid) + '/ticket';
+          return fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Widget-Token': String(cfg.token).trim()
+            },
+            body: JSON.stringify({
+              sessionId: chatSessionId,
+              agentId: cfg.agentId || '',
+              contactInfo: { name: name, email: email },
+              description: description,
+              imageUrls: imageUrls,
+              videoUrl: videoUrl,
+              token: String(cfg.token).trim()
+            })
+          });
+        })
+        .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+        .then(function (result) {
+          if (submitBtn) submitBtn.disabled = false;
+          if (!result.ok) {
+            if (errEl) {
+              errEl.textContent = (result.data && result.data.error) ? result.data.error : 'No se pudo crear el ticket.';
+              errEl.style.display = 'block';
+            }
+            return;
+          }
+          closeTicketModal();
+          ticketPendingImages = [];
+          renderTicketThumbs();
+          if (nameEl) nameEl.value = '';
+          if (emailEl) emailEl.value = '';
+          if (descEl) descEl.value = '';
+          if (videoEl) videoEl.value = '';
+          var ticketIdMsg = result.data && result.data.ticketId ? ' Número de referencia: ' + result.data.ticketId + '.' : '';
+          var ticketConfirmText = '🎫 ' + ((result.data && result.data.message) || 'Ticket creado. Te contactaremos pronto.') + ticketIdMsg;
+          addMessage('bot', ticketConfirmText);
+          // El formulario no pasa por el LLM: sin esto, el chat no "sabe" el ticketId en turnos futuros.
+          history.push({ role: 'model', content: ticketConfirmText });
+          saveChatToSession();
+        })
+        .catch(function () {
+          if (submitBtn) submitBtn.disabled = false;
+          if (errEl) {
+            errEl.textContent = 'Error de red. Intenta de nuevo.';
+            errEl.style.display = 'block';
+          }
+        });
+    }
+
     // ── MODO HUMANO: polling + timeout + badge "Agente" ──────────────────────
     var humanModeActive = false;
     var humanModeTimer = null;
@@ -4380,6 +4553,26 @@
       if (e.target === handoffOverlay) closeHandoffModal();
     });
 
+    if (ticketBtn) ticketBtn.addEventListener('click', openTicketModal);
+    ticketOverlay.querySelector('.afhub-ticket-cancel').addEventListener('click', closeTicketModal);
+    ticketOverlay.querySelector('.afhub-ticket-submit').addEventListener('click', submitTicketRequest);
+    ticketOverlay.addEventListener('click', function (e) {
+      if (e.target === ticketOverlay) closeTicketModal();
+    });
+    (function () {
+      var ticketAttachBtn = ticketOverlay.querySelector('.afhub-ticket-attach-btn');
+      var ticketFileInput = ticketOverlay.querySelector('.afhub-ticket-file-input');
+      if (ticketAttachBtn && ticketFileInput) {
+        ticketAttachBtn.addEventListener('click', function () { ticketFileInput.click(); });
+        ticketFileInput.addEventListener('change', function () {
+          if (ticketFileInput.files && ticketFileInput.files.length) {
+            handleTicketFiles(ticketFileInput.files);
+          }
+          ticketFileInput.value = '';
+        });
+      }
+    })();
+
     // ── Encuesta de satisfacción: render dinámico + envío ─────────────────────
     function fbEsc(s) {
       return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -4749,6 +4942,10 @@
     if (widgetDisabled && handoffBtn) {
       handoffBtn.disabled = true;
       handoffBtn.classList.add('afhub-handoff-icon--disabled');
+    }
+    if (widgetDisabled && ticketBtn) {
+      ticketBtn.disabled = true;
+      ticketBtn.classList.add('afhub-handoff-icon--disabled');
     }
 
     function open() {
@@ -5306,6 +5503,8 @@
           var streamBubble = null;
           var streamDoneEvt = null;
           var streamErrorEvt = null;
+          var TICKET_MARKER = '[[OPEN_TICKET_FORM]]';
+          var streamMaybeMarker = true; // mientras streamReply sea prefijo del marcador, no renderizamos aún
 
           while (!streamErrorEvt) {
             var chunk = await streamReader.read();
@@ -5328,6 +5527,12 @@
               }
               if (evt.type === 'token') {
                 streamReply += typeof evt.text === 'string' ? evt.text : '';
+                if (streamMaybeMarker) {
+                  if (TICKET_MARKER.indexOf(streamReply.trim()) === 0 && streamReply.trim().length > 0) {
+                    continue; // sigue pareciendo el marcador — no renderizar todavía
+                  }
+                  streamMaybeMarker = false; // divergió: es texto normal, mostramos todo lo acumulado
+                }
                 if (streamReply.length >= streamRevealMinChars) hideTyping();
                 if (!streamBubble) {
                   streamBubble = addMessage('bot', botReplyForDisplay(streamReply), { streaming: true });
@@ -5358,6 +5563,11 @@
             var doneEvt = streamDoneEvt;
             var finalRaw = resolveStreamFinalRaw(doneEvt, streamReply);
             var finalReply = botReplyForDisplay(finalRaw);
+            if (/\[\[OPEN_TICKET_FORM\]\]/.test(finalReply)) {
+              finalReply = finalReply.replace(/\[\[OPEN_TICKET_FORM\]\]/g, '').trim();
+              if (!finalReply) finalReply = 'Contame los detalles en este formulario 👇';
+              try { openTicketModal(); } catch (_e) { /* noop */ }
+            }
             var stTools = doneEvt.toolsUsed;
             if ((!stTools || !stTools.length) && doneEvt.data && doneEvt.data.toolsUsed && doneEvt.data.toolsUsed.length) {
               stTools = doneEvt.data.toolsUsed;
@@ -5450,6 +5660,11 @@
         hideTyping();
         var replyRaw = data.reply || data.response || data.text || 'Sin respuesta';
         var reply = botReplyForDisplay(replyRaw);
+        if (/\[\[OPEN_TICKET_FORM\]\]/.test(reply)) {
+          reply = reply.replace(/\[\[OPEN_TICKET_FORM\]\]/g, '').trim();
+          if (!reply) reply = 'Contame los detalles en este formulario 👇';
+          try { openTicketModal(); } catch (_e) { /* noop */ }
+        }
         resolvedAgentId = data.agentId || resolvedAgentId;
         var imgs = data.images;
         if ((!imgs || !imgs.length) && data.data && data.data.images && data.data.images.length) {
@@ -6958,6 +7173,8 @@
         dp + '.afhub-handoff-modal h4 { color:#fff; }' +
         dp + '.afhub-handoff-desc,' + dp + '.afhub-handoff-modal label { color:#a1a1aa; }' +
         dp + '.afhub-handoff-input { background:#1e1e28 !important; color:#ececf1 !important; border-color:rgba(255,255,255,.12) !important; -webkit-text-fill-color:#ececf1; }' +
+        dp + '.afhub-ticket-attach-btn { background:#1e1e28 !important; color:#ececf1 !important; border-color:rgba(255,255,255,.12) !important; }' +
+        dp + '.afhub-ticket-thumb { border-color:rgba(255,255,255,.12); }' +
         dp + '.afhub-msg.afhub-fb-card,' + dp + '.afhub-msg.afhub-fb-offer { background:' + msgBubbleBg + '; border:' + msgBubbleBorder + '; box-shadow:' + msgBubbleShadow + '; -webkit-backdrop-filter:none; backdrop-filter:none; color:#ececf1; }' +
         dp + '.afhub-fb-title { color:#ececf1; }' +
         dp + '.afhub-fb-label { color:#a1a1aa; }' +
@@ -7319,6 +7536,7 @@
       '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen .afhub-shortcuts-btn,' +
       '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen .afhub-shortcuts-overlay { display:none !important; }' +
       '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen .afhub-handoff-overlay,' +
+      '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen .afhub-ticket-overlay,' +
       '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen .afhub-scrim-local {' +
         'grid-column:1 / -1;grid-row:1 / -1;z-index:30;' +
       '}' +
@@ -7678,6 +7896,14 @@
       '#' + rootId + ' .afhub-handoff-submit { flex:1; padding:9px; border-radius:8px; border:none !important; background:' + cfg.color + ' !important; color:#fff !important; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; appearance:none; -webkit-appearance:none; }' +
       '#' + rootId + ' .afhub-handoff-submit:hover { filter:brightness(0.95); }' +
       '#' + rootId + ' .afhub-handoff-submit:disabled { opacity:.6; cursor:wait; }' +
+      '#' + rootId + ' .afhub-ticket-attach-row { margin-bottom:8px; }' +
+      '#' + rootId + ' .afhub-ticket-attach-btn { width:100%; padding:8px; border-radius:8px; border:1px dashed #d1d5db !important; background:#fff !important; color:#374151 !important; font-size:11px; font-weight:600; cursor:pointer; font-family:inherit; appearance:none; -webkit-appearance:none; }' +
+      '#' + rootId + ' .afhub-ticket-attach-btn:hover { background:#f3f4f6 !important; border-color:#9ca3af !important; }' +
+      '#' + rootId + ' .afhub-ticket-attach-btn:disabled { opacity:.5; cursor:not-allowed; }' +
+      '#' + rootId + ' .afhub-ticket-thumbs { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }' +
+      '#' + rootId + ' .afhub-ticket-thumb { position:relative; width:44px; height:44px; border-radius:8px; overflow:hidden; border:1px solid #d1d5db; }' +
+      '#' + rootId + ' .afhub-ticket-thumb img { width:100%; height:100%; object-fit:cover; display:block; }' +
+      '#' + rootId + ' .afhub-ticket-thumb-remove { position:absolute; top:0; right:0; width:16px; height:16px; line-height:14px; border:none; border-radius:0 0 0 6px; background:rgba(0,0,0,.6); color:#fff; font-size:11px; cursor:pointer; padding:0; }' +
       '#' + rootId + ' .afhub-shortcuts-wrap { display:none; flex-shrink:0; border-top:none; background:' + chatSurfaceBg + '; box-shadow:none; }' +
       '#' + rootId + ' .afhub-shortcuts-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; padding:4px 14px; background:transparent; border:none; cursor:default; font-family:inherit; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-shortcuts-toggle-label { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:#94a3b8; opacity:1; }' +

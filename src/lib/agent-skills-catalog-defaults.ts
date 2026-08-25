@@ -360,6 +360,28 @@ export const DEFAULT_AGENT_SKILLS_CATALOG: AgentSkillCatalogEntry[] = [
     },
   },
   {
+    id: 'slack_escalation',
+    label: 'Escalación Slack (tickets)',
+    description: 'Levanta y da seguimiento a tickets directo en Slack cuando no hay Jira.',
+    color: '#4A154B',
+    icon: '🎟️',
+    kind: 'capability',
+    category: 'soporte',
+    tags: ['slack', 'tickets', 'escalamiento', 'n2', 'l1'],
+    defaultPriority: 60,
+    config: {
+      prompt_extension:
+        'REGLA CRITICA: si el ultimo mensaje del usuario es SOLO un ticketId (formato canal:numero.numero, ej. C0BSD8VBDFY:1787630291.416909) porque se lo pediste vos antes, tu UNICA accion valida en este turno es llamar slack_get_ticket con ese id — no respondas con texto todavia, no te disculpes, no asumas que va a fallar: llama la tool primero y recien despues contestale con el resultado real. Escalamiento con tickets en Slack (cuando no hay Jira o el equipo trabaja soporte directo en Slack): si el usuario expresa que quiere reportar un problema, reclamo o abrir un ticket, y NO tenes su nombre Y email en el historial de esta conversacion, no se los pidas por texto — responde UNICAMENTE con el texto exacto [[OPEN_TICKET_FORM]] (sin nada mas alrededor); el widget le muestra un formulario. Si ya tenes nombre y email en el historial (el usuario los dio antes en esta misma conversacion), segui el flujo normal vos mismo con slack_create_ticket, sin pedir el formulario de nuevo. Antes de crear el ticket con slack_create_ticket, nombre y email son obligatorios (sin eso el equipo no puede responderle). IMPORTANTE — no confundir con captura de leads: el nombre/email que te da el usuario acá son datos del SOLICITANTE de un ticket de soporte, no un lead comercial; aunque tu system prompt tenga una regla de captura CRM (HubSpot/webhook) al recibir nombre+contacto, esa regla es para intención de venta, NO para este flujo — no ejecutes tools de CRM/leads como parte de crear un ticket. Al crear el ticket incluye sintoma, pasos L1 intentados e impacto. Confirma con el usuario salvo politica documentada. Usa el canal por defecto de la conexion si no se indica uno. Despues de crear el ticket, ofrecele al usuario agregar mas detalle, fotos o un link de video (usa imageUrls/videoUrl en slack_create_ticket si ya los tenes, o slack_add_ticket_comment despues). IMPORTANTE: en el mismo turno en que creas el ticket, decile al usuario el ticketId completo que devolvio slack_create_ticket (ej: "tu numero de referencia es {ticketId}, guardalo para consultar el estado despues") — es la unica forma de recuperarlo en turnos futuros, porque esta conversacion no guarda las llamadas a herramientas, solo el texto. Si despues te piden el estado o querés comentar/cerrar el ticket y no ves el ticketId en el historial de esta conversacion, pediselo al usuario antes de llamar slack_get_ticket, slack_add_ticket_comment o slack_update_ticket_status. Combina con tech_support_l1 y escalation_playbook; no inventes canales ni ids de ticket. Si el usuario pregunta por el estado, quiere comentar o cerrar un ticket y ya tenes el ticketId, LLAMA la tool correspondiente (slack_get_ticket, slack_add_ticket_comment, slack_update_ticket_status) en vez de asumir que va a fallar. Nunca inventes errores tecnicos (ej. "error 429", "problema de permisos", "saturacion del sistema") que no ocurrieron: si una tool falla de verdad, decilo simple ("no pude confirmar el estado ahora, en breve te contactamos") sin inventar detalles tecnicos.',
+      active_tools: [
+        'mcp:slack:slack_create_ticket',
+        'mcp:slack:slack_add_ticket_comment',
+        'mcp:slack:slack_get_ticket',
+        'mcp:slack:slack_update_ticket_status',
+      ],
+      llm_settings: { temperature: 0.3 },
+    },
+  },
+  {
     id: 'feedback_nps',
     label: 'Feedback y NPS',
     description: 'Recoge satisfacción y feedback accionable.',
