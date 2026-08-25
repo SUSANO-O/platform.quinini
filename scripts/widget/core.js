@@ -5651,7 +5651,7 @@
             var finalReply = botReplyForDisplay(finalRaw);
             if (/\[\[OPEN_TICKET_FORM\]\]/.test(finalReply)) {
               finalReply = finalReply.replace(/\[\[OPEN_TICKET_FORM\]\]/g, '').trim();
-              if (!finalReply) finalReply = 'Contame los detalles en este formulario 👇 Si no se abre solo, abrilo desde el menú ⋮ → "Abrir ticket de soporte".';
+              if (!finalReply) finalReply = 'Contame los detalles en este formulario 👇 Si no se abre solo, abrilo desde el menú 🔝 → "Abrir ticket de soporte".';
               try { openTicketModal(); } catch (_e) { /* noop */ }
             }
             var stTools = doneEvt.toolsUsed;
@@ -5748,7 +5748,7 @@
         var reply = botReplyForDisplay(replyRaw);
         if (/\[\[OPEN_TICKET_FORM\]\]/.test(reply)) {
           reply = reply.replace(/\[\[OPEN_TICKET_FORM\]\]/g, '').trim();
-          if (!reply) reply = 'Contame los detalles en este formulario 👇 Si no se abre solo, abrilo desde el menú ⋮ → "Abrir ticket de soporte".';
+          if (!reply) reply = 'Contame los detalles en este formulario 👇 Si no se abre solo, abrilo desde el menú 🔝 → "Abrir ticket de soporte".';
           try { openTicketModal(); } catch (_e) { /* noop */ }
         }
         resolvedAgentId = data.agentId || resolvedAgentId;
