@@ -5350,8 +5350,62 @@
       return greetings.test(trimmed) && trimmed.length < 30;
     }
 
-    async function send(textArg) {
+    // ── Eco local de un turno de usuario: burbuja + historial + notificaciones.
+    // Compartido por send() (caso normal) y queueOrSend() (mensajes seguidos),
+    // para no repetir la misma secuencia en dos lugares.
+    function echoUserTurn(displayText, userMsgOpts, humanAttachForMsg, hasAttach) {
+      addMessage('user', displayText, userMsgOpts);
+      appendHumanSupportOfferInChat(displayText);
+      var userHistEntry = { role: 'user', content: displayText };
+      if (humanAttachForMsg && humanAttachForMsg.length) {
+        userHistEntry.attachments = sanitizePersistableMediaList(humanAttachForMsg);
+      }
+      history.push(userHistEntry);
+      saveChatToSession();
+      touchActivity();
+      // Disparador #4: intención de cierre → ofrecer botón "Calificar" (suave, tras la respuesta del bot).
+      if ((typeof humanModeActive === 'undefined' || !humanModeActive) && detectClosingIntent(displayText)) {
+        setTimeout(offerFeedbackButton, 1500);
+      }
+      notify('onMessageSent', displayText);
+      emitEvent('message_sent', { length: displayText.length, hasImage: !!hasAttach });
+    }
+
+    // ── Mensajes seguidos: si el usuario manda varias burbujas rápido, se ven
+    // todas al toque (eco local normal) pero la llamada real al backend espera
+    // una pausa de 2s tras el último mensaje, para responder a todo junto en
+    // vez de contestar apurado al primero. Adjuntos / modo humano / input vacío
+    // no debounce: van directo, igual que antes.
+    var pendingBatchTimer = null;
+    function queueOrSend(textArg) {
       if (widgetDisabled) return;
+      var text = typeof textArg === 'string' ? textArg.trim() : input.value.trim();
+      var hasAttach = !!(pendingAttachment && pendingAttachment.dataUrl);
+      var hasHumanAttach = (typeof humanModeActive !== 'undefined' && humanModeActive) && pendingHumanAttachments.length > 0;
+      if (hasAttach || hasHumanAttach || !text || isLoading) {
+        if (pendingBatchTimer) { clearTimeout(pendingBatchTimer); pendingBatchTimer = null; }
+        send(textArg);
+        return;
+      }
+
+      echoUserTurn(text, undefined, null, false);
+      input.value = '';
+      input.style.height = 'auto';
+      syncSendButtonState();
+
+      if (pendingBatchTimer) clearTimeout(pendingBatchTimer);
+      pendingBatchTimer = setTimeout(function () {
+        pendingBatchTimer = null;
+        send(text, { historyPreloaded: true });
+      }, 2000);
+    }
+
+    async function send(textArg, sendOpts) {
+      if (widgetDisabled) return;
+      // Si el mensaje ya se mostró (ver queueOrSend: varios mensajes seguidos del
+      // usuario, agrupados en una sola llamada real tras una pausa), no repetir
+      // la burbuja ni el push a history — ya están puestos.
+      var historyPreloaded = !!(sendOpts && sendOpts.historyPreloaded);
       var text = typeof textArg === 'string' ? textArg.trim() : input.value.trim();
       var humanActive = (typeof humanModeActive !== 'undefined' && humanModeActive);
       var hasAttach = !!(pendingAttachment && pendingAttachment.dataUrl);
@@ -5393,21 +5447,9 @@
         ? { userImages: [attachPreviewForMsg] }
         : (humanAttachForMsg ? { attachments: humanAttachForMsg } : undefined);
       var wasLastUserMsgTrivial = isWidgetGreeting(displayText);
-      addMessage('user', displayText, userMsgOpts);
-      appendHumanSupportOfferInChat(displayText);
-      var userHistEntry = { role: 'user', content: displayText };
-      if (humanAttachForMsg && humanAttachForMsg.length) {
-        userHistEntry.attachments = sanitizePersistableMediaList(humanAttachForMsg);
+      if (!historyPreloaded) {
+        echoUserTurn(displayText, userMsgOpts, humanAttachForMsg, hasAttach);
       }
-      history.push(userHistEntry);
-      saveChatToSession();
-      touchActivity();
-      // Disparador #4: intención de cierre → ofrecer botón "Calificar" (suave, tras la respuesta del bot).
-      if ((typeof humanModeActive === 'undefined' || !humanModeActive) && detectClosingIntent(displayText)) {
-        setTimeout(offerFeedbackButton, 1500);
-      }
-      notify('onMessageSent', displayText);
-      emitEvent('message_sent', { length: displayText.length, hasImage: hasAttach });
       input.value = '';
       input.style.height = 'auto';
 
@@ -6493,7 +6535,7 @@
       return baseSend(textArg);
     };
 
-    sendBtn.addEventListener('click', function () { send(); });
+    sendBtn.addEventListener('click', function () { queueOrSend(); });
     if (attachBtn && attachInput) {
       attachBtn.addEventListener('click', function () {
         if (!isLoading) attachInput.click();
@@ -6548,7 +6590,7 @@
     input.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        send();
+        queueOrSend();
       }
     });
     input.addEventListener('input', function () {
