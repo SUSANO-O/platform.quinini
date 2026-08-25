@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+# Gate local: corre los tests antes de dejar subir un push que toque main.
+# Instalado vía `core.hooksPath .githooks` (activado automáticamente por
+# "npm install" gracias al script "prepare" de package.json). Espeja el
+# mismo comando que corre Cloud Build antes de desplegar, para que un push
+# roto nunca llegue ni siquiera a GitHub.
+
+touches_main=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/main) touches_main=1 ;;
+  esac
+done
+
+if [ "$touches_main" -ne 1 ]; then
+  exit 0
+fi
+
+echo "🧪 Push a main — corriendo tests antes de subir (npm test)..."
+npm test
+status=$?
+
+if [ $status -ne 0 ]; then
+  echo ""
+  echo "❌ Los tests fallaron — push cancelado. Arreglalos y volvé a intentar."
+  echo "   (para saltear este check en un caso puntual: git push --no-verify)"
+  exit 1
+fi
+
+echo "✅ Tests OK — subiendo a main."
+exit 0

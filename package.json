@@ -3,6 +3,7 @@
   "version": "1.3.0",
   "private": true,
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
     "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
     "build:widget": "node scripts/widget/build.mjs && node scripts/widget/verify-build.mjs",
     "dev": "next dev -p 3201",
