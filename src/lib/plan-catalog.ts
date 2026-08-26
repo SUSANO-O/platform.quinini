@@ -159,18 +159,30 @@ export const PLAN_AGENT_CONVERSATION_LIMITS: Record<string, number> = {
   enterprise: -1,
 };
 
-/** Conversaciones incluidas por mes — pool **API REST** (plan API Develop). */
+/**
+ * Conversaciones incluidas por mes — pool **API REST**. Team/Plus/Business
+ * pasaron de 0 (requerían el add-on `api_access` de pago) a un cupo dedicado
+ * propio, igual al pool de widget/agentes de cada plan — decisión 2026-08-26,
+ * consecuencia directa de que canUseApiAccess() ya no exige el add-on: dar
+ * acceso sin cupo real dejaba la API inutilizable (0 conv/mes) pese a
+ * "incluida". api_develop conserva su cupo standalone histórico.
+ */
 export const PLAN_API_CONVERSATION_LIMITS: Record<string, number> = {
   free:       0,
   solo:       0,
   api_develop:        2_000,
-  team:       0,
-  plus:       0,
-  business:   0,
+  team:       2_000,
+  plus:       3_000,
+  business:   45_000,
   enterprise: -1,
 };
 
-/** Add-on mensual `api_access`: cupo API separado del widget (Team+). */
+/**
+ * @deprecated El add-on `api_access` de pago quedó retirado para Team+ (ver
+ * canUseApiAccess) — Team/Plus/Business ya traen cupo API dedicado en
+ * PLAN_API_CONVERSATION_LIMITS. Estas constantes solo sobreviven como valor
+ * del override manual `api_access` para planes por debajo de Team (soporte).
+ */
 export const API_ACCESS_ADDON_CONVERSATIONS = 2_000;
 export const API_ACCESS_ADDON_PRICE_USD = 19;
 
@@ -393,10 +405,15 @@ export const OUTBOUND_SAAS_WEBHOOK_MIN_PLAN: PlanId = 'plus';
 /** Plan mínimo para avisar en Slack al escalar (Incoming Webhook en Cumplimiento). */
 export const ESCALATION_SLACK_MIN_PLAN: PlanId = 'team';
 
-/** Plan mínimo de panel para contratar add-on API (Team+). No implica API incluida. */
+/**
+ * Plan mínimo con API REST incluida (decisión 2026-08-26 — ver canUseApiAccess).
+ * Se mantiene como "ADDON_ELIGIBLE" por compatibilidad de nombre con
+ * API-REST-AGENT-FLOW/server/lib/plan-access.ts; el add-on de pago que le dio
+ * nombre ya no existe para Team+, quedó retirado al incluir la API por defecto.
+ */
 export const API_ADDON_ELIGIBLE_MIN_PLAN: PlanId = 'team';
 
-/** @deprecated Usar API_ADDON_ELIGIBLE_MIN_PLAN — ya no hay API incluida por rank de plan. */
+/** Alias histórico de API_ADDON_ELIGIBLE_MIN_PLAN — mismo valor, mismo significado. */
 export const API_ACCESS_MIN_PLAN: PlanId = API_ADDON_ELIGIBLE_MIN_PLAN;
 
 /** Etiqueta pública en landing mientras la API no está disponible en producción. */
@@ -447,7 +464,7 @@ export const FEATURE_OVERRIDES: { key: string; label: string; description: strin
   { key: OUTBOUND_WEBHOOK_FEATURE,  label: 'Webhook saliente (HMAC)', description: 'Eventos firmados a tu backend. Incluido desde Plus por defecto.' },
   { key: ESCALATION_SLACK_FEATURE,  label: 'Slack al escalar',     description: 'Aviso a Slack en handoff. Incluido desde Team por defecto.' },
   { key: ESCALATION_TICKET_FEATURE, label: 'Tickets al escalar',   description: 'Zendesk/Freshdesk en handoff. Incluido desde Business por defecto.' },
-  { key: API_ACCESS_FEATURE,        label: 'Acceso API REST (add-on)', description: `Add-on: +${API_ACCESS_ADDON_CONVERSATIONS.toLocaleString('es')} conv/mes vía API, cupo separado del widget. Requiere Team+ o API Develop.` },
+  { key: API_ACCESS_FEATURE,        label: 'Acceso API REST', description: `Incluido desde Team por defecto. Override para planes inferiores: +${API_ACCESS_ADDON_CONVERSATIONS.toLocaleString('es')} conv/mes vía API, cupo separado del widget.` },
   { key: CONVERSATION_FLOWS_FEATURE, label: 'Flujos conversacionales', description: 'Editor visual de flujos guiados. Incluido desde Plus por defecto.' },
   { key: CUSTOM_INTEGRATION_FEATURE, label: 'Integraciones custom (MCP)', description: 'Conectores MCP de plan superior (MongoDB, Postgres…). Incluido desde Business por defecto.' },
 ];
@@ -547,7 +564,14 @@ export function planHasApiAccessFeature(planId: PlanId): boolean {
   return isApiOnlyPlan(planId);
 }
 
-/** API REST: solo plan API Develop o add-on `api_access` (admin/checkout). */
+/**
+ * API REST: incluida desde Team+ (decisión 2026-08-26 — antes exigía el
+ * plan standalone API Develop o el add-on `api_access`, pese a que
+ * `API_ACCESS_MIN_PLAN` decía "Team" desde su nombre. Cualquier cliente
+ * Team/Plus/Business con suscripción activa se topaba con "requiere plan
+ * Team o superior" sin poder resolverlo con el plan que ya tenía. Espejo de
+ * API-REST-AGENT-FLOW/server/lib/plan-access.ts — mantener ambos en sync.
+ */
 export function canUseApiAccess(
   plan: string,
   status: string,
@@ -555,16 +579,21 @@ export function canUseApiAccess(
 ): boolean {
   if (hasFeatureOverride(subscriptionFeatures, API_ACCESS_FEATURE)) return true;
   const effective = effectiveProductPlan(plan, status);
-  return isApiOnlyPlan(effective);
+  if (isApiOnlyPlan(effective)) return true;
+  return planRank(effective) >= planRank(API_ADDON_ELIGIBLE_MIN_PLAN);
 }
 
-/** ¿Puede contratar el add-on API? (Team+ activo, sin API ya activa). */
+/**
+ * ¿Puede contratar el add-on API? Ahora Team+ lo trae incluido (ver
+ * canUseApiAccess) — sin este chequeo, un cliente Team+ vería la opción de
+ * pagar $19/mes extra por algo que ya tiene.
+ */
 export function canPurchaseApiAccessAddon(
   plan: string,
   status: string,
   subscriptionFeatures?: string[] | null,
 ): boolean {
-  if (hasFeatureOverride(subscriptionFeatures, API_ACCESS_FEATURE)) return false;
+  if (canUseApiAccess(plan, status, subscriptionFeatures)) return false;
   if (isApiOnlyPlan(plan)) return false;
   const effective = effectiveProductPlan(plan, status);
   return planRank(effective) >= planRank(API_ADDON_ELIGIBLE_MIN_PLAN);
@@ -619,11 +648,15 @@ export function apiAccessUpgradeLabel(): string {
   return `API Develop o add-on (+$${API_ACCESS_ADDON_PRICE_USD}/mes)`;
 }
 
-/** Etiqueta API en tablas comparativas. */
+/**
+ * Etiqueta API en tablas comparativas. Team+ la trae incluida (ver
+ * canUseApiAccess) — decía "Add-on $19/mes" para esos mismos planes,
+ * contradiciendo lo que el backend ya no cobra.
+ */
 export function formatApiAccessFeature(planId: PlanId): string {
   if (isApiOnlyPlan(planId)) return 'Incluido';
   if (planRank(planId) >= planRank(API_ADDON_ELIGIBLE_MIN_PLAN)) {
-    return `Add-on $${API_ACCESS_ADDON_PRICE_USD}/mes`;
+    return 'Incluido';
   }
   return '—';
 }
@@ -721,20 +754,20 @@ export const PLAN_FEATURE_BULLETS: Record<PaidPlanId, string[]> = {
     '2.000 conversaciones al mes (~65/día) — widget y agentes',
     'Agentes y sub-agentes ilimitados · Webhook incluido',
     'Almacenamiento: 128 MB · 15 fuentes por agente',
-    `API REST: add-on opcional (+$${API_ACCESS_ADDON_PRICE_USD}/mes, cupo API aparte) · Gmail y Slack · widgets ilimitados`,
+    'API REST incluida (cupo dedicado, ver panel) · Gmail y Slack · widgets ilimitados',
     'Capacitación grupal · soporte email (48 h)',
   ],
   plus: [
     '3.000 conversaciones al mes (~100/día) — widget y agentes',
     'Agentes y sub-agentes ilimitados · Webhook incluido',
     'Almacenamiento: 256 MB · 20 fuentes · búsqueda vectorial',
-    `API REST: add-on opcional (+$${API_ACCESS_ADDON_PRICE_USD}/mes) · Flujos conversacionales (BETA) · webhook saliente (HMAC)`,
+    'API REST incluida (cupo dedicado, ver panel) · Flujos conversacionales (BETA) · webhook saliente (HMAC)',
     'Tareas programadas · historial 60 días · soporte email (48 h)',
   ],
   business: [
     '45.000 conversaciones al mes (~1.500/día) — widget y agentes',
     'Agentes y sub-agentes ilimitados · integraciones custom · MCP completo',
-    `Integración WhatsApp Business · API REST add-on (+$${API_ACCESS_ADDON_PRICE_USD}/mes) · webhooks`,
+    'Integración WhatsApp Business · API REST incluida (cupo dedicado) · webhooks',
     'Tickets al escalar · analytics completo (multi-agente) · Almac. 100 GB',
     'Historial ilimitado · todos los modelos · SLA 99,9 %',
   ],

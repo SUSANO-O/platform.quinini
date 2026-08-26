@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import {
-  API_ACCESS_ADDON_CONVERSATIONS,
-  API_ACCESS_ADDON_PRICE_USD,
+  API_ADDON_ELIGIBLE_MIN_PLAN,
   PAID_PLAN_IDS,
   PLAN_AGENT_CONVERSATION_LIMITS,
   PLAN_API_CONVERSATION_LIMITS,
@@ -35,11 +34,16 @@ export async function GET() {
       billingPeriod: 'month',
       plans,
       enterprise: { id: 'enterprise', name: 'Enterprise', priceLabel: 'Contacto' },
-      apiAccessAddon: {
-        priceUsd: API_ACCESS_ADDON_PRICE_USD,
-        priceLabel: formatPlanPriceLabel(API_ACCESS_ADDON_PRICE_USD),
-        conversationsPerMonth: API_ACCESS_ADDON_CONVERSATIONS,
-        note: 'Opcional en Team, Plus y Business — cupo API separado del widget.',
+      // API REST incluida desde Team (decisión 2026-08-26) — ya no es un add-on
+      // de pago aparte, cada plan Team+ trae su propio cupo API dedicado.
+      apiAccess: {
+        includedFromPlan: API_ADDON_ELIGIBLE_MIN_PLAN,
+        note: 'Incluida sin costo extra desde el plan Team en adelante, con cupo dedicado separado del widget.',
+        conversationsPerMonthByPlan: {
+          team: PLAN_API_CONVERSATION_LIMITS.team,
+          plus: PLAN_API_CONVERSATION_LIMITS.plus,
+          business: PLAN_API_CONVERSATION_LIMITS.business,
+        },
       },
       pricingPageUrl: 'https://botiva.space/pricing',
       updatedAt: new Date().toISOString(),

@@ -2,14 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { buildDashboardPlanFeatures, countEnabledFeatures } from '../dashboard-plan-features';
 
 describe('buildDashboardPlanFeatures', () => {
-  it('Business sin api_access: API bloqueada, resto avanzado activo', () => {
+  it('Business sin override: API incluida desde Team+ (decisión 2026-08-26), resto avanzado activo', () => {
     const features = buildDashboardPlanFeatures('business', 'active', []);
     const api = features.find((f) => f.key === 'api_rest');
     const whatsapp = features.find((f) => f.key === 'whatsapp');
     const rag = features.find((f) => f.key === 'rag');
 
-    expect(api?.enabled).toBe(false);
-    expect(api?.unlockLabel).toContain('add-on');
+    expect(api?.enabled).toBe(true);
     expect(whatsapp?.enabled).toBe(true);
     expect(rag?.enabled).toBe(true);
     expect(countEnabledFeatures(features)).toBeGreaterThan(10);

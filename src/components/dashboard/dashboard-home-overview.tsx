@@ -295,7 +295,7 @@ export function DashboardHomeOverview({
 
         <UsagePoolCard
           title="Pool API REST"
-          subtitle={`POST /agents/:id/chat · add-on +$${usage?.apiAddon.priceUsd ?? 19}/mes`}
+          subtitle="POST /agents/:id/chat · incluido desde Team, cupo dedicado"
           icon={<Code2 size={14} />}
           pool={hasApi ? apiPool : null}
           accent={POOL_ACCENT_API}
@@ -305,7 +305,8 @@ export function DashboardHomeOverview({
               ? `Tu plan ${usage.planLabel} puede activar el add-on API (+$${usage.apiAddon.priceUsd}/mes, ${usage.apiAddon.conversations.toLocaleString('es')} conv/mes). Contacta soporte o revisa Suscripción.`
               : usage?.isApiOnlyPlan
                 ? 'Plan API Develop — cupo dedicado a integraciones REST.'
-                : 'Disponible con plan API Develop o add-on api_access en Team+.'
+                // API REST incluida desde Team (decisión 2026-08-26) — ya no hay add-on que ofrecer aquí.
+                : 'Disponible con plan API Develop, o actualiza a Team o superior.'
           }
           footer={
             hasApi && usage && usage.pools.api.limit !== -1 && usage.pools.api.percentUsed >= 80 ? (

@@ -48,12 +48,19 @@ describe('webhook entitlements (plan-catalog)', () => {
     expect(WHATSAPP_MIN_PLAN).toBe('business');
   });
 
-  it('api access: solo Team+ panel no incluye API; requiere api_develop o add-on', () => {
-    expect(canUseApiAccess('team', 'active')).toBe(false);
-    expect(canUseApiAccess('plus', 'active')).toBe(false);
-    expect(canUseApiAccess('business', 'active')).toBe(false);
-    expect(canUseApiAccess('team', 'active', [API_ACCESS_FEATURE])).toBe(true);
+  it('api access: incluida desde Team+ con suscripción activa (decisión 2026-08-26)', () => {
+    expect(canUseApiAccess('team', 'active')).toBe(true);
+    expect(canUseApiAccess('plus', 'active')).toBe(true);
+    expect(canUseApiAccess('business', 'active')).toBe(true);
+    // Sin suscripción activa, Team+ cae a free → bloqueado igual que cualquier otro gate.
+    expect(canUseApiAccess('team', 'canceled')).toBe(false);
+    // El feature explícito sigue sirviendo como override manual (soporte, casos especiales).
+    expect(canUseApiAccess('solo', 'active', [API_ACCESS_FEATURE])).toBe(true);
+    // Por debajo de Team, sin el feature, sigue sin acceso.
     expect(canUseApiAccess('solo', 'active')).toBe(false);
+    expect(canUseApiAccess('free', 'free')).toBe(false);
+    // api_develop (plan standalone, solo-API) sigue incluido, como siempre.
+    expect(canUseApiAccess('api_develop', 'active')).toBe(true);
   });
 
   it('whatsapp: Business+ only with active subscription', () => {
@@ -105,7 +112,7 @@ describe('webhook entitlements (plan-catalog)', () => {
     expect(canUseAgentWebhookTool('api_develop')).toBe(false);
     expect(planHasApiAccessFeature('api_develop')).toBe(true);
     expect(formatApiAccessFeature('api_develop')).toBe('Incluido');
-    expect(formatApiAccessFeature('team')).toContain('Add-on');
+    expect(formatApiAccessFeature('team')).toBe('Incluido'); // Team+ incluida desde 2026-08-26
   });
 
   // 'basic', 'starter' y 'growth' eran planes legacy — ya no existen en
@@ -146,7 +153,7 @@ describe('webhook entitlements (plan-catalog)', () => {
     expect(planHasEscalationSlackFeature('team')).toBe(true);
     expect(planHasApiAccessFeature('team')).toBe(false);
     expect(planHasApiAccessFeature('api_develop')).toBe(true);
-    expect(formatApiAccessFeature('team')).toContain('Add-on');
+    expect(formatApiAccessFeature('team')).toBe('Incluido'); // Team+ incluida desde 2026-08-26
     expect(planHasEscalationTicketFeature('business')).toBe(true);
     expect(planHasCustomIntegrationFeature('business')).toBe(true);
     expect(formatConversationAnalyticsFeature('plus')).toBe('Básico');
@@ -196,7 +203,7 @@ describe('pricing comparison rows', () => {
     const business = rows.find((r) => r.id === 'business');
     expect(plus?.conversationAnalytics).toBe('Básico');
     expect(plus?.outboundWebhook).toBe('Incluido');
-    expect(rows.find((r) => r.id === 'team')?.apiAccess).toContain('Add-on');
+    expect(rows.find((r) => r.id === 'team')?.apiAccess).toBe('Incluido'); // Team+ incluida desde 2026-08-26
     expect(business?.escalationTickets).toBe('Incluido');
     expect(business?.customIntegration).toBe('Incluido');
     expect(business?.conversationAnalytics).toBe('Completo');

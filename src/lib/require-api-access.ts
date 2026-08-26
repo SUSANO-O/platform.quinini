@@ -49,10 +49,12 @@ export async function requireApiAccessRequest(
   } | null;
 
   if (!canUseApiAccess(sub?.plan ?? 'free', sub?.status ?? 'free', sub?.features)) {
+    // API incluida desde Team+ (decisión 2026-08-26) — ya no hay add-on que
+    // ofrecer aquí, así que el mensaje solo apunta a las dos vías reales.
     return wantsHtml
-      ? htmlAuthError(403, 'Tu plan no incluye API REST. Contrata API Develop o el add-on api_access (Team+).')
+      ? htmlAuthError(403, 'Tu plan no incluye API REST. Contrata el plan API Develop o actualiza a Team o superior.')
       : NextResponse.json(
-          { error: 'API Develop o add-on api_access requerido' },
+          { error: 'Requiere plan API Develop o Team/Plus/Business' },
           { status: 403 },
         );
   }
