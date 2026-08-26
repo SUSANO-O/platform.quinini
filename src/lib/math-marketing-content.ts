@@ -70,7 +70,7 @@ export function mathMarketingFaqs() {
     ],
     [
       '¿Tienen API?',
-      'Sí: plan API Develop y add-on API en Team+. Los precios exactos los leo del catálogo oficial antes de responder.',
+      'Sí: plan API Develop (standalone) o incluida desde Team en adelante. Los precios exactos los leo del catálogo oficial antes de responder.',
     ],
     [
       '¿Cómo empiezo?',

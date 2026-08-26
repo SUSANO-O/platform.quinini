@@ -5,7 +5,6 @@
 import { getAgentLimits } from '@/lib/agent-plans';
 import {
   AGENT_WEBHOOK_MIN_PLAN,
-  API_ACCESS_ADDON_PRICE_USD,
   API_ACCESS_FEATURE,
   CONVERSATION_ANALYTICS_ADVANCED_MIN_PLAN,
   CONVERSATION_ANALYTICS_MIN_PLAN,
@@ -219,7 +218,7 @@ export function buildDashboardPlanFeatures(
     label: 'API REST',
     description: apiOnly
       ? 'Integra MatIAs vía POST /agents/:id/chat con cupo dedicado.'
-      : `Cupo API separado del widget · add-on +$${API_ACCESS_ADDON_PRICE_USD}/mes en Team+.`,
+      : 'Incluida desde Team, con cupo dedicado separado del widget.',
     enabled: canUseApiAccess(plan, status, overrides),
     unlockLabel: apiAccessUpgradeLabel(),
     viaOverride: viaOverride(overrides, API_ACCESS_FEATURE),
