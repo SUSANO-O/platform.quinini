@@ -49,6 +49,28 @@ import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-
 import { logInferenceMetric, estimateTokens } from '@/lib/inference-metrics';
 import { normalizeVisitorId } from '@/lib/widget-visitor';
 import {
+  looksLikeTicketRequest,
+  shouldForceTicketForm,
+  OPEN_TICKET_FORM_MARKER,
+  TICKET_INTENT_PATTERNS,
+} from '@/lib/ticket-form-intent';
+import {
+  extractRemainderAfterMatch,
+  isVagueRemainder,
+  interpretYesNo,
+  buildAskProblemReply,
+  buildDeflectionSurveyReply,
+  buildDeflectionResolvedReply,
+} from '@/lib/ticket-deflection-intent';
+import {
+  isAwaitingProblemDescription,
+  setAwaitingProblemDescription,
+  getPendingDeflectionSurvey,
+  setPendingDeflectionSurvey,
+  clearTicketDeflectionState,
+} from '@/lib/ticket-deflection-state';
+import { checkTicketDeflection } from '@/lib/ticket-deflection-client';
+import {
   finalizeWidgetChatTrace,
   WidgetChatTrace,
   type WidgetChatLatencyPath,
@@ -1026,6 +1048,151 @@ export async function POST(req: NextRequest) {
     } catch {
       /* sin DB: el hub intentará validación remota si está configurada */
     }
+  }
+
+  // ── Formulario de ticket + encuesta de deflection, por código, sin depender del LLM ──
+  // La skill slack_escalation le pide al modelo responder ÚNICAMENTE con
+  // [[OPEN_TICKET_FORM]] cuando el usuario quiere reportar un problema y no
+  // hay email en el historial — verificado en vivo contra Tribu GPS: el
+  // modelo lo hace solo ~15% de las veces (compite con reglas de negocio
+  // genéricas de "pedir los datos"). Esta detección corta ANTES del proxy al
+  // hub, sin gastar una llamada al modelo. Solo cubre el camino de un solo
+  // agente (sin sub-agentes) — las ramas multi-agente de arriba ya hicieron
+  // return si aplicaban, así que llegar acá ya implica ese caso.
+  //
+  // Encima de esa detección, dos pasos más (mismo espíritu — código, no LLM,
+  // para el control de flujo; ver ticket-deflection-intent.ts):
+  //   1) Si el pedido es vago ("quiero levantar un ticket", sin detalle), se
+  //      pregunta el problema antes de abrir el formulario.
+  //   2) Con un problema concreto, si el RAG del agente tiene una fuente con
+  //      buena confianza (matias-backend: ticket-deflection-check), se le
+  //      muestra esa posible solución y se pregunta si le sirvió (Sí/No)
+  //      antes de ofrecer el ticket — evita tickets por cosas ya documentadas.
+  try {
+    const ticketAgentOr = [
+      ...(parsedAgentId.match(/^[a-f0-9]{24}$/i) ? [{ _id: parsedAgentId }] : []),
+      { agentHubId: parsedAgentId },
+    ];
+    const agentDoc = (await ClientAgent.findOne({ $or: ticketAgentOr })
+      .select({ enabledMcpToolIds: 1, userId: 1 })
+      .lean()) as { enabledMcpToolIds?: string[]; userId?: string } | null;
+
+    const hasTicketCapability = Array.isArray(agentDoc?.enabledMcpToolIds)
+      && agentDoc.enabledMcpToolIds.some((t) => t.includes('_create_ticket'));
+    const ownerUserId = agentDoc?.userId || '';
+    const sessionKeyReady = Boolean(hasTicketCapability && ownerUserId && resolvedWidgetId && parsedSessionId);
+
+    /** Atajo para las respuestas fijas de este bloque (mismo payload que ya arma el resto del archivo). */
+    const respondWithText = (text: string) => {
+      // Sin esto el turno no queda en WidgetMessage: se pierde del inbox/historial
+      // y una futura lectura de "mensajes previos del usuario" (ej. el chequeo de
+      // email ya dado) no vería este mensaje.
+      if (ownerUserId && resolvedWidgetId && parsedSessionId) {
+        schedulePersistWidgetTranscript({
+          widgetId: resolvedWidgetId,
+          userId: ownerUserId,
+          agentId: parsedAgentId,
+          sessionId: parsedSessionId,
+          traceId,
+          userMessage: parsedMessage,
+          assistantMessage: text,
+        });
+      }
+      finishNonStreamTrace(latencyTrace, 'non-stream-ticket-deflection', { ok: true, replyLen: text.length });
+      return NextResponse.json(
+        attachAssistNavToPayload(
+          { reply: text, agentId: parsedAgentId },
+          isAssistWidget,
+          text,
+          assistNavCtx,
+        ),
+        { status: 200, headers: cors(origin) },
+      );
+    };
+
+    const pendingSurvey = sessionKeyReady
+      ? await getPendingDeflectionSurvey(resolvedWidgetId, parsedSessionId, ownerUserId)
+      : null;
+
+    if (pendingSurvey) {
+      // Turno anterior le mostramos la encuesta "¿esto te sirvió?" — este
+      // mensaje debería ser la respuesta.
+      const answer = interpretYesNo(parsedMessage);
+      if (answer === 'yes' || answer === 'no') {
+        await clearTicketDeflectionState(resolvedWidgetId, parsedSessionId, ownerUserId);
+        logWidgetFlow('🎫', 'chat:deflectionSurveyAnswer', `encuesta respondida: ${answer}`, {
+          traceId,
+          agentId: parsedAgentId,
+        });
+        return respondWithText(answer === 'yes' ? buildDeflectionResolvedReply() : OPEN_TICKET_FORM_MARKER);
+      }
+      // Ambigua (cambió de tema, no contestó sí/no): se limpia el estado para
+      // no quedar pegado y este mensaje sigue el flujo normal de siempre.
+      await clearTicketDeflectionState(resolvedWidgetId, parsedSessionId, ownerUserId);
+    } else if (sessionKeyReady && (await isAwaitingProblemDescription(resolvedWidgetId, parsedSessionId, ownerUserId))) {
+      // Turno anterior le preguntamos "¿cuál es el problema?" — este mensaje
+      // debería describirlo.
+      await clearTicketDeflectionState(resolvedWidgetId, parsedSessionId, ownerUserId);
+      const deflection = await checkTicketDeflection({ agentId: parsedAgentId, query: parsedMessage });
+      logWidgetFlow('🎫', 'chat:deflectionCheck', `problema descrito, confident=${deflection.confident}`, {
+        traceId,
+        agentId: parsedAgentId,
+      });
+      if (deflection.confident) {
+        await setPendingDeflectionSurvey(resolvedWidgetId, parsedSessionId, ownerUserId, {
+          sourceText: deflection.sourceText,
+        });
+        return respondWithText(buildDeflectionSurveyReply(deflection.sourceText));
+      }
+      return respondWithText(OPEN_TICKET_FORM_MARKER);
+    } else if (looksLikeTicketRequest(parsedMessage)) {
+      const priorUserMsgs = parsedSessionId
+        ? ((await WidgetMessage.find({ sessionId: parsedSessionId, role: 'user' })
+            .select({ content: 1 })
+            .limit(80)
+            .lean()) as { content?: string }[])
+        : [];
+
+      const shouldProceed = shouldForceTicketForm({
+        message: parsedMessage,
+        history: priorUserMsgs.map((m) => ({ role: 'user', content: m.content })),
+        hasTicketCapability,
+      });
+
+      if (shouldProceed) {
+        const remainder = extractRemainderAfterMatch(parsedMessage, TICKET_INTENT_PATTERNS);
+        if (isVagueRemainder(remainder)) {
+          logWidgetFlow('🎫', 'chat:ticketVague', 'pedido de ticket vago — se pregunta el problema', {
+            traceId,
+            agentId: parsedAgentId,
+          });
+          if (sessionKeyReady) await setAwaitingProblemDescription(resolvedWidgetId, parsedSessionId, ownerUserId);
+          return respondWithText(buildAskProblemReply());
+        }
+
+        const deflection = await checkTicketDeflection({ agentId: parsedAgentId, query: parsedMessage });
+        logWidgetFlow('🎫', 'chat:forceTicketForm', `detección por código, confident=${deflection.confident}`, {
+          traceId,
+          agentId: parsedAgentId,
+        });
+        if (deflection.confident) {
+          if (sessionKeyReady) {
+            await setPendingDeflectionSurvey(resolvedWidgetId, parsedSessionId, ownerUserId, {
+              sourceText: deflection.sourceText,
+            });
+          }
+          return respondWithText(buildDeflectionSurveyReply(deflection.sourceText));
+        }
+        return respondWithText(OPEN_TICKET_FORM_MARKER);
+      }
+    }
+  } catch (err) {
+    // Fail-open: si este chequeo falla, seguimos con el flujo normal
+    // (el LLM sigue teniendo su propia chance de emitir el marcador).
+    logWidgetFlow('⚠️', 'chat:forceTicketFormErr', 'chequeo de ticket-form falló, sigue flujo normal', {
+      traceId,
+      err: err instanceof Error ? err.message : String(err),
+    });
   }
 
   const init: RequestInit = {

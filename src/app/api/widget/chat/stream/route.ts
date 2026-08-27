@@ -76,6 +76,28 @@ import { friendlyWidgetChatError } from '@/lib/widget-chat-user-errors';
 import { attachAssistNavToPayload, buildAssistNavCtx } from '@/lib/assist-chat-reply';
 import { isLocalDevLimitsBypass } from '@/lib/dev-limits';
 import { logInferenceMetric, estimateTokens } from '@/lib/inference-metrics';
+import {
+  looksLikeTicketRequest,
+  shouldForceTicketForm,
+  OPEN_TICKET_FORM_MARKER,
+  TICKET_INTENT_PATTERNS,
+} from '@/lib/ticket-form-intent';
+import {
+  extractRemainderAfterMatch,
+  isVagueRemainder,
+  interpretYesNo,
+  buildAskProblemReply,
+  buildDeflectionSurveyReply,
+  buildDeflectionResolvedReply,
+} from '@/lib/ticket-deflection-intent';
+import {
+  isAwaitingProblemDescription,
+  setAwaitingProblemDescription,
+  getPendingDeflectionSurvey,
+  setPendingDeflectionSurvey,
+  clearTicketDeflectionState,
+} from '@/lib/ticket-deflection-state';
+import { checkTicketDeflection } from '@/lib/ticket-deflection-client';
 
 export const maxDuration = 60; // Vercel: allow up to 60s for LLM + streaming
 
@@ -1055,6 +1077,129 @@ export async function POST(req: NextRequest) {
           } catch (inferErr) {
             logWidgetFlow('⚠️', 'stream:inferErr', inferErr instanceof Error ? inferErr.message : String(inferErr));
           }
+        }
+
+        // ── Formulario de ticket + encuesta de deflection, por código, sin depender del LLM ──
+        // Mismo bloque que /api/widget/chat (no-stream) — ver ese archivo y
+        // ticket-deflection-intent.ts para el detalle de diseño. Se duplica acá
+        // porque el widget usa SSE por default (cfg.stream !== false): sin este
+        // bloque acá, la detección de arriba nunca corre para tráfico real.
+        try {
+          const ticketAgentOr = [
+            ...(parsedAgentIdLocal.match(/^[a-f0-9]{24}$/i) ? [{ _id: parsedAgentIdLocal }] : []),
+            { agentHubId: parsedAgentIdLocal },
+          ];
+          const agentDoc = (await ClientAgent.findOne({ $or: ticketAgentOr })
+            .select({ enabledMcpToolIds: 1, userId: 1 })
+            .lean()) as { enabledMcpToolIds?: string[]; userId?: string } | null;
+
+          const hasTicketCapability = Array.isArray(agentDoc?.enabledMcpToolIds)
+            && agentDoc.enabledMcpToolIds.some((t) => t.includes('_create_ticket'));
+          const ownerUserId = agentDoc?.userId || '';
+          const sessionKeyReady = Boolean(
+            hasTicketCapability && ownerUserId && resolvedWidgetId && parsedSessionId,
+          );
+
+          const respondWithText = async (text: string) => {
+            if (ownerUserId && resolvedWidgetId && parsedSessionId) {
+              schedulePersistWidgetTranscript({
+                widgetId: resolvedWidgetId,
+                userId: ownerUserId,
+                agentId: parsedAgentIdLocal,
+                sessionId: parsedSessionId,
+                traceId,
+                userMessage: parsedMessage,
+                assistantMessage: text,
+              });
+            }
+            await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, text));
+            enqueue(
+              attachAssistNavToPayload(
+                { type: 'done', reply: text, agentId: parsedAgentIdLocal, streamed: true },
+                isAssistWidget,
+                text,
+                assistNavCtx,
+              ),
+            );
+            latencyTrace.setPath('stream-ticket-deflection');
+            finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: text.length });
+          };
+
+          const pendingSurvey = sessionKeyReady
+            ? await getPendingDeflectionSurvey(resolvedWidgetId, parsedSessionId, ownerUserId)
+            : null;
+
+          if (pendingSurvey) {
+            const answer = interpretYesNo(parsedMessage);
+            if (answer === 'yes' || answer === 'no') {
+              await clearTicketDeflectionState(resolvedWidgetId, parsedSessionId, ownerUserId);
+              logWidgetFlow('🎫', 'stream:deflectionSurveyAnswer', `encuesta respondida: ${answer}`, { traceId });
+              await respondWithText(answer === 'yes' ? buildDeflectionResolvedReply() : OPEN_TICKET_FORM_MARKER);
+              return;
+            }
+            await clearTicketDeflectionState(resolvedWidgetId, parsedSessionId, ownerUserId);
+          } else if (
+            sessionKeyReady
+            && (await isAwaitingProblemDescription(resolvedWidgetId, parsedSessionId, ownerUserId))
+          ) {
+            await clearTicketDeflectionState(resolvedWidgetId, parsedSessionId, ownerUserId);
+            const deflection = await checkTicketDeflection({ agentId: parsedAgentIdLocal, query: parsedMessage });
+            logWidgetFlow('🎫', 'stream:deflectionCheck', `problema descrito, confident=${deflection.confident}`, { traceId });
+            if (deflection.confident) {
+              await setPendingDeflectionSurvey(resolvedWidgetId, parsedSessionId, ownerUserId, {
+                sourceText: deflection.sourceText,
+              });
+              await respondWithText(buildDeflectionSurveyReply(deflection.sourceText));
+            } else {
+              await respondWithText(OPEN_TICKET_FORM_MARKER);
+            }
+            return;
+          } else if (looksLikeTicketRequest(parsedMessage)) {
+            const priorUserMsgs = parsedSessionId
+              ? ((await WidgetMessage.find({ sessionId: parsedSessionId, role: 'user' })
+                  .select({ content: 1 })
+                  .limit(80)
+                  .lean()) as { content?: string }[])
+              : [];
+
+            const shouldProceed = shouldForceTicketForm({
+              message: parsedMessage,
+              history: priorUserMsgs.map((m) => ({ role: 'user', content: m.content })),
+              hasTicketCapability,
+            });
+
+            if (shouldProceed) {
+              const remainder = extractRemainderAfterMatch(parsedMessage, TICKET_INTENT_PATTERNS);
+              if (isVagueRemainder(remainder)) {
+                logWidgetFlow('🎫', 'stream:ticketVague', 'pedido de ticket vago — se pregunta el problema', { traceId });
+                if (sessionKeyReady) {
+                  await setAwaitingProblemDescription(resolvedWidgetId, parsedSessionId, ownerUserId);
+                }
+                await respondWithText(buildAskProblemReply());
+                return;
+              }
+
+              const deflection = await checkTicketDeflection({ agentId: parsedAgentIdLocal, query: parsedMessage });
+              logWidgetFlow('🎫', 'stream:forceTicketForm', `detección por código, confident=${deflection.confident}`, { traceId });
+              if (deflection.confident) {
+                if (sessionKeyReady) {
+                  await setPendingDeflectionSurvey(resolvedWidgetId, parsedSessionId, ownerUserId, {
+                    sourceText: deflection.sourceText,
+                  });
+                }
+                await respondWithText(buildDeflectionSurveyReply(deflection.sourceText));
+              } else {
+                await respondWithText(OPEN_TICKET_FORM_MARKER);
+              }
+              return;
+            }
+          }
+        } catch (err) {
+          // Fail-open: si este chequeo falla, seguimos con el flujo normal SSE.
+          logWidgetFlow('⚠️', 'stream:forceTicketFormErr', 'chequeo de ticket-form falló, sigue flujo normal', {
+            traceId,
+            err: err instanceof Error ? err.message : String(err),
+          });
         }
 
         let streamMsg = '';
