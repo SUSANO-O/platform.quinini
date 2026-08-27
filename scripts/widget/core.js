@@ -4044,6 +4044,50 @@
         });
     }
 
+    // ── Encuesta de deflection previa al ticket ("¿esto te sirvió?") ─────────
+    // El backend decide TODO por código (ver ticket-deflection-intent.ts en
+    // platform.quinini): acá solo se pinta la tarjeta con los dos botones y,
+    // al hacer click, se manda la respuesta como un mensaje normal — el
+    // backend ya sabe (estado de sesión) que hay una encuesta pendiente y la
+    // interpreta de forma determinística, sin pasar por el LLM.
+    var SURVEY_YESNO_MARKER = '[[SURVEY_YESNO]]';
+
+    function stripSurveyMarker(text) {
+      var s = String(text || '');
+      if (s.indexOf(SURVEY_YESNO_MARKER) === -1) return { text: s, hasSurvey: false };
+      return { text: s.split(SURVEY_YESNO_MARKER).join('').trim(), hasSurvey: true };
+    }
+
+    function attachDeflectionSurveyToBubble(bubbleEl) {
+      if (!bubbleEl) return;
+      var stack = findBotMessageStack(bubbleEl);
+      if (!stack || stack.querySelector('.afhub-deflection-survey')) return;
+      var wrap = document.createElement('div');
+      wrap.className = 'afhub-nav-offer afhub-deflection-survey';
+      var actions = document.createElement('div');
+      actions.className = 'afhub-nav-actions';
+      var yesBtn = document.createElement('button');
+      yesBtn.type = 'button';
+      yesBtn.className = 'afhub-action-btn';
+      yesBtn.textContent = '✅ Sí, gracias';
+      var noBtn = document.createElement('button');
+      noBtn.type = 'button';
+      noBtn.className = 'afhub-action-btn afhub-action-btn--ghost';
+      noBtn.textContent = '❌ No, sigo con el problema';
+      function answer(text) {
+        yesBtn.disabled = true;
+        noBtn.disabled = true;
+        wrap.classList.add('afhub-deflection-survey--answered');
+        send(text);
+      }
+      yesBtn.addEventListener('click', function () { answer('Sí, gracias'); });
+      noBtn.addEventListener('click', function () { answer('No, sigo con el problema'); });
+      actions.appendChild(yesBtn);
+      actions.appendChild(noBtn);
+      wrap.appendChild(actions);
+      stack.appendChild(wrap);
+    }
+
     // ── Formulario "Abrir ticket" (soporte vía Slack, sin pasar por el LLM) ──
     var ticketPendingImages = []; // { file, previewUrl }
 
@@ -5654,6 +5698,8 @@
               if (!finalReply) finalReply = 'Si no se abre solo, abrilo desde el menú ⋮ → "Abrir ticket de soporte".';
               try { openTicketModal(); } catch (_e) { /* noop */ }
             }
+            var streamSurveyStrip = stripSurveyMarker(finalReply);
+            finalReply = streamSurveyStrip.text;
             var stTools = doneEvt.toolsUsed;
             if ((!stTools || !stTools.length) && doneEvt.data && doneEvt.data.toolsUsed && doneEvt.data.toolsUsed.length) {
               stTools = doneEvt.data.toolsUsed;
@@ -5678,6 +5724,7 @@
               if (streamNavOffer) {
                 attachNavOfferToBubble(streamBubble, streamNavOffer);
               }
+              if (streamSurveyStrip.hasSurvey) attachDeflectionSurveyToBubble(streamBubble);
               appendMultiAgentBadge(streamBubble, doneEvt.multiAgent);
               if (cfg.showMcpUi) {
                 appendMcpMetadataToBubble(streamBubble, { toolsUsed: stTools, mcpTag: stMcpTag });
@@ -5751,6 +5798,8 @@
           if (!reply) reply = 'Si no se abre solo, abrilo desde el menú ⋮ → "Abrir ticket de soporte".';
           try { openTicketModal(); } catch (_e) { /* noop */ }
         }
+        var standardSurveyStrip = stripSurveyMarker(reply);
+        reply = standardSurveyStrip.text;
         resolvedAgentId = data.agentId || resolvedAgentId;
         var imgs = data.images;
         if ((!imgs || !imgs.length) && data.data && data.data.images && data.data.images.length) {
@@ -5800,6 +5849,7 @@
           }
         }
         function finalizeStandardBubble(botBubble, finalReply) {
+          if (standardSurveyStrip.hasSurvey) attachDeflectionSurveyToBubble(botBubble);
           appendMultiAgentBadge(botBubble, data.multiAgent);
           if (usedModel) appendFallbackTagToBubble(botBubble, usedModel, cfg.debug);
           var stdHistEntry = { role: 'model', content: finalReply };
