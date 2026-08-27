@@ -561,7 +561,14 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         if (a.isPlatform) setShowNewSub(false);
         setSubAgents(sa ?? []);
         setName(a.name); setDescription(a.description);
-        setSystemPrompt(a.systemPrompt); setModel(a.model);
+        // El textarea de System Prompt solo muestra/edita la parte base — los
+        // bloques de Reglas y FAQs son administrados desde sus propias
+        // pestañas y se reconstruyen siempre al guardar (ver
+        // mergeSystemPromptWithManagedBlocks). Mostrarlos acá ya fusionados
+        // hacía parecer que eran editables ahí, cuando cualquier cambio
+        // directo en esa parte del texto se descartaba sin aviso al guardar.
+        setSystemPrompt(stripManagedFaqPrompt(stripManagedRulesPrompt(a.systemPrompt)));
+        setModel(a.model);
         setFallbackModels(Array.isArray(a.fallbackModels) ? a.fallbackModels.filter(Boolean) : []);
         setTools(normalizeTools(a.tools));
         setRagEnabled(a.ragEnabled);
@@ -895,7 +902,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       agentFaqs,
       faqCandidates,
     );
-    setSystemPrompt(mergedPrompt);
     const patch: Record<string, unknown> = {
       name,
       description,
@@ -960,7 +966,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       agentFaqs,
       faqCandidates,
     );
-    setSystemPrompt(mergedPrompt);
     await save({ behaviorRules, agentFaqs, faqCandidates, systemPrompt: mergedPrompt });
   }
 
@@ -971,7 +976,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       agentFaqs,
       faqCandidates,
     );
-    setSystemPrompt(mergedPrompt);
     await save({ agentFaqs, faqCandidates, systemPrompt: mergedPrompt });
   }
 
@@ -2180,6 +2184,9 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
           <AgentEditorSection bar="cool">
             <p className={SECTION_TITLE}>System Prompt</p>
+            <p style={{ fontSize: 12, opacity: 0.7, marginTop: -4, marginBottom: 8 }}>
+              Reglas y FAQs se administran en sus propias pestañas — se agregan solas al prompt final, no las escribas acá.
+            </p>
             <textarea
               className="landing-input"
               style={{ ...inp, minHeight: '160px', resize: 'vertical', fontFamily: 'inherit' }}
