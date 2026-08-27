@@ -25,6 +25,59 @@ describe('looksLikeTicketRequest', () => {
     expect(looksLikeTicketRequest('')).toBe(false);
     expect(looksLikeTicketRequest('   ')).toBe(false);
   });
+
+  describe('"tengo un problema" a secas (sin verbo de reporte explícito)', () => {
+    it('dispara cuando "problema" no va seguido de "para" (indecisión)', () => {
+      expect(looksLikeTicketRequest('tengo un problema')).toBe(true);
+      expect(looksLikeTicketRequest('Tengo un problema.')).toBe(true);
+      expect(looksLikeTicketRequest('hola, tengo un problema')).toBe(true);
+      expect(looksLikeTicketRequest('creo que tengo un problema con la app')).toBe(true);
+      expect(looksLikeTicketRequest('TENGO UN PROBLEMA URGENTE')).toBe(true);
+    });
+
+    it('NO dispara con "problema para <verbo>" (indecisión, no reporte de falla)', () => {
+      expect(looksLikeTicketRequest('tengo un problema para elegir plan, cuál me recomiendan?')).toBe(false);
+      expect(looksLikeTicketRequest('tengo un problema para decidir qué carro comprar')).toBe(false);
+      expect(looksLikeTicketRequest('tengo un problema para saber cuál modelo me conviene')).toBe(false);
+    });
+
+    it('NO dispara si falta el "un" (evita negaciones tipo "no tengo ningún problema")', () => {
+      expect(looksLikeTicketRequest('no tengo ningún problema')).toBe(false);
+      expect(looksLikeTicketRequest('tengo problemas')).toBe(false);
+    });
+  });
+
+  describe('descripciones directas de falla, sin verbo de reporte', () => {
+    it('"no (me) funciona/sirve/anda/carga/prende/enciende"', () => {
+      expect(looksLikeTicketRequest('no me funciona la app')).toBe(true);
+      expect(looksLikeTicketRequest('no funciona')).toBe(true);
+      expect(looksLikeTicketRequest('el dispositivo no sirve')).toBe(true);
+      expect(looksLikeTicketRequest('el GPS no anda bien')).toBe(true);
+      expect(looksLikeTicketRequest('no carga la batería')).toBe(true);
+      expect(looksLikeTicketRequest('no prende el equipo')).toBe(true);
+      expect(looksLikeTicketRequest('no enciende')).toBe(true);
+    });
+
+    it('"dejó/dejo de funcionar"', () => {
+      expect(looksLikeTicketRequest('el equipo dejó de funcionar ayer')).toBe(true);
+      expect(looksLikeTicketRequest('dejo de funcionar de la nada')).toBe(true);
+    });
+
+    it('"se dañó/rompió/trabó/congeló/bloqueó" (con y sin tilde)', () => {
+      expect(looksLikeTicketRequest('se dañó el sensor')).toBe(true);
+      expect(looksLikeTicketRequest('se daño el sensor')).toBe(true);
+      expect(looksLikeTicketRequest('se me rompió la pantalla')).toBe(true);
+      expect(looksLikeTicketRequest('se rompio el cable')).toBe(true);
+      expect(looksLikeTicketRequest('la app se trabó y no responde')).toBe(true);
+      expect(looksLikeTicketRequest('se congeló la pantalla')).toBe(true);
+      expect(looksLikeTicketRequest('se bloqueó el equipo')).toBe(true);
+    });
+
+    it('sigue sin disparar con preguntas genéricas no relacionadas a fallas', () => {
+      expect(looksLikeTicketRequest('cuál es el horario de atención')).toBe(false);
+      expect(looksLikeTicketRequest('qué planes tienen disponibles')).toBe(false);
+    });
+  });
 });
 
 describe('hasContactEmailInHistory', () => {

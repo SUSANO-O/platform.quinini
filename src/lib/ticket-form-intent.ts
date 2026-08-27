@@ -31,6 +31,24 @@ export const TICKET_INTENT_PATTERNS: RegExp[] = [
   /\b(tengo|hacer|poner|presentar|radicar)\s+(un\s+)?(reclamo|queja|pqr)\b/i,
   /\bcrear\s+(un\s+)?tickets?\b/i,
   /\bsoporte\s+t[eé]cnico\b.*\b(reportar|reclamo|problema)\b/i,
+  // "Tengo un problema" a secas — SIN el verbo de reporte explícito de los
+  // patterns de arriba, así que hay que ser más cuidadosos: excluye
+  // "problema para <verbo>" (indecisión — "tengo un problema para elegir
+  // plan" es una duda de ventas, no un reporte de falla) via lookahead
+  // negativo. Confirmado con el agente real de Tribu GPS que "tengo un
+  // problema" solo no disparaba nada — el LLM preguntaba el detalle por su
+  // cuenta, pero sin que el código quedara "recordando" que esperaba la
+  // respuesta, así que la deflection nunca se activaba en esa conversación.
+  /\btengo\s+un\s+problema\b(?!\s+para\b)/i,
+  // Descripciones directas de falla/daño, sin verbo de reporte — igual de
+  // frecuentes que "tengo un problema" en la práctica ("no me funciona",
+  // "se rompió", "se dañó", "dejó de funcionar"). Cubre con/sin tilde
+  // (typos de teclado son comunes acá) vía clases de caracteres.
+  /\bno\s+(me\s+)?(funciona|sirve|anda|carga|prende|enciende)\b/i,
+  /\bdej[oó]\s+de\s+funcionar\b/i,
+  // \b después de una vocal con tilde no funciona en JS (ó/í no cuentan como
+  // \w) — se usa un lookahead de espacio/fin/puntuación en su lugar.
+  /\bse\s+(me\s+)?(da[nñ][oó]|rompi[oó]|trab[oó]|congel[oó]|bloque[oó])(?=\s|$|[.,!?;:])/i,
 ];
 
 const EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;

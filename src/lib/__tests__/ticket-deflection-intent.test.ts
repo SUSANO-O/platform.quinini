@@ -18,6 +18,10 @@ const TICKET_PATTERNS = [
   /\b(quiero|necesito|quisiera)\s+(un\s+)?tickets?\b/i,
   /\b(tengo|hacer|poner|presentar|radicar)\s+(un\s+)?(reclamo|queja|pqr)\b/i,
   /\bcrear\s+(un\s+)?tickets?\b/i,
+  /\btengo\s+un\s+problema\b(?!\s+para\b)/i,
+  /\bno\s+(me\s+)?(funciona|sirve|anda|carga|prende|enciende)\b/i,
+  /\bdej[oó]\s+de\s+funcionar\b/i,
+  /\bse\s+(me\s+)?(da[nñ][oó]|rompi[oó]|trab[oó]|congel[oó]|bloque[oó])(?=\s|$|[.,!?;:])/i,
 ];
 
 describe('extractRemainderAfterMatch', () => {
@@ -50,6 +54,18 @@ describe('isVagueRemainder', () => {
   it('con contenido real no es vago', () => {
     expect(isVagueRemainder('con la plataforma de pagos')).toBe(false);
     expect(isVagueRemainder('no puedo ingresar a mi app')).toBe(false);
+  });
+});
+
+describe('"tengo un problema" a secas — remainder y vaguedad', () => {
+  it('"tengo un problema" solo → remanente vacío → vago (se pregunta el detalle)', () => {
+    const r = extractRemainderAfterMatch('tengo un problema', TICKET_PATTERNS);
+    expect(isVagueRemainder(r)).toBe(true);
+  });
+
+  it('"tengo un problema con la app" → remanente con contenido → no vago (va directo a chequear el RAG)', () => {
+    const r = extractRemainderAfterMatch('tengo un problema con la app', TICKET_PATTERNS);
+    expect(isVagueRemainder(r)).toBe(false);
   });
 });
 
