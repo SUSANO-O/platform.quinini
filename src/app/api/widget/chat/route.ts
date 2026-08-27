@@ -1193,6 +1193,14 @@ export async function POST(req: NextRequest) {
       traceId,
       err: err instanceof Error ? err.message : String(err),
     });
+    // TEMP DEBUG (retirar después de diagnosticar): expone el error solo si
+    // el mensaje trae el string mágico, para verlo desde afuera sin logs.
+    if (parsedMessage.includes('DEBUG_TICKET_ERR')) {
+      return NextResponse.json(
+        { debugErr: err instanceof Error ? (err.stack || err.message) : String(err) },
+        { status: 200, headers: cors(origin) },
+      );
+    }
   }
 
   const init: RequestInit = {
