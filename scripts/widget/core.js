@@ -7787,7 +7787,11 @@
       '#' + rootId + ' .afhub-human-meta { display:flex; align-items:center; gap:6px; padding:0 2px; }' +
       '#' + rootId + ' .afhub-human-badge { display:inline-flex; align-items:center; gap:5px; padding:2px 9px 2px 7px; border-radius:999px; background:' + cfg.color + '14; color:' + cfg.color + '; font-size:10px; font-weight:700; letter-spacing:.02em; }' +
       '#' + rootId + ' .afhub-human-badge svg { width:11px; height:11px; flex-shrink:0; }' +
-      '#' + rootId + ' .afhub-human-bubble { width:100%; max-width:100%; box-sizing:border-box; white-space:pre-wrap; background:linear-gradient(180deg,' + cfg.color + '0f,' + cfg.color + '08) !important; border:1px solid ' + cfg.color + '2b !important; border-left:3px solid ' + cfg.color + ' !important; color:#141428 !important; }' +
+      // Antes tenía un borde izquierdo sólido de 3px (acento plano, estilo
+      // "material design") — se reemplaza por el mismo lenguaje de sombra suave
+      // + hairline que usan el resto de las burbujas (msgBubbleShadow), con solo
+      // un tinte cálido de fondo/borde para señalar "modo humano" sin golpear.
+      '#' + rootId + ' .afhub-human-bubble { width:100%; max-width:100%; box-sizing:border-box; white-space:pre-wrap; background:linear-gradient(180deg,' + cfg.color + '0f,' + cfg.color + '06) !important; border:1px solid ' + cfg.color + '1f !important; box-shadow:0 2px 10px rgba(15,23,42,.05),0 1px 3px rgba(15,23,42,.04) !important; color:#141428 !important; }' +
       '#' + rootId + ' .afhub-unread-hint-wrap { display:none; cursor:pointer; animation:afhub-unread-pop .35s cubic-bezier(.34,1.2,.64,1); }' +
       '#' + rootId + ' .afhub-unread-hint { position:relative; font-size:12px; line-height:1.35; font-weight:600; padding:9px 13px; border-radius:14px; background:#fff; color:#141428; max-width:220px; text-align:left; border:1px solid rgba(0,0,0,.06); box-shadow:0 4px 18px rgba(0,0,0,.12); }' +
       '#' + rootId + ' .afhub-unread-hint::after { content:""; position:absolute; bottom:-6px; width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-top:7px solid #fff; }' +
@@ -8002,7 +8006,7 @@
       '}' +
       '#' + rootId + ' .afhub-fb-choices--stack .afhub-fb-choice span { justify-content:flex-start; border-radius:8px; min-width:0; width:100%; box-sizing:border-box; }' +
       '#' + rootId + ' .afhub-fb-choice:hover span { border-color:rgba(15,23,42,.18); background:rgba(255,255,255,.85); }' +
-      '#' + rootId + ' .afhub-fb-choice input:focus-visible + span { outline:2px solid ' + cfg.color + '; outline-offset:2px; }' +
+      '#' + rootId + ' .afhub-fb-choice input:focus-visible + span { outline:none; box-shadow:0 0 0 3px ' + cfg.color + '33; }' +
       '#' + rootId + ' .afhub-fb-choice input:checked + span {' +
         'background:' + cfg.color + ';color:#fff;border-color:transparent;' +
         'box-shadow:0 2px 8px ' + cfg.color + '33;' +
@@ -8042,7 +8046,9 @@
       '#' + rootId + ' .afhub-handoff-desc { margin:0 0 10px; font-size:11.5px; color:#6b7280; line-height:1.4; }' +
       '#' + rootId + ' .afhub-handoff-modal label { display:block; margin-bottom:6px; font-size:10.5px; font-weight:600; color:#4b5563; }' +
       '#' + rootId + ' .afhub-handoff-input { display:block; width:100%; margin-top:3px; padding:7px 9px; border:1px solid rgba(0,0,0,.1); border-radius:7px; font-size:12.5px; font-family:inherit; box-sizing:border-box; color:#111827 !important; background:#fff !important; -webkit-text-fill-color:#111827; caret-color:' + cfg.color + '; transition:border-color .15s; }' +
-      '#' + rootId + ' .afhub-handoff-input:focus { border-color:' + cfg.color + '66; outline:none; }' +
+      // Halo suave en vez de borde duro — mismo criterio que el focus ring de
+      // Safari/macOS (glow difuso alrededor, no un trazo sólido de color).
+      '#' + rootId + ' .afhub-handoff-input:focus { border-color:' + cfg.color + '55; outline:none; box-shadow:0 0 0 3px ' + cfg.color + '1f; }' +
       '#' + rootId + ' .afhub-handoff-input::placeholder { color:#9ca3af; opacity:1; }' +
       '#' + rootId + ' .afhub-handoff-textarea { resize:vertical; min-height:44px; }' +
       '#' + rootId + ' .afhub-handoff-error { margin:0 0 6px; font-size:10.5px; color:#dc2626; font-weight:600; }' +
