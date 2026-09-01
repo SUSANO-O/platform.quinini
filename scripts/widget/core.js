@@ -4699,7 +4699,11 @@
       if (!feedbackQs.length || feedbackAlreadyDone() || feedbackOfferShown) return false;
       var t = String(userText || '').trim().toLowerCase();
       if (!t || t.indexOf('?') !== -1) return false;
-      if (t.length <= 30 && /\bgracias\b/.test(t) && !/(pero|otra|tambi[eé]n|adem[aá]s|c[oó]mo|cu[aá]l|cu[aá]ndo|d[oó]nde|por qu[eé])/.test(t)) {
+      // "gracias" + un pedido nuevo en el mismo mensaje ("gracias quiero un gps") no es
+      // cierre de conversación — es agradecer y seguir. Antes solo se excluían conectores
+      // (pero/otra/también/...), sin cubrir verbos de pedido nuevo (bug real: "gracias
+      // quiero un gps" disparaba la encuesta de cierre e ignoraba el pedido).
+      if (t.length <= 30 && /\bgracias\b/.test(t) && !/(pero|otra|tambi[eé]n|adem[aá]s|c[oó]mo|cu[aá]l|cu[aá]ndo|d[oó]nde|por qu[eé]|quiero|quisiera|necesito|deseo|me gustar[ií]a|puedes|podr[ií]as|ay[uú]dame|busco)/.test(t)) {
         return true;
       }
       var lastBot = '';
