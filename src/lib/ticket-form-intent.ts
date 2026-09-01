@@ -49,6 +49,18 @@ export const TICKET_INTENT_PATTERNS: RegExp[] = [
   // \b después de una vocal con tilde no funciona en JS (ó/í no cuentan como
   // \w) — se usa un lookahead de espacio/fin/puntuación en su lugar.
   /\bse\s+(me\s+)?(da[nñ][oó]|rompi[oó]|trab[oó]|congel[oó]|bloque[oó])(?=\s|$|[.,!?;:])/i,
+  // Ampliación (fase 2 de la revisión de ticket-deflection): fraseos de
+  // reclamo igual de explícitos que los de arriba, cubriendo casos reales que
+  // no matcheaban ninguno de los anteriores — "no puedo entrar" es un reporte
+  // de acceso, distinto de "no me funciona" (funcionalidad ya cargada); "me
+  // sale un error" es la forma más común de describir un fallo técnico sin
+  // usar la palabra "problema"; "sigue sin funcionar" señala persistencia
+  // (ya lo intentó y no se resolvió, justo el caso que la deflection debe
+  // atrapar); "está caído" es reporte de caída total del servicio.
+  /\bno\s+(puedo|logro)\s+(entrar|ingresar|acceder|iniciar\s+sesi[oó]n)\b/i,
+  /\b(me\s+)?(sale|da|marca|aparece)\s+(un\s+)?error\b/i,
+  /\bsigue\s+(sin\s+funcionar|fallando|igual|mal)\b/i,
+  /\best[aá]\s+ca[ií]do\b/i,
 ];
 
 const EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
