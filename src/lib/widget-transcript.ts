@@ -2,6 +2,7 @@
  * Persistencia de transcript del widget (texto + capturas) para el Inbox.
  */
 
+import { NextResponse } from 'next/server';
 import { WidgetMessage } from '@/lib/db/models';
 import type { WidgetImageEnrichment } from '@/lib/widget-chat-images';
 
@@ -113,4 +114,40 @@ export function schedulePersistWidgetTranscript(input: PersistTranscriptInput): 
   const assistant = (input.assistantMessage || '').trim();
   if (!assistant || !input.sessionId?.trim() || !input.widgetId || !input.userId) return;
   void persistWidgetTranscript(input).catch(() => {});
+}
+
+/**
+ * Único punto de acople "responder + persistir" para /api/widget/chat (no-stream).
+ *
+ * Antes, cada una de las ~7 ramas de esa ruta (ticket-deflection, pipeline
+ * multiagente, paralelo multiagente, MCP directo, 2 variantes de inferencia
+ * directa, proxy plano al hub) armaba su propio `NextResponse` Y llamaba a
+ * `schedulePersistWidgetTranscript` por separado, a mano. Bug real encontrado
+ * en vivo (Tribu GPS): 2 de esas ramas devolvían la respuesta sin llamar al
+ * guardado — el turno se perdía del historial en silencio. Forzar que TODA
+ * rama pase por esta función hace que ese olvido sea estructuralmente
+ * imposible: no hay forma de "responder" sin pasar por acá.
+ */
+export function respondAndPersist(
+  response: NextResponse,
+  persistInput: PersistTranscriptInput | null,
+): NextResponse {
+  if (persistInput) schedulePersistWidgetTranscript(persistInput);
+  return response;
+}
+
+/**
+ * Equivalente a `respondAndPersist` para la ruta de streaming: el "responder"
+ * final es un evento SSE (normalmente `{type:'done', ...}`, ya armado por el
+ * caller — algunas ramas lo pasan por `attachAssistNavToPayload` antes, que
+ * agrega campos propios), pero el acople con el guardado es el mismo — una
+ * sola función que ninguna rama puede saltear.
+ */
+export function emitDoneAndPersist(
+  enqueue: (data: Record<string, unknown>) => void,
+  donePayload: Record<string, unknown>,
+  persistInput: PersistTranscriptInput | null,
+): void {
+  enqueue(donePayload);
+  if (persistInput) schedulePersistWidgetTranscript(persistInput);
 }
