@@ -12,7 +12,7 @@ import { describeActionFlow } from '@/lib/scheduled-task-validation';
 
 const TZ = 'America/Bogota';
 
-type ActionType = 'webhook' | 'agent_run' | 'chat_message' | 'email';
+type ActionType = 'webhook' | 'agent_run' | 'chat_message' | 'email' | 'calendar_reminder';
 type Frequency = 'hourly' | 'daily' | 'weekly' | 'monthly';
 type FlowStep = { type: ActionType; config: Record<string, string> };
 
@@ -42,6 +42,11 @@ const ACTION_LABELS: Record<ActionType, { label: string; desc: string; emoji: st
   agent_run: { label: 'Ejecutar agente', desc: 'Corre el agente con un prompt y guarda la respuesta', emoji: '🤖' },
   chat_message: { label: 'Mensaje al chat', desc: 'Inserta un mensaje en la conversación del widget', emoji: '💬' },
   email: { label: 'Enviar correo', desc: 'Envía un email (puede ir después de otro paso)', emoji: '📧' },
+  calendar_reminder: {
+    label: 'Recordatorio de calendario',
+    desc: 'Avisa por correo antes de cada evento de Google Calendar (requiere esa integración conectada)',
+    emoji: '📅',
+  },
 };
 
 type FlowRecipeId =
@@ -98,7 +103,7 @@ const FLOW_RECIPES: Array<{
   {
     id: 'single',
     title: 'Una sola acción',
-    desc: 'Solo webhook, agente, chat o email (sin cadena).',
+    desc: 'Solo webhook, agente, chat, email o recordatorio de calendario (sin cadena).',
     emoji: '•',
   },
 ];
@@ -589,7 +594,8 @@ function flatConfig(cfg: Record<string, unknown> | undefined): Record<string, st
   const out: Record<string, string> = {};
   if (!cfg) return out;
   for (const [k, v] of Object.entries(cfg)) {
-    if (v != null && typeof v !== 'object') out[k] = String(v);
+    if (Array.isArray(v)) out[k] = v.join(',');
+    else if (v != null && typeof v !== 'object') out[k] = String(v);
   }
   return out;
 }
@@ -711,7 +717,10 @@ function TaskWizard({
     setSaving(true);
     setErr('');
     try {
-      const cron = buildCron(frequency, hour, minute, dow, dom);
+      // calendar_reminder decide su propio "cuándo" con las ventanas de aviso
+      // (30/15/5/0 min por defecto) — necesita el tick mínimo permitido por el
+      // plan (cada minuto en business) en vez de un horario elegido a mano.
+      const cron = actionType === 'calendar_reminder' ? '* * * * *' : buildCron(frequency, hour, minute, dow, dom);
       const action: Record<string, unknown> = {
         type: actionType,
         config: buildConfig(actionType, config),
@@ -856,15 +865,22 @@ function TaskWizard({
                 placeholder="Ej. Webhook diario + email"
               />
             </Field>
-            <Field label="Frecuencia">
-              <select className="landing-input" value={frequency} onChange={(e) => setFrequency(e.target.value as Frequency)}>
-                <option value="hourly">Cada hora</option>
-                <option value="daily">Cada día</option>
-                <option value="weekly">Cada semana</option>
-                <option value="monthly">Cada mes</option>
-              </select>
-            </Field>
-            {frequency === 'weekly' && (
+            {actionType === 'calendar_reminder' ? (
+              <p style={{ color: 'var(--muted-foreground)', fontSize: 12, margin: 0 }}>
+                📅 Este recordatorio revisa el calendario cada minuto por su cuenta — no necesita horario propio,
+                se dispara cuando un evento entra en alguna de las ventanas de aviso que configures en el paso siguiente.
+              </p>
+            ) : (
+              <Field label="Frecuencia">
+                <select className="landing-input" value={frequency} onChange={(e) => setFrequency(e.target.value as Frequency)}>
+                  <option value="hourly">Cada hora</option>
+                  <option value="daily">Cada día</option>
+                  <option value="weekly">Cada semana</option>
+                  <option value="monthly">Cada mes</option>
+                </select>
+              </Field>
+            )}
+            {actionType !== 'calendar_reminder' && frequency === 'weekly' && (
               <Field label="Día de la semana">
                 <select className="landing-input" value={dow} onChange={(e) => setDow(Number(e.target.value))}>
                   {DOW.map((d, i) => (
@@ -873,12 +889,12 @@ function TaskWizard({
                 </select>
               </Field>
             )}
-            {frequency === 'monthly' && (
+            {actionType !== 'calendar_reminder' && frequency === 'monthly' && (
               <Field label="Día del mes">
                 <input className="landing-input" type="number" min={1} max={31} value={dom} onChange={(e) => setDom(Number(e.target.value))} />
               </Field>
             )}
-            {frequency !== 'hourly' && (
+            {actionType !== 'calendar_reminder' && frequency !== 'hourly' && (
               <div className="flex gap-2">
                 <Field label="Hora">
                   <input className="landing-input" type="number" min={0} max={23} value={hour} onChange={(e) => setHour(Number(e.target.value))} />
@@ -888,14 +904,16 @@ function TaskWizard({
                 </Field>
               </div>
             )}
-            {frequency === 'hourly' && (
+            {actionType !== 'calendar_reminder' && frequency === 'hourly' && (
               <Field label="Minuto de cada hora">
                 <input className="landing-input" type="number" min={0} max={59} value={minute} onChange={(e) => setMinute(Number(e.target.value))} />
               </Field>
             )}
-            <p style={{ color: 'var(--muted-foreground)', fontSize: 12 }}>
-              🕒 {describeSchedule(frequency, hour, minute, dow, dom)} ({TZ})
-            </p>
+            {actionType !== 'calendar_reminder' && (
+              <p style={{ color: 'var(--muted-foreground)', fontSize: 12 }}>
+                🕒 {describeSchedule(frequency, hour, minute, dow, dom)} ({TZ})
+              </p>
+            )}
           </div>
         )}
 
@@ -1133,6 +1151,35 @@ function ActionConfigFields({
       </Field>
     );
   }
+  if (actionType === 'calendar_reminder') {
+    return (
+      <>
+        <Field label="Para (correo)">
+          <input className="landing-input" value={config.to ?? ''} onChange={(e) => setCfg('to', e.target.value)} placeholder="tu@correo.com" />
+        </Field>
+        <Field label="Avisar antes de cada evento (minutos, separados por coma)">
+          <input
+            className="landing-input"
+            value={config.thresholdsMinutes ?? '30,15,5,0'}
+            onChange={(e) => setCfg('thresholdsMinutes', e.target.value)}
+            placeholder="30,15,5,0"
+          />
+        </Field>
+        <Field label="Calendario (opcional)">
+          <input
+            className="landing-input"
+            value={config.calendarId ?? ''}
+            onChange={(e) => setCfg('calendarId', e.target.value)}
+            placeholder="primary"
+          />
+        </Field>
+        <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0 }}>
+          Requiere una integración MCP de Google Calendar conectada a este agente. Manda un correo por cada
+          umbral (ej. a los 30, 15, 5 y 0 minutos antes del evento).
+        </p>
+      </>
+    );
+  }
   // email
   return (
     <>
@@ -1170,6 +1217,17 @@ function buildConfig(type: ActionType, c: Record<string, string>): Record<string
       return { message: c.message ?? '' };
     case 'email':
       return { to: c.to ?? '', subject: c.subject ?? '', body: c.body ?? '' };
+    case 'calendar_reminder': {
+      const thresholdsMinutes = (c.thresholdsMinutes ?? '30,15,5,0')
+        .split(',')
+        .map((s) => parseInt(s.trim(), 10))
+        .filter((n) => Number.isFinite(n) && n >= 0 && n <= 1440);
+      return {
+        to: c.to ?? '',
+        calendarId: c.calendarId?.trim() || 'primary',
+        thresholdsMinutes: thresholdsMinutes.length > 0 ? thresholdsMinutes : [30, 15, 5, 0],
+      };
+    }
   }
 }
 

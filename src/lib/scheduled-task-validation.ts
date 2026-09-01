@@ -63,6 +63,28 @@ function sanitizeStepConfig(type: ActionType, cfg: Record<string, unknown>): Res
       if (!body) return { ok: false, error: 'email.body es requerido.' };
       return { ok: true, value: { type, config: { to, subject, body } } };
     }
+    case 'calendar_reminder': {
+      const to = str(cfg.to, 320);
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) {
+        return { ok: false, error: 'calendar_reminder.to debe ser un correo válido.' };
+      }
+      const calendarId = str(cfg.calendarId, 200) || 'primary';
+      const rawThresholds = Array.isArray(cfg.thresholdsMinutes) ? cfg.thresholdsMinutes : [30, 15, 5, 0];
+      const thresholdsMinutes = [
+        ...new Set(
+          rawThresholds
+            .map((n) => (typeof n === 'number' ? n : parseInt(String(n), 10)))
+            .filter((n) => Number.isFinite(n) && n >= 0 && n <= 1440),
+        ),
+      ].slice(0, 10);
+      if (thresholdsMinutes.length === 0) {
+        return { ok: false, error: 'calendar_reminder.thresholdsMinutes debe tener al menos un valor válido (0-1440).' };
+      }
+      return {
+        ok: true,
+        value: { type, config: { to, calendarId, thresholdsMinutes: thresholdsMinutes.sort((a, b) => b - a) } },
+      };
+    }
     default:
       return { ok: false, error: 'Tipo de acción no soportado.' };
   }
@@ -94,9 +116,10 @@ export function sanitizeAction(input: unknown): Result {
       if (!ACTION_TYPES.includes(stepType)) {
         return { ok: false, error: `then[${i}].type inválido.` };
       }
-      // agent_run solo como paso principal (costoso / necesita widget).
-      if (stepType === 'agent_run') {
-        return { ok: false, error: 'agent_run solo puede ser la acción principal, no un paso then.' };
+      // agent_run / calendar_reminder solo como paso principal (necesitan correr
+      // como el disparador del tick, no como reacción al éxito de otro paso).
+      if (stepType === 'agent_run' || stepType === 'calendar_reminder') {
+        return { ok: false, error: `${stepType} solo puede ser la acción principal, no un paso then.` };
       }
       const stepCfg =
         step.config && typeof step.config === 'object' ? (step.config as Record<string, unknown>) : {};
@@ -149,6 +172,7 @@ export function describeActionFlow(action: {
     agent_run: 'Agente',
     chat_message: 'Chat',
     email: 'Email',
+    calendar_reminder: 'Recordatorio Calendario',
   };
   const primary = labels[action?.type || ''] || action?.type || '?';
   const rest = (Array.isArray(action?.then) ? action.then : [])
