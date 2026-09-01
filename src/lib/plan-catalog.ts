@@ -264,6 +264,26 @@ export const PLAN_SCHEDULED_TASK_LIMITS: Record<string, number> = {
   enterprise: -1,
 };
 
+/**
+ * Máx. memorias curadas por agente (tools memory_save/memory_recall). `-1` = ilimitado.
+ * Mucho más generoso que Tareas Programadas — cada memoria es unos KB en Mongo, no un
+ * job corriendo. Enforced en matias-backend (mcp/servers/memory.ts) — mismo valor debe
+ * mantenerse ahí en `PLAN_CURATED_MEMORY_LIMITS` (repo separado, sin import cruzado).
+ */
+export const PLAN_CURATED_MEMORY_LIMITS: Record<string, number> = {
+  free:       10,
+  solo:       10,
+  api_develop:        10,
+  team:       100,
+  plus:       200,
+  business:   1000,
+  enterprise: -1,
+};
+
+export function getCuratedMemoryLimit(plan: string): number {
+  return PLAN_CURATED_MEMORY_LIMITS[plan] ?? PLAN_CURATED_MEMORY_LIMITS.free;
+}
+
 /** Intervalo mínimo permitido entre corridas (minutos). Anti-abuso de costo. */
 export const PLAN_SCHEDULED_TASK_MIN_INTERVAL_MIN: Record<string, number> = {
   free:       60,
