@@ -3802,9 +3802,14 @@
       // Solo un pulso suave si el texto cambió de verdad (evita titileo por SSE de status).
       if (afterText && afterText !== before) {
         el.classList.add('afhub-thinking-card--pulse');
+        // Debe ser >= a la duración real de la animación (.4s, ver CSS de
+        // afhub-thinking-card--pulse) — si se saca la clase antes de que
+        // termine, la opacidad salta abruptamente a mitad de la transición
+        // en vez de completarla, y se ve como un parpadeo feo (bug real:
+        // se alargó la animación de .22s a .4s sin actualizar este timeout).
         setTimeout(function () {
           if (el.isConnected) el.classList.remove('afhub-thinking-card--pulse');
-        }, 220);
+        }, 420);
       }
     }
 
