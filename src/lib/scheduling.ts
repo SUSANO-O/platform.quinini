@@ -17,7 +17,7 @@ export const DEFAULT_TIMEZONE = 'America/Bogota';
  * - Si hay `action.then[]`, tras éxito ejecutar cada paso en serie
  * - En plantillas de pasos then: `{{prev.output}}` = resumen del paso anterior
  */
-export const ACTION_TYPES = ['webhook', 'agent_run', 'chat_message', 'email'] as const;
+export const ACTION_TYPES = ['webhook', 'agent_run', 'chat_message', 'email', 'calendar_reminder'] as const;
 export type ActionType = (typeof ACTION_TYPES)[number];
 
 /** Frecuencias amigables que el wizard traduce a una cron expression. */

@@ -772,7 +772,7 @@ const ScheduledTaskSchema = new Schema({
   cron:      { type: String, required: true },
   timezone:  { type: String, default: 'America/Bogota' },
   action: {
-    type:   { type: String, enum: ['webhook', 'agent_run', 'chat_message', 'email'], required: true },
+    type:   { type: String, enum: ['webhook', 'agent_run', 'chat_message', 'email', 'calendar_reminder'], required: true },
     /** Varía según `type`. Mixed: requiere markModified('action.config') al editar anidado. */
     config: { type: Schema.Types.Mixed, default: {} },
     /**
@@ -782,7 +782,7 @@ const ScheduledTaskSchema = new Schema({
     then: {
       type: [
         {
-          type: { type: String, enum: ['webhook', 'agent_run', 'chat_message', 'email'] },
+          type: { type: String, enum: ['webhook', 'agent_run', 'chat_message', 'email', 'calendar_reminder'] },
           config: { type: Schema.Types.Mixed, default: {} },
         },
       ],
