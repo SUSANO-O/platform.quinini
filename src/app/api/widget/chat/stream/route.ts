@@ -57,7 +57,7 @@ import {
   persistSessionVisionAnalysis,
 } from '@/lib/widget-session-context';
 import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-enrich';
-import { schedulePersistWidgetTranscript } from '@/lib/widget-transcript';
+import { emitDoneAndPersist } from '@/lib/widget-transcript';
 import { tryServeWidgetChatViaDirectInference } from '@/lib/widget-chat-direct-inference';
 import { tryServeWidgetChatViaHubMcp } from '@/lib/widget-chat-direct-mcp';
 import { normalizeVisitorId } from '@/lib/widget-visitor';
@@ -604,25 +604,26 @@ export async function POST(req: NextRequest) {
           );
 
           const respondWithText = async (text: string) => {
-            if (ownerUserId && resolvedWidgetId && parsedSessionId) {
-              schedulePersistWidgetTranscript({
-                widgetId: resolvedWidgetId,
-                userId: ownerUserId,
-                agentId: parsedAgentIdLocal,
-                sessionId: parsedSessionId,
-                traceId,
-                userMessage: parsedMessage,
-                assistantMessage: text,
-              });
-            }
             await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, text));
-            enqueue(
+            emitDoneAndPersist(
+              enqueue,
               attachAssistNavToPayload(
                 { type: 'done', reply: text, agentId: parsedAgentIdLocal, streamed: true },
                 isAssistWidget,
                 text,
                 assistNavCtx,
               ),
+              ownerUserId && resolvedWidgetId && parsedSessionId
+                ? {
+                    widgetId: resolvedWidgetId,
+                    userId: ownerUserId,
+                    agentId: parsedAgentIdLocal,
+                    sessionId: parsedSessionId,
+                    traceId,
+                    userMessage: parsedMessage,
+                    assistantMessage: text,
+                  }
+                : null,
             );
             latencyTrace.setPath('stream-ticket-deflection');
             finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: text.length });
@@ -732,14 +733,6 @@ export async function POST(req: NextRequest) {
               });
               emitWidgetChatStatus(enqueue, 'model');
               await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, pipeline.reply));
-              enqueue({
-                type: 'done',
-                reply: pipeline.reply,
-                agentId: pipeline.routedHubAgentId,
-                multiAgent: pipeline.meta,
-                streamed: true,
-                ...(pipeline.images?.length ? { images: pipeline.images } : {}),
-              });
               if (widgetToken.startsWith('wt_') && parsedAgentIdLocal) {
                 void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true, undefined, meteringInput).catch(() => {});
               }
@@ -754,17 +747,30 @@ export async function POST(req: NextRequest) {
                   agentResponse: pipeline.reply,
                   routingMeta: pipeline.meta,
                 });
-                schedulePersistWidgetTranscript({
-                  widgetId: resolvedWidgetId,
-                  userId: faqTrackOwnerId,
-                  agentId: pipeline.routedHubAgentId,
-                  sessionId: parsedSessionId || traceId,
-                  traceId,
-                  userMessage: userDisplayMessage || parsedMessage,
-                  assistantMessage: pipeline.reply,
-                  enrichment: imageEnrichment,
-                });
               }
+              emitDoneAndPersist(
+                enqueue,
+                {
+                  type: 'done',
+                  reply: pipeline.reply,
+                  agentId: pipeline.routedHubAgentId,
+                  multiAgent: pipeline.meta,
+                  streamed: true,
+                  ...(pipeline.images?.length ? { images: pipeline.images } : {}),
+                },
+                faqTrackOwnerId
+                  ? {
+                      widgetId: resolvedWidgetId,
+                      userId: faqTrackOwnerId,
+                      agentId: pipeline.routedHubAgentId,
+                      sessionId: parsedSessionId || traceId,
+                      traceId,
+                      userMessage: userDisplayMessage || parsedMessage,
+                      assistantMessage: pipeline.reply,
+                      enrichment: imageEnrichment,
+                    }
+                  : null,
+              );
               latencyTrace.setPath('stream-pipeline');
               logStreamOpsMetric({
                 userId: faqTrackOwnerId,
@@ -807,13 +813,6 @@ export async function POST(req: NextRequest) {
               });
               emitWidgetChatStatus(enqueue, 'model');
               await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, parallel.reply));
-              enqueue({
-                type: 'done',
-                reply: parallel.reply,
-                agentId: parallel.routedHubAgentId,
-                multiAgent: parallel.meta,
-                streamed: true,
-              });
               if (widgetToken.startsWith('wt_') && parsedAgentIdLocal) {
                 void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true, undefined, meteringInput).catch(() => {});
               }
@@ -828,17 +827,29 @@ export async function POST(req: NextRequest) {
                   agentResponse: parallel.reply,
                   routingMeta: parallel.meta,
                 });
-                schedulePersistWidgetTranscript({
-                  widgetId: resolvedWidgetId,
-                  userId: faqTrackOwnerId,
-                  agentId: parallel.routedHubAgentId,
-                  sessionId: parsedSessionId || traceId,
-                  traceId,
-                  userMessage: userDisplayMessage || parsedMessage,
-                  assistantMessage: parallel.reply,
-                  enrichment: imageEnrichment,
-                });
               }
+              emitDoneAndPersist(
+                enqueue,
+                {
+                  type: 'done',
+                  reply: parallel.reply,
+                  agentId: parallel.routedHubAgentId,
+                  multiAgent: parallel.meta,
+                  streamed: true,
+                },
+                faqTrackOwnerId
+                  ? {
+                      widgetId: resolvedWidgetId,
+                      userId: faqTrackOwnerId,
+                      agentId: parallel.routedHubAgentId,
+                      sessionId: parsedSessionId || traceId,
+                      traceId,
+                      userMessage: userDisplayMessage || parsedMessage,
+                      assistantMessage: parallel.reply,
+                      enrichment: imageEnrichment,
+                    }
+                  : null,
+              );
               latencyTrace.setPath('stream-parallel');
               logStreamOpsMetric({
                 userId: faqTrackOwnerId,
@@ -959,21 +970,6 @@ export async function POST(req: NextRequest) {
                 toolsUsed: directMcp.toolsUsed ?? [],
               });
               await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, directMcp.reply));
-              enqueue(
-                attachAssistNavToPayload(
-                  {
-                    type: 'done',
-                    reply: directMcp.reply,
-                    agentId: parsedAgentIdLocal,
-                    streamed: true,
-                    ...(directMcp.toolsUsed?.length ? { toolsUsed: directMcp.toolsUsed } : {}),
-                    ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
-                  },
-                  isAssistWidget,
-                  directMcp.reply,
-                  assistNavCtx,
-                ),
-              );
               void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true, undefined, meteringInput).catch(() => {});
               if (faqTrackOwnerId) {
                 void trackWidgetUserMessageForFaqCandidates({
@@ -992,18 +988,36 @@ export async function POST(req: NextRequest) {
                   agentResponse: directMcp.reply,
                   routingMeta: multiAgentMeta,
                 });
-                schedulePersistWidgetTranscript({
-                  widgetId: resolvedWidgetId,
-                  userId: faqTrackOwnerId,
-                  agentId: parsedAgentIdLocal,
-                  sessionId: parsedSessionId || traceId,
-                  traceId,
-                  userMessage: userDisplayMessage || parsedMessage,
-                  assistantMessage: directMcp.reply,
-                  enrichment: imageEnrichment,
-                  toolsUsed: directMcp.toolsUsed,
-                });
               }
+              emitDoneAndPersist(
+                enqueue,
+                attachAssistNavToPayload(
+                  {
+                    type: 'done',
+                    reply: directMcp.reply,
+                    agentId: parsedAgentIdLocal,
+                    streamed: true,
+                    ...(directMcp.toolsUsed?.length ? { toolsUsed: directMcp.toolsUsed } : {}),
+                    ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
+                  },
+                  isAssistWidget,
+                  directMcp.reply,
+                  assistNavCtx,
+                ),
+                faqTrackOwnerId
+                  ? {
+                      widgetId: resolvedWidgetId,
+                      userId: faqTrackOwnerId,
+                      agentId: parsedAgentIdLocal,
+                      sessionId: parsedSessionId || traceId,
+                      traceId,
+                      userMessage: userDisplayMessage || parsedMessage,
+                      assistantMessage: directMcp.reply,
+                      enrichment: imageEnrichment,
+                      toolsUsed: directMcp.toolsUsed,
+                    }
+                  : null,
+              );
               latencyTrace.setPath('stream-direct-mcp');
               logStreamOpsMetric({
                 userId: faqTrackOwnerId,
@@ -1044,21 +1058,6 @@ export async function POST(req: NextRequest) {
                 usedModel: inferredEarly.usedModel,
               });
               await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, inferredEarly.reply));
-              enqueue(
-                attachAssistNavToPayload(
-                  {
-                    type: 'done',
-                    reply: inferredEarly.reply,
-                    agentId: parsedAgentIdLocal,
-                    streamed: true,
-                    ...(inferredEarly.usedModel ? { usedModel: inferredEarly.usedModel } : {}),
-                    ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
-                  },
-                  isAssistWidget,
-                  inferredEarly.reply,
-                  assistNavCtx,
-                ),
-              );
               void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true, undefined, meteringInput).catch(() => {});
               if (faqTrackOwnerId) {
                 void trackWidgetUserMessageForFaqCandidates({
@@ -1077,17 +1076,35 @@ export async function POST(req: NextRequest) {
                   agentResponse: inferredEarly.reply,
                   routingMeta: multiAgentMeta,
                 });
-                schedulePersistWidgetTranscript({
-                  widgetId: resolvedWidgetId,
-                  userId: faqTrackOwnerId,
-                  agentId: parsedAgentIdLocal,
-                  sessionId: parsedSessionId || traceId,
-                  traceId,
-                  userMessage: userDisplayMessage || parsedMessage,
-                  assistantMessage: inferredEarly.reply,
-                  enrichment: imageEnrichment,
-                });
               }
+              emitDoneAndPersist(
+                enqueue,
+                attachAssistNavToPayload(
+                  {
+                    type: 'done',
+                    reply: inferredEarly.reply,
+                    agentId: parsedAgentIdLocal,
+                    streamed: true,
+                    ...(inferredEarly.usedModel ? { usedModel: inferredEarly.usedModel } : {}),
+                    ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
+                  },
+                  isAssistWidget,
+                  inferredEarly.reply,
+                  assistNavCtx,
+                ),
+                faqTrackOwnerId
+                  ? {
+                      widgetId: resolvedWidgetId,
+                      userId: faqTrackOwnerId,
+                      agentId: parsedAgentIdLocal,
+                      sessionId: parsedSessionId || traceId,
+                      traceId,
+                      userMessage: userDisplayMessage || parsedMessage,
+                      assistantMessage: inferredEarly.reply,
+                      enrichment: imageEnrichment,
+                    }
+                  : null,
+              );
               latencyTrace.setPath('stream-infer-direct');
               logStreamOpsMetric({
                 userId: faqTrackOwnerId,
@@ -1154,21 +1171,6 @@ export async function POST(req: NextRequest) {
                 usedModel: inferred.usedModel,
               });
               await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, inferred.reply));
-              enqueue(
-                attachAssistNavToPayload(
-                  {
-                    type: 'done',
-                    reply: inferred.reply,
-                    agentId: parsedAgentIdLocal,
-                    streamed: true,
-                    ...(inferred.usedModel ? { usedModel: inferred.usedModel } : {}),
-                    ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
-                  },
-                  isAssistWidget,
-                  inferred.reply,
-                  assistNavCtx,
-                ),
-              );
               void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true, undefined, meteringInput).catch(() => {});
               if (faqTrackOwnerId) {
                 void trackWidgetUserMessageForFaqCandidates({
@@ -1187,17 +1189,35 @@ export async function POST(req: NextRequest) {
                   agentResponse: inferred.reply,
                   routingMeta: multiAgentMeta,
                 });
-                schedulePersistWidgetTranscript({
-                  widgetId: resolvedWidgetId,
-                  userId: faqTrackOwnerId,
-                  agentId: parsedAgentIdLocal,
-                  sessionId: parsedSessionId || traceId,
-                  traceId,
-                  userMessage: userDisplayMessage || parsedMessage,
-                  assistantMessage: inferred.reply,
-                  enrichment: imageEnrichment,
-                });
               }
+              emitDoneAndPersist(
+                enqueue,
+                attachAssistNavToPayload(
+                  {
+                    type: 'done',
+                    reply: inferred.reply,
+                    agentId: parsedAgentIdLocal,
+                    streamed: true,
+                    ...(inferred.usedModel ? { usedModel: inferred.usedModel } : {}),
+                    ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
+                  },
+                  isAssistWidget,
+                  inferred.reply,
+                  assistNavCtx,
+                ),
+                faqTrackOwnerId
+                  ? {
+                      widgetId: resolvedWidgetId,
+                      userId: faqTrackOwnerId,
+                      agentId: parsedAgentIdLocal,
+                      sessionId: parsedSessionId || traceId,
+                      traceId,
+                      userMessage: userDisplayMessage || parsedMessage,
+                      assistantMessage: inferred.reply,
+                      enrichment: imageEnrichment,
+                    }
+                  : null,
+              );
               latencyTrace.setPath('stream-infer-direct');
               logStreamOpsMetric({
                 userId: faqTrackOwnerId,
@@ -1285,7 +1305,25 @@ export async function POST(req: NextRequest) {
         const usedModel =
           typeof json.usedModel === 'string' && json.usedModel.trim() ? json.usedModel.trim() : undefined;
         await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, fullReply));
-        enqueue(
+        // Mismas 4 condiciones que antes tenía el guardado (anidadas más abajo,
+        // lejos del enqueue del done) — se evalúan acá para que emitDoneAndPersist
+        // sea el único lugar que decide "responder + (tal vez) persistir".
+        const hubProxyPersistInput =
+          widgetToken.startsWith('wt_') && parsedAgentId && faqTrackOwnerId && fullReply && resolvedWidgetId
+            ? {
+                widgetId: resolvedWidgetId,
+                userId: faqTrackOwnerId,
+                agentId: parsedAgentId,
+                sessionId: parsedSessionId || traceId,
+                traceId,
+                userMessage: userDisplayMessage || streamMsg,
+                assistantMessage: fullReply,
+                enrichment: imageEnrichment,
+                toolsUsed: json.toolsUsed,
+              }
+            : null;
+        emitDoneAndPersist(
+          enqueue,
           attachAssistNavToPayload(
             {
               type: 'done',
@@ -1302,6 +1340,7 @@ export async function POST(req: NextRequest) {
             fullReply,
             assistNavCtx,
           ),
+          hubProxyPersistInput,
         );
 
         latencyTrace.setPath('stream-hub');
@@ -1325,7 +1364,8 @@ export async function POST(req: NextRequest) {
           inputTokens: json.usage?.inputTokens ?? null,
         });
 
-        // Telemetry (non-blocking)
+        // Telemetry (non-blocking) — el guardado del transcript ya se resolvió
+        // arriba, en el mismo emitDoneAndPersist que emite el evento `done`.
         if (widgetToken.startsWith('wt_') && parsedAgentId) {
           void trackWidgetChatUsage(widgetToken, parsedAgentId, true, json.usage, meteringInput).catch(() => {});
           if (faqTrackOwnerId) {
@@ -1335,21 +1375,6 @@ export async function POST(req: NextRequest) {
               rawBody,
               agentReply: fullReply,
             }).catch(() => {});
-
-            // Persist transcript (fire-and-forget — never blocks stream)
-            if (fullReply && resolvedWidgetId) {
-              schedulePersistWidgetTranscript({
-                widgetId: resolvedWidgetId,
-                userId: faqTrackOwnerId,
-                agentId: parsedAgentId,
-                sessionId: parsedSessionId || traceId,
-                traceId,
-                userMessage: userDisplayMessage || streamMsg,
-                assistantMessage: fullReply,
-                enrichment: imageEnrichment,
-                toolsUsed: json.toolsUsed,
-              });
-            }
           }
         }
 

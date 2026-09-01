@@ -44,7 +44,7 @@ import {
   loadSessionVisionEnrichment,
   persistSessionVisionAnalysis,
 } from '@/lib/widget-session-context';
-import { schedulePersistWidgetTranscript } from '@/lib/widget-transcript';
+import { respondAndPersist, type PersistTranscriptInput } from '@/lib/widget-transcript';
 import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-enrich';
 import { logInferenceMetric, estimateTokens } from '@/lib/inference-metrics';
 import { normalizeVisitorId } from '@/lib/widget-visitor';
@@ -700,29 +700,31 @@ export async function POST(req: NextRequest) {
 
           /** Atajo para las respuestas fijas de este bloque (mismo payload que ya arma el resto del archivo). */
           const respondWithText = (text: string) => {
-            // Sin esto el turno no queda en WidgetMessage: se pierde del inbox/historial
-            // y una futura lectura de "mensajes previos del usuario" (ej. el chequeo de
-            // email ya dado) no vería este mensaje.
-            if (ownerUserId && resolvedWidgetId && parsedSessionId) {
-              schedulePersistWidgetTranscript({
-                widgetId: resolvedWidgetId,
-                userId: ownerUserId,
-                agentId: parsedAgentId,
-                sessionId: parsedSessionId,
-                traceId,
-                userMessage: parsedMessage,
-                assistantMessage: text,
-              });
-            }
             finishNonStreamTrace(latencyTrace, 'non-stream-ticket-deflection', { ok: true, replyLen: text.length });
-            return NextResponse.json(
-              attachAssistNavToPayload(
-                { reply: text, agentId: parsedAgentId },
-                isAssistWidget,
-                text,
-                assistNavCtx,
+            return respondAndPersist(
+              NextResponse.json(
+                attachAssistNavToPayload(
+                  { reply: text, agentId: parsedAgentId },
+                  isAssistWidget,
+                  text,
+                  assistNavCtx,
+                ),
+                { status: 200, headers: cors(origin) },
               ),
-              { status: 200, headers: cors(origin) },
+              // Sin esto el turno no queda en WidgetMessage: se pierde del inbox/historial
+              // y una futura lectura de "mensajes previos del usuario" (ej. el chequeo de
+              // email ya dado) no vería este mensaje.
+              ownerUserId && resolvedWidgetId && parsedSessionId
+                ? {
+                    widgetId: resolvedWidgetId,
+                    userId: ownerUserId,
+                    agentId: parsedAgentId,
+                    sessionId: parsedSessionId,
+                    traceId,
+                    userMessage: parsedMessage,
+                    assistantMessage: text,
+                  }
+                : null,
             );
           };
 
@@ -869,28 +871,30 @@ export async function POST(req: NextRequest) {
                 agentResponse: pipeline.reply,
                 routingMeta: pipeline.meta,
               });
-              schedulePersistWidgetTranscript({
-                widgetId: resolvedWidgetId || w.id,
-                userId: w.userId,
-                agentId: parsedAgentId,
-                sessionId: parsedSessionId || traceId,
-                traceId,
-                userMessage: guardResult.text || parsedMessage,
-                assistantMessage: pipeline.reply,
-                enrichment: imageEnrichment,
-              });
               finishNonStreamTrace(latencyTrace, 'non-stream-pipeline', {
                 ok: true,
                 replyLen: pipeline.reply.length,
               });
-              return NextResponse.json(
+              return respondAndPersist(
+                NextResponse.json(
+                  {
+                    reply: pipeline.reply,
+                    agentId: parsedAgentId,
+                    multiAgent: pipeline.meta,
+                    ...(pipeline.images?.length ? { images: pipeline.images } : {}),
+                  },
+                  { status: 200, headers: cors(origin) },
+                ),
                 {
-                  reply: pipeline.reply,
+                  widgetId: resolvedWidgetId || w.id,
+                  userId: w.userId,
                   agentId: parsedAgentId,
-                  multiAgent: pipeline.meta,
-                  ...(pipeline.images?.length ? { images: pipeline.images } : {}),
+                  sessionId: parsedSessionId || traceId,
+                  traceId,
+                  userMessage: guardResult.text || parsedMessage,
+                  assistantMessage: pipeline.reply,
+                  enrichment: imageEnrichment,
                 },
-                { status: 200, headers: cors(origin) },
               );
             }
           }
@@ -937,27 +941,29 @@ export async function POST(req: NextRequest) {
                 agentResponse: parallel.reply,
                 routingMeta: parallel.meta,
               });
-              schedulePersistWidgetTranscript({
-                widgetId: resolvedWidgetId || w.id,
-                userId: w.userId,
-                agentId: parsedAgentId,
-                sessionId: parsedSessionId || traceId,
-                traceId,
-                userMessage: guardResult.text || parsedMessage,
-                assistantMessage: parallel.reply,
-                enrichment: imageEnrichment,
-              });
               finishNonStreamTrace(latencyTrace, 'non-stream-parallel', {
                 ok: true,
                 replyLen: parallel.reply.length,
               });
-              return NextResponse.json(
+              return respondAndPersist(
+                NextResponse.json(
+                  {
+                    reply: parallel.reply,
+                    agentId: parsedAgentId,
+                    multiAgent: parallel.meta,
+                  },
+                  { status: 200, headers: cors(origin) },
+                ),
                 {
-                  reply: parallel.reply,
+                  widgetId: resolvedWidgetId || w.id,
+                  userId: w.userId,
                   agentId: parsedAgentId,
-                  multiAgent: parallel.meta,
+                  sessionId: parsedSessionId || traceId,
+                  traceId,
+                  userMessage: guardResult.text || parsedMessage,
+                  assistantMessage: parallel.reply,
+                  enrichment: imageEnrichment,
                 },
-                { status: 200, headers: cors(origin) },
               );
             }
           }
@@ -1071,17 +1077,6 @@ export async function POST(req: NextRequest) {
               agentResponse: direct.reply,
               routingMeta: multiAgentMeta,
             });
-            schedulePersistWidgetTranscript({
-              widgetId: resolvedWidgetId || w.id,
-              userId: w.userId,
-              agentId: parsedAgentId,
-              sessionId: parsedSessionId || traceId,
-              traceId,
-              userMessage: guardResult.text || parsedMessage,
-              assistantMessage: direct.reply,
-              enrichment: imageEnrichment,
-              toolsUsed: direct.toolsUsed,
-            });
             // Métricas del request (best-effort, fire-and-forget)
             logInferenceMetric({
               userId: w.userId,
@@ -1101,19 +1096,32 @@ export async function POST(req: NextRequest) {
               ok: true,
               replyLen: direct.reply?.length ?? 0,
             });
-            return NextResponse.json(
-              attachAssistNavToPayload(
-                {
-                  reply: direct.reply,
-                  toolsUsed: direct.toolsUsed,
-                  agentId: parsedAgentId,
-                  ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
-                },
-                isAssistWidget,
-                direct.reply,
-                assistNavCtx,
+            return respondAndPersist(
+              NextResponse.json(
+                attachAssistNavToPayload(
+                  {
+                    reply: direct.reply,
+                    toolsUsed: direct.toolsUsed,
+                    agentId: parsedAgentId,
+                    ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
+                  },
+                  isAssistWidget,
+                  direct.reply,
+                  assistNavCtx,
+                ),
+                { status: 200, headers: cors(origin) },
               ),
-              { status: 200, headers: cors(origin) },
+              {
+                widgetId: resolvedWidgetId || w.id,
+                userId: w.userId,
+                agentId: parsedAgentId,
+                sessionId: parsedSessionId || traceId,
+                traceId,
+                userMessage: guardResult.text || parsedMessage,
+                assistantMessage: direct.reply,
+                enrichment: imageEnrichment,
+                toolsUsed: direct.toolsUsed,
+              },
             );
           }
         } catch (directErr) {
@@ -1167,33 +1175,35 @@ export async function POST(req: NextRequest) {
               agentResponse: inferred.reply,
               routingMeta: multiAgentMeta,
             });
-            schedulePersistWidgetTranscript({
-              widgetId: resolvedWidgetId || w.id,
-              userId: w.userId,
-              agentId: parsedAgentId,
-              sessionId: parsedSessionId || traceId,
-              traceId,
-              userMessage: guardResult.text || parsedMessage,
-              assistantMessage: inferred.reply,
-              enrichment: imageEnrichment,
-            });
             finishNonStreamTrace(latencyTrace, 'non-stream-infer-direct', {
               ok: true,
               replyLen: inferred.reply.length,
             });
-            return NextResponse.json(
-              attachAssistNavToPayload(
-                {
-                  reply: inferred.reply,
-                  agentId: parsedAgentId,
-                  usedModel: inferred.usedModel,
-                  ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
-                },
-                isAssistWidget,
-                inferred.reply,
-                assistNavCtx,
+            return respondAndPersist(
+              NextResponse.json(
+                attachAssistNavToPayload(
+                  {
+                    reply: inferred.reply,
+                    agentId: parsedAgentId,
+                    usedModel: inferred.usedModel,
+                    ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
+                  },
+                  isAssistWidget,
+                  inferred.reply,
+                  assistNavCtx,
+                ),
+                { status: 200, headers: cors(origin) },
               ),
-              { status: 200, headers: cors(origin) },
+              {
+                widgetId: resolvedWidgetId || w.id,
+                userId: w.userId,
+                agentId: parsedAgentId,
+                sessionId: parsedSessionId || traceId,
+                traceId,
+                userMessage: guardResult.text || parsedMessage,
+                assistantMessage: inferred.reply,
+                enrichment: imageEnrichment,
+              },
             );
           }
         } catch (inferErr) {
@@ -1273,35 +1283,37 @@ export async function POST(req: NextRequest) {
             agentResponse: inferred.reply,
             routingMeta: multiAgentMeta,
           });
-          if (resolvedWidgetId) {
-            schedulePersistWidgetTranscript({
-              widgetId: resolvedWidgetId,
-              userId: faqTrackOwnerId,
-              agentId: parsedAgentId,
-              sessionId: parsedSessionId || traceId,
-              traceId,
-              userMessage: guardResult.text || parsedMessage,
-              assistantMessage: inferred.reply,
-              enrichment: imageEnrichment,
-            });
-          }
           finishNonStreamTrace(latencyTrace, 'non-stream-infer-direct', {
             ok: true,
             replyLen: inferred.reply.length,
           });
-          return NextResponse.json(
-            attachAssistNavToPayload(
-              {
-                reply: inferred.reply,
-                agentId: parsedAgentId,
-                usedModel: inferred.usedModel,
-                ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
-              },
-              isAssistWidget,
-              inferred.reply,
-              assistNavCtx,
+          return respondAndPersist(
+            NextResponse.json(
+              attachAssistNavToPayload(
+                {
+                  reply: inferred.reply,
+                  agentId: parsedAgentId,
+                  usedModel: inferred.usedModel,
+                  ...(multiAgentMeta ? { multiAgent: multiAgentMeta } : {}),
+                },
+                isAssistWidget,
+                inferred.reply,
+                assistNavCtx,
+              ),
+              { status: 200, headers: cors(origin) },
             ),
-            { status: 200, headers: cors(origin) },
+            resolvedWidgetId && faqTrackOwnerId
+              ? {
+                  widgetId: resolvedWidgetId,
+                  userId: faqTrackOwnerId,
+                  agentId: parsedAgentId,
+                  sessionId: parsedSessionId || traceId,
+                  traceId,
+                  userMessage: guardResult.text || parsedMessage,
+                  assistantMessage: inferred.reply,
+                  enrichment: imageEnrichment,
+                }
+              : null,
           );
         }
       } catch {
@@ -1326,6 +1338,11 @@ export async function POST(req: NextRequest) {
       'Content-Type, X-Widget-Token, X-Request-Id, X-Trace-Id',
     );
 
+    // Computado acá (antes de saber cuál de los 2 returns de abajo va a disparar:
+    // el augmentado para assist-widget, o el passthrough plano) y pasado a
+    // respondAndPersist en ambos — así el guardado queda atado a CUALQUIERA
+    // que sea la respuesta real, no a uno solo de los dos returns posibles.
+    let hubPersistInput: PersistTranscriptInput | null = null;
     if (res.ok && widgetToken.startsWith('wt_') && parsedAgentId) {
       let hubUsage: { inputTokens?: number; outputTokens?: number } | undefined;
       try {
@@ -1348,7 +1365,7 @@ export async function POST(req: NextRequest) {
         }).catch(() => {});
 
         if (resolvedWidgetId && replyText) {
-          schedulePersistWidgetTranscript({
+          hubPersistInput = {
             widgetId: resolvedWidgetId,
             userId: faqTrackOwnerId,
             agentId: parsedAgentId,
@@ -1357,7 +1374,7 @@ export async function POST(req: NextRequest) {
             userMessage: guardResult.text || '',
             assistantMessage: replyText,
             enrichment: imageEnrichment,
-          });
+          };
         }
       }
     }
@@ -1386,14 +1403,17 @@ export async function POST(req: NextRequest) {
             rawReply,
             assistNavCtx,
           );
-          return NextResponse.json(augmented, { status: res.status, headers: out });
+          return respondAndPersist(
+            NextResponse.json(augmented, { status: res.status, headers: out }),
+            hubPersistInput,
+          );
         }
       } catch {
         /* respuesta hub no JSON — devolver tal cual */
       }
     }
 
-    return new NextResponse(outText, { status: res.status, headers: out });
+    return respondAndPersist(new NextResponse(outText, { status: res.status, headers: out }), hubPersistInput);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const code =
