@@ -65,6 +65,28 @@ export const TICKET_INTENT_PATTERNS: RegExp[] = [
 
 const EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
 
+/**
+ * ¿La "descripción del problema" pedida en realidad es un pedido nuevo (venta),
+ * no una falla? Bug real visto en vivo (Tribu GPS): tras preguntar "contame el
+ * problema", el usuario contestó "gracias quiero un gps" — el código asumía que
+ * CUALQUIER respuesta describía un problema y mandaba derecho al formulario de
+ * ticket sin indagar ni notar el cambio de tema. Conservador a propósito
+ * (mismo espíritu que looksLikeTicketRequest): solo detecta pivotes CLAROS de
+ * compra, no cualquier mensaje que no suene técnico — ante la duda, se sigue
+ * tratando como descripción real (comportamiento de antes).
+ */
+const PURCHASE_INTENT_PIVOT_PATTERNS: RegExp[] = [
+  /\b(quiero|necesito|quisiera|deseo|me gustar[ií]a)\s+(un|una|el|la)?\s*(gps|dispositivo|rastreador|candado|servicio|plan|cotizaci[oó]n)\b/i,
+  /\b(comprar|adquirir|cotizar)\b/i,
+  /\bcu[aá]nto\s+(cuesta|vale)\b/i,
+];
+
+export function looksLikePurchaseIntentPivot(message: string): boolean {
+  const text = (message || '').trim();
+  if (!text) return false;
+  return PURCHASE_INTENT_PIVOT_PATTERNS.some((re) => re.test(text));
+}
+
 export type ChatHistoryTurn = { role?: string; content?: unknown };
 
 /** ¿El mensaje actual suena a "quiero reportar un problema / abrir un ticket"? */

@@ -124,6 +124,12 @@ describe('checkAndBuildTicketDeflectionReply', () => {
       const result = await checkAndBuildTicketDeflectionReply(baseParams({ message: 'no puedo iniciar sesión' }));
       expect(result).toEqual({ intercepted: true, text: OPEN_TICKET_FORM_MARKER });
     });
+
+    it('caso real (Tribu GPS): la respuesta pivotea a venta → NO fuerza el ticket, sigue el flujo normal', async () => {
+      const result = await checkAndBuildTicketDeflectionReply(baseParams({ message: 'gracias quiero un gps' }));
+      expect(result).toEqual({ intercepted: false });
+      expect(mockCheckTicketDeflection).not.toHaveBeenCalled();
+    });
   });
 
   describe('pedido de ticket nuevo (sin estado previo)', () => {
