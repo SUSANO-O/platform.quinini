@@ -3770,19 +3770,22 @@
 
     function renderThinkingCard(el, statusLabel, statusPhase) {
       var display = resolveThinkingDisplay(statusLabel, statusPhase);
+      // El glyph vive junto al bloque de los DOS textos (no solo la caption) para
+      // que "align-items:center" de .afhub-thinking-row lo centre verticalmente
+      // entre caption y footer, en vez de quedar pegado arriba solo con la caption.
       el.innerHTML =
         '<div class="afhub-thinking-beam-ring" aria-hidden="true">' +
           '<span class="afhub-thinking-beam-spin"></span>' +
         '</div>' +
         '<div class="afhub-thinking-inner">' +
-          '<div class="afhub-thinking-body">' +
-            '<div class="afhub-thinking-row">' +
+          '<div class="afhub-thinking-row">' +
+            thinkingGlyphHtml() +
+            '<div class="afhub-thinking-body">' +
               '<p class="afhub-thinking-caption" data-server="' + escapeHtml(display.detail || display.footer || display.caption) + '">' + escapeHtml(display.caption) + '</p>' +
-              thinkingGlyphHtml() +
+              '<div class="afhub-thinking-footer"' + (display.footer ? '' : ' style="visibility:hidden"') + '>' +
+                '<span class="afhub-thinking-state">' + escapeHtml(display.footer) + '</span>' +
+              '</div>' +
             '</div>' +
-          '</div>' +
-          '<div class="afhub-thinking-footer"' + (display.footer ? '' : ' style="visibility:hidden"') + '>' +
-            '<span class="afhub-thinking-state">' + escapeHtml(display.footer) + '</span>' +
           '</div>' +
           '<span class="afhub-thinking-elapsed"></span>' +
         '</div>';
@@ -7833,8 +7836,8 @@
       '#' + rootId + ' .afhub-img-wrap { margin-top:10px; max-width:100%; display:flex; flex-direction:column; gap:8px; }' +
       '#' + rootId + ' .afhub-widget-img { display:block; width:100%; max-width:100%; height:auto; vertical-align:middle; }' +
       '#' + rootId + ' .afhub-msg.bot.afhub-thinking-card { background:transparent !important; border:none !important; box-shadow:none !important; border-radius:14px !important; padding:1px !important; width:212px !important; max-width:100% !important; flex:none !important; align-self:flex-start !important; overflow:visible !important; clip-path:none !important; -webkit-clip-path:none !important; }' +
-      '#' + rootId + ' .afhub-thinking-card { display:flex; flex-direction:column; align-items:stretch; justify-content:center; gap:0; padding:1px; width:212px; max-width:100%; min-width:0; flex:none; align-self:flex-start; border-radius:14px; border:none; background:transparent; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; animation:afhub-thinking-in .28s ease-out; position:relative; isolation:isolate; overflow:visible; contain:none; clip-path:none; -webkit-clip-path:none; transition:opacity .22s ease; box-sizing:border-box; }' +
-      '#' + rootId + ' .afhub-thinking-card.afhub-thinking-card--pulse { animation:afhub-thinking-caption-pulse .22s ease; }' +
+      '#' + rootId + ' .afhub-thinking-card { display:flex; flex-direction:column; align-items:stretch; justify-content:center; gap:0; padding:1px; width:212px; max-width:100%; min-width:0; flex:none; align-self:flex-start; border-radius:14px; border:none; background:transparent; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; animation:afhub-thinking-in .42s cubic-bezier(.16,1,.3,1); position:relative; isolation:isolate; overflow:visible; contain:none; clip-path:none; -webkit-clip-path:none; transition:opacity .32s ease; box-sizing:border-box; }' +
+      '#' + rootId + ' .afhub-thinking-card.afhub-thinking-card--pulse { animation:afhub-thinking-caption-pulse .4s cubic-bezier(.4,0,.2,1); }' +
       '#' + rootId + ' .afhub-thinking-card::before { content:""; position:absolute; inset:-1px; border-radius:inherit; pointer-events:none; z-index:0; opacity:var(--afhub-beam-glow,.22); filter:blur(4px) saturate(1.1); background:' + rainbowBeamVivid + '; animation:afhub-border-beam-spin var(--afhub-beam-speed-msg,6s) linear infinite; will-change:--afhub-beam-angle; }' +
       '#' + rootId + ' .afhub-thinking-beam-ring { position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:1; opacity:calc(var(--afhub-beam-intensity,1) * .72); box-sizing:border-box; padding:1px; overflow:hidden; -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0); -webkit-mask-composite:xor; mask-composite:exclude; }' +
       '#' + rootId + ' .afhub-thinking-beam-spin { position:absolute; inset:0; border-radius:inherit; background:' + rainbowBeamVivid + '; filter:saturate(1.15) brightness(1.02); animation:afhub-border-beam-spin var(--afhub-beam-speed-msg,6s) linear infinite; will-change:--afhub-beam-angle; }' +
