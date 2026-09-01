@@ -161,11 +161,8 @@ export function WidgetBuilderIdentityStep({
                   Ningún agente coincide con «{agentFilter.trim()}».
                 </p>
               ) : (
-                <div
-                  className="max-h-[26rem] overflow-y-auto overscroll-contain rounded-xl border pr-1"
-                  style={{ borderColor: 'var(--border)', background: 'var(--background)' }}
-                >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2">
+                <div className="max-h-[26rem] max-w-xl overflow-y-auto overscroll-contain pr-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                     {filteredAgents.map((a) => {
                     const agentIdForWidget = effectiveWidgetAgentId(a);
                     const selectable = agentIdForWidget.length > 0;
