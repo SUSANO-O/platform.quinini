@@ -40,8 +40,8 @@ export function WidgetBuilderAgentPickerCard({
           : 'ID de agente no válido. Revisa que el agente exista y esté activo.'
       }
       className={[
-        'flex items-start gap-3 w-full text-left rounded-xl border transition-all',
-        'px-3 py-2.5',
+        'flex items-start gap-2 w-full text-left rounded-lg border transition-all',
+        'px-2.5 py-2',
         selectable ? 'cursor-pointer hover:shadow-sm' : 'cursor-not-allowed opacity-55',
         selected ? 'bg-[var(--background)]' : 'bg-[var(--card)]',
       ].join(' ')}
@@ -55,27 +55,27 @@ export function WidgetBuilderAgentPickerCard({
         seed={agent._id}
         selected={selected}
         accentColor={accentColor}
-        size="sm"
+        size="xs"
         className="mt-0.5"
       />
       <div className="min-w-0 flex-1">
         <p
-          className="text-[13px] font-semibold m-0 truncate leading-tight"
+          className="text-[12px] font-semibold m-0 truncate leading-tight"
           style={{ color: selected ? accentColor : 'var(--foreground)' }}
         >
           {agent.name}
         </p>
         {subtitle ? (
-          <p className="text-[11px] m-0 mt-0.5 truncate leading-snug" style={{ color: 'var(--muted-foreground)' }}>
+          <p className="text-[10.5px] m-0 mt-0.5 truncate leading-snug" style={{ color: 'var(--muted-foreground)' }}>
             {subtitle}
           </p>
         ) : null}
         {metaChips.length > 0 ? (
-          <div className="flex flex-wrap gap-1 mt-1.5">
+          <div className="flex flex-wrap gap-1 mt-1">
             {metaChips.map((chip) => (
               <span
                 key={chip}
-                className="inline-flex items-center text-[9px] font-semibold leading-none px-1.5 py-1 rounded-md"
+                className="inline-flex items-center text-[8.5px] font-semibold leading-none px-1 py-0.5 rounded"
                 style={{
                   background: selected ? `${accentColor}12` : 'var(--muted)',
                   color: selected ? accentColor : 'var(--muted-foreground)',
@@ -89,14 +89,14 @@ export function WidgetBuilderAgentPickerCard({
       </div>
       {selected ? (
         <span
-          className="inline-flex items-center justify-center w-5 h-5 rounded-full shrink-0 mt-0.5"
+          className="inline-flex items-center justify-center w-4 h-4 rounded-full shrink-0 mt-0.5"
           style={{ background: `${accentColor}18`, color: accentColor }}
           aria-hidden
         >
-          <Check size={12} strokeWidth={3} />
+          <Check size={10} strokeWidth={3} />
         </span>
       ) : (
-        <span className="w-5 shrink-0 mt-0.5" aria-hidden />
+        <span className="w-4 shrink-0 mt-0.5" aria-hidden />
       )}
     </button>
   );

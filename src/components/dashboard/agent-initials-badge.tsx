@@ -20,14 +20,15 @@ export function AgentInitialsBadge({
   inactive?: boolean;
   platform?: boolean;
   accentColor?: string;
-  size?: 'sm' | 'md';
+  size?: 'xs' | 'sm' | 'md';
   filled?: boolean;
   className?: string;
 }) {
   const initials = initialsFromName(name);
   const showBot = !name.trim() || initials === '?';
   const compact = size === 'sm';
-  const iconSize = compact ? 16 : 18;
+  const tiny = size === 'xs';
+  const iconSize = tiny ? 13 : compact ? 16 : 18;
   const palette = avatarStyleFromSeed(seed ?? name);
 
   let background = palette.background;
@@ -56,7 +57,11 @@ export function AgentInitialsBadge({
     <div
       className={[
         'flex items-center justify-center shrink-0 font-bold tracking-tight select-none',
-        compact ? 'w-8 h-8 rounded-full text-[0.6875rem]' : 'w-10 h-10 rounded-full text-sm',
+        tiny
+          ? 'w-7 h-7 rounded-full text-[0.625rem]'
+          : compact
+            ? 'w-8 h-8 rounded-full text-[0.6875rem]'
+            : 'w-10 h-10 rounded-full text-sm',
         className,
       ]
         .filter(Boolean)

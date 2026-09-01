@@ -8855,12 +8855,8 @@ button.dashboard-meta-chip:disabled {
 }
 
 .widget-builder-form-actions .widget-builder-btn-primary {
-  min-width: 9rem;
-}
-
-.widget-builder-form-actions--solo .widget-builder-btn-primary {
-  width: 100%;
-  max-width: none;
+  min-width: 7rem;
+  padding: 0.45rem 0.85rem;
 }
 
 .widget-builder-step-intro {
