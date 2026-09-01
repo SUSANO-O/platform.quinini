@@ -25,6 +25,7 @@ import { ClientAgent, WidgetMessage } from '@/lib/db/models';
 import { logWidgetFlow } from '@/lib/debug-widget-flow';
 import {
   looksLikeTicketRequest,
+  looksLikePurchaseIntentPivot,
   shouldForceTicketForm,
   OPEN_TICKET_FORM_MARKER,
   TICKET_INTENT_PATTERNS,
@@ -102,6 +103,15 @@ export async function checkAndBuildTicketDeflectionReply(params: {
       // Turno anterior le preguntamos "¿cuál es el problema?" — este mensaje
       // debería describirlo.
       await clearTicketDeflectionState(widgetId, sessionId, ownerUserId);
+      // Bug real (Tribu GPS): la respuesta a esa pregunta puede en realidad ser
+      // un cambio de tema (ej. "gracias quiero un gps", un pedido de venta, no
+      // una falla) — sin este chequeo se mandaba derecho al formulario de
+      // ticket sin indagar ni notar el pivote. Si pivotea a venta, no forzar
+      // el ticket: dejar que el mensaje siga el flujo normal.
+      if (looksLikePurchaseIntentPivot(message)) {
+        logWidgetFlow('🎫', evt('problemAnswerPivotedToSale'), 'la respuesta al "contame el problema" pivoteó a venta — no se fuerza el ticket', { traceId, agentId });
+        return { intercepted: false };
+      }
       const deflection = await checkTicketDeflection({ agentId: ragAgentId, query: message });
       logWidgetFlow('🎫', evt('deflectionCheck'), `problema descrito, confident=${deflection.confident}`, { traceId, agentId });
       if (deflection.confident) {

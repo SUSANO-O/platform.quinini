@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   looksLikeTicketRequest,
+  looksLikePurchaseIntentPivot,
   hasContactEmailInHistory,
   shouldForceTicketForm,
 } from '../ticket-form-intent';
@@ -181,5 +182,28 @@ describe('shouldForceTicketForm', () => {
       hasTicketCapability: true,
     });
     expect(result).toBe(false);
+  });
+});
+
+describe('looksLikePurchaseIntentPivot', () => {
+  it('detecta pedidos de compra claros (caso real: respuesta a "contame el problema")', () => {
+    expect(looksLikePurchaseIntentPivot('gracias quiero un gps')).toBe(true);
+    expect(looksLikePurchaseIntentPivot('necesito un dispositivo para mi moto')).toBe(true);
+    expect(looksLikePurchaseIntentPivot('quisiera cotizar un plan')).toBe(true);
+    expect(looksLikePurchaseIntentPivot('me gustaría un rastreador')).toBe(true);
+    expect(looksLikePurchaseIntentPivot('quiero comprar uno')).toBe(true);
+    expect(looksLikePurchaseIntentPivot('cuánto cuesta el servicio')).toBe(true);
+    expect(looksLikePurchaseIntentPivot('cuánto vale')).toBe(true);
+  });
+
+  it('no dispara con descripciones reales de falla', () => {
+    expect(looksLikePurchaseIntentPivot('mi gps no da la posición correcta')).toBe(false);
+    expect(looksLikePurchaseIntentPivot('se dañó el dispositivo de mi moto')).toBe(false);
+    expect(looksLikePurchaseIntentPivot('no puedo entrar a la app')).toBe(false);
+  });
+
+  it('mensaje vacío nunca dispara', () => {
+    expect(looksLikePurchaseIntentPivot('')).toBe(false);
+    expect(looksLikePurchaseIntentPivot('   ')).toBe(false);
   });
 });
