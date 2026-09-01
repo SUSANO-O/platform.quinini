@@ -3485,6 +3485,26 @@
       return p || 'model';
     }
 
+    /**
+     * Pulso suave (fade) cuando el texto de la caption cambia de verdad — usado tanto
+     * por el cambio real de fase (SSE) como por la rotación cosmética de líneas cada
+     * ~1.1s. Antes solo lo disparaba el cambio real; la rotación hacía un textContent
+     * directo sin transición, así que el mismo salto brusco reaparecía unos segundos
+     * después del cambio real (cuando arrancaba a rotar), aunque el caso original ya
+     * estuviera arreglado. Unificar acá evita ambas fuentes del mismo salto.
+     */
+    function pulseThinkingCard(el, before, after) {
+      if (!el || !after || after === before) return;
+      el.classList.add('afhub-thinking-card--pulse');
+      // Debe ser >= a la duración real de la animación (.4s, ver CSS de
+      // afhub-thinking-card--pulse) — si se saca la clase antes de que
+      // termine, la opacidad salta abruptamente a mitad de la transición
+      // en vez de completarla, y se ve como un parpadeo feo.
+      setTimeout(function () {
+        if (el.isConnected) el.classList.remove('afhub-thinking-card--pulse');
+      }, 420);
+    }
+
     function applyThinkingRotation(el) {
       if (!el) return;
       var capEl = el.querySelector('.afhub-thinking-caption');
@@ -3500,6 +3520,7 @@
       var rotKey = String(idx) + ':' + phase;
       if (capEl.getAttribute('data-rot') === rotKey) return;
       capEl.setAttribute('data-rot', rotKey);
+      var before = capEl.textContent;
       var stage = thinkingFooterForElapsed(el.getAttribute('data-phase') || '', elapsed);
       var stateEl = el.querySelector('.afhub-thinking-state');
       var footerEl = el.querySelector('.afhub-thinking-footer');
@@ -3516,6 +3537,7 @@
           if (footerEl) footerEl.style.visibility = 'hidden';
         }
       }
+      pulseThinkingCard(el, before, capEl.textContent);
     }
 
     function thinkingFooterState(statusPhase) {
@@ -3799,18 +3821,7 @@
       applyThinkingDisplay(el, statusLabel, statusPhase);
       var after = el.querySelector('.afhub-thinking-caption');
       var afterText = after ? after.textContent : '';
-      // Solo un pulso suave si el texto cambió de verdad (evita titileo por SSE de status).
-      if (afterText && afterText !== before) {
-        el.classList.add('afhub-thinking-card--pulse');
-        // Debe ser >= a la duración real de la animación (.4s, ver CSS de
-        // afhub-thinking-card--pulse) — si se saca la clase antes de que
-        // termine, la opacidad salta abruptamente a mitad de la transición
-        // en vez de completarla, y se ve como un parpadeo feo (bug real:
-        // se alargó la animación de .22s a .4s sin actualizar este timeout).
-        setTimeout(function () {
-          if (el.isConnected) el.classList.remove('afhub-thinking-card--pulse');
-        }, 420);
-      }
+      pulseThinkingCard(el, before, afterText);
     }
 
     function showTyping(statusLabel, statusPhase) {
