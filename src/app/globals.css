@@ -7753,6 +7753,57 @@ button.dashboard-meta-chip:disabled {
   gap: 0.5rem;
 }
 
+.widget-builder-voice-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.widget-builder-voice-picker .widget-builder-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.widget-builder-voice-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.widget-builder-voice-preview__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--card);
+  color: var(--foreground);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.widget-builder-voice-preview__btn:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.widget-builder-voice-preview__btn:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.widget-builder-voice-preview__spin {
+  animation: widget-builder-spin 0.9s linear infinite;
+}
+
+@keyframes widget-builder-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .widget-builder-ai-beam-scope__btn {
   flex: 1 1 auto;
   min-width: 4.5rem;
