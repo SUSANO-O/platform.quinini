@@ -4276,7 +4276,10 @@
               imageUrls: imageUrls,
               videoUrl: videoUrl,
               token: String(cfg.token).trim()
-            })
+            }),
+            // Sin esto, un cuelgue de red dejaba el botón "Crear ticket"
+            // deshabilitado para siempre, sin ningún error — bug real reportado.
+            signal: AbortSignal.timeout(30000)
           });
         })
         .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
@@ -4303,10 +4306,20 @@
           history.push({ role: 'model', content: ticketConfirmText });
           saveChatToSession();
         })
-        .catch(function () {
+        .catch(function (err) {
           if (submitBtn) submitBtn.disabled = false;
+          // Antes siempre mostraba "Error de red" así fuera un timeout, un
+          // adjunto rechazado (muy pesado, formato no soportado) o cualquier
+          // otra cosa — el usuario no tenía forma de saber qué pasó de verdad
+          // ni cuál de sus fotos era el problema. Mostrar err.message cuando
+          // existe (upload rechazado con un motivo propio, o AbortSignal.timeout
+          // con un TimeoutError claro) en vez del genérico siempre.
+          var isTimeout = err && (err.name === 'TimeoutError' || err.name === 'AbortError');
+          var msg = isTimeout
+            ? 'La operación tardó demasiado. Revisa tu conexión e intenta de nuevo.'
+            : (err && err.message) ? err.message : 'Error de red. Intenta de nuevo.';
           if (errEl) {
-            errEl.textContent = 'Error de red. Intenta de nuevo.';
+            errEl.textContent = msg;
             errEl.style.display = 'block';
           }
         });
@@ -5368,7 +5381,9 @@
       if (chatSessionId) fd.append('sessionId', chatSessionId);
       var headers = {};
       if (cfg.token) headers['X-Widget-Token'] = String(cfg.token).trim();
-      var res = await fetch(endpoint, { method: 'POST', headers: headers, body: fd });
+      // Sin timeout, un cuelgue de red dejaba el formulario de ticket "cargando"
+      // para siempre (Promise.all nunca resolvía) — bug real reportado.
+      var res = await fetch(endpoint, { method: 'POST', headers: headers, body: fd, signal: AbortSignal.timeout(30000) });
       var json = await res.json().catch(function () { return {}; });
       if (!res.ok || !json.attachment) {
         throw new Error((json && json.error) ? json.error : 'No se pudo subir el archivo.');
