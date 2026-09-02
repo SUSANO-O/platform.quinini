@@ -43,6 +43,7 @@ const PATCHABLE = [
   'title',
   'subtitle',
   'welcome',
+  'welcomeEnabled',
   'fabHint',
   'avatar',
   'fabAvatarSize',
@@ -54,6 +55,7 @@ const PATCHABLE = [
   'voiceEnabled',
   'imageUploadEnabled',
   'micEnabled',
+  'voiceId',
   'humanSupportPhone',
   'humanSupportEnabled',
   'handoffNotifyMode',
@@ -151,7 +153,7 @@ export async function PATCH(
   for (const key of PATCHABLE) {
     if (!(key in raw)) continue;
     const v = raw[key];
-    if (key === 'autoOpen' || key === 'fabDismissible' || key === 'voiceEnabled' || key === 'imageUploadEnabled' || key === 'micEnabled' || key === 'active' || key === 'handoffEnabled' || key === 'humanSupportEnabled' || key === 'feedbackEnabled' || key === 'policyEnabled' || key === 'scrollHaloEnabled' || key === 'scrollHaloTop' || key === 'scrollHaloBottom' || key === 'thinkingIconEnabled') {
+    if (key === 'autoOpen' || key === 'fabDismissible' || key === 'voiceEnabled' || key === 'imageUploadEnabled' || key === 'micEnabled' || key === 'welcomeEnabled' || key === 'active' || key === 'handoffEnabled' || key === 'humanSupportEnabled' || key === 'feedbackEnabled' || key === 'policyEnabled' || key === 'scrollHaloEnabled' || key === 'scrollHaloTop' || key === 'scrollHaloBottom' || key === 'thinkingIconEnabled') {
       $set[key] = Boolean(v);
       continue;
     }
@@ -233,6 +235,8 @@ export async function PATCH(
         $set[key] = s;
       } else if (key === 'humanSupportPhone') {
         $set.humanSupportPhone = v.trim().slice(0, 48);
+      } else if (key === 'voiceId') {
+        $set.voiceId = v.trim().slice(0, 64);
       } else if (key === 'policyUrl') {
         // Si falta el esquema (ej. "misitio.com/privacidad") asumimos https://.
         // Solo se acepta http(s) — evita esquemas peligrosos (javascript:, data:, etc.).

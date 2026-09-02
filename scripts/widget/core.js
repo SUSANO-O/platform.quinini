@@ -465,6 +465,8 @@
     title: 'Asistente',
     subtitle: 'En linea',
     welcome: 'Bienvenido. ¿Cómo puedo ayudarte?',
+    /** Si false, no se manda el mensaje de bienvenida al abrir el chat. */
+    welcomeEnabled: true,
     position: 'bottom-right',
     edgeInset: 20,
     offsetBottom: 20,
@@ -512,6 +514,8 @@
     voiceLang: '',
     /** Nombre exacto de la voz SpeechSynthesis; vacío = auto */
     voiceName: '',
+    /** voice_id de ElevenLabs para leer respuestas; vacío = usa el default global del servidor */
+    voiceId: '',
     /** WhatsApp: dígitos con código de país; oferta por palabras clave en el chat */
     humanSupportPhone: '',
     humanSupportEnabled: true,
@@ -733,7 +737,9 @@
           'scrollHaloTop',
           'scrollHaloBottom',
           'thinkingIconEnabled',
-          'thinkingIcon'
+          'thinkingIcon',
+          'welcomeEnabled',
+          'voiceId'
         ];
         var ri;
         for (ri = 0; ri < remoteWins.length; ri++) {
@@ -1584,7 +1590,7 @@
       }
       if (!history.length) {
         if (flowCtrl && flowCtrl.onEmptyHistory()) return;
-        addMessage('bot', cfg.welcome);
+        if (cfg.welcomeEnabled !== false) addMessage('bot', cfg.welcome);
         return;
       }
       for (var hi = 0; hi < history.length; hi++) {
@@ -4521,7 +4527,7 @@
       removeFeedbackCard();
       feedbackOfferShown = false;
       messages.innerHTML = '';
-      addMessage('bot', cfg.welcome);
+      if (cfg.welcomeEnabled !== false) addMessage('bot', cfg.welcome);
       historyDomReady = true;
       saveChatToSession();
     }
@@ -5156,7 +5162,7 @@
       if (flowCtrl) {
         flowCtrl.reset();
         flowCtrl.onEmptyHistory();
-      } else {
+      } else if (cfg.welcomeEnabled !== false) {
         addMessage('bot', cfg.welcome);
       }
       historyDomReady = true;
@@ -6081,7 +6087,7 @@
       fetch(elevenLabsVoiceUrl('/api/widget/voice/tts'), {
         method: 'POST',
         headers: elevenLabsHeaders(),
-        body: JSON.stringify(elevenLabsRequestBody({ text: text })),
+        body: JSON.stringify(elevenLabsRequestBody(cfg.voiceId ? { text: text, voiceId: cfg.voiceId } : { text: text })),
         signal: AbortSignal.timeout(20000),
       }).then(function(res) {
         if (session !== ttsSessionId) return null;
@@ -7071,6 +7077,7 @@
       title: attr(script, 'data-title', DEFAULTS.title),
       subtitle: attr(script, 'data-subtitle', DEFAULTS.subtitle),
       welcome: attr(script, 'data-welcome', DEFAULTS.welcome),
+      welcomeEnabled: attr(script, 'data-welcome-enabled', 'true') !== 'false',
       position: attr(script, 'data-position', DEFAULTS.position),
       avatar: attr(script, 'data-avatar', DEFAULTS.avatar),
       borderRadius: attr(script, 'data-border-radius', String(DEFAULTS.borderRadius)),
@@ -7080,6 +7087,7 @@
       voiceEnabled: attr(script, 'data-voice-enabled', 'false') === 'true',
       voiceLang: attr(script, 'data-voice-lang', ''),
       voiceName: attr(script, 'data-voice-name', ''),
+      voiceId: attr(script, 'data-voice-id', ''),
       humanSupportPhone: attr(script, 'data-human-support-phone', ''),
       showMcpUi:
         script.getAttribute('data-afhub-widget-preview') === '1' ||

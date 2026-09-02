@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   await connectDB();
 
   const widget = await Widget.findOne({ afhubToken: token })
-    .select('_id userId agentId color title subtitle welcome fabHint avatar fabAvatarSize position theme borderRadius autoOpen fabDismissible voiceEnabled imageUploadEnabled micEnabled aiBeamScope aiBeamPalette aiBeamColor aiBeamBlur aiBeamSpeed aiBeamIntensity scrollHaloEnabled scrollHaloColorMode scrollHaloColor scrollHaloHeight scrollHaloOpacity scrollHaloBlur scrollHaloTop scrollHaloBottom thinkingIconEnabled thinkingIcon humanSupportPhone humanSupportEnabled handoffEnabled handoffNotifyMode handoffTimeout shortcuts multiAgentEnabled multiAgentMode active feedbackEnabled feedbackTitle feedbackThanks feedbackQuestions conversationIdleTimeout policyEnabled policyText policyLinkLabel policyUrl')
+    .select('_id userId agentId color title subtitle welcome welcomeEnabled fabHint avatar fabAvatarSize position theme borderRadius autoOpen fabDismissible voiceEnabled imageUploadEnabled micEnabled voiceId aiBeamScope aiBeamPalette aiBeamColor aiBeamBlur aiBeamSpeed aiBeamIntensity scrollHaloEnabled scrollHaloColorMode scrollHaloColor scrollHaloHeight scrollHaloOpacity scrollHaloBlur scrollHaloTop scrollHaloBottom thinkingIconEnabled thinkingIcon humanSupportPhone humanSupportEnabled handoffEnabled handoffNotifyMode handoffTimeout shortcuts multiAgentEnabled multiAgentMode active feedbackEnabled feedbackTitle feedbackThanks feedbackQuestions conversationIdleTimeout policyEnabled policyText policyLinkLabel policyUrl')
     .lean() as Record<string, unknown> | null;
 
   if (!widget) {
@@ -83,6 +83,7 @@ export async function GET(req: NextRequest) {
         title:             widget.title,
         subtitle:          widget.subtitle,
         welcome:           widget.welcome,
+        welcomeEnabled:    widget.welcomeEnabled !== false,
         fabHint:           widget.fabHint,
         avatar:            widget.avatar,
         fabAvatarSize:     typeof widget.fabAvatarSize === 'number'
@@ -112,6 +113,7 @@ export async function GET(req: NextRequest) {
           : [],
         conversationIdleTimeout: typeof widget.conversationIdleTimeout === 'number' ? widget.conversationIdleTimeout : 15,
         voiceName,
+        voiceId: typeof (widget as { voiceId?: string }).voiceId === 'string' ? (widget as { voiceId?: string }).voiceId : '',
         shortcuts:         Array.isArray(widget.shortcuts)
           ? (widget.shortcuts as Array<{ id: string; label: string; message: string; emoji?: string; enabled: boolean }>)
               .filter((s) => s.enabled !== false)

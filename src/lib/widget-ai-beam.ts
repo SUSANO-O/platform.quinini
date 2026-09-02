@@ -112,6 +112,7 @@ export function pickWidgetAppearancePatch(cfg: Record<string, unknown>): Record<
     title: cfg.title,
     subtitle: cfg.subtitle,
     welcome: cfg.welcome,
+    welcomeEnabled: cfg.welcomeEnabled,
     fabHint: cfg.fabHint,
     avatar: cfg.avatar,
     fabAvatarSize: cfg.fabAvatarSize,
@@ -122,6 +123,7 @@ export function pickWidgetAppearancePatch(cfg: Record<string, unknown>): Record<
     voiceEnabled: cfg.voiceEnabled,
     imageUploadEnabled: cfg.imageUploadEnabled,
     micEnabled: cfg.micEnabled,
+    voiceId: cfg.voiceId,
     policyEnabled: cfg.policyEnabled,
     policyLinkLabel: cfg.policyLinkLabel,
     ...normalizeAiBeamFields(cfg),
@@ -141,6 +143,7 @@ export function mergeWidgetAppearanceFromApi<T extends WidgetConfig>(
     title: String(widget.title ?? prev.title),
     subtitle: String(widget.subtitle ?? prev.subtitle),
     welcome: String(widget.welcome ?? prev.welcome),
+    welcomeEnabled: (widget as { welcomeEnabled?: boolean }).welcomeEnabled !== false,
     fabHint: String(widget.fabHint ?? prev.fabHint),
     avatar: String(widget.avatar ?? prev.avatar),
     fabAvatarSize:
@@ -157,6 +160,7 @@ export function mergeWidgetAppearanceFromApi<T extends WidgetConfig>(
       typeof (widget as { micEnabled?: boolean }).micEnabled === 'boolean'
         ? (widget as { micEnabled?: boolean }).micEnabled !== false
         : prev.micEnabled,
+    voiceId: String((widget as { voiceId?: string }).voiceId ?? prev.voiceId ?? ''),
     policyEnabled: widget.policyEnabled !== false,
     policyLinkLabel: String(widget.policyLinkLabel ?? prev.policyLinkLabel),
     ...normalizeAiBeamFields(widget),

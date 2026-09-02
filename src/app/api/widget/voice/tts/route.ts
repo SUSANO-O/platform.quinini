@@ -2,8 +2,13 @@
  * POST /api/widget/voice/tts
  *
  * Convierte a voz (ElevenLabs) el texto de una respuesta del bot para el widget.
- * Body: { text, sessionId?, widgetId?, agentId?, token? }
+ * Body: { text, voiceId?, sessionId?, widgetId?, agentId?, token? }
  * Header: X-Widget-Token (wt_*)
+ *
+ * voiceId es el que el widget trae de su config (Widget.voiceId, elegido en el
+ * dashboard) — no es secreto, así que no hace falta validarlo contra la DB:
+ * en el peor caso alguien fuerza otra voz existente de ElevenLabs, sin costo
+ * ni riesgo distinto al normal.
  *
  * Devuelve audio en base64 (no streaming) — las respuestas del bot son cortas,
  * así que el overhead de base64 no importa y evita complejidad de streaming.
@@ -44,7 +49,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { text?: string; sessionId?: string; widgetId?: string; agentId?: string; token?: string };
+  let body: { text?: string; voiceId?: string; sessionId?: string; widgetId?: string; agentId?: string; token?: string };
   try {
     body = await req.json();
   } catch {
@@ -97,8 +102,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const voiceId = typeof body.voiceId === 'string' ? body.voiceId.trim() : '';
+
   try {
-    const { audioBase64, mimeType } = await voiceProvider.synthesizeSpeech(text);
+    const { audioBase64, mimeType } = await voiceProvider.synthesizeSpeech(text, voiceId || undefined);
     return withCors(req, NextResponse.json({ ok: true, audioBase64, mimeType }));
   } catch (err) {
     console.error('[widget/voice/tts]', voiceProvider.name, err);
