@@ -63,8 +63,18 @@ describe('"tengo un problema" a secas — remainder y vaguedad', () => {
     expect(isVagueRemainder(r)).toBe(true);
   });
 
-  it('"tengo un problema con la app" → remanente con contenido → no vago (va directo a chequear el RAG)', () => {
+  it('"tengo un problema con la app" → solo nombra la categoría, sin síntoma → vago (se pregunta el detalle)', () => {
+    // Caso real reportado: el shortcut "Reportar un problema" con este texto
+    // pasaba como "concreto" (contaba "app"/"dispositivo" como sustancia) y
+    // mostraba una respuesta de RAG al azar sin que el usuario dijera qué le
+    // pasa — confuso. Nombrar la categoría (app/dispositivo/sistema...) sin
+    // describir el síntoma real no es suficiente detalle para buscar en RAG.
     const r = extractRemainderAfterMatch('tengo un problema con la app', TICKET_PATTERNS);
+    expect(isVagueRemainder(r)).toBe(true);
+  });
+
+  it('"tengo un problema con la app, no me deja iniciar sesión" → sí tiene síntoma real → no vago', () => {
+    const r = extractRemainderAfterMatch('tengo un problema con la app, no me deja iniciar sesión', TICKET_PATTERNS);
     expect(isVagueRemainder(r)).toBe(false);
   });
 });
