@@ -6082,46 +6082,86 @@
       return !elevenLabsTtsUnavailable && typeof window !== 'undefined' && typeof window.Audio !== 'undefined';
     }
 
-    function ttsSpeakElevenLabs(text, onEnd) {
-      var session = ++ttsSessionId;
-      fetch(elevenLabsVoiceUrl('/api/widget/voice/tts'), {
+    /**
+     * Divide en frases para hablar en cascada — bug real reportado: pedir el audio
+     * del mensaje COMPLETO de una sola vez tarda mucho en arrancar (la síntesis
+     * escala con el largo del texto). Frase por frase, la primera empieza a sonar
+     * casi de inmediato y las siguientes se van pidiendo mientras suena la
+     * anterior (como un cartel de aeropuerto: lee lo que ya está listo, sin
+     * esperar a tener el anuncio entero armado).
+     */
+    function ttsSplitIntoSentences(text) {
+      var cleaned = String(text || '').trim();
+      if (!cleaned) return [];
+      var raw = cleaned.match(/[^.!?…\n]+[.!?…]+(?:\s+|$)|[^.!?…\n]+$/g) || [cleaned];
+      var out = [];
+      for (var i = 0; i < raw.length; i++) {
+        var p = raw[i].trim();
+        if (!p) continue;
+        // Frase sin puntuación pero muy larga: igual se subdivide para no demorar la primera tanda.
+        if (p.length > 220) {
+          var sub = ttsSplitIntoChunks(p, 180);
+          for (var j = 0; j < sub.length; j++) out.push(sub[j]);
+        } else {
+          out.push(p);
+        }
+      }
+      return out;
+    }
+
+    function ttsFetchSentenceAudio(sentence) {
+      return fetch(elevenLabsVoiceUrl('/api/widget/voice/tts'), {
         method: 'POST',
         headers: elevenLabsHeaders(),
-        body: JSON.stringify(elevenLabsRequestBody(cfg.voiceId ? { text: text, voiceId: cfg.voiceId } : { text: text })),
+        body: JSON.stringify(elevenLabsRequestBody(cfg.voiceId ? { text: sentence, voiceId: cfg.voiceId } : { text: sentence })),
         signal: AbortSignal.timeout(20000),
       }).then(function(res) {
-        if (session !== ttsSessionId) return null;
         if (res.status === 503) elevenLabsTtsUnavailable = true;
         if (!res.ok) throw new Error('tts http ' + res.status);
         return res.json();
       }).then(function(json) {
-        if (session !== ttsSessionId) return;
-        if (!json) return;
-        if (!json.ok || !json.audioBase64) throw new Error((json && json.error) || 'tts sin audio');
-        var audio = new Audio('data:' + (json.mimeType || 'audio/mpeg') + ';base64,' + json.audioBase64);
-        ttsAudio = audio;
-        audio.onended = function() {
-          if (session !== ttsSessionId) return;
-          ttsAudio = null;
-          if (onEnd) onEnd();
-        };
-        audio.onerror = function() {
-          if (session !== ttsSessionId) return;
-          log(cfg, 'warn', '[TTS] ElevenLabs playback error — fallback nativo');
-          ttsAudio = null;
-          ttsSpeakNative(text, onEnd);
-        };
-        audio.play().catch(function(err) {
-          if (session !== ttsSessionId) return;
-          log(cfg, 'warn', '[TTS] ElevenLabs play() rechazado — fallback nativo:', err && err.message);
-          ttsAudio = null;
-          ttsSpeakNative(text, onEnd);
-        });
-      }).catch(function(err) {
-        if (session !== ttsSessionId) return;
-        log(cfg, 'debug', '[TTS] ElevenLabs no disponible — fallback nativo:', err && err.message);
-        ttsSpeakNative(text, onEnd);
+        if (!json || !json.ok || !json.audioBase64) throw new Error((json && json.error) || 'tts sin audio');
+        return 'data:' + (json.mimeType || 'audio/mpeg') + ';base64,' + json.audioBase64;
       });
+    }
+
+    function ttsSpeakElevenLabs(text, onEnd) {
+      var session = ++ttsSessionId;
+      var sentences = ttsSplitIntoSentences(text);
+      if (!sentences.length) { if (onEnd) onEnd(); return; }
+
+      var pending = {}; // idx -> Promise<dataUrl>, cacheado para no re-pedir el prefetch
+      function audioFor(idx) {
+        if (!pending[idx]) pending[idx] = ttsFetchSentenceAudio(sentences[idx]);
+        return pending[idx];
+      }
+
+      function fallbackFrom(idx, reason) {
+        log(cfg, 'debug', '[TTS] ElevenLabs (cascada) no disponible — fallback nativo:', reason);
+        ttsAudio = null;
+        ttsSpeakNative(sentences.slice(idx).join(' '), onEnd);
+      }
+
+      function playIdx(idx) {
+        if (session !== ttsSessionId) return;
+        if (idx >= sentences.length) { ttsAudio = null; if (onEnd) onEnd(); return; }
+        // Prefetch adelantado: mientras suena idx, ya se está pidiendo idx+1.
+        if (idx + 1 < sentences.length) audioFor(idx + 1);
+        audioFor(idx).then(function(dataUrl) {
+          if (session !== ttsSessionId) return;
+          var audio = new Audio(dataUrl);
+          ttsAudio = audio;
+          audio.onended = function() { if (session === ttsSessionId) playIdx(idx + 1); };
+          audio.onerror = function() { if (session === ttsSessionId) fallbackFrom(idx, 'playback error'); };
+          audio.play().catch(function(err) {
+            if (session === ttsSessionId) fallbackFrom(idx, err && err.message);
+          });
+        }).catch(function(err) {
+          if (session === ttsSessionId) fallbackFrom(idx, err && err.message);
+        });
+      }
+
+      playIdx(0);
     }
 
     function ttsSpeak(text, onEnd) {
