@@ -3224,13 +3224,26 @@
           appendHumanAttachment(el, imgOpts.attachments[ax]);
         }
       }
+      // En streaming, `text` es una FOTO del momento en que se creó esta burbuja
+      // (el primer token que llegó) — el resto del texto se agrega actualizando
+      // el DOM directamente (updateStreamBubble/el "done"), sin volver a llamar
+      // addMessage(). Bug real: copiar o escuchar un mensaje que llegó por
+      // streaming devolvía solo ese primer pedacito, no el mensaje completo.
+      // Leer .afhub-msg-text en el momento del click siempre reflleja lo que
+      // hay en pantalla AHORA, sin depender de cuándo se creó el botón.
+      function currentMessagePlainText() {
+        if (type !== 'bot') return String(text || '');
+        var live = el.querySelector('.afhub-msg-text');
+        return live ? String(live.textContent || '').trim() : botReplyForDisplay(text);
+      }
+
       var copyBtn = document.createElement('button');
       copyBtn.type = 'button';
       copyBtn.className = 'afhub-feedback-btn afhub-msg-copy-btn';
       copyBtn.setAttribute('aria-label', 'Copiar mensaje');
       copyBtn.innerHTML = ICON_COPY;
       copyBtn.addEventListener('click', function () {
-        var plain = type === 'bot' ? botReplyForDisplay(text) : String(text || '');
+        var plain = currentMessagePlainText();
         if (!plain) return;
         var copied = false;
         try {
@@ -3269,7 +3282,7 @@
         speakBtn.setAttribute('aria-label', 'Escuchar mensaje');
         speakBtn.innerHTML = ICON_VOLUME_ON;
         speakBtn.addEventListener('click', function () {
-          var plain = botReplyForDisplay(text);
+          var plain = currentMessagePlainText();
           if (!plain) return;
           function reset(btn) {
             btn.innerHTML = ICON_VOLUME_ON;
