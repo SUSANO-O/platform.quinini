@@ -3257,6 +3257,45 @@
           copyBtn.setAttribute('aria-label', 'Copiar mensaje');
         }, 1200);
       });
+
+      // Botón 🔊 por mensaje: repite en voz alta ESE mensaje puntual, sin depender
+      // del modo voz general (voiceActive/ttsMode). Comparte el mismo reproductor
+      // (ttsSpeak/ttsStop) — al arrancar uno nuevo, para cualquier otro que sonara.
+      var speakBtn = null;
+      if (type === 'bot' && voiceMenuAvailable) {
+        speakBtn = document.createElement('button');
+        speakBtn.type = 'button';
+        speakBtn.className = 'afhub-feedback-btn afhub-msg-speak-btn';
+        speakBtn.setAttribute('aria-label', 'Escuchar mensaje');
+        speakBtn.innerHTML = ICON_VOLUME_ON;
+        speakBtn.addEventListener('click', function () {
+          var plain = botReplyForDisplay(text);
+          if (!plain) return;
+          function reset(btn) {
+            btn.innerHTML = ICON_VOLUME_ON;
+            btn.classList.remove('active');
+            btn.setAttribute('aria-label', 'Escuchar mensaje');
+          }
+          if (activeMsgSpeakBtn === speakBtn) {
+            ttsStop();
+            reset(speakBtn);
+            activeMsgSpeakBtn = null;
+            return;
+          }
+          if (activeMsgSpeakBtn) reset(activeMsgSpeakBtn);
+          ttsStop();
+          activeMsgSpeakBtn = speakBtn;
+          speakBtn.innerHTML = ICON_VOLUME_OFF;
+          speakBtn.classList.add('active');
+          speakBtn.setAttribute('aria-label', 'Detener lectura');
+          ttsSpeak(plain, function () {
+            if (activeMsgSpeakBtn === speakBtn) {
+              reset(speakBtn);
+              activeMsgSpeakBtn = null;
+            }
+          });
+        });
+      }
       var fbRow = null;
       var hasBotImages = type === 'bot' && imgOpts && imgOpts.images && imgOpts.images.length;
       var showFeedback = !imgOpts || imgOpts.noFeedback !== true;
@@ -3331,8 +3370,9 @@
           var waLink = createWhatsAppLink('agent_error');
           if (waLink) leftContainer.appendChild(waLink);
         } else {
-          // Solo copiar (sin 👍/👎 bajo cada mensaje)
+          // Solo copiar + escuchar (sin 👍/👎 bajo cada mensaje)
           leftContainer.appendChild(copyBtn);
+          if (speakBtn) leftContainer.appendChild(speakBtn);
         }
         fbRow.appendChild(leftContainer);
 
@@ -5957,6 +5997,8 @@
     var mediaRecorderChunks = [];
     var vadAudioCtx = null;
     var vadRafId = null;
+    /** Botón 🔊 del mensaje que está sonando ahora mismo (para resetear su ícono al terminar/cambiar). */
+    var activeMsgSpeakBtn = null;
 
     function ttsCleanText(text) {
       return String(text || '')
@@ -7650,6 +7692,8 @@
         dp + '.afhub-persona-tag { border-color:rgba(255,255,255,.12); background:rgba(255,255,255,.06); }' +
         dp + '.afhub-msg-copy-btn { border-color:rgba(255,255,255,.2); color:#a9b0bd; }' +
         dp + '.afhub-msg-copy-btn:hover { border-color:rgba(255,255,255,.4); color:#eef2ff; }' +
+        dp + '.afhub-msg-speak-btn { border-color:rgba(255,255,255,.2); color:#a9b0bd; }' +
+        dp + '.afhub-msg-speak-btn:hover { border-color:rgba(255,255,255,.4); color:#eef2ff; }' +
         dp + '.afhub-msg-rich .afhub-pre { background:#1a1a24; color:#e8e8ef; border-color:rgba(255,255,255,.08); }' +
         dp + '.afhub-msg-rich .afhub-code { background:#2a2a36; color:#e0e0ea; }' +
         dp + '.afhub-tool-tag,' + dp + '.afhub-mcp-source-tag { background:rgba(255,255,255,.08); color:#a8a8b8; border-color:rgba(255,255,255,.12); }' +
@@ -8156,6 +8200,9 @@
       '#' + rootId + ' .afhub-msg-copy-btn { width:24px; height:24px; opacity:1; }' +
       '#' + rootId + ' .afhub-msg-copy-btn svg { width:13px; height:13px; }' +
       '#' + rootId + ' .afhub-msg-copy-btn.active { border:none; color:' + cfg.color + '; background:' + cfg.color + '14; }' +
+      '#' + rootId + ' .afhub-msg-speak-btn { width:24px; height:24px; opacity:1; }' +
+      '#' + rootId + ' .afhub-msg-speak-btn svg { width:13px; height:13px; }' +
+      '#' + rootId + ' .afhub-msg-speak-btn.active { border:none; color:' + cfg.color + '; background:' + cfg.color + '14; }' +
       '#' + rootId + ' .afhub-img-frame { position:relative; border-radius:12px; overflow:hidden; border:1px solid rgba(0,0,0,.08); }' +
       '#' + rootId + ' .afhub-img-download-btn { position:absolute; top:8px; right:8px; z-index:2; opacity:.92; background:rgba(255,255,255,.92); border-color:rgba(0,0,0,.12); color:#374151; box-shadow:0 1px 4px rgba(0,0,0,.12); }' +
       '#' + rootId + ' .afhub-img-download-btn:hover { opacity:1; background:#fff; }' +
