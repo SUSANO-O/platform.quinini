@@ -31,6 +31,12 @@ const FILLER_WORDS = new Set([
   'con', 'por', 'para', 'que', 'y', 'o', 'mi', 'me', 'se', 'es', 'esta', 'está',
   'tengo', 'porque', 'ya', 'quiero', 'necesito', 'quisiera', 'favor', 'por favor',
   'hola', 'buenas', 'buenos', 'dias', 'días', 'tardes', 'noches',
+  // Nombrar la CATEGORÍA del problema (sin decir qué le pasa) no es detalle real
+  // — bug real: "tengo un problema con mi dispositivo o la app" pasaba como
+  // "concreto" (contaba "dispositivo"/"app" como sustancia) y disparaba una
+  // búsqueda RAG contra un mensaje que en la práctica sigue sin decir nada.
+  'dispositivo', 'app', 'aplicacion', 'aplicación', 'producto', 'servicio',
+  'plataforma', 'sistema', 'cuenta', 'plan',
 ]);
 
 /**
