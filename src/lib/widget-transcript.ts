@@ -2,7 +2,7 @@
  * Persistencia de transcript del widget (texto + capturas) para el Inbox.
  */
 
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { WidgetMessage } from '@/lib/db/models';
 import type { WidgetImageEnrichment } from '@/lib/widget-chat-images';
 
@@ -109,11 +109,38 @@ export async function persistWidgetTranscript(input: PersistTranscriptInput): Pr
   await WidgetMessage.insertMany(docs);
 }
 
-/** Fire-and-forget: persiste transcript cuando hay respuesta del asistente. */
+/**
+ * Persiste transcript cuando hay respuesta del asistente, corriendo DESPUÉS
+ * de mandar la respuesta al visitante (after()) — no bloquea el request.
+ *
+ * Bug real en producción (confirmado con un turno real de punta a punta contra
+ * botiva.space: el navegador mostraba la respuesta del bot en pantalla, pero
+ * CERO filas quedaban en WidgetMessage): esto hacía `void persistWidgetTranscript(...)`
+ * sin `after()`. En Vercel (serverless), la función puede congelarse/matarse
+ * apenas se manda el response — un `void` sin nada que extienda su vida no
+ * tiene garantía de terminar el insert a Mongo. after() sí la garantiza (mismo
+ * fix ya aplicado antes en whatsapp/webhook por el mismo motivo). En Cloud Run
+ * (proceso persistente) esto callaba el bug la mayoría de las veces, por eso
+ * no se notaba siempre.
+ */
 export function schedulePersistWidgetTranscript(input: PersistTranscriptInput): void {
   const assistant = (input.assistantMessage || '').trim();
   if (!assistant || !input.sessionId?.trim() || !input.widgetId || !input.userId) return;
-  void persistWidgetTranscript(input).catch(() => {});
+  const run = () =>
+    persistWidgetTranscript(input).catch((err) => {
+      console.error('[widget-transcript] persist failed', {
+        sessionId: input.sessionId,
+        widgetId: input.widgetId,
+        err: err instanceof Error ? err.message : String(err),
+      });
+    });
+  try {
+    after(run);
+  } catch {
+    // Fuera de un request real de Next.js (tests, scripts) after() lanza —
+    // fallback al fire-and-forget de siempre, que ahí sí alcanza a terminar.
+    void run();
+  }
 }
 
 /**

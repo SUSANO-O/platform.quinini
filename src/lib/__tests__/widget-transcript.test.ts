@@ -85,6 +85,15 @@ describe('schedulePersistWidgetTranscript', () => {
     schedulePersistWidgetTranscript(baseInput({ assistantMessage: '   ' }));
     expect(mockInsertMany).not.toHaveBeenCalled();
   });
+
+  it('fuera de un request real (after() lanza), igual persiste por el fallback', async () => {
+    // Caso real de este test: no hay AsyncLocalStorage de Next.js activo, así
+    // que next/server.after() tira "called outside a request scope" — sin el
+    // catch+fallback en schedulePersistWidgetTranscript(), esto rompería el caller.
+    schedulePersistWidgetTranscript(baseInput());
+    await new Promise((r) => setTimeout(r, 0)); // deja correr el fire-and-forget
+    expect(mockInsertMany).toHaveBeenCalled();
+  });
 });
 
 describe('respondAndPersist (no-stream) — único punto responder+guardar', () => {
