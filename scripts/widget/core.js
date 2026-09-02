@@ -8221,8 +8221,12 @@
       '#' + rootId + ' .afhub-msg-copy-btn.active { border:none; color:' + cfg.color + '; background:' + cfg.color + '14; }' +
       // Oculto hasta que el audio esté prendido de verdad (header 🔊 o modo voz por mic) —
       // que exista la voz en el widget no significa que el visitante la esté usando ahora.
-      '#' + rootId + ' .afhub-msg-speak-btn { display:none; width:24px; height:24px; opacity:1; }' +
-      '#' + rootId + '.afhub-tts-active .afhub-msg-speak-btn { display:inline-flex; }' +
+      // !important: .afhub-feedback-btn (compartida con copyBtn) define su propio
+      // display:inline-flex incondicional más abajo en esta misma hoja — misma
+      // especificidad, y por orden de aparición le ganaba a esta regla, así que
+      // el ícono quedaba siempre visible sin importar el estado del audio.
+      '#' + rootId + ' .afhub-msg-speak-btn { display:none !important; width:24px; height:24px; opacity:1; }' +
+      '#' + rootId + '.afhub-tts-active .afhub-msg-speak-btn { display:inline-flex !important; }' +
       '#' + rootId + ' .afhub-msg-speak-btn svg { width:13px; height:13px; }' +
       '#' + rootId + ' .afhub-msg-speak-btn.active { border:none; color:' + cfg.color + '; background:' + cfg.color + '14; }' +
       '#' + rootId + ' .afhub-img-frame { position:relative; border-radius:12px; overflow:hidden; border:1px solid rgba(0,0,0,.08); }' +
