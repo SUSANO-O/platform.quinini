@@ -2146,13 +2146,13 @@
     var voiceBar = null;
     var hasSpeechAPI = typeof window !== 'undefined' &&
       (typeof window.SpeechRecognition !== 'undefined' || typeof window.webkitSpeechRecognition !== 'undefined');
-    // MediaRecorder + getUserMedia — necesarios para el dictado vía ElevenLabs Scribe.
-    // A diferencia de SpeechRecognition (Chrome/Edge/Safari), esto existe en casi
-    // todos los navegadores (incluido Firefox, que no soporta SpeechRecognition).
+    // MediaRecorder + getUserMedia — soporte para dictado vía ElevenLabs Scribe,
+    // hoy desactivado (ELEVENLABS_STT_ENABLED=false más abajo). Se deja detectado
+    // por si se reactiva; el botón de mic sigue exigiendo SpeechRecognition nativo.
     var hasMediaRecorderAPI = typeof window !== 'undefined' &&
       typeof window.MediaRecorder !== 'undefined' &&
       !!(navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function');
-    var hasVoiceInputCapability = hasSpeechAPI || hasMediaRecorderAPI;
+    var hasVoiceInputCapability = hasSpeechAPI;
     if (cfg.micEnabled === true && hasVoiceInputCapability) {
       micBtn = document.createElement('button');
       micBtn.className = 'afhub-mic';
@@ -6054,6 +6054,13 @@
     // ELEVENLABS_API_KEY configurada. Si algo falla (no configurado, red caída,
     // cuota agotada), cada función cae automáticamente al camino nativo — el
     // visitante nunca se queda sin voz por un problema de este lado.
+    //
+    // El dictado (STT) vía ElevenLabs Scribe queda desactivado a pedido: el
+    // micrófono siempre usa SpeechRecognition nativo (interino palabra por
+    // palabra), que ya andaba bien — ElevenLabs solo se usa para la VOZ de
+    // salida (TTS). La interpretación del texto dictado la hace igual el
+    // backend/LLM sin importar qué motor lo transcribió.
+    var ELEVENLABS_STT_ENABLED = false;
     var elevenLabsTtsUnavailable = false;
     var elevenLabsSttUnavailable = false;
 
@@ -6324,7 +6331,7 @@
     }
 
     function elevenLabsSttCapable() {
-      return !elevenLabsSttUnavailable && hasMediaRecorderAPI;
+      return ELEVENLABS_STT_ENABLED && !elevenLabsSttUnavailable && hasMediaRecorderAPI;
     }
 
     function pickRecorderMimeType() {
