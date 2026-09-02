@@ -29,6 +29,8 @@ export interface WidgetConfig {
   title: string;
   subtitle: string;
   welcome: string;
+  /** Si false, no se manda el mensaje de bienvenida al abrir el chat (el texto queda guardado). */
+  welcomeEnabled: boolean;
   fabHint: string;
   humanSupportPhone: string;
   humanSupportEnabled: boolean;
@@ -55,6 +57,8 @@ export interface WidgetConfig {
   imageUploadEnabled: boolean;
   /** Botón micrófono (STT) en el input del chat. */
   micEnabled: boolean;
+  /** voice_id de ElevenLabs para leer las respuestas del bot; vacío = default global del servidor. */
+  voiceId: string;
   multiAgentEnabled: boolean;
   multiAgentMode: 'triage' | 'parallel' | 'pipeline';
   agentIds: string[];

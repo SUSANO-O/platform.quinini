@@ -322,6 +322,7 @@ export default function WidgetBuilderPage() {
               title: String(widget.title ?? DEFAULT_WIDGET_CONFIG.title),
               subtitle: String(widget.subtitle ?? ''),
               welcome: String(widget.welcome ?? ''),
+              welcomeEnabled: (widget as { welcomeEnabled?: boolean }).welcomeEnabled !== false,
               fabHint: String(widget.fabHint ?? ''),
               humanSupportPhone: String(widget.humanSupportPhone ?? ''),
               humanSupportEnabled: widget.humanSupportEnabled !== false,
@@ -357,6 +358,7 @@ export default function WidgetBuilderPage() {
               micEnabled: typeof (widget as { micEnabled?: boolean }).micEnabled === 'boolean'
                 ? (widget as { micEnabled?: boolean }).micEnabled !== false
                 : widget.voiceEnabled !== false,
+              voiceId: String((widget as { voiceId?: string }).voiceId ?? ''),
               multiAgentEnabled: widget.multiAgentEnabled === true,
               multiAgentMode:
                 widget.multiAgentMode === 'parallel'
@@ -454,6 +456,8 @@ export default function WidgetBuilderPage() {
     'voiceEnabled',
     'imageUploadEnabled',
     'micEnabled',
+    'welcomeEnabled',
+    'voiceId',
     'policyEnabled',
     'aiBeamScope',
     'aiBeamPalette',

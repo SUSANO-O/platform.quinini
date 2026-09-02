@@ -134,6 +134,8 @@ const WidgetSchema = new Schema({
   title:        { type: String, default: '' },
   subtitle:     { type: String, default: '' },
   welcome:      { type: String, default: '' },
+  /** Si false, no se manda el mensaje de bienvenida al abrir el chat (el texto queda guardado). */
+  welcomeEnabled: { type: Boolean, default: true },
   fabHint:      { type: String, default: '' },
   avatar:       { type: String, default: '' },
   /** Tamaño del botón FAB cuando hay avatar (px). Sin avatar se usa el orbe fijo. */
@@ -150,6 +152,8 @@ const WidgetSchema = new Schema({
   imageUploadEnabled: { type: Boolean, default: true },
   /** Si false, oculta el botón micrófono (STT) en el input del chat. */
   micEnabled: { type: Boolean, default: true },
+  /** voice_id de ElevenLabs para leer las respuestas del bot (vacío = usa el default global). */
+  voiceId: { type: String, default: '' },
   /** Borde mágico modo AI: off | input | messages | both */
   aiBeamScope: { type: String, enum: ['off', 'input', 'messages', 'both'], default: 'both' },
   aiBeamPalette: { type: String, enum: ['rainbow', 'brand', 'custom'], default: 'rainbow' },

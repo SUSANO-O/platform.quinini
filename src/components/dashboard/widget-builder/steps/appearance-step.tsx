@@ -8,6 +8,7 @@ import type { AiBeamScope, ThinkingIconId, WidgetConfig, WidgetConfigPatch } fro
 import {
   THINKING_ICON_OPTIONS,
   WIDGET_BUILDER_UI_ACCENT,
+  WIDGET_VOICE_OPTIONS,
   aiBeamScopeLabel,
 } from '@/lib/widget-builder';
 import { WidgetBuilderAppearancePreview } from '@/components/dashboard/widget-builder/appearance-preview';
@@ -22,6 +23,7 @@ import {
   WidgetBuilderRangeField,
   WidgetBuilderSection,
   WidgetBuilderSections,
+  WidgetBuilderSelect,
   WidgetBuilderSwitch,
   WidgetBuilderThemeToggle,
   widgetPositionLabel,
@@ -99,6 +101,8 @@ export function WidgetBuilderAppearanceStep({
     | 'imageUploadEnabled'
     | 'micEnabled'
     | 'voiceEnabled'
+    | 'voiceId'
+    | 'welcomeEnabled'
     | 'autoOpen'
     | 'fabDismissible'
     | 'policyEnabled'
@@ -374,12 +378,26 @@ export function WidgetBuilderAppearanceStep({
               />
             </WidgetBuilderField>
             <WidgetBuilderField className="widget-builder-field--full">
-              <WidgetBuilderLabel htmlFor="wb-welcome">Mensaje de bienvenida</WidgetBuilderLabel>
+              <div className="widget-builder-ai-beam-head">
+                <div className="widget-builder-ai-beam-head__text">
+                  <WidgetBuilderLabel htmlFor="wb-welcome">Mensaje de bienvenida</WidgetBuilderLabel>
+                  <p className="widget-builder-visual-toggles__hint">
+                    {cfg.welcomeEnabled ? 'Se envía al abrir el chat' : 'Desactivado — no se envía nada'}
+                  </p>
+                </div>
+                <WidgetBuilderSwitch
+                  checked={cfg.welcomeEnabled}
+                  accentColor={WIDGET_BUILDER_UI_ACCENT}
+                  onChange={(checked) => onChange({ welcomeEnabled: checked })}
+                  ariaLabel="Enviar mensaje de bienvenida al abrir el chat"
+                />
+              </div>
               <WidgetBuilderInput
                 id="wb-welcome"
                 value={cfg.welcome}
                 onChange={(e) => onChange({ welcome: e.target.value })}
                 placeholder="¡Hola! ¿En qué puedo ayudarte?"
+                disabled={!cfg.welcomeEnabled}
               />
             </WidgetBuilderField>
             <WidgetBuilderField className="widget-builder-field--full">
@@ -499,6 +517,25 @@ export function WidgetBuilderAppearanceStep({
                 </div>
               ))}
             </div>
+            {cfg.voiceEnabled ? (
+              <WidgetBuilderField className="widget-builder-field--full">
+                <WidgetBuilderLabel htmlFor="wb-voice-id">Voz para leer las respuestas</WidgetBuilderLabel>
+                <WidgetBuilderSelect
+                  id="wb-voice-id"
+                  value={cfg.voiceId}
+                  onChange={(e) => onChange({ voiceId: e.target.value })}
+                >
+                  {WIDGET_VOICE_OPTIONS.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.label}{opt.accent ? ` (${opt.accent})` : ''}
+                    </option>
+                  ))}
+                </WidgetBuilderSelect>
+                <WidgetBuilderHint>
+                  Todas usan el mismo modelo de voz — elegir una no cambia el costo.
+                </WidgetBuilderHint>
+              </WidgetBuilderField>
+            ) : null}
           </WidgetBuilderSection>
         </WidgetBuilderSections>
       </div>
