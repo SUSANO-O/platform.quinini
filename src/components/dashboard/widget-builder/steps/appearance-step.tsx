@@ -93,6 +93,20 @@ function VoicePreviewButton({ voiceId }: { voiceId: string }) {
     setState('idle');
   }
 
+  function playDataUrl(dataUrl: string) {
+    const audio = new Audio(dataUrl);
+    audioRef.current = audio;
+    audio.onended = () => setState('idle');
+    audio.onerror = () => { setError('No se pudo reproducir (¿bloqueado por el navegador?).'); setState('idle'); };
+    setState('playing');
+    // play() puede rechazar (autoplay bloqueado, CSP, fuente no soportada) — sin
+    // este catch queda como unhandled rejection en consola sin avisar al usuario.
+    audio.play().catch(() => {
+      setError('No se pudo reproducir (¿bloqueado por el navegador?).');
+      setState('idle');
+    });
+  }
+
   async function play() {
     if (state === 'playing') {
       stop();
@@ -102,12 +116,7 @@ function VoicePreviewButton({ voiceId }: { voiceId: string }) {
     const cacheKey = voiceId || '__default__';
     const cached = cacheRef.current.get(cacheKey);
     if (cached) {
-      const audio = new Audio(cached);
-      audioRef.current = audio;
-      audio.onended = () => setState('idle');
-      audio.onerror = () => { setError('No se pudo reproducir.'); setState('idle'); };
-      setState('playing');
-      void audio.play();
+      playDataUrl(cached);
       return;
     }
     setState('loading');
@@ -127,12 +136,7 @@ function VoicePreviewButton({ voiceId }: { voiceId: string }) {
       }
       const dataUrl = `data:${data.mimeType || 'audio/mpeg'};base64,${data.audioBase64}`;
       cacheRef.current.set(cacheKey, dataUrl);
-      const audio = new Audio(dataUrl);
-      audioRef.current = audio;
-      audio.onended = () => setState('idle');
-      audio.onerror = () => { setError('No se pudo reproducir.'); setState('idle'); };
-      setState('playing');
-      void audio.play();
+      playDataUrl(dataUrl);
     } catch {
       setError('Error de red.');
       setState('idle');
