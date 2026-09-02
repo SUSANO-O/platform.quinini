@@ -1840,7 +1840,8 @@
     settingsBtn.title = 'Ajustes';
 
     var voiceMenuAvailable =
-      cfg.voiceEnabled === true && typeof window !== 'undefined' && window.speechSynthesis;
+      cfg.voiceEnabled === true && typeof window !== 'undefined' &&
+      (window.speechSynthesis || typeof window.Audio !== 'undefined');
     var settingsMenuHtml =
       '<button type="button" class="afhub-settings-item afhub-settings-new-chat">' +
         ICON_NEW_CHAT +
@@ -2139,7 +2140,14 @@
     var voiceBar = null;
     var hasSpeechAPI = typeof window !== 'undefined' &&
       (typeof window.SpeechRecognition !== 'undefined' || typeof window.webkitSpeechRecognition !== 'undefined');
-    if (cfg.micEnabled === true && hasSpeechAPI) {
+    // MediaRecorder + getUserMedia — necesarios para el dictado vía ElevenLabs Scribe.
+    // A diferencia de SpeechRecognition (Chrome/Edge/Safari), esto existe en casi
+    // todos los navegadores (incluido Firefox, que no soporta SpeechRecognition).
+    var hasMediaRecorderAPI = typeof window !== 'undefined' &&
+      typeof window.MediaRecorder !== 'undefined' &&
+      !!(navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function');
+    var hasVoiceInputCapability = hasSpeechAPI || hasMediaRecorderAPI;
+    if (cfg.micEnabled === true && hasVoiceInputCapability) {
       micBtn = document.createElement('button');
       micBtn.className = 'afhub-mic';
       micBtn.innerHTML = ICON_MIC;
@@ -5939,6 +5947,10 @@
     var ttsAudio = null;
     var ttsUtterance = null;
     var ttsSessionId = 0;
+    var mediaRecorderStream = null;
+    var mediaRecorderChunks = [];
+    var vadAudioCtx = null;
+    var vadRafId = null;
 
     function ttsCleanText(text) {
       return String(text || '')
@@ -6031,7 +6043,89 @@
       return byLang[0] || null;
     }
 
+    // ── Voz vía ElevenLabs (plan Creator) ─────────────────────────────────────
+    // Reemplaza el dictado/voz nativos del navegador cuando el servidor tiene
+    // ELEVENLABS_API_KEY configurada. Si algo falla (no configurado, red caída,
+    // cuota agotada), cada función cae automáticamente al camino nativo — el
+    // visitante nunca se queda sin voz por un problema de este lado.
+    var elevenLabsTtsUnavailable = false;
+    var elevenLabsSttUnavailable = false;
+
+    function elevenLabsVoiceUrl(path) {
+      return cfg.host.replace(/\/$/, '') + path;
+    }
+
+    function elevenLabsHeaders() {
+      var h = { 'Content-Type': 'application/json' };
+      if (cfg.token) h['X-Widget-Token'] = String(cfg.token).trim();
+      return h;
+    }
+
+    function elevenLabsRequestBody(extra) {
+      var body = {
+        sessionId: chatSessionId,
+        widgetId: cfg.widgetId && String(cfg.widgetId).trim() ? String(cfg.widgetId).trim() : undefined,
+        agentId: cfg.agentId || '',
+        token: cfg.token && String(cfg.token).trim() ? String(cfg.token).trim() : undefined,
+      };
+      for (var k in extra) body[k] = extra[k];
+      return body;
+    }
+
+    function elevenLabsTtsCapable() {
+      return !elevenLabsTtsUnavailable && typeof window !== 'undefined' && typeof window.Audio !== 'undefined';
+    }
+
+    function ttsSpeakElevenLabs(text, onEnd) {
+      var session = ++ttsSessionId;
+      fetch(elevenLabsVoiceUrl('/api/widget/voice/tts'), {
+        method: 'POST',
+        headers: elevenLabsHeaders(),
+        body: JSON.stringify(elevenLabsRequestBody({ text: text })),
+        signal: AbortSignal.timeout(20000),
+      }).then(function(res) {
+        if (session !== ttsSessionId) return null;
+        if (res.status === 503) elevenLabsTtsUnavailable = true;
+        if (!res.ok) throw new Error('tts http ' + res.status);
+        return res.json();
+      }).then(function(json) {
+        if (session !== ttsSessionId) return;
+        if (!json) return;
+        if (!json.ok || !json.audioBase64) throw new Error((json && json.error) || 'tts sin audio');
+        var audio = new Audio('data:' + (json.mimeType || 'audio/mpeg') + ';base64,' + json.audioBase64);
+        ttsAudio = audio;
+        audio.onended = function() {
+          if (session !== ttsSessionId) return;
+          ttsAudio = null;
+          if (onEnd) onEnd();
+        };
+        audio.onerror = function() {
+          if (session !== ttsSessionId) return;
+          log(cfg, 'warn', '[TTS] ElevenLabs playback error — fallback nativo');
+          ttsAudio = null;
+          ttsSpeakNative(text, onEnd);
+        };
+        audio.play().catch(function(err) {
+          if (session !== ttsSessionId) return;
+          log(cfg, 'warn', '[TTS] ElevenLabs play() rechazado — fallback nativo:', err && err.message);
+          ttsAudio = null;
+          ttsSpeakNative(text, onEnd);
+        });
+      }).catch(function(err) {
+        if (session !== ttsSessionId) return;
+        log(cfg, 'debug', '[TTS] ElevenLabs no disponible — fallback nativo:', err && err.message);
+        ttsSpeakNative(text, onEnd);
+      });
+    }
+
     function ttsSpeak(text, onEnd) {
+      var cleaned = ttsCleanText(text);
+      if (!cleaned) { if (onEnd) onEnd(); return; }
+      if (elevenLabsTtsCapable()) { ttsSpeakElevenLabs(cleaned, onEnd); return; }
+      ttsSpeakNative(cleaned, onEnd);
+    }
+
+    function ttsSpeakNative(text, onEnd) {
       var cleaned = ttsCleanText(text);
       if (!cleaned) { if (onEnd) onEnd(); return; }
 
@@ -6183,10 +6277,183 @@
       }
     }
 
+    function elevenLabsSttCapable() {
+      return !elevenLabsSttUnavailable && hasMediaRecorderAPI;
+    }
+
+    function pickRecorderMimeType() {
+      var candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+      for (var i = 0; i < candidates.length; i++) {
+        if (window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported(candidates[i])) return candidates[i];
+      }
+      return '';
+    }
+
+    function stopMediaRecorderTracks() {
+      if (mediaRecorderStream) {
+        mediaRecorderStream.getTracks().forEach(function(t) { t.stop(); });
+        mediaRecorderStream = null;
+      }
+      if (vadRafId) { cancelAnimationFrame(vadRafId); vadRafId = null; }
+      if (vadAudioCtx) { try { vadAudioCtx.close(); } catch(_) {} vadAudioCtx = null; }
+    }
+
+    function micPermissionDeniedUI() {
+      stopVoice();
+      if (voiceBar) {
+        var label = voiceBar.querySelector('.afhub-voice-label');
+        if (label) label.textContent = 'Permiso de micrófono denegado';
+      }
+    }
+
+    /**
+     * Transcribe un clip ya grabado vía ElevenLabs Scribe. A diferencia del
+     * SpeechRecognition nativo (texto interino palabra por palabra mientras se
+     * habla), acá el texto aparece de una vez cuando el clip termina — el VAD de
+     * startListeningElevenLabs() decide cuándo "terminó" (silencio o tope de tiempo).
+     */
+    function transcribeElevenLabs(blob, mimeType) {
+      var reader = new FileReader();
+      reader.onload = function() {
+        fetch(elevenLabsVoiceUrl('/api/widget/voice/stt'), {
+          method: 'POST',
+          headers: elevenLabsHeaders(),
+          body: JSON.stringify(elevenLabsRequestBody({ dataUrl: reader.result })),
+          signal: AbortSignal.timeout(20000),
+        }).then(function(res) {
+          if (res.status === 503) elevenLabsSttUnavailable = true;
+          if (!res.ok) throw new Error('stt http ' + res.status);
+          return res.json();
+        }).then(function(json) {
+          if (!voiceShouldBeActive) return;
+          if (!json || !json.ok) throw new Error((json && json.error) || 'stt sin texto');
+          var text = String(json.text || '').trim();
+          if (text) {
+            input.value = text;
+            sendBtn.disabled = false;
+            send(text);
+          } else {
+            setTimeout(startListening, 200);
+          }
+        }).catch(function(err) {
+          log(cfg, 'warn', '[STT] ElevenLabs falló — fallback nativo:', err && err.message);
+          if (!voiceShouldBeActive) return;
+          if (hasSpeechAPI) _doStartRecognition();
+          else micPermissionDeniedUI();
+        });
+      };
+      reader.onerror = function() {
+        log(cfg, 'warn', '[STT] No se pudo leer el audio grabado');
+        if (!voiceShouldBeActive) return;
+        if (hasSpeechAPI) _doStartRecognition();
+        else micPermissionDeniedUI();
+      };
+      reader.readAsDataURL(blob);
+    }
+
+    /** Graba con detección de silencio (VAD) y transcribe el clip al terminar. */
+    function startListeningElevenLabs() {
+      if (recognitionRef) { try { recognitionRef.abort(); } catch(_) {} }
+      voiceShouldBeActive = true;
+      setVoiceState('listening');
+
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+        if (!voiceShouldBeActive) { stream.getTracks().forEach(function(t) { t.stop(); }); return; }
+        mediaRecorderStream = stream;
+        var mimeType = pickRecorderMimeType();
+        var rec;
+        try {
+          rec = mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream);
+        } catch (e) {
+          log(cfg, 'warn', '[STT] MediaRecorder no disponible — fallback nativo:', e && e.message);
+          elevenLabsSttUnavailable = true;
+          stopMediaRecorderTracks();
+          if (hasSpeechAPI) _doStartRecognition(); else micPermissionDeniedUI();
+          return;
+        }
+
+        mediaRecorderChunks = [];
+        var stopped = false;
+        var startedAt = Date.now();
+        var lastTick = startedAt;
+        var silenceMs = 0;
+        var SILENCE_THRESHOLD = 0.02;
+        var SILENCE_HOLD_MS = 1100;
+        var MIN_RECORD_MS = 500;
+        var MAX_RECORD_MS = 20000;
+
+        function finishRecording() {
+          if (stopped) return;
+          stopped = true;
+          if (vadRafId) { cancelAnimationFrame(vadRafId); vadRafId = null; }
+          try { rec.stop(); } catch(_) {}
+        }
+
+        try {
+          vadAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          var source = vadAudioCtx.createMediaStreamSource(stream);
+          var analyser = vadAudioCtx.createAnalyser();
+          analyser.fftSize = 512;
+          source.connect(analyser);
+          var data = new Uint8Array(analyser.frequencyBinCount);
+
+          var tick = function() {
+            if (stopped) return;
+            analyser.getByteTimeDomainData(data);
+            var sum = 0;
+            for (var i = 0; i < data.length; i++) {
+              var v = (data[i] - 128) / 128;
+              sum += v * v;
+            }
+            var rms = Math.sqrt(sum / data.length);
+            var now = Date.now();
+            var dt = now - lastTick;
+            lastTick = now;
+            if (rms < SILENCE_THRESHOLD) silenceMs += dt; else silenceMs = 0;
+            var elapsed = now - startedAt;
+            if ((elapsed > MIN_RECORD_MS && silenceMs >= SILENCE_HOLD_MS) || elapsed >= MAX_RECORD_MS) {
+              finishRecording();
+              return;
+            }
+            vadRafId = requestAnimationFrame(tick);
+          };
+          vadRafId = requestAnimationFrame(tick);
+        } catch (e) {
+          log(cfg, 'debug', '[STT] VAD no disponible, uso solo tope de tiempo:', e && e.message);
+        }
+
+        rec.ondataavailable = function(ev) {
+          if (ev.data && ev.data.size > 0) mediaRecorderChunks.push(ev.data);
+        };
+        rec.onstop = function() {
+          stopMediaRecorderTracks();
+          var blob = new Blob(mediaRecorderChunks, { type: mimeType || 'audio/webm' });
+          mediaRecorderChunks = [];
+          if (!voiceShouldBeActive) return;
+          if (blob.size < 600) {
+            // Clip demasiado corto (ruido/click, sin voz real) — vuelve a escuchar.
+            setTimeout(startListening, 200);
+            return;
+          }
+          setVoiceState('thinking');
+          transcribeElevenLabs(blob, mimeType);
+        };
+        // Red de seguridad si el VAD nunca disparara finishRecording().
+        setTimeout(finishRecording, MAX_RECORD_MS + 500);
+
+        recognitionRef = { abort: function() { stopped = true; stopMediaRecorderTracks(); try { rec.stop(); } catch(_) {} } };
+        rec.start();
+      }).catch(function(err) {
+        log(cfg, 'warn', '[STT] Microphone permission denied:', err && err.message);
+        micPermissionDeniedUI();
+      });
+    }
+
     function startListening() {
-      if (!hasSpeechAPI) return;
+      if (elevenLabsSttCapable()) { startListeningElevenLabs(); return; }
+      if (!hasSpeechAPI) { stopVoice(); return; }
       var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR) return;
+      if (!SR) { stopVoice(); return; }
 
       // Pide permiso de micrófono explícitamente para que el navegador muestre el diálogo
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -6198,11 +6465,7 @@
           })
           .catch(function(err) {
             log(cfg, 'warn', 'Microphone permission denied:', err && err.message);
-            stopVoice();
-            if (voiceBar) {
-              var label = voiceBar.querySelector('.afhub-voice-label');
-              if (label) label.textContent = 'Permiso de micrófono denegado';
-            }
+            micPermissionDeniedUI();
           });
       } else {
         _doStartRecognition();
