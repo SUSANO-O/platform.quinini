@@ -530,6 +530,11 @@
     feedbackQuestions: [],
     /** Minutos de inactividad para finalizar la conversación. 0 = off. */
     conversationIdleTimeout: 15,
+    /** Proactividad: mensaje automático (una sola vez) si el visitante queda en
+     * silencio con el chat abierto, habiendo ya escrito algo antes. Opt-in. */
+    idleReengageEnabled: false,
+    idleReengageMinutes: 10,
+    idleReengageMessage: '¿Seguimos por aquí? Si necesitás algo más, contáme 🙂',
     /** Aviso de privacidad en el pie del chat (configurable por widget). */
     policyEnabled: true,
     policyText: '', // texto opcional antes del enlace; vacío = solo el enlace
@@ -708,6 +713,9 @@
           'shortcuts',
           'feedbackQuestions',
           'conversationIdleTimeout',
+          'idleReengageEnabled',
+          'idleReengageMinutes',
+          'idleReengageMessage',
           'handoffTimeout',
           'humanSupportPhone',
           'avatar',
@@ -4778,6 +4786,57 @@
         return v ? (Date.now() - v) : 0;
       } catch (e) { return 0; }
     }
+
+    // ── Proactividad: re-enganche por inactividad ────────────────────────────
+    // Con el chat ABIERTO (a diferencia de checkIdleFeedback, que solo revisa al
+    // reabrir), si hubo conversación real y el visitante queda callado, se manda
+    // UN SOLO mensaje automático. Opt-in por widget (idleReengageEnabled).
+    var idleReengageTimer = null;
+    var IDLE_REENGAGE_CHECK_MS = 20000;
+
+    function idleReengageAlreadyDone() {
+      try { return sessionStorage.getItem('afhub-idle-reengage-done:' + chatSessionId) === '1'; } catch (e) { return false; }
+    }
+    function markIdleReengageDone() {
+      try { sessionStorage.setItem('afhub-idle-reengage-done:' + chatSessionId, '1'); } catch (e) { /* noop */ }
+    }
+
+    /** Extraída aparte para poder verificarla con casos concretos sin simular timers. */
+    function shouldSendIdleReengage(opts) {
+      if (!opts.enabled || opts.widgetDisabled || opts.humanModeActive || opts.feedbackCardActive) return false;
+      if (opts.userTurns <= 0 || opts.alreadyDone) return false;
+      var minutes = typeof opts.minutes === 'number' && opts.minutes > 0 ? opts.minutes : 10;
+      return opts.activityAgeMs >= minutes * 60000;
+    }
+
+    function checkIdleReengage() {
+      var should = shouldSendIdleReengage({
+        enabled: cfg.idleReengageEnabled === true,
+        userTurns: countUserTurnsInHistory(history),
+        alreadyDone: idleReengageAlreadyDone(),
+        humanModeActive: typeof humanModeActive !== 'undefined' && humanModeActive,
+        feedbackCardActive: !!feedbackCard,
+        widgetDisabled: widgetDisabled,
+        minutes: cfg.idleReengageMinutes,
+        activityAgeMs: lastActivityAge(),
+      });
+      if (!should) return;
+      markIdleReengageDone();
+      var text = String(cfg.idleReengageMessage || '').trim() || '¿Seguimos por aquí? Si necesitás algo más, contáme 🙂';
+      addMessage('bot', text);
+      history.push({ role: 'model', content: text });
+      saveChatToSession();
+    }
+
+    function startIdleReengageTimer() {
+      stopIdleReengageTimer();
+      if (cfg.idleReengageEnabled !== true) return;
+      idleReengageTimer = setInterval(checkIdleReengage, IDLE_REENGAGE_CHECK_MS);
+    }
+    function stopIdleReengageTimer() {
+      if (idleReengageTimer) { clearInterval(idleReengageTimer); idleReengageTimer = null; }
+    }
+
     // Disparador #3: al reabrir tras inactividad, finalizar y ofrecer encuesta antes de otra conversación.
     function checkIdleFeedback() {
       if (!feedbackQs.length || feedbackAlreadyDone()) return;
@@ -5154,6 +5213,7 @@
       requestAnimationFrame(syncMessagesScrollEdge);
       checkHumanModeOnOpen();
       checkIdleFeedback();
+      startIdleReengageTimer();
       Object.keys(humanShownIds).forEach(function (id) { ackHumanRead(id); });
       if (!widgetDisabled) input.focus();
       persistChatUiOpen(cfg, true);
@@ -5175,6 +5235,7 @@
     }
     function closeImpl() {
       if (!isOpen) return;
+      stopIdleReengageTimer();
       closeShortcutsModal();
       chat.classList.remove('afhub-chat--scroll-top', 'afhub-chat--scroll-bottom');
       isOpen = false;

@@ -227,6 +227,11 @@ const WidgetSchema = new Schema({
   /** Minutos de inactividad tras los cuales, al reabrir, la conversación se da por finalizada
    *  y se ofrece la encuesta antes de iniciar otra. 0 = desactivado. */
   conversationIdleTimeout: { type: Number, default: 15 },
+  /** Proactividad: mensaje automático (una sola vez) si hubo conversación real y el
+   *  visitante queda callado con el chat abierto. Opt-in — desactivado por defecto. */
+  idleReengageEnabled: { type: Boolean, default: false },
+  idleReengageMinutes: { type: Number, default: 10 },
+  idleReengageMessage: { type: String, default: '¿Seguimos por aquí? Si necesitás algo más 🙂' },
   /** Preguntas configurables por el dueño del widget (muy dinámico). */
   feedbackQuestions: {
     type: [{

@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   await connectDB();
 
   const widget = await Widget.findOne({ afhubToken: token })
-    .select('_id userId agentId color title subtitle welcome welcomeEnabled fabHint avatar fabAvatarSize position theme borderRadius autoOpen fabDismissible voiceEnabled imageUploadEnabled micEnabled voiceId aiBeamScope aiBeamPalette aiBeamColor aiBeamBlur aiBeamSpeed aiBeamIntensity scrollHaloEnabled scrollHaloColorMode scrollHaloColor scrollHaloHeight scrollHaloOpacity scrollHaloBlur scrollHaloTop scrollHaloBottom thinkingIconEnabled thinkingIcon humanSupportPhone humanSupportEnabled handoffEnabled handoffNotifyMode handoffTimeout shortcuts multiAgentEnabled multiAgentMode active feedbackEnabled feedbackTitle feedbackThanks feedbackQuestions conversationIdleTimeout policyEnabled policyText policyLinkLabel policyUrl')
+    .select('_id userId agentId color title subtitle welcome welcomeEnabled fabHint avatar fabAvatarSize position theme borderRadius autoOpen fabDismissible voiceEnabled imageUploadEnabled micEnabled voiceId aiBeamScope aiBeamPalette aiBeamColor aiBeamBlur aiBeamSpeed aiBeamIntensity scrollHaloEnabled scrollHaloColorMode scrollHaloColor scrollHaloHeight scrollHaloOpacity scrollHaloBlur scrollHaloTop scrollHaloBottom thinkingIconEnabled thinkingIcon humanSupportPhone humanSupportEnabled handoffEnabled handoffNotifyMode handoffTimeout shortcuts multiAgentEnabled multiAgentMode active feedbackEnabled feedbackTitle feedbackThanks feedbackQuestions conversationIdleTimeout idleReengageEnabled idleReengageMinutes idleReengageMessage policyEnabled policyText policyLinkLabel policyUrl')
     .lean() as Record<string, unknown> | null;
 
   if (!widget) {
@@ -112,6 +112,13 @@ export async function GET(req: NextRequest) {
               .filter((q) => q.enabled !== false)
           : [],
         conversationIdleTimeout: typeof widget.conversationIdleTimeout === 'number' ? widget.conversationIdleTimeout : 15,
+        idleReengageEnabled: (widget as { idleReengageEnabled?: boolean }).idleReengageEnabled === true,
+        idleReengageMinutes: typeof (widget as { idleReengageMinutes?: number }).idleReengageMinutes === 'number'
+          ? (widget as { idleReengageMinutes?: number }).idleReengageMinutes
+          : 10,
+        idleReengageMessage: typeof (widget as { idleReengageMessage?: string }).idleReengageMessage === 'string'
+          ? (widget as { idleReengageMessage?: string }).idleReengageMessage
+          : '¿Seguimos por aquí? Si necesitás algo más 🙂',
         voiceName,
         voiceId: typeof (widget as { voiceId?: string }).voiceId === 'string' ? (widget as { voiceId?: string }).voiceId : '',
         shortcuts:         Array.isArray(widget.shortcuts)

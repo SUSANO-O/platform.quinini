@@ -109,7 +109,7 @@ export async function checkAndBuildTicketDeflectionReply(params: {
       // ticket sin indagar ni notar el pivote. Si pivotea a venta, no forzar
       // el ticket: dejar que el mensaje siga el flujo normal.
       if (looksLikePurchaseIntentPivot(message)) {
-        logWidgetFlow('🎫', evt('problemAnswerPivotedToSale'), 'la respuesta al "contame el problema" pivoteó a venta — no se fuerza el ticket', { traceId, agentId });
+        logWidgetFlow('🎫', evt('problemAnswerPivotedToSale'), 'la respuesta al "cuéntame el problema" pivoteó a venta — no se fuerza el ticket', { traceId, agentId });
         return { intercepted: false };
       }
       const deflection = await checkTicketDeflection({ agentId: ragAgentId, query: message });

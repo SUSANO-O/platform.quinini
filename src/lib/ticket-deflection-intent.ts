@@ -92,7 +92,7 @@ export function interpretYesNo(text: string): 'yes' | 'no' | null {
 
 /** Pregunta amable para cuando el usuario pide un ticket sin decir cuál es el problema. */
 export function buildAskProblemReply(): string {
-  return '¡Con gusto te ayudo! Contame con un poco más de detalle qué problema estás teniendo y vemos cómo resolverlo 🙂';
+  return '¡Con gusto te ayudo! Cuéntame con un poco más de detalle qué problema estás teniendo y vemos cómo resolverlo 🙂';
 }
 
 /** Marcador que el widget interpreta como "mostrar encuesta Sí/No de deflection". */

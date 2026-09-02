@@ -444,6 +444,46 @@ export function WidgetBuilderBehaviorStep({
         </div>
       </WidgetBuilderTogglePanel>
 
+      <WidgetBuilderTogglePanel
+        active={cfg.idleReengageEnabled}
+        accentColor={WIDGET_BUILDER_UI_ACCENT}
+        control="checkbox"
+        checkboxId="idleReengageEnabled"
+        title="👋 Re-enganche por inactividad"
+        description={
+          cfg.idleReengageEnabled
+            ? 'Si el visitante deja de escribir con el chat abierto, se le manda un único mensaje automático.'
+            : 'Desactivado: el chat no manda ningún mensaje si el visitante queda en silencio.'
+        }
+        onToggle={(idleReengageEnabled) => onChange({ idleReengageEnabled })}
+      >
+        <WidgetBuilderField>
+          <WidgetBuilderLabel htmlFor="wb-idle-reengage-minutes">Minutos de silencio antes de escribir</WidgetBuilderLabel>
+          <WidgetBuilderInput
+            id="wb-idle-reengage-minutes"
+            type="number"
+            min={1}
+            max={120}
+            value={cfg.idleReengageMinutes}
+            onChange={(e) =>
+              onChange({ idleReengageMinutes: Math.max(1, parseInt(e.target.value, 10) || 1) })
+            }
+          />
+        </WidgetBuilderField>
+        <WidgetBuilderField className="widget-builder-field--full">
+          <WidgetBuilderLabel htmlFor="wb-idle-reengage-message">Mensaje automático</WidgetBuilderLabel>
+          <WidgetBuilderInput
+            id="wb-idle-reengage-message"
+            value={cfg.idleReengageMessage}
+            onChange={(e) => onChange({ idleReengageMessage: e.target.value.slice(0, 300) })}
+            placeholder="¿Seguimos por aquí? Si necesitás algo más 🙂"
+          />
+          <WidgetBuilderHint>
+            Se manda como máximo <strong>una vez</strong> por conversación, y solo si el visitante ya escribió algo antes.
+          </WidgetBuilderHint>
+        </WidgetBuilderField>
+      </WidgetBuilderTogglePanel>
+
       <WidgetBuilderSection
         tourId="widget-builder-embed-options"
         title="Funcionalidades extra"

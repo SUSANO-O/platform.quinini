@@ -41,6 +41,10 @@ export interface WidgetConfig {
   feedbackTitle: string;
   feedbackThanks: string;
   conversationIdleTimeout: number;
+  /** Proactividad: mensaje automático (una sola vez) si el visitante queda en silencio con el chat abierto. */
+  idleReengageEnabled: boolean;
+  idleReengageMinutes: number;
+  idleReengageMessage: string;
   policyEnabled: boolean;
   policyText: string;
   policyLinkLabel: string;
