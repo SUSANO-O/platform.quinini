@@ -67,7 +67,7 @@ const EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
 
 /**
  * ¿La "descripción del problema" pedida en realidad es un pedido nuevo (venta),
- * no una falla? Bug real visto en vivo (Tribu GPS): tras preguntar "contame el
+ * no una falla? Bug real visto en vivo (Tribu GPS): tras preguntar "cuentame el
  * problema", el usuario contestó "gracias quiero un gps" — el código asumía que
  * CUALQUIER respuesta describía un problema y mandaba derecho al formulario de
  * ticket sin indagar ni notar el cambio de tema. Conservador a propósito

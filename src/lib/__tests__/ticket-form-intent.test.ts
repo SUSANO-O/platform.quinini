@@ -186,7 +186,7 @@ describe('shouldForceTicketForm', () => {
 });
 
 describe('looksLikePurchaseIntentPivot', () => {
-  it('detecta pedidos de compra claros (caso real: respuesta a "contame el problema")', () => {
+  it('detecta pedidos de compra claros (caso real: respuesta a "cuentame el problema")', () => {
     expect(looksLikePurchaseIntentPivot('gracias quiero un gps')).toBe(true);
     expect(looksLikePurchaseIntentPivot('necesito un dispositivo para mi moto')).toBe(true);
     expect(looksLikePurchaseIntentPivot('quisiera cotizar un plan')).toBe(true);
