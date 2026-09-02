@@ -1,8 +1,8 @@
 'use client';
 
-import type { CSSProperties } from 'react';
+import { useRef, useState, type CSSProperties } from 'react';
 import { AvatarEditor } from '@/components/ui/AvatarEditor';
-import { Sparkles } from '@/components/ui/icons';
+import { Loader2, Pause, Play, Sparkles } from '@/components/ui/icons';
 import { BRAND } from '@/lib/brand-colors';
 import type { AiBeamScope, ThinkingIconId, WidgetConfig, WidgetConfigPatch } from '@/lib/widget-builder';
 import {
@@ -65,11 +65,6 @@ const VISUAL_TOGGLES = [
     hint: 'Dictado por voz (STT)',
   },
   {
-    key: 'voiceEnabled' as const,
-    label: 'Lectura en voz alta',
-    hint: 'Altavoz en la cabecera (TTS)',
-  },
-  {
     key: 'autoOpen' as const,
     label: 'Abrir al cargar',
     hint: 'El chat se abre solo al visitar la página',
@@ -80,6 +75,92 @@ const VISUAL_TOGGLES = [
     hint: 'Muestra la X para ocultar el botón flotante',
   },
 ];
+
+type PreviewState = 'idle' | 'loading' | 'playing';
+
+/** Botón ▶ junto al selector de voz — genera y reproduce un fragmento corto con ElevenLabs. */
+function VoicePreviewButton({ voiceId }: { voiceId: string }) {
+  const [state, setState] = useState<PreviewState>('idle');
+  const [error, setError] = useState('');
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const cacheRef = useRef<Map<string, string>>(new Map());
+
+  function stop() {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setState('idle');
+  }
+
+  async function play() {
+    if (state === 'playing') {
+      stop();
+      return;
+    }
+    setError('');
+    const cacheKey = voiceId || '__default__';
+    const cached = cacheRef.current.get(cacheKey);
+    if (cached) {
+      const audio = new Audio(cached);
+      audioRef.current = audio;
+      audio.onended = () => setState('idle');
+      audio.onerror = () => { setError('No se pudo reproducir.'); setState('idle'); };
+      setState('playing');
+      void audio.play();
+      return;
+    }
+    setState('loading');
+    try {
+      const res = await fetch('/api/widgets/voice-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voiceId }),
+      });
+      const data = (await res.json().catch(() => null)) as
+        | { ok?: boolean; audioBase64?: string; mimeType?: string; error?: string }
+        | null;
+      if (!res.ok || !data?.ok || !data.audioBase64) {
+        setError(data?.error || 'No se pudo generar la muestra.');
+        setState('idle');
+        return;
+      }
+      const dataUrl = `data:${data.mimeType || 'audio/mpeg'};base64,${data.audioBase64}`;
+      cacheRef.current.set(cacheKey, dataUrl);
+      const audio = new Audio(dataUrl);
+      audioRef.current = audio;
+      audio.onended = () => setState('idle');
+      audio.onerror = () => { setError('No se pudo reproducir.'); setState('idle'); };
+      setState('playing');
+      void audio.play();
+    } catch {
+      setError('Error de red.');
+      setState('idle');
+    }
+  }
+
+  return (
+    <div className="widget-builder-voice-preview">
+      <button
+        type="button"
+        className="widget-builder-voice-preview__btn"
+        onClick={play}
+        disabled={state === 'loading'}
+        aria-label={state === 'playing' ? 'Detener muestra de voz' : 'Escuchar muestra de voz'}
+        title={state === 'playing' ? 'Detener' : 'Escuchar un fragmento'}
+      >
+        {state === 'loading' ? (
+          <Loader2 size={16} className="widget-builder-voice-preview__spin" />
+        ) : state === 'playing' ? (
+          <Pause size={16} />
+        ) : (
+          <Play size={16} />
+        )}
+      </button>
+      {error ? <span className="widget-builder-visual-toggles__hint">{error}</span> : null}
+    </div>
+  );
+}
 
 export function WidgetBuilderAppearanceStep({
   cfg,
@@ -517,20 +598,35 @@ export function WidgetBuilderAppearanceStep({
                 </div>
               ))}
             </div>
+            <div className="widget-builder-field widget-builder-field--full widget-builder-ai-beam-head" style={{ marginTop: '0.75rem' }}>
+              <div className="widget-builder-ai-beam-head__text">
+                <p className="widget-builder-visual-toggles__label">Lectura en voz alta</p>
+                <p className="widget-builder-visual-toggles__hint">Altavoz en la cabecera (TTS)</p>
+              </div>
+              <WidgetBuilderSwitch
+                checked={cfg.voiceEnabled}
+                accentColor={WIDGET_BUILDER_UI_ACCENT}
+                onChange={(checked) => onChange({ voiceEnabled: checked })}
+                ariaLabel="Lectura en voz alta"
+              />
+            </div>
             {cfg.voiceEnabled ? (
               <WidgetBuilderField className="widget-builder-field--full">
                 <WidgetBuilderLabel htmlFor="wb-voice-id">Voz para leer las respuestas</WidgetBuilderLabel>
-                <WidgetBuilderSelect
-                  id="wb-voice-id"
-                  value={cfg.voiceId}
-                  onChange={(e) => onChange({ voiceId: e.target.value })}
-                >
-                  {WIDGET_VOICE_OPTIONS.map((opt) => (
-                    <option key={opt.id} value={opt.id}>
-                      {opt.label}{opt.accent ? ` (${opt.accent})` : ''}
-                    </option>
-                  ))}
-                </WidgetBuilderSelect>
+                <div className="widget-builder-voice-picker">
+                  <WidgetBuilderSelect
+                    id="wb-voice-id"
+                    value={cfg.voiceId}
+                    onChange={(e) => onChange({ voiceId: e.target.value })}
+                  >
+                    {WIDGET_VOICE_OPTIONS.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.label}{opt.accent ? ` (${opt.accent})` : ''}
+                      </option>
+                    ))}
+                  </WidgetBuilderSelect>
+                  <VoicePreviewButton voiceId={cfg.voiceId} />
+                </div>
                 <WidgetBuilderHint>
                   Todas usan el mismo modelo de voz — elegir una no cambia el costo.
                 </WidgetBuilderHint>
