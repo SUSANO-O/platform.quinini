@@ -64,6 +64,8 @@ const nextConfig: NextConfig = {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
+      // Voz del widget/dashboard (ElevenLabs): el audio TTS llega como data: URI en <audio>/Audio().
+      "media-src 'self' data: blob:",
       "connect-src 'self' https://api.lemonsqueezy.com https://api.stripe.com https://*.upstash.io https://control-BotIvA.vercel.app https://challenges.cloudflare.com wss: " + agentflowApiOrigins,
       // 'self' incluye /api/embed/afapi/* (docs embebidas en /dashboard/api)
       `frame-src 'self' https://app.lemonsqueezy.com https://checkout.lemonsqueezy.com https://js.stripe.com https://hooks.stripe.com https://challenges.cloudflare.com ${agentflowApiOrigins}`,
