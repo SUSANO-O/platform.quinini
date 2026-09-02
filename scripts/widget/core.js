@@ -6576,6 +6576,7 @@
       ttsStop();
       if (voiceBar) voiceBar.classList.remove('afhub-voice-bar--active');
       if (micBtn) { micBtn.innerHTML = ICON_MIC; micBtn.classList.remove('afhub-mic--active'); }
+      syncSpeakerMenuItem();
     }
 
     function toggleVoice() {
@@ -6587,6 +6588,7 @@
         if (micBtn) { micBtn.innerHTML = ICON_MIC_OFF; micBtn.classList.add('afhub-mic--active'); }
         if (!isOpen) open();
         startListening();
+        syncSpeakerMenuItem();
       }
     }
 
@@ -6605,6 +6607,10 @@
     addMessage = addMessageWithTTS;
 
     function syncSpeakerMenuItem() {
+      // El botón 🔊 por mensaje solo debe verse cuando el audio está prendido de
+      // verdad (este toggle o el modo voz por mic) — no solo porque el widget lo
+      // soporte. Una clase en el root, más simple/robusto que rastrear cada botón.
+      root.classList.toggle('afhub-tts-active', ttsMode || voiceActive);
       if (headerSpeakerBtn) {
         headerSpeakerBtn.innerHTML = ttsMode ? ICON_VOLUME_ON : ICON_VOLUME_OFF;
         headerSpeakerBtn.classList.toggle('afhub-header-speaker--active', ttsMode);
@@ -8200,7 +8206,10 @@
       '#' + rootId + ' .afhub-msg-copy-btn { width:24px; height:24px; opacity:1; }' +
       '#' + rootId + ' .afhub-msg-copy-btn svg { width:13px; height:13px; }' +
       '#' + rootId + ' .afhub-msg-copy-btn.active { border:none; color:' + cfg.color + '; background:' + cfg.color + '14; }' +
-      '#' + rootId + ' .afhub-msg-speak-btn { width:24px; height:24px; opacity:1; }' +
+      // Oculto hasta que el audio esté prendido de verdad (header 🔊 o modo voz por mic) —
+      // que exista la voz en el widget no significa que el visitante la esté usando ahora.
+      '#' + rootId + ' .afhub-msg-speak-btn { display:none; width:24px; height:24px; opacity:1; }' +
+      '#' + rootId + '.afhub-tts-active .afhub-msg-speak-btn { display:inline-flex; }' +
       '#' + rootId + ' .afhub-msg-speak-btn svg { width:13px; height:13px; }' +
       '#' + rootId + ' .afhub-msg-speak-btn.active { border:none; color:' + cfg.color + '; background:' + cfg.color + '14; }' +
       '#' + rootId + ' .afhub-img-frame { position:relative; border-radius:12px; overflow:hidden; border:1px solid rgba(0,0,0,.08); }' +
