@@ -1,0 +1,38 @@
+name: CI
+
+# En push llega DESPUÉS del push: sirve para enterarse rápido, no para frenar.
+# Ojo: el deploy (Vercel + Cloud Build) se dispara con el mismo push y NO
+# espera a esto. Para gatear de verdad hay que trabajar por PR con branch
+# protection.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: tests + typecheck
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      # Este sí frena: 695 tests verdes hoy.
+      - name: Tests
+        run: npm test
+
+      # NO bloqueante todavía: `tsc --noEmit` arrastra 8 errores preexistentes,
+      # todos en src/lib/__tests__/ (admin-ops-live, agentflow-api-url,
+      # sheet-snapshot-read, widget-agent-capabilities). El código de la app
+      # compila limpio. Cuando esos 8 lleguen a cero, sacar el
+      # `continue-on-error` para que empiece a frenar.
+      - name: Typecheck (informativo — 8 errores preexistentes en tests)
+        run: npm run typecheck
+        continue-on-error: true
