@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   AGENTFLOW_API_LOCAL_URL,
   AGENTFLOW_API_PRODUCTION_URL,
@@ -10,6 +10,9 @@ describe('agentflow-api-url', () => {
 
   afterEach(() => {
     process.env = { ...env };
+    // vi.stubEnv (usado para NODE_ENV, que es readonly en los tipos de Next)
+    // guarda su propio estado; hay que deshacerlo aparte.
+    vi.unstubAllEnvs();
   });
 
   it('usa API local cuando la landing es localhost', () => {
@@ -27,13 +30,15 @@ describe('agentflow-api-url', () => {
   });
 
   it('en deploy de producción ignora NEXT_PUBLIC_AGENTFLOW_API_URL local', () => {
-    process.env.NODE_ENV = 'production';
+    // NODE_ENV es readonly en los tipos: stubEnv es la vía soportada y además
+    // restaura sola en el afterEach.
+    vi.stubEnv('NODE_ENV', 'production');
     process.env.NEXT_PUBLIC_AGENTFLOW_API_URL = 'http://127.0.0.1:4000';
     expect(resolveAgentflowApiUrl()).toBe(AGENTFLOW_API_PRODUCTION_URL);
   });
 
   it('en desarrollo respeta NEXT_PUBLIC_AGENTFLOW_API_URL explícita', () => {
-    process.env.NODE_ENV = 'development';
+    vi.stubEnv('NODE_ENV', 'development');
     process.env.NEXT_PUBLIC_AGENTFLOW_API_URL = 'http://127.0.0.1:4000';
     expect(resolveAgentflowApiUrl()).toBe('http://127.0.0.1:4000');
   });

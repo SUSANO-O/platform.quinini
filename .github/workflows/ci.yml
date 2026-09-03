@@ -28,11 +28,7 @@ jobs:
       - name: Tests
         run: npm test
 
-      # NO bloqueante todavía: `tsc --noEmit` arrastra 8 errores preexistentes,
-      # todos en src/lib/__tests__/ (admin-ops-live, agentflow-api-url,
-      # sheet-snapshot-read, widget-agent-capabilities). El código de la app
-      # compila limpio. Cuando esos 8 lleguen a cero, sacar el
-      # `continue-on-error` para que empiece a frenar.
-      - name: Typecheck (informativo — 8 errores preexistentes en tests)
+      # Bloquea: los 8 errores preexistentes en src/lib/__tests__/ se bajaron a
+      # cero (2026-09-03). Que frene es lo que evita que se acumulen otra vez.
+      - name: Typecheck
         run: npm run typecheck
-        continue-on-error: true

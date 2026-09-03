@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { readSheetFromSnapshot, snapshotCanServeSearch } from '@/lib/sheet-snapshot-read';
+import {
+  readSheetFromSnapshot,
+  snapshotCanServeSearch,
+  type SheetSnapshotDoc,
+} from '@/lib/sheet-snapshot-read';
 
 const HEADER = ['referencia', 'marca_vehiculo', 'modelo'];
 const ROWS = [
@@ -8,13 +12,22 @@ const ROWS = [
 ];
 
 describe('snapshotCanServeSearch', () => {
+  // La función solo mira `complete`, pero el rowCount documenta el escenario
+  // real (399 Chevrolet vs el catálogo entero). Tipar el snapshot evita que el
+  // chequeo de propiedades en exceso obligue a borrar ese contexto.
+  const snap = (over: Partial<SheetSnapshotDoc>): SheetSnapshotDoc => ({
+    header: [],
+    rows: [],
+    ...over,
+  });
+
   it('un snapshot incompleto (399 Chevrolet) no sustituye la búsqueda live', () => {
-    expect(snapshotCanServeSearch({ complete: false, rowCount: 399 })).toBe(false);
-    expect(snapshotCanServeSearch({ rowCount: 399 })).toBe(false);
+    expect(snapshotCanServeSearch(snap({ complete: false, rowCount: 399 }))).toBe(false);
+    expect(snapshotCanServeSearch(snap({ rowCount: 399 }))).toBe(false);
   });
 
   it('solo el sync terminado sirve { search } desde Mongo', () => {
-    expect(snapshotCanServeSearch({ complete: true, rowCount: 300_000 })).toBe(true);
+    expect(snapshotCanServeSearch(snap({ complete: true, rowCount: 300_000 }))).toBe(true);
   });
 });
 
