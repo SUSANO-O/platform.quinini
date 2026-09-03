@@ -10,6 +10,7 @@ import {
   formatTimelineTick,
   isAdminOpsLiveSlug,
   liveTimelineMongoFormat,
+  type LiveTimelinePoint,
   liveWindowLabel,
   niceChartAxis,
   pointHasLatency,
@@ -62,8 +63,17 @@ describe('fillLiveTimeline', () => {
   });
 
   it('un minuto sin turnos no cuenta como latencia 0 s', () => {
-    expect(pointHasLatency({ minute: '18:26', requests: 0, avgSec: 0 })).toBe(false);
-    expect(pointHasLatency({ minute: '18:22', requests: 4, avgSec: 24.1 })).toBe(true);
+    // pointHasLatency recibe Pick<LiveTimelinePoint, 'requests'|'avgSec'>, así
+    // que un literal con `minute` dispara el chequeo de propiedades en exceso.
+    // Se construye un punto completo: el minuto documenta el escenario y el
+    // tipo encaja igual.
+    const punto = (minute: string, requests: number, avgSec: number): LiveTimelinePoint => ({
+      minute,
+      requests,
+      avgSec,
+    });
+    expect(pointHasLatency(punto('18:26', 0, 0))).toBe(false);
+    expect(pointHasLatency(punto('18:22', 4, 24.1))).toBe(true);
   });
 });
 

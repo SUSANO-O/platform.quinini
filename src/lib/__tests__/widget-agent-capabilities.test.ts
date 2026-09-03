@@ -7,6 +7,15 @@ import {
   scoreMemberCapabilityMatch,
 } from '../widget-agent-capabilities';
 import { DEFAULT_AGENT_SKILLS_CATALOG } from '../agent-skills-catalog-defaults';
+import type { TeamMember } from '../widget-multi-agent';
+
+/**
+ * Las funciones `memberHas*` solo miran `capabilities`, pero los tests pasan un
+ * miembro realista (nombre, rol) porque documenta el escenario. Como literal,
+ * eso dispara el chequeo de propiedades en exceso; pasando por acá el tipo
+ * encaja y el contexto se conserva.
+ */
+const miembro = (m: Pick<TeamMember, 'name' | 'description' | 'role' | 'capabilities'>) => m;
 
 describe('widget-agent-capabilities', () => {
   it('mapea MCP mongodb con temas de base de datos', () => {
@@ -74,12 +83,14 @@ describe('widget-agent-capabilities', () => {
       skillCatalog: DEFAULT_AGENT_SKILLS_CATALOG,
     });
     expect(
-      memberHasHubspotCapability({
-        name: 'Asesor Taller',
-        description: '',
-        role: 'orchestrator',
-        capabilities: profile,
-      }),
+      memberHasHubspotCapability(
+        miembro({
+          name: 'Asesor Taller',
+          description: '',
+          role: 'orchestrator',
+          capabilities: profile,
+        }),
+      ),
     ).toBe(true);
   });
 
