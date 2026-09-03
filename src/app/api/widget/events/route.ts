@@ -14,7 +14,7 @@ import {
 } from '@/lib/aibackhub-sync';
 import { checkRateLimitAsync, getClientIp } from '@/lib/rate-limit';
 import { connectDB } from '@/lib/db/connection';
-import { Widget, ConversationSession } from '@/lib/db/models';
+import { Widget, ConversationSession, WidgetLoadEvent } from '@/lib/db/models';
 import { inboxSessionFilter, upsertHandoffInboxSession } from '@/lib/inbox-handoff';
 import { dispatchSaasWebhook } from '@/lib/saas-webhook-outbound';
 import {
@@ -22,7 +22,6 @@ import {
   shouldDispatchHandoffWebhook,
 } from '@/lib/handoff-notify';
 import { scheduleWidgetUsageDiskLog } from '@/lib/widget-usage-disk';
-import { randomUUID } from 'crypto';
 
 const MAX_EVENT_BODY_BYTES = 8 * 1024; // 8 KB — events are tiny
 
@@ -154,28 +153,47 @@ export async function POST(req: NextRequest) {
       const clientSessionId = normalizeClientSessionId(body.sessionId);
       const now = new Date();
       const month = now.toISOString().slice(0, 7);
-      const sessionKey = instanceId || `${widgetId}-${Date.now()}`;
 
-      if (event === 'widget_opened') {
-        const sid = clientSessionId || `sess_${sessionKey}_${randomUUID().slice(0, 8)}`;
+      // Campos de andamiaje que se fijan solo al CREAR la sesión (primer mensaje).
+      // widgetId/agentId NO van aquí: se fijan en $set (corre también en insert).
+      // Tenerlos en ambos operadores provoca ConflictingUpdateOperators (code 40).
+      const scaffoldOnInsert = {
+        startedAt: now,
+        hourOfDay: now.getHours(),
+        dayOfWeek: now.getDay(),
+        month,
+        dropped: false,
+        escalated: false,
+        sentiment: 'neutral' as const,
+      };
+
+      // El SDK dispara `widget_loaded` en cada carga de página con el widget.
+      // Ya NO creamos un ConversationSession vacío al abrir el panel: registramos
+      // una fila ligera aquí y la sesión formal se crea con el primer mensaje.
+      if (event === 'widget_loaded') {
+        const referer = req.headers.get('referer') || '';
+        await WidgetLoadEvent.create({
+          userId: uid,
+          widgetId,
+          agentId,
+          instanceId,
+          sessionId: clientSessionId,
+          ip: ip || '',
+          hourOfDay: now.getHours(),
+          dayOfWeek: now.getDay(),
+          pageUrl: referer.slice(0, 500),
+          referrer: referer.slice(0, 500),
+          userAgent: (req.headers.get('user-agent') || '').slice(0, 400),
+        });
+      }
+
+      // Primer mensaje del visitante → crear la sesión de forma diferida.
+      if (event === 'message_sent' && clientSessionId) {
         await ConversationSession.findOneAndUpdate(
-          { sessionId: sid },
+          { sessionId: clientSessionId, userId: uid },
           {
-            // widgetId/agentId NO van aquí: están en $set (que corre también en insert).
-            // Tenerlos en ambos operadores provoca ConflictingUpdateOperators (code 40).
-            $setOnInsert: {
-              userId: uid,
-              sessionId: sid,
-              startedAt: now,
-              hourOfDay: now.getHours(),
-              dayOfWeek: now.getDay(),
-              month,
-              messageCount: 0,
-              dropped: false,
-              escalated: false,
-              sentiment: 'neutral',
-            },
-            $set: { widgetId, agentId },
+            $setOnInsert: { ...scaffoldOnInsert, messageCount: 0 },
+            $set: { widgetId, agentId, lastVisitorMessageAt: now },
           },
           { upsert: true },
         );
@@ -185,17 +203,27 @@ export async function POST(req: NextRequest) {
         const details = body.details as Record<string, unknown> | null;
         const msgLen = typeof details?.length === 'number' ? details.length : 0;
         const sentimentPositive = msgLen > 20;
-        const sessionFilter = clientSessionId
-          ? { sessionId: clientSessionId, userId: uid }
-          : { agentId, userId: uid, endedAt: null };
-        await ConversationSession.findOneAndUpdate(
-          sessionFilter,
-          {
-            $inc: { messageCount: 1 },
-            $set: { sentiment: sentimentPositive ? 'positive' : 'neutral' },
-          },
-          clientSessionId ? {} : { sort: { startedAt: -1 } },
-        );
+        if (clientSessionId) {
+          await ConversationSession.findOneAndUpdate(
+            { sessionId: clientSessionId, userId: uid },
+            {
+              // messageCount NO va en $setOnInsert: $inc lo crea con valor 1 en el insert.
+              $setOnInsert: scaffoldOnInsert,
+              $inc: { messageCount: 1 },
+              $set: { widgetId, agentId, sentiment: sentimentPositive ? 'positive' : 'neutral' },
+            },
+            { upsert: true },
+          );
+        } else {
+          await ConversationSession.findOneAndUpdate(
+            { agentId, userId: uid, endedAt: null },
+            {
+              $inc: { messageCount: 1 },
+              $set: { sentiment: sentimentPositive ? 'positive' : 'neutral' },
+            },
+            { sort: { startedAt: -1 } },
+          );
+        }
       }
 
       if (event === 'widget_closed') {

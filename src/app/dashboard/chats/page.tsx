@@ -12,6 +12,7 @@ import {
   Clock,
   Copy,
   ExternalLink,
+  Globe,
   MessageSquare,
   RefreshCw,
   Search,
@@ -22,7 +23,7 @@ import { ConversationThread, countVisibleMessages } from '@/components/dashboard
 import { DashboardPageHeader } from '@/components/dashboard/dashboard-page-header';
 import { BackgroundRefreshIndicator } from '@/components/dashboard/background-refresh-indicator';
 import { dashboardKeys } from '@/lib/dashboard-query-keys';
-import { fetchConversationsList, fetchConversationThread } from '@/lib/dashboard-fetch';
+import { fetchConversationsList, fetchConversationThread, fetchWidgetLoadEvents, type WidgetLoadEventItem } from '@/lib/dashboard-fetch';
 import { notifyInboxChanged } from '@/hooks/use-inbox-open-count';
 import { useDashboardUiStore } from '@/stores/dashboard-ui-store';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -60,8 +61,6 @@ type SessionDetail = {
   escalated: boolean;
   humanMode: boolean;
 };
-
-type TabKey = 'active' | 'all' | 'ended';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -163,6 +162,210 @@ function SessionCard({
   );
 }
 
+// ─── Tabs bar ────────────────────────────────────────────────────────────────
+
+type ChatsTab = 'active' | 'all' | 'ended' | 'loads';
+
+function ChatsTabsBar({
+  tab,
+  activeCount,
+  onSelect,
+}: {
+  tab: ChatsTab;
+  activeCount: number;
+  onSelect: (tab: ChatsTab) => void;
+}) {
+  const tabs: { key: ChatsTab; label: string; badge: number }[] = [
+    { key: 'active', label: 'Activos', badge: activeCount },
+    { key: 'all', label: 'Todos', badge: 0 },
+    { key: 'ended', label: 'Cerrados', badge: 0 },
+    { key: 'loads', label: 'Cargas', badge: 0 },
+  ];
+  return (
+    <div
+      className="chats-page__tabs"
+      role="tablist"
+      aria-label="Filtrar chats"
+      style={{
+        marginBottom: '0.75rem',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 10,
+        overflow: 'hidden',
+        background: 'var(--card)',
+      }}
+    >
+      {tabs.map(({ key, label, badge }) => (
+        <button
+          key={key}
+          type="button"
+          role="tab"
+          aria-selected={tab === key}
+          className={`chats-page__tab${tab === key ? ' is-active' : ''}`}
+          onClick={() => onSelect(key)}
+        >
+          {key === 'active' ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <Circle size={7} fill="#22c55e" color="#22c55e" />
+              {label}
+              {badge > 0 ? <span className="chats-page__tab-badge">{badge}</span> : null}
+            </span>
+          ) : key === 'loads' ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <Globe size={11} />
+              {label}
+            </span>
+          ) : label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Load events view (evento widget_loaded: IP + hora + página) ──────────────
+
+const WEEKDAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+function shortUserAgent(ua: string): string {
+  if (!ua) return '—';
+  const browser = /Edg\//.test(ua)
+    ? 'Edge'
+    : /OPR\//.test(ua)
+      ? 'Opera'
+      : /Firefox\//.test(ua)
+        ? 'Firefox'
+        : /Chrome\//.test(ua)
+          ? 'Chrome'
+          : /Safari\//.test(ua)
+            ? 'Safari'
+            : 'Otro';
+  const os = /Windows/.test(ua)
+    ? 'Windows'
+    : /iPhone|iPad|iOS/.test(ua)
+      ? 'iOS'
+      : /Android/.test(ua)
+        ? 'Android'
+        : /Mac OS X|Macintosh/.test(ua)
+          ? 'macOS'
+          : /Linux/.test(ua)
+            ? 'Linux'
+            : '';
+  return os ? `${browser} · ${os}` : browser;
+}
+
+function LoadEventsView({
+  query,
+}: {
+  query: {
+    data?: { items: WidgetLoadEventItem[]; totalCount: number; last24hCount: number };
+    isLoading: boolean;
+  };
+}) {
+  const data = query.data;
+  const items = data?.items ?? [];
+
+  return (
+    <div
+      className="chats-page__layout"
+      style={{ flexDirection: 'column', display: 'flex' }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          gap: '1.25rem',
+          padding: '0.75rem 1rem',
+          borderBottom: '1px solid var(--border-subtle)',
+          fontSize: '0.75rem',
+          color: 'var(--muted-foreground)',
+          flexShrink: 0,
+        }}
+      >
+        <span>
+          <strong style={{ color: 'var(--foreground)' }}>{data?.totalCount ?? 0}</strong> cargas registradas
+        </span>
+        <span>
+          <strong style={{ color: 'var(--foreground)' }}>{data?.last24hCount ?? 0}</strong> en las últimas 24 h
+        </span>
+        <span style={{ marginLeft: 'auto', opacity: 0.75 }}>Se conservan 90 días</span>
+      </div>
+
+      <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+        {query.isLoading && items.length === 0 ? (
+          <AiLoadingInline label="Cargando eventos…" style={{ padding: '2rem 1rem' }} />
+        ) : items.length === 0 ? (
+          <div className="chats-page__empty-panel" style={{ minHeight: '12rem' }}>
+            <Globe size={32} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />
+            <p style={{ margin: 0, fontSize: '0.8125rem', fontWeight: 600 }}>
+              Aún no hay eventos de carga
+            </p>
+            <p style={{ margin: 0, fontSize: '0.8125rem', maxWidth: '20rem' }}>
+              Cada vez que se carga una página con tu widget embebido, se registra aquí con IP y hora.
+            </p>
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: 'var(--muted-foreground)' }}>
+                  {['Fecha y hora', 'IP', 'Widget', 'Página', 'Navegador'].map((h) => (
+                    <th
+                      key={h}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        fontWeight: 600,
+                        borderBottom: '1px solid var(--border-subtle)',
+                        whiteSpace: 'nowrap',
+                        position: 'sticky',
+                        top: 0,
+                        background: 'var(--card)',
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((e) => {
+                  const d = e.createdAt ? new Date(e.createdAt) : null;
+                  const weekday = e.dayOfWeek != null ? WEEKDAYS[e.dayOfWeek] : '';
+                  return (
+                    <tr key={e.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                      <td style={{ padding: '0.5rem 1rem', whiteSpace: 'nowrap' }}>
+                        {d
+                          ? `${weekday ? weekday + ' ' : ''}${d.toLocaleString('es-CO', {
+                              day: '2-digit',
+                              month: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}`
+                          : '—'}
+                      </td>
+                      <td style={{ padding: '0.5rem 1rem', fontFamily: 'var(--font-mono, monospace)', whiteSpace: 'nowrap' }}>
+                        {e.ip || '—'}
+                      </td>
+                      <td style={{ padding: '0.5rem 1rem', whiteSpace: 'nowrap' }}>{e.widgetName || '—'}</td>
+                      <td style={{ padding: '0.5rem 1rem', maxWidth: '22rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {e.pageUrl ? (
+                          <a href={e.pageUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', textDecoration: 'none' }}>
+                            {e.pageUrl.replace(/^https?:\/\//, '')}
+                          </a>
+                        ) : '—'}
+                      </td>
+                      <td style={{ padding: '0.5rem 1rem', whiteSpace: 'nowrap', color: 'var(--muted-foreground)' }}>
+                        {shortUserAgent(e.userAgent)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function ChatsPage() {
@@ -180,10 +383,20 @@ export default function ChatsPage() {
   const [closingId, setClosingId] = useState<string | null>(null);
   const [confirmClose, setConfirmClose] = useState<{ sessionId: string; label: string } | null>(null);
 
+  // La pestaña "Cargas" muestra eventos widget_loaded, no conversaciones.
+  const listTab: 'active' | 'all' | 'ended' = tab === 'loads' ? 'active' : tab;
+
   const conversationsQuery = useQuery({
-    queryKey: dashboardKeys.conversations(tab),
-    queryFn: () => fetchConversationsList(tab),
+    queryKey: dashboardKeys.conversations(listTab),
+    queryFn: () => fetchConversationsList(listTab),
     refetchInterval: 8000,
+  });
+
+  const loadEventsQuery = useQuery({
+    queryKey: dashboardKeys.widgetLoadEvents(),
+    queryFn: fetchWidgetLoadEvents,
+    enabled: tab === 'loads',
+    refetchInterval: 15000,
   });
 
   const sessions = conversationsQuery.data?.items ?? [];
@@ -252,7 +465,7 @@ export default function ChatsPage() {
         return;
       }
       toast.success('Sesión cerrada.');
-      void queryClient.invalidateQueries({ queryKey: dashboardKeys.conversations(tab) });
+      void queryClient.invalidateQueries({ queryKey: dashboardKeys.conversations(listTab) });
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.inbox('open') });
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.inbox('resolved') });
       void queryClient.invalidateQueries({ queryKey: dashboardKeys.inboxCount() });
@@ -300,11 +513,15 @@ export default function ChatsPage() {
           hideIcon
           actions={(
             <>
-              <BackgroundRefreshIndicator active={conversationsQuery.isFetching && !showListSpinner} />
+              <BackgroundRefreshIndicator
+                active={tab === 'loads'
+                  ? loadEventsQuery.isFetching
+                  : conversationsQuery.isFetching && !showListSpinner}
+              />
               <button
                 type="button"
                 className="dashboard-meta-chip"
-                onClick={() => void conversationsQuery.refetch()}
+                onClick={() => void (tab === 'loads' ? loadEventsQuery.refetch() : conversationsQuery.refetch())}
               >
                 <RefreshCw size={10} />
                 Actualizar
@@ -313,34 +530,14 @@ export default function ChatsPage() {
           )}
         />
 
+        <ChatsTabsBar tab={tab} activeCount={activeCount} onSelect={setChatsTab} />
+
+        {tab === 'loads' ? (
+          <LoadEventsView query={loadEventsQuery} />
+        ) : (
         <div className="chats-page__layout">
           {/* Lista de sesiones */}
           <aside className={`chats-page__sidebar${showSidebar ? '' : ' chats-page__sidebar--hidden-mobile'}`}>
-            <div className="chats-page__tabs" role="tablist" aria-label="Filtrar chats">
-              {([
-                { key: 'active' as const, label: 'Activos', badge: activeCount },
-                { key: 'all' as const, label: 'Todos', badge: 0 },
-                { key: 'ended' as const, label: 'Cerrados', badge: 0 },
-              ]).map(({ key, label, badge }) => (
-                <button
-                  key={key}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === key}
-                  className={`chats-page__tab${tab === key ? ' is-active' : ''}`}
-                  onClick={() => setChatsTab(key)}
-                >
-                  {key === 'active' ? (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      <Circle size={7} fill="#22c55e" color="#22c55e" />
-                      {label}
-                      {badge > 0 ? <span className="chats-page__tab-badge">{badge}</span> : null}
-                    </span>
-                  ) : label}
-                </button>
-              ))}
-            </div>
-
             <div className="chats-page__filters">
               <div style={{ position: 'relative' }}>
                 <Search
@@ -596,6 +793,7 @@ export default function ChatsPage() {
             )}
           </section>
         </div>
+        )}
       </div>
 
       {confirmClose ? (
