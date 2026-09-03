@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  agentIdsForOwner,
   buildSummary,
   explicarResultado,
   leadFieldsOf,
@@ -159,5 +160,43 @@ describe('buildSummary — la respuesta a "¿están llegando mis leads?"', () =>
 
   it('redondea la tasa a un decimal', () => {
     expect(buildSummary([row(), row(), row({ ok: false, status: 500 })]).tasaExito).toBe(66.7);
+  });
+});
+
+describe('agentIdsForOwner — la propiedad NO se resuelve por tenantId', () => {
+  it('incluye el _id de Mongo y el agentHubId: la bitácora usa uno u otro', () => {
+    const ids = agentIdsForOwner([
+      { _id: '6a3441c15688b5b1509fad7d', agentHubId: 'landing-tribu' },
+      { _id: '6a80f6a6543cb99549025dd2', agentHubId: 'asesor-de-ventas' },
+    ]);
+    // Casos reales observados en producción: Tribu quedó registrado con el _id,
+    // Ventas con el hub id. Filtrar por uno solo perdería la mitad.
+    expect(ids).toContain('6a3441c15688b5b1509fad7d');
+    expect(ids).toContain('landing-tribu');
+    expect(ids).toContain('asesor-de-ventas');
+    expect(ids).toHaveLength(4);
+  });
+
+  it('deduplica', () => {
+    expect(agentIdsForOwner([{ _id: 'a', agentHubId: 'a' }])).toEqual(['a']);
+  });
+
+  it('tolera agentes sin hub id', () => {
+    expect(agentIdsForOwner([{ _id: 'x' }, { _id: 'y', agentHubId: '  ' }])).toEqual(['x', 'y']);
+  });
+
+  it('sin agentes devuelve lista vacía — y el endpoint debe responder vacío, no todo', () => {
+    expect(agentIdsForOwner([])).toEqual([]);
+  });
+
+  it('documenta el bug: el tenantId de la bitácora es "default", no el userId', () => {
+    // Las 11 filas de producción tenían tenantId="default" (el tenant de
+    // AIBackHub), así que `{ tenantId: userId }` no habría devuelto nada.
+    const filaReal = { tenantId: 'default', agentId: 'landing-tribu' };
+    const userIdReal = '6a34213314907484d7733575';
+    expect(filaReal.tenantId).not.toBe(userIdReal);
+    expect(agentIdsForOwner([{ _id: 'otro', agentHubId: 'landing-tribu' }])).toContain(
+      filaReal.agentId,
+    );
   });
 });

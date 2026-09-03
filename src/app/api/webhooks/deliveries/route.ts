@@ -12,9 +12,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
-import { WebhookDelivery, WebhookOutbox } from '@/lib/db/models';
+import { ClientAgent, WebhookDelivery, WebhookOutbox } from '@/lib/db/models';
 import { verifySessionToken } from '@/lib/auth';
 import {
+  agentIdsForOwner,
   buildSummary,
   toDeliveryItem,
   type DeliveryRow,
@@ -40,16 +41,40 @@ export async function GET(req: NextRequest) {
 
   await connectDB();
 
-  // El filtro por tenantId es lo que impide ver entregas de otro cliente.
-  const filter: Record<string, unknown> = { tenantId: userId };
-  if (agentId) filter.agentId = agentId;
+  // NO se filtra por `tenantId`: ese campo es el tenant de AIBackHub
+  // (`req.tenantId ?? 'default'`), no el dueño. La propiedad se resuelve por
+  // los agentes del usuario — ver `agentIdsForOwner`.
+  const misAgentes = await ClientAgent.find({ userId })
+    .select({ _id: 1, agentHubId: 1 })
+    .lean() as Array<{ _id?: unknown; agentHubId?: string }>;
+  const idsPropios = agentIdsForOwner(misAgentes);
+
+  if (idsPropios.length === 0) {
+    return NextResponse.json({
+      resumen: buildSummary([]),
+      cola: { pendientes: 0, agotadas: 0 },
+      entregas: [],
+    });
+  }
+
+  // Si se pide un agente concreto, tiene que ser del usuario.
+  const alcance = agentId
+    ? idsPropios.includes(agentId)
+      ? [agentId]
+      : []
+    : idsPropios;
+  if (alcance.length === 0) {
+    return NextResponse.json({ error: 'Agente no encontrado.' }, { status: 404 });
+  }
+
+  const filter: Record<string, unknown> = { agentId: { $in: alcance } };
   const listFilter = soloFallidas ? { ...filter, ok: false } : filter;
 
   const [rows, ventana, pendientes, fallidasEnCola] = await Promise.all([
     WebhookDelivery.find(listFilter).sort({ createdAt: -1 }).limit(limit).lean(),
     WebhookDelivery.find(filter).sort({ createdAt: -1 }).limit(SUMMARY_WINDOW).lean(),
-    WebhookOutbox.countDocuments({ tenantId: userId, status: 'pending' }),
-    WebhookOutbox.countDocuments({ tenantId: userId, status: 'failed' }),
+    WebhookOutbox.countDocuments({ agentId: { $in: alcance }, status: 'pending' }),
+    WebhookOutbox.countDocuments({ agentId: { $in: alcance }, status: 'failed' }),
   ]);
 
   return NextResponse.json({
