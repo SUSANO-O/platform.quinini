@@ -107,6 +107,53 @@ export async function fetchConversationThread(sessionId: string): Promise<Conver
   };
 }
 
+export type WebhookDeliveryItem = {
+  id: string;
+  agentId: string;
+  event: string;
+  webhookName: string;
+  host: string;
+  attempt: number;
+  ok: boolean;
+  status: number;
+  /** Explicación en castellano de qué pasó — la arma el servidor. */
+  detalle: string;
+  durationMs: number;
+  createdAt: string | null;
+  /** Nombres de los campos del lead. Nunca los valores. */
+  leadFields: string[];
+};
+
+export type WebhookDeliveriesResult = {
+  resumen: {
+    total: number;
+    ok: number;
+    fallidas: number;
+    tasaExito: number | null;
+    principalMotivoFallo: string | null;
+  };
+  cola: { pendientes: number; agotadas: number };
+  entregas: WebhookDeliveryItem[];
+};
+
+export async function fetchWebhookDeliveries(
+  status: 'todas' | 'fallidas',
+): Promise<WebhookDeliveriesResult> {
+  const res = await fetch(`/api/webhooks/deliveries?status=${status}&limit=100`);
+  const data = await parseJson<Partial<WebhookDeliveriesResult>>(res);
+  return {
+    resumen: data.resumen ?? {
+      total: 0,
+      ok: 0,
+      fallidas: 0,
+      tasaExito: null,
+      principalMotivoFallo: null,
+    },
+    cola: data.cola ?? { pendientes: 0, agotadas: 0 },
+    entregas: Array.isArray(data.entregas) ? data.entregas : [],
+  };
+}
+
 export type AgentListItem = {
   id: string;
   name: string;
