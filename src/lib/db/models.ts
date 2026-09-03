@@ -1074,3 +1074,58 @@ SheetSyncUsageSchema.index({ userId: 1, month: 1 }, { unique: true });
 
 export const SheetSyncUsage =
   mongoose.models.SheetSyncUsage || mongoose.model('SheetSyncUsage', SheetSyncUsageSchema);
+
+// ── WEBHOOK DELIVERIES / OUTBOX ───────────────────────────────────────────────
+// Espejo de lo que escriben matias-backend (bitácora + encolado) y drena
+// cron-schendule. Acá solo se LEE, para el dashboard — la escritura vive allá.
+// Si cambia la forma del documento, hay que tocar los tres repos.
+
+const WebhookDeliverySchema = new Schema({
+  tenantId:  { type: String, required: true },   // userId dueño del agente
+  agentId:   { type: String, default: '' },
+  sessionId: { type: String, default: '' },
+  event:     { type: String, default: '' },
+  webhookName: { type: String, default: '' },
+  url:       { type: String, default: '' },
+  urlHost:   { type: String, default: '' },
+  /** Nº de intento, 1-based. */
+  attempt:   { type: Number, default: 1 },
+  ok:        { type: Boolean, default: false },
+  /** HTTP status; 0 = ni hubo respuesta (excepción / SSRF). */
+  status:    { type: Number, default: 0 },
+  statusText: { type: String, default: '' },
+  error:     { type: String, default: '' },
+  responseSnippet: { type: String, default: '' },
+  /** Cuerpo enviado — permite reenviar desde el dashboard. Nunca lleva secret. */
+  payload:   { type: Schema.Types.Mixed, default: null },
+  durationMs: { type: Number, default: 0 },
+}, { timestamps: true, collection: 'webhookdeliveries' });
+
+WebhookDeliverySchema.index({ tenantId: 1, createdAt: -1 });
+WebhookDeliverySchema.index({ tenantId: 1, ok: 1, createdAt: -1 });
+
+export const WebhookDelivery =
+  mongoose.models.WebhookDelivery || mongoose.model('WebhookDelivery', WebhookDeliverySchema);
+
+const WebhookOutboxSchema = new Schema({
+  tenantId:  { type: String, required: true },
+  agentId:   { type: String, default: '' },
+  sessionId: { type: String, default: '' },
+  event:     { type: String, default: '' },
+  webhookName: { type: String, default: '' },
+  url:       { type: String, default: '' },
+  payload:   { type: Schema.Types.Mixed, default: null },
+  status:    { type: String, enum: ['pending', 'sent', 'failed'], default: 'pending' },
+  /** Intentos del worker (los inline agotados no cuentan). */
+  attempts:  { type: Number, default: 0 },
+  nextRetryAt: { type: Date, default: null },
+  lockedAt:  { type: Date, default: null },
+  lastStatus: { type: Number, default: 0 },
+  lastError: { type: String, default: '' },
+  sentAt:    { type: Date, default: null },
+}, { timestamps: true, collection: 'webhookoutbox' });
+
+WebhookOutboxSchema.index({ tenantId: 1, status: 1, createdAt: -1 });
+
+export const WebhookOutbox =
+  mongoose.models.WebhookOutbox || mongoose.model('WebhookOutbox', WebhookOutboxSchema);
