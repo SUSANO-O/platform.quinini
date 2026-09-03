@@ -1074,3 +1074,33 @@ SheetSyncUsageSchema.index({ userId: 1, month: 1 }, { unique: true });
 
 export const SheetSyncUsage =
   mongoose.models.SheetSyncUsage || mongoose.model('SheetSyncUsage', SheetSyncUsageSchema);
+
+// ── WIDGET LOAD EVENTS ───────────────────────────────────────────────────────
+// Telemetría ligera de "el widget se cargó en una página" (evento widget_loaded
+// del SDK). Reemplaza a los ConversationSession vacíos que antes se creaban al
+// abrir el panel sin escribir. Se ve en Dashboard → Chats → pestaña "Cargas".
+const WidgetLoadEventSchema = new Schema({
+  userId:     { type: String, required: true }, // dueño del widget
+  widgetId:   { type: String, default: '' },
+  agentId:    { type: String, default: '' },
+  instanceId: { type: String, default: '' },
+  sessionId:  { type: String, default: '' },
+  /** IP del visitante (best-effort, puede venir de X-Forwarded-For). */
+  ip:         { type: String, default: '' },
+  /** Hora del día (0-23) en el servidor al recibir el evento. */
+  hourOfDay:  { type: Number, default: null },
+  /** Día de la semana (0=dom, 6=sab). */
+  dayOfWeek:  { type: Number, default: null },
+  /** URL / referrer de la página donde cargó el widget, si el SDK lo envía. */
+  pageUrl:    { type: String, default: '' },
+  referrer:   { type: String, default: '' },
+  userAgent:  { type: String, default: '' },
+}, { timestamps: true });
+
+WidgetLoadEventSchema.index({ userId: 1, createdAt: -1 });
+WidgetLoadEventSchema.index({ userId: 1, widgetId: 1, createdAt: -1 });
+// TTL: purga automática a los 90 días para que la colección no crezca sin control.
+WidgetLoadEventSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 });
+
+export const WidgetLoadEvent =
+  mongoose.models.WidgetLoadEvent || mongoose.model('WidgetLoadEvent', WidgetLoadEventSchema);

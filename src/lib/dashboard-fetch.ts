@@ -107,6 +107,37 @@ export async function fetchConversationThread(sessionId: string): Promise<Conver
   };
 }
 
+export type WidgetLoadEventItem = {
+  id: string;
+  widgetId: string;
+  widgetName: string;
+  agentId: string;
+  sessionId: string;
+  ip: string;
+  hourOfDay: number | null;
+  dayOfWeek: number | null;
+  pageUrl: string;
+  referrer: string;
+  userAgent: string;
+  createdAt: string | null;
+};
+
+export type WidgetLoadEventsResult = {
+  items: WidgetLoadEventItem[];
+  totalCount: number;
+  last24hCount: number;
+};
+
+export async function fetchWidgetLoadEvents(): Promise<WidgetLoadEventsResult> {
+  const res = await fetch('/api/widget/load-events?limit=100');
+  const data = await parseJson<Partial<WidgetLoadEventsResult>>(res);
+  return {
+    items: Array.isArray(data.items) ? data.items : [],
+    totalCount: typeof data.totalCount === 'number' ? data.totalCount : 0,
+    last24hCount: typeof data.last24hCount === 'number' ? data.last24hCount : 0,
+  };
+}
+
 export type AgentListItem = {
   id: string;
   name: string;

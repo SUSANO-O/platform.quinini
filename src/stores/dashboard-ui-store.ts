@@ -6,7 +6,7 @@ import { create } from 'zustand';
 
 type InboxTab = 'open' | 'resolved';
 type InboxReplyFilter = 'unanswered' | 'answered';
-type ChatsTab = 'active' | 'all' | 'ended';
+type ChatsTab = 'active' | 'all' | 'ended' | 'loads';
 
 type DashboardUiState = {
   inbox: {

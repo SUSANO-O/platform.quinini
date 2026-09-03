@@ -7,6 +7,7 @@ export const dashboardKeys = {
   inboxCount: () => ['dashboard', 'inbox', 'count'] as const,
   conversations: (status: 'active' | 'all' | 'ended') => ['dashboard', 'conversations', status] as const,
   conversationThread: (sessionId: string) => ['dashboard', 'conversations', 'thread', sessionId] as const,
+  widgetLoadEvents: () => ['dashboard', 'widget-load-events'] as const,
   agents: () => ['dashboard', 'agents'] as const,
   widgets: () => ['dashboard', 'widgets'] as const,
 };

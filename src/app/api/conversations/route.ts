@@ -28,6 +28,18 @@ export async function GET(req: NextRequest) {
   if (status === 'active') filter.endedAt = null;
   else if (status === 'ended') filter.endedAt = { $ne: null };
 
+  // Ocultar los "chats" que solo se abrieron y nunca tuvieron actividad real.
+  // (Antes se creaba un ConversationSession vacío al abrir el panel; ese evento
+  // ahora vive en WidgetLoadEvent / pestaña "Cargas".) Se mantienen las sesiones
+  // con mensajes, escaladas, en modo humano, en inbox o con mensaje del visitante.
+  filter.$or = [
+    { messageCount: { $gt: 0 } },
+    { escalated: true },
+    { humanMode: true },
+    { inboxStatus: { $ne: null } },
+    { lastVisitorMessageAt: { $ne: null } },
+  ];
+
   const sessions = await ConversationSession.find(filter)
     .sort({ startedAt: -1 })
     .limit(limit)
@@ -93,7 +105,17 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  const activeCount = await ConversationSession.countDocuments({ userId, endedAt: null });
+  const activeCount = await ConversationSession.countDocuments({
+    userId,
+    endedAt: null,
+    $or: [
+      { messageCount: { $gt: 0 } },
+      { escalated: true },
+      { humanMode: true },
+      { inboxStatus: { $ne: null } },
+      { lastVisitorMessageAt: { $ne: null } },
+    ],
+  });
 
   return NextResponse.json({ items, activeCount });
 }
