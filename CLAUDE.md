@@ -8,8 +8,8 @@ hacia AgentFlowhub. Parte del ecosistema — ver `../CLAUDE.md` y `../docs/ARCHI
 
 ```bash
 npm run dev            # next dev -p 3201  → http://127.0.0.1:3201
-npm run typecheck      # tsc --noEmit  (ver aviso abajo)
-npm run test           # vitest run  → 653 tests hoy, deben seguir en verde
+npm run typecheck      # tsc --noEmit  → limpio, bloqueante en CI
+npm run test           # vitest run  → 695 tests, deben seguir en verde
 npm run build          # build:widget + next build
 ```
 
@@ -17,14 +17,19 @@ Stack local completo (con AIBackHub + API REST): `../scripts/botiva-local-up.sh`
 
 ## Cosas que NO son obvias
 
-- **`npm run typecheck` falla hoy** con 5 errores, **todos en `src/lib/__tests__/`** — es
-  estado preexistente, no lo introdujiste tú. El código de aplicación compila limpio.
-  No persigas esos errores salvo que el objetivo sea justamente arreglarlos.
+- **`npm run typecheck` está limpio y es bloqueante en CI** (los 8 errores que había
+  en `src/lib/__tests__/` se arreglaron). Si lo rompés, no mergea.
+- **Runtime: Node 24** (`.nvmrc`, `engines`, `Dockerfile`, CI). Node 20 quedó EOL el
+  2026-04-30. Antes de tocar versiones leé `../docs/RUNTIME-UPGRADES.md`.
+- **Deploy doble**: un `git push` a `main` despliega **en paralelo** a Vercel (botiva.space)
+  y a Cloud Run (`platform-quinini`). Secretos en Secret Manager como `platform-quinini-<nombre>`.
+  **Hay que mirar los dos.** Que botiva.space dé 200 no prueba que el
+  deploy fue bien: Vercel usa `npm install` (tolerante) y Cloud Run `npm ci` (estricto),
+  así que Cloud Run puede llevar builds fallando mientras el dominio responde. Comprobá
+  `gh run list` **y** `gcloud builds list`.
 - **Widget SDK**: se edita en **`scripts/widget/core.js`** (+ `flow-mode.js`) y se compila
   a `public/widget.js` con `npm run build:widget`. **Nunca** edites `public/widget.js`,
   `public/assist.js` ni `public/sdk/**` a mano — están minificados y se regeneran.
-- **Deploy doble**: un `git push` a `main` despliega **en paralelo** a Vercel (botiva.space)
-  y a Cloud Run (`platform-quinini`). Secretos en Secret Manager como `platform-quinini-<nombre>`.
 - **Mongo**: modelos en `src/lib/db/models.ts` (colección `agentflowhub_landing`, la misma
   que usan AgentFlowhub, API-REST y cron). `connectDB()` desde `src/lib/db/connection.ts`.
 - **Auth de dashboard**: cookie `afhub_session` → `verifySessionToken(token)` de `src/lib/auth.ts`.
@@ -49,4 +54,4 @@ Stack local completo (con AIBackHub + API REST): `../scripts/botiva-local-up.sh`
 ## Reglas de trabajo (esta ronda)
 
 - **Solo local. Sin `git push`, sin deploy** salvo OK explícito por acción.
-- No romper los 653 tests. No modificar tests existentes.
+- No romper los 695 tests. No modificar tests existentes.
