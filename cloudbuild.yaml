@@ -31,10 +31,11 @@ tags:
 
 steps:
   # Gate: si los tests fallan, el build corta acá y NO se deploya.
-  # node:20 trae npm 10 — ver docs/PIPELINE-DEPLOY-Y-TRAMPAS.md sobre por qué
+  # node:24 trae npm 11, el mismo que el Dockerfile y CI — ver
+  # docs/RUNTIME-UPGRADES.md sobre por qué las tres tienen que coincidir
   # el package-lock.json tiene que generarse con esa misma major.
   - id: Test
-    name: node:20
+    name: node:24
     entrypoint: bash
     args:
       - -c
