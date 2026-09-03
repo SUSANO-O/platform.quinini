@@ -24,8 +24,30 @@ const PUBLIC_PAGES: { name: string; path: string }[] = [
   { name: 'terminos-y-condiciones', path: '/terminos-y-condiciones' },
 ];
 
+/** Recorre la página para disparar todas las imágenes lazy y vuelve arriba. */
+async function loadLazyImages(page: Page) {
+  await page.evaluate(async () => {
+    const step = window.innerHeight;
+    const max = document.body.scrollHeight;
+    for (let y = 0; y < max; y += step) {
+      window.scrollTo(0, y);
+      await new Promise((r) => setTimeout(r, 120));
+    }
+    window.scrollTo(0, 0);
+  });
+  await page
+    .waitForFunction(
+      () => Array.from(document.images).every((img) => !img.loading || img.complete),
+      null,
+      { timeout: 8_000 },
+    )
+    .catch(() => {});
+}
+
 /** Espera fuentes + red quieta y neutraliza cosas no deterministas antes del snapshot. */
 async function settle(page: Page) {
+  await page.waitForLoadState('networkidle').catch(() => {});
+  await loadLazyImages(page);
   await page.waitForLoadState('networkidle').catch(() => {});
   await page
     .waitForFunction(() => (document as unknown as { fonts?: FontFaceSet }).fonts?.status === 'loaded', null, {
