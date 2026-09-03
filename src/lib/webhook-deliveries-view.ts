@@ -6,6 +6,29 @@
  * entienda en 5 segundos si sus leads están llegando o no.
  */
 
+/**
+ * IDs con los que un agente puede aparecer en la bitácora.
+ *
+ * OJO — trampa real: el campo `tenantId` de la bitácora **no** es el userId del
+ * landing. Es el tenant multi-inquilino de AIBackHub (`req.tenantId ?? 'default'`),
+ * y hoy vale `'default'` para todo el mundo. Filtrar por él devolvería vacío.
+ *
+ * La propiedad se resuelve por **agente**: se toman los agentes del usuario y se
+ * arma el conjunto de identificadores con los que pueden haberse registrado.
+ * El `agentId` de la bitácora es a veces el `_id` de Mongo y a veces el
+ * `agentHubId`, según cómo se haya invocado el widget — por eso van los dos.
+ */
+export function agentIdsForOwner(
+  agents: Array<{ _id?: unknown; agentHubId?: string }>,
+): string[] {
+  const ids = new Set<string>();
+  for (const a of agents) {
+    if (a._id) ids.add(String(a._id));
+    if (a.agentHubId && a.agentHubId.trim()) ids.add(a.agentHubId.trim());
+  }
+  return [...ids];
+}
+
 export type DeliveryRow = {
   _id?: unknown;
   agentId?: string;
