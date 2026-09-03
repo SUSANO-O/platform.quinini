@@ -31,4 +31,10 @@ next-env.d.ts
 reports/
 scripts/lab-widget.generated.json
 
+# Playwright — artefactos de corrida (los baselines de e2e/**/*-snapshots/ SÍ se versionan)
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
 # Keep BotIvA Cursor skill/rules trackable
