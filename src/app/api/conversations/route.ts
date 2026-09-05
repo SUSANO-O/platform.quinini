@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { ConversationSession, Widget, WidgetMessage } from '@/lib/db/models';
 import { inboxTranscriptSessionId } from '@/lib/inbox-handoff';
+import { visibleChatSessions } from '@/lib/conversations-list-view';
 import { verifySessionToken } from '@/lib/auth';
 
 function getUserId(req: NextRequest): string | null {
@@ -28,9 +29,13 @@ export async function GET(req: NextRequest) {
   if (status === 'active') filter.endedAt = null;
   else if (status === 'ended') filter.endedAt = { $ne: null };
 
+  // Se piden muchas mas sesiones de las que se devuelven porque la mayoria se
+  // cae al filtrar las vacias: medido contra produccion (2026-09-04), 319 de
+  // 400 sesiones no tenian un solo mensaje — el 80%. Pidiendo solo `limit` la
+  // lista salia casi vacia.
   const sessions = await ConversationSession.find(filter)
     .sort({ startedAt: -1 })
-    .limit(limit)
+    .limit(Math.min(500, limit * 5))
     .lean();
 
   const widgetIds = [...new Set(sessions.map((s) => String(s.widgetId)).filter(Boolean))];
@@ -61,7 +66,7 @@ export async function GET(req: NextRequest) {
   type MsgAgg = { _id: string; lastContent?: string; lastRole?: string; lastSentBy?: string; lastMessageAt?: Date; messageCount?: number };
   const msgBySession = new Map((lastMessages as MsgAgg[]).map((m) => [m._id, m]));
 
-  const items = sessions.map((s) => {
+  const todas = sessions.map((s) => {
     const transcriptId = inboxTranscriptSessionId(s as { sessionId: string; chatSessionId?: string | null });
     const msg = msgBySession.get(transcriptId);
     const name = (s.handoffContact as { name?: string } | null)?.name?.trim() || '';
@@ -93,7 +98,29 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  const activeCount = await ConversationSession.countDocuments({ userId, endedAt: null });
+  // Fuera los chats que se abrieron y nunca se escribieron; el resto, por
+  // ultima actividad y no por hora de apertura.
+  const items = visibleChatSessions(todas, limit);
+
+  // El contador tiene que contar lo MISMO que se ve. Antes contaba todas las
+  // sesiones abiertas, asi que el badge decia "12 activas" y la lista mostraba
+  // tres: la diferencia eran chats vacios.
+  const activas = await ConversationSession.find({ userId, endedAt: null })
+    .select({ sessionId: 1, chatSessionId: 1 })
+    .lean();
+  const idsActivos = [...new Set(
+    activas
+      .map((s) => inboxTranscriptSessionId(s as { sessionId: string; chatSessionId?: string | null }))
+      .filter(Boolean),
+  )];
+  const activosConMensajes = idsActivos.length
+    ? await WidgetMessage.distinct('sessionId', {
+        userId,
+        sessionId: { $in: idsActivos },
+        deleted: { $ne: true },
+      })
+    : [];
+  const activeCount = activosConMensajes.length;
 
   return NextResponse.json({ items, activeCount });
 }
