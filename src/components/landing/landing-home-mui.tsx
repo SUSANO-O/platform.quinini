@@ -32,8 +32,8 @@ import {
 } from '@/lib/sales-whatsapp';
 
 export type LandingCopy = {
-  badge: string;
   hero: { title1: string; title2: string; description: string; ctaPrimary: string; ctaAccount: string };
+  stats: { trialValue: string; trial: string; trialHint: string; setupValue: string; setup: string; setupHint: string; modelsValue: string; models: string; modelsHint: string };
   productStrip: { agents: string; agentsDesc: string; widget: string; widgetDesc: string; panel: string; panelDesc: string; api: string; apiDesc: string };
   how: { badge: string; title: string; subtitle: string; steps: { title: string; desc: string; icon: LandingIconName; accent: string; variant: 1 | 2 | 3 | 4 | 5 | 6 }[] };
   agents: { title: string; subtitle: string; items: { name: string; desc: string; icon: LandingIconName; color: string; focus: string; slug: string }[] };
@@ -97,10 +97,6 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
       {/* HERO — brand + headline + CTA + imagen dominante */}
       <section className="landing-hero">
         <Container maxWidth="md" className="landing-hero__inner">
-          <div className="landing-hero__badge-wrap">
-            <span className="landing-eyebrow">{copy.badge}</span>
-          </div>
-
           <h1 className="landing-hero__title">
             {copy.hero.title1}
             <span className="landing-accent">{copy.hero.title2}</span>
@@ -138,6 +134,26 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
               {copy.hero.ctaAccount}
             </Button>
           </div>
+
+          {/* Prueba de valor antes del pliegue: precio, tiempo hasta el primer
+              widget y catálogo de modelos. El copy ya existía traducido en
+              messages/{es,en}.json y no lo renderizaba nadie. */}
+          <ul className="landing-hero__trust">
+            {[
+              { v: copy.stats.trialValue, h: copy.stats.trialHint, k: copy.stats.trial, d: '' },
+              { v: copy.stats.setupValue, h: '', k: copy.stats.setup, d: copy.stats.setupHint },
+              { v: copy.stats.modelsValue, h: '', k: copy.stats.models, d: copy.stats.modelsHint },
+            ].map((s) => (
+              <li key={s.k} className="landing-hero__trust-item">
+                <span className="landing-hero__trust-value">
+                  {s.v}
+                  {s.h ? <em className="landing-hero__trust-unit">{s.h}</em> : null}
+                </span>
+                <span className="landing-hero__trust-label">{s.k}</span>
+                {s.d ? <span className="landing-hero__trust-hint">{s.d}</span> : null}
+              </li>
+            ))}
+          </ul>
 
           <div className="landing-hero__media">
             <Image
@@ -233,7 +249,7 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
       <section id="agents" className="landing-section">
         <Container maxWidth="lg">
           <div className="landing-section__head">
-            <h2 className="landing-section-title" style={{ color: R, margin: '0 0 0.75rem' }}>
+            <h2 className="landing-section-title" style={{ margin: '0 0 0.75rem' }}>
               {copy.agents.title}
             </h2>
             <p className="landing-lead" style={{ margin: '0 auto' }}>
