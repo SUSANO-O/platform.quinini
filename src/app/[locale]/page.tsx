@@ -24,13 +24,23 @@ export default async function LandingPage() {
   }[];
 
   const copy: LandingCopy = {
-    badge: t('badge'),
     hero: {
       title1: t('hero.title1'),
       title2: t('hero.title2'),
       description: t('hero.description'),
       ctaPrimary: t('hero.ctaPrimary'),
       ctaAccount: t('hero.ctaAccount'),
+    },
+    stats: {
+      trialValue: t('stats.trialValue'),
+      trial: t('stats.trial'),
+      trialHint: t('stats.trialHint'),
+      setupValue: t('stats.setupValue'),
+      setup: t('stats.setup'),
+      setupHint: t('stats.setupHint'),
+      modelsValue: t('stats.modelsValue'),
+      models: t('stats.models'),
+      modelsHint: t('stats.modelsHint'),
     },
     productStrip: {
       agents: t('productStrip.agents'),

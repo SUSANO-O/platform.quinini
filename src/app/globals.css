@@ -489,7 +489,7 @@ label {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: clamp(5.5rem, 12vw, 7.5rem) 0 clamp(2.5rem, 5vw, 3.5rem);
+  padding: clamp(2.5rem, 5.5vw, 3.75rem) 0 clamp(2.5rem, 5vw, 3.5rem);
   text-align: center;
 }
 
@@ -500,17 +500,10 @@ label {
   width: 100%;
 }
 
-.landing-hero__badge-wrap {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  margin: 0 0 1.35rem;
-}
-
 .landing-hero__title {
   margin: 0 auto 1.15rem;
-  max-width: 15ch;
-  font-size: clamp(2.15rem, 5.4vw, 3.55rem) !important;
+  max-width: 22ch;
+  font-size: clamp(2.3rem, 5.6vw, 3.9rem) !important;
   font-weight: 700;
   letter-spacing: -0.045em;
   line-height: 1.05;
@@ -525,7 +518,102 @@ label {
   flex-wrap: wrap;
   gap: 0.75rem;
   justify-content: center;
-  margin-bottom: 2.75rem;
+  margin-bottom: 2.25rem;
+}
+
+/* Fila de confianza: precio, tiempo al primer widget y modelos. Separadores
+   finos en vez de tarjetas — el hero ya tiene bastante peso visual. */
+.landing-hero__trust {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch; /* columnas a la misma altura: separadores parejos */
+  gap: clamp(1.5rem, 5vw, 3.25rem);
+  margin: 0 auto clamp(2.25rem, 4vw, 3rem);
+  padding: 0;
+  list-style: none;
+  max-width: 46rem;
+}
+
+.landing-hero__trust-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  position: relative;
+  min-width: 7rem;
+}
+
+.landing-hero__trust-item + .landing-hero__trust-item::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * clamp(0.75rem, 2.5vw, 1.6rem));
+  top: 0.35rem;
+  bottom: 0.35rem;
+  width: 1px;
+  background: rgba(15, 23, 42, 0.1);
+}
+
+.landing-hero__trust-value {
+  font-size: clamp(1.35rem, 2.6vw, 1.65rem);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  color: var(--foreground);
+  line-height: 1.1;
+}
+
+.landing-hero__trust-unit {
+  font-style: normal;
+  font-size: 0.8em;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.landing-hero__trust-label {
+  font-size: 0.8125rem;
+  font-weight: 550;
+  color: #475569;
+  letter-spacing: -0.01em;
+}
+
+.landing-hero__trust-hint {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  letter-spacing: -0.005em;
+}
+
+/* En movil, envolver dejaba "30+" solo en una tercera fila. Rejilla de tres
+   columnas: se mantiene la lectura de un vistazo y no crece a lo alto. */
+@media (max-width: 560px) {
+  .landing-hero__trust {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    align-items: start;
+  }
+
+  .landing-hero__trust-item {
+    min-width: 0;
+  }
+
+  .landing-hero__trust-item + .landing-hero__trust-item::before {
+    left: -0.25rem;
+    top: 0.2rem;
+    bottom: 0.2rem;
+  }
+
+  .landing-hero__trust-value {
+    font-size: 1.2rem;
+  }
+
+  .landing-hero__trust-label {
+    font-size: 0.75rem;
+    line-height: 1.25;
+  }
+
+  .landing-hero__trust-hint {
+    display: none; /* el matiz sobra cuando el ancho aprieta */
+  }
 }
 
 .landing-hero__media {
@@ -645,7 +733,7 @@ label {
 .landing-section {
   position: relative;
   z-index: 1;
-  padding: clamp(4rem, 9vw, 6.25rem) 0;
+  padding: clamp(3.25rem, 7vw, 5rem) 0;
 }
 
 .landing-section--soft {
@@ -657,7 +745,7 @@ label {
 .landing-section__head {
   text-align: center;
   max-width: 40rem;
-  margin: 0 auto clamp(2.75rem, 5vw, 3.5rem);
+  margin: 0 auto clamp(2.25rem, 4vw, 3rem);
 }
 
 .landing-split {
