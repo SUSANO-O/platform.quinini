@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Eye, EyeOff, Lock } from '@/components/ui/icons';
+import { InstallAppButton } from '@/components/share/install-app-button';
 
 export default function ShareLoginPage() {
   const { shareId } = useParams<{ shareId: string }>();
@@ -138,6 +139,9 @@ export default function ShareLoginPage() {
         >
           {busy ? 'Verificando…' : 'Entrar al chat →'}
         </button>
+
+        {/* Solo aparece si este share es instalable; lo decide el manifest. */}
+        <InstallAppButton shareId={shareId} />
       </div>
     </div>
   );
