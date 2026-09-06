@@ -4,7 +4,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifySessionToken, hashPassword, generateShareId, generateSharePassword, computeShareExpiresAt } from '@/lib/auth';
+import { shareExpiresAt, esUnidadDuradera, esInstalable } from '@/lib/share-durability';
+import { verifySessionToken, hashPassword, generateShareId, generateSharePassword } from '@/lib/auth';
 import { connectDB } from '@/lib/db/connection';
 import { Widget, WidgetShare } from '@/lib/db/models';
 
@@ -27,11 +28,12 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   if (!widget) return NextResponse.json({ error: 'Widget no encontrado.' }, { status: 404 });
 
   const shares = await WidgetShare.find({ widgetId: id, userId })
-    .select({ shareId: 1, label: 1, active: 1, expiresAt: 1, durationValue: 1, durationUnit: 1, createdAt: 1 })
+    .select({ shareId: 1, label: 1, active: 1, expiresAt: 1, durationValue: 1, durationUnit: 1, permanent: 1, createdAt: 1 })
     .sort({ createdAt: -1 })
     .lean() as Array<{
       shareId: string; label: string; active: boolean;
-      expiresAt: Date; durationValue: number; durationUnit: string; createdAt: Date;
+      expiresAt: Date; durationValue: number; durationUnit: string;
+      permanent?: boolean; createdAt: Date;
     }>;
 
   const now = new Date();
@@ -45,6 +47,9 @@ export async function GET(req: NextRequest, { params }: Ctx) {
       expiresAt:     s.expiresAt,
       durationValue: s.durationValue,
       durationUnit:  s.durationUnit,
+      permanent:     Boolean(s.permanent),
+      // Lo decide el servidor: la UI no tiene por que repetir la regla.
+      instalable:    esInstalable(s),
       createdAt:     s.createdAt,
     })),
   });
@@ -62,18 +67,19 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   let label         = '';
   let durationValue = 8;
-  let durationUnit: 'hours' | 'days' | 'weeks' | 'months' = 'hours';
+  let durationUnit: 'hours' | 'days' | 'weeks' | 'months' | 'never' = 'hours';
   try {
     const body = await req.json() as { label?: string; durationValue?: number; durationUnit?: string };
     label         = typeof body.label === 'string' ? body.label.trim().slice(0, 60) : '';
     durationValue = typeof body.durationValue === 'number' && body.durationValue > 0 ? Math.floor(body.durationValue) : 8;
-    durationUnit  = ['hours', 'days', 'weeks', 'months'].includes(body.durationUnit ?? '') ? body.durationUnit as typeof durationUnit : 'hours';
+    durationUnit  = ['hours', 'days', 'weeks', 'months', 'never'].includes(body.durationUnit ?? '') ? body.durationUnit as typeof durationUnit : 'hours';
   } catch { /* sin body */ }
 
   const shareId   = generateShareId();
   const plainPw   = generateSharePassword();
   const pwHash    = await hashPassword(plainPw);
-  const expiresAt = computeShareExpiresAt(durationValue, durationUnit);
+  const permanent = esUnidadDuradera(durationUnit);
+  const expiresAt = shareExpiresAt(durationValue, durationUnit);
 
   await WidgetShare.create({
     widgetId: id,
@@ -85,7 +91,8 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     expiresAt,
     durationValue,
     durationUnit,
+    permanent,
   });
 
-  return NextResponse.json({ shareId, password: plainPw, expiresAt }, { status: 201 });
+  return NextResponse.json({ shareId, password: plainPw, expiresAt, permanent }, { status: 201 });
 }

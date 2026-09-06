@@ -920,6 +920,11 @@ const WidgetShareSchema = new Schema({
   expiresAt:     { type: Date, required: true },
   durationValue: { type: Number, default: 8 },
   durationUnit:  { type: String, default: 'hours' },
+  // Share duradero: sin caducidad automatica, revocable a mano. Es el unico
+  // tipo que se puede instalar como app (PWA) — ver src/lib/share-durability.
+  // El TTL de arriba sigue existiendo: a estos se les pone una fecha centinela
+  // tan lejana que el indice no la alcanza, asi no hay que migrar nada.
+  permanent:     { type: Boolean, default: false },
 }, { timestamps: true });
 
 WidgetShareSchema.index({ widgetId: 1, userId: 1 });

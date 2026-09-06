@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ArrowLeft, Share2, Plus, Copy, Check, Trash2, Clock, Globe, KeyRound, AlertCircle } from '@/components/ui/icons';
 
-type DurationUnit = 'hours' | 'days' | 'weeks' | 'months';
+type DurationUnit = 'hours' | 'days' | 'weeks' | 'months' | 'never';
 
 interface ShareItem {
   shareId:       string;
@@ -15,6 +15,9 @@ interface ShareItem {
   expiresAt:     string;
   durationValue: number;
   durationUnit:  DurationUnit;
+  permanent:     boolean;
+  /** Lo decide el servidor: duradero + activo + vigente. */
+  instalable:    boolean;
   createdAt:     string;
 }
 
@@ -30,6 +33,7 @@ const UNIT_LABELS: Record<DurationUnit, string> = {
   days:   'días',
   weeks:  'semanas',
   months: 'meses',
+  never:  'sin caducidad',
 };
 
 function formatDate(iso: string) {
@@ -235,6 +239,7 @@ export default function SharesPage() {
               <option value="days">Días</option>
               <option value="weeks">Semanas</option>
               <option value="months">Meses</option>
+              <option value="never">Sin caducidad</option>
             </select>
           </div>
 
@@ -252,7 +257,9 @@ export default function SharesPage() {
 
         <div style={{ fontSize: 11, color: 'var(--muted-foreground)', marginBottom: 14 }}>
           <Clock size={11} style={{ display: 'inline', marginRight: 4 }} />
-          El enlace expirará {durValue} {UNIT_LABELS[durUnit]} después de crearlo. Por defecto: 8 horas.
+          {durUnit === 'never'
+            ? 'El enlace no caduca: solo deja de funcionar cuando lo revocas. Es el único tipo que se puede instalar como app en el móvil — un icono en la pantalla de inicio tiene que seguir ahí mañana.'
+            : `El enlace expirará ${durValue} ${UNIT_LABELS[durUnit]} después de crearlo. Por defecto: 8 horas.`}
         </div>
 
         <button type="button" onClick={() => void createShare()} disabled={creating}
@@ -291,10 +298,13 @@ export default function SharesPage() {
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, fontSize: 11, color: 'var(--muted-foreground)' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <Clock size={11} />
-                        {isLive ? timeLeft(share.expiresAt) : `Expiró: ${formatDate(share.expiresAt)}`}
+                        {share.permanent
+                          ? 'Sin caducidad'
+                          : isLive ? timeLeft(share.expiresAt) : `Expiró: ${formatDate(share.expiresAt)}`}
                       </span>
                       <span>Creado: {formatDate(share.createdAt)}</span>
-                      <span>{share.durationValue} {UNIT_LABELS[share.durationUnit]}</span>
+                      {share.permanent ? null : <span>{share.durationValue} {UNIT_LABELS[share.durationUnit]}</span>}
+                      {share.instalable ? <span style={{ color: 'var(--brand-primary)' }}>Instalable como app</span> : null}
                     </div>
                   </div>
 
