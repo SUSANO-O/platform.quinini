@@ -7901,8 +7901,8 @@
         ' .afhub-thinking-card::before,#' + rootId + ' .afhub-thinking-beam-spin { animation:none !important; opacity:.18 !important; } #' +
         rootId +
         ' .afhub-input-composer:focus-within .afhub-input-beam-ring { opacity:.65 !important; } }' +
-      '#' + rootId + '.afhub-open .afhub-launcher { display:none !important; visibility:hidden !important; pointer-events:none !important; }' +
-      '#' + rootId + '.afhub-open .afhub-fab { display:none !important; }' +
+      '#' + rootId + ' .afhub-launcher { transition:opacity .3s ' + macSpring + ',transform .3s ' + macSpring + '; }' +
+      '#' + rootId + '.afhub-open .afhub-launcher { opacity:0; transform:scale(.85); pointer-events:none !important; }' +
       '#' + rootId + '.afhub-open .afhub-fab-hint-wrap { opacity:0; max-height:0; margin:0; padding:0; overflow:hidden; pointer-events:none; }' +
       '#' + rootId + ' .afhub-fab { width:60px; height:60px; border-radius:50%; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; background:linear-gradient(155deg,rgba(255,255,255,.22) 0%,transparent 42%),' +
       orbIridescentStack(cfg) +
