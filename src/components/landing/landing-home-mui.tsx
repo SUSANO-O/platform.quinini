@@ -85,88 +85,85 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
   ];
 
   return (
-    <Box className="landing-page" sx={{ minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
+    <Box className="landing-page landing-page--saas" sx={{ minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
       <div className="landing-page__bg" aria-hidden>
         <div className="landing-page__blob landing-page__blob--a" />
         <div className="landing-page__blob landing-page__blob--b" />
         <div className="landing-page__blob landing-page__blob--c" />
       </div>
 
-      <LandingNavbar />
+      <div className="landing-stage-dark">
+        <LandingNavbar variant="dark" />
 
-      {/* HERO — brand + headline + CTA + imagen dominante */}
-      <section className="landing-hero">
-        <Container maxWidth="md" className="landing-hero__inner">
-          <h1 className="landing-hero__title">
-            {copy.hero.title1}
-            <span className="landing-accent">{copy.hero.title2}</span>
-          </h1>
+        {/* HERO — brand + headline + CTA + imagen dominante */}
+        <section className="landing-hero">
+          <Container maxWidth="md" className="landing-hero__inner">
+            <h1 className="landing-hero__title">
+              {copy.hero.title1}{' '}
+              <span className="landing-accent">{copy.hero.title2}</span>
+            </h1>
 
-          <p className="landing-lead landing-hero__lead">{copy.hero.description}</p>
+            <p className="landing-lead landing-hero__lead">{copy.hero.description}</p>
 
-          <div className="landing-hero__actions">
-            <Button
-              className="landing-btn"
-              component={Link}
-              href="/pricing"
-              variant="contained"
-              size="large"
-              endIcon={<ArrowForwardIcon size={18} />}
-              sx={{ px: 2.75, py: 1.15, borderRadius: 999 }}
-            >
-              {copy.hero.ctaPrimary}
-            </Button>
-            <Button
-              className="landing-btn"
-              component={Link}
-              href="/login"
-              variant="outlined"
-              size="large"
-              color="inherit"
-              sx={{
-                px: 2.75,
-                py: 1.15,
-                borderRadius: 999,
-                bgcolor: 'rgba(255,255,255,0.8)',
-                borderColor: 'rgba(15,23,42,0.12)',
-              }}
-            >
-              {copy.hero.ctaAccount}
-            </Button>
-          </div>
+            <div className="landing-hero__actions">
+              <Button
+                className="landing-btn landing-btn--primary-bright"
+                component={Link}
+                href="/pricing"
+                variant="contained"
+                size="large"
+                endIcon={<ArrowForwardIcon size={18} />}
+                sx={{ px: 2.75, py: 1.15, borderRadius: 999 }}
+              >
+                {copy.hero.ctaPrimary}
+              </Button>
+              <Button
+                className="landing-btn landing-btn--ghost-on-dark"
+                component={Link}
+                href="/demos"
+                variant="outlined"
+                size="large"
+                color="inherit"
+                sx={{
+                  px: 2.75,
+                  py: 1.15,
+                  borderRadius: 999,
+                }}
+              >
+                {copy.hero.ctaAccount}
+              </Button>
+            </div>
 
-          {/* Prueba de valor antes del pliegue: precio, tiempo hasta el primer
-              widget y catálogo de modelos. El copy ya existía traducido en
-              messages/{es,en}.json y no lo renderizaba nadie. */}
-          <ul className="landing-hero__trust">
-            {[
-              { v: copy.stats.trialValue, h: copy.stats.trialHint, k: copy.stats.trial, d: '' },
-              { v: copy.stats.setupValue, h: '', k: copy.stats.setup, d: copy.stats.setupHint },
-              { v: copy.stats.modelsValue, h: '', k: copy.stats.models, d: copy.stats.modelsHint },
-            ].map((s) => (
-              <li key={s.k} className="landing-hero__trust-item">
-                <span className="landing-hero__trust-value">
-                  {s.v}
-                  {s.h ? <em className="landing-hero__trust-unit">{s.h}</em> : null}
-                </span>
-                <span className="landing-hero__trust-label">{s.k}</span>
-                {s.d ? <span className="landing-hero__trust-hint">{s.d}</span> : null}
-              </li>
-            ))}
-          </ul>
+            <ul className="landing-hero__trust">
+              {[
+                { v: copy.stats.trialValue, h: copy.stats.trialHint, k: copy.stats.trial, d: '' },
+                { v: copy.stats.setupValue, h: '', k: copy.stats.setup, d: copy.stats.setupHint },
+                { v: copy.stats.modelsValue, h: '', k: copy.stats.models, d: copy.stats.modelsHint },
+              ].map((s) => (
+                <li key={s.k} className="landing-hero__trust-item">
+                  <span className="landing-hero__trust-value">
+                    {s.v}
+                    {s.h ? <em className="landing-hero__trust-unit">{s.h}</em> : null}
+                  </span>
+                  <span className="landing-hero__trust-label">{s.k}</span>
+                  {s.d ? <span className="landing-hero__trust-hint">{s.d}</span> : null}
+                </li>
+              ))}
+            </ul>
 
-          <div className="landing-hero__media">
-            <Image
-              src="/landing/hero.jpg"
-              alt="Equipo trabajando con agentes de IA"
-              fill
-              priority
-              sizes="(max-width: 1100px) 100vw, 1080px"
-              style={{ objectFit: 'cover' }}
-            />
-          </div>
-        </Container>
-      </section>
+            <div className="landing-hero__media">
+              <Image
+                src="/landing/hero.jpg"
+                alt="Equipo trabajando con agentes de IA"
+                fill
+                priority
+                sizes="(max-width: 1100px) 100vw, 1080px"
+                style={{ objectFit: 'cover' }}
+              />
+            </div>
+          </Container>
+        </section>
+      </div>
 
       <section className="landing-strip-section" aria-label="Productos BotIvA">
         <Container maxWidth="lg">
@@ -551,18 +548,18 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
       </section>
 
       {/* CTA */}
-      <section className="landing-section" style={{ textAlign: 'center' }}>
+      <section className="landing-cta-band" style={{ textAlign: 'center' }}>
         <Container maxWidth="sm">
-          <h2 className="landing-section-title" style={{ margin: '0 0 0.85rem' }}>
+          <h2 className="landing-section-title landing-cta-band__title" style={{ margin: '0 0 0.85rem' }}>
             {copy.cta.title1}{' '}
             <span className="landing-accent">{copy.cta.title2}</span>
           </h2>
-          <p className="landing-lead" style={{ margin: '0 auto 1.75rem' }}>
+          <p className="landing-lead landing-cta-band__lead" style={{ margin: '0 auto 1.75rem' }}>
             {copy.cta.subtitle}
           </p>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="center">
             <Button
-              className="landing-btn"
+              className="landing-btn landing-btn--primary-bright"
               component={Link}
               href="/pricing"
               variant="contained"
@@ -573,13 +570,13 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
               {copy.cta.primary}
             </Button>
             <Button
-              className="landing-btn"
+              className="landing-btn landing-btn--ghost-on-dark"
               component={Link}
               href="/login"
               variant="outlined"
               size="large"
               color="inherit"
-              sx={{ borderRadius: 999, px: 2.75, borderColor: 'rgba(15,23,42,0.12)' }}
+              sx={{ borderRadius: 999, px: 2.75 }}
             >
               {copy.cta.secondary}
             </Button>

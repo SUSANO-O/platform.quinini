@@ -73,6 +73,8 @@
   --brand-primary:       #006b7d;
   --brand-primary-light: #28a4b8;
   --brand-primary-dark:  #004a57;
+  --brand-accent-bright: #2dd4bf;
+  --brand-stage-dark:    #080f1c;
   --brand-tertiary:      #8b551e;
   --brand-neutral:       #1a1c1e;
   --brand-warm:          var(--brand-tertiary);
@@ -361,6 +363,101 @@ label {
   line-height: 1.15;
 }
 
+.landing-stage-dark .landing-accent,
+.landing-cta-band .landing-accent {
+  color: var(--brand-accent-bright);
+  font-style: italic;
+}
+
+.landing-stage-dark {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 0.5rem;
+  padding: 4.5rem 0 2.5rem;
+  background:
+    radial-gradient(ellipse 80% 60% at 70% 20%, rgba(45, 212, 191, 0.16), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 15% 80%, rgba(0, 107, 125, 0.35), transparent 50%),
+    linear-gradient(165deg, #060b16 0%, var(--brand-stage-dark) 45%, #0b1a24 100%);
+  color: #e2e8f0;
+}
+
+.landing-stage-dark .landing-hero {
+  padding-top: clamp(1.25rem, 3vw, 2rem);
+}
+
+.landing-stage-dark .landing-hero__title {
+  color: #f8fafc;
+  max-width: 18ch;
+}
+
+.landing-stage-dark .landing-hero__lead,
+.landing-cta-band .landing-cta-band__lead {
+  color: rgba(226, 232, 240, 0.78);
+}
+
+.landing-stage-dark .landing-hero__trust-value {
+  color: #f8fafc;
+}
+
+.landing-stage-dark .landing-hero__trust-label {
+  color: rgba(226, 232, 240, 0.72);
+}
+
+.landing-stage-dark .landing-hero__trust-hint,
+.landing-stage-dark .landing-hero__trust-unit {
+  color: rgba(148, 163, 184, 0.9);
+}
+
+.landing-stage-dark .landing-hero__trust-item + .landing-hero__trust-item::before {
+  background: rgba(148, 163, 184, 0.28);
+}
+
+.landing-stage-dark .landing-hero__media {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 28px 70px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.landing-page .landing-btn--primary-bright.MuiButton-contained,
+.landing-page .landing-btn--primary-bright {
+  background: var(--brand-accent-bright) !important;
+  color: #042f2e !important;
+  box-shadow: 0 8px 28px rgba(45, 212, 191, 0.28);
+}
+
+.landing-page .landing-btn--primary-bright:hover {
+  background: #5eead4 !important;
+}
+
+.landing-page .landing-btn--ghost-on-dark.MuiButton-outlined,
+.landing-page .landing-btn--ghost-on-dark {
+  color: #f8fafc !important;
+  border-color: rgba(226, 232, 240, 0.35) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.landing-page .landing-btn--ghost-on-dark:hover {
+  border-color: rgba(226, 232, 240, 0.55) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.landing-cta-band {
+  position: relative;
+  z-index: 1;
+  padding: clamp(3.5rem, 7vw, 5rem) 1.25rem;
+  margin: 1rem 0 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(45, 212, 191, 0.14), transparent 55%),
+    linear-gradient(180deg, #060b16 0%, var(--brand-stage-dark) 100%);
+  color: #e2e8f0;
+}
+
+.landing-cta-band__title {
+  color: #f8fafc !important;
+}
+
+
 .landing-page .landing-lead {
   font-size: clamp(1.05rem, 2vw, 1.2rem);
   line-height: 1.65;
@@ -450,6 +547,10 @@ label {
   pointer-events: none;
   z-index: 0;
   overflow: hidden;
+}
+
+.landing-page--saas > .landing-page__bg {
+  opacity: 0.4;
 }
 
 .landing-page__blob {
@@ -2031,6 +2132,9 @@ label {
 .dashboard-root-texture {
   --brand-primary-rgb: 17, 17, 17;
   --brand-primary: #111111;
+  /* Coherencia marca con landing: focus/active usan teal institucional */
+  --app-brand-focus: #006b7d;
+  --app-brand-focus-ring: rgba(0, 107, 125, 0.35);
   --brand-primary-light: #525252;
   --brand-primary-dark: #000000;
   --brand-cool-rgb: 64, 64, 64;
@@ -2052,6 +2156,21 @@ label {
     radial-gradient(circle at 50% 100%, rgba(0, 0, 0, 0.025), transparent 36%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.55), transparent 42%);
   background-attachment: fixed;
+}
+
+
+
+/* Focus accesible alineado a BotIvA (landing + app) */
+.dashboard-root-texture :where(a, button, [role="button"], input, select, textarea, .MuiButton-root):focus-visible {
+  outline: 2px solid var(--app-brand-focus);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--app-brand-focus-ring);
+}
+
+.dashboard-root-texture .dashboard-sidebar a[aria-current="page"],
+.dashboard-root-texture .dashboard-sidebar .is-active {
+  border-left-color: var(--app-brand-focus);
+  color: var(--app-brand-focus);
 }
 
 .dashboard-root-texture .gradient-text {
