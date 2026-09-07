@@ -8,6 +8,9 @@ export const BRAND = {
   primary: '#006B7D',
   primaryDark: '#004A57',
   primaryLight: '#28A4B8',
+  /** Acento brillante para hero/CTA dark (coherente con marketing SaaS). */
+  accentBright: '#2DD4BF',
+  stageDark: '#080F1C',
   tertiary: '#8B551E',
   neutral: '#1A1C1E',
   cool: '#004A57',

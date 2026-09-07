@@ -38,33 +38,37 @@ const RESOURCE_LINKS = [
   { href: '/soluciones', key: 'solutions' as const },
 ];
 
-const navBtnSx = {
-  fontFamily: '"Inter", system-ui, sans-serif',
-  fontWeight: 500,
-  letterSpacing: '-0.015em',
-  textTransform: 'none' as const,
-  color: '#475569',
-};
-
-export function LandingNavbar() {
+export function LandingNavbar({ variant = 'light' }: { variant?: 'light' | 'dark' }) {
   const [open, setOpen] = useState(false);
   const [resourcesEl, setResourcesEl] = useState<null | HTMLElement>(null);
   const [mobileResourcesOpen, setMobileResourcesOpen] = useState(false);
   const { user, loading } = useAuth();
   const t = useTranslations('nav');
   const resourcesOpen = Boolean(resourcesEl);
+  const isDark = variant === 'dark';
+
+  const navBtnSx = {
+    fontFamily: '"Inter", system-ui, sans-serif',
+    fontWeight: 500,
+    letterSpacing: '-0.015em',
+    textTransform: 'none' as const,
+    color: isDark ? 'rgba(226,232,240,0.88)' : '#475569',
+  };
 
   return (
     <>
       <AppBar
         position="fixed"
         elevation={0}
+        className={isDark ? 'landing-nav landing-nav--dark' : 'landing-nav'}
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
-          bgcolor: 'rgba(255,255,255,0.78)',
-          color: 'text.primary',
+          bgcolor: isDark ? 'rgba(8, 15, 28, 0.72)' : 'rgba(255,255,255,0.78)',
+          color: isDark ? '#e2e8f0' : 'text.primary',
           backdropFilter: 'blur(14px)',
-          borderBottom: '1px solid rgba(15,23,42,0.06)',
+          borderBottom: isDark
+            ? '1px solid rgba(148,163,184,0.12)'
+            : '1px solid rgba(15,23,42,0.06)',
           boxShadow: 'none',
         }}
       >
@@ -79,7 +83,7 @@ export function LandingNavbar() {
                 alignItems: 'center',
                 gap: 1,
                 textDecoration: 'none',
-                color: 'text.primary',
+                color: isDark ? '#f8fafc' : 'text.primary',
                 mr: 'auto',
                 fontFamily: '"Inter", system-ui, sans-serif',
               }}
@@ -160,7 +164,11 @@ export function LandingNavbar() {
                       href="/login"
                       color="inherit"
                       size="small"
-                      sx={{ textTransform: 'none', fontWeight: 500, color: '#334155' }}
+                      sx={{
+                        textTransform: 'none',
+                        fontWeight: 500,
+                        color: isDark ? 'rgba(226,232,240,0.9)' : '#334155',
+                      }}
                     >
                       {t('signIn')}
                     </Button>
@@ -174,8 +182,11 @@ export function LandingNavbar() {
                         px: 2.1,
                         textTransform: 'none',
                         fontWeight: 650,
-                        bgcolor: '#0f172a',
-                        '&:hover': { bgcolor: '#1e293b' },
+                        bgcolor: isDark ? '#2dd4bf' : '#0f172a',
+                        color: isDark ? '#042f2e' : '#fff',
+                        '&:hover': {
+                          bgcolor: isDark ? '#5eead4' : '#1e293b',
+                        },
                       }}
                     >
                       {t('startFree')}
