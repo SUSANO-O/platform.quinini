@@ -1554,6 +1554,8 @@
     var thinkingRotateStartedAt = 0;
     var isOpen = false;
     var isLoading = false;
+    /** Último texto escrito y ecoado mientras isLoading estaba en true (ver queueOrSend). */
+    var queuedTextWhileLoading = null;
     var lastAssistUserMessage = '';
     var widgetDisabled = cfg.active === false;
     var DISABLED_MSG = 'Este chat está desactivado temporalmente. Vuelve más tarde.';
@@ -4184,12 +4186,73 @@
 
     // ── Formulario "Abrir ticket" (soporte vía Slack, sin pasar por el LLM) ──
     var ticketPendingImages = []; // { file, previewUrl }
+    var TICKET_EMAIL_RE = /[\w.+-]+@[\w.-]+\.[a-z]{2,}/i;
+
+    /** 2-4 palabras tipo "Nombre Apellido", sin dígitos ni @ — nada de indagar
+     *  qué preguntó el bot antes, solo la FORMA del mensaje del visitante. */
+    function looksLikeProperName(text) {
+      var words = text.trim().split(/\s+/);
+      if (words.length < 1 || words.length > 4) return false;
+      for (var i = 0; i < words.length; i++) {
+        if (!/^[A-ZÀ-ÝÑ][a-zà-ÿñ'’-]+$/.test(words[i])) return false;
+      }
+      return true;
+    }
+
+    /**
+     * Bug real reportado: el ticket se abre vacío aunque el visitante ya haya
+     * dado su nombre/email un par de mensajes atrás — lo obliga a re-escribir
+     * justo cuando ya demostró intención de reportar el problema. Heurística
+     * simple y conservadora (sin backend/LLM): el email sale de un regex sobre
+     * los mensajes del visitante (se queda con el último, por si se corrigió).
+     * El nombre es best-effort, con dos señales (se prioriza la más fuerte,
+     * ninguna requiere backend/LLM):
+     *   1) fuerte: el mensaje del bot inmediatamente anterior preguntó por el
+     *      nombre (patrón real visto: "¿podrías darme tu nombre...?" → "Eduar
+     *      Teran") — se toma la respuesta tal cual, aunque no "parezca" nombre.
+     *   2) débil (fallback si la 1 no aplicó): cualquier mensaje del visitante
+     *      con forma de nombre propio (2-4 palabras en mayúscula inicial, sin
+     *      dígitos ni @) — cubre el caso, visto en pruebas reales, de que el
+     *      visitante da su nombre sin que el bot lo pida explícitamente así.
+     */
+    function extractKnownContactFromHistory(hist) {
+      var email = '';
+      var strongName = '';
+      var weakName = '';
+      for (var i = 0; i < hist.length; i++) {
+        var turn = hist[i];
+        if (!turn || turn.role !== 'user' || typeof turn.content !== 'string') continue;
+        var m = turn.content.match(TICKET_EMAIL_RE);
+        if (m) email = m[0];
+        var candidate = turn.content.trim();
+        if (looksLikeProperName(candidate)) weakName = candidate;
+      }
+      for (var j = 0; j < hist.length - 1; j++) {
+        var askTurn = hist[j];
+        var ansTurn = hist[j + 1];
+        if (!askTurn || !ansTurn) continue;
+        var isAssistantAsk = (askTurn.role === 'model' || askTurn.role === 'assistant')
+          && typeof askTurn.content === 'string' && /nombre/i.test(askTurn.content);
+        if (!isAssistantAsk || ansTurn.role !== 'user' || typeof ansTurn.content !== 'string') continue;
+        var strongCandidate = ansTurn.content.trim();
+        var looksLikePureDigits = /^[\d\s().+-]+$/.test(strongCandidate);
+        if (strongCandidate && strongCandidate.length <= 60 && !TICKET_EMAIL_RE.test(strongCandidate) && !looksLikePureDigits) {
+          strongName = strongCandidate;
+        }
+      }
+      return { name: strongName || weakName, email: email };
+    }
 
     function openTicketModal() {
       if (widgetDisabled) return;
       ticketOverlay.classList.add('visible');
       var errEl = ticketOverlay.querySelector('.afhub-ticket-error');
       if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+      var known = extractKnownContactFromHistory(history);
+      var nameField = ticketOverlay.querySelector('[name="name"]');
+      var emailField = ticketOverlay.querySelector('[name="email"]');
+      if (nameField && !nameField.value.trim() && known.name) nameField.value = known.name;
+      if (emailField && !emailField.value.trim() && known.email) emailField.value = known.email;
     }
 
     function closeTicketModal() {
@@ -5600,11 +5663,38 @@
     // vez de contestar apurado al primero. Adjuntos / modo humano / input vacío
     // no debounce: van directo, igual que antes.
     var pendingBatchTimer = null;
+    // Si isLoading ya está en true y llega un mensaje nuevo (Enter no chequea
+    // isLoading antes de disparar queueOrSend, a diferencia del botón enviar
+    // que queda disabled), se ecoa localmente ya mismo — igual que el batching
+    // de mensajes seguidos de abajo — y se encola para mandarse en cuanto
+    // termine el turno en curso (ver flushQueuedMessageIfAny). Bug real: antes
+    // esto caía directo a send(), que con isLoading=true retorna sin hacer
+    // nada — el mensaje se perdía en silencio, sin limpiar el input ni avisar
+    // al usuario, y si seguía escribiendo el texto siguiente quedaba pegado al
+    // perdido (ej.: "Eduar teran, moto 3115980547" reenviado igual dos veces).
+    function flushQueuedMessageIfAny() {
+      if (queuedTextWhileLoading && !isLoading) {
+        var q = queuedTextWhileLoading;
+        queuedTextWhileLoading = null;
+        send(q, { historyPreloaded: true });
+      }
+    }
     function queueOrSend(textArg) {
       if (widgetDisabled) return;
       var text = typeof textArg === 'string' ? textArg.trim() : input.value.trim();
       var hasAttach = !!(pendingAttachment && pendingAttachment.dataUrl);
       var hasHumanAttach = (typeof humanModeActive !== 'undefined' && humanModeActive) && pendingHumanAttachments.length > 0;
+
+      if (isLoading && text && !hasAttach && !hasHumanAttach) {
+        if (pendingBatchTimer) { clearTimeout(pendingBatchTimer); pendingBatchTimer = null; }
+        echoUserTurn(text, undefined, null, false);
+        input.value = '';
+        input.style.height = 'auto';
+        syncSendButtonState();
+        queuedTextWhileLoading = text;
+        return;
+      }
+
       if (hasAttach || hasHumanAttach || !text || isLoading) {
         if (pendingBatchTimer) { clearTimeout(pendingBatchTimer); pendingBatchTimer = null; }
         send(textArg);
@@ -5719,6 +5809,7 @@
           var upMsg = upErr && upErr.message ? upErr.message : 'Error al subir la captura.';
           addMessage('bot', upMsg);
           notify('onError', { message: upMsg, code: 'IMAGE_UPLOAD_FAILED' });
+          flushQueuedMessageIfAny();
           return;
         }
       }
@@ -5861,7 +5952,6 @@
             var finalReply = botReplyForDisplay(finalRaw);
             if (/\[\[OPEN_TICKET_FORM\]\]/.test(finalReply)) {
               finalReply = finalReply.replace(/\[\[OPEN_TICKET_FORM\]\]/g, '').trim();
-              if (!finalReply) finalReply = 'Si no se abre solo, abrilo desde el menú ⋮ → "Abrir ticket de soporte".';
               try { openTicketModal(); } catch (_e) { /* noop */ }
             }
             var streamSurveyStrip = stripSurveyMarker(finalReply);
@@ -5880,6 +5970,16 @@
             }
             if (!streamBubble && finalReply) {
               streamBubble = addMessage('bot', finalReply, { streaming: true });
+            }
+            // Si el único contenido de la respuesta era el marcador de ticket,
+            // no queda texto que mostrar: no hay que rellenar con un aviso de
+            // "si no se abre solo, abrilo desde el menú..." — el modal de
+            // ticket ya se abrió arriba, alcanza con eso. Si ya existía una
+            // burbuja (por tokens del marcador ya pintados en pantalla), se
+            // saca en vez de dejarla vacía.
+            if (streamBubble && !finalReply) {
+              try { streamBubble.remove(); } catch (_e) { /* noop */ }
+              streamBubble = null;
             }
             if (streamBubble) {
               flushStreamBubblePaint();
@@ -5943,6 +6043,7 @@
           sendBtn.disabled = false;
           syncSendButtonState();
           newChatBtn.disabled = false;
+          flushQueuedMessageIfAny();
           return;
         } catch (streamErr) {
           log(cfg, 'warn', 'Stream failed, falling back to standard', streamErr);
@@ -5961,7 +6062,6 @@
         var reply = botReplyForDisplay(replyRaw);
         if (/\[\[OPEN_TICKET_FORM\]\]/.test(reply)) {
           reply = reply.replace(/\[\[OPEN_TICKET_FORM\]\]/g, '').trim();
-          if (!reply) reply = 'Si no se abre solo, abrilo desde el menú ⋮ → "Abrir ticket de soporte".';
           try { openTicketModal(); } catch (_e) { /* noop */ }
         }
         var standardSurveyStrip = stripSurveyMarker(reply);
@@ -6043,7 +6143,13 @@
           botOpts.wasGreeting = true;
         }
 
-        if (useReveal) {
+        if (!reply) {
+          // El único contenido era el marcador de ticket: el modal ya se abrió
+          // arriba, no queda texto que mostrar — no rellenar con un aviso de
+          // "si no se abre solo, abrilo desde el menú...".
+          history.push({ role: 'model', content: '' });
+          saveChatToSession();
+        } else if (useReveal) {
           revealBotReplyProgressively(reply, function (botBubble, finalReply) {
             finalizeStandardBubble(botBubble, finalReply);
           });
@@ -6070,6 +6176,7 @@
         sendBtn.disabled = false;
         syncSendButtonState();
         newChatBtn.disabled = false;
+        flushQueuedMessageIfAny();
       }
     }
 
