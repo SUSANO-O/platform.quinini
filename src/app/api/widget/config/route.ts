@@ -12,7 +12,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
-import { Widget, ClientAgent, User } from '@/lib/db/models';
+import { Widget, ClientAgent, User, Subscription } from '@/lib/db/models';
+import { resolveSubscriptionAccess } from '@/lib/subscription';
 import { validateMultiAgentMode } from '@/lib/widget-multi-agent';
 import { normalizeHandoffNotifyMode, resolveWidgetHumanSupportPhone } from '@/lib/handoff-notify';
 import { normalizeAiBeamFields } from '@/lib/widget-ai-beam';
@@ -57,6 +58,22 @@ export async function GET(req: NextRequest) {
     } catch { /* non-critical */ }
   }
   const effectiveHumanSupportPhone = resolveWidgetHumanSupportPhone(widget, ownerUser);
+
+  // Suspensión por falta de pago: si al dueño se le venció el plan y además se
+  // le agotaron los días de cortesía, el widget deja de atender. Durante la
+  // cortesía sigue funcionando normal (acceso completo), así que acá solo
+  // importa el corte definitivo. Falla abierta: ante cualquier error de lectura
+  // el widget sigue vivo — mejor dar servicio de más que cortarle la atención a
+  // los visitantes de un cliente al día.
+  let ownerSuspended = false;
+  if (widget.userId) {
+    try {
+      const sub = await Subscription.findOne({ userId: String(widget.userId) })
+        .select('status plan currentPeriodEnd lsSubscriptionId paddleSubscriptionId')
+        .lean() as Parameters<typeof resolveSubscriptionAccess>[0] | null;
+      if (sub) ownerSuspended = !resolveSubscriptionAccess(sub).hasAccess;
+    } catch { /* non-critical — el widget sigue funcionando */ }
+  }
 
   // Fetch voice name from the linked agent (stored there, not on Widget)
   let voiceName = '';
@@ -128,6 +145,7 @@ export async function GET(req: NextRequest) {
         multiAgentEnabled: widget.multiAgentEnabled === true,
         multiAgentMode: validateMultiAgentMode(widget.multiAgentMode),
         active: widget.active !== false,
+        ownerSuspended,
         policyEnabled:   widget.policyEnabled !== false,
         policyText:      typeof widget.policyText === 'string' ? widget.policyText : '',
         policyLinkLabel: typeof widget.policyLinkLabel === 'string' ? widget.policyLinkLabel : '',

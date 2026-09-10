@@ -350,10 +350,21 @@ export async function sendEmailChangeCodeEmail(
   logSendFailure('email change code', await send(newEmail, `Tu código BotIvA: ${code}`, html));
 }
 
+export type SubscriptionEmailEvent =
+  | 'activated'
+  | 'canceled'
+  | 'payment_failed'
+  | 'trial_ending'
+  /** Venció el período y corre la cortesía de N días: todavía tiene servicio. */
+  | 'grace'
+  /** Se agotó la cortesía: el servicio quedó suspendido. */
+  | 'suspended';
+
 export async function sendSubscriptionEmail(
   userIdOrEmail: string,
-  event: 'activated' | 'canceled' | 'payment_failed' | 'trial_ending',
+  event: SubscriptionEmailEvent,
   plan: string,
+  opts?: { graceEndsAt?: Date; daysLeft?: number },
 ): Promise<void> {
   // userIdOrEmail can be either — resolve to email if it's a userId
   let to = userIdOrEmail;
@@ -397,6 +408,35 @@ export async function sendSubscriptionEmail(
       ${p('No pudimos procesar el pago de tu suscripción.')}
       ${p('Por favor actualiza tu método de pago para mantener el acceso a BotIvA.')}
       ${btn('Actualizar método de pago', dashUrl, '#ef4444')}
+    `;
+  } else if (event === 'grace') {
+    const fecha = opts?.graceEndsAt
+      ? opts.graceEndsAt.toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })
+      : null;
+    const dias = opts?.daysLeft ?? null;
+    const cuando =
+      dias === 0 ? 'hoy' : dias === 1 ? 'mañana' : dias != null ? `en ${dias} días` : 'pronto';
+    subject =
+      dias === 0
+        ? `Último día para renovar tu plan ${planName} — BotIvA`
+        : `Tu plan ${planName} venció — tenés ${dias ?? ''} días para renovarlo`.replace('  ', ' ');
+    bodyHtml = `
+      ${h1('Tu plan venció, pero tu servicio sigue activo')}
+      ${p(`Tu plan <strong style="color:#f1f5f9;">${planName}</strong> llegó a su fecha de renovación y todavía no registramos el pago.`)}
+      ${p(`Te dejamos un <strong style="color:#f1f5f9;">período de cortesía</strong>: tus agentes y widgets siguen funcionando con normalidad${fecha ? ` hasta el <strong style="color:#f1f5f9;">${fecha}</strong>` : ''}.`)}
+      ${p(`Si no renovás, el servicio se suspende <strong style="color:#f1f5f9;">${cuando}</strong> y tus widgets dejarán de atender a tus visitantes.`)}
+      ${btn('Renovar ahora', dashUrl, '#f59e0b')}
+      ${p('Si ya hiciste el pago o creés que es un error, respondé este correo y lo revisamos.')}
+    `;
+  } else if (event === 'suspended') {
+    subject = `Tu servicio quedó suspendido — BotIvA`;
+    bodyHtml = `
+      ${h1('Servicio suspendido')}
+      ${p(`Se agotó el período de cortesía y tu plan <strong style="color:#f1f5f9;">${planName}</strong> quedó suspendido por falta de pago.`)}
+      ${p('Tus agentes y widgets dejaron de atender, y el panel quedó bloqueado. <strong style="color:#f1f5f9;">No borramos nada</strong>: tu información, tus agentes y tus conversaciones siguen guardados.')}
+      ${p('Apenas se registre el pago, todo vuelve a funcionar tal como estaba.')}
+      ${btn('Reactivar mi servicio', dashUrl, '#ef4444')}
+      ${p('Si ya pagaste o creés que es un error, respondé este correo y lo resolvemos.')}
     `;
   } else {
     subject = 'Tu trial vence pronto — BotIvA';
