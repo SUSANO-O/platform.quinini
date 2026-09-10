@@ -1557,8 +1557,17 @@
     /** Último texto escrito y ecoado mientras isLoading estaba en true (ver queueOrSend). */
     var queuedTextWhileLoading = null;
     var lastAssistUserMessage = '';
-    var widgetDisabled = cfg.active === false;
-    var DISABLED_MSG = 'Este chat está desactivado temporalmente. Vuelve más tarde.';
+    // Suspensión por falta de pago del dueño del widget (ver /api/widget/config).
+    // Se trata como "deshabilitado", pero con un mensaje propio y dejando abierto
+    // el contacto con soporte de BotIvA — el visitante no tiene por qué quedarse
+    // sin canal, y el ticket normal no sirve acá porque iría al Slack del cliente
+    // que justamente está suspendido.
+    var ownerSuspended = cfg.ownerSuspended === true;
+    var widgetDisabled = cfg.active === false || ownerSuspended;
+    var SUSPENDED_MSG = 'Estamos teniendo un problema con este asistente. Comunicate con el administrador del sitio o escribinos y lo revisamos.';
+    var DISABLED_MSG = ownerSuspended
+      ? SUSPENDED_MSG
+      : 'Este chat está desactivado temporalmente. Vuelve más tarde.';
     var chatLayout = 'floating';
     var sidebarSize = 'compact';
     if (cfg.initialLayout === 'sidebar-fullscreen') {
@@ -2227,7 +2236,7 @@
       if (attachBtn) attachBtn.disabled = true;
       if (shortcutsBtn) shortcutsBtn.disabled = true;
       if (handoffBtn) handoffBtn.disabled = true;
-      if (ticketBtn) ticketBtn.disabled = true;
+      if (ticketBtn) ticketBtn.disabled = !ownerSuspended;
       inputArea.classList.add('afhub-input-area--disabled');
     }
     if (voiceBar) {
@@ -4244,7 +4253,7 @@
     }
 
     function openTicketModal() {
-      if (widgetDisabled) return;
+      if (widgetDisabled && !ownerSuspended) return;
       ticketOverlay.classList.add('visible');
       var errEl = ticketOverlay.querySelector('.afhub-ticket-error');
       if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
@@ -4327,6 +4336,41 @@
       }
       if (errEl) errEl.style.display = 'none';
       if (submitBtn) submitBtn.disabled = true;
+
+      // Widget suspendido: el ticket normal iría al Slack del cliente moroso, que
+      // no puede resolver nada. Se manda a soporte de BotIvA, sin adjuntos.
+      if (ownerSuspended) {
+        fetch(cfg.host.replace(/\/$/, '') + '/api/widgets/' + encodeURIComponent(wid) + '/support-contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Widget-Token': String(cfg.token).trim() },
+          body: JSON.stringify({ name: name, email: email, message: description, token: String(cfg.token).trim() }),
+          signal: AbortSignal.timeout(30000)
+        })
+          .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+          .then(function (result) {
+            if (submitBtn) submitBtn.disabled = false;
+            if (!result.ok) {
+              if (errEl) {
+                errEl.textContent = (result.data && result.data.error) || 'No pudimos enviar tu mensaje. Intentá de nuevo.';
+                errEl.style.display = 'block';
+              }
+              return;
+            }
+            closeTicketModal();
+            addMessage('bot', 'Listo, le pasamos tu mensaje a soporte. Te van a contactar por el correo que dejaste.');
+          })
+          .catch(function (err) {
+            if (submitBtn) submitBtn.disabled = false;
+            if (errEl) {
+              var timedOut = err && (err.name === 'TimeoutError' || err.name === 'AbortError');
+              errEl.textContent = timedOut
+                ? 'La operación tardó demasiado. Intentá de nuevo.'
+                : (err && err.message) || 'No pudimos enviar tu mensaje.';
+              errEl.style.display = 'block';
+            }
+          });
+        return;
+      }
 
       var uploads = ticketPendingImages.map(function (img) { return uploadVisitorAttachment(img.file); });
       Promise.all(uploads)
@@ -5256,7 +5300,7 @@
       handoffBtn.disabled = true;
       handoffBtn.classList.add('afhub-handoff-icon--disabled');
     }
-    if (widgetDisabled && ticketBtn) {
+    if (widgetDisabled && ticketBtn && !ownerSuspended) {
       ticketBtn.disabled = true;
       ticketBtn.classList.add('afhub-handoff-icon--disabled');
     }
