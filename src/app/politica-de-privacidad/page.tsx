@@ -77,6 +77,34 @@ export default function PrivacidadPage() {
               <p className="leading-relaxed">
                 Conservamos su información mientras su cuenta esté activa o sea necesaria para proporcionarle los servicios. Si cancela su cuenta, eliminaremos sus datos personales en un plazo razonable, a menos que la ley exija su conservación.
               </p>
+
+              <h3 className="text-xl font-semibold text-foreground">7.1. Cuentas suspendidas por falta de pago</h3>
+              <p className="leading-relaxed">
+                Si su suscripción vence y no se registra el pago, aplicamos los siguientes plazos:
+              </p>
+              <ul className="list-disc space-y-2 pl-6 leading-relaxed">
+                <li>
+                  <strong>Primeros 7 días desde el vencimiento (período de cortesía):</strong> el servicio sigue funcionando con normalidad. Le avisamos por correo electrónico.
+                </li>
+                <li>
+                  <strong>A partir del día 8 desde el vencimiento:</strong> el servicio queda suspendido. Sus agentes y widgets dejan de atender y el panel queda bloqueado, pero <strong>no se elimina ninguna información</strong>.
+                </li>
+                <li>
+                  <strong>A partir de los 3 meses de suspensión:</strong> le enviamos avisos semanales por correo electrónico informando la fecha exacta en que se eliminarán sus datos.
+                </li>
+                <li>
+                  <strong>A los 6 meses de suspensión:</strong> eliminamos de forma permanente los datos asociados a su cuenta: agentes, widgets, conversaciones, documentos cargados, integraciones y credenciales de servicios conectados.
+                </li>
+              </ul>
+              <p className="leading-relaxed">
+                Si reactiva su suscripción en cualquier momento antes de la fecha de eliminación, su información se conserva intacta y el servicio se restablece sin pérdida de datos.
+              </p>
+              <p className="leading-relaxed">
+                Tras la eliminación conservamos únicamente: (i) su facturación, por el tiempo que exijan las normas tributarias y comerciales aplicables; (ii) los registros de auditoría y seguridad; y (iii) la constancia de los avisos que le enviamos y de la eliminación efectuada. Adicionalmente, mantenemos una copia de respaldo por <strong>30 días</strong> posteriores a la eliminación, únicamente para poder revertir una eliminación errónea; vencido ese plazo, la copia se destruye automáticamente.
+              </p>
+              <p className="leading-relaxed">
+                Estos plazos no limitan su derecho a solicitar la supresión de sus datos en cualquier momento, conforme a la sección 6.
+              </p>
             </section>
 
             <section className="space-y-4">

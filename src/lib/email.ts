@@ -358,13 +358,17 @@ export type SubscriptionEmailEvent =
   /** Venció el período y corre la cortesía de N días: todavía tiene servicio. */
   | 'grace'
   /** Se agotó la cortesía: el servicio quedó suspendido. */
-  | 'suspended';
+  | 'suspended'
+  /** Aviso semanal: los datos se eliminarán en la fecha indicada. */
+  | 'deletion_warning'
+  /** Los datos ya fueron eliminados. */
+  | 'account_deleted';
 
 export async function sendSubscriptionEmail(
   userIdOrEmail: string,
   event: SubscriptionEmailEvent,
   plan: string,
-  opts?: { graceEndsAt?: Date; daysLeft?: number },
+  opts?: { graceEndsAt?: Date; daysLeft?: number; deletionAt?: Date },
 ): Promise<void> {
   // userIdOrEmail can be either — resolve to email if it's a userId
   let to = userIdOrEmail;
@@ -427,6 +431,32 @@ export async function sendSubscriptionEmail(
       ${p(`Si no renovás, el servicio se suspende <strong style="color:#f1f5f9;">${cuando}</strong> y tus widgets dejarán de atender a tus visitantes.`)}
       ${btn('Renovar ahora', dashUrl, '#f59e0b')}
       ${p('Si ya hiciste el pago o creés que es un error, respondé este correo y lo revisamos.')}
+    `;
+  } else if (event === 'deletion_warning') {
+    const fecha = opts?.deletionAt
+      ? opts.deletionAt.toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })
+      : null;
+    const dias = opts?.daysLeft ?? null;
+    subject = fecha
+      ? `Tus datos se eliminarán el ${fecha} — BotIvA`
+      : 'Tus datos de BotIvA se eliminarán próximamente';
+    bodyHtml = `
+      ${h1('Tus datos se van a eliminar')}
+      ${p(`Tu cuenta lleva más de tres meses suspendida por falta de pago. Vamos a <strong style="color:#f1f5f9;">eliminar de forma permanente</strong> tus agentes, widgets y conversaciones${fecha ? ` el <strong style="color:#f1f5f9;">${fecha}</strong>` : ' próximamente'}${dias != null ? ` (en ${dias} ${dias === 1 ? 'día' : 'días'})` : ''}.`)}
+      ${p('Si reactivás tu plan antes de esa fecha, <strong style="color:#f1f5f9;">no se pierde nada</strong>: tu información queda tal como está hoy.')}
+      ${p('Después de esa fecha la eliminación es definitiva y no se puede revertir.')}
+      ${btn('Reactivar y conservar mis datos', dashUrl, '#ef4444')}
+      ${p('Conservamos tus facturas por obligación legal. Si creés que es un error, respondé este correo.')}
+    `;
+  } else if (event === 'account_deleted') {
+    subject = 'Tus datos de BotIvA fueron eliminados';
+    bodyHtml = `
+      ${h1('Datos eliminados')}
+      ${p('Tal como te avisamos en los correos anteriores, eliminamos de forma permanente los datos de tu cuenta: agentes, widgets y conversaciones.')}
+      ${p('Conservamos únicamente tus <strong style="color:#f1f5f9;">facturas</strong> (obligación legal) y el registro de los avisos que te enviamos.')}
+      ${p('Si querés volver a usar BotIvA, podés crear una cuenta nueva cuando gustes.')}
+      ${btn('Empezar de nuevo', dashUrl, '#6366f1')}
+      ${p('Si creés que esto fue un error, respondé este correo lo antes posible.')}
     `;
   } else if (event === 'suspended') {
     subject = `Tu servicio quedó suspendido — BotIvA`;

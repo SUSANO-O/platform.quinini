@@ -16,6 +16,7 @@ import {
   readSubscriptionSessionCache,
   writeSubscriptionSessionCache,
 } from '@/lib/subscription-session-cache';
+import type { LifecycleStage } from '@/modules/account-lifecycle/domain/lifecycle';
 
 export interface SubscriptionStatus {
   hasAccess: boolean;
@@ -24,6 +25,13 @@ export interface SubscriptionStatus {
   trialDaysRemaining: number;
   /** True si existe suscripción enlazada en Stripe (hay `stripeSubscriptionId`). */
   hasStripeSubscription: boolean;
+  /** Tramo del ciclo de vida por falta de pago: define qué ve el usuario sin acceso. */
+  lifecycle?: {
+    stage: LifecycleStage;
+    suspendedAtSec: number;
+    daysSuspended: number;
+    deletionAtSec: number;
+  };
   /** Epoch ms — invalidar caché cliente si cambió la suscripción en servidor. */
   subscriptionUpdatedAt?: number;
   subscription: {

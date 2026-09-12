@@ -1134,3 +1134,75 @@ WebhookOutboxSchema.index({ tenantId: 1, status: 1, createdAt: -1 });
 
 export const WebhookOutbox =
   mongoose.models.WebhookOutbox || mongoose.model('WebhookOutbox', WebhookOutboxSchema);
+
+// ── Ciclo de vida de cuentas por falta de pago ──────────────────────────────
+// Ver src/modules/account-lifecycle. Estas tres colecciones NO se purgan al
+// borrar una cuenta: son la constancia de lo que se avisó y de lo que se hizo.
+
+/**
+ * Registro permanente de cada aviso enviado (cortesía, suspensión, aviso de
+ * borrado, borrado). Sobrevive al borrado de la cuenta: es la prueba de que se
+ * le avisó antes de eliminar sus datos.
+ */
+const AccountLifecycleNoticeSchema = new Schema({
+  userId: { type: String, required: true, index: true },
+  email:  { type: String, required: true },
+  kind:   { type: String, enum: ['grace', 'suspended', 'deletion_warning', 'account_deleted'], required: true },
+  /** Clave idempotente del aviso (la misma que se guarda en reminderHistory). */
+  mark:   { type: String, required: true },
+  sentAt: { type: Date, required: true },
+}, { timestamps: true, collection: 'accountlifecyclenotices' });
+
+AccountLifecycleNoticeSchema.index({ userId: 1, sentAt: -1 });
+
+export const AccountLifecycleNotice =
+  mongoose.models.AccountLifecycleNotice || mongoose.model('AccountLifecycleNotice', AccountLifecycleNoticeSchema);
+
+/**
+ * Constancia de un borrado de cuenta. Se abre ANTES de borrar (con los ids ya
+ * resueltos) para que un corte a mitad de camino deje rastro de qué quedó a
+ * medias y con qué ids retomarlo.
+ */
+const AccountDeletionRecordSchema = new Schema({
+  userId:       { type: String, required: true, index: true },
+  email:        { type: String, required: true },
+  plan:         { type: String, default: '' },
+  suspendedAt:  { type: Date, required: true },
+  scheduledFor: { type: Date, required: true },
+  /** Ids resueltos al momento de abrir la constancia. */
+  owned:        { type: Schema.Types.Mixed, default: null },
+  /** Cuánto se iba a borrar, por almacén. */
+  planned:      { type: Schema.Types.Mixed, default: null },
+  /** Cuánto se borró efectivamente, por almacén. */
+  purged:       { type: Schema.Types.Mixed, default: null },
+  /** Copia de los avisos enviados al momento del borrado. */
+  notices:      { type: Schema.Types.Mixed, default: [] },
+  exportLocation: { type: String, default: '' },
+  status:       { type: String, enum: ['started', 'completed', 'failed'], default: 'started' },
+  error:        { type: String, default: '' },
+  completedAt:  { type: Date, default: null },
+}, { timestamps: true, collection: 'accountdeletionrecords' });
+
+export const AccountDeletionRecord =
+  mongoose.models.AccountDeletionRecord || mongoose.model('AccountDeletionRecord', AccountDeletionRecordSchema);
+
+/**
+ * Respaldo de los datos de una cuenta, tomado justo antes de borrarla. Se
+ * guarda por trozos (un documento por modelo y página) para no chocar con el
+ * límite de tamaño de documento, y se autodestruye a los 30 días: suficiente
+ * para revertir un borrado equivocado, sin eternizar datos que el cliente
+ * pidió eliminar.
+ */
+const AccountExportChunkSchema = new Schema({
+  userId:    { type: String, required: true, index: true },
+  recordId:  { type: String, default: '' },
+  model:     { type: String, required: true },
+  page:      { type: Number, default: 0 },
+  documents: { type: Schema.Types.Mixed, default: [] },
+  expiresAt: { type: Date, required: true },
+}, { timestamps: true, collection: 'accountexportchunks' });
+
+AccountExportChunkSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0, name: 'accountexport_ttl' });
+
+export const AccountExportChunk =
+  mongoose.models.AccountExportChunk || mongoose.model('AccountExportChunk', AccountExportChunkSchema);

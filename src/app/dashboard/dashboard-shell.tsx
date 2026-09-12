@@ -16,6 +16,7 @@ import {
   Route,
   RotateCcw,
 } from '@/components/ui/icons';
+import { planIconFor } from '@/components/billing/plan-icon';
 import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
@@ -32,12 +33,134 @@ const SIDEBAR_COLLAPSED_KEY = 'dashboard-sidebar-collapsed';
 
 function SubscriptionExpiryGate() {
   const { user, logout } = useAuth();
-  const { loading, hasAccess, isTrialActive, authExpired, subscription } = useSubscription();
+  const { loading, hasAccess, isTrialActive, authExpired, subscription, lifecycle } = useSubscription();
 
-  const trialExpired = useMemo(
+  const blocked = useMemo(
     () => Boolean(user) && !authExpired && !loading && !hasAccess && !isTrialActive,
     [user, authExpired, loading, hasAccess, isTrialActive],
   );
+  if (!blocked || authExpired) return null;
+
+  const cerrarSesion = () => void logout().then(() => { window.location.href = '/login'; });
+  const plan = subscription?.plan ?? '';
+
+  // Qué se muestra depende de cuánto lleva sin acceso (ver account-lifecycle):
+  // el primer mes es un aviso sobrio, después aparecen los precios, y pasados
+  // los tres meses se avisa que los datos se van a eliminar.
+  if (lifecycle?.stage === 'suspended_recent') {
+    return <QuietSuspendedGate plan={plan} onLogout={cerrarSesion} />;
+  }
+  if (lifecycle?.stage === 'pending_deletion' || lifecycle?.stage === 'due_for_deletion') {
+    return <DeletionWarningGate plan={plan} deletionAtSec={lifecycle.deletionAtSec} onLogout={cerrarSesion} />;
+  }
+  return <PricingGate subscription={subscription} onLogout={cerrarSesion} />;
+}
+
+/**
+ * Primer mes sin acceso: el panel se apaga en gris con el símbolo del plan que
+ * tenía. Sin precios ni presión — ya recibió el correo de suspensión.
+ */
+function QuietSuspendedGate({ plan, onLogout }: { plan: string; onLogout: () => void }) {
+  const PlanIcon = planIconFor(plan);
+  const planLabel = PLAN_DISPLAY[plan as keyof typeof PLAN_DISPLAY]?.label ?? plan;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="suspended-quiet-title"
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        // El panel de atrás se ve, pero apagado y fuera de uso.
+        backdropFilter: 'grayscale(1) blur(1px)',
+        background: 'rgba(248, 250, 252, 0.55)',
+      }}
+    >
+      <Paper elevation={4} sx={{ p: 4, textAlign: 'center', maxWidth: 360, filter: 'grayscale(1)' }}>
+        <PlanIcon size={40} style={{ opacity: 0.55 }} />
+        <Typography id="suspended-quiet-title" variant="h6" sx={{ mt: 1.5 }}>
+          Plan {planLabel}
+        </Typography>
+        <Typography color="text.secondary" sx={{ mt: 1, mb: 3 }}>
+          Tu plan está inactivo.
+        </Typography>
+        <Button type="button" variant="outlined" color="inherit" size="small" onClick={onLogout}>
+          Cerrar sesión
+        </Button>
+      </Paper>
+    </div>
+  );
+}
+
+/** Pasados los tres meses: se avisa que los datos se van a eliminar, con fecha. */
+function DeletionWarningGate({
+  plan, deletionAtSec, onLogout,
+}: { plan: string; deletionAtSec: number; onLogout: () => void }) {
+  const fecha = deletionAtSec
+    ? new Date(deletionAtSec * 1000).toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null;
+  const dias = deletionAtSec
+    ? Math.max(0, Math.ceil((deletionAtSec * 1000 - Date.now()) / 86400000))
+    : null;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="deletion-warning-title"
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        backdropFilter: 'blur(6px)', background: 'rgba(15, 23, 42, 0.35)',
+      }}
+    >
+      <Paper elevation={8} sx={{ p: 3, maxWidth: 520 }}>
+        <Typography variant="overline" sx={{ color: 'error.main' }}>
+          Cuenta suspendida
+        </Typography>
+        <Typography id="deletion-warning-title" variant="h5" sx={{ mt: 1, mb: 1.5 }}>
+          Tus datos se van a eliminar
+        </Typography>
+
+        <Typography color="text.secondary" sx={{ mb: 2 }}>
+          {fecha
+            ? <>Vamos a eliminar de forma permanente tus agentes, widgets y conversaciones el <strong>{fecha}</strong>{dias != null ? ` (en ${dias} ${dias === 1 ? 'día' : 'días'})` : ''}.</>
+            : <>Vamos a eliminar de forma permanente tus agentes, widgets y conversaciones próximamente.</>}
+          {' '}Si reactivás tu plan antes de esa fecha no se pierde nada.
+        </Typography>
+
+        <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 1.5 }}>
+          {CHECKOUT_UPGRADE_PLAN_IDS.map((planId) => {
+            const p = PLAN_DISPLAY[planId];
+            return (
+              <Button
+                key={planId}
+                component="a"
+                href={buildTrialExpiredWhatsAppUrl(p.label, p.priceLabel)}
+                target="_blank"
+                rel="noopener noreferrer"
+                variant={planId === plan ? 'contained' : 'outlined'}
+                size="small"
+              >
+                {p.label} · {p.priceLabel}
+              </Button>
+            );
+          })}
+        </Stack>
+
+        <Button type="button" variant="outlined" color="inherit" onClick={onLogout}>
+          Cerrar sesión
+        </Button>
+      </Paper>
+    </div>
+  );
+}
+
+/** Entre el mes y los tres meses: el modal de precios de siempre. */
+function PricingGate({
+  subscription, onLogout,
+}: { subscription: { trialEndsAt?: string | null } | null; onLogout: () => void }) {
   const expiredAt = subscription?.trialEndsAt
     ? new Date(subscription.trialEndsAt).toLocaleDateString('es', {
       day: 'numeric',
@@ -45,8 +168,6 @@ function SubscriptionExpiryGate() {
       year: 'numeric',
     })
     : null;
-
-  if (!trialExpired || authExpired) return null;
 
   // Bloqueo permanente — no se puede cerrar. Solo suscribirse o cerrar sesión.
   return (
@@ -112,7 +233,7 @@ function SubscriptionExpiryGate() {
           type="button"
           variant="outlined"
           color="inherit"
-          onClick={() => void logout().then(() => { window.location.href = '/login'; })}
+          onClick={onLogout}
         >
           Cerrar sesión
         </Button>
