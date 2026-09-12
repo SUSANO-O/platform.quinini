@@ -333,10 +333,10 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
             elevation={0}
             className="landing-widget-panel"
             sx={{
-              border: '1px solid rgba(15,23,42,0.08)',
+              border: '1px solid rgba(148,163,184,0.16)',
               overflow: 'hidden',
               borderRadius: '22px',
-              bgcolor: '#fff',
+              bgcolor: 'rgba(255,255,255,0.04)',
             }}
           >
             <Stack
@@ -344,7 +344,7 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
               alignItems="center"
               spacing={1}
               className="landing-widget-panel__chrome"
-              sx={{ px: 2, py: 1.5, bgcolor: 'rgba(15,23,42,0.03)', borderBottom: '1px solid rgba(15,23,42,0.08)' }}
+              sx={{ px: 2, py: 1.5, bgcolor: 'rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(148,163,184,0.16)' }}
             >
               <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#ef4444' }} />
               <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#f59e0b' }} />
@@ -391,7 +391,7 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
                     direction="row"
                     alignItems="center"
                     spacing={1.25}
-                    sx={{ px: 2, py: 1.75, bgcolor: '#fff', borderBottom: '1px solid rgba(15,23,42,0.08)' }}
+                    sx={{ px: 2, py: 1.75, bgcolor: 'rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(148,163,184,0.16)' }}
                   >
                     <BotivaOrbLogo size={36} className="shrink-0" />
                     <Box>
@@ -503,8 +503,8 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
                     height: '100%',
                     p: 2.25,
                     borderRadius: '18px',
-                    border: '1px solid rgba(15,23,42,0.08)',
-                    bgcolor: '#fff',
+                    border: '1px solid rgba(148,163,184,0.16)',
+                    bgcolor: 'rgba(255,255,255,0.04)',
                   }}
                 >
                   <Typography
