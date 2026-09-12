@@ -1,12 +1,10 @@
 import {
   ArrowRight,
-  Braces,
   Check,
-  Crown,
   HardDrive,
   MessageSquare,
-  Sparkles,
 } from '@/components/ui/icons';
+import { planIconFor } from '@/components/billing/plan-icon';
 import type { PlanInfo } from '@/lib/plan-catalog';
 import {
   PLAN_CONVERSATION_LIMITS,
@@ -47,13 +45,7 @@ function planHighlights(planId: string): Highlight[] {
   return items;
 }
 
-const PLAN_ICONS: Record<string, typeof Crown> = {
-  solo: Sparkles,
-  api_develop: Braces,
-  team: Sparkles,
-  plus: Sparkles,
-  business: Crown,
-};
+
 
 export function PricingPlanCard({
   plan,
@@ -63,7 +55,7 @@ export function PricingPlanCard({
   whatsAppHref: string;
 }) {
   const highlights = planHighlights(plan.id);
-  const PlanIcon = PLAN_ICONS[plan.id] ?? Sparkles;
+  const PlanIcon = planIconFor(plan.id);
 
   return (
     <div

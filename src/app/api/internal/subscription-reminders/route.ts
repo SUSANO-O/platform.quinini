@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runSubscriptionReminders } from '@/lib/subscription-reminders';
-import { runSuspensionNotices } from '@/lib/subscription-suspension';
+import { runLifecycleNotices, runAccountPurge, isAccountPurgeEnabled } from '@/modules/account-lifecycle/composition';
 
 function getSecret(req: NextRequest): string | null {
   return (
@@ -26,16 +26,26 @@ export async function GET(req: NextRequest) {
     limit: 5000,
   });
 
-  // Avisos POSTERIORES al vencimiento (cortesía y suspensión). Van en el mismo
-  // tick diario para no sumar otro cron; un fallo acá no debe tumbar los
-  // recordatorios previos, que ya se enviaron arriba.
-  let suspension: Awaited<ReturnType<typeof runSuspensionNotices>> | { ok: false; error: string };
+  // Avisos POSTERIORES al vencimiento: cortesía, suspensión y aviso semanal de
+  // borrado. Van en el mismo tick diario para no sumar otro cron; un fallo acá
+  // no debe tumbar los recordatorios previos, que ya se enviaron arriba.
+  let lifecycle: Awaited<ReturnType<typeof runLifecycleNotices>> | { ok: false; error: string };
   try {
-    suspension = await runSuspensionNotices({ dryRun: false, limit: 5000 });
+    lifecycle = await runLifecycleNotices({ dryRun: false });
   } catch (e) {
-    console.error('[cron] runSuspensionNotices:', e);
-    suspension = { ok: false, error: e instanceof Error ? e.message : String(e) };
+    console.error('[cron] runLifecycleNotices:', e);
+    lifecycle = { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 
-  return NextResponse.json({ ...result, suspension, source: 'cron' });
+  // Borrado de cuentas que agotaron el plazo. Mientras ACCOUNT_PURGE_ENABLED no
+  // esté en 'true', esto SOLO reporta qué borraría — no toca ningún dato.
+  let purge: Awaited<ReturnType<typeof runAccountPurge>> | { ok: false; error: string };
+  try {
+    purge = await runAccountPurge({ dryRun: !isAccountPurgeEnabled() });
+  } catch (e) {
+    console.error('[cron] runAccountPurge:', e);
+    purge = { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+
+  return NextResponse.json({ ...result, lifecycle, purge, source: 'cron' });
 }
