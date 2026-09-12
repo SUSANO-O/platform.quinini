@@ -11775,3 +11775,118 @@ button.dashboard-meta-chip:disabled {
   box-shadow: none !important;
 }
 
+
+/* ── Landing oscura de punta a punta ────────────────────────────────────────
+   El hero y la banda final ya iban sobre fondo oscuro, pero todo lo del medio
+   quedaba en claro: la página se partía en dos. Estas reglas continúan el
+   mismo fondo por todas las secciones.
+
+   Van acotadas a `.landing-page--saas` (solo el home) porque estas clases las
+   comparten otras páginas que siguen siendo claras. Las superficies pasan de
+   blanco a vidrio oscuro translúcido, para que las tarjetas sigan
+   despegándose del fondo sin recortarse como bloques. */
+
+.landing-page--saas {
+  background:
+    linear-gradient(180deg, #060b16 0%, var(--brand-stage-dark) 20%, #0a1521 58%, var(--brand-stage-dark) 100%);
+  color: #e2e8f0;
+}
+
+/* Las secciones dejan ver el fondo de la página en vez de pintar el suyo. */
+.landing-page--saas .landing-section,
+.landing-page--saas .landing-section--soft,
+.landing-page--saas .landing-strip-section,
+.landing-page--saas .landing-testimonials-section {
+  background: transparent;
+}
+
+/* Texto */
+.landing-page--saas :where(h1, h2, h3, h4, .landing-display, .landing-section-title, .landing-card-title) {
+  color: #f8fafc;
+}
+
+.landing-page--saas .landing-lead,
+.landing-page--saas .landing-muted,
+.landing-page--saas .landing-body-sm,
+.landing-page--saas .landing-label,
+.landing-page--saas .landing-strip__d,
+.landing-page--saas .landing-how-card__tooltip p {
+  color: rgba(226, 232, 240, 0.72);
+}
+
+.landing-page--saas .landing-eyebrow {
+  color: rgba(226, 232, 240, 0.88);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.landing-page--saas .landing-quote-scroll-hint {
+  color: rgba(148, 163, 184, 0.9);
+}
+
+/* Superficies: vidrio oscuro en lugar de blanco. */
+.landing-page--saas .landing-feature,
+.landing-page--saas .landing-how-card,
+.landing-page--saas .landing-quote,
+.landing-page--saas .landing-agent-card,
+.landing-page--saas .landing-strip__item,
+.landing-page--saas .landing-how-card__tooltip {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(148, 163, 184, 0.16);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 12px 32px rgba(0, 0, 0, 0.28);
+}
+
+.landing-page--saas .landing-agent-card:hover,
+.landing-page--saas .landing-how-card:hover,
+.landing-page--saas .landing-feature:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+/* Separadores y divisiones finas, que estaban pensados sobre blanco. */
+.landing-page--saas .landing-hero__trust-item + .landing-hero__trust-item::before,
+.landing-page--saas hr {
+  background: rgba(148, 163, 184, 0.22);
+}
+
+/* El footer es un componente compartido con otras páginas (fondo blanco de
+   MUI): acá se oscurece solo dentro del home, sin tocarlo para el resto. */
+.landing-page--saas footer {
+  background: transparent !important;
+  border-color: rgba(148, 163, 184, 0.16) !important;
+}
+
+.landing-page--saas footer,
+.landing-page--saas footer a,
+.landing-page--saas footer .MuiTypography-root {
+  color: rgba(226, 232, 240, 0.72);
+}
+
+.landing-page--saas footer .MuiTypography-root[class*="fontWeight"],
+.landing-page--saas footer strong {
+  color: #f8fafc;
+}
+
+.landing-page--saas footer a:hover {
+  color: #f8fafc;
+}
+
+.landing-page--saas footer hr,
+.landing-page--saas footer .MuiDivider-root {
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+/* Textos que heredaban `var(--foreground)` (el color del tema claro) y sobre
+   el fondo oscuro quedaban invisibles. */
+.landing-page--saas .landing-strip__k,
+.landing-page--saas .landing-hero__trust-value {
+  color: #f8fafc;
+}
+
+/* Barra superior del panel del widget: el título usaba el gris de MUI, que
+   sobre fondo oscuro no se leía. */
+.landing-page--saas .landing-widget-panel__chrome .MuiTypography-root {
+  color: rgba(226, 232, 240, 0.7);
+}
