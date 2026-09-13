@@ -47,7 +47,6 @@ export function DashboardResourceCard({
         .join(' ')}
       style={style}
     >
-      <div className="resource-card__accent" aria-hidden />
 
       <header className="resource-card__head">
         <div className="resource-card__topline">
