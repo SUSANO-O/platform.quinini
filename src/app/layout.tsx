@@ -49,6 +49,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block"
           rel="stylesheet"
         />
+        {/* Tema de la landing, aplicado ANTES del primer pintado para que no
+            parpadee al cargar. Por defecto queda el oscuro; solo cambia si el
+            visitante lo eligió antes. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('botiva-landing-theme');document.documentElement.setAttribute('data-landing-theme',t==='light'?'light':'dark');}catch(e){document.documentElement.setAttribute('data-landing-theme','dark');}})();`,
+          }}
+        />
       </head>
       <body suppressHydrationWarning>
         <script
