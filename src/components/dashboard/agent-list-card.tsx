@@ -15,6 +15,7 @@ import {
   type AgentLike,
 } from '@/lib/agent-list';
 import { DashboardButton, DashboardButtonLink } from '@/components/dashboard/dashboard-button';
+import Link from 'next/link';
 import {
   DashboardDropdownMenu,
   DashboardMenuDivider,
@@ -97,11 +98,20 @@ export function AgentListCard({
       subtitleTitle={subtitleFull}
       tags={
         <>
-          {chips.map((chip) => (
-            <ResourceCardTag key={chip.key} tone={chip.tone} title={chip.title}>
-              {chip.label}
-            </ResourceCardTag>
-          ))}
+          {chips.map((chip) =>
+            // Los avisos accionables llevan al sitio donde se resuelven.
+            chip.href ? (
+              <Link key={chip.key} href={chip.href} style={{ textDecoration: 'none' }}>
+                <ResourceCardTag tone={chip.tone} title={chip.title}>
+                  {chip.label} →
+                </ResourceCardTag>
+              </Link>
+            ) : (
+              <ResourceCardTag key={chip.key} tone={chip.tone} title={chip.title}>
+                {chip.label}
+              </ResourceCardTag>
+            ),
+          )}
           {overflow > 0 ? <ResourceCardTag title="Abre el agente para ver el resto">+{overflow}</ResourceCardTag> : null}
           <span className="resource-card__meta">{meta}</span>
         </>

@@ -157,6 +157,19 @@ describe('agentCardChips', () => {
     expect(c.chips.find(x => x.key === 'rag')?.tone).toBe('neutral');
   });
 
+  // El aviso no sirve de nada si el dueño no sabe dónde ir: lleva al almacén
+  // del agente, que es donde se sube el documento que falta.
+  it('el aviso de RAG sin fuentes lleva al almacén del agente', () => {
+    const c = agentCardChips({ ...base, _id: 'a1', ragEnabled: true, ragSources: [] }, etiqueta);
+    expect(c.chips.find(x => x.key === 'rag')?.href).toBe('/dashboard/agents/a1#rag');
+  });
+
+  it('los demás chips no llevan a ningún lado', () => {
+    const c = agentCardChips({ ...base, ragEnabled: true, ragSources: [{}] }, etiqueta);
+    expect(c.chips.find(x => x.key === 'model')?.href).toBeUndefined();
+    expect(c.chips.find(x => x.key === 'rag')?.href).toBeUndefined();
+  });
+
   it('el RAG apagado sin fuentes no ocupa un chip', () => {
     expect(agentCardChips(base, etiqueta).chips.find(c => c.key === 'rag')).toBeUndefined();
   });
