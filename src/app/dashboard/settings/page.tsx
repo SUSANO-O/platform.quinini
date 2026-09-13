@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@/hooks/use-auth';
+import { fmtDateTime, fmtEpochSec, formatMb } from '@/lib/settings-view';
 import { useSubscription } from '@/hooks/use-subscription';
 import { SubscriptionPlanPanel } from '@/components/dashboard/subscription-plan-panel';
 import { UpdatePaymentModal } from '@/components/billing/update-payment-modal';
@@ -1228,8 +1229,26 @@ function TwoFactorSection() {
               Usa Google Authenticator, Authy o cualquier app compatible con TOTP.
             </p>
             {qrCode && <img src={qrCode} alt="QR 2FA" style={{ width: 180, height: 180, borderRadius: 8, display: 'block', marginBottom: 12 }} />}
-            <p style={{ margin: '0 0 4px', fontSize: 11, color: 'var(--muted-foreground)' }}>O introduce el código manual:</p>
-            <code style={{ fontSize: 11, letterSpacing: '0.1em', background: 'var(--muted)', padding: '4px 8px', borderRadius: 6, display: 'inline-block', marginBottom: 16 }}>{secret}</code>
+            <p style={{ margin: '0 0 6px', fontSize: 12.5, color: 'var(--muted-foreground)' }}>O introduce el código manual:</p>
+            {/* Este código se teclea a mano en la app de autenticación: es el
+                sitio del panel donde peor sienta la letra pequeña, porque un
+                carácter mal leído hace fallar la configuración entera. */}
+            <code
+              style={{
+                fontSize: 15,
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                letterSpacing: '0.12em',
+                background: 'var(--muted)',
+                padding: '8px 12px',
+                borderRadius: 8,
+                display: 'inline-block',
+                marginBottom: 16,
+                userSelect: 'all',
+                wordBreak: 'break-all',
+              }}
+            >
+              {secret}
+            </code>
 
             <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600 }}>2. Ingresa el código de 6 dígitos para confirmar</p>
             <form onSubmit={confirmSetup} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -1281,25 +1300,6 @@ function TwoFactorSection() {
       </div>
     </div>
   );
-}
-
-function fmtDateTime(d: string | Date | null | undefined): string {
-  if (d == null) return '—';
-  const x = typeof d === 'string' ? new Date(d) : d;
-  if (Number.isNaN(x.getTime())) return '—';
-  return x.toLocaleString('es', { dateStyle: 'long', timeStyle: 'short' });
-}
-
-function fmtEpochSec(sec: number): string {
-  if (!sec || sec <= 0) return '—';
-  return new Date(sec * 1000).toLocaleString('es', { dateStyle: 'long', timeStyle: 'short' });
-}
-
-function formatMb(bytes: number): string {
-  const mb = bytes / (1024 * 1024);
-  if (!Number.isFinite(mb) || mb <= 0) return '0 MB';
-  if (mb >= 100) return `${Math.round(mb).toLocaleString('es')} MB`;
-  return `${mb.toFixed(1)} MB`;
 }
 
 function Row({ label, value, action }: { label: string; value: string; action?: React.ReactNode }) {
