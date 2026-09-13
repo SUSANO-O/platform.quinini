@@ -372,12 +372,14 @@ label {
 .landing-stage-dark {
   position: relative;
   z-index: 1;
-  margin: 0 0 0.5rem;
-  padding: 4.5rem 0 2.5rem;
+  /* Sin margen: el hueco dejaba ver el fondo de la página y se leía como un
+     corte. El degradado muere en transparente para fundirse con lo que sigue. */
+  margin: 0;
+  padding: 4.5rem 0 4rem;
   background:
     radial-gradient(ellipse 80% 60% at 70% 20%, rgba(45, 212, 191, 0.16), transparent 55%),
     radial-gradient(ellipse 50% 40% at 15% 80%, rgba(0, 107, 125, 0.35), transparent 50%),
-    linear-gradient(165deg, #060b16 0%, var(--brand-stage-dark) 45%, #0b1a24 100%);
+    linear-gradient(180deg, #060b16 0%, var(--brand-stage-dark) 42%, rgba(11, 26, 36, 0) 100%);
   color: #e2e8f0;
 }
 
@@ -446,10 +448,10 @@ label {
   position: relative;
   z-index: 1;
   padding: clamp(3.5rem, 7vw, 5rem) 1.25rem;
-  margin: 1rem 0 0;
+  margin: 0;
   background:
-    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(45, 212, 191, 0.14), transparent 55%),
-    linear-gradient(180deg, #060b16 0%, var(--brand-stage-dark) 100%);
+    radial-gradient(ellipse 90% 60% at 50% 26%, rgba(45, 212, 191, 0.13), transparent 62%),
+    linear-gradient(180deg, rgba(6, 11, 22, 0) 0%, var(--brand-stage-dark) 38%, #060b16 100%);
   color: #e2e8f0;
 }
 
@@ -840,9 +842,17 @@ label {
 }
 
 .landing-section--soft {
-  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
-  border-top: 1px solid rgba(15, 23, 42, 0.06);
-  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  /* Antes: degradado con bordes de 1px arriba y abajo. Esas dos líneas eran
+     los cortes visibles entre secciones — y en tema oscuro quedaban dibujadas
+     aunque el fondo se pusiera transparente. Ahora el tinte nace y muere en
+     transparente, así que no hay ningún canto. */
+  background: linear-gradient(
+    180deg,
+    rgba(248, 250, 252, 0) 0%,
+    rgba(248, 250, 252, 0.85) 16%,
+    rgba(248, 250, 252, 0.85) 84%,
+    rgba(248, 250, 252, 0) 100%
+  );
 }
 
 .landing-section__head {
@@ -11923,7 +11933,7 @@ button.dashboard-meta-chip:disabled {
   background:
     radial-gradient(ellipse 80% 60% at 70% 20%, rgba(45, 212, 191, 0.1), transparent 55%),
     radial-gradient(ellipse 50% 40% at 15% 80%, rgba(0, 107, 125, 0.08), transparent 50%),
-    linear-gradient(165deg, #ffffff 0%, #f8fafc 45%, #eef2f7 100%);
+    linear-gradient(180deg, #ffffff 0%, #f8fafc 42%, rgba(238, 242, 247, 0) 100%);
   color: var(--foreground);
 }
 
@@ -11971,7 +11981,7 @@ button.dashboard-meta-chip:disabled {
 
 [data-landing-theme="light"] .landing-page--saas .landing-cta-band {
   background:
-    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(45, 212, 191, 0.12), transparent 55%),
-    linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+    radial-gradient(ellipse 90% 60% at 50% 26%, rgba(45, 212, 191, 0.11), transparent 62%),
+    linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, #f1f5f9 38%, #eef2f7 100%);
   color: var(--foreground);
 }
