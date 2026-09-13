@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { LogOut, Menu } from '@/components/ui/icons';
+import { Inbox, LogOut, Menu } from '@/components/ui/icons';
 import Drawer from '@mui/material/Drawer';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -221,7 +221,27 @@ export function DashboardMobileNav({
             />
           </Box>
 
-          <Box aria-hidden sx={{ justifySelf: 'end', width: 48 }} />
+          {/* Este hueco era un espaciador vacío. El Inbox es lo único con
+              urgencia real del panel y estaba a dos toques, detrás del menú. */}
+          <IconButton
+            component={Link}
+            href="/dashboard/inbox"
+            aria-label={
+              inboxOpenCount > 0
+                ? `Inbox (${inboxOpenCount} sin atender)`
+                : 'Inbox'
+            }
+            sx={{
+              justifySelf: 'end',
+              width: 48,
+              height: 48,
+              position: 'relative',
+              color: isActive(pathname, '/dashboard/inbox') ? 'primary.main' : 'text.primary',
+            }}
+          >
+            <Inbox size={24} strokeWidth={1.75} aria-hidden />
+            <InboxBadge count={inboxOpenCount} collapsed />
+          </IconButton>
         </Box>
       </Paper>
     </>

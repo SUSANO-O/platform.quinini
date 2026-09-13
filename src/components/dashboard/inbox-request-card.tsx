@@ -11,6 +11,8 @@ import {
   Trash2,
 } from '@/components/ui/icons';
 import { formatPhoneDisplay, phoneFromVisitorId, phoneFromWhatsAppSessionId, resolveInboxVisitorDisplay } from '@/lib/inbox-visitor-display';
+import { PANEL_TIMEZONE, daysApartInTimeZone } from '@/lib/panel-dates';
+import { initialsFrom, paletteFromKey } from '@/lib/panel-identity';
 
 export type InboxCardItem = {
   sessionId: string;
@@ -31,13 +33,6 @@ export type InboxCardItem = {
   followUpNote: string;
 };
 
-const AVATAR_PALETTE = [
-  { bg: '#e6f2f4', fg: '#004A57', border: '#a8cdd4' },
-  { bg: '#eef2f6', fg: '#475569', border: '#cbd5e1' },
-  { bg: '#e6f2f1', fg: '#0f766e', border: '#a7d4cf' },
-  { bg: '#edf2f7', fg: '#334155', border: '#c5d0dc' },
-] as const;
-
 export function displayVisitorName(item: InboxCardItem): string {
   return resolveInboxVisitorDisplay({
     contact: item.contact,
@@ -48,11 +43,8 @@ export function displayVisitorName(item: InboxCardItem): string {
 
 export function visitorInitials(item: InboxCardItem): string {
   const name = item.contact.name?.trim();
-  if (name) {
-    const parts = name.split(/\s+/).filter(Boolean);
-    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-    return name.slice(0, 2).toUpperCase();
-  }
+  if (name) return initialsFrom(name);
+
   const phone =
     formatPhoneDisplay(item.contact.phone)?.replace(/\D/g, '') ||
     phoneFromVisitorId(item.visitorId)?.replace(/\D/g, '') ||
@@ -63,10 +55,9 @@ export function visitorInitials(item: InboxCardItem): string {
 }
 
 export function avatarPalette(item: InboxCardItem) {
-  const key = item.contact.name || item.contact.phone || item.visitorId || item.sessionId;
-  let h = 0;
-  for (let i = 0; i < key.length; i++) h = (h + key.charCodeAt(i)) % AVATAR_PALETTE.length;
-  return AVATAR_PALETTE[h];
+  return paletteFromKey(
+    item.contact.name || item.contact.phone || item.visitorId || item.sessionId,
+  );
 }
 
 export function lastMessagePreview(item: InboxCardItem): string {
@@ -76,15 +67,27 @@ export function lastMessagePreview(item: InboxCardItem): string {
   return 'Sin mensajes aún';
 }
 
-export function relativeTime(iso: string | null): string {
+/**
+ * Antigüedad en palabras. Los tramos de minutos y horas son diferencia pura,
+ * pero "ayer" y la fecha se miden en la zona del panel (ver `panel-dates`):
+ * antes salían del reloj de quien mirara y no cuadraban con las cifras de
+ * analítica, que se agrupan en hora Colombia.
+ */
+export function relativeTime(iso: string | null, now: Date = new Date()): string {
   if (!iso) return '';
-  const diff = Date.now() - new Date(iso).getTime();
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+
+  const diff = now.getTime() - d.getTime();
   if (diff < 60_000) return 'ahora';
   if (diff < 3_600_000) return `hace ${Math.floor(diff / 60_000)} min`;
-  if (diff < 86_400_000) return `hace ${Math.floor(diff / 3_600_000)} h`;
-  if (diff < 172_800_000) return 'ayer';
+
+  const dias = daysApartInTimeZone(d, now);
+  if (dias === 0) return `hace ${Math.max(1, Math.floor(diff / 3_600_000))} h`;
+  if (dias === 1) return 'ayer';
+
   try {
-    return new Date(iso).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' });
+    return d.toLocaleString('es', { dateStyle: 'short', timeStyle: 'short', timeZone: PANEL_TIMEZONE });
   } catch {
     return iso;
   }

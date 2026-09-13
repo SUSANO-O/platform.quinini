@@ -4,7 +4,16 @@ import Link from 'next/link';
 import {
   Code2, Lock, MessageSquare, RefreshCw,
 } from '@/components/ui/icons';
-import { STATE } from '@/lib/brand-colors';
+import { BRAND, STATE } from '@/lib/brand-colors';
+import { poolPressure, resolveSystemStatus, type StatusTone } from '@/lib/system-status';
+
+/** Cada papel de color de `system-status`, pintado una sola vez. */
+const STATUS_TONE_COLOR: Record<StatusTone, string> = {
+  success: STATE.success,
+  warning: STATE.warning,
+  danger: STATE.error,
+  neutral: 'var(--muted-foreground)',
+};
 import { PlanFeaturesGlassPanel } from '@/components/dashboard/plan-features-glass-panel';
 import { DashboardActivityMetrics } from '@/components/dashboard/dashboard-activity-metrics';
 import type { DashboardPlanFeature } from '@/lib/dashboard-plan-features';
@@ -51,8 +60,10 @@ interface SystemStatus {
   services: { name: string; status: string; latencyMs: number | null }[];
 }
 
-const POOL_ACCENT_WIDGET = '#2a78d6';
-const POOL_ACCENT_API = '#eb6834';
+// Los dos cupos se distinguen con los dos colores de la marca, no con un azul
+// y un naranja sueltos (#2a78d6 y #eb6834) que no salían de ninguna paleta.
+const POOL_ACCENT_WIDGET = BRAND.primary;
+const POOL_ACCENT_API = BRAND.tertiary;
 
 function Skel({ w, h, r = 6 }: { w: string | number; h: number; r?: number }) {
   return (
@@ -80,13 +91,20 @@ function UsagePoolCard({
   footer?: React.ReactNode;
 }) {
   const pct = pool ? Math.min(pool.percentUsed, 100) : 0;
-  const warn = pool && pool.limit !== -1 && pool.percentUsed >= 80;
+  // Antes cualquier cosa por encima del 80% se pintaba con el rojo de error:
+  // al 80% de cupo eso es una falsa alarma. Ahora avisa en ámbar y solo
+  // enrojece al 95% (ver `poolPressure`).
+  const pressure = poolPressure(pool);
+  const alerta = pressure !== 'neutral';
+  const colorAlerta = pressure === 'danger' ? STATE.error : STATE.warning;
+  const fondoAlerta = pressure === 'danger' ? STATE.errorBg : STATE.warningBg;
+  const bordeAlerta = pressure === 'danger' ? STATE.errorBorder : STATE.warningBorder;
 
   return (
     <div
       className="dashboard-pool-card"
       style={{
-        borderColor: warn ? STATE.errorBorder : 'rgba(var(--brand-primary-rgb),0.08)',
+        borderColor: alerta ? bordeAlerta : 'rgba(var(--brand-primary-rgb),0.08)',
       }}
     >
       <div className="dashboard-pool-card__head">
@@ -103,8 +121,8 @@ function UsagePoolCard({
           <span
             className="dashboard-pool-card__badge"
             style={{
-              background: warn ? STATE.errorBg : `${accent}0c`,
-              color: warn ? STATE.error : accent,
+              background: alerta ? fondoAlerta : `${accent}0c`,
+              color: alerta ? colorAlerta : accent,
             }}
           >
             {pool.percentUsed}% usado
@@ -134,7 +152,7 @@ function UsagePoolCard({
                 className="dashboard-pool-card__bar-fill"
                 style={{
                   width: `${pct}%`,
-                  background: warn ? STATE.error : POOL_ACCENT_WIDGET,
+                  background: alerta ? colorAlerta : accent,
                 }}
               />
             </div>
@@ -190,23 +208,8 @@ export function DashboardHomeOverview({
   const apiPool = usage?.pools.api ?? null;
   const hasApi = usage?.hasApiAccess ?? false;
 
-  const statusLabel =
-    sysStatus?.status === 'operational'
-      ? 'Sistema OK'
-      : sysStatus?.status === 'degraded'
-        ? 'Degradado'
-        : sysStatus?.status === 'down'
-          ? 'Caído'
-          : 'Estado…';
-
-  const statusColor =
-    sysStatus?.status === 'operational'
-      ? STATE.success
-      : sysStatus?.status === 'degraded'
-        ? STATE.warning
-        : sysStatus?.status === 'down'
-          ? STATE.error
-          : 'var(--muted-foreground)';
+  const { label: statusLabel, tone: statusTone } = resolveSystemStatus(sysStatus?.status);
+  const statusColor = STATUS_TONE_COLOR[statusTone];
 
   return (
     <>

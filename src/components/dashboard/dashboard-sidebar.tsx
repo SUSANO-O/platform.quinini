@@ -186,12 +186,21 @@ function SidebarNavLink({
       data-tour={SIDEBAR_TOUR_KEY_BY_HREF[href]}
       selected={active}
       sx={{
-        borderRadius: 2,
+        borderRadius: 2.5,
         mb: 0.25,
-        minHeight: 40,
+        minHeight: 42,
         justifyContent: collapsed ? 'center' : 'flex-start',
         px: collapsed ? 1 : 1.25,
         position: 'relative',
+        // El estado activo venía del gris por defecto de MUI y casi no se
+        // distinguía del hover. Ahora la página en la que estás se lee de un
+        // vistazo: tarjeta blanca sobre el gris de la barra, en color de marca.
+        '&.Mui-selected': {
+          bgcolor: 'background.paper',
+          color: 'primary.main',
+          boxShadow: '0 1px 2px rgba(15,23,42,0.06)',
+          '&:hover': { bgcolor: 'background.paper' },
+        },
       }}
     >
       <ListItemIcon
@@ -206,7 +215,7 @@ function SidebarNavLink({
       {!collapsed ? (
         <ListItemText
           primary={label}
-          primaryTypographyProps={{ fontSize: 13, fontWeight: active ? 700 : 500, noWrap: true }}
+          primaryTypographyProps={{ fontSize: 13.5, fontWeight: active ? 700 : 500, noWrap: true }}
         />
       ) : null}
       {!collapsed && navTag === 'BETA' ? <FlowsBetaBadge /> : null}
@@ -322,8 +331,17 @@ function userRoleLabel(role?: string) {
   return 'Usuario';
 }
 
+/**
+ * Qué ítem de la barra se ve encendido.
+ *
+ * El inicio solo casa exacto; el resto casa también sus subrutas, pero
+ * respetando el límite de segmento: con `startsWith` a secas, una ruta hermana
+ * que empiece igual (`/dashboard/agents-archivo`) encendía el ítem equivocado.
+ */
 export function isActive(pathname: string, href: string) {
-  return href === '/dashboard' ? pathname === href : pathname.startsWith(href);
+  if (href === '/dashboard') return pathname === href;
+  if (pathname === href) return true;
+  return pathname.startsWith(`${href}/`);
 }
 
 function SidebarNav({

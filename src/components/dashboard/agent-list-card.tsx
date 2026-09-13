@@ -8,7 +8,12 @@ import {
   PowerOff,
   Trash2,
 } from '@/components/ui/icons';
-import { TOOL_MAP } from '@/lib/agent-plans';
+import {
+  agentCardChips,
+  formatUpdatedLabel,
+  shortModelDisplay,
+  type AgentLike,
+} from '@/lib/agent-list';
 import { avatarStyleFromSeed } from '@/lib/flow-editor/geometry';
 import { DashboardButton, DashboardButtonLink } from '@/components/dashboard/dashboard-button';
 import {
@@ -21,42 +26,7 @@ import {
   ResourceCardTag,
 } from '@/components/dashboard/dashboard-resource-card';
 
-export type AgentListItem = {
-  _id: string;
-  name: string;
-  description: string;
-  model: string;
-  type: 'agent' | 'sub-agent';
-  status: 'active' | 'disabled';
-  tools: { toolId: string }[];
-  subAgentIds: string[];
-  syncStatus: string;
-  ragEnabled: boolean;
-  ragSources?: unknown[];
-  createdAt: string;
-  isPlatform?: boolean;
-  skills?: string[];
-};
-
-function formatUpdatedLabel(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  if (d.toDateString() === now.toDateString()) return 'Hoy';
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (d.toDateString() === yesterday.toDateString()) return 'Ayer';
-  return d.toLocaleDateString('es', { day: 'numeric', month: 'short' });
-}
-
-function shortModelDisplay(modelId: string, label: string): string {
-  if (label !== modelId) return label;
-  const segment = modelId.split('/').filter(Boolean).pop();
-  return segment ?? modelId;
-}
-
-function skillsCount(agent: AgentListItem): number {
-  return (agent.skills ?? []).filter((id) => typeof id === 'string' && id.trim().length > 0).length;
-}
+export type AgentListItem = AgentLike;
 
 export function AgentListCard({
   agent,
@@ -81,18 +51,15 @@ export function AgentListCard({
   const description = agent.description?.trim();
   const subtitle = description || modelShort;
   const subtitleFull = description ? `${description} · ${modelLabel}` : modelLabel;
-  const toolNames = (agent.tools ?? [])
-    .map((t) => TOOL_MAP[t.toolId]?.name ?? t.toolId)
-    .filter(Boolean);
-  const toolsLabel =
-    toolNames.length > 0
-      ? toolNames.length > 2
-        ? `${toolNames.slice(0, 2).join(', ')} +${toolNames.length - 2}`
-        : toolNames.join(', ')
-      : null;
-  const ragN = Array.isArray(agent.ragSources) ? agent.ragSources.length : 0;
-  const skillN = skillsCount(agent);
-  const subN = agent.subAgentIds?.length ?? 0;
+
+  // Antes se pintaban hasta ocho etiquetas y no se leía ninguna. Ahora van las
+  // que importan, con tope, y el metadato (fecha, sync) baja a su propia línea.
+  const { chips, overflow } = agentCardChips(agent, getModelLabel);
+  const meta = [
+    formatUpdatedLabel(agent.createdAt),
+    agent.syncStatus === 'synced' ? 'Sincronizado con el hub' : null,
+    isPlatform ? 'Agente de plataforma' : null,
+  ].filter(Boolean).join(' · ');
 
   return (
     <DashboardResourceCard
@@ -133,30 +100,13 @@ export function AgentListCard({
       subtitleTitle={subtitleFull}
       tags={
         <>
-          <ResourceCardTag title={modelLabel}>{modelShort}</ResourceCardTag>
-          {toolsLabel ? <ResourceCardTag title={toolsLabel}>{toolsLabel}</ResourceCardTag> : null}
-          {subN > 0 ? (
-            <ResourceCardTag>
-              {subN} sub-agente{subN !== 1 ? 's' : ''}
+          {chips.map((chip) => (
+            <ResourceCardTag key={chip.key} tone={chip.tone} title={chip.title}>
+              {chip.label}
             </ResourceCardTag>
-          ) : null}
-          {agent.ragEnabled || ragN > 0 ? (
-            <ResourceCardTag>
-              {agent.ragEnabled
-                ? ragN > 0
-                  ? `RAG · ${ragN}`
-                  : 'RAG sin fuentes'
-                : `RAG off · ${ragN}`}
-            </ResourceCardTag>
-          ) : null}
-          {agent.syncStatus === 'synced' ? <ResourceCardTag>Hub sync</ResourceCardTag> : null}
-          <ResourceCardTag>{formatUpdatedLabel(agent.createdAt)}</ResourceCardTag>
-          {isPlatform ? <ResourceCardTag accent>Plataforma</ResourceCardTag> : null}
-          {skillN > 0 ? (
-            <ResourceCardTag accent>
-              {skillN} skill{skillN !== 1 ? 's' : ''}
-            </ResourceCardTag>
-          ) : null}
+          ))}
+          {overflow > 0 ? <ResourceCardTag title="Abre el agente para ver el resto">+{overflow}</ResourceCardTag> : null}
+          <span className="resource-card__meta">{meta}</span>
         </>
       }
       actions={

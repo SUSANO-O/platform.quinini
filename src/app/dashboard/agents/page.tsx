@@ -20,8 +20,11 @@ import { DashboardGridToolbar } from '@/components/dashboard/dashboard-grid-tool
 import { BackgroundRefreshIndicator } from '@/components/dashboard/background-refresh-indicator';
 import { dashboardKeys } from '@/lib/dashboard-query-keys';
 import { fetchAgentsList } from '@/lib/dashboard-fetch';
-
-type AgentFilter = 'all' | 'active' | 'inactive' | 'platform';
+import {
+  filterAgentsByStatus,
+  filterAgentsBySearch,
+  type AgentFilter,
+} from '@/lib/agent-list';
 
 const AGENT_FILTER_OPTIONS: { value: AgentFilter; label: string }[] = [
   { value: 'all', label: 'Todos' },
@@ -29,22 +32,6 @@ const AGENT_FILTER_OPTIONS: { value: AgentFilter; label: string }[] = [
   { value: 'inactive', label: 'Inactivos' },
   { value: 'platform', label: 'Plataforma' },
 ];
-
-function filterByStatus(list: AgentListItem[], filter: AgentFilter): AgentListItem[] {
-  if (filter === 'active') return list.filter((a) => a.status === 'active');
-  if (filter === 'inactive') return list.filter((a) => a.status === 'disabled');
-  return list;
-}
-
-function filterBySearch(list: AgentListItem[], query: string): AgentListItem[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return list;
-  return list.filter((agent) => {
-    const name = agent.name?.toLowerCase() ?? '';
-    const desc = agent.description?.toLowerCase() ?? '';
-    return name.includes(q) || desc.includes(q);
-  });
-}
 
 export default function AgentsPage() {
   const queryClient = useQueryClient();
@@ -85,13 +72,13 @@ export default function AgentsPage() {
   );
 
   const filteredMine = useMemo(
-    () => filterBySearch(filterByStatus(mineAgents, filter), searchQuery),
+    () => filterAgentsBySearch(filterAgentsByStatus(mineAgents, filter), searchQuery),
     [mineAgents, filter, searchQuery],
   );
   const filteredPlatform = useMemo(
     () =>
-      filterBySearch(
-        filterByStatus(catalogPlatformAgents, filter === 'platform' ? 'all' : filter),
+      filterAgentsBySearch(
+        filterAgentsByStatus(catalogPlatformAgents, filter === 'platform' ? 'all' : filter),
         searchQuery,
       ),
     [catalogPlatformAgents, filter, searchQuery],

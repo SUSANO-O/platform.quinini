@@ -84,15 +84,19 @@ export function DashboardResourceCard({
 export function ResourceCardTag({
   children,
   accent,
+  tone,
   title,
 }: {
   children: ReactNode;
+  /** @deprecated Equivale a `tone="accent"`; se mantiene por las tarjetas que ya lo usan. */
   accent?: boolean;
+  tone?: 'neutral' | 'accent' | 'warning';
   title?: string;
 }) {
+  const resuelto = tone ?? (accent ? 'accent' : 'neutral');
   return (
     <span
-      className={`resource-card__tag${accent ? ' resource-card__tag--accent' : ''}`}
+      className={`resource-card__tag${resuelto === 'neutral' ? '' : ` resource-card__tag--${resuelto}`}`}
       title={title}
     >
       {children}

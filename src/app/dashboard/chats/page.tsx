@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { formatDuration, sentimentTag, timeAgo } from '@/lib/chat-session-view';
+import { initialsFrom, paletteFromKey } from '@/lib/panel-identity';
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -65,47 +67,6 @@ type TabKey = 'active' | 'all' | 'ended';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function timeAgo(iso: string | null): string {
-  if (!iso) return '';
-  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (diff < 60) return 'ahora';
-  if (diff < 3600) return `hace ${Math.floor(diff / 60)} min`;
-  if (diff < 86400) return `hace ${Math.floor(diff / 3600)} h`;
-  return `hace ${Math.floor(diff / 86400)} d`;
-}
-
-function formatDuration(sec: number | null): string {
-  if (sec === null) return '—';
-  if (sec < 60) return `${sec}s`;
-  if (sec < 3600) return `${Math.floor(sec / 60)} min`;
-  return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
-}
-
-const AVATAR_PALETTE = [
-  { bg: '#e6f2f4', fg: '#004A57', border: '#a8cdd4' },
-  { bg: '#eef2f6', fg: '#475569', border: '#cbd5e1' },
-  { bg: '#e6f2f1', fg: '#0f766e', border: '#a7d4cf' },
-  { bg: '#edf2f7', fg: '#334155', border: '#c5d0dc' },
-] as const;
-
-function sessionColor(sessionId: string) {
-  let h = 0;
-  for (let i = 0; i < sessionId.length; i++) h = (h * 31 + sessionId.charCodeAt(i)) >>> 0;
-  return AVATAR_PALETTE[h % AVATAR_PALETTE.length];
-}
-
-function initials(label: string): string {
-  const parts = label.trim().split(/\s+/);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return label.slice(0, 2).toUpperCase();
-}
-
-function sentimentTag(sentiment: string): { label: string; className: string } | null {
-  if (sentiment === 'positive') return { label: 'Positivo', className: 'chats-page__tag chats-page__tag--sentiment-pos' };
-  if (sentiment === 'negative') return { label: 'Negativo', className: 'chats-page__tag chats-page__tag--sentiment-neg' };
-  return null;
-}
-
 // ─── Session Card ─────────────────────────────────────────────────────────────
 
 function SessionCard({
@@ -117,7 +78,7 @@ function SessionCard({
   selected: boolean;
   onClick: () => void;
 }) {
-  const color = sessionColor(item.sessionId);
+  const color = paletteFromKey(item.sessionId);
   const isActive = !item.endedAt;
   const sentiment = sentimentTag(item.sentiment);
 
@@ -132,7 +93,7 @@ function SessionCard({
           className="chats-page__avatar"
           style={{ background: color.bg, color: color.fg, border: `1.5px solid ${color.border}` }}
         >
-          {initials(item.visitorLabel)}
+          {initialsFrom(item.visitorLabel)}
         </div>
         {isActive ? <span className="chats-page__live-dot" aria-hidden /> : null}
       </div>
@@ -155,7 +116,13 @@ function SessionCard({
           {item.humanMode ? (
             <span className="chats-page__tag chats-page__tag--human">Humano</span>
           ) : null}
-          {sentiment ? <span className={sentiment.className}>{sentiment.label}</span> : null}
+          {sentiment ? (
+            <span
+              className={`chats-page__tag chats-page__tag--sentiment-${sentiment.tone === 'success' ? 'pos' : 'neg'}`}
+            >
+              {sentiment.label}
+            </span>
+          ) : null}
           <span className="chats-page__tag chats-page__tag--widget">{item.messageCount} msg</span>
         </div>
       </div>
@@ -440,14 +407,14 @@ export default function ChatsPage() {
                       style={{
                         width: '2.125rem',
                         height: '2.125rem',
-                        background: selectedSession ? sessionColor(selectedSession.sessionId).bg : 'var(--muted)',
-                        color: selectedSession ? sessionColor(selectedSession.sessionId).fg : 'var(--muted-foreground)',
+                        background: selectedSession ? paletteFromKey(selectedSession.sessionId).bg : 'var(--muted)',
+                        color: selectedSession ? paletteFromKey(selectedSession.sessionId).fg : 'var(--muted-foreground)',
                         border: selectedSession
-                          ? `1.5px solid ${sessionColor(selectedSession.sessionId).border}`
+                          ? `1.5px solid ${paletteFromKey(selectedSession.sessionId).border}`
                           : '1px solid var(--border-subtle)',
                       }}
                     >
-                      {selectedSession ? initials(selectedSession.visitorLabel) : '?'}
+                      {selectedSession ? initialsFrom(selectedSession.visitorLabel) : '?'}
                     </div>
                     <div className="chats-page__thread-meta">
                       <div className="chats-page__thread-name">
