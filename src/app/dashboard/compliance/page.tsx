@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@/hooks/use-auth';
+import { PANEL_TIMEZONE } from '@/lib/panel-dates';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -78,7 +79,7 @@ function dayLabel(dayKey: string): string {
   yesterday.setDate(today.getDate() - 1);
   if (d.toDateString() === today.toDateString()) return 'Hoy';
   if (d.toDateString() === yesterday.toDateString()) return 'Ayer';
-  return d.toLocaleDateString('es', { day: 'numeric', month: 'long' });
+  return d.toLocaleDateString('es', { timeZone: PANEL_TIMEZONE, day: 'numeric', month: 'long' });
 }
 
 function groupAuditEntries(entries: AuditEntry[]): Array<{ dayKey: string; label: string; groups: AuditGroup[] }> {
@@ -1183,11 +1184,11 @@ export default function CompliancePage() {
 
                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
                           <div style={{ fontSize: 11.5, color: 'var(--muted-foreground)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-                            {new Date(g.newestAt).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(g.newestAt).toLocaleTimeString('es', { timeZone: PANEL_TIMEZONE, hour: '2-digit', minute: '2-digit' })}
                           </div>
                           {g.count > 1 && (
                             <div style={{ fontSize: 9.5, color: 'var(--muted-foreground)', opacity: 0.6, whiteSpace: 'nowrap', marginTop: 1 }}>
-                              → {new Date(g.oldestAt).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
+                              → {new Date(g.oldestAt).toLocaleTimeString('es', { timeZone: PANEL_TIMEZONE, hour: '2-digit', minute: '2-digit' })}
                             </div>
                           )}
                         </div>

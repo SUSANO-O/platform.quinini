@@ -5,6 +5,7 @@ import {
   type CSSProperties, type ReactNode,
 } from 'react';
 import { useRouter } from 'next/navigation';
+import { PANEL_TIMEZONE } from '@/lib/panel-dates';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useAuth } from '@/hooks/use-auth';
 import { useAgentDetailTab } from '@/hooks/use-agent-detail-tab';
@@ -148,7 +149,7 @@ function formatMcpLastSync(iso?: string): string | null {
   if (!iso?.trim()) return null;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' });
+  return d.toLocaleString('es', { dateStyle: 'short', timeStyle: 'short', timeZone: PANEL_TIMEZONE });
 }
 
 function mcpConnectionBadgeStyle(s: McpServerGroup): { label: string; bg: string; color: string } {
@@ -2635,7 +2636,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         </div>
                       )}
                       <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--muted-foreground)' }}>
-                        Última vez: {c.lastSeen ? new Date(c.lastSeen).toLocaleString('es') : '—'}
+                        Última vez: {c.lastSeen ? new Date(c.lastSeen).toLocaleString('es', { timeZone: PANEL_TIMEZONE }) : '—'}
                       </p>
                     </div>
                   ))}
@@ -3894,7 +3895,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                                     <span style={{ fontWeight: 600, color: B }}>Archivo</span>
                                     {src.fileSize && <span>{(src.fileSize / 1024).toFixed(1)} KB</span>}
                                     {src.charCount ? <span>{src.charCount.toLocaleString()} chars extraídos</span> : null}
-                                    {src.uploadedAt && <span>{new Date(src.uploadedAt).toLocaleDateString('es')}</span>}
+                                    {src.uploadedAt && <span>{new Date(src.uploadedAt).toLocaleDateString('es', { timeZone: PANEL_TIMEZONE })}</span>}
                                   </div>
                                   {src.warning && (
                                     <p style={{ fontSize: '11px', color: '#f59e0b', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>

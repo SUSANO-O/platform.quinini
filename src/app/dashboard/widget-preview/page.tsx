@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { PANEL_TIMEZONE } from '@/lib/panel-dates';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -135,7 +136,7 @@ function mcpAgentToolsQueryId(widgetAgentId: string, agentDoc: AgentDoc | null):
 
 function formatDate(d?: string) {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('es', {
+  return new Date(d).toLocaleDateString('es', { timeZone: PANEL_TIMEZONE,
     day: '2-digit',
     month: 'short',
     year: 'numeric',

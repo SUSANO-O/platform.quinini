@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { PANEL_TIMEZONE } from '@/lib/panel-dates';
 import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ArrowLeft, Share2, Plus, Copy, Check, Trash2, Clock, Globe, KeyRound, AlertCircle } from '@/components/ui/icons';
@@ -37,7 +38,7 @@ const UNIT_LABELS: Record<DurationUnit, string> = {
 };
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleString('es', {
+  return new Date(iso).toLocaleString('es', { timeZone: PANEL_TIMEZONE,
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });

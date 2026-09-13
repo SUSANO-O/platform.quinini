@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { PANEL_TIMEZONE } from '@/lib/panel-dates';
 import { CONVERSATION_PACKS, canPurchaseConversationPacks } from '@/lib/plan-catalog';
 import { Zap, X } from '@/components/ui/icons';
 import { BRAND, STATE, BRAND_GRADIENT } from '@/lib/brand-colors';
@@ -89,7 +90,7 @@ export function QuotaTopupBanner({ percentUsed, used, limit, plan, subscriptionS
               fontSize: '11px', padding: '2px 8px', borderRadius: '6px',
               background: 'rgba(var(--brand-cool-rgb),0.1)', color: '#000', fontWeight: 700,
             }}>
-              {p.remaining.toLocaleString('es')} conv · vence {new Date(p.expiresAt).toLocaleDateString('es')}
+              {p.remaining.toLocaleString('es')} conv · vence {new Date(p.expiresAt).toLocaleDateString('es', { timeZone: PANEL_TIMEZONE })}
             </span>
           ))}
         </div>

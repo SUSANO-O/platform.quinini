@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { PANEL_TIMEZONE } from '@/lib/panel-dates';
 import { formatDuration, sentimentTag, timeAgo } from '@/lib/chat-session-view';
 import { initialsFrom, paletteFromKey } from '@/lib/panel-identity';
 import { useMemo, useState } from 'react';
@@ -521,7 +522,7 @@ export default function ChatsPage() {
                     </span>
                     <span>
                       Inicio:{' '}
-                      {new Date(selectedSession.startedAt).toLocaleString('es-CO', {
+                      {new Date(selectedSession.startedAt).toLocaleString('es-CO', { timeZone: PANEL_TIMEZONE,
                         day: '2-digit',
                         month: 'short',
                         hour: '2-digit',
@@ -531,7 +532,7 @@ export default function ChatsPage() {
                     {selectedSession.endedAt ? (
                       <span>
                         Fin:{' '}
-                        {new Date(selectedSession.endedAt).toLocaleString('es-CO', {
+                        {new Date(selectedSession.endedAt).toLocaleString('es-CO', { timeZone: PANEL_TIMEZONE,
                           day: '2-digit',
                           month: 'short',
                           hour: '2-digit',
