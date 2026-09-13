@@ -7,14 +7,12 @@ import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 import { DashboardPageHeader } from '@/components/dashboard/dashboard-page-header';
 import { DashboardButton } from '@/components/dashboard/dashboard-button';
 import { useSubscription } from '@/hooks/use-subscription';
+import { hasPaidPlan } from '@/lib/billing-view';
 
 export default function FacturasPage() {
   const { subscription, loading, openBillingPortal } = useSubscription();
 
-  const hasPaid =
-    subscription?.status &&
-    ['active', 'trialing', 'past_due', 'canceled'].includes(subscription.status) &&
-    subscription.plan !== 'free';
+  const hasPaid = hasPaidPlan(subscription);
 
   return (
     <DashboardShell width="narrow">

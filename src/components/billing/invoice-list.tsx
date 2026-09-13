@@ -1,6 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { formatMoney, invoiceApiBase, statusLabel, type InvoiceTone } from '@/lib/billing-view';
+import { PANEL_TIMEZONE } from '@/lib/panel-dates';
+
+/** Cada papel de color de `billing-view`, pintado una sola vez. */
+const INVOICE_TONE_STYLE: Record<InvoiceTone, { background: string; color: string }> = {
+  success: { background: 'rgba(34,197,94,0.12)', color: '#15803d' },
+  warning: { background: 'rgba(217,119,6,0.12)', color: '#b45309' },
+  neutral: { background: 'rgba(26,28,30,0.06)', color: 'var(--muted-foreground)' },
+};
 import { ExternalLink, FileText, Loader2, Receipt } from '@/components/ui/icons';
 import { toast } from 'sonner';
 import { BRAND_TEXT_COLOR, UI_SURFACE_SECONDARY } from '@/lib/brand';
@@ -20,43 +29,11 @@ export type InvoiceRow = {
   description?: string;
 };
 
-function formatMoney(cents: number, currency: string) {
-  try {
-    return new Intl.NumberFormat('es', {
-      style: 'currency',
-      currency: currency.toUpperCase(),
-    }).format(cents / 100);
-  } catch {
-    return `${(cents / 100).toFixed(2)} ${currency}`;
-  }
-}
-
-function statusLabel(s: string | null) {
-  switch (s) {
-    case 'paid':
-      return 'Pagada';
-    case 'completed':
-      return 'Completada';
-    case 'open':
-      return 'Pendiente';
-    case 'void':
-      return 'Anulada';
-    case 'refunded':
-      return 'Reembolsada';
-    default:
-      return s || '—';
-  }
-}
-
 type InvoiceListProps = {
   showGenerate?: boolean;
   /** Si se indica, carga facturas del usuario vía API admin. */
   adminUserId?: string;
 };
-
-function invoiceApiBase(adminUserId?: string) {
-  return adminUserId ? `/api/admin/billing/${adminUserId}` : '/api/billing';
-}
 
 export function InvoiceList({ showGenerate = true, adminUserId }: InvoiceListProps) {
   const [invoices, setInvoices] = useState<InvoiceRow[] | null>(null);
@@ -151,12 +128,24 @@ export function InvoiceList({ showGenerate = true, adminUserId }: InvoiceListPro
                     day: 'numeric',
                     month: 'short',
                     year: 'numeric',
+                    // En la zona del panel, como el resto de fechas.
+                    timeZone: PANEL_TIMEZONE,
                   })}
                 </td>
                 <td style={{ padding: '10px 6px' }}>
                   <div style={{ fontWeight: 600 }}>{inv.description || inv.number}</div>
-                  <div style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 2 }}>
-                    {inv.number} · {statusLabel(inv.status)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                    <span style={{ fontSize: 12.5, color: 'var(--muted-foreground)' }}>{inv.number}</span>
+                    {(() => {
+                      // El estado deja de ser texto gris de 11px: es lo que el
+                      // cliente busca al abrir esta tabla.
+                      const { label, tone } = statusLabel(inv.status);
+                      return (
+                        <span style={{ ...INVOICE_TONE_STYLE[tone], fontSize: 11.5, fontWeight: 600, padding: '2px 8px', borderRadius: 999 }}>
+                          {label}
+                        </span>
+                      );
+                    })()}
                   </div>
                 </td>
                 <td style={{ padding: '10px 6px', fontWeight: 600, whiteSpace: 'nowrap' }}>
