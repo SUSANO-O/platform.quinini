@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { PANEL_TIMEZONE } from '@/lib/panel-dates';
 import type { ReactNode } from 'react';
 import { Crown, Clock, LayoutDashboard, Zap } from '@/components/ui/icons';
 import Stack from '@mui/material/Stack';
@@ -51,7 +52,7 @@ export function DashboardGreetingHeader({
           👋
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, textTransform: 'capitalize' }}>
-          {new Date().toLocaleDateString('es', {
+          {new Date().toLocaleDateString('es', { timeZone: PANEL_TIMEZONE,
             weekday: 'long',
             day: 'numeric',
             month: 'long',

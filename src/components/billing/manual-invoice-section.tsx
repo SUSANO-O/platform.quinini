@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { PANEL_TIMEZONE } from '@/lib/panel-dates';
 import { AlertCircle, CheckCircle2, FileDown, Loader2, Plus, Trash2 } from '@/components/ui/icons';
 import { toast } from 'sonner';
 import { BillingProfileForm } from '@/components/billing/invoice-list';
@@ -590,7 +591,7 @@ export function ManualInvoiceSection({ adminUserId, userEmail }: ManualInvoiceSe
                 {items.map((inv) => (
                   <tr key={inv.id} style={{ borderTop: `1px solid ${FE_BORDER}` }}>
                     <td style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}>
-                      {new Date(inv.issuedAt).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {new Date(inv.issuedAt).toLocaleDateString('es', { timeZone: PANEL_TIMEZONE, day: 'numeric', month: 'short', year: 'numeric' })}
                     </td>
                     <td style={{ padding: '10px 8px', fontWeight: 600 }}>{inv.invoiceNumber}</td>
                     <td style={{ padding: '10px 8px' }}>

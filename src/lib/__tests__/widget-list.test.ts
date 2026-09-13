@@ -75,6 +75,12 @@ describe('buildEmbedSnippet', () => {
     expect(s).toContain("wt_a\\'b");
   });
 
+  // Un token con un cierre de etiqueta no debe poder salirse del <script>.
+  it('no deja cerrar la etiqueta script desde el token', () => {
+    const s = buildEmbedSnippet('wt_x</script><script>alert(1)</script>', 'https://botiva.space');
+    expect(s).not.toContain('</script><script>alert(1)');
+  });
+
   it('es un bloque de varias líneas listo para copiar', () => {
     expect(buildEmbedSnippet('wt_x', 'https://botiva.space').split('\n').length).toBeGreaterThan(3);
   });

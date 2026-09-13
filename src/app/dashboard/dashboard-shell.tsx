@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
+import { PANEL_TIMEZONE } from '@/lib/panel-dates';
 import { useAuth } from '@/hooks/use-auth';
 import { useAuthSplashLoading } from '@/hooks/use-auth-splash-loading';
 import { SubscriptionProvider, useSubscription } from '@/hooks/use-subscription';
@@ -98,7 +99,7 @@ function DeletionWarningGate({
   plan, deletionAtSec, onLogout,
 }: { plan: string; deletionAtSec: number; onLogout: () => void }) {
   const fecha = deletionAtSec
-    ? new Date(deletionAtSec * 1000).toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' })
+    ? new Date(deletionAtSec * 1000).toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric', timeZone: PANEL_TIMEZONE })
     : null;
   const dias = deletionAtSec
     ? Math.max(0, Math.ceil((deletionAtSec * 1000 - Date.now()) / 86400000))
@@ -166,6 +167,7 @@ function PricingGate({
       day: 'numeric',
       month: 'long',
       year: 'numeric',
+      timeZone: PANEL_TIMEZONE,
     })
     : null;
 

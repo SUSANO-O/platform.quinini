@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { PANEL_TIMEZONE } from '@/lib/panel-dates';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -229,7 +230,7 @@ export default function FlowDetailPage() {
         <DashboardStatusBadge active={isActive} />
         <span className="text-xs text-[var(--muted-foreground)]">
           {flow.stepCount} paso{flow.stepCount !== 1 ? 's' : ''} · Actualizado{' '}
-          {new Date(flow.updatedAt).toLocaleDateString('es')}
+          {new Date(flow.updatedAt).toLocaleDateString('es', { timeZone: PANEL_TIMEZONE })}
         </span>
       </div>
 
@@ -302,7 +303,7 @@ export default function FlowDetailPage() {
                       </span>
                     </div>
                     <div className="flows-admin-conv-item__meta">
-                      <span>{new Date(c.startedAt).toLocaleString('es')}</span>
+                      <span>{new Date(c.startedAt).toLocaleString('es', { timeZone: PANEL_TIMEZONE })}</span>
                       <span>{c.messageCount} msg</span>
                       {c.durationSec != null && c.durationSec > 0 && (
                         <span>{formatDuration(c.durationSec)}</span>
@@ -334,13 +335,13 @@ export default function FlowDetailPage() {
               <div className="flows-admin-meta__row">
                 <span className="flows-admin-meta__label">Creado</span>
                 <span className="flows-admin-meta__value">
-                  {new Date(flow.createdAt).toLocaleDateString('es')}
+                  {new Date(flow.createdAt).toLocaleDateString('es', { timeZone: PANEL_TIMEZONE })}
                 </span>
               </div>
               <div className="flows-admin-meta__row">
                 <span className="flows-admin-meta__label">Actualizado</span>
                 <span className="flows-admin-meta__value">
-                  {new Date(flow.updatedAt).toLocaleDateString('es')}
+                  {new Date(flow.updatedAt).toLocaleDateString('es', { timeZone: PANEL_TIMEZONE })}
                 </span>
               </div>
               {tags.length > 0 && (

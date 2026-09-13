@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@/hooks/use-auth';
+import { PANEL_TIMEZONE } from '@/lib/panel-dates';
 import { useSubscription } from '@/hooks/use-subscription';
 import { QuotaTopupBanner } from '@/components/dashboard/quota-topup-banner';
 import { DashboardHomeOverview, type DashboardUsageData } from '@/components/dashboard/dashboard-home-overview';
@@ -603,7 +604,7 @@ export default function DashboardPage() {
                           </span>
                         ) : <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Sin rating</span>}
                         <span className="text-[11px]" style={{ color: 'var(--muted-foreground)' }}>
-                          {new Date(f.createdAt).toLocaleDateString('es-CO', { dateStyle: 'medium' })}
+                          {new Date(f.createdAt).toLocaleDateString('es-CO', { dateStyle: 'medium', timeZone: PANEL_TIMEZONE })}
                         </span>
                       </div>
                       <div className="flex flex-col gap-1.5">

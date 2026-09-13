@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { PANEL_TIMEZONE } from '@/lib/panel-dates';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { Crown, ShieldCheck, Sparkles } from '@/components/ui/icons';
@@ -42,7 +43,7 @@ function formatPeriodEnd(epochSec?: number): string | null {
   if (epochSec == null || !Number.isFinite(epochSec)) return null;
   const d = new Date(epochSec * 1000);
   if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' });
+  return d.toLocaleDateString('es', { timeZone: PANEL_TIMEZONE, day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 function ConfettiBurst({ active }: { active: boolean }) {

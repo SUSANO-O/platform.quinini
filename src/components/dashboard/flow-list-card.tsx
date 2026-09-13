@@ -9,6 +9,7 @@ import {
   Trash2,
 } from '@/components/ui/icons';
 import { avatarStyleFromSeed } from '@/lib/flow-editor/geometry';
+import { PANEL_TIMEZONE } from '@/lib/panel-dates';
 import { flowStatusLabel, parseFlowTags } from '@/lib/flow-admin';
 import type { FlowListItem } from '@/lib/flow-editor/types';
 import { AgentInitialsBadge } from '@/components/dashboard/agent-initials-badge';
@@ -30,7 +31,7 @@ function formatUpdatedLabel(iso: string): string {
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
   if (d.toDateString() === yesterday.toDateString()) return 'Ayer';
-  return d.toLocaleDateString('es', { day: 'numeric', month: 'short' });
+  return d.toLocaleDateString('es', { timeZone: PANEL_TIMEZONE, day: 'numeric', month: 'short' });
 }
 
 export function FlowListCard({

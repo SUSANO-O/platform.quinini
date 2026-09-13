@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PANEL_TIMEZONE } from '@/lib/panel-dates';
 import {
   ChevronDown, FileText, Loader2, MessageSquare, Paperclip, Send, Trash2, User, X, Download, Check, CheckCheck, Bot, Headphones,
 } from '@/components/ui/icons';
@@ -91,7 +92,7 @@ function cloudinaryDownloadUrl(url: string): string {
 
 function fmtTime(iso: string) {
   try {
-    return new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    return new Date(iso).toLocaleTimeString('es-CO', { timeZone: PANEL_TIMEZONE, hour: '2-digit', minute: '2-digit' });
   } catch {
     return '';
   }
@@ -99,7 +100,7 @@ function fmtTime(iso: string) {
 
 function fmtDate(iso: string) {
   try {
-    return new Date(iso).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' });
+    return new Date(iso).toLocaleString('es', { timeZone: PANEL_TIMEZONE, dateStyle: 'short', timeStyle: 'short' });
   } catch {
     return iso;
   }
@@ -126,7 +127,7 @@ function fmtDateDivider(iso: string) {
   yesterday.setDate(yesterday.getDate() - 1);
   if (sameCalendarDay(d, now)) return 'Hoy';
   if (sameCalendarDay(d, yesterday)) return 'Ayer';
-  return d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'short' });
+  return d.toLocaleDateString('es-CO', { timeZone: PANEL_TIMEZONE, weekday: 'long', day: 'numeric', month: 'short' });
 }
 
 function messageText(m: ChatMessage): string {

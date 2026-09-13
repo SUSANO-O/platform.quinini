@@ -38,7 +38,12 @@ export function multiAgentLabel(mode?: string): string {
  */
 export function buildEmbedSnippet(token: string, origin: string): string {
   const base = origin.replace(/\/+$/, '');
-  const seguro = (token || 'wt_…').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const seguro = (token || 'wt_…')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    // El navegador corta el <script> ante cualquier "</script>", esté o no
+    // dentro de una cadena.
+    .replace(/<\//g, '<\\/');
 
   return [
     `<script src="${base}/widget.js"></script>`,
