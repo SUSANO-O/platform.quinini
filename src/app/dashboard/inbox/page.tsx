@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { resolveInboxEmptyState } from '@/lib/inbox-empty-state';
 import { PANEL_TIMEZONE } from '@/lib/panel-dates';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -467,19 +468,36 @@ export default function InboxPage() {
           style={{ padding: '48px 0' }}
         />
       ) : visibleItems.length === 0 ? (
-        <div className="inbox-page__empty card-texture">
-          <Inbox size={36} style={{ color: 'var(--muted-foreground)', margin: '0 auto 12px' }} />
-          <p style={{ fontWeight: 700, margin: '0 0 6px' }}>
-            {tab === 'open'
-              ? replyFilter === 'unanswered'
-                ? 'Sin mensajes pendientes de respuesta'
-                : 'Sin conversaciones respondidas'
-              : 'Sin conversaciones resueltas'}
-          </p>
-          <p style={{ fontSize: 13, color: 'var(--muted-foreground)', margin: 0 }}>
-            Cuando un visitante pida atención humana o escriba por WhatsApp, aparecerá aquí.
-          </p>
-        </div>
+        (() => {
+          // Si el filtro en el que estás no tiene nada pero el de al lado sí,
+          // la pantalla lo dice en vez de dar a entender que no hay trabajo.
+          const vacio = resolveInboxEmptyState({
+            tab,
+            replyFilter,
+            unanswered: items.filter((i) => i.needsReply).length,
+            answered: items.filter((i) => !i.needsReply).length,
+          });
+          return (
+            <div className="inbox-page__empty card-texture">
+              <Inbox size={36} style={{ color: 'var(--muted-foreground)', margin: '0 auto 12px' }} />
+              <p style={{ fontWeight: 700, margin: '0 0 6px' }}>{vacio.title}</p>
+              <p style={{ fontSize: 13, color: 'var(--muted-foreground)', margin: 0 }}>{vacio.hint}</p>
+              {vacio.switchTo ? (
+                <button
+                  type="button"
+                  onClick={() => setInboxReplyFilter(vacio.switchTo!)}
+                  style={{
+                    marginTop: 14, minHeight: 36, padding: '0 16px', borderRadius: 999,
+                    border: '1px solid var(--border)', background: 'transparent',
+                    fontSize: 13, fontWeight: 600, color: 'var(--foreground)', cursor: 'pointer',
+                  }}
+                >
+                  {vacio.actionLabel}
+                </button>
+              ) : null}
+            </div>
+          );
+        })()
       ) : (
         <div className="inbox-page__list">
           {visibleItems.map((item) => {
