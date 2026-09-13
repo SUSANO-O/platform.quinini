@@ -8,18 +8,21 @@ import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 import { DashboardGreetingHeader } from '@/components/dashboard/dashboard-greeting-header';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import {
-  MessageSquare,
-  TrendingUp, ArrowUpRight, Clock,
-  BarChart2, Users, UserCheck, X, Loader2, Activity,
-} from '@/components/ui/icons';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowUpRight, BarChart2, X, Loader2 } from '@/components/ui/icons';
 
-import { STATE } from '@/lib/brand-colors';
+import { BRAND, STATE } from '@/lib/brand-colors';
+import {
+  formatHourLabel,
+  monthOverMonth,
+  outcomeBreakdown,
+  monthBarHeights,
+  type MetricTone,
+} from '@/lib/dashboard-metrics';
 import { countOwnedMainAgents } from '@/lib/agent-plans';
 import { resolveRange, type DateRange } from '@/lib/date-range';
 import { DateRangePicker } from '@/components/dashboard/date-range-picker';
-import { DashboardMetricModal, DashboardMetricShortcut } from '@/components/dashboard/dashboard-metric-modal';
+import { DashboardMetricModal } from '@/components/dashboard/dashboard-metric-modal';
 import { MiniBarHistogram, MetricBarRow } from '@/components/dashboard/mini-bar-histogram';
 
 interface UsageData extends DashboardUsageData {}
@@ -65,16 +68,20 @@ interface FeedbackItem {
   answers: { questionText: string; type: string; value: unknown }[];
 }
 
-function formatHour(h: number) {
-  if (h === 0) return '12 AM';
-  if (h < 12) return `${h} AM`;
-  if (h === 12) return '12 PM';
-  return `${h - 12} PM`;
-}
-
-const CHART_ACCENT = '#2a78d6';
+// Un solo acento en todo el panel: el de marca. Antes convivía con un azul
+// suelto (#2a78d6) que solo existía en estas gráficas.
+const CHART_ACCENT = BRAND.primary;
 const CHART_MUTED = 'var(--muted-foreground)';
-const CHART_SURFACE = 'rgba(42, 120, 214, 0.06)';
+const CHART_SURFACE = 'rgba(var(--brand-primary-rgb), 0.07)';
+
+/** Cada papel de color de `dashboard-metrics` pintado una sola vez. */
+const TONE_COLOR: Record<MetricTone, string> = {
+  success: '#15803d',
+  brand: BRAND.primary,
+  warning: '#b45309',
+  danger: '#b91c1c',
+  neutral: 'var(--muted-foreground)',
+};
 
 const STATUS_COLOR: Record<string, string> = {
   operational: STATE.success,
@@ -109,6 +116,13 @@ export default function DashboardPage() {
   const [widgets,          setWidgets]          = useState<WidgetInfo[]>([]);
   const [selectedWidget,   setSelectedWidget]   = useState<string | null>(null);
   const [widgetAnalytics,  setWidgetAnalytics]  = useState<WidgetAnalytics | null>(null);
+
+  // `byMonth` llega del mes más nuevo al más viejo (ver la ruta de analítica);
+  // tanto la gráfica como la comparación mes a mes lo necesitan al derecho.
+  const mesesEnOrden = useMemo(
+    () => [...(widgetAnalytics?.byMonth ?? [])].reverse(),
+    [widgetAnalytics],
+  );
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [feedbackList,     setFeedbackList]     = useState<FeedbackItem[]>([]);
@@ -304,21 +318,35 @@ export default function DashboardPage() {
                 <div className="metric-value-appear">
                   {/* Stat tiles */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    {(() => {
+                      // La analítica no trae "periodo anterior": lo único
+                      // comparable de verdad es el último mes contra el previo.
+                      // `byMonth` llega del más nuevo al más viejo (ver
+                      // /api/analytics/widget/[id]), así que hay que darlo vuelta.
+                      const delta = monthOverMonth(mesesEnOrden);
+                      return (
+                        <AnalyticTile
+                          label="Aperturas"
+                          value={widgetAnalytics.summary.totalSessions.toLocaleString('es')}
+                          sub="sesiones en 3 meses"
+                          delta={delta && delta.direction !== 'flat' ? {
+                            text: `${delta.deltaPct > 0 ? '+' : ''}${delta.deltaPct}% vs mes anterior`,
+                            tone: delta.direction === 'up' ? 'success' : 'danger',
+                          } : undefined}
+                        />
+                      );
+                    })()}
                     <AnalyticTile
-                      icon={<Users size={12} style={{ color: CHART_MUTED }} />}
-                      label="Aperturas" value={widgetAnalytics.summary.totalSessions.toLocaleString('es')}
-                      sub="sesiones en 3 meses" />
-                    <AnalyticTile
-                      icon={<MessageSquare size={12} style={{ color: CHART_MUTED }} />}
-                      label="Mensajes / sesión" value={String(widgetAnalytics.summary.avgMessagesPerSession)}
+                      label="Mensajes por sesión"
+                      value={String(widgetAnalytics.summary.avgMessagesPerSession)}
                       sub="promedio por conversación" />
                     <AnalyticTile
-                      icon={<UserCheck size={12} style={{ color: CHART_MUTED }} />}
-                      label="Leads (handoff)" value={`${widgetAnalytics.summary.escalationRate}%`}
-                      sub="pidieron hablar con humano" />
+                      label="Leads a humano"
+                      value={`${widgetAnalytics.summary.escalationRate}%`}
+                      sub="pidieron hablar con una persona" />
                     <AnalyticTile
-                      icon={<TrendingUp size={12} style={{ color: CHART_MUTED }} />}
-                      label="Abandono" value={`${widgetAnalytics.summary.dropOffRate}%`}
+                      label="Abandono"
+                      value={`${widgetAnalytics.summary.dropOffRate}%`}
                       sub="abrieron sin escribir" />
                   </div>
 
@@ -327,85 +355,132 @@ export default function DashboardPage() {
                     <button
                       type="button"
                       onClick={() => void openFeedbackModal()}
-                      className="w-full text-left rounded-xl p-4 mb-4 transition-opacity hover:opacity-90"
-                      style={{ background: 'rgba(var(--brand-primary-rgb),0.05)', border: '1px solid rgba(var(--brand-primary-rgb),0.12)', cursor: 'pointer' }}
+                      className="w-full text-left rounded-2xl p-5 mb-3"
+                      style={{ background: 'var(--card)', border: '1px solid rgba(26,28,30,0.08)', cursor: 'pointer' }}
                     >
                       <div className="flex items-center justify-between gap-3 flex-wrap">
                         <div>
-                          <span className="text-[10px] font-bold uppercase" style={{ color: CHART_MUTED, letterSpacing: '0.05em' }}>Satisfacción</span>
-                          <p className="text-2xl font-extrabold m-0 mt-1">
+                          <span className="text-[12px] font-semibold" style={{ color: 'var(--muted-foreground)' }}>Satisfacción</span>
+                          <p
+                            className="m-0 mt-1.5 flex items-center gap-2"
+                            style={{ fontFamily: '"Outfit", "Plus Jakarta Sans", system-ui, sans-serif', fontSize: 30, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.03em' }}
+                          >
                             {widgetAnalytics.satisfaction.avgScore != null
                               ? `${widgetAnalytics.satisfaction.avgScore.toFixed(1)} / 5`
                               : 'Sin datos'}
-                            <span style={{ color: CHART_ACCENT, marginLeft: 8, fontSize: 18, opacity: 0.85 }}>
+                            <span style={{ color: CHART_ACCENT, fontSize: 17 }}>
                               {'★'.repeat(Math.round(widgetAnalytics.satisfaction.avgScore || 0))}
-                              <span style={{ color: 'rgba(0,0,0,0.18)' }}>{'★'.repeat(5 - Math.round(widgetAnalytics.satisfaction.avgScore || 0))}</span>
+                              <span style={{ color: 'rgba(26,28,30,0.16)' }}>{'★'.repeat(5 - Math.round(widgetAnalytics.satisfaction.avgScore || 0))}</span>
                             </span>
                           </p>
-                          <p className="text-[11px] m-0 mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                          <p className="text-[12.5px] m-0 mt-1.5" style={{ color: 'var(--muted-foreground)' }}>
                             {widgetAnalytics.satisfaction.totalResponses} respuesta{widgetAnalytics.satisfaction.totalResponses === 1 ? '' : 's'} · {widgetAnalytics.satisfaction.responseRate}% de las sesiones respondió
                           </p>
                         </div>
-                        <span className="text-xs font-bold" style={{ color: CHART_ACCENT }}>Ver respuestas →</span>
+                        <span className="text-[13px] font-semibold" style={{ color: CHART_ACCENT }}>Ver respuestas →</span>
                       </div>
                     </button>
                   )}
 
-                  {/* Peak hour + monthly bars */}
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="rounded-xl p-4" style={{ background: 'rgba(var(--brand-primary-rgb),0.03)' }}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Clock size={12} style={{ color: CHART_MUTED }} />
-                        <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>Hora pico</span>
+                  {/* Hora pico, meses y salidas — cada tarjeta lleva su
+                      propio enlace al detalle. Antes los tres atajos vivían
+                      sueltos al pie, compitiendo entre sí. */}
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <div className="rounded-2xl p-5" style={{ background: 'var(--card)', border: '1px solid rgba(26,28,30,0.08)' }}>
+                      <div className="flex items-center justify-between gap-3 mb-2">
+                        <span className="text-[12px] font-semibold" style={{ color: 'var(--muted-foreground)' }}>Hora pico</span>
+                        <button
+                          type="button"
+                          onClick={() => setHourModalOpen(true)}
+                          className="text-[13px] font-semibold bg-transparent border-0 p-0"
+                          style={{ color: CHART_ACCENT, cursor: 'pointer' }}
+                        >
+                          Ver por hora
+                        </button>
                       </div>
-                      <p className="text-3xl font-extrabold m-0" style={{ letterSpacing: '-0.03em', color: 'var(--foreground)' }}>
-                        {widgetAnalytics.peakHour == null ? '—' : formatHour(widgetAnalytics.peakHour)}
+                      <p className="m-0" style={{ fontFamily: '"Outfit", "Plus Jakarta Sans", system-ui, sans-serif', fontSize: 30, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.03em', color: 'var(--foreground)' }}>
+                        {formatHourLabel(widgetAnalytics.peakHour)}
                       </p>
-                      <p className="text-[11px] m-0 mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                      <p className="text-[12.5px] m-0 mt-1.5" style={{ color: 'var(--muted-foreground)' }}>
                         {widgetAnalytics.peakHour == null ? 'sin actividad aún' : `${widgetAnalytics.hourDistribution?.[widgetAnalytics.peakHour] ?? 0} mensajes en esa hora`}
                       </p>
                     </div>
 
-                    <div className="rounded-xl p-4" style={{ background: 'rgba(var(--brand-primary-rgb),0.03)' }}>
-                      <div className="flex items-center gap-2 mb-3">
-                        <BarChart2 size={12} style={{ color: CHART_MUTED }} />
-                        <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>Sesiones por mes</span>
+                    <div className="rounded-2xl p-5" style={{ background: 'var(--card)', border: '1px solid rgba(26,28,30,0.08)' }}>
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <span className="text-[12px] font-semibold" style={{ color: 'var(--muted-foreground)' }}>Sesiones por mes</span>
                       </div>
-                      <div className="flex items-end gap-2" style={{ height: 56 }}>
-                        {[...widgetAnalytics.byMonth].reverse().map((m) => {
-                          const max = Math.max(...widgetAnalytics.byMonth.map(x => x.sessions), 1);
-                          const pct = Math.max((m.sessions / max) * 100, 6);
-                          return (
-                            <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
-                              <span className="text-[10px]" style={{ color: 'var(--muted-foreground)' }}>{m.sessions}</span>
-                              <div className="w-full rounded-t-md" style={{
-                                height: `${pct}%`, minHeight: 4,
-                                background: `linear-gradient(180deg, #86b6ef, ${CHART_ACCENT})`, opacity: 0.92,
-                              }} />
-                              <span className="text-[9px]" style={{ color: 'var(--muted-foreground)' }}>{m.month.slice(5)}</span>
+                      <div className="flex items-end gap-3">
+                        {monthBarHeights(mesesEnOrden).map((bar) => (
+                          <div key={bar.month} className="flex-1 flex flex-col items-center gap-1.5">
+                            <span className="text-[12px] font-semibold" style={{ color: 'var(--muted-foreground)' }}>{bar.sessions}</span>
+                            {/* El área de barras necesita su propia altura fija: si el
+                                porcentaje se resuelve contra la columna entera (que
+                                además lleva número y etiqueta), las barras se aplastan. */}
+                            <div className="w-full flex items-end justify-center" style={{ height: 72 }}>
+                              <div
+                                className="w-full"
+                                style={{
+                                  // Sin tope se estiran hasta parecer bloques cuando
+                                  // el periodo trae pocos meses.
+                                  maxWidth: 76,
+                                  height: `${bar.heightPct}%`, minHeight: 4,
+                                  borderRadius: '8px 8px 4px 4px',
+                                  // El mes en curso a color pleno; los previos, apagados.
+                                  background: bar.isCurrent ? CHART_ACCENT : 'rgba(var(--brand-primary-rgb),0.22)',
+                                }}
+                              />
                             </div>
-                          );
-                        })}
+                            <span
+                              className="text-[12px]"
+                              style={{ color: bar.isCurrent ? 'var(--foreground)' : 'var(--muted-foreground)', fontWeight: bar.isCurrent ? 600 : 400 }}
+                            >
+                              {bar.label}
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-                    <DashboardMetricShortcut
-                      icon={<Clock size={12} />}
-                      label="Ver distribución por hora"
-                      onClick={() => setHourModalOpen(true)}
-                    />
-                    <DashboardMetricShortcut
-                      icon={<Activity size={12} />}
-                      label="Ver sentiment"
-                      onClick={() => setSentimentModalOpen(true)}
-                    />
-                    <DashboardMetricShortcut
-                      icon={<UserCheck size={12} />}
-                      label="Resumen de resultados"
-                      onClick={() => setResultsModalOpen(true)}
-                    />
+                  <div className="rounded-2xl p-5 mt-3" style={{ background: 'var(--card)', border: '1px solid rgba(26,28,30,0.08)' }}>
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <span className="text-[12px] font-semibold" style={{ color: 'var(--muted-foreground)' }}>Cómo terminaron</span>
+                      <span className="flex items-center gap-2.5">
+                        <button
+                          type="button"
+                          onClick={() => setSentimentModalOpen(true)}
+                          className="text-[13px] font-semibold bg-transparent border-0 p-0"
+                          style={{ color: CHART_ACCENT, cursor: 'pointer' }}
+                        >
+                          Sentiment
+                        </button>
+                        <span aria-hidden style={{ color: 'var(--border)' }}>·</span>
+                        <button
+                          type="button"
+                          onClick={() => setResultsModalOpen(true)}
+                          className="text-[13px] font-semibold bg-transparent border-0 p-0"
+                          style={{ color: CHART_ACCENT, cursor: 'pointer' }}
+                        >
+                          Detalle
+                        </button>
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      {outcomeBreakdown(widgetAnalytics.summary).map((row) => (
+                        <div key={row.key} className="flex flex-col gap-1.5">
+                          <div className="flex items-center justify-between text-[13px]">
+                            <span className="font-semibold">{row.label}</span>
+                            <span style={{ color: 'var(--muted-foreground)' }}>
+                              {row.count.toLocaleString('es')} · {row.pct}%
+                            </span>
+                          </div>
+                          <div style={{ height: 7, borderRadius: 999, background: 'rgba(26,28,30,0.07)' }}>
+                            <div style={{ width: `${row.pct}%`, height: '100%', borderRadius: 999, background: TONE_COLOR[row.tone] }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -421,7 +496,7 @@ export default function DashboardPage() {
           {widgetAnalytics?.hourDistribution && (
             <MiniBarHistogram
               values={widgetAnalytics.hourDistribution}
-              labels={Array.from({ length: 24 }, (_, h) => (h % 3 === 0 ? formatHour(h).replace(' ', '') : ''))}
+              labels={Array.from({ length: 24 }, (_, h) => (h % 3 === 0 ? formatHourLabel(h).replace(' ', '') : ''))}
               height={140}
             />
           )}
@@ -554,15 +629,41 @@ export default function DashboardPage() {
 }
 
 /* ── Analytic tile ─────────────────────────────────────────────────────────── */
-function AnalyticTile({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub: string }) {
+/**
+ * Antes: etiqueta de 10px en mayúsculas con tracking ancho, subtítulo de 10px y
+ * un fondo teal al 4% que no separaba nada. Ahora la etiqueta se lee (12px en
+ * caja normal), la cifra usa la tipografía de títulos y la tarjeta tiene el
+ * borde fino del tema en vez de un tinte.
+ */
+function AnalyticTile({
+  label, value, sub, delta,
+}: {
+  label: string;
+  value: string;
+  sub: string;
+  delta?: { text: string; tone: MetricTone };
+}) {
   return (
-    <div className="rounded-xl p-4" style={{ background: 'rgba(var(--brand-primary-rgb),0.04)' }}>
-      <div className="flex items-center gap-1.5 mb-2">
-        {icon}
-        <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>{label}</span>
-      </div>
-      <p className="text-2xl font-extrabold m-0" style={{ letterSpacing: '-0.03em', color: 'var(--foreground)' }}>{value}</p>
-      <p className="text-[10px] m-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{sub}</p>
+    <div
+      className="rounded-2xl p-5 flex flex-col gap-1.5"
+      style={{ background: 'var(--card)', border: '1px solid rgba(26,28,30,0.08)' }}
+    >
+      <span className="text-[12px] font-semibold" style={{ color: 'var(--muted-foreground)' }}>{label}</span>
+      <p
+        className="m-0"
+        style={{
+          fontFamily: '"Outfit", "Plus Jakarta Sans", system-ui, sans-serif',
+          fontSize: 30, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.03em',
+          color: 'var(--foreground)',
+        }}
+      >
+        {value}
+      </p>
+      {delta ? (
+        <span className="text-[12.5px] font-semibold" style={{ color: TONE_COLOR[delta.tone] }}>{delta.text}</span>
+      ) : (
+        <span className="text-[12.5px]" style={{ color: 'var(--muted-foreground)' }}>{sub}</span>
+      )}
     </div>
   );
 }

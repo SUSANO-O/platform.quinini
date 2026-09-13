@@ -33,7 +33,7 @@ export function MetricBarRow({
 export function MiniBarHistogram({
   values,
   labels,
-  color = '#2a78d6',
+  color = '#006b7d',
   height = 96,
   formatValue,
 }: {

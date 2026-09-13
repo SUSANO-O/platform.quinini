@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { PANEL_TIMEZONE } from '@/lib/panel-dates';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
@@ -346,7 +347,12 @@ export default function InboxPage() {
 
   function fmtDate(iso: string) {
     try {
-      return new Date(iso).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' });
+      // En la zona del panel, igual que el resto de fechas y que la analítica.
+      return new Date(iso).toLocaleString('es', {
+        dateStyle: 'short',
+        timeStyle: 'short',
+        timeZone: PANEL_TIMEZONE,
+      });
     } catch {
       return iso;
     }
