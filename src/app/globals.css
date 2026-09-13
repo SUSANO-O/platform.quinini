@@ -4856,20 +4856,6 @@ button.dashboard-sidebar-link:hover {
   transform: translateY(-1px);
 }
 
-.resource-card__accent,
-.widget-card__accent {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(
-    90deg,
-    var(--resource-accent) 0%,
-    color-mix(in srgb, var(--resource-accent) 55%, #fff) 100%
-  );
-}
-
 .resource-card__head,
 .widget-card__head {
   display: flex;

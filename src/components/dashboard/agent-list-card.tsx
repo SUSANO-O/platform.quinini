@@ -14,7 +14,6 @@ import {
   shortModelDisplay,
   type AgentLike,
 } from '@/lib/agent-list';
-import { avatarStyleFromSeed } from '@/lib/flow-editor/geometry';
 import { DashboardButton, DashboardButtonLink } from '@/components/dashboard/dashboard-button';
 import {
   DashboardDropdownMenu,
@@ -45,7 +44,6 @@ export function AgentListCard({
 }) {
   const isDisabled = agent.status === 'disabled';
   const isPlatform = Boolean(agent.isPlatform);
-  const accent = avatarStyleFromSeed(agent._id || agent.name).color;
   const modelLabel = getModelLabel(agent.model);
   const modelShort = shortModelDisplay(agent.model, modelLabel);
   const description = agent.description?.trim();
@@ -64,7 +62,6 @@ export function AgentListCard({
   return (
     <DashboardResourceCard
       inactive={isDisabled}
-      accentColor={accent}
       statusLabel={isDisabled ? 'Inactivo' : 'Activo'}
       statusOn={!isDisabled}
       headerAction={
