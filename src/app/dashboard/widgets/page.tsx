@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { buildEmbedSnippet } from '@/lib/widget-list';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -41,18 +42,6 @@ interface MultiAgentAnalytics {
     totalParallel?: number;
   };
   enabledWidgets?: number;
-}
-
-function buildMinimalSnippet(w: Widget, origin: string) {
-  return [
-    `<script src="${origin}/widget.js"></script>`,
-    `<script>`,
-    `  window.AgentFlowhub.init({`,
-    `    token: '${w.afhubToken || 'wt_…'}',`,
-    `    host:  '${origin}',`,
-    `  });`,
-    `</script>`,
-  ].join('\n');
 }
 
 export default function WidgetsPage() {
@@ -128,7 +117,7 @@ export default function WidgetsPage() {
   }
 
   function copySnippet(w: Widget) {
-    const code = buildMinimalSnippet(w, origin);
+    const code = buildEmbedSnippet(w.afhubToken ?? '', origin);
     void navigator.clipboard.writeText(code);
     setCopied(true);
     toast.success('Código copiado al portapapeles');
@@ -327,7 +316,7 @@ export default function WidgetsPage() {
                     expanded={expanded === w._id}
                     copied={copied}
                     origin={origin}
-                    buildSnippet={buildMinimalSnippet}
+                    buildSnippet={(widget, host) => buildEmbedSnippet(widget.afhubToken ?? '', host)}
                     onToggleActive={() => void toggleWidgetActive(w)}
                     onToggleCode={() => toggleExpanded(w._id)}
                     onCopyCode={() => copySnippet(w)}
