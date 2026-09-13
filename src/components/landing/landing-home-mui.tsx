@@ -21,6 +21,7 @@ import {
   Braces,
 } from '@/components/ui/icons';
 import { LandingNavbar } from '@/components/landing/landing-navbar';
+import { LandingThemeToggle, useLandingTheme } from '@/components/landing/landing-theme';
 import { LandingFooter } from '@/components/landing/landing-footer';
 import { BotivaOrbLogo } from '@/components/brand/botiva-orb-logo';
 import { HowStepMock } from '@/components/landing/how-step-mock';
@@ -77,6 +78,7 @@ const TESTIMONIAL_PHOTOS = [
 ];
 
 export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
+  const { theme, toggle: toggleTheme } = useLandingTheme();
   const strip = [
     { k: copy.productStrip.agents, d: copy.productStrip.agentsDesc, icon: Bot, href: '#agents' },
     { k: copy.productStrip.widget, d: copy.productStrip.widgetDesc, icon: Boxes, href: '/pricing' },
@@ -93,7 +95,10 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
       </div>
 
       <div className="landing-stage-dark">
-        <LandingNavbar variant="dark" />
+        <LandingNavbar
+          variant={theme}
+          themeToggle={<LandingThemeToggle theme={theme} onToggle={toggleTheme} />}
+        />
 
         {/* HERO — brand + headline + CTA + imagen dominante */}
         <section className="landing-hero">

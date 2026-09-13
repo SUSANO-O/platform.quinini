@@ -38,7 +38,14 @@ const RESOURCE_LINKS = [
   { href: '/soluciones', key: 'solutions' as const },
 ];
 
-export function LandingNavbar({ variant = 'light' }: { variant?: 'light' | 'dark' }) {
+export function LandingNavbar({
+  variant = 'light',
+  themeToggle,
+}: {
+  variant?: 'light' | 'dark';
+  /** Interruptor de tema; solo lo pasa la landing que lo soporta. */
+  themeToggle?: React.ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const [resourcesEl, setResourcesEl] = useState<null | HTMLElement>(null);
   const [mobileResourcesOpen, setMobileResourcesOpen] = useState(false);
@@ -146,6 +153,7 @@ export function LandingNavbar({ variant = 'light' }: { variant?: 'light' | 'dark
               </Menu>
 
               <LanguageSwitcher />
+              {themeToggle}
               {!loading &&
                 (user ? (
                   <Button
@@ -253,8 +261,9 @@ export function LandingNavbar({ variant = 'light' }: { variant?: 'light' | 'dark
             </List>
           </Collapse>
         </List>
-        <Box sx={{ px: 2, pb: 1 }}>
+        <Box sx={{ px: 2, pb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
           <LanguageSwitcher />
+          {themeToggle}
         </Box>
         <Divider sx={{ my: 1 }} />
         <Stack spacing={1} sx={{ px: 2, pb: 3 }}>
