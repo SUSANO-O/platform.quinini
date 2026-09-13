@@ -8,6 +8,7 @@
  */
 
 import { formatDayLabel } from '@/lib/panel-dates';
+import { agentDetailPath } from '@/lib/dashboard-url-hash';
 
 export type AgentLike = {
   _id: string;
@@ -76,6 +77,8 @@ export type AgentChip = {
   label: string;
   title?: string;
   tone: ChipTone;
+  /** Solo en los avisos accionables: a dónde ir a resolverlo. */
+  href?: string;
 };
 
 /**
@@ -104,8 +107,16 @@ export function agentCardChips(
     candidatas.push(
       ragN > 0
         ? { key: 'rag', label: `RAG · ${ragN}`, tone: 'neutral' }
-        // Encendido y sin nada que consultar: eso el dueño tiene que verlo.
-        : { key: 'rag', label: 'RAG sin fuentes', tone: 'warning' },
+        // Encendido y sin nada que consultar: el agente responde a visitantes
+        // reales sin conocimiento. El aviso lleva al almacén, que es donde se
+        // sube el documento que falta.
+        : {
+            key: 'rag',
+            label: 'RAG sin fuentes',
+            tone: 'warning',
+            title: 'Este agente responde sin conocimiento — subí un documento',
+            href: agentDetailPath(agent._id, 'rag'),
+          },
     );
   } else if (ragN > 0) {
     candidatas.push({ key: 'rag', label: `RAG off · ${ragN}`, tone: 'neutral' });
