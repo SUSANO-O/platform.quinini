@@ -12,6 +12,8 @@ import {
   Trash2,
 } from '@/components/ui/icons';
 import { AgentInitialsBadge } from '@/components/dashboard/agent-initials-badge';
+import { formatPosition, formatTheme, multiAgentLabel } from '@/lib/widget-list';
+import { formatDayLabel } from '@/lib/panel-dates';
 import { DashboardButton, DashboardButtonLink } from '@/components/dashboard/dashboard-button';
 import {
   DashboardDropdownMenu,
@@ -40,38 +42,6 @@ export type WidgetListItem = {
   multiAgentMode?: 'triage' | 'parallel' | 'pipeline';
   active?: boolean;
 };
-
-function formatPosition(position: string): string {
-  const map: Record<string, string> = {
-    'bottom-right': 'Abajo der.',
-    'bottom-left': 'Abajo izq.',
-    'top-right': 'Arriba der.',
-    'top-left': 'Arriba izq.',
-  };
-  return map[position] ?? position.replace(/-/g, ' ');
-}
-
-function formatTheme(theme: string): string {
-  if (theme === 'dark') return 'Oscuro';
-  if (theme === 'light') return 'Claro';
-  return theme;
-}
-
-function formatUpdatedLabel(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  if (d.toDateString() === now.toDateString()) return 'Hoy';
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (d.toDateString() === yesterday.toDateString()) return 'Ayer';
-  return d.toLocaleDateString('es', { day: 'numeric', month: 'short' });
-}
-
-function multiLabel(mode?: WidgetListItem['multiAgentMode']): string {
-  if (mode === 'parallel') return 'Paralelo';
-  if (mode === 'pipeline') return 'Pipeline';
-  return 'Triaje';
-}
 
 export function WidgetListCard({
   widget: w,
@@ -175,9 +145,9 @@ export function WidgetListCard({
         <>
           <ResourceCardTag>{formatPosition(w.position)}</ResourceCardTag>
           <ResourceCardTag>{formatTheme(w.theme)}</ResourceCardTag>
-          <ResourceCardTag>{formatUpdatedLabel(w.createdAt)}</ResourceCardTag>
+          <ResourceCardTag>{formatDayLabel(w.createdAt)}</ResourceCardTag>
           {w.multiAgentEnabled ? (
-            <ResourceCardTag accent>{multiLabel(w.multiAgentMode)}</ResourceCardTag>
+            <ResourceCardTag accent>{multiAgentLabel(w.multiAgentMode)}</ResourceCardTag>
           ) : null}
         </>
       }
