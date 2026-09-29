@@ -79,8 +79,8 @@ export function LandingNavbar({
           boxShadow: 'none',
         }}
       >
-        <Container maxWidth="lg" disableGutters sx={{ px: 2.5 }}>
-          <Toolbar disableGutters sx={{ minHeight: 64, gap: 1 }}>
+        <Container maxWidth="lg" disableGutters sx={{ px: 3 }}>
+          <Toolbar disableGutters sx={{ minHeight: 68, gap: 1.25 }}>
             <Box
               component={Link}
               href="/"
@@ -130,10 +130,10 @@ export function LandingNavbar({
                 slotProps={{
                   paper: {
                     sx: {
-                      mt: 1,
+                      mt: 1.25,
                       minWidth: 220,
-                      borderRadius: '12px',
-                      border: '1px solid rgba(15,23,42,0.08)',
+                      borderRadius: '14px',
+                      border: '1px solid rgba(15,23,42,0.06)',
                       boxShadow: '0 12px 32px rgba(15,23,42,0.1)',
                     },
                   },
