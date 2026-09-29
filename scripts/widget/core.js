@@ -2991,14 +2991,15 @@
       }
     }
 
-    function appendFallbackTagToBubble(bubbleEl, modelId, isDebug) {
+    /** Solo visible con cfg.debug=true (equipo interno) — nunca se muestra a un visitante en producción. */
+    function appendFallbackTagToBubble(bubbleEl, modelId) {
       if (!bubbleEl || !modelId) return;
       if (bubbleEl.querySelector('.afhub-fallback-tag')) return;
       var tag = document.createElement('div');
-      tag.className = 'afhub-fallback-tag' + (isDebug ? ' afhub-fallback-tag--debug' : '');
+      tag.className = 'afhub-fallback-tag';
       tag.setAttribute('aria-label', 'Modelo de respaldo usado');
       tag.setAttribute('title', 'Respuesta generada con modelo de respaldo: ' + modelId);
-      tag.textContent = isDebug ? ('↩ fallback · ' + modelId) : '↩ fallback';
+      tag.textContent = 'Modelo de respaldo · ' + modelId;
       bubbleEl.appendChild(tag);
     }
 
@@ -5869,6 +5870,10 @@
         sessionId: chatSessionId,
         visitorId: getOrCreateVisitorId(cfg),
       };
+      try {
+        var visitorTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (visitorTz) payload.timezone = visitorTz;
+      } catch (_tz) { /* noop */ }
       if (userImagesPayload.length) {
         payload.userImages = userImagesPayload;
       }
@@ -6039,7 +6044,7 @@
               if (cfg.showMcpUi) {
                 appendMcpMetadataToBubble(streamBubble, { toolsUsed: stTools, mcpTag: stMcpTag });
               }
-              if (stUsedModel) appendFallbackTagToBubble(streamBubble, stUsedModel, cfg.debug);
+              if (stUsedModel && cfg.debug) appendFallbackTagToBubble(streamBubble, stUsedModel, cfg.debug);
               if (doneEvt.images && doneEvt.images.length) {
                 var firstEvtImg = doneEvt.images[0];
                 var firstEvtUrl = firstEvtImg && (firstEvtImg.dataUrl || firstEvtImg.url);
@@ -6161,7 +6166,7 @@
         function finalizeStandardBubble(botBubble, finalReply) {
           if (standardSurveyStrip.hasSurvey) attachDeflectionSurveyToBubble(botBubble);
           appendMultiAgentBadge(botBubble, data.multiAgent);
-          if (usedModel) appendFallbackTagToBubble(botBubble, usedModel, cfg.debug);
+          if (usedModel && cfg.debug) appendFallbackTagToBubble(botBubble, usedModel, cfg.debug);
           var stdHistEntry = { role: 'model', content: finalReply };
           if (imgs && imgs.length) {
             var stdImgs = sanitizePersistableMediaList(imgs);
@@ -7943,8 +7948,7 @@
         dp + '.afhub-msg-rich .afhub-pre { background:#1a1a24; color:#e8e8ef; border-color:rgba(255,255,255,.08); }' +
         dp + '.afhub-msg-rich .afhub-code { background:#2a2a36; color:#e0e0ea; }' +
         dp + '.afhub-tool-tag,' + dp + '.afhub-mcp-source-tag { background:rgba(255,255,255,.08); color:#a8a8b8; border-color:rgba(255,255,255,.12); }' +
-        dp + '.afhub-fallback-tag { color:rgba(255,255,255,.28) !important; border-color:rgba(255,255,255,.1) !important; background:rgba(255,255,255,.04) !important; }' +
-        dp + '.afhub-fallback-tag--debug { color:#fbbf24 !important; background:rgba(251,191,36,.1) !important; border-color:rgba(251,191,36,.3) !important; }' +
+        dp + '.afhub-fallback-tag { color:#fbbf24 !important; background:rgba(251,191,36,.1) !important; border-color:rgba(251,191,36,.3) !important; }' +
         dp + '.afhub-feedback-btn { color:#a9b0bd; }' +
         dp + '.afhub-feedback-btn:hover { background:rgba(255,255,255,.08); color:#fff; }' +
         dp + '.afhub-flow-options { background:' + chatSurfaceBg + '; border-top:none; }' +
@@ -8468,8 +8472,7 @@
         '; background:rgba(0,0,0,.04); border:1px solid rgba(0,0,0,.1); }' +
       '#' + rootId + ' .afhub-tool-tags { margin-top:8px; display:flex; flex-wrap:wrap; gap:4px; align-items:center; }' +
       '#' + rootId + ' .afhub-msg-rich:has(.afhub-mcp-source-tag) .afhub-tool-tags { margin-top:6px; }' +
-      '#' + rootId + ' .afhub-fallback-tag { margin-top:6px; display:inline-block; font-size:9px; font-weight:500; letter-spacing:.03em; padding:2px 6px; border-radius:4px; color:rgba(0,0,0,.28); background:rgba(0,0,0,.03); border:1px solid rgba(0,0,0,.07); }' +
-      '#' + rootId + ' .afhub-fallback-tag--debug { font-size:10px; font-weight:700; color:#92400e; background:rgba(251,191,36,.12); border-color:rgba(217,119,6,.3); }' +
+      '#' + rootId + ' .afhub-fallback-tag { margin-top:6px; display:inline-block; font-size:10px; font-weight:700; letter-spacing:.02em; padding:3px 8px; border-radius:6px; color:#92400e; background:rgba(251,191,36,.12); border:1px solid rgba(217,119,6,.3); }' +
       '#' + rootId + ' .afhub-tool-tag { font-size:10px; line-height:1.25; letter-spacing:.02em; padding:2px 6px; border-radius:6px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:rgba(0,0,0,.06); color:#5a5a6e; border:1px solid rgba(0,0,0,.08); }' +
       '#' + rootId + ' .afhub-img-wrap { margin-top:10px; max-width:100%; display:flex; flex-direction:column; gap:8px; }' +
       '#' + rootId + ' .afhub-widget-img { display:block; width:100%; max-width:100%; height:auto; vertical-align:middle; }' +

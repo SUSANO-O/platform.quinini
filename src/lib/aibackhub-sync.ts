@@ -136,6 +136,8 @@ export type HubCatalogAgent = {
   isPlatform?: boolean;
   strictPurposeOnly?: boolean;
   hubspotAutoCaptureContacts?: boolean;
+  /** Override de zona horaria (IANA); vacío = automática (la del visitante). */
+  timezone?: string;
   /** Skills del agente (IDs del catálogo agent-skills.ts). */
   skills?: string[];
   /** Config runtime de skills (prompt/tools/settings). */
@@ -291,6 +293,8 @@ export async function pushClientAgentToHubCatalog(agent: {
   }> | null;
   strictPurposeOnly?: boolean;
   hubspotAutoCaptureContacts?: boolean;
+  /** Override de zona horaria (IANA); vacío = automática (la del visitante). */
+  timezone?: string;
   /** Modelos de respaldo (máx. 3) a intentar en orden si el modelo principal falla. */
   fallbackModels?: string[] | null;
 }): Promise<boolean> {
@@ -362,6 +366,9 @@ export async function pushClientAgentToHubCatalog(agent: {
     payload.strictPurposeOnly = agent.strictPurposeOnly !== false;
     if (typeof agent.hubspotAutoCaptureContacts === 'boolean') {
       payload.hubspotAutoCaptureContacts = agent.hubspotAutoCaptureContacts;
+    }
+    if (agent.timezone) {
+      payload.timezone = agent.timezone;
     }
     if (Array.isArray(agent.fallbackModels)) {
       payload.fallbackModels = agent.fallbackModels;
@@ -454,6 +461,8 @@ type LandingAgentDocLike = {
   }>;
   strictPurposeOnly?: boolean;
   hubspotAutoCaptureContacts?: boolean;
+  /** Override de zona horaria (IANA); vacío = automática (la del visitante). */
+  timezone?: string;
   fallbackModels?: string[];
 };
 
@@ -492,6 +501,9 @@ export async function syncHubCatalogFromLandingAgentDoc(
   };
   if (typeof agent.hubspotAutoCaptureContacts === 'boolean') {
     payload.hubspotAutoCaptureContacts = agent.hubspotAutoCaptureContacts;
+  }
+  if (agent.timezone) {
+    payload.timezone = agent.timezone;
   }
   if (agent.widgetPublicToken !== undefined) {
     payload.widgetPublicToken =
@@ -552,6 +564,8 @@ export type CreateHubAgentFromLandingInput = {
   fallbackModels?: string[];
   strictPurposeOnly?: boolean;
   hubspotAutoCaptureContacts?: boolean;
+  /** Override de zona horaria (IANA); vacío = automática (la del visitante). */
+  timezone?: string;
 };
 
 /**
@@ -596,6 +610,9 @@ export async function postCreateLandingAgentOnHubCatalog(
   payload.strictPurposeOnly = agent.strictPurposeOnly !== false;
   if (typeof agent.hubspotAutoCaptureContacts === 'boolean') {
     payload.hubspotAutoCaptureContacts = agent.hubspotAutoCaptureContacts;
+  }
+  if (agent.timezone) {
+    payload.timezone = agent.timezone;
   }
   if (Array.isArray(agent.tools)) {
     payload.tools = normalizeLandingTools(agent.tools);

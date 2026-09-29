@@ -190,6 +190,7 @@ interface ClientAgent {
   fastPathModel?: string;
   inferenceTemperature?: number | null;
   inferenceMaxTokens?: number | null;
+  timezone?: string;
   type: 'agent' | 'sub-agent'; status: 'active' | 'disabled';
   tools: ToolConfig[]; ragEnabled: boolean; ragSources: RagSource[];
   subAgentIds: string[]; syncStatus: string; agentHubId: string | null;
@@ -367,6 +368,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [strictPurposeOnly, setStrictPurposeOnly] = useState(true);
   const [inferenceTemperature, setInferenceTemperature] = useState('');
   const [inferenceMaxTokens, setInferenceMaxTokens] = useState('');
+  const [timezone, setTimezone] = useState('');
   const [fastPathModel, setFastPathModel] = useState('');
   const [fallbackModels, setFallbackModels] = useState<string[]>([]);
   const [visionEnabled, setVisionEnabled] = useState(false);
@@ -579,6 +581,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           typeof a.persistConversationHistory === 'boolean' ? a.persistConversationHistory : true,
         );
         setStrictPurposeOnly(a.strictPurposeOnly !== false);
+        setTimezone(typeof a.timezone === 'string' ? a.timezone : '');
         setInferenceTemperature(
           typeof a.inferenceTemperature === 'number' ? String(a.inferenceTemperature) : '',
         );
@@ -912,6 +915,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       widgetPublicToken: widgetPublicToken.trim() ? widgetPublicToken.trim().slice(0, 512) : null,
       persistConversationHistory,
       strictPurposeOnly,
+      timezone: timezone.trim(),
       vision: {
         enabled: visionEnabled,
         model: visionModel,
@@ -1657,7 +1661,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         <>
           <AgentEditorSection>
             <p className={SECTION_TITLE}>Información básica</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '5px' }}>Nombre</label>
                 <input className="landing-input" style={inp} value={name} onChange={(e) => setName(e.target.value)} disabled={readOnly} />
@@ -1842,7 +1846,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               inputStyle={inp}
             />
             {!soloChatOnly && (
-            <div style={{ marginTop: '14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
+            <div style={{ marginTop: '18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '6px', color: 'var(--muted-foreground)' }}>
                   Temperatura inferencia (0–2, opcional)
@@ -1880,6 +1884,21 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   placeholder="Ej: gemini-2.5-flash-lite (vacío = auto barato)"
                   disabled={readOnly}
                 />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '6px', color: 'var(--muted-foreground)' }}>
+                  Zona horaria (opcional)
+                </label>
+                <input
+                  style={inp}
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                  placeholder="Vacío = automática (la del visitante)"
+                  disabled={readOnly}
+                />
+                <p style={{ fontSize: '10.5px', color: 'var(--muted-foreground)', marginTop: '4px', lineHeight: 1.4 }}>
+                  El agente siempre sabe la fecha y hora exacta. Por defecto usa la del navegador de quien escribe; poné un IANA tz (ej. <code style={{ fontSize: '10px' }}>America/Bogota</code>) para fijarla.
+                </p>
               </div>
             </div>
             )}
@@ -1940,7 +1959,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               </span>
             </label>
             {visionEnabled && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '6px', color: 'var(--muted-foreground)' }}>
                     Modelo de visión
@@ -2036,7 +2055,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--muted-foreground)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Perfiles de comportamiento
             </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '24px' }}>
               {skillCatalogLoading ? (
                 <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: '0 0 8px' }}>Cargando catálogo…</p>
               ) : null}
@@ -2241,7 +2260,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               </p>
             </AgentEditorSection>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {behaviorRules
                 .slice()
                 .sort((a, b) => a.priority - b.priority)
@@ -2453,7 +2472,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               </p>
             </AgentEditorSection>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {agentFaqs
                 .slice()
                 .sort((a, b) => a.priority - b.priority)
@@ -3462,7 +3481,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             return (
               <AgentEditorSection key={t.toolId}>
                 <p className={SECTION_TITLE}>{def.icon} {def.name} — Configuración</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   {def.configFields.map((field) => (
                     <div key={field.key}>
                       <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>
@@ -3868,7 +3887,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         Ninguna fuente coincide con la búsqueda. Ajusta el filtro o el orden.
                       </p>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                         {displayRagEntries.map(({ src, i }) => {
                           if (src.type === 'file') {
                             // File source — read-only display
@@ -4188,7 +4207,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               {showNewSub && !readOnly && (
                 <AgentEditorSection outerStyle={{ borderColor: 'rgba(var(--brand-primary-rgb),0.35)' }}>
                   <p className={SECTION_TITLE}>Nuevo sub-agente</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     <input
                       className="landing-input"
                       style={inp}
