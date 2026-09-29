@@ -420,6 +420,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       (agent as { inferenceMaxTokens?: number | null }).inferenceMaxTokens = Math.floor(v);
     }
   }
+  if ('timezone' in body) {
+    const v = body.timezone;
+    (agent as { timezone?: string }).timezone = typeof v === 'string' ? v.trim() : '';
+  }
   if ('widgetPublicToken' in body) {
     const v = body.widgetPublicToken;
     if (v === null || v === '') {

@@ -489,7 +489,7 @@ export function WidgetBuilderBehaviorStep({
         title="Funcionalidades extra"
         description="Activa u oculta opciones del launcher y del chat. Se aplican en vivo en todos los sitios donde esté instalado el widget."
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <WidgetBuilderSwitch
               checked={cfg.autoOpen}

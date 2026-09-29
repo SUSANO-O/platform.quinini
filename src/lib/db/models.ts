@@ -297,6 +297,12 @@ const ClientAgentSchema = new Schema({
   /** Override opcional vs catálogo AIBackHub (widget). */
   inferenceTemperature: { type: Number, required: false },
   inferenceMaxTokens:   { type: Number, required: false },
+  /**
+   * Override de zona horaria (IANA, ej. "America/Bogota"). Vacío = automática:
+   * usa la del navegador del visitante que abre el widget. Editable en la
+   * edición del agente; aplica a este agente y a los que se creen después.
+   */
+  timezone:        { type: String, default: '' },
   type:            { type: String, enum: ['agent', 'sub-agent'], default: 'agent' },
   parentAgentId:   { type: String, default: null }, // only for sub-agents
   status:          { type: String, enum: ['active', 'disabled'], default: 'active' },
