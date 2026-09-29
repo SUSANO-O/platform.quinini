@@ -7892,7 +7892,7 @@
         dp + '.afhub-chat--scroll-top .afhub-scroll-halo--top { opacity:1; }' +
         dp + '.afhub-chat--scroll-bottom .afhub-scroll-halo--bottom { opacity:1; }' +
         dp + '.afhub-header-info h3 { color:' + headerText + '; }' +
-        dp + '.afhub-header-status { color:' + headerSubtext + '; }' +
+        dp + '.afhub-header-status { color:' + headerSubtext + '; border-color:rgba(255,255,255,.12); }' +
         dp + '.afhub-status-dot { background:#4ade80; box-shadow:0 0 0 1px rgba(255,255,255,.35); }' +
         dp + '.afhub-header-icon-btn { color:' + headerIcon + '; }' +
         dp + '.afhub-header-icon-btn:hover,' + dp + '.afhub-header-icon-btn:active { background:rgba(255,255,255,.14); color:#fff; }' +
@@ -8347,7 +8347,7 @@
       '#' + rootId + '-scrim,.afhub-scrim { display:none; position:fixed; inset:0; background:rgba(15,23,42,.28); z-index:9; backdrop-filter:blur(3px); opacity:0; transition:opacity .72s cubic-bezier(.22,.61,.36,1); }' +
       '#' +
         rootId +
-        ' .afhub-header { padding:14px 18px 12px; color:#0f172a; display:flex; align-items:center; gap:12px; flex-shrink:0; background:' + chatSurfaceBg + '; position:relative; box-shadow:none; }' +
+        ' .afhub-header { padding:18px 20px 14px; color:#0f172a; display:flex; align-items:center; gap:14px; flex-shrink:0; background:' + chatSurfaceBg + '; position:relative; box-shadow:none; }' +
       '#' + rootId + ' .afhub-header::before { display:none; }' +
       '#' + rootId + ' .afhub-header > * { position:relative; z-index:1; }' +
       '#' + rootId + ' .afhub-avatar { width:40px; height:40px; border-radius:50%; background:transparent; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; border:none; box-shadow:none; }' +
@@ -8359,7 +8359,7 @@
       '#' + rootId + ' .afhub-avatar svg { width:18px; height:18px; opacity:.92; color:#64748b; }' +
       '#' + rootId + ' .afhub-header-info { flex:1; min-width:0; }' +
       '#' + rootId + ' .afhub-header-info h3 { font-size:15px; font-weight:700; letter-spacing:-.025em; line-height:1.25; color:#111111; }' +
-      '#' + rootId + ' .afhub-header-status { display:flex; align-items:center; gap:5px; font-size:10.5px; font-weight:500; letter-spacing:-.005em; text-transform:none; opacity:.78; margin-top:2px; line-height:1.2; color:#737373; }' +
+      '#' + rootId + ' .afhub-header-status { display:flex; align-items:center; gap:6px; font-size:10.5px; font-weight:500; letter-spacing:-.005em; text-transform:none; opacity:.78; margin-top:4px; line-height:1.2; color:#737373; padding:2px 9px 2px 7px; border-radius:999px; border:1px solid rgba(0,0,0,.07); width:fit-content; }' +
       '#' + rootId + ' .afhub-status-dot { width:6px; height:6px; border-radius:50%; background:#22c55e; box-shadow:0 0 0 1px rgba(34,197,94,.28); flex-shrink:0; animation:none; }' +
       '#' + rootId + ' .afhub-header-actions { display:flex; align-items:center; gap:2px; flex-shrink:0; margin-left:auto; }' +
       '#' + rootId + ' .afhub-header-icon-btn { flex-shrink:0; width:28px; height:28px; min-width:28px; min-height:28px; background:transparent; border:none; color:#64748b; cursor:pointer; padding:0; border-radius:8px; opacity:1; display:inline-flex; align-items:center; justify-content:center; line-height:0; transition:background .14s ' + macSpring + ',color .14s; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; }' +
@@ -8719,17 +8719,17 @@
       '#' + rootId + ' .afhub-shortcuts::-webkit-scrollbar { display:none; }' +
       '#' + rootId + ' .afhub-shortcuts-overlay { display:none; position:absolute; inset:0; z-index:35; background:rgba(15,23,42,.42); align-items:flex-end; justify-content:center; padding:10px 12px 14px; box-sizing:border-box; -webkit-backdrop-filter:blur(2px); backdrop-filter:blur(2px); }' +
       '#' + rootId + ' .afhub-shortcuts-overlay.visible { display:flex; }' +
-      '#' + rootId + ' .afhub-shortcuts-modal { width:100%; max-height:min(62vh,420px); background:#ffffff; border-radius:16px; border:1px solid rgba(0,0,0,.08); box-shadow:0 16px 48px rgba(15,23,42,.18); display:flex; flex-direction:column; overflow:hidden; animation:afhub-shortcuts-in .24s ease-out; }' +
-      '#' + rootId + ' .afhub-shortcuts-modal-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:12px 14px 8px; border-bottom:1px solid rgba(0,0,0,.06); flex-shrink:0; }' +
+      '#' + rootId + ' .afhub-shortcuts-modal { width:100%; max-height:min(62vh,420px); background:#ffffff; border-radius:18px; border:1px solid rgba(0,0,0,.06); box-shadow:0 16px 48px rgba(15,23,42,.18); display:flex; flex-direction:column; overflow:hidden; animation:afhub-shortcuts-in .24s ease-out; }' +
+      '#' + rootId + ' .afhub-shortcuts-modal-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:14px 16px 10px; border-bottom:1px solid rgba(0,0,0,.05); flex-shrink:0; }' +
       '#' + rootId + ' .afhub-shortcuts-modal-head h4 { margin:0; font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#94a3b8; }' +
       '#' + rootId + ' .afhub-shortcuts-close { width:28px; height:28px; border:none; border-radius:8px; background:transparent; color:#64748b; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-shortcuts-close:hover { background:rgba(0,0,0,.06); color:#0f172a; }' +
       '#' + rootId + ' .afhub-shortcuts-close svg { width:16px; height:16px; stroke-width:2.25; }' +
-      '#' + rootId + ' .afhub-shortcuts-modal-list { display:flex; flex-direction:column; gap:6px; padding:10px 12px 12px; overflow-y:auto; max-height:min(52vh,360px); scrollbar-width:thin; }' +
+      '#' + rootId + ' .afhub-shortcuts-modal-list { display:flex; flex-direction:column; gap:10px; padding:12px 14px 14px; overflow-y:auto; max-height:min(52vh,360px); scrollbar-width:thin; }' +
       '@keyframes afhub-shortcuts-in { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }' +
-      '#' + rootId + ' .afhub-shortcut-pill { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:12px; border:1px solid rgba(0,0,0,.06); background:#ffffff; color:#1c1c1e; font-size:13px; font-weight:500; letter-spacing:-.012em; cursor:pointer; font-family:inherit; transition:background .2s ' + macSpring + ',box-shadow .2s ' + macSpring + ',border-color .2s ' + macSpring + '; text-align:left; width:100%; box-sizing:border-box; box-shadow:none; }' +
+      '#' + rootId + ' .afhub-shortcut-pill { display:flex; align-items:center; gap:11px; padding:13px 14px; border-radius:14px; border:1px solid rgba(0,0,0,.045); background:#ffffff; color:#1c1c1e; font-size:13px; font-weight:500; letter-spacing:-.012em; cursor:pointer; font-family:inherit; transition:background .2s ' + macSpring + ',box-shadow .2s ' + macSpring + ',border-color .2s ' + macSpring + '; text-align:left; width:100%; box-sizing:border-box; box-shadow:none; }' +
       '#' + rootId + ' .afhub-shortcut-pill:hover { background:#ffffff; box-shadow:0 2px 8px rgba(0,0,0,.06); color:#0f172a; border-color:' + cfg.color + '40; }' +
-      '#' + rootId + ' .afhub-pill-icon { font-size:15px; flex-shrink:0; width:22px; text-align:center; }' +
+      '#' + rootId + ' .afhub-pill-icon { font-size:15px; flex-shrink:0; width:24px; text-align:center; }' +
       '#' + rootId + ' .afhub-pill-text { flex:1; line-height:1.4; white-space:normal; overflow-wrap:break-word; word-break:break-word; min-width:0; }' +
       '#' + rootId + ' .afhub-pill-arrow { font-size:16px; color:#cbd5e1; flex-shrink:0; font-weight:400; line-height:1; }' +
       // Aviso de privacidad / política (footer del chat)
@@ -8737,13 +8737,13 @@
       '#' + rootId + ' .afhub-policy-link { color:' + cfg.color + '; text-decoration:underline; }' +
       '#' + rootId + ' a.afhub-policy-link { cursor:pointer; }' +
       '#' + rootId + ' a.afhub-policy-link:hover { filter:brightness(0.9); }' +
-      '#' + rootId + ' .afhub-input-area { padding:8px 16px 10px; border-top:none; display:flex; gap:8px; flex-shrink:0; width:100%; box-sizing:border-box; background:' + chatSurfaceBg + '; align-items:flex-end; box-shadow:none; border-radius:0; overflow:hidden; }' +
+      '#' + rootId + ' .afhub-input-area { padding:10px 18px 14px; border-top:none; display:flex; gap:8px; flex-shrink:0; width:100%; box-sizing:border-box; background:' + chatSurfaceBg + '; align-items:flex-end; box-shadow:none; border-radius:0; overflow:hidden; }' +
       '#' + rootId + ' .afhub-flow-options { display:none; flex-wrap:wrap; gap:6px; padding:8px 12px 4px; border-top:none; background:' + chatSurfaceBg + '; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-flow-opt-btn { flex:1 1 calc(50% - 6px); min-width:120px; padding:8px 10px; border-radius:10px; border:none; background:rgba(255,255,255,.55); color:#0f172a; font-size:13px; font-weight:500; cursor:pointer; transition:background .15s,box-shadow .15s; text-align:left; line-height:1.35; box-shadow:0 1px 3px rgba(15,23,42,.04); }' +
       '#' + rootId + ' .afhub-flow-opt-btn:hover { background:rgba(255,255,255,.72); box-shadow:0 2px 8px rgba(15,23,42,.06); }' +
       '#' + rootId + ' .afhub-input-composer { flex:1 1 0; width:100%; min-width:0; max-width:100%; position:relative; isolation:isolate; display:block; padding:2px; border-radius:999px; background:' + composerShellBg + '; border:none; overflow:hidden; contain:paint; clip-path:inset(0 round 999px); -webkit-clip-path:inset(0 round 999px); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }' +
       '#' + rootId + ' .afhub-input-composer--agent-busy { flex:1 1 0; width:100%; max-width:100%; }' +
-      '#' + rootId + ' .afhub-input-composer-inner { position:relative; z-index:1; display:flex; align-items:flex-end; gap:2px; width:100%; max-width:100%; box-sizing:border-box; padding:5px 8px 5px 6px; border-radius:999px; background:' + composerInnerBg + '; border:none; box-shadow:' + composerInnerShadow + '; -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); }' +
+      '#' + rootId + ' .afhub-input-composer-inner { position:relative; z-index:1; display:flex; align-items:flex-end; gap:4px; width:100%; max-width:100%; box-sizing:border-box; padding:7px 10px 7px 8px; border-radius:999px; background:' + composerInnerBg + '; border:none; box-shadow:' + composerInnerShadow + '; -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); }' +
       /* Border beam: conic sobre el box real + mask anillo → borde continuo (sin elipses rotas). */
       '#' + rootId + ' .afhub-input-beam-ring {' +
         'position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;opacity:0;' +
