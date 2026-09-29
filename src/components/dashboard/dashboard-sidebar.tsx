@@ -118,9 +118,9 @@ function AssistantHelpRestoreItem({
         alignItems: 'center',
         justifyContent: collapsed ? 'center' : 'flex-start',
         gap: collapsed ? 0 : 12,
-        padding: collapsed ? '9px 0' : '8px 10px',
-        marginTop: 2,
-        borderRadius: 10,
+        padding: collapsed ? '10px 0' : '10px 12px',
+        marginTop: 4,
+        borderRadius: 12,
         fontSize: 13,
         width: '100%',
         textAlign: 'left',
@@ -186,11 +186,11 @@ function SidebarNavLink({
       data-tour={SIDEBAR_TOUR_KEY_BY_HREF[href]}
       selected={active}
       sx={{
-        borderRadius: 2.5,
-        mb: 0.25,
-        minHeight: 42,
+        borderRadius: 3,
+        mb: 0.5,
+        minHeight: 44,
         justifyContent: collapsed ? 'center' : 'flex-start',
-        px: collapsed ? 1 : 1.25,
+        px: collapsed ? 1 : 1.5,
         position: 'relative',
         // El estado activo venía del gris por defecto de MUI y casi no se
         // distinguía del hover. Ahora la página en la que estás se lee de un
@@ -476,10 +476,10 @@ export function DashboardSidebar({
         margin: 0,
         background: SIDEBAR_SURFACE,
         border: 'none',
-        borderRight: isDesktop ? '1px solid var(--border)' : 'none',
+        borderRight: isDesktop ? '1px solid var(--border-subtle)' : 'none',
         borderRadius: 0,
         flexDirection: 'column',
-        padding: rail ? '12px 8px' : '14px 11px',
+        padding: rail ? '14px 10px' : '18px 14px',
         overflow: 'hidden',
         transition: 'width 0.22s ease, padding 0.22s ease',
         boxShadow: undefined,
