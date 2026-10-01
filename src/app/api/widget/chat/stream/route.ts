@@ -76,6 +76,7 @@ import {
 } from '@/lib/widget-chat-latency';
 import { friendlyWidgetChatError } from '@/lib/widget-chat-user-errors';
 import { attachAssistNavToPayload, buildAssistNavCtx } from '@/lib/assist-chat-reply';
+import { stripWidgetNavBlocks } from '@/lib/widget-page-nav';
 import { isLocalDevLimitsBypass } from '@/lib/dev-limits';
 import { logInferenceMetric, estimateTokens } from '@/lib/inference-metrics';
 import { checkAndBuildTicketDeflectionReply } from '@/lib/ticket-deflection-flow';
@@ -582,7 +583,7 @@ export async function POST(req: NextRequest) {
 
         if (ticketDeflection.intercepted) {
           const text = ticketDeflection.text;
-          await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, text));
+          await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, stripWidgetNavBlocks(text)));
           emitDoneAndPersist(
             enqueue,
             attachAssistNavToPayload(
@@ -634,7 +635,7 @@ export async function POST(req: NextRequest) {
                 creativeAgent: pipeline.meta.routedAgentName,
               });
               emitWidgetChatStatus(enqueue, 'model');
-              await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, pipeline.reply));
+              await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, stripWidgetNavBlocks(pipeline.reply)));
               if (widgetToken.startsWith('wt_') && parsedAgentIdLocal) {
                 void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true, undefined, meteringInput).catch(() => {});
               }
@@ -714,7 +715,7 @@ export async function POST(req: NextRequest) {
                 synthesized: parallel.meta.synthesized,
               });
               emitWidgetChatStatus(enqueue, 'model');
-              await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, parallel.reply));
+              await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, stripWidgetNavBlocks(parallel.reply)));
               if (widgetToken.startsWith('wt_') && parsedAgentIdLocal) {
                 void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true, undefined, meteringInput).catch(() => {});
               }
@@ -874,7 +875,7 @@ export async function POST(req: NextRequest) {
                 replyLen: directMcp.reply.length,
                 toolsUsed: directMcp.toolsUsed ?? [],
               });
-              await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, directMcp.reply));
+              await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, stripWidgetNavBlocks(directMcp.reply)));
               void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true, undefined, meteringInput).catch(() => {});
               if (faqTrackOwnerId) {
                 void trackWidgetUserMessageForFaqCandidates({
@@ -962,7 +963,7 @@ export async function POST(req: NextRequest) {
                 replyLen: inferredEarly.reply.length,
                 usedModel: inferredEarly.usedModel,
               });
-              await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, inferredEarly.reply));
+              await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, stripWidgetNavBlocks(inferredEarly.reply)));
               void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true, undefined, meteringInput).catch(() => {});
               if (faqTrackOwnerId) {
                 void trackWidgetUserMessageForFaqCandidates({
@@ -1075,7 +1076,7 @@ export async function POST(req: NextRequest) {
                 replyLen: inferred.reply.length,
                 usedModel: inferred.usedModel,
               });
-              await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, inferred.reply));
+              await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, stripWidgetNavBlocks(inferred.reply)));
               void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true, undefined, meteringInput).catch(() => {});
               if (faqTrackOwnerId) {
                 void trackWidgetUserMessageForFaqCandidates({
@@ -1209,7 +1210,7 @@ export async function POST(req: NextRequest) {
         const images = Array.isArray(json.images) && json.images.length ? json.images : undefined;
         const usedModel =
           typeof json.usedModel === 'string' && json.usedModel.trim() ? json.usedModel.trim() : undefined;
-        await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, fullReply));
+        await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, stripWidgetNavBlocks(fullReply)));
         // Mismas 4 condiciones que antes tenía el guardado (anidadas más abajo,
         // lejos del enqueue del done) — se evalúan acá para que emitDoneAndPersist
         // sea el único lugar que decide "responder + (tal vez) persistir".

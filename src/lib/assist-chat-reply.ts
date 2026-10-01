@@ -10,6 +10,8 @@ import {
   type AssistNavOffer,
 } from '@/lib/assist-agent-navigation';
 
+import { finalizeWidgetNavReply } from '@/lib/widget-page-nav';
+
 export type { AssistNavInferContext, AssistNavOffer };
 
 export function finalizeAssistChatReply(
@@ -17,9 +19,9 @@ export function finalizeAssistChatReply(
   isAssist: boolean,
   navCtx?: AssistNavInferContext,
 ): { reply: string; navOffer?: AssistNavOffer } {
-  if (!isAssist || !rawReply?.trim()) {
-    return { reply: rawReply };
-  }
+  if (!rawReply?.trim()) return { reply: rawReply };
+  // Widgets de clientes: navegación genérica (solo rutas del mismo sitio, bloque assist-nav).
+  if (!isAssist) return finalizeWidgetNavReply(rawReply) as { reply: string; navOffer?: AssistNavOffer };
   return resolveAssistAgentNavigation(rawReply, navCtx || {});
 }
 
@@ -29,6 +31,15 @@ export function attachAssistNavToPayload<T extends Record<string, unknown>>(
   rawReply: string,
   navCtx?: AssistNavInferContext,
 ): T & { navOffer?: AssistNavOffer } {
+  if (!isAssist) {
+    if (!rawReply?.trim()) return payload;
+    const nav = finalizeWidgetNavReply(rawReply);
+    return {
+      ...payload,
+      reply: nav.reply,
+      ...(nav.navOffer ? { navOffer: nav.navOffer as AssistNavOffer } : {}),
+    };
+  }
   return attachAssistNavigationToChat(
     payload,
     isAssist,
