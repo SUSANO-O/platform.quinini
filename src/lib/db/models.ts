@@ -146,6 +146,8 @@ const WidgetSchema = new Schema({
   autoOpen:     { type: Boolean, default: false },
   /** Si false, no muestra la X para ocultar el launcher. */
   fabDismissible: { type: Boolean, default: true },
+  /** Al abrir el chat como barra lateral, la página se reacomoda en vez de quedar tapada. */
+  pushContent: { type: Boolean, default: false },
   /** Si false, oculta el botón de lectura en voz alta (speaker) en el header del chat. */
   voiceEnabled: { type: Boolean, default: false },
   /** Si false, oculta el botón adjuntar (📎) en el input del chat. */
