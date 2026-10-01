@@ -53,6 +53,10 @@ const MCP_INTEGRATION_TOPICS: Record<string, { label: string; topics: string[] }
     label: 'PostgreSQL',
     topics: ['base de datos', 'postgresql', 'postgres', 'sql', 'tabla', 'tablas'],
   },
+  mysql: {
+    label: 'MySQL',
+    topics: ['base de datos', 'mysql', 'sql', 'tabla', 'tablas', 'mis datos'],
+  },
   hubspot: {
     label: 'HubSpot CRM',
     topics: ['crm', 'hubspot', 'contacto', 'contactos', 'lead', 'leads', 'pipeline'],

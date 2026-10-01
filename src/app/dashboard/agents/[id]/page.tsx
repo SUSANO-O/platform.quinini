@@ -851,6 +851,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       toolId === 'notion' ||
       toolId === 'mongodb' ||
       toolId === 'postgres' ||
+      toolId === 'mysql' ||
       toolId === 'zapier'
     ) {
       return true;

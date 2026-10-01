@@ -11985,3 +11985,138 @@ button.dashboard-meta-chip:disabled {
     linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, #f1f5f9 38%, #eef2f7 100%);
   color: var(--foreground);
 }
+
+/* ── Widget preview ──────────────────────────────────────────────────────
+   Misma estructura que agent-editor-page: contenedor centrado, cabecera y
+   rejilla rail + main. Antes era una columna de tarjetas con estilos inline,
+   que en pantallas anchas se estiraba sin límite y obligaba a recorrer nueve
+   tarjetas a ciegas para encontrar un dato. */
+
+.widget-preview-page__inner {
+  position: relative;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.widget-preview-page__header {
+  margin-bottom: 1.25rem;
+}
+
+.widget-preview-page__grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@media (min-width: 1024px) {
+  .widget-preview-page__grid {
+    display: grid;
+    grid-template-columns: 13rem minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  .widget-preview-page__grid > .builder-rail {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .widget-preview-page__main {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+  }
+}
+
+/* Las tarjetas siguen fluyendo, pero dentro del main y no a ancho completo. */
+.widget-preview-page__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  gap: 1rem;
+}
+
+.widget-preview-page__card {
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in oklab, var(--foreground) 10%, transparent);
+  background: color-mix(in oklab, var(--foreground) 2%, transparent);
+  scroll-margin-top: 1.5rem;
+}
+
+.widget-preview-page__card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.625rem;
+  margin-bottom: 0.625rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--foreground) 8%, transparent);
+  font-weight: 700;
+  font-size: 0.8125rem;
+}
+
+/* Filas etiqueta/valor.
+   Rejilla en vez de flex con `nowrap`: la versión anterior recortaba el valor
+   a 220 px con puntos suspensivos, así que los IDs, los tokens y los textos
+   de bienvenida quedaban ilegibles justo en la pantalla que existe para
+   consultarlos. Ahora el valor envuelve y se lee entero. */
+.widget-preview-page__row {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, auto) minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.25rem 0;
+  font-size: 0.75rem;
+}
+
+.widget-preview-page__row + .widget-preview-page__row {
+  border-top: 1px solid color-mix(in oklab, var(--foreground) 5%, transparent);
+}
+
+.widget-preview-page__row-label {
+  color: var(--muted-foreground);
+}
+
+.widget-preview-page__row-value {
+  font-weight: 500;
+  text-align: right;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.widget-preview-page__row-value--mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.6875rem;
+}
+
+/* Copiar: los valores monoespaciados son identificadores que la gente viene a
+   copiar. Seleccionarlos a mano en un texto que envuelve es incómodo. */
+.widget-preview-page__copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+  text-align: right;
+  border-radius: 0.25rem;
+}
+
+.widget-preview-page__copy:hover {
+  color: var(--foreground);
+}
+
+.widget-preview-page__copy-icon {
+  opacity: 0;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.widget-preview-page__copy:hover .widget-preview-page__copy-icon,
+.widget-preview-page__copy:focus-visible .widget-preview-page__copy-icon {
+  opacity: 0.6;
+}

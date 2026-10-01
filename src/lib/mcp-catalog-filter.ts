@@ -10,6 +10,7 @@ export const MCP_INTEGRATION_MIN_PLAN: Record<string, PlanId> = {
   google_calendar: 'plus',
   mongodb: 'business',
   postgres: 'business',
+  mysql: 'business',
 };
 
 export function minPlanForMcpIntegration(key: string): PlanId {
