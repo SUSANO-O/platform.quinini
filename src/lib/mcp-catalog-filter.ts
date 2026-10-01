@@ -5,12 +5,12 @@ import { planRank, PLAN_DISPLAY, hasFeatureOverride, CUSTOM_INTEGRATION_FEATURE,
  * Claves deben coincidir con AIBackHub MCP_INTEGRATION_CATALOG.
  */
 export const MCP_INTEGRATION_MIN_PLAN: Record<string, PlanId> = {
-  gmail: 'plus',
+  gmail: 'team',
   hubspot: 'plus',
   google_calendar: 'plus',
-  mongodb: 'business',
-  postgres: 'business',
-  mysql: 'business',
+  mongodb: 'team',
+  postgres: 'team',
+  mysql: 'team',
 };
 
 export function minPlanForMcpIntegration(key: string): PlanId {
