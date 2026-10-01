@@ -14,7 +14,8 @@ import {
   tryServeWidgetChatViaDirectInference,
 } from '@/lib/widget-chat-direct-inference';
 import { connectDB } from '@/lib/db/connection';
-import { ClientAgent, Subscription, ConversationSession, WidgetMessage } from '@/lib/db/models';
+import { ClientAgent, Subscription, ConversationSession, Widget, WidgetMessage } from '@/lib/db/models';
+import { extractIdentityFromChatBody, injectVerifiedIdentity, verifyWidgetIdentity } from '@/lib/widget-identity';
 import { findWidgetForWtToken, isWidgetActive, sentAgentIdMatchesWidget } from '@/lib/widget-token-verify';
 import { trackWidgetChatUsage } from '@/lib/platform-agent-utils';
 import { detectWidgetMeteringChannel } from '@/lib/metering';
@@ -224,7 +225,11 @@ export async function POST(req: NextRequest) {
   const imageEnriched = await latencyTrace.span('vision', () =>
     enrichWidgetChatBodyWithImages(rawBodyInitial),
   );
-  let rawBody = imageEnriched.body;
+  // Identidad firmada (fase 2): el navegador nunca puede mandar `verifiedIdentity`; la
+  // `identity` firmada se aparta y solo se verifica cuando el token del widget es válido.
+  const identitySplit = extractIdentityFromChatBody(imageEnriched.body);
+  let rawBody = identitySplit.body;
+  const signedIdentityRaw = identitySplit.identity;
   const imageEnrichment: WidgetImageEnrichment | null = imageEnriched.enrichment;
   let activeVisionEnrichment: WidgetImageEnrichment | null = imageEnrichment;
 
@@ -390,6 +395,29 @@ export async function POST(req: NextRequest) {
           parsedVisitorId = normalizeVisitorId(reparse.visitorId) ?? parsedVisitorId;
         } catch (enrichErr) {
           console.warn('[widget/chat] enrich body skipped:', enrichErr);
+        }
+
+        if (signedIdentityRaw !== undefined) {
+          try {
+            const sec = (await Widget.findById(w.id).select('+identitySecret').lean()) as {
+              identitySecret?: string | null;
+            } | null;
+            const verified = verifyWidgetIdentity(signedIdentityRaw, sec?.identitySecret);
+            if (verified.ok) {
+              rawBody = injectVerifiedIdentity(rawBody, verified.claims);
+              bodyToForward = rawBody;
+            } else {
+              logSecurityEvent({
+                event: 'signature_invalid',
+                ip, origin,
+                agentId: parsedAgentId,
+                userId: w.userId,
+                code: `IDENTITY_${verified.reason.toUpperCase()}`,
+              });
+            }
+          } catch (idErr) {
+            console.warn('[widget/chat] identity verify skipped:', idErr);
+          }
         }
 
         const visionWidgetId = resolvedWidgetId || w.id;

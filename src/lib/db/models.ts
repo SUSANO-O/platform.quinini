@@ -197,6 +197,11 @@ const WidgetSchema = new Schema({
    * Si está vacío, se acepta cualquier origen (modo permisivo / dev).
    */
   allowedOrigins: { type: [String], default: [] },
+  /**
+   * Secreto HMAC para identidad firmada del cliente final (ver lib/widget-identity.ts).
+   * Lo conoce el servidor de la empresa; nunca se envía al navegador ni a la config pública.
+   */
+  identitySecret: { type: String, default: null, select: false },
   shortcuts: {
     type: [{
       id:      { type: String, required: true },

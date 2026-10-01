@@ -5887,6 +5887,14 @@
         var pp = resolvePagePath(cfg);
         if (pp) payload.pagePath = pp;
       } catch (_pp) { /* noop */ }
+      // Identidad firmada por el servidor de la empresa ({ claims, ts, sig }); la landing la verifica.
+      if (cfg.identity && typeof cfg.identity === 'object' && cfg.identity.sig) {
+        payload.identity = {
+          claims: cfg.identity.claims,
+          ts: cfg.identity.ts,
+          sig: String(cfg.identity.sig)
+        };
+      }
 
       // ── Image-to-image: attach resized thumbnail when user asks to modify previous image ──
       if (lastGeneratedImageDataUrl && isImageModificationIntent(displayText)) {

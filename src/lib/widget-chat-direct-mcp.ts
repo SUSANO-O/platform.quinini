@@ -54,6 +54,15 @@ export type DirectMcpWidgetChatResult = {
  * Intenta responder vía MCP del hub (ejecución real de webhook). Devuelve null si no aplica o falla.
  * `ownerUserId` limita el lookup al agente del widget (evita agentId arbitrario en el body).
  */
+function sanitizeVerifiedIdentity(raw: unknown): Record<string, string> | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === 'string' && v.trim()) out[k] = v;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 export async function tryServeWidgetChatViaHubMcp(params: {
   widgetTokenStartsWithWt: boolean;
   parsedAgentId: string;
@@ -105,6 +114,7 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     visitorName?: string;
     visitorUserId?: string;
     visitorId?: string;
+    verifiedIdentity?: unknown;
   };
   try {
     parsed = JSON.parse(rawBody) as typeof parsed;
@@ -245,6 +255,11 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     typeof parsed.visitorUserId === 'string' ? parsed.visitorUserId.trim() : '';
   /** Visitante anónimo del widget: sin él la memoria no sobrevive a la sesión. */
   const visitorId = typeof parsed.visitorId === 'string' ? parsed.visitorId.trim() : '';
+  /**
+   * Identidad del cliente final ya verificada por la ruta del chat (firma HMAC del widget).
+   * El navegador no puede ponerla: la ruta la borra del cuerpo antes de verificar.
+   */
+  const verifiedIdentity = sanitizeVerifiedIdentity(parsed.verifiedIdentity);
 
   const payload = {
     agentId: typeof parsed.agentId === 'string' && parsed.agentId.trim() ? parsed.agentId.trim() : id,
@@ -276,6 +291,7 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     ...(chatSessionId ? { sessionId: chatSessionId } : {}),
     ...(visitorUserId ? { visitorUserId } : {}),
     ...(visitorId ? { visitorId } : {}),
+    ...(verifiedIdentity ? { verifiedIdentity } : {}),
   };
 
   const url = `${hubBase.replace(/\/$/, '')}/api/mcp/widget-chat${params.onStatus ? '/stream' : ''}`;
