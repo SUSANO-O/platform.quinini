@@ -60,6 +60,8 @@ import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-
 import { emitDoneAndPersist } from '@/lib/widget-transcript';
 import { tryServeWidgetChatViaDirectInference } from '@/lib/widget-chat-direct-inference';
 import { tryServeWidgetChatViaHubMcp } from '@/lib/widget-chat-direct-mcp';
+import { extractIdentityFromChatBody } from '@/lib/widget-identity';
+import { resolveVerifiedWidgetIdentity } from '@/lib/widget-identity-verify';
 import { normalizeVisitorId } from '@/lib/widget-visitor';
 import {
   emitWidgetChatStatus,
@@ -178,7 +180,12 @@ export async function POST(req: NextRequest) {
   const imageEnriched = await latencyTrace.span('vision', () =>
     enrichWidgetChatBodyWithImages(rawBodyInitial),
   );
-  let rawBody = imageEnriched.body;
+  // Identidad firmada: el navegador nunca puede mandar `verifiedIdentity`; la firmada se
+  // aparta y solo se verifica cuando el token del widget es válido (igual que /api/widget/chat).
+  const identitySplit = extractIdentityFromChatBody(imageEnriched.body);
+  let rawBody = identitySplit.body;
+  const signedIdentityRaw = identitySplit.identity;
+  let verifiedIdentity: Record<string, string> | undefined;
   const imageEnrichment: WidgetImageEnrichment | null = imageEnriched.enrichment;
   /** Imagen de este turno o, si el usuario alude a una anterior, la de la sesión. */
   let activeVisionEnrichment: WidgetImageEnrichment | null = imageEnrichment;
@@ -365,6 +372,14 @@ export async function POST(req: NextRequest) {
             )
             .catch(() => false),
         ]);
+
+        verifiedIdentity = await resolveVerifiedWidgetIdentity({
+          widgetId: w.id,
+          signedIdentity: signedIdentityRaw,
+          ip, origin,
+          agentId: parsedAgentId,
+          ownerUserId: w.userId,
+        });
 
         // A partir de aquí rawBody/parsedSessionId ya están enriquecidos. La
         // inyección de contexto assist (necesita el rawBody enriquecido) y el
@@ -842,6 +857,7 @@ export async function POST(req: NextRequest) {
                 ownerUserId: faqTrackOwnerId,
                 visionEnrichment: activeVisionEnrichment,
                 strictPurposeSuffix: STRICT_PURPOSE_SUFFIX,
+                verifiedIdentity,
                 onStatus: (phase, message) => {
                   enqueue({ type: 'status', phase, message });
                 },

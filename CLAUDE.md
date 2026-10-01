@@ -43,6 +43,16 @@ Stack local completo (con AIBackHub + API REST): `../scripts/botiva-local-up.sh`
 - En AWS Lambda no se puede crear `./data` bajo `/var/task` → usar
   `ensureWritableDataDir()` de `src/lib/server-writable-data-dir`.
 
+## Identidad firmada del cliente final (widget)
+
+- El widget envía `identity: { claims, ts, sig }` (firmada por el servidor de la empresa, HMAC v1,
+  12 h). La ruta `/api/widget/chat` **siempre** borra `verifiedIdentity`/`identity` del cuerpo y solo
+  re-inyecta `verifiedIdentity` si `verifyWidgetIdentity` valida con `Widget.identitySecret`
+  (`select: false`: pedirlo con `.select('+identitySecret')`). Lógica en `src/lib/widget-identity.ts`;
+  el test con vector de PHP real no se toca sin regenerarlo en PHP.
+- `widget-chat-direct-mcp.ts` reenvía `verifiedIdentity` al hub; el MCP MySQL la usa como filtro.
+- Guía: `API-REST-AGENT-FLOW/docs/IDENTIDAD-WIDGET-Y-MYSQL.md`
+
 ## Convenciones
 
 - `src/lib/dashboard-fetch.ts` + `src/lib/dashboard-query-keys.ts` + `src/stores/dashboard-ui-store.ts`
