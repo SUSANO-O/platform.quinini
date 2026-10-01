@@ -75,6 +75,10 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   onStatus?: (phase: string, message: string) => void;
   /** Claims ya verificados por `resolveVerifiedWidgetIdentity`. Nunca se leen del cuerpo. */
   verifiedIdentity?: Record<string, string>;
+  /** Diagnóstico: estado de la identidad en este mensaje (sin valores); el hub lo registra. */
+  identityStatus?: string;
+  /** Diagnóstico: Origin de la petición del navegador (qué sitio embebe el widget). */
+  clientOrigin?: string;
 }): Promise<DirectMcpWidgetChatResult | null> {
   if (!params.widgetTokenStartsWithWt || !params.parsedAgentId.trim()) {
     logWidgetFlow('🚫', 'direct:skip', 'sin wt_ o agentId', { agentId: params.parsedAgentId });
@@ -293,6 +297,8 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     ...(visitorUserId ? { visitorUserId } : {}),
     ...(visitorId ? { visitorId } : {}),
     ...(verifiedIdentity ? { verifiedIdentity } : {}),
+    ...(params.identityStatus ? { identityStatus: params.identityStatus } : {}),
+    ...(params.clientOrigin ? { clientOrigin: params.clientOrigin.slice(0, 200) } : {}),
   };
 
   const url = `${hubBase.replace(/\/$/, '')}/api/mcp/widget-chat${params.onStatus ? '/stream' : ''}`;
