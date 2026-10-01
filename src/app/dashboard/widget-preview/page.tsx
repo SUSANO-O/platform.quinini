@@ -23,8 +23,11 @@ import {
   ExternalLink,
   Zap,
   Webhook,
+  Copy,
+  Check,
 } from '@/components/ui/icons';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
+import { BuilderRail, type BuilderRailItem } from '@/components/dashboard/builder-rail';
 import { extractAgentWebhooks } from '@/lib/agent-webhooks';
 import { getEventDefinition } from '@/lib/agent-event-catalog';
 
@@ -424,8 +427,32 @@ export default function WidgetPreviewPage() {
   const agentRoleLabel = widget && agent ? resolveAgentRoleLabel(agent, widget) : 'Agente';
   const visionSummary = formatAgentVisionSummary(agent?.vision);
 
+  /**
+   * Secciones del rail.
+   *
+   * Solo se listan las tarjetas que esta vista realmente pinta: un indice que
+   * ofrece destinos inexistentes es peor que no tener indice. Los contadores
+   * evitan abrir una seccion para descubrir que esta vacia.
+   */
+  const railItems: BuilderRailItem[] = [
+    { id: 'card-widget', label: 'Widget', icon: <Palette size={15} /> },
+    { id: 'card-chat', label: 'Chat y atajos', icon: <MessageSquare size={15} />, count: enabledShortcuts.length || undefined },
+    { id: 'card-agent', label: 'Agente', icon: <Bot size={15} /> },
+    ...(isMultiAgentWidget
+      ? [{ id: 'card-team', label: 'Equipo', icon: <Network size={15} />, count: subAgentCount || undefined } as BuilderRailItem]
+      : [{ id: 'card-single', label: 'Agente unico', icon: <Sparkles size={15} /> } as BuilderRailItem]),
+    { id: 'card-capabilities', label: 'Capacidades', icon: <Layers size={15} /> },
+    { id: 'card-model', label: 'Modelo', icon: <Cpu size={15} /> },
+    ...(totalMcpTools > 0
+      ? [{ id: 'card-mcp', label: 'MCP Tools', icon: <Wrench size={15} />, count: totalMcpTools } as BuilderRailItem]
+      : []),
+    { id: 'card-embed', label: 'Embed', icon: <Globe size={15} /> },
+  ];
+
+  const [activeSection, setActiveSection] = useState('card-widget');
+
   return (
-    <div style={{ padding: '28px', maxWidth: 820 }}>
+    <div className="widget-preview-page__inner px-4 sm:px-5 py-4 md:py-5">
       <style>{`@keyframes afhub-spin{to{transform:rotate(360deg)}}`}</style>
       <Link
         href="/dashboard/widgets"
@@ -503,16 +530,26 @@ export default function WidgetPreviewPage() {
 
       {/* ── Info Panel ──────────────────────────────────────────────── */}
       {!loading && widget && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-            gap: 16,
-            marginBottom: 20,
-          }}
-        >
+        <div className="widget-preview-page__grid">
+          {/* Nueve tarjetas son demasiadas para recorrer a ciegas. El rail las
+              nombra y salta a cada una, igual que en el editor de agentes. */}
+          <BuilderRail
+            items={railItems}
+            activeId={activeSection}
+            onSelect={(id) => {
+              setActiveSection(id);
+              document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+            mode="tabs"
+            title="Secciones"
+            ariaLabel="Secciones de la vista previa"
+          />
+
+          <div className="widget-preview-page__main">
+            <div className="widget-preview-page__cards">
           {/* Widget Card */}
           <InfoCard
+            id="card-widget"
             title="Widget"
             icon={<Palette size={15} />}
             headerActions={
@@ -579,7 +616,7 @@ export default function WidgetPreviewPage() {
           </InfoCard>
 
           {/* Chat UX */}
-          <InfoCard title="Chat y atajos" icon={<MessageSquare size={15} />}>
+          <InfoCard id="card-chat" title="Chat y atajos" icon={<MessageSquare size={15} />}>
             <Row label="Título" value={widget.title?.trim() || 'Asistente'} />
             <Row label="Subtítulo" value={widget.subtitle?.trim() || '—'} />
             <Row
@@ -622,6 +659,7 @@ export default function WidgetPreviewPage() {
 
           {/* Agent Card */}
           <InfoCard
+            id="card-agent"
             title="Agente"
             icon={<Bot size={15} />}
             headerActions={
@@ -772,7 +810,7 @@ export default function WidgetPreviewPage() {
 
           {/* Multi-agent Card */}
           {isMultiAgentWidget && widget && (
-            <InfoCard title="Equipo multi-agente" icon={<Network size={15} />}>
+            <InfoCard id="card-team" title="Equipo multi-agente" icon={<Network size={15} />}>
               <Row label="Modo" value={resolveRoutingSummary(widget, subAgentCount)} />
               <div
                 style={{
@@ -826,7 +864,7 @@ export default function WidgetPreviewPage() {
 
           {/* Single-agent capabilities */}
           {!isMultiAgentWidget && agent && (
-            <InfoCard title="Agente único" icon={<Sparkles size={15} />}>
+            <InfoCard id="card-single" title="Agente único" icon={<Sparkles size={15} />}>
               <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '0 0 8px', lineHeight: 1.45 }}>
                 Este widget responde con un solo agente. No hay triaje ni delegación a sub-agentes.
               </p>
@@ -843,7 +881,7 @@ export default function WidgetPreviewPage() {
 
           {/* Capabilities summary (all agents) */}
           {agent && (
-            <InfoCard title="Resumen de capacidades" icon={<Layers size={15} />}>
+            <InfoCard id="card-capabilities" title="Resumen de capacidades" icon={<Layers size={15} />}>
               <CapabilityGrid
                 items={[
                   { label: 'Tipo', value: agentRoleLabel },
@@ -863,7 +901,7 @@ export default function WidgetPreviewPage() {
           )}
 
           {/* Model Card */}
-          <InfoCard title="Modelo" icon={<Cpu size={15} />}>
+          <InfoCard id="card-model" title="Modelo" icon={<Cpu size={15} />}>
             {agent ? (
               <>
                 <Row label="Modelo" value={agent.model || 'gemini-2.5-flash'} mono />
@@ -876,7 +914,8 @@ export default function WidgetPreviewPage() {
 
           {/* MCP Tools Card */}
           <InfoCard
-            title={`MCP Tools (${totalMcpTools})`}
+              id="card-mcp"
+              title={`MCP Tools (${totalMcpTools})`}
             icon={<Wrench size={15} />}
           >
             {mcpServers.length === 0 && (
@@ -1092,7 +1131,7 @@ export default function WidgetPreviewPage() {
           </InfoCard>
 
           {/* Embed Card */}
-          <InfoCard title="Embed" icon={<Globe size={15} />}>
+          <InfoCard id="card-embed" title="Embed" icon={<Globe size={15} />}>
             <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '4px 0 6px' }}>
               Copia este snippet para incrustar el widget:
             </p>
@@ -1112,6 +1151,8 @@ export default function WidgetPreviewPage() {
               {`<script src="${typeof window !== 'undefined' ? window.location.origin : ''}/widget.js"></script>\n<script>\n  AgentFlowhub.init({\n    agentId: "${widget.agentId}",\n    widgetId: "${widget._id}",\n    host: "${typeof window !== 'undefined' ? window.location.origin : ''}",${widget.afhubToken ? `\n    token: "${widget.afhubToken}",` : ''}\n  });\n</script>`}
             </code>
           </InfoCard>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -1121,64 +1162,75 @@ export default function WidgetPreviewPage() {
 /* ── Small helper components ──────────────────────────────────────────── */
 
 function InfoCard({
+  id,
   title,
   icon,
   headerActions,
   children,
 }: {
+  /** Ancla para que el rail lateral pueda saltar a la tarjeta. */
+  id?: string;
   title: string;
   icon: React.ReactNode;
   headerActions?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <div
-      style={{
-        padding: '14px 16px',
-        borderRadius: 10,
-        border: '1px solid color-mix(in oklab, var(--foreground) 10%, transparent)',
-        background: 'color-mix(in oklab, var(--foreground) 2%, transparent)',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 10,
-          marginBottom: 10,
-          paddingBottom: 8,
-          borderBottom: '1px solid color-mix(in oklab, var(--foreground) 8%, transparent)',
-          fontWeight: 700,
-          fontSize: 13,
-        }}
-      >
+    <section id={id} className="widget-preview-page__card">
+      <div className="widget-preview-page__card-head">
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
           {icon} {title}
         </span>
         {headerActions ? <span style={{ flexShrink: 0 }}>{headerActions}</span> : null}
       </div>
       {children}
-    </div>
+    </section>
   );
 }
 
 function Row({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', fontSize: 12 }}>
-      <span style={{ color: 'var(--muted-foreground)', minWidth: 90 }}>{label}</span>
-      <span style={{
-        fontWeight: 500,
-        textAlign: 'right',
-        maxWidth: 220,
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-        ...(mono ? { fontFamily: 'monospace', fontSize: 11 } : {}),
-      }}>
-        {value}
+    <div className="widget-preview-page__row">
+      <span className="widget-preview-page__row-label">{label}</span>
+      <span
+        className={
+          'widget-preview-page__row-value' +
+          (mono ? ' widget-preview-page__row-value--mono' : '')
+        }
+      >
+        {/* Los valores monoespaciados son identificadores y tokens: lo que la
+            gente viene a copiar de esta pantalla. */}
+        {mono && typeof value === 'string' ? <CopyValue value={value} /> : value}
       </span>
     </div>
+  );
+}
+
+/** Valor copiable de un toque, con acuse visible. */
+function CopyValue({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <button
+      type="button"
+      className="widget-preview-page__copy"
+      title="Copiar"
+      onClick={() => {
+        void navigator.clipboard?.writeText(value).then(() => {
+          setCopied(true);
+          // Suficiente para verlo sin dejar la interfaz en un estado que ya
+          // no describe nada.
+          setTimeout(() => setCopied(false), 1400);
+        });
+      }}
+    >
+      <span style={{ overflowWrap: 'anywhere' }}>{value}</span>
+      {copied ? (
+        <Check size={11} className="widget-preview-page__copy-icon" style={{ opacity: 1, color: '#22c55e' }} />
+      ) : (
+        <Copy size={11} className="widget-preview-page__copy-icon" />
+      )}
+    </button>
   );
 }
 

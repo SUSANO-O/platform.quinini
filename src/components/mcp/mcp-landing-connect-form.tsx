@@ -53,6 +53,7 @@ const INTEGRATION_ICONS: Record<string, string> = {
   web_search: '🔍',
   mongodb: '🍃',
   postgres: '🐘',
+  mysql: '🐬',
   jira: '🎫',
   google_maps: '🗺️',
   whatsapp: '📱',

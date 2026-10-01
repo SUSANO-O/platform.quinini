@@ -1,5 +1,5 @@
 /**
- * Integraciones MCP de fuentes de datos (MongoDB / Postgres del cliente).
+ * Integraciones MCP de fuentes de datos (MongoDB / Postgres / MySQL del cliente).
  * Se fusionan en el catálogo que devuelve AIBackHub si el hub aún no publica estas claves.
  * La ejecución real de tools (`mongo_*`, `pg_*`) debe implementarse en AIBackHub.
  *
@@ -96,6 +96,36 @@ export const INTERNAL_DATA_SOURCE_MCP_CATALOG_ENTRIES: McpInternalDataSourceCata
     ],
     banners: [{ variant: 'warning', text: READONLY_WARNING }],
   },
+  {
+    key: 'mysql',
+    name: 'MySQL (cliente)',
+    description:
+      'Consultas de solo lectura sobre la base MySQL del cliente (p. ej. AWS RDS). El agente solo ve las tablas y columnas de la política, y las tablas con scope se filtran siempre por el cliente que chatea.',
+    toolIdPrefix: 'mcp:mysql:',
+    docsUrl: 'https://dev.mysql.com/doc/refman/8.4/en/privileges-provided.html#priv_select',
+    credentialFields: [
+      { key: 'host', label: 'Host (ej. midb.xxxx.us-east-1.rds.amazonaws.com)', secret: false, required: true },
+      { key: 'port', label: 'Puerto (vacío = 3306)', secret: false, required: false },
+      { key: 'user', label: 'Usuario (solo lectura)', secret: false, required: true },
+      { key: 'password', label: 'Contraseña', secret: true, required: true },
+      { key: 'database', label: 'Base de datos', secret: false, required: true },
+      { key: 'sslMode', label: 'SSL (rds | verify | required | disabled; vacío = verify)', secret: false, required: false },
+      { key: 'sslCa', label: 'CA en PEM (opcional; p. ej. global-bundle.pem de AWS RDS si "rds" falla)', secret: false, required: false },
+      { key: 'maxRows', label: 'Máx. filas por respuesta (vacío = 50, tope 500)', secret: false, required: false },
+      {
+        key: 'accessPolicy',
+        label: 'Política de acceso (JSON: tablas, columnas y scope por cliente)',
+        secret: false,
+        required: true,
+      },
+    ],
+    banners: [
+      {
+        variant: 'warning',
+        text: 'Usuario MySQL con solo SELECT. En AWS RDS usa sslMode "rds". Toda tabla de la política necesita "scope" (filtro por cliente) o "public": true.',
+      },
+    ],
+  },
 ];
 
 export function mergeInternalDataSourceMcpCatalog<T extends { key: string }>(catalog: T[]): T[] {
@@ -119,6 +149,7 @@ export const DATA_SOURCE_MCP_TOOL_IDS: Record<string, string[]> = {
     'mongo_find',
     'mongo_aggregate_readonly',
   ],
+  mysql: ['mcp:mysql:mysql_list_tables', 'mcp:mysql:mysql_query', 'mcp:mysql:mysql_count'],
   postgres: [
     'pg_list_schemas',
     'pg_list_tables',

@@ -131,6 +131,19 @@ export const TOOLS: ToolDef[] = [
     ],
   },
   {
+    id: 'mysql',
+    name: 'MySQL (cliente)',
+    icon: '🐬',
+    description:
+      'Consulta datos en MySQL del cliente (p. ej. AWS RDS). Solo lectura, lista blanca de tablas y filtro por cliente.',
+    minPlan: 'business',
+    configFields: [
+      { key: 'host', label: 'Host', placeholder: 'midb.xxxx.us-east-1.rds.amazonaws.com', required: true },
+      { key: 'user', label: 'Usuario (solo lectura)', placeholder: 'botiva_ro', required: true },
+      { key: 'database', label: 'Base de datos', placeholder: 'tribu', required: true },
+    ],
+  },
+  {
     id: 'zapier',
     name: 'Zapier',
     icon: '⚡',
