@@ -113,7 +113,7 @@ export const TOOLS: ToolDef[] = [
     name: 'MongoDB (cliente)',
     icon: '🍃',
     description: 'Consulta datos en un clúster MongoDB del cliente (política por conexión).',
-    minPlan: 'plus',
+    minPlan: 'team',
     configFields: [
       { key: 'connectionUri', label: 'Connection URI', placeholder: 'mongodb+srv://…', required: true },
       { key: 'accessMode', label: 'Modo (read_only / read_write)', placeholder: 'read_only', required: false },
@@ -124,7 +124,7 @@ export const TOOLS: ToolDef[] = [
     name: 'PostgreSQL (cliente)',
     icon: '🐘',
     description: 'Consulta datos en PostgreSQL del cliente (solo lectura por defecto).',
-    minPlan: 'plus',
+    minPlan: 'team',
     configFields: [
       { key: 'connectionUri', label: 'Connection URI', placeholder: 'postgresql://…', required: true },
       { key: 'accessMode', label: 'Modo (read_only / read_write)', placeholder: 'read_only', required: false },
@@ -136,7 +136,7 @@ export const TOOLS: ToolDef[] = [
     icon: '🐬',
     description:
       'Consulta datos en MySQL del cliente (p. ej. AWS RDS). Solo lectura, lista blanca de tablas y filtro por cliente.',
-    minPlan: 'business',
+    minPlan: 'team',
     configFields: [
       { key: 'host', label: 'Host', placeholder: 'midb.xxxx.us-east-1.rds.amazonaws.com', required: true },
       { key: 'user', label: 'Usuario (solo lectura)', placeholder: 'botiva_ro', required: true },
