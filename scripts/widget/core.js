@@ -2408,6 +2408,9 @@
         var br = Number(cfg.borderRadius);
         if (!isFinite(br) || br < 0) br = 16;
 
+        // El botón (root) conserva su posición configurada también en modo barra lateral;
+        // sin esto, con initialLayout 'sidebar' quedaba sin posicionar (pegado al contenido).
+        applyWidgetGeometry(root, chat, cfg);
         clearChatInlineLayout();
         chat.style.position = 'fixed';
         chat.style.top = '0';
@@ -2505,8 +2508,16 @@
      * la página anfitriona se estrecha para dejarle sitio en vez de quedar tapada.
      * Se aplica como margen en <html>; al cerrar o en pantalla completa/móvil se quita.
      */
-    var hostPushApplied = '';
-    var hostPushResizeTimer = null;
+    // Sin inicializador: syncChatPanelLayout puede ejecutarse antes de llegar aquí y no
+    // queremos reiniciar el estado ya aplicado.
+    var hostPushApplied;
+    var hostPushResizeTimer;
+    var hostPushDispatching = false;
+    function notifyHostResize() {
+      hostPushDispatching = true;
+      try { window.dispatchEvent(new Event('resize')); } catch (_e) { /* noop */ }
+      hostPushDispatching = false;
+    }
     function syncHostPagePush() {
       if (!cfg.pushContent) return;
       var html = document.documentElement;
@@ -2523,16 +2534,21 @@
       html.style.marginLeft = side === 'marginLeft' && px ? px + 'px' : '';
       html.style.marginRight = side === 'marginRight' && px ? px + 'px' : '';
       hostPushApplied = key;
-      // Mapas, tablas y gráficos de la página se recalculan con el nuevo ancho.
+      // Mapas, tablas y gráficos de la página se recalculan con el nuevo ancho: al terminar
+      // la animación del margen, con un respaldo por si no hay transición (carga, pestaña oculta).
       if (hostPushResizeTimer) clearTimeout(hostPushResizeTimer);
-      hostPushResizeTimer = setTimeout(function () {
-        try { window.dispatchEvent(new Event('resize')); } catch (_e) { /* noop */ }
-        hostPushResizeTimer = null;
-      }, 320);
+      var onEnd = function (ev) {
+        if (ev && ev.target !== html) return;
+        html.removeEventListener('transitionend', onEnd);
+        if (hostPushResizeTimer) { clearTimeout(hostPushResizeTimer); hostPushResizeTimer = null; }
+        notifyHostResize();
+      };
+      html.addEventListener('transitionend', onEnd);
+      hostPushResizeTimer = setTimeout(function () { onEnd(); }, 650);
     }
     if (cfg.pushContent) {
       window.addEventListener('resize', function () {
-        if (hostPushResizeTimer) return; // el resize que disparamos nosotros
+        if (hostPushDispatching) return; // el resize que disparamos nosotros
         syncHostPagePush();
       });
     }
@@ -7856,18 +7872,25 @@
     var shortcutsSidebarBg = 'linear-gradient(180deg, rgba(255,255,255,.28) 0%, rgba(247,248,250,.18) 100%)';
     var shellBg = chatShellGlass;
     var panelBg = chatSurfaceBg;
-    var msgBubbleBg = 'rgba(255,255,255,.82)';
-    var msgBubbleBorder = 'none';
-    var msgBubbleShadow = '0 2px 10px rgba(15,23,42,.05), 0 1px 3px rgba(15,23,42,.04)';
-    var userBubbleBg = 'rgba(255,255,255,.88)';
-    var userBubbleBorder = 'none';
-    var userBubbleShadow = '0 2px 10px rgba(15,23,42,.06), 0 1px 2px rgba(15,23,42,.04)';
+    var msgBubbleBg = 'linear-gradient(180deg, rgba(255,255,255,.97) 0%, rgba(252,252,253,.9) 100%)';
+    var msgBubbleBorder = '1px solid rgba(15,23,42,.06)';
+    var msgBubbleShadow = '0 1px 1px rgba(15,23,42,.03), 0 6px 18px -8px rgba(15,23,42,.10), inset 0 1px 0 rgba(255,255,255,.9)';
+    var userBubbleBg = 'linear-gradient(180deg, ' + colorRgba(brandHex, 0.13) + ' 0%, ' + colorRgba(brandHex, 0.09) + ' 100%)';
+    var userBubbleBorder = '1px solid ' + colorRgba(brandHex, 0.16);
+    var userBubbleShadow = '0 1px 1px rgba(15,23,42,.03), inset 0 1px 0 rgba(255,255,255,.55)';
     var userBubbleColor = '#111111';
     var fsBotMsgColor = '#111111';
-    var composerInnerShadow = '0 1px 2px rgba(15,23,42,.03)';
-    var composerShellBg = 'rgba(255,255,255,.52)';
-    var composerInnerBg = 'rgba(255,255,255,.38)';
+    var composerInnerShadow = 'inset 0 1px 0 rgba(255,255,255,.75), 0 1px 2px rgba(15,23,42,.04)';
+    var composerShellBg = 'rgba(255,255,255,.62)';
+    var composerInnerBg = 'rgba(255,255,255,.72)';
     var composerBorder = 'none';
+    /* Grano sutil (≈4%) en el área de mensajes: quita el aspecto plano sin ensuciar. */
+    var grainSvg =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160">' +
+      '<filter id="g"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/>' +
+      '<feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .04 0"/></filter>' +
+      '<rect width="100%" height="100%" filter="url(#g)"/></svg>';
+    var grainBg = 'url("data:image/svg+xml,' + encodeURIComponent(grainSvg) + '")';
     var headerText = '#111111';
     var headerSubtext = '#737373';
     var headerIcon = '#64748b';
@@ -8448,9 +8471,10 @@
       '#' + rootId + ' .afhub-chat--scroll-top .afhub-scroll-halo--top { opacity:1; }' +
       '#' + rootId + ' .afhub-chat--scroll-bottom .afhub-scroll-halo--bottom { opacity:1; }' +
       '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen .afhub-scroll-halo { display:none !important; opacity:0 !important; }' +
-      '#' + rootId + ' .afhub-messages { flex:1 1 0; min-height:0; overflow-y:auto; padding:' + messagesPadTop + 'px 18px 18px; display:flex; flex-direction:column; gap:22px; scroll-behavior:smooth; background:transparent; font-size:14.5px; line-height:1.58; letter-spacing:-.012em; scrollbar-width:thin; scrollbar-color:rgba(0,0,0,.12) transparent; position:relative; box-shadow:none; }' +
+      '#' + rootId + ' .afhub-messages { flex:1 1 0; min-height:0; overflow-y:auto; padding:' + messagesPadTop + 'px 18px 18px; display:flex; flex-direction:column; gap:14px; scroll-behavior:smooth; background:transparent; font-size:14.5px; line-height:1.58; letter-spacing:-.012em; scrollbar-width:thin; scrollbar-color:rgba(0,0,0,.12) transparent; position:relative; box-shadow:none; }' +
       '#' + rootId + ' .afhub-messages::-webkit-scrollbar { width:5px; }' +
       '#' + rootId + ' .afhub-messages::-webkit-scrollbar-thumb { background:rgba(15,23,42,.14); border-radius:999px; }' +
+      (isDarkTheme ? '' : '#' + rootId + ' .afhub-messages { background-image:' + grainBg + '; background-size:160px 160px; }') +
       '#' + rootId + ' .afhub-msg-row { display:flex; gap:12px; align-items:flex-end; max-width:100%; width:100%; margin:0; }' +
       '#' + rootId + ' .afhub-msg-row--bot { align-self:flex-start; }' +
       '#' + rootId + ' .afhub-msg-stack { display:flex; flex-direction:column; gap:7px; min-width:0; max-width:calc(100% - 40px); flex:1; }' +
@@ -8463,12 +8487,12 @@
       '#' + rootId + ' .afhub-msg-avatar svg { width:14px; height:14px; color:#64748b; }' +
       '#' + rootId + ' .afhub-date-divider { align-self:center; text-align:center; margin:14px 0 10px; width:100%; }' +
       '#' + rootId + ' .afhub-date-divider span { display:inline-block; font-size:10px; font-weight:600; letter-spacing:.03em; text-transform:capitalize; color:#94a3b8; background:rgba(255,255,255,.42); padding:4px 11px; border-radius:999px; border:none; box-shadow:0 1px 4px rgba(15,23,42,.04); }' +
-      '#' + rootId + ' .afhub-msg { max-width:86%; padding:13px 17px; border-radius:20px; font-size:14.5px; line-height:1.58; letter-spacing:-.012em; word-wrap:break-word; animation:afhub-msg-fade-in .28s ' + macSpring + ' both; position:relative; -webkit-backdrop-filter:none; backdrop-filter:none; }' +
+      '#' + rootId + ' .afhub-msg { max-width:86%; padding:11px 15px; border-radius:18px; font-size:14.5px; line-height:1.58; letter-spacing:-.012em; word-wrap:break-word; animation:afhub-msg-fade-in .28s ' + macSpring + ' both; position:relative; -webkit-backdrop-filter:none; backdrop-filter:none; }' +
       '#' + rootId + ' .afhub-msg--streaming { animation:none !important; opacity:1 !important; transform:none !important; }' +
-      '#' + rootId + ' .afhub-msg.user { white-space:pre-wrap; background:' + userBubbleBg + '; color:' + userBubbleColor + '; align-self:flex-end; border-radius:20px 20px 6px 20px; border:' + userBubbleBorder + '; box-shadow:' + userBubbleShadow + '; }' +
+      '#' + rootId + ' .afhub-msg.user { white-space:pre-wrap; background:' + userBubbleBg + '; color:' + userBubbleColor + '; align-self:flex-end; border-radius:18px 18px 6px 18px; border:' + userBubbleBorder + '; box-shadow:' + userBubbleShadow + '; }' +
       '#' + rootId + ' .afhub-msg-rich { white-space:normal; }' +
       '#' + rootId + ' .afhub-msg--streaming .afhub-msg-text::after { content:""; display:inline-block; width:2px; height:.95em; margin-left:2px; vertical-align:text-bottom; background:currentColor; opacity:.45; animation:afhub-stream-cursor 1.05s step-end infinite; }' +
-      '#' + rootId + ' .afhub-msg.bot { background:' + msgBubbleBg + '; color:#111111; align-self:flex-start; border-radius:20px 20px 20px 6px; border:' + msgBubbleBorder + '; box-shadow:' + msgBubbleShadow + '; }' +
+      '#' + rootId + ' .afhub-msg.bot { background:' + msgBubbleBg + '; color:#111111; align-self:flex-start; border-radius:18px 18px 18px 6px; border:' + msgBubbleBorder + '; box-shadow:' + msgBubbleShadow + '; }' +
       '#' + rootId + ' .afhub-human-wrap { align-self:flex-start; max-width:88%; width:100%; display:flex; flex-direction:column; gap:4px; }' +
       '#' + rootId + ' .afhub-human-meta { display:flex; align-items:center; gap:6px; padding:0 2px; }' +
       '#' + rootId + ' .afhub-human-badge { display:inline-flex; align-items:center; gap:5px; padding:2px 9px 2px 7px; border-radius:999px; background:' + cfg.color + '14; color:' + cfg.color + '; font-size:10px; font-weight:700; letter-spacing:.02em; }' +
@@ -8795,13 +8819,14 @@
       '#' + rootId + ' .afhub-flow-options { display:none; flex-wrap:wrap; gap:6px; padding:8px 12px 4px; border-top:none; background:' + chatSurfaceBg + '; flex-shrink:0; }' +
       '#' + rootId + ' .afhub-flow-opt-btn { flex:1 1 calc(50% - 6px); min-width:120px; padding:8px 10px; border-radius:10px; border:none; background:rgba(255,255,255,.55); color:#0f172a; font-size:13px; font-weight:500; cursor:pointer; transition:background .15s,box-shadow .15s; text-align:left; line-height:1.35; box-shadow:0 1px 3px rgba(15,23,42,.04); }' +
       '#' + rootId + ' .afhub-flow-opt-btn:hover { background:rgba(255,255,255,.72); box-shadow:0 2px 8px rgba(15,23,42,.06); }' +
-      '#' + rootId + ' .afhub-input-composer { flex:1 1 0; width:100%; min-width:0; max-width:100%; position:relative; isolation:isolate; display:block; padding:2px; border-radius:999px; background:' + composerShellBg + '; border:none; overflow:hidden; contain:paint; clip-path:inset(0 round 999px); -webkit-clip-path:inset(0 round 999px); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }' +
+      '#' + rootId + ' .afhub-input-composer { flex:1 1 0; width:100%; min-width:0; max-width:100%; position:relative; isolation:isolate; display:block; padding:1px; border-radius:18px; background:' + composerShellBg + '; border:none; box-shadow:inset 0 0 0 1px rgba(15,23,42,.09); transition:box-shadow .2s ease; overflow:hidden; contain:paint; clip-path:inset(0 round 18px); -webkit-clip-path:inset(0 round 18px); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }' +
       '#' + rootId + ' .afhub-input-composer--agent-busy { flex:1 1 0; width:100%; max-width:100%; }' +
-      '#' + rootId + ' .afhub-input-composer-inner { position:relative; z-index:1; display:flex; align-items:flex-end; gap:4px; width:100%; max-width:100%; box-sizing:border-box; padding:7px 10px 7px 8px; border-radius:999px; background:' + composerInnerBg + '; border:none; box-shadow:' + composerInnerShadow + '; -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); }' +
+      '#' + rootId + ' .afhub-input-composer:focus-within { box-shadow:inset 0 0 0 1px ' + colorRgba(brandHex, 0.32) + '; }' +
+      '#' + rootId + ' .afhub-input-composer-inner { position:relative; z-index:1; display:flex; align-items:flex-end; gap:4px; width:100%; max-width:100%; box-sizing:border-box; padding:7px 10px 7px 8px; border-radius:17px; background:' + composerInnerBg + '; border:none; box-shadow:' + composerInnerShadow + '; -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); }' +
       /* Border beam: conic sobre el box real + mask anillo → borde continuo (sin elipses rotas). */
       '#' + rootId + ' .afhub-input-beam-ring {' +
         'position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;opacity:0;' +
-        'box-sizing:border-box;padding:2px;overflow:hidden;' +
+        'box-sizing:border-box;padding:1px;overflow:hidden;' +
         /* salida (quita hover): suave */
         'transition:opacity .85s cubic-bezier(.22,.61,.36,1);' +
         '-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);' +
@@ -8816,7 +8841,7 @@
         'transition:filter .7s cubic-bezier(.22,.61,.36,1),opacity .85s cubic-bezier(.22,.61,.36,1);' +
       '}' +
       '#' + rootId + ' .afhub-input-beam-bloom {' +
-        'inset:1px;filter:blur(var(--afhub-beam-blur,3.5px));opacity:var(--afhub-beam-bloom,.42);' +
+        'inset:1px;filter:blur(var(--afhub-beam-blur,2px));opacity:var(--afhub-beam-bloom,.22);' +
       '}' +
       '#' + rootId + ' .afhub-input-composer:hover .afhub-input-beam-ring,' +
       '#' + rootId + ' .afhub-input-composer:focus-within .afhub-input-beam-ring {' +
@@ -8878,7 +8903,7 @@
       '#' + rootId + ' .afhub-input::-webkit-scrollbar { display:none; width:0; height:0; }' +
       '#' + rootId + ' .afhub-input::placeholder { color:#94a3b8; opacity:1; font-weight:400; }' +
       '#' + rootId + ' .afhub-input:focus { box-shadow:none; }' +
-      '#' + rootId + ' .afhub-send { width:28px; height:28px; border-radius:50%; border:none; cursor:pointer; background:#111111; color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; position:relative; z-index:2; transition:background .14s,opacity .14s,transform .14s ' + macSpring + '; box-shadow:0 2px 8px rgba(0,0,0,.16); }' +
+      '#' + rootId + ' .afhub-send { width:28px; height:28px; border-radius:50%; border:none; cursor:pointer; background:' + brandHex + '; color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; position:relative; z-index:2; transition:background .14s,opacity .14s,transform .14s ' + macSpring + '; box-shadow:0 1px 2px rgba(15,23,42,.12), 0 4px 10px -4px ' + colorRgba(brandHex, 0.45) + '; }' +
       '#' + rootId + ' .afhub-send:not(:disabled):hover { filter:none; background:#000000; transform:none; box-shadow:0 3px 12px rgba(0,0,0,.2); }' +
       '#' + rootId + ' .afhub-send:not(:disabled):active { filter:brightness(.94); box-shadow:inset 0 1px 2px rgba(0,0,0,.12); transform:scale(.96); }' +
       '#' + rootId + ' .afhub-send:disabled { opacity:1; cursor:default; background:#c7c7cc; color:rgba(255,255,255,.95); box-shadow:none; }' +
