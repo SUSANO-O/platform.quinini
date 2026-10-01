@@ -2527,24 +2527,27 @@
       if (isOpen && chatLayout === 'sidebar' && sidebarSize !== 'fullscreen' && vw >= 900) {
         px = sidebarSize === 'full' ? Math.min(720, vw - 16) : Math.min(380, vw);
       }
+      // El panel se anima solo con transform (GPU) y sin desenfoque; la página no se anima.
+      var pushMode = chatLayout === 'sidebar' && sidebarSize !== 'fullscreen' && vw >= 900;
+      chat.classList.toggle('afhub-chat--push', pushMode);
+      chat.classList.toggle('afhub-chat--push-left', pushMode && dockLeft);
       var side = dockLeft ? 'marginLeft' : 'marginRight';
       var key = px ? side + ':' + px : '';
       if (key === hostPushApplied) return;
-      html.style.transition = 'margin 0.28s ease';
+      // Un único recálculo de la página (sin transición): animar el margen obligaba a
+      // reflujar todo el documento en cada fotograma y se veía pesado.
+      html.style.transition = '';
       html.style.marginLeft = side === 'marginLeft' && px ? px + 'px' : '';
       html.style.marginRight = side === 'marginRight' && px ? px + 'px' : '';
       hostPushApplied = key;
-      // Mapas, tablas y gráficos de la página se recalculan con el nuevo ancho: al terminar
-      // la animación del margen, con un respaldo por si no hay transición (carga, pestaña oculta).
-      if (hostPushResizeTimer) clearTimeout(hostPushResizeTimer);
-      var onEnd = function (ev) {
-        if (ev && ev.target !== html) return;
-        html.removeEventListener('transitionend', onEnd);
-        if (hostPushResizeTimer) { clearTimeout(hostPushResizeTimer); hostPushResizeTimer = null; }
-        notifyHostResize();
-      };
-      html.addEventListener('transitionend', onEnd);
-      hostPushResizeTimer = setTimeout(function () { onEnd(); }, 650);
+      // Mapas, tablas y gráficos se recalculan con el nuevo ancho en el siguiente frame.
+      if (hostPushResizeTimer) cancelAnimationFrame(hostPushResizeTimer);
+      hostPushResizeTimer = requestAnimationFrame(function () {
+        hostPushResizeTimer = requestAnimationFrame(function () {
+          hostPushResizeTimer = null;
+          notifyHostResize();
+        });
+      });
     }
     if (cfg.pushContent) {
       window.addEventListener('resize', function () {
@@ -5367,9 +5370,19 @@
 
     function open() {
       if (isOpen) return;
+      if (cfg.pushContent && chatLayout === 'floating') {
+        // closeImpl vuelve a 'floating'; con pushContent siempre se reabre como barra lateral.
+        chatLayout = 'sidebar';
+        sidebarSize = cfg.initialLayout === 'sidebar-full' ? 'full' : 'compact';
+      }
       isOpen = true;
       clearUnreadHumanNotice();
       root.classList.add('afhub-open');
+      if (cfg.pushContent) {
+        // Colocar el panel fuera de pantalla antes de mostrarlo para que se deslice.
+        syncChatPanelLayout();
+        void chat.offsetWidth;
+      }
       chat.classList.add('visible');
       fab.classList.add('open');
       fab.setAttribute('aria-label', 'Abrir chat');
@@ -5400,8 +5413,19 @@
       }
       closeImpl();
     }
+    var pushClosing = false;
     function closeImpl() {
       if (!isOpen) return;
+      if (chat.classList.contains('afhub-chat--push') && chat.classList.contains('visible') && !pushClosing) {
+        pushClosing = true;
+        chat.classList.remove('visible');
+        setTimeout(function () {
+          pushClosing = false;
+          closeImpl();
+        }, 240);
+        return;
+      }
+      if (pushClosing) return;
       stopIdleReengageTimer();
       closeShortcutsModal();
       chat.classList.remove('afhub-chat--scroll-top', 'afhub-chat--scroll-bottom');
@@ -8201,6 +8225,11 @@
       '#' + rootId + ' .afhub-chat.afhub-settings-open .afhub-shortcuts-wrap { z-index:0; }' +
       '#' + rootId + '[data-afhub-v="top"] .afhub-chat { transform:scale(.84) translateY(-14px); }' +
       '#' + rootId + ' .afhub-chat.visible { transform:none; will-change:opacity; opacity:1; pointer-events:auto; box-shadow:0 16px 48px rgba(15,23,42,.14),0 4px 12px rgba(15,23,42,.08); }' +
+      /* pushContent: panel junto a la página (nada detrás que difuminar) → sin backdrop-filter,
+         fondo sólido y deslizamiento solo con transform. */
+      '#' + rootId + ' .afhub-chat.afhub-chat--push { -webkit-backdrop-filter:none !important; backdrop-filter:none !important; background:' + (isDarkTheme ? '#18181b' : '#f8f8f9') + ' !important; opacity:1 !important; transform:translate3d(100%,0,0) !important; transition:transform .26s cubic-bezier(.22,.61,.36,1) !important; will-change:transform; box-shadow:-1px 0 0 rgba(15,23,42,.06),-14px 0 32px -18px rgba(15,23,42,.22) !important; }' +
+      '#' + rootId + ' .afhub-chat.afhub-chat--push.afhub-chat--push-left { transform:translate3d(-100%,0,0) !important; box-shadow:1px 0 0 rgba(15,23,42,.06),14px 0 32px -18px rgba(15,23,42,.22) !important; }' +
+      '#' + rootId + ' .afhub-chat.afhub-chat--push.visible { transform:translate3d(0,0,0) !important; }' +
       '#' + rootId + ' .afhub-chat.afhub-chat--sidebar {' +
         'transition:' +
           'transform .28s cubic-bezier(.34,1.2,.64,1),' +
