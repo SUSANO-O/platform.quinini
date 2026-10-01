@@ -4,6 +4,7 @@
  * Si llamamos a AIBackHub `POST /api/mcp/widget-chat`, sí se ejecuta el POST real.
  */
 
+import { pageContextLine } from '@/lib/widget-page-nav';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent } from '@/lib/db/models';
 import {
@@ -120,6 +121,7 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     visitorName?: string;
     visitorUserId?: string;
     visitorId?: string;
+    pagePath?: string;
   };
   try {
     parsed = JSON.parse(rawBody) as typeof parsed;
@@ -253,8 +255,13 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   const visitorEmail =
     typeof parsed.visitorEmail === 'string' ? parsed.visitorEmail.trim().toLowerCase() : '';
   const visitorName = typeof parsed.visitorName === 'string' ? parsed.visitorName.trim() : '';
-  const sessionContextBlock =
-    typeof parsed.sessionContextBlock === 'string' ? parsed.sessionContextBlock.trim() : '';
+  const pageLine = pageContextLine(parsed.pagePath);
+  const sessionContextBlock = [
+    typeof parsed.sessionContextBlock === 'string' ? parsed.sessionContextBlock.trim() : '',
+    pageLine,
+  ]
+    .filter(Boolean)
+    .join('\n');
   const chatSessionId = typeof parsed.sessionId === 'string' ? parsed.sessionId.trim() : '';
   const visitorUserId =
     typeof parsed.visitorUserId === 'string' ? parsed.visitorUserId.trim() : '';

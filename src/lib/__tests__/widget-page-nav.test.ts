@@ -1,0 +1,93 @@
+import { describe, expect, it } from 'vitest';
+import {
+  finalizeWidgetNavReply,
+  isSafeSameSitePath,
+  pageContextLine,
+  stripWidgetNavBlocks,
+} from '@/lib/widget-page-nav';
+
+const block = (o: Record<string, unknown>) => '```assist-nav\n' + JSON.stringify(o) + '\n```';
+
+describe('pageContextLine', () => {
+  it('describe la página actual solo con la ruta (sin query ni hash)', () => {
+    expect(pageContextLine('/views/posiciones.php?path=harold-gps&token=abc#x')).toBe(
+      'Página actual del cliente en la app: /views/posiciones.php',
+    );
+  });
+
+  it('acepta URL absoluta y se queda con el pathname', () => {
+    expect(pageContextLine('http://192.168.40.8:9090/views/geocercas.php?path=x')).toBe(
+      'Página actual del cliente en la app: /views/geocercas.php',
+    );
+  });
+
+  it('vacío o raro → sin línea', () => {
+    expect(pageContextLine('')).toBe('');
+    expect(pageContextLine(undefined)).toBe('');
+    expect(pageContextLine('javascript:alert(1)')).toBe('');
+  });
+});
+
+describe('isSafeSameSitePath', () => {
+  it('acepta rutas relativas del mismo sitio', () => {
+    expect(isSafeSameSitePath('/views/geocercas.php')).toBe(true);
+    expect(isSafeSameSitePath('/views/reportesInformes.php?tab=rutas')).toBe(true);
+  });
+
+  it('rechaza otros dominios, esquemas y trucos de redirección', () => {
+    for (const bad of [
+      'https://evil.com/x',
+      '//evil.com/x',
+      '/\\evil.com',
+      'javascript:alert(1)',
+      'views/geocercas.php',
+      '/views/<script>.php',
+      '',
+      '/' + 'a'.repeat(300),
+    ]) {
+      expect(isSafeSameSitePath(bad), bad).toBe(false);
+    }
+  });
+});
+
+describe('finalizeWidgetNavReply', () => {
+  it('convierte el bloque assist-nav en navOffer y lo quita del texto', () => {
+    const raw =
+      'Las geocercas están en Vigilancia → Geocercas. ¿Quieres que te lleve?\n' +
+      block({ path: '/views/geocercas.php', onDecline: 'Vale, cuando quieras.', afterNavigate: 'Ya estás en Geocercas.' });
+    const out = finalizeWidgetNavReply(raw);
+    expect(out.reply).toBe('Las geocercas están en Vigilancia → Geocercas. ¿Quieres que te lleve?');
+    expect(out.navOffer).toEqual({
+      path: '/views/geocercas.php',
+      onDecline: 'Vale, cuando quieras.',
+      afterNavigate: 'Ya estás en Geocercas.',
+    });
+  });
+
+  it('ruta insegura → no hay botón, pero el bloque igual se quita del texto', () => {
+    const out = finalizeWidgetNavReply('Mira esto ' + block({ path: 'https://evil.com', onDecline: 'x' }));
+    expect(out.navOffer).toBeUndefined();
+    expect(out.reply).toBe('Mira esto');
+  });
+
+  it('sin onDecline usa un texto neutro (no el del panel de BotIvA)', () => {
+    const out = finalizeWidgetNavReply('Te llevo ' + block({ path: '/views/logs.php' }));
+    expect(out.navOffer?.onDecline).toBe('De acuerdo, puedes ir cuando quieras desde el menú.');
+  });
+
+  it('JSON roto → sin botón y texto limpio', () => {
+    const out = finalizeWidgetNavReply('Hola\n```assist-nav\n{roto\n```');
+    expect(out.navOffer).toBeUndefined();
+    expect(out.reply).toBe('Hola');
+  });
+
+  it('respuesta normal queda intacta', () => {
+    expect(finalizeWidgetNavReply('Hola, ¿en qué te ayudo?')).toEqual({ reply: 'Hola, ¿en qué te ayudo?' });
+  });
+});
+
+describe('stripWidgetNavBlocks', () => {
+  it('quita bloques para el streaming de tokens', () => {
+    expect(stripWidgetNavBlocks('Hola ' + block({ path: '/views/logs.php' }) + ' fin')).toBe('Hola  fin'.trim());
+  });
+});

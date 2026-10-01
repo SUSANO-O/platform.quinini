@@ -142,11 +142,17 @@
     }
     if (!offer) offer = parseAssistNavOfferFromRaw(rawText);
     var replyText = String(rawText || '');
-    if (!offer && /¿quieres que te lleve|¿te llevo|¿te guíe/i.test(replyText)) {
+    // El "adivinar ruta" usa rutas del panel de BotIvA: solo tiene sentido dentro de él.
+    // En la web de un cliente mandaría a /dashboard/... de su dominio (404).
+    var onBotivaDashboard = false;
+    try { onBotivaDashboard = /^\/(es\/|en\/)?dashboard(\/|$)/.test(window.location.pathname || ''); } catch (_e) { /* noop */ }
+    if (!offer && onBotivaDashboard && /¿quieres que te lleve|¿te llevo|¿te guíe/i.test(replyText)) {
       offer = inferClientNavOfferFromUserMessage(userMsg);
     }
     if (offer && !offer.onDecline) {
-      offer.onDecline = 'Usa el menú lateral del dashboard para ir a esa sección.';
+      offer.onDecline = onBotivaDashboard
+        ? 'Usa el menú lateral del dashboard para ir a esa sección.'
+        : 'De acuerdo, puedes ir cuando quieras desde el menú.';
     }
     return offer;
   }
