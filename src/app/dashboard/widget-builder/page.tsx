@@ -356,6 +356,7 @@ export default function WidgetBuilderPage() {
               borderRadius: String(widget.borderRadius ?? '16px'),
               autoOpen: Boolean(widget.autoOpen),
               fabDismissible: widget.fabDismissible !== false,
+              pushContent: (widget as { pushContent?: boolean }).pushContent === true,
               voiceEnabled: widget.voiceEnabled !== false,
               imageUploadEnabled: (widget as { imageUploadEnabled?: boolean }).imageUploadEnabled !== false,
               micEnabled: typeof (widget as { micEnabled?: boolean }).micEnabled === 'boolean'
@@ -456,6 +457,7 @@ export default function WidgetBuilderPage() {
     'borderRadius',
     'autoOpen',
     'fabDismissible',
+    'pushContent',
     'voiceEnabled',
     'imageUploadEnabled',
     'micEnabled',

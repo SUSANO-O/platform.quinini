@@ -56,6 +56,8 @@ export interface WidgetConfig {
   borderRadius: string;
   autoOpen: boolean;
   fabDismissible: boolean;
+  /** Barra lateral que reacomoda la página en vez de taparla (por defecto false). */
+  pushContent: boolean;
   voiceEnabled: boolean;
   /** Botón 📎 en el input del chat. */
   imageUploadEnabled: boolean;

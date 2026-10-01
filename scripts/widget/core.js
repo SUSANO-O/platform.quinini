@@ -709,6 +709,7 @@
           'humanSupportEnabled',
           'feedbackEnabled',
           'fabDismissible',
+          'pushContent',
           'active',
           'shortcuts',
           'feedbackQuestions',
@@ -893,6 +894,10 @@
     merged.initialLayout = validLayouts.indexOf(String(merged.initialLayout || '')) !== -1
       ? String(merged.initialLayout || '')
       : '';
+    // pushContent (por defecto false): la página se reacomoda al abrir el chat. Solo tiene
+    // sentido como barra lateral, así que si no se eligió layout, abre como barra lateral.
+    merged.pushContent = merged.pushContent === true;
+    if (merged.pushContent && !merged.initialLayout) merged.initialLayout = 'sidebar';
     // Aviso de privacidad (footer del chat)
     merged.policyEnabled = input && input.policyEnabled === false ? false : true;
     merged.policyText = String(merged.policyText == null ? '' : merged.policyText).trim().substring(0, 200);
@@ -2492,6 +2497,44 @@
       }
 
       if (chatLayout === 'floating') scrim.style.display = 'none';
+      syncHostPagePush();
+    }
+
+    /**
+     * pushContent: con el chat abierto como barra lateral (compacta o ancha) en escritorio,
+     * la página anfitriona se estrecha para dejarle sitio en vez de quedar tapada.
+     * Se aplica como margen en <html>; al cerrar o en pantalla completa/móvil se quita.
+     */
+    var hostPushApplied = '';
+    var hostPushResizeTimer = null;
+    function syncHostPagePush() {
+      if (!cfg.pushContent) return;
+      var html = document.documentElement;
+      var dockLeft = launcherAlign(cfg) === 'left';
+      var vw = window.innerWidth || html.clientWidth || 0;
+      var px = 0;
+      if (isOpen && chatLayout === 'sidebar' && sidebarSize !== 'fullscreen' && vw >= 900) {
+        px = sidebarSize === 'full' ? Math.min(720, vw - 16) : Math.min(380, vw);
+      }
+      var side = dockLeft ? 'marginLeft' : 'marginRight';
+      var key = px ? side + ':' + px : '';
+      if (key === hostPushApplied) return;
+      html.style.transition = 'margin 0.28s ease';
+      html.style.marginLeft = side === 'marginLeft' && px ? px + 'px' : '';
+      html.style.marginRight = side === 'marginRight' && px ? px + 'px' : '';
+      hostPushApplied = key;
+      // Mapas, tablas y gráficos de la página se recalculan con el nuevo ancho.
+      if (hostPushResizeTimer) clearTimeout(hostPushResizeTimer);
+      hostPushResizeTimer = setTimeout(function () {
+        try { window.dispatchEvent(new Event('resize')); } catch (_e) { /* noop */ }
+        hostPushResizeTimer = null;
+      }, 320);
+    }
+    if (cfg.pushContent) {
+      window.addEventListener('resize', function () {
+        if (hostPushResizeTimer) return; // el resize que disparamos nosotros
+        syncHostPagePush();
+      });
     }
 
     function fabDragStorageKey() {

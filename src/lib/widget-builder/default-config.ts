@@ -20,6 +20,7 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig = {
   borderRadius: '16px',
   autoOpen: false,
   fabDismissible: true,
+  pushContent: false,
   voiceEnabled: true,
   imageUploadEnabled: true,
   micEnabled: true,

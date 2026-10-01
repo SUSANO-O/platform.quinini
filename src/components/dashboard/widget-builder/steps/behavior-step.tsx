@@ -520,6 +520,21 @@ export function WidgetBuilderBehaviorStep({
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <WidgetBuilderSwitch
+              checked={cfg.pushContent}
+              accentColor={WIDGET_BUILDER_UI_ACCENT}
+              onChange={(pushContent) => onChange({ pushContent })}
+              ariaLabel="Abrir como panel lateral que reacomoda la página"
+            />
+            <label
+              style={{ fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+              onClick={() => onChange({ pushContent: !cfg.pushContent })}
+              title="En escritorio el chat se abre como barra lateral y la página se estrecha para no quedar tapada. En celular sigue a pantalla completa."
+            >
+              Panel lateral que reacomoda la página (no la tapa)
+            </label>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <WidgetBuilderSwitch
               checked={cfg.imageUploadEnabled}
               accentColor={WIDGET_BUILDER_UI_ACCENT}
               onChange={(imageUploadEnabled) => onChange({ imageUploadEnabled })}
