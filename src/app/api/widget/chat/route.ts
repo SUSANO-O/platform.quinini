@@ -14,8 +14,9 @@ import {
   tryServeWidgetChatViaDirectInference,
 } from '@/lib/widget-chat-direct-inference';
 import { connectDB } from '@/lib/db/connection';
-import { ClientAgent, Subscription, ConversationSession, Widget, WidgetMessage } from '@/lib/db/models';
-import { extractIdentityFromChatBody, injectVerifiedIdentity, verifyWidgetIdentity } from '@/lib/widget-identity';
+import { ClientAgent, Subscription, ConversationSession, WidgetMessage } from '@/lib/db/models';
+import { extractIdentityFromChatBody } from '@/lib/widget-identity';
+import { resolveVerifiedWidgetIdentity } from '@/lib/widget-identity-verify';
 import { findWidgetForWtToken, isWidgetActive, sentAgentIdMatchesWidget } from '@/lib/widget-token-verify';
 import { trackWidgetChatUsage } from '@/lib/platform-agent-utils';
 import { detectWidgetMeteringChannel } from '@/lib/metering';
@@ -230,6 +231,7 @@ export async function POST(req: NextRequest) {
   const identitySplit = extractIdentityFromChatBody(imageEnriched.body);
   let rawBody = identitySplit.body;
   const signedIdentityRaw = identitySplit.identity;
+  let verifiedIdentity: Record<string, string> | undefined;
   const imageEnrichment: WidgetImageEnrichment | null = imageEnriched.enrichment;
   let activeVisionEnrichment: WidgetImageEnrichment | null = imageEnrichment;
 
@@ -397,28 +399,13 @@ export async function POST(req: NextRequest) {
           console.warn('[widget/chat] enrich body skipped:', enrichErr);
         }
 
-        if (signedIdentityRaw !== undefined) {
-          try {
-            const sec = (await Widget.findById(w.id).select('+identitySecret').lean()) as {
-              identitySecret?: string | null;
-            } | null;
-            const verified = verifyWidgetIdentity(signedIdentityRaw, sec?.identitySecret);
-            if (verified.ok) {
-              rawBody = injectVerifiedIdentity(rawBody, verified.claims);
-              bodyToForward = rawBody;
-            } else {
-              logSecurityEvent({
-                event: 'signature_invalid',
-                ip, origin,
-                agentId: parsedAgentId,
-                userId: w.userId,
-                code: `IDENTITY_${verified.reason.toUpperCase()}`,
-              });
-            }
-          } catch (idErr) {
-            console.warn('[widget/chat] identity verify skipped:', idErr);
-          }
-        }
+        verifiedIdentity = await resolveVerifiedWidgetIdentity({
+          widgetId: w.id,
+          signedIdentity: signedIdentityRaw,
+          ip, origin,
+          agentId: parsedAgentId,
+          ownerUserId: w.userId,
+        });
 
         const visionWidgetId = resolvedWidgetId || w.id;
         if (imageEnrichment && visionWidgetId && parsedSessionId) {
@@ -929,6 +916,7 @@ export async function POST(req: NextRequest) {
               ownerUserId: w.userId,
               visionEnrichment: activeVisionEnrichment,
               strictPurposeSuffix: STRICT_PURPOSE_SUFFIX,
+              verifiedIdentity,
             }),
           );
           if (!direct) {

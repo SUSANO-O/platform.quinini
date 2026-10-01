@@ -73,6 +73,8 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   strictPurposeSuffix?: string;
   /** Si se pasa, usa SSE del hub y emite fases reales durante la ejecución. */
   onStatus?: (phase: string, message: string) => void;
+  /** Claims ya verificados por `resolveVerifiedWidgetIdentity`. Nunca se leen del cuerpo. */
+  verifiedIdentity?: Record<string, string>;
 }): Promise<DirectMcpWidgetChatResult | null> {
   if (!params.widgetTokenStartsWithWt || !params.parsedAgentId.trim()) {
     logWidgetFlow('🚫', 'direct:skip', 'sin wt_ o agentId', { agentId: params.parsedAgentId });
@@ -114,7 +116,6 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     visitorName?: string;
     visitorUserId?: string;
     visitorId?: string;
-    verifiedIdentity?: unknown;
   };
   try {
     parsed = JSON.parse(rawBody) as typeof parsed;
@@ -256,10 +257,10 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   /** Visitante anónimo del widget: sin él la memoria no sobrevive a la sesión. */
   const visitorId = typeof parsed.visitorId === 'string' ? parsed.visitorId.trim() : '';
   /**
-   * Identidad del cliente final ya verificada por la ruta del chat (firma HMAC del widget).
-   * El navegador no puede ponerla: la ruta la borra del cuerpo antes de verificar.
+   * Identidad del cliente final verificada por la ruta (firma HMAC del widget). Llega SOLO como
+   * parámetro: lo que traiga el cuerpo del navegador se ignora siempre.
    */
-  const verifiedIdentity = sanitizeVerifiedIdentity(parsed.verifiedIdentity);
+  const verifiedIdentity = sanitizeVerifiedIdentity(params.verifiedIdentity);
 
   const payload = {
     agentId: typeof parsed.agentId === 'string' && parsed.agentId.trim() ? parsed.agentId.trim() : id,
