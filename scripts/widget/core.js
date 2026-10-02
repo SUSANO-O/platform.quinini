@@ -5542,8 +5542,17 @@
       ticketBtn.classList.add('afhub-handoff-icon--disabled');
     }
 
-    function open() {
+    /** opts.instant: sin animación (al restaurar el chat abierto en una página nueva). */
+    function open(opts) {
       if (isOpen) return;
+      var instant = !!(opts && opts.instant);
+      if (instant) {
+        root.classList.add('afhub-root--instant');
+        // Dos fotogramas: el primero pinta el estado final sin transición; luego vuelven las animaciones.
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () { root.classList.remove('afhub-root--instant'); });
+        });
+      }
       if (cfg.pushContent && chatLayout === 'floating') {
         // closeImpl vuelve a 'floating'; con pushContent siempre se reabre como barra lateral.
         chatLayout = 'sidebar';
@@ -5552,7 +5561,7 @@
       isOpen = true;
       clearUnreadHumanNotice();
       root.classList.add('afhub-open');
-      if (cfg.pushContent) {
+      if (cfg.pushContent && !instant) {
         // Colocar el panel fuera de pantalla antes de mostrarlo para que se deslice.
         syncChatPanelLayout();
         void chat.offsetWidth;
@@ -7601,7 +7610,10 @@
       lastBeamInputLen = len;
     });
 
-    if (cfg.autoOpen || shouldRestoreChatUiOpen(cfg)) setTimeout(open, 80);
+    // Chat que ya estaba abierto en la página anterior: se restaura al instante y sin animación
+    // (en webs multipágina ocurre en cada cambio de vista; con animación parpadeaba).
+    if (shouldRestoreChatUiOpen(cfg)) open({ instant: true });
+    else if (cfg.autoOpen) setTimeout(open, 80);
     else setTimeout(function () { checkHumanModeOnOpen({ skipReconnectBanner: true }); }, 400);
     inboxWatchTimer = setInterval(watchInboxTakeover, 3500);
     setTimeout(consumeAssistPostNavFollowUp, 600);
@@ -8372,6 +8384,8 @@
       '#' + rootId + ' .afhub-header.afhub-header--draggable .afhub-header-icon-btn,' +
       '#' + rootId + ' .afhub-header.afhub-header--draggable .afhub-settings-wrap { cursor:pointer; }' +
       '#' + rootId + '.afhub-root--dragging .afhub-chat { transition:none !important; }' +
+      // Restaurar el chat abierto al cargar otra página: aparece ya en su sitio, sin animaciones.
+      '#' + rootId + '.afhub-root--instant, #' + rootId + '.afhub-root--instant * { transition:none !important; animation:none !important; }' +
       '#' + rootId + ' .afhub-fab svg { width:26px; height:26px; transition:transform .3s; }' +
       '#' + rootId + ' .afhub-fab-inner { position:relative; z-index:2; width:36px; height:36px; display:flex; align-items:center; justify-content:center; }' +
       '#' + rootId + ' .afhub-orb { position:relative; width:32px; height:32px; display:flex; align-items:center; justify-content:center; }' +
