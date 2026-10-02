@@ -12,6 +12,7 @@ import {
   aiBeamScopeLabel,
 } from '@/lib/widget-builder';
 import { WidgetBuilderAppearancePreview } from '@/components/dashboard/widget-builder/appearance-preview';
+import { WidgetBuilderSkinSection } from '@/components/dashboard/widget-builder/skin-section';
 import { ThinkingIconMark } from '@/components/dashboard/widget-builder/thinking-icon-mark';
 import {
   WidgetBuilderColorField,
@@ -208,6 +209,7 @@ export function WidgetBuilderAppearanceStep({
     | 'scrollHaloBottom'
     | 'thinkingIconEnabled'
     | 'thinkingIcon'
+    | 'skin'
   >;
   onChange: (patch: WidgetConfigPatch) => void;
   autoSave?: boolean;
@@ -255,6 +257,8 @@ export function WidgetBuilderAppearanceStep({
               onChange={(theme) => onChange({ theme })}
             />
           </WidgetBuilderSection>
+
+          <WidgetBuilderSkinSection skin={cfg.skin ?? {}} onChange={(skin) => onChange({ skin })} />
 
           <WidgetBuilderSection
             tourId="widget-builder-ai-beam"

@@ -12,6 +12,7 @@ import { widgetPositionLabel } from './ui';
 type PreviewCfg = Pick<
   WidgetConfig,
   | 'color'
+  | 'skin'
   | 'theme'
   | 'title'
   | 'subtitle'
@@ -122,8 +123,11 @@ export function WidgetBuilderAppearancePreview({ cfg }: { cfg: PreviewCfg }) {
   const previewHaloHeight = Math.max(8, Math.min(48, cfg.scrollHaloHeight || 28));
   const previewHaloBlur = Math.max(0, Math.min(24, cfg.scrollHaloBlur || 0));
 
+  const skin = cfg.skin ?? {};
+  const skinFont = skin.fontFamily && skin.fontFamily !== 'inherit' && skin.fontFamily !== 'system' ? `"${skin.fontFamily}", system-ui, sans-serif` : skin.fontFamily === 'system' ? 'system-ui, sans-serif' : undefined;
+  const skinSize = skin.fontScale === 'sm' ? 11 : skin.fontScale === 'lg' ? 13.5 : undefined;
   const composer = (
-    <footer className="wb-preview__composer" style={{ borderRadius: 18 }}>
+    <footer className="wb-preview__composer" style={{ borderRadius: 18, background: skin.inputBg, color: skin.inputText }}>
       {cfg.imageUploadEnabled ? (
         <span className="wb-preview__composer-icon" aria-hidden>
           <Paperclip size={12} />
@@ -135,7 +139,7 @@ export function WidgetBuilderAppearancePreview({ cfg }: { cfg: PreviewCfg }) {
           <Mic size={12} />
         </span>
       ) : null}
-      <span className="wb-preview__composer-send" style={{ background: cfg.color }} aria-hidden>
+      <span className="wb-preview__composer-send" style={{ background: skin.sendBg ?? cfg.color }} aria-hidden>
         →
       </span>
     </footer>
@@ -160,9 +164,13 @@ export function WidgetBuilderAppearancePreview({ cfg }: { cfg: PreviewCfg }) {
           style={{
             borderRadius: `${Math.max(8, radius)}px`,
             ['--wb-accent' as string]: cfg.color,
+            fontFamily: skinFont,
           }}
         >
-          <header className="wb-preview__chat-header" style={{ background: cfg.color }}>
+          <header
+            className="wb-preview__chat-header"
+            style={{ background: skin.headerBg ?? cfg.color, ...(skin.headerText ? { color: skin.headerText } : {}) }}
+          >
             <div className="wb-preview__chat-header-main">
               {hasAvatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -171,8 +179,8 @@ export function WidgetBuilderAppearancePreview({ cfg }: { cfg: PreviewCfg }) {
                 <span className="wb-preview__chat-avatar">{initials}</span>
               )}
               <div className="min-w-0">
-                <p className="wb-preview__chat-title">{cfg.title || 'Asistente'}</p>
-                <p className="wb-preview__chat-subtitle">{cfg.subtitle || 'En línea'}</p>
+                <p className="wb-preview__chat-title" style={skin.headerText ? { color: skin.headerText } : undefined}>{cfg.title || 'Asistente'}</p>
+                <p className="wb-preview__chat-subtitle" style={skin.headerText ? { color: skin.headerText, opacity: 0.8 } : undefined}>{cfg.subtitle || 'En línea'}</p>
               </div>
             </div>
             <div className="wb-preview__chat-actions">
@@ -200,8 +208,8 @@ export function WidgetBuilderAppearancePreview({ cfg }: { cfg: PreviewCfg }) {
               />
             ) : null}
 
-            <div className="wb-preview__chat-body">
-              <div className="wb-preview__bubble wb-preview__bubble--bot">{cfg.welcome || '¡Hola!'}</div>
+            <div className="wb-preview__chat-body" style={{ background: skin.chatBg, fontSize: skinSize }}>
+              <div className="wb-preview__bubble wb-preview__bubble--bot" style={{ background: skin.botBubbleBg, color: skin.botBubbleText }}>{cfg.welcome || '¡Hola!'}</div>
               {showMsgBeam ? (
                 <BorderBeamField
                   radius={12}
@@ -227,7 +235,7 @@ export function WidgetBuilderAppearancePreview({ cfg }: { cfg: PreviewCfg }) {
                   </div>
                 </BorderBeamField>
               ) : null}
-              <div className="wb-preview__bubble wb-preview__bubble--user">Quiero más información</div>
+              <div className="wb-preview__bubble wb-preview__bubble--user" style={{ background: skin.userBubbleBg, color: skin.userBubbleText }}>Quiero más información</div>
             </div>
 
             {scrollHaloOn && cfg.scrollHaloBottom !== false ? (
@@ -243,6 +251,7 @@ export function WidgetBuilderAppearancePreview({ cfg }: { cfg: PreviewCfg }) {
             ) : null}
           </div>
 
+          <div style={skin.footerBg ? { background: skin.footerBg, padding: '6px 0 2px', borderRadius: '0 0 12px 12px' } : undefined}>
           {showInputBeam ? (
             <BorderBeamField
               radius={18}
@@ -265,6 +274,7 @@ export function WidgetBuilderAppearancePreview({ cfg }: { cfg: PreviewCfg }) {
               {cfg.policyLinkLabel || 'Política de Privacidad'}
             </p>
           ) : null}
+          </div>
         </div>
 
         <div className="wb-preview__launcher" style={posStyle}>
@@ -281,7 +291,7 @@ export function WidgetBuilderAppearancePreview({ cfg }: { cfg: PreviewCfg }) {
               style={{
                 width: fabPx,
                 height: fabPx,
-                background: hasAvatar ? 'transparent' : cfg.color,
+                background: hasAvatar ? 'transparent' : skin.fabBg ?? cfg.color,
               }}
               aria-hidden
             >

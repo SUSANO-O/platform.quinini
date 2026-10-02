@@ -1,3 +1,4 @@
+import type { WidgetSkin } from '@/lib/widget-skin';
 import type { HandoffNotifyMode } from '@/lib/handoff-notify';
 import type { PipelineConfig } from '@/lib/widget-pipeline-ui';
 import type { AiBeamPalette, AiBeamScope } from '@/lib/widget-ai-beam';
@@ -58,6 +59,8 @@ export interface WidgetConfig {
   fabDismissible: boolean;
   /** Barra lateral que reacomoda la página en vez de taparla (por defecto false). */
   pushContent: boolean;
+  /** Colores por zona y tipografía; {} = aspecto por defecto (src/lib/widget-skin.ts). */
+  skin: WidgetSkin;
   voiceEnabled: boolean;
   /** Botón 📎 en el input del chat. */
   imageUploadEnabled: boolean;

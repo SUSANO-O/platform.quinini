@@ -1,4 +1,5 @@
 /** Borde mágico / modo AI del widget (input + tarjeta “pensando”). */
+import { normalizeWidgetSkin } from '@/lib/widget-skin';
 import type { WidgetConfig } from '@/lib/widget-builder/types';
 import { normalizeScrollHaloFields } from '@/lib/widget-scroll-halo';
 import { normalizeThinkingIconFields } from '@/lib/widget-thinking-icon';
@@ -154,6 +155,7 @@ export function mergeWidgetAppearanceFromApi<T extends WidgetConfig>(
     position: String(widget.position ?? prev.position),
     autoOpen: widget.autoOpen === true,
     fabDismissible: widget.fabDismissible !== false,
+    skin: normalizeWidgetSkin((widget as { skin?: unknown }).skin),
     voiceEnabled: widget.voiceEnabled !== false,
     imageUploadEnabled: (widget as { imageUploadEnabled?: boolean }).imageUploadEnabled !== false,
     micEnabled:
