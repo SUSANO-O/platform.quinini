@@ -1655,6 +1655,93 @@
           addMessage('bot', entry.content || '', botOptsHist);
         }
       }
+      setTimeout(resumePendingTurn, 0);
+    }
+
+    // ── Turno pendiente entre páginas ──────────────────────────────────────────
+    // En webs multipágina (p. ej. una app PHP), cambiar de vista mientras el bot piensa mata la
+    // petición. Se anota el turno en sessionStorage: 'queued' = aún no se envió (agrupación de 2 s),
+    // 'inflight' = enviado sin respuesta. La página nueva lo retoma: envía el pendiente o recupera
+    // la respuesta que el servidor terminó y guardó (/api/widget/messages?reply=1).
+    var PENDING_TURN_MAX_AGE_MS = 5 * 60 * 1000;
+    var PENDING_TURN_RECOVER_MS = 45000;
+    var pageUnloading = false;
+    var pendingTurnResumed = false;
+    try { window.addEventListener('pagehide', function () { pageUnloading = true; }); } catch (_ph) { /* noop */ }
+    function pendingTurnKey() { return 'afhub_pending_turn:' + chatSessionId; }
+    function setPendingTurn(state, text) {
+      try {
+        sessionStorage.setItem(pendingTurnKey(), JSON.stringify({ state: state, text: String(text || '').slice(0, 4000), at: Date.now() }));
+      } catch (_e) { /* storage bloqueado: sin recuperación, como antes */ }
+    }
+    function forgetPendingTurn() {
+      try { sessionStorage.removeItem(pendingTurnKey()); } catch (_e) { /* noop */ }
+    }
+    /** Al terminar un turno. Si la página se está yendo, se conserva para que la siguiente lo retome. */
+    function settlePendingTurn() {
+      if (!pageUnloading) forgetPendingTurn();
+    }
+    function readPendingTurn() {
+      try {
+        var raw = sessionStorage.getItem(pendingTurnKey());
+        return raw ? JSON.parse(raw) : null;
+      } catch (_e) { return null; }
+    }
+    function resumePendingTurn() {
+      if (pendingTurnResumed) return;
+      pendingTurnResumed = true;
+      if (isFlowEmbed || widgetDisabled || isLoading) return;
+      var p = readPendingTurn();
+      if (!p || typeof p.text !== 'string' || !p.text) return;
+      var last = history.length ? history[history.length - 1] : null;
+      var fresh = Date.now() - Number(p.at || 0) < PENDING_TURN_MAX_AGE_MS;
+      // Solo si el último mensaje sigue siendo del visitante y sin respuesta; si no, es basura vieja.
+      if (!fresh || !last || last.role !== 'user') { forgetPendingTurn(); return; }
+      if (p.state === 'queued' || !cfg.token) {
+        forgetPendingTurn();
+        send(p.text, { historyPreloaded: true });
+        return;
+      }
+      recoverPendingReply(p);
+    }
+    function recoverPendingReply(p) {
+      var since = new Date(Number(p.at) - 5000).toISOString();
+      var url = cfg.host.replace(/\/$/, '') + '/api/widget/messages?reply=1'
+        + '&sessionId=' + encodeURIComponent(chatSessionId)
+        + '&since=' + encodeURIComponent(since)
+        + '&token=' + encodeURIComponent(String(cfg.token));
+      var deadline = Date.now() + PENDING_TURN_RECOVER_MS;
+      isLoading = true;
+      sendBtn.disabled = true;
+      showTyping('Recuperando la respuesta…');
+      function done() {
+        hideTyping();
+        isLoading = false;
+        sendBtn.disabled = false;
+        syncSendButtonState();
+      }
+      function poll() {
+        fetch(url, { cache: 'no-store' })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .catch(function () { return null; })
+          .then(function (d) {
+            if (d && d.reply && typeof d.reply.text === 'string' && d.reply.text) {
+              done();
+              forgetPendingTurn();
+              addMessage('bot', d.reply.text, d.reply.navOffer ? { navOffer: d.reply.navOffer } : undefined);
+              history.push({ role: 'model', content: d.reply.text });
+              saveChatToSession();
+              flushQueuedMessageIfAny();
+              return;
+            }
+            if (Date.now() < deadline) { setTimeout(poll, 2500); return; }
+            // No apareció (el servidor no llegó a guardarla): se reenvía el mismo mensaje.
+            done();
+            forgetPendingTurn();
+            send(p.text, { historyPreloaded: true });
+          });
+      }
+      poll();
     }
 
     ensureWidgetGoogleFonts();
@@ -4927,7 +5014,9 @@
             skipBanner: opts.skipReconnectBanner,
             silentPending: true,
           })) return;
-          if (historyIsUserOnly(history)) {
+          // Un historial solo-usuario es basura de un traspaso viejo… salvo que sea un turno que la
+          // página anterior dejó a medias (cambio de vista mientras el bot pensaba): ese se retoma.
+          if (historyIsUserOnly(history) && !readPendingTurn()) {
             resetToWelcomeChat();
           }
         })
@@ -5906,6 +5995,7 @@
       syncSendButtonState();
 
       if (pendingBatchTimer) clearTimeout(pendingBatchTimer);
+      setPendingTurn('queued', text);
       pendingBatchTimer = setTimeout(function () {
         pendingBatchTimer = null;
         send(text, { historyPreloaded: true });
@@ -5987,6 +6077,7 @@
       sendBtn.disabled = true;
       newChatBtn.disabled = true;
       isLoading = true;
+      setPendingTurn('inflight', text);
 
       var userImagesPayload = [];
       if (hasAttach) {
@@ -6003,6 +6094,7 @@
         } catch (upErr) {
           hideTyping();
           isLoading = false;
+          settlePendingTurn();
           newChatBtn.disabled = false;
           syncSendButtonState();
           var upMsg = upErr && upErr.message ? upErr.message : 'Error al subir la captura.';
@@ -6253,6 +6345,7 @@
             speakBotReplyIfEnabled(finalReply, streamBubble);
           }
           isLoading = false;
+          settlePendingTurn();
           sendBtn.disabled = false;
           syncSendButtonState();
           newChatBtn.disabled = false;
@@ -6386,6 +6479,7 @@
         log(cfg, 'error', 'Request failed', e);
       } finally {
         isLoading = false;
+        settlePendingTurn();
         sendBtn.disabled = false;
         syncSendButtonState();
         newChatBtn.disabled = false;

@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { Widget, WidgetMessage, ConversationSession } from '@/lib/db/models';
 import { withCors, handlePreflight } from '@/lib/cors';
+import { finalizeWidgetNavReply } from '@/lib/widget-page-nav';
 
 /** Preflight CORS — el widget embebido en sitios externos consulta este endpoint. */
 export async function OPTIONS(req: NextRequest) {
@@ -85,6 +86,31 @@ export async function GET(req: NextRequest) {
     return withCors(req, NextResponse.json({ error: 'Token inválido.' }, { status: 401 }));
   }
   const widgetId = String(widget._id);
+
+  // Recuperación: el visitante cambió de página mientras el bot respondía (web multipágina). El
+  // servidor terminó y guardó la respuesta; el widget de la página nueva la pide aquí.
+  if (req.nextUrl.searchParams.get('reply') === '1') {
+    const sinceReply = since ? new Date(since) : null;
+    if (!sinceReply || Number.isNaN(sinceReply.getTime())) {
+      return withCors(req, NextResponse.json({ error: 'since inválido.' }, { status: 400 }));
+    }
+    const last = await WidgetMessage.findOne({
+      widgetId,
+      sessionId,
+      role: 'assistant',
+      sentBy: 'ai',
+      deleted: { $ne: true },
+      createdAt: { $gt: sinceReply },
+    })
+      .sort({ createdAt: -1 })
+      .select({ content: 1, createdAt: 1 })
+      .lean() as { content?: string; createdAt?: Date } | null;
+    if (!last?.content) return withCors(req, NextResponse.json({ reply: null }));
+    const { reply, navOffer } = finalizeWidgetNavReply(last.content);
+    return withCors(req, NextResponse.json({
+      reply: { text: reply, createdAt: last.createdAt ?? null, ...(navOffer ? { navOffer } : {}) },
+    }));
+  }
 
   // Puede haber varios ho_* por chatSessionId (handoffs viejos resueltos + uno abierto).
   // findOne sin orden devolvía a veces el resuelto → el widget creía que la conversación terminó.
