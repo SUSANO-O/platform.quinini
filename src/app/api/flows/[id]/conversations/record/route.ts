@@ -23,6 +23,8 @@ type Body = {
   pageUrl?: string;
   /** Widget al que el flujo pasó la conversación (nodo agent_handoff). */
   handedOffTo?: string;
+  /** Nodos visitados (embudo). */
+  visited?: unknown;
 };
 
 export async function OPTIONS(req: NextRequest) {
@@ -81,6 +83,9 @@ export async function POST(req: NextRequest, ctx: RouteCtx) {
     answers,
     ...(source ? { source } : {}),
     ...(handedOffTo ? { handedOffTo } : {}),
+    visited: Array.isArray(body.visited)
+      ? [...new Set(body.visited.filter((v): v is string => typeof v === 'string' && /^[A-Za-z0-9_\-]{1,80}$/.test(v)))].slice(0, 200)
+      : undefined,
   });
 
   // Lead: al completar (o al pasar al agente) un flujo con "genera leads". Una sola vez por sesión.

@@ -590,7 +590,7 @@ function keepOrchestratorIfCapable(
 }
 
 /** Llama /api/models directamente en vertex. Devuelve el texto o null. */
-async function callInternalLlm(
+export async function callInternalLlm(
   prompt: string,
   maxTokens: number,
   temperature: number,

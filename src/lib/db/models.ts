@@ -720,6 +720,8 @@ const FlowConversationSchema = new Schema({
   source:       { type: Schema.Types.Mixed, default: null },
   /** Si el flujo pasó la conversación a un agente (nodo agent_handoff). */
   handedOffTo:  { type: String, default: '' },
+  /** Nodos por los que pasó (embudo por paso). */
+  visited:      { type: [String], default: [] },
 }, { timestamps: true });
 
 FlowConversationSchema.index({ flowId: 1, startedAt: -1 });

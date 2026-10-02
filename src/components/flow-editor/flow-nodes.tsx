@@ -6,6 +6,7 @@ import type { LucideIcon } from '@/components/ui/icons';
 import {
   Calendar,
   Bot,
+  Sparkles,
   CalendarDays,
   CornerDownRight,
   Dices,
@@ -44,6 +45,7 @@ const NODE_ICONS: Record<FlowNodeType, LucideIcon> = {
   calendar_booking: Calendar,
   calendly_booking: CalendarDays,
   agent_handoff: Bot,
+  ai_classify: Sparkles,
 };
 
 function NodeIcon({ type }: { type: FlowNodeType }) {
@@ -144,7 +146,8 @@ function ConditionNode({ data, selected }: NodeProps<FlowRfNode>) {
 function ChoiceNode({ data, selected }: NodeProps<FlowRfNode>) {
   const options = data.options ?? [];
   const isRandom = data.flowType === 'random';
-  const type = isRandom ? 'random' : 'multiple_choice';
+  const isClassify = data.flowType === 'ai_classify';
+  const type = isRandom ? 'random' : isClassify ? 'ai_classify' : 'multiple_choice';
 
   return (
     <div
@@ -174,6 +177,12 @@ function ChoiceNode({ data, selected }: NodeProps<FlowRfNode>) {
         ))}
         {options.length === 0 && (
           <span className="flow-rf-option flow-rf-option--empty">Sin rutas</span>
+        )}
+        {isClassify && (
+          <span className="flow-rf-option flow-rf-option--fallback" title="Si ningún caso encaja">
+            Otro
+            <Handle type="source" position={Position.Right} id="output" className="flow-rf-handle flow-rf-handle--option" />
+          </span>
         )}
       </div>
     </div>

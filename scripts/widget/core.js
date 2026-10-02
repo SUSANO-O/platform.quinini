@@ -1422,6 +1422,50 @@
     }
   }
 
+  /**
+   * Dueño de la conversación guardada. El chat y la memoria se guardaban por widget/navegador, no
+   * por usuario: en una app con login, si cambiaba el usuario en el mismo navegador, el siguiente
+   * veía la conversación del anterior. Ahora se guarda una huella del usuario firmado (claims de
+   * `identity`, sin guardar sus valores) y si cambia —otro usuario, o cierre de sesión— se empieza
+   * de cero: historial, sesión de chat, turno pendiente y visitante (memoria del agente).
+   */
+  function identityFingerprint(cfg) {
+    var claims = cfg && cfg.identity && cfg.identity.claims;
+    if (!claims || typeof claims !== 'object') return 'anon';
+    var keys = Object.keys(claims).sort();
+    var canon = keys.map(function (k) { return k + '=' + String(claims[k]); }).join('&');
+    // FNV-1a de 32 bits con dos semillas: solo sirve para comparar, no es un secreto.
+    function fnv(str, seed) {
+      var h = seed >>> 0;
+      for (var i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619) >>> 0;
+      }
+      return ('0000000' + h.toString(16)).slice(-8);
+    }
+    return 'id_' + fnv(canon, 2166136261) + fnv(canon, 3735928559);
+  }
+
+  function ensureChatOwner(cfg) {
+    try {
+      var ownerKey = chatSessionStorageKey(cfg) + ':owner';
+      var current = identityFingerprint(cfg);
+      var stored = sessionStorage.getItem(ownerKey);
+      if (stored !== null && stored !== current) {
+        clearPersistedChatState(cfg);
+        var oldSid = sessionStorage.getItem(chatSessionStorageKey(cfg));
+        if (oldSid) {
+          sessionStorage.removeItem('afhub_pending_turn:' + oldSid);
+          sessionStorage.removeItem(chatSessionStorageKey(cfg) + ':long-warn');
+        }
+        rotateChatSessionId(cfg);
+        try { localStorage.removeItem(visitorStorageKey(cfg)); } catch (_v) { /* noop */ }
+        try { sessionStorage.removeItem(assistPostNavStorageKey(cfg)); } catch (_n) { /* noop */ }
+      }
+      sessionStorage.setItem(ownerKey, current);
+    } catch (_e) { /* storage bloqueado: sin persistencia, nada que limpiar */ }
+  }
+
   function clearPersistedChatState(cfg) {
     try {
       sessionStorage.removeItem(chatHistoryStorageKey(cfg));
@@ -1613,6 +1657,7 @@
     var flowCtrl = null;
     var fabDrag = null;
     var history = [];
+    ensureChatOwner(cfg);
     var chatSessionId = getOrCreateChatSessionId(cfg);
     var isFlowEmbed = Boolean(cfg.flowId && cfg.flowToken);
     var persistedChat = isFlowEmbed ? null : loadPersistedChatState(cfg, chatSessionId);

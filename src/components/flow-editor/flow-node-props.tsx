@@ -92,6 +92,7 @@ function HandoffWidgetSelect({ value, onChange }: { value: string; onChange: (id
 
 function questionLabel(type: FlowNodeType): string {
   if (type === 'agent_handoff') return 'Mensaje antes de pasar al agente';
+  if (type === 'ai_classify') return 'Pregunta abierta al visitante';
   if (type === 'end') return 'Mensaje de cierre';
   if (type === 'condition') return 'Descripción (solo editor)';
   if (type === 'message') return 'Mensaje del bot';
@@ -234,6 +235,93 @@ export function FlowNodePropsPanel({ data, onChange }: Props) {
             />
           </Field>
         </div>
+      )}
+
+      {/* ── Clasificar con IA ─────────────────────────────────────────── */}
+      {type === 'ai_classify' && (
+        <>
+          <Field
+            label="Clave de variable"
+            htmlFor="flow-cfg-classify-var"
+            hint="Guarda el texto del visitante; la categoría elegida queda como etiqueta."
+          >
+            <input
+              id="flow-cfg-classify-var"
+              value={config.variableKey ?? ''}
+              onChange={(e) => patchConfig({ variableKey: e.target.value.replace(/\s+/g, '_') })}
+              placeholder="intencion"
+            />
+          </Field>
+          <Field label="Texto de ayuda en la caja" htmlFor="flow-cfg-classify-ph">
+            <input
+              id="flow-cfg-classify-ph"
+              value={config.placeholder ?? ''}
+              onChange={(e) => patchConfig({ placeholder: e.target.value })}
+              placeholder="Escribe tu mensaje…"
+            />
+          </Field>
+          <div className="flow-editor-field">
+            <div className="flow-editor-field__row">
+              <label>Categorías (una rama cada una + «Otro»)</label>
+              <button
+                type="button"
+                className="flow-editor-chip-btn"
+                onClick={() => {
+                  const opts = [...(data.options ?? [])];
+                  const n = opts.length + 1;
+                  opts.push({ label: `Categoría ${n}`, value: `cat_${n}`, description: '' });
+                  updateOptions(opts);
+                }}
+              >
+                <Plus size={13} strokeWidth={2} aria-hidden />
+                Añadir
+              </button>
+            </div>
+            <p className="flow-editor-field__hint">
+              El visitante escribe libre; se elige la categoría por palabras clave o con IA. Describe qué
+              mensajes entran en cada una. Si ninguna encaja, sigue por «Otro».
+            </p>
+            <div className="flow-editor-options-list">
+              {(data.options ?? []).map((opt, idx) => (
+                <div key={`${opt.value}-${idx}`} className="flow-editor-option-row flow-editor-option-row--dual">
+                  <input
+                    aria-label={`Nombre de la categoría ${idx + 1}`}
+                    value={opt.label}
+                    onChange={(e) => {
+                      const opts = [...(data.options ?? [])];
+                      const label = e.target.value;
+                      opts[idx] = {
+                        ...opts[idx],
+                        label,
+                        value: opts[idx].value || label.trim().toLowerCase().replace(/\s+/g, '_') || `cat_${idx + 1}`,
+                      };
+                      updateOptions(opts);
+                    }}
+                    placeholder="Nombre (p. ej. Quiero comprar)"
+                  />
+                  <input
+                    aria-label={`Qué mensajes entran en la categoría ${idx + 1}`}
+                    value={opt.description ?? ''}
+                    onChange={(e) => {
+                      const opts = [...(data.options ?? [])];
+                      opts[idx] = { ...opts[idx], description: e.target.value };
+                      updateOptions(opts);
+                    }}
+                    placeholder="Ejemplos: precios, cotizar, contratar"
+                  />
+                  <button
+                    type="button"
+                    className="flow-editor-icon-btn"
+                    aria-label={`Quitar categoría ${idx + 1}`}
+                    onClick={() => updateOptions((data.options ?? []).filter((_, i) => i !== idx))}
+                  >
+                    <X size={13} strokeWidth={2} aria-hidden />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
       )}
 
       {/* ── Opción múltiple ───────────────────────────────────────────── */}

@@ -6,7 +6,7 @@
 
 import crypto from 'crypto';
 import { connectDB } from '@/lib/db/connection';
-import { User, Subscription } from '@/lib/db/models';
+import { User, Subscription, WebhookOutbox } from '@/lib/db/models';
 import { canUseOutboundSaasWebhook } from '@/lib/plan-catalog';
 
 export type SaasWebhookEventType =
@@ -33,7 +33,21 @@ export type SaasWebhookPayload<T = unknown> = {
   data: T;
 };
 
-const RETRY_DELAYS_MS = [0, 2_000, 8_000];
+let RETRY_DELAYS_MS = [0, 2_000, 8_000];
+
+/**
+ * Eventos que, si los reintentos inmediatos fallan por algo reintentable, pasan al outbox
+ * (`webhookoutbox`): el worker cron-schendule los reintenta con backoff y quedan en la bitácora.
+ * Un lead perdido no se recupera; una notificación de cuota sí puede perderse.
+ */
+const OUTBOX_EVENTS = new Set<SaasWebhookEventType>(['flow.lead_captured']);
+
+/** Solo tests: sin esperas entre reintentos. */
+export function __setSaasRetryDelaysForTests(delays: number[]): void {
+  RETRY_DELAYS_MS = delays;
+}
+
+type DeliveryOutcome = { ok: boolean; status: number; error?: string; retryable: boolean };
 
 function sign(body: string, secret: string): string {
   return 'sha256=' + crypto.createHmac('sha256', secret || '').update(body).digest('hex');
@@ -43,9 +57,10 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function deliver(url: string, secret: string, body: string): Promise<void> {
+async function deliver(url: string, secret: string, body: string, deliveryId?: string): Promise<DeliveryOutcome> {
   const sig = sign(body, secret);
   let lastErr: unknown;
+  let lastStatus = 0;
   for (const delay of RETRY_DELAYS_MS) {
     if (delay > 0) await sleep(delay);
     try {
@@ -56,22 +71,32 @@ async function deliver(url: string, secret: string, body: string): Promise<void>
           'X-BotIvA-Signature': sig,
           'X-BotIvA-Event': (JSON.parse(body) as SaasWebhookPayload).event,
           'User-Agent': 'BotIvA-Landing-Webhooks/1.0',
+          ...(deliveryId ? { 'Idempotency-Key': deliveryId } : {}),
         },
         body,
         signal: AbortSignal.timeout(12_000),
       });
-      if (res.ok) return;
+      if (res.ok) return { ok: true, status: res.status, retryable: false };
       lastErr = new Error(`HTTP ${res.status}`);
+      lastStatus = res.status;
       // 4xx permanentes (400/401/403/404/410/422…): el destino nunca aceptará el
       // reintento, así que cortamos. 408 (timeout) y 429 (rate limit) SÍ se reintentan.
       if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
-        break;
+        console.error('[saas-webhook] delivery failed (permanente)', url, lastErr);
+        return { ok: false, status: res.status, error: String(lastErr), retryable: false };
       }
     } catch (err) {
       lastErr = err;
+      lastStatus = 0;
     }
   }
   console.error('[saas-webhook] delivery failed', url, lastErr);
+  return {
+    ok: false,
+    status: lastStatus,
+    error: lastErr instanceof Error ? lastErr.message : String(lastErr),
+    retryable: true,
+  };
 }
 
 async function userMayReceiveOutboundWebhook(userId: string): Promise<boolean> {
@@ -113,15 +138,35 @@ export function sendSaasWebhook<T>(
       const url = typeof u.saasWebhookUrl === 'string' ? u.saasWebhookUrl.trim() : '';
       if (!url || !url.startsWith('https://')) return;
 
-      const payload: SaasWebhookPayload<T> = {
+      const useOutbox = OUTBOX_EVENTS.has(event);
+      // deliveryId estable: el reintento del worker manda el MISMO y el receptor puede deduplicar.
+      const deliveryId = useOutbox ? `dlv_${crypto.randomUUID()}` : undefined;
+      const payload: SaasWebhookPayload<T> & { deliveryId?: string } = {
         event,
         timestamp: new Date().toISOString(),
         userId,
         data,
+        ...(deliveryId ? { deliveryId } : {}),
       };
       const body = JSON.stringify(payload);
       const secret = typeof u.saasWebhookSecret === 'string' ? u.saasWebhookSecret : '';
-      await deliver(url, secret, body);
+      const outcome = await deliver(url, secret, body, deliveryId);
+      if (!outcome.ok && outcome.retryable && useOutbox) {
+        // El secreto NO se guarda: el worker lo relee de la cuenta al enviar.
+        await WebhookOutbox.create({
+          tenantId: userId,
+          agentId: '',
+          webhookName: 'saas',
+          event,
+          url,
+          payload,
+          status: 'pending',
+          attempts: 0,
+          nextRetryAt: new Date(),
+          lastStatus: outcome.status,
+          lastError: (outcome.error ?? '').slice(0, 500),
+        });
+      }
     } catch (e) {
       console.error('[saas-webhook] dispatch error', e);
     }

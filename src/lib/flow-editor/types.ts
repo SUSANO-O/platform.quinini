@@ -14,13 +14,16 @@ export type FlowNodeType =
   | 'end'
   | 'calendar_booking'
   | 'calendly_booking'
-  | 'agent_handoff';
+  | 'agent_handoff'
+  | 'ai_classify';
 
 export type FlowConnectionHandle = 'output' | 'true' | 'false' | `option:${number}`;
 
 export interface FlowNodeOption {
   label: string;
   value: string;
+  /** ai_classify: qué tipo de mensajes entran en esta categoría (ayuda a la IA). */
+  description?: string;
 }
 
 export type FlowConditionOperator =

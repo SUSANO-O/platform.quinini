@@ -103,6 +103,7 @@ export async function upsertFlowConversation(opts: {
   answers?: unknown[];
   source?: unknown;
   handedOffTo?: string;
+  visited?: string[];
 }): Promise<void> {
   const now = new Date();
   const status = opts.status ?? 'active';
@@ -127,6 +128,7 @@ export async function upsertFlowConversation(opts: {
       month: monthKey(now),
       ...(opts.source ? { source: opts.source } : {}),
       ...(opts.handedOffTo ? { handedOffTo: opts.handedOffTo } : {}),
+      ...(opts.visited?.length ? { visited: opts.visited } : {}),
     });
     return;
   }
@@ -158,6 +160,7 @@ export async function upsertFlowConversation(opts: {
         ...(opts.visitorId ? { visitorId: opts.visitorId } : {}),
         ...(opts.source && !existing.source ? { source: opts.source } : {}),
         ...(opts.handedOffTo ? { handedOffTo: opts.handedOffTo } : {}),
+        ...(opts.visited?.length ? { visited: opts.visited } : {}),
       },
     },
   );
@@ -177,6 +180,120 @@ export async function captureFlowLeadOnce(opts: {
     { $set: { lead: opts.lead, leadCapturedAt: new Date() } },
   );
   return r.modifiedCount === 1;
+}
+
+// ── Embudo por paso ─────────────────────────────────────────────────────────
+
+export type FlowFunnelStep = {
+  nodeId: string;
+  type: string;
+  label: string;
+  /** Conversaciones que llegaron a este paso. */
+  reached: number;
+  /** Conversaciones que se quedaron aquí sin completar el flujo. */
+  dropped: number;
+  /** dropped / reached, en %. */
+  dropRate: number;
+};
+
+/** Nodos que el visitante no "ve" como paso (no tienen sentido en el embudo). */
+const FUNNEL_SKIP = new Set(['start', 'condition', 'set_variable', 'goto', 'random', 'delay']);
+
+type FunnelNode = { id?: unknown; type?: unknown; question?: unknown };
+type FunnelEdge = { fromNodeId?: unknown; toNodeId?: unknown };
+
+/** Pasos en el orden del recorrido desde el inicio (BFS), con llegadas y abandonos. */
+export function buildFlowFunnel(
+  nodes: FunnelNode[],
+  connections: FunnelEdge[],
+  reached: Map<string, number>,
+  dropped: Map<string, number>,
+): FlowFunnelStep[] {
+  const byId = new Map(nodes.filter((n) => typeof n?.id === 'string').map((n) => [n.id as string, n]));
+  const out = new Map<string, string[]>();
+  for (const c of connections) {
+    if (typeof c?.fromNodeId !== 'string' || typeof c?.toNodeId !== 'string') continue;
+    out.set(c.fromNodeId, [...(out.get(c.fromNodeId) ?? []), c.toNodeId]);
+  }
+  const order: string[] = [];
+  const seen = new Set<string>(['start']);
+  const queue = ['start'];
+  while (queue.length) {
+    const id = queue.shift()!;
+    for (const next of out.get(id) ?? []) {
+      if (seen.has(next) || !byId.has(next)) continue;
+      seen.add(next);
+      order.push(next);
+      queue.push(next);
+    }
+  }
+  return order
+    .map((id) => byId.get(id)!)
+    .filter((n) => !FUNNEL_SKIP.has(String(n.type)))
+    .map((n) => {
+      const id = n.id as string;
+      const r = reached.get(id) ?? 0;
+      const d = dropped.get(id) ?? 0;
+      return {
+        nodeId: id,
+        type: String(n.type),
+        label: (typeof n.question === 'string' && n.question.trim() ? n.question.trim() : String(n.type)).slice(0, 80),
+        reached: r,
+        dropped: d,
+        dropRate: r > 0 ? Math.round((d / r) * 100) : 0,
+      };
+    });
+}
+
+/** Una conversación "activa" sin movimiento en este tiempo cuenta como abandonada en el embudo. */
+const FUNNEL_IDLE_MS = 30 * 60_000;
+
+export async function aggregateFlowFunnel(
+  flowId: string,
+  userId: string,
+  nodes: FunnelNode[],
+  connections: FunnelEdge[],
+): Promise<FlowFunnelStep[]> {
+  const cutoff = new Date(Date.now() - FUNNEL_IDLE_MS);
+  const [res] = await FlowConversation.aggregate<{
+    reached: Array<{ _id: string; n: number }>;
+    dropped: Array<{ _id: string; n: number }>;
+  }>([
+    { $match: { flowId, userId } },
+    {
+      $project: {
+        status: 1,
+        currentNodeId: 1,
+        updatedAt: 1,
+        handedOffTo: 1,
+        visited: {
+          $setUnion: [
+            { $map: { input: { $ifNull: ['$answers', []] }, as: 'a', in: '$$a.nodeId' } },
+            { $ifNull: ['$visited', []] },
+            [{ $ifNull: ['$currentNodeId', ''] }],
+          ],
+        },
+      },
+    },
+    {
+      $facet: {
+        reached: [{ $unwind: '$visited' }, { $group: { _id: '$visited', n: { $sum: 1 } } }],
+        dropped: [
+          {
+            $match: {
+              status: { $ne: 'completed' },
+              handedOffTo: { $in: [null, ''] },
+              $or: [{ status: 'abandoned' }, { updatedAt: { $lt: cutoff } }],
+            },
+          },
+          { $group: { _id: '$currentNodeId', n: { $sum: 1 } } },
+        ],
+      },
+    },
+  ]);
+  const toMap = (rows: Array<{ _id: string; n: number }> | undefined) =>
+    new Map((rows ?? []).filter((r) => r._id).map((r) => [r._id, r.n]));
+  return buildFlowFunnel(nodes, connections, toMap(res?.reached), toMap(res?.dropped));
 }
 
 export { monthKey as flowConversationMonthKey };
