@@ -208,6 +208,9 @@
     }
   }
 
+  /** true cuando la navegación del asistente recarga/abandona la página (no hay SPA). */
+  var assistLeavingPage = false;
+
   /** Navegación SPA: AgentFlowhub.navigate, evento afhub:navigate-request, o recarga completa. */
   function navigateAssistDashboard(target) {
     return new Promise(function (resolve) {
@@ -219,6 +222,8 @@
         resolve(ok !== false);
       }
       function hardNav() {
+        // La página se va: el mensaje de llegada lo entrega la página nueva (consumeAssistPostNavFollowUp).
+        assistLeavingPage = true;
         var onlyHashChanges = false;
         try {
           var hi = target.indexOf('#');
@@ -3054,6 +3059,9 @@
               }
             }
           } catch (_p) { /* noop */ }
+          // Recarga completa: si lo entregamos aquí, se pinta en la página que se va y se borra del
+          // almacenamiento, y la nueva llega sin mensaje. Lo entrega la página nueva al cargar.
+          if (assistLeavingPage) return;
           deliverAssistPostNavFollowUp(true);
         });
       });
@@ -3086,7 +3094,11 @@
         var p = JSON.parse(raw);
         if (p && p.message) {
           setTimeout(function () {
-            addMessage('bot', String(p.message), { noFeedback: true });
+            var text = String(p.message);
+            // Al historial: si no, el repintado al abrir el chat (o la siguiente recarga) lo borra.
+            history.push({ role: 'model', content: text });
+            saveChatToSession();
+            if (historyDomReady) addMessage('bot', text, { noFeedback: true });
             if (autoOpen !== false && !isOpen) open();
           }, 350);
           return true;
