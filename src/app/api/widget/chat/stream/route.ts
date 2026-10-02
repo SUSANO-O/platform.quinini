@@ -527,13 +527,23 @@ export async function POST(req: NextRequest) {
 
   // SSE stream — routing multiagente dentro del stream para emitir status en tiempo real
   const encoder = new TextEncoder();
+  // Si el visitante se va a mitad de respuesta (cambia de página en una web multipágina), el
+  // navegador cierra la conexión. Antes el siguiente enqueue lanzaba y se saltaba el guardado:
+  // la respuesta se generaba y se perdía. Ahora se deja de escribir y el resto del turno
+  // (incluido emitDoneAndPersist) sigue, para que el widget la recupere en la página nueva.
+  let clientGone = false;
   const stream = new ReadableStream({
     async start(controller) {
       const enqueue = (data: Record<string, unknown>) => {
         if (data.type === 'status' && typeof data.phase === 'string') {
           latencyTrace.recordSsePhase(data.phase);
         }
-        controller.enqueue(encoder.encode(sseEvent(data)));
+        if (clientGone) return;
+        try {
+          controller.enqueue(encoder.encode(sseEvent(data)));
+        } catch {
+          clientGone = true;
+        }
       };
 
       let hubBody = rawBody;
@@ -1313,8 +1323,15 @@ export async function POST(req: NextRequest) {
         latencyTrace.setPath('stream-error');
         finalizeWidgetChatTrace(latencyTrace, { ok: false, errorCode: formatted.code });
       } finally {
-        controller.close();
+        try {
+          controller.close();
+        } catch {
+          /* el visitante ya cerró la conexión */
+        }
       }
+    },
+    cancel() {
+      clientGone = true;
     },
   });
 
