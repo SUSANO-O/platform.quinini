@@ -3042,9 +3042,16 @@
                 } catch (_sh) { /* noop */ }
               }, 400);
             }
-            cfg.pagePath = target.split('#')[0];
-            if (window.AgentFlowhub && typeof window.AgentFlowhub.updatePagePath === 'function') {
-              window.AgentFlowhub.updatePagePath(target);
+            // Panel BotIvA: la ruta se fija aquí (su router puede tardar en actualizar location).
+            // Web del cliente: no fijarla, para que resolvePagePath lea siempre la URL viva; si no,
+            // en una SPA el agente seguiría creyendo que el cliente está en esta vista aunque luego
+            // navegue con el menú de la propia web.
+            if (isAssistInternalDashboard()) {
+              if (window.AgentFlowhub && typeof window.AgentFlowhub.updatePagePath === 'function') {
+                window.AgentFlowhub.updatePagePath(target);
+              } else {
+                cfg.pagePath = target;
+              }
             }
           } catch (_p) { /* noop */ }
           deliverAssistPostNavFollowUp(true);
@@ -5942,7 +5949,8 @@
 
     // ── Mensajes seguidos: si el usuario manda varias burbujas rápido, se ven
     // todas al toque (eco local normal) pero la llamada real al backend espera
-    // una pausa de 2s tras el último mensaje, para responder a todo junto en
+    // una pausa corta tras el último mensaje (1 s, hasta 3 s si sigue escribiendo; ver
+    // queueOrSend), para responder a todo junto en
     // vez de contestar apurado al primero. Adjuntos / modo humano / input vacío
     // no debounce: van directo, igual que antes.
     var pendingBatchTimer = null;
@@ -5996,10 +6004,20 @@
 
       if (pendingBatchTimer) clearTimeout(pendingBatchTimer);
       setPendingTurn('queued', text);
-      pendingBatchTimer = setTimeout(function () {
+      // Espera adaptativa: 1 s si el usuario dejó de escribir (antes eran 2 s fijos en CADA
+      // mensaje); si sigue escribiendo el siguiente, se espera un poco más (máx. 3 s) para
+      // contestar a todo junto.
+      var batchStartedAt = Date.now();
+      var fireBatch = function () {
+        var stillTyping = input.value.trim().length > 0;
+        if (stillTyping && Date.now() - batchStartedAt < 3000) {
+          pendingBatchTimer = setTimeout(fireBatch, 500);
+          return;
+        }
         pendingBatchTimer = null;
         send(text, { historyPreloaded: true });
-      }, 2000);
+      };
+      pendingBatchTimer = setTimeout(fireBatch, 1000);
     }
 
     async function send(textArg, sendOpts) {
