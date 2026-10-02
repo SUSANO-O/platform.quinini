@@ -112,9 +112,10 @@ export const INTERNAL_DATA_SOURCE_MCP_CATALOG_ENTRIES: McpInternalDataSourceCata
       { key: 'sslMode', label: 'SSL (rds | verify | required | disabled; vacío = verify)', secret: false, required: false },
       { key: 'sslCa', label: 'CA en PEM (opcional; p. ej. global-bundle.pem de AWS RDS si "rds" falla)', secret: false, required: false },
       { key: 'maxRows', label: 'Máx. filas por respuesta (vacío = 50, tope 500)', secret: false, required: false },
+      { key: 'timeZone', label: 'Zona horaria (ej. -05:00 para Colombia; vacío = la del servidor)', secret: false, required: false },
       {
         key: 'accessPolicy',
-        label: 'Política de acceso (JSON: tablas, columnas y scope por cliente)',
+        label: 'Política de acceso (JSON: tablas, columnas y scope/via por cliente)',
         secret: false,
         required: true,
       },
@@ -122,7 +123,7 @@ export const INTERNAL_DATA_SOURCE_MCP_CATALOG_ENTRIES: McpInternalDataSourceCata
     banners: [
       {
         variant: 'warning',
-        text: 'Usuario MySQL con solo SELECT. En AWS RDS usa sslMode "rds". Toda tabla de la política necesita "scope" (filtro por cliente) o "public": true.',
+        text: 'Usuario MySQL con solo SELECT. En AWS RDS usa sslMode "rds". Toda tabla de la política necesita "scope" (filtro por cliente), "via" (filtro a través de otra tabla, p. ej. dispositivos del cliente) o "public": true. Guía: docs/IDENTIDAD-WIDGET-Y-MYSQL.md.',
       },
     ],
   },
