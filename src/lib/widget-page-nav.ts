@@ -23,7 +23,7 @@ const MAX_PATH = 200;
 const DEFAULT_DECLINE = 'De acuerdo, puedes ir cuando quieras desde el menú.';
 
 /** Parámetros que nunca deben llegar al modelo (credenciales, sesiones, firmas). */
-const SENSITIVE_PARAM_RE = /token|secret|pass|pwd|sig|session|jwt|auth|key|cookie|otp|code/i;
+export const SENSITIVE_PARAM_RE = /token|secret|pass|pwd|sig|session|jwt|auth|key|cookie|otp|code/i;
 const SAFE_VALUE_RE = /^[A-Za-z0-9_\-.:@ ]{0,80}$/;
 
 /**

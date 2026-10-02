@@ -8,6 +8,7 @@ import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAgentflowhubBaseUrl } from '@/lib/aibackhub-sync';
 import { tryServeWidgetChatViaHubMcp } from '@/lib/widget-chat-direct-mcp';
+import { getWidgetAppMap, scheduleWidgetPageVisit } from '@/lib/widget-page-visits';
 import { attachAssistNavToPayload, buildAssistNavCtx } from '@/lib/assist-chat-reply';
 import {
   hubResponseNeedsDirectInference,
@@ -344,6 +345,9 @@ export async function POST(req: NextRequest) {
       await connectDB();
       const w = await findWidgetForWtToken(widgetToken, parsedWidgetId || undefined);
       if (w) {
+        if (w.id && w.userId && isWidgetActive(w)) {
+          scheduleWidgetPageVisit({ widgetId: w.id, userId: w.userId, pagePath: parsedPagePath });
+        }
         if (w.id && !resolvedWidgetId) resolvedWidgetId = w.id;
         else if (w.id) resolvedWidgetId = w.id;
         if (!isWidgetActive(w)) {
@@ -911,6 +915,7 @@ export async function POST(req: NextRequest) {
             agentId: parsedAgentId,
           });
           const directStartedAt = Date.now();
+          const widgetAppMap = w.id ? await getWidgetAppMap(w.id) : [];
           const direct = await latencyTrace.span('direct_mcp', () =>
             tryServeWidgetChatViaHubMcp({
               widgetTokenStartsWithWt: true,
@@ -922,6 +927,7 @@ export async function POST(req: NextRequest) {
               verifiedIdentity,
               identityStatus,
               clientOrigin: origin,
+              appMap: widgetAppMap,
             }),
           );
           if (!direct) {

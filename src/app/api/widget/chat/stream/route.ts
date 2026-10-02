@@ -60,6 +60,7 @@ import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-
 import { emitDoneAndPersist } from '@/lib/widget-transcript';
 import { tryServeWidgetChatViaDirectInference } from '@/lib/widget-chat-direct-inference';
 import { tryServeWidgetChatViaHubMcp } from '@/lib/widget-chat-direct-mcp';
+import { getWidgetAppMap, scheduleWidgetPageVisit } from '@/lib/widget-page-visits';
 import { extractIdentityFromChatBody } from '@/lib/widget-identity';
 import { resolveVerifiedWidgetIdentity, type WidgetIdentityStatus } from '@/lib/widget-identity-verify';
 import { normalizeVisitorId } from '@/lib/widget-visitor';
@@ -260,6 +261,9 @@ export async function POST(req: NextRequest) {
       await connectDB();
       const w = await findWidgetForWtToken(widgetToken, parsedWidgetId || undefined);
       if (w) {
+        if (w.id && w.userId && isWidgetActive(w)) {
+          scheduleWidgetPageVisit({ widgetId: w.id, userId: w.userId, pagePath: parsedPagePath });
+        }
         if (!resolvedWidgetId && w.id) resolvedWidgetId = w.id;
         if (!isWidgetActive(w)) {
           return new Response(
@@ -853,6 +857,7 @@ export async function POST(req: NextRequest) {
         // Misma cadena que /api/widget/chat: MCP directo → inferencia directa → hub (último recurso).
         if (widgetToken.startsWith('wt_') && faqTrackOwnerId && parsedAgentIdLocal) {
           try {
+            const widgetAppMap = resolvedWidgetId ? await getWidgetAppMap(resolvedWidgetId) : [];
             const directMcp = await latencyTrace.span('direct_mcp', () =>
               tryServeWidgetChatViaHubMcp({
                 widgetTokenStartsWithWt: true,
@@ -864,6 +869,7 @@ export async function POST(req: NextRequest) {
                 verifiedIdentity,
                 identityStatus,
                 clientOrigin: origin,
+                appMap: widgetAppMap,
                 onStatus: (phase, message) => {
                   enqueue({ type: 'status', phase, message });
                 },

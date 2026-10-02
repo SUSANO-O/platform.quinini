@@ -148,6 +148,12 @@ const WidgetSchema = new Schema({
   fabDismissible: { type: Boolean, default: true },
   /** Al abrir el chat como barra lateral, la página se reacomoda en vez de quedar tapada. */
   pushContent: { type: Boolean, default: false },
+  /**
+   * Mapa de la app donde vive el widget: [{ path, name, description?, tabs?: [{ hash, name,
+   * description? }] }]. Validado con `normalizeAppMap` (src/lib/widget-app-map.ts) antes de
+   * guardar; se inyecta solo en el contexto del agente. `select: false`: puede pesar.
+   */
+  appMap: { type: Schema.Types.Mixed, default: [], select: false },
   /** Si false, oculta el botón de lectura en voz alta (speaker) en el header del chat. */
   voiceEnabled: { type: Boolean, default: false },
   /** Si false, oculta el botón adjuntar (📎) en el input del chat. */
@@ -1219,3 +1225,25 @@ AccountExportChunkSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0, name: 
 
 export const AccountExportChunk =
   mongoose.models.AccountExportChunk || mongoose.model('AccountExportChunk', AccountExportChunkSchema);
+
+/**
+ * Autodescubrimiento del mapa de la app: páginas que visitan los usuarios reales de un widget.
+ * Solo ruta, NOMBRES de parámetros y pestañas (#), nunca valores ni datos del usuario.
+ * Lo escribe `recordWidgetPageVisit` (src/lib/widget-page-visits.ts).
+ */
+const WidgetPageVisitSchema = new Schema({
+  widgetId:    { type: String, required: true },
+  userId:      { type: String, required: true }, // dueño del widget
+  path:        { type: String, required: true },
+  paramKeys:   { type: [String], default: [] },
+  hashes:      { type: [String], default: [] },
+  visits:      { type: Number, default: 0 },
+  firstSeenAt: { type: Date, default: Date.now },
+  lastSeenAt:  { type: Date, default: Date.now },
+}, { collection: 'widgetpagevisits' });
+
+WidgetPageVisitSchema.index({ widgetId: 1, path: 1 }, { unique: true });
+WidgetPageVisitSchema.index({ widgetId: 1, visits: -1 });
+
+export const WidgetPageVisit =
+  mongoose.models.WidgetPageVisit || mongoose.model('WidgetPageVisit', WidgetPageVisitSchema);

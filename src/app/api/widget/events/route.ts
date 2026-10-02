@@ -22,6 +22,7 @@ import {
   shouldDispatchHandoffWebhook,
 } from '@/lib/handoff-notify';
 import { scheduleWidgetUsageDiskLog } from '@/lib/widget-usage-disk';
+import { scheduleWidgetPageVisit } from '@/lib/widget-page-visits';
 import { randomUUID } from 'crypto';
 
 const MAX_EVENT_BODY_BYTES = 8 * 1024; // 8 KB — events are tiny
@@ -155,6 +156,12 @@ export async function POST(req: NextRequest) {
       const now = new Date();
       const month = now.toISOString().slice(0, 7);
       const sessionKey = instanceId || `${widgetId}-${Date.now()}`;
+
+      // Autodescubrimiento del mapa de la app: solo con token wt_ válido (no en modo legacy).
+      if (event === 'widget_loaded' && widgetToken.startsWith('wt_')) {
+        const details = body.details as Record<string, unknown> | null;
+        scheduleWidgetPageVisit({ widgetId, userId: uid, pagePath: details?.pagePath });
+      }
 
       if (event === 'widget_opened') {
         const sid = clientSessionId || `sess_${sessionKey}_${randomUUID().slice(0, 8)}`;

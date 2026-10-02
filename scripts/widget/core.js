@@ -7439,7 +7439,7 @@
     else setTimeout(function () { checkHumanModeOnOpen({ skipReconnectBanner: true }); }, 400);
     inboxWatchTimer = setInterval(watchInboxTakeover, 3500);
     setTimeout(consumeAssistPostNavFollowUp, 600);
-    emitEvent('widget_loaded');
+    emitEvent('widget_loaded', { pagePath: resolvePagePath(cfg) });
     try {
       window.dispatchEvent(new CustomEvent('afhub:assist-ready'));
     } catch (_readyEv) { /* noop */ }
