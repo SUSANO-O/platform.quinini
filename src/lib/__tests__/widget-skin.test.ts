@@ -84,3 +84,31 @@ describe('contrastRatio', () => {
     expect(contrastRatio('#dddddd', '#ffffff')).toBeLessThan(2);
   });
 });
+
+describe('fase 2 — tamaños, visibilidad y texto del pie', () => {
+  it('acota tamaños a rangos seguros y solo acepta true en los "ocultar"', () => {
+    const raw = { chatWidth: 900, chatHeight: '500', fabSize: 10, edgeOffset: 30, hideAvatar: true, hideTimestamps: 'sí', hideOnlineDot: true };
+    const expected = { chatWidth: 520, chatHeight: 500, fabSize: 48, edgeOffset: 30, hideAvatar: true, hideOnlineDot: true };
+    expect(normalizeServer(raw)).toEqual(expected);
+    expect(mod.normalizeWidgetSkin(raw)).toEqual(expected);
+  });
+
+  it('texto del pie: limpio y recortado; enlace solo https', () => {
+    const raw = { footerNote: '  Atención\nL-V 8 a 6 <b>x</b> ' + 'y'.repeat(200), footerNoteUrl: 'javascript:alert(1)' };
+    const n = normalizeServer(raw);
+    expect(n.footerNote!.length).toBeLessThanOrEqual(120);
+    expect(n.footerNote).not.toMatch(/[<>\n]/);
+    expect(n.footerNoteUrl).toBeUndefined();
+    expect(mod.normalizeWidgetSkin(raw)).toEqual(n);
+    expect(normalizeServer({ footerNote: 'x', footerNoteUrl: 'https://tribugps.com/ayuda' }).footerNoteUrl).toBe('https://tribugps.com/ayuda');
+  });
+
+  it('CSS: ancho/alto solo en modo flotante, botón sin avatar, y ocultar elementos', () => {
+    const css = mod.buildWidgetSkinCss('r1', { chatWidth: 440, chatHeight: 620, fabSize: 70, hideAvatar: true, hideOnlineDot: true, hideTimestamps: true });
+    expect(css).toContain('.afhub-chat:not(.afhub-chat--sidebar):not(.afhub-chat--fullscreen){width:440px !important;height:620px !important;}');
+    expect(css).toContain('.afhub-fab:not(.afhub-fab--avatar){width:70px !important;height:70px !important;}');
+    expect(css).toContain('.afhub-header .afhub-avatar{display:none !important;}');
+    expect(css).toContain('.afhub-status-dot{display:none !important;}');
+    expect(css).toContain('.afhub-msg-time{display:none !important;}');
+  });
+});

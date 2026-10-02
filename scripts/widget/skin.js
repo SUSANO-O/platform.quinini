@@ -20,6 +20,9 @@ var WIDGET_SKIN_FONTS = {
   system: 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif'
 };
 var WIDGET_SKIN_SCALES = { sm: 13, md: 14.5, lg: 16 };
+/** Tamaños en px: [mínimo, máximo]. Fuera de rango se acota (nunca rompe el móvil: hay max-width/height). */
+var WIDGET_SKIN_RANGES = { chatWidth: [320, 520], chatHeight: [420, 760], fabSize: [48, 80], edgeOffset: [8, 48] };
+var WIDGET_SKIN_HIDE_KEYS = ['hideAvatar', 'hideOnlineDot', 'hideTimestamps'];
 
 function widgetSkinHex(v) {
   var s = String(v == null ? '' : v).trim().toLowerCase();
@@ -39,7 +42,37 @@ function normalizeWidgetSkin(raw) {
     out.fontFamily = raw.fontFamily;
   }
   if (raw.fontScale === 'sm' || raw.fontScale === 'md' || raw.fontScale === 'lg') out.fontScale = raw.fontScale;
+  for (var n in WIDGET_SKIN_RANGES) {
+    if (!Object.prototype.hasOwnProperty.call(WIDGET_SKIN_RANGES, n) || raw[n] == null || raw[n] === '') continue;
+    var num = Math.round(Number(raw[n]));
+    if (isFinite(num)) out[n] = Math.min(WIDGET_SKIN_RANGES[n][1], Math.max(WIDGET_SKIN_RANGES[n][0], num));
+  }
+  for (var h = 0; h < WIDGET_SKIN_HIDE_KEYS.length; h++) {
+    if (raw[WIDGET_SKIN_HIDE_KEYS[h]] === true) out[WIDGET_SKIN_HIDE_KEYS[h]] = true;
+  }
+  if (typeof raw.footerNote === 'string') {
+    var note = raw.footerNote.replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    if (note) out.footerNote = note;
+  }
+  if (out.footerNote && typeof raw.footerNoteUrl === 'string' && /^https:\/\/[^\s"'<>]{3,300}$/.test(raw.footerNoteUrl.trim())) {
+    out.footerNoteUrl = raw.footerNoteUrl.trim();
+  }
   return out;
+}
+
+/** Texto propio del pie (p. ej. horario de atención), con enlace opcional. null si no hay. */
+function widgetSkinFooterNoteEl(rawSkin) {
+  var s = normalizeWidgetSkin(rawSkin);
+  if (!s.footerNote || typeof document === 'undefined') return null;
+  var el = document.createElement(s.footerNoteUrl ? 'a' : 'div');
+  el.className = 'afhub-footer-note';
+  el.textContent = s.footerNote;
+  if (s.footerNoteUrl) {
+    el.href = s.footerNoteUrl;
+    el.target = '_blank';
+    el.rel = 'noopener';
+  }
+  return el;
 }
 
 /** URL de Google Fonts para la fuente elegida ('' si no hace falta cargar nada). */
@@ -84,6 +117,22 @@ function buildWidgetSkinCss(rootId, rawSkin) {
   if (s.fontScale) {
     var px = WIDGET_SKIN_SCALES[s.fontScale];
     css += r + ' .afhub-messages{font-size:' + px + 'px !important;}' + r + ' .afhub-input{font-size:' + px + 'px !important;}';
+  }
+  if (s.chatWidth || s.chatHeight) {
+    css += r + ' .afhub-chat:not(.afhub-chat--sidebar):not(.afhub-chat--fullscreen){' +
+      (s.chatWidth ? 'width:' + s.chatWidth + 'px !important;' : '') +
+      (s.chatHeight ? 'height:' + s.chatHeight + 'px !important;' : '') + '}';
+  }
+  if (s.fabSize) {
+    css += r + ' .afhub-fab:not(.afhub-fab--avatar){width:' + s.fabSize + 'px !important;height:' + s.fabSize + 'px !important;}';
+  }
+  if (s.hideAvatar) css += r + ' .afhub-header .afhub-avatar{display:none !important;}';
+  if (s.hideOnlineDot) css += r + ' .afhub-status-dot{display:none !important;}';
+  if (s.hideTimestamps) css += r + ' .afhub-msg-time{display:none !important;}';
+  if (s.footerNote) {
+    css += r + ' .afhub-footer-note{display:block;text-align:center;font-size:11px;line-height:1.35;padding:6px 14px 0;color:' +
+      (s.inputText || '#6b7280') + ';text-decoration:none;flex-shrink:0;' + (s.footerBg ? 'background:' + s.footerBg + ';' : '') + '}' +
+      r + ' a.afhub-footer-note:hover{text-decoration:underline;}';
   }
   return css;
 }
