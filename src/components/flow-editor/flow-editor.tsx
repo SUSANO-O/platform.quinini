@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Calendar,
   Bot,
+  Sparkles,
   CalendarDays,
   CornerDownRight,
   Dices,
@@ -78,6 +79,7 @@ const PALETTE_ICONS: Record<FlowNodeType, LucideIcon> = {
   calendar_booking: Calendar,
   calendly_booking: CalendarDays,
   agent_handoff: Bot,
+  ai_classify: Sparkles,
 };
 
 function FlowEditorInner({ initialFlow }: { initialFlow: FlowDocument }) {
@@ -208,7 +210,7 @@ function FlowEditorInner({ initialFlow }: { initialFlow: FlowDocument }) {
       const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
       const flowNode = createFlowNode(type, position.x, position.y);
       const rfType =
-        type === 'multiple_choice' || type === 'random'
+        type === 'multiple_choice' || type === 'random' || type === 'ai_classify'
           ? 'flowChoice'
           : type === 'condition'
             ? 'flowCondition'

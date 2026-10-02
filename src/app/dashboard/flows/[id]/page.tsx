@@ -31,10 +31,20 @@ import { BRAND } from '@/lib/brand-colors';
 import type { FlowConversationItem, FlowDocument } from '@/lib/flow-editor/types';
 import '@/components/flows/flows-admin.css';
 
+type FlowFunnelStep = {
+  nodeId: string;
+  type: string;
+  label: string;
+  reached: number;
+  dropped: number;
+  dropRate: number;
+};
+
 type FlowDetailResponse = {
   flow: FlowDocument;
   embedSnippet: string | null;
   recentConversations: FlowConversationItem[];
+  funnel: FlowFunnelStep[];
 };
 
 function formatDuration(sec: number) {
@@ -76,6 +86,7 @@ export default function FlowDetailPage() {
       flow: body.flow,
       embedSnippet: body.embedSnippet ?? null,
       recentConversations: body.recentConversations ?? [],
+      funnel: Array.isArray(body.funnel) ? body.funnel : [],
     });
   }, [id]);
 
@@ -325,6 +336,61 @@ export default function FlowDetailPage() {
             )}
           </div>
         </DashboardPanel>
+
+        {data?.funnel && data.funnel.length > 0 ? (
+          <DashboardPanel accentColor={BRAND.primary}>
+            <div className="dashboard-panel__body">
+              <h2 className="flows-admin-panel__title m-0 mb-1">Embudo por paso</h2>
+              <p className="m-0 mb-4" style={{ fontSize: 13, color: 'var(--muted-foreground)' }}>
+                Cuántas personas llegan a cada paso y cuántas se van ahí (sin terminar ni pasar al agente).
+              </p>
+              {(() => {
+                const top = Math.max(1, ...data.funnel.map((s) => s.reached));
+                const worst = data.funnel.reduce<FlowFunnelStep | null>(
+                  (w, s) => (s.dropped > 0 && (!w || s.dropRate > w.dropRate) ? s : w),
+                  null,
+                );
+                return (
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    {data.funnel.map((s, i) => (
+                      <div key={s.nodeId}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13, marginBottom: 4 }}>
+                          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {i + 1}. {s.label}
+                          </span>
+                          <span style={{ flexShrink: 0, color: 'var(--muted-foreground)' }}>
+                            {s.reached} llegan
+                            {s.dropped > 0 ? (
+                              <strong style={{ color: s === worst ? 'var(--destructive, #b91c1c)' : 'inherit', marginLeft: 8 }}>
+                                −{s.dropped} ({s.dropRate}%)
+                              </strong>
+                            ) : null}
+                          </span>
+                        </div>
+                        <div style={{ height: 8, borderRadius: 4, background: 'var(--muted, #eef0f3)', overflow: 'hidden' }}>
+                          <div
+                            style={{
+                              width: `${Math.round((s.reached / top) * 100)}%`,
+                              height: '100%',
+                              borderRadius: 4,
+                              background: s === worst ? 'var(--destructive, #b91c1c)' : BRAND.primary,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    {worst ? (
+                      <p className="m-0" style={{ fontSize: 12.5, color: 'var(--muted-foreground)' }}>
+                        Donde más se van: <strong>{worst.label}</strong> ({worst.dropRate}%). Prueba a hacer ese paso más
+                        corto u opcional.
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              })()}
+            </div>
+          </DashboardPanel>
+        ) : null}
 
         <DashboardPanel accentColor={BRAND.tertiary}>
           <div className="dashboard-panel__body">

@@ -51,6 +51,7 @@ export const NODE_PALETTE: {
     section: 'Inteligencia artificial',
     items: [
       { type: 'agent_handoff', icon: '🤖', name: 'Pasar al agente', desc: 'La IA continúa con las respuestas' },
+      { type: 'ai_classify', icon: '🧭', name: 'Clasificar con IA', desc: 'Texto libre → rama según intención' },
     ],
   },
 ];
@@ -72,6 +73,7 @@ export const NODE_TYPE_LABELS: Record<FlowNodeType, string> = {
   calendar_booking: 'Calendario',
   calendly_booking: 'Calendly',
   agent_handoff: 'Pasar al agente',
+  ai_classify: 'Clasificar con IA',
 };
 
 export const NODE_TYPE_ICONS: Record<FlowNodeType, string> = {
@@ -91,6 +93,7 @@ export const NODE_TYPE_ICONS: Record<FlowNodeType, string> = {
   calendar_booking: '📅',
   calendly_booking: '📆',
   agent_handoff: '🤖',
+  ai_classify: '🧭',
 };
 
 export function createStartNode(): FlowNode {
@@ -242,6 +245,16 @@ export function createFlowNode(type: FlowNodeType, x: number, y: number, id?: st
           buttonLabel: 'Abrir Calendly',
           variableKey: 'calendly',
         },
+      };
+    case 'ai_classify':
+      return {
+        ...base,
+        question: 'Cuéntanos en pocas palabras qué necesitas',
+        options: [
+          { label: 'Quiero comprar', value: 'compra', description: 'precios, planes, cotizar, contratar' },
+          { label: 'Tengo un problema', value: 'soporte', description: 'algo no funciona, falla, error' },
+        ],
+        config: { required: true, variableKey: 'intencion', placeholder: 'Escribe tu mensaje…' },
       };
     case 'agent_handoff':
       return {

@@ -3,7 +3,7 @@ import { connectDB } from '@/lib/db/connection';
 import { ConversationFlow, FlowConversation, Widget } from '@/lib/db/models';
 import { buildFlowEmbedSnippet, countFlowSteps } from '@/lib/flow-admin';
 import { flowAccessDeniedMessage, resolveFlowAccessFromRequest } from '@/lib/flow-access';
-import { aggregateFlowStats, listRecentFlowConversations } from '@/lib/flow-stats';
+import { aggregateFlowFunnel, aggregateFlowStats, listRecentFlowConversations } from '@/lib/flow-stats';
 import type { FlowConnection, FlowNode, FlowSettings } from '@/lib/flow-editor/types';
 
 function toFlowResponse(doc: {
@@ -95,9 +95,11 @@ export async function GET(req: NextRequest, ctx: RouteCtx) {
     | { afhubToken?: string | null } | null;
 
   const origin = req.nextUrl.origin;
-  const [stats, recentConversations] = await Promise.all([
+  const plain = doc.toObject() as { nodes?: Array<Record<string, unknown>>; connections?: Array<Record<string, unknown>> };
+  const [stats, recentConversations, funnel] = await Promise.all([
     aggregateFlowStats(id, userId),
     listRecentFlowConversations(id, userId, 10),
+    aggregateFlowFunnel(id, userId, plain.nodes ?? [], plain.connections ?? []).catch(() => []),
   ]);
   const flow = toFlowResponse(doc.toObject() as Parameters<typeof toFlowResponse>[0], stats);
   const embedSnippet = flow.embedToken
@@ -109,7 +111,7 @@ export async function GET(req: NextRequest, ctx: RouteCtx) {
     })
     : null;
 
-  return NextResponse.json({ flow, embedSnippet, recentConversations });
+  return NextResponse.json({ flow, embedSnippet, recentConversations, funnel });
 }
 
 export async function PUT(req: NextRequest, ctx: RouteCtx) {

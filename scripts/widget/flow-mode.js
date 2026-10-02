@@ -17,6 +17,9 @@ function createFlowController(deps) {
     started: false,
     handoffs: {},
     handedOff: false,
+    classifying: false,
+    /** Nodos por los que pasó (embudo por paso del panel). */
+    visited: [],
   };
 
   var flowBar = document.createElement('div');
@@ -138,6 +141,7 @@ function createFlowController(deps) {
         widgetId: cfg.widgetId || '',
         pageUrl: pageUrl,
         handedOffTo: (extra && extra.handedOffTo) || undefined,
+        visited: state.visited,
       }),
     })
       .then(function (r) { return r.json(); })
@@ -309,6 +313,7 @@ function createFlowController(deps) {
     var node = state.graph.nodeMap[nodeId];
     if (!node) return;
     state.currentNodeId = nodeId;
+    if (state.visited.indexOf(nodeId) < 0 && state.visited.length < 200) state.visited.push(nodeId);
 
     if (node.type === 'start') {
       var n = nextNodeId('start', 'output');
@@ -488,12 +493,47 @@ function createFlowController(deps) {
     deps.syncSendButtonState();
   }
 
+  /** Nodo "Clasificar con IA": el servidor elige la categoría; el flujo sigue por su rama u «Otro». */
+  function classifyAndContinue(node, text) {
+    deps.addMessage('user', text);
+    deps.historyPush({ role: 'user', content: text });
+    state.classifying = true;
+    deps.syncSendButtonState();
+    fetch(host() + '/api/flows/' + encodeURIComponent(cfg.flowId) + '/classify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-flow-token': String(cfg.flowToken) },
+      body: JSON.stringify({ nodeId: node.id, text: text }),
+    })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; })
+      .then(function (d) {
+        state.classifying = false;
+        var idx = d && typeof d.index === 'number' ? d.index : -1;
+        pushAnswer(node, text, idx >= 0 && d.label ? d.label : text);
+        var nextId = null;
+        if (idx >= 0) {
+          var edges = state.graph.outEdges[node.id] || [];
+          for (var ei = 0; ei < edges.length; ei++) {
+            if (edges[ei].fromHandle === 'option:' + idx) { nextId = edges[ei].toNodeId; break; }
+          }
+        }
+        if (!nextId) nextId = nextNodeId(node.id, 'output');
+        void record('active');
+        setInputPlaceholder(defaultPlaceholder);
+        if (nextId) goToNode(nextId);
+        else state.done = true;
+        deps.syncSendButtonState();
+      });
+    return true;
+  }
+
   function handleTextInput(text) {
     if (state.done || state.failed) return true;
     var node = state.graph && state.currentNodeId
       ? state.graph.nodeMap[state.currentNodeId]
       : null;
     if (!node) return false;
+    if (node.type === 'ai_classify') return classifyAndContinue(node, text);
     if (
       node.type === 'multiple_choice' ||
       node.type === 'start' ||
@@ -578,6 +618,7 @@ function createFlowController(deps) {
     onSend: function (textArg) {
       // Tras "Pasar al agente", los mensajes van al chat normal (el agente del widget elegido).
       if (state.handedOff) return false;
+      if (state.classifying) return true; // esperando la rama de "Clasificar con IA"
       if (state.failed) return true;
       if (!state.loaded) return true;
       if (state.done) return true;
@@ -604,6 +645,8 @@ function createFlowController(deps) {
       state.started = false;
       state.handoffs = {};
       state.handedOff = false;
+      state.classifying = false;
+      state.visited = [];
       cfg.flowContext = null;
       setInputPlaceholder(defaultPlaceholder);
       clearOptions();

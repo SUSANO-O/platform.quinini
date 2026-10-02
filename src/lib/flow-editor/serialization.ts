@@ -4,13 +4,13 @@ import type { FlowConnection, FlowConnectionHandle, FlowNode, FlowNodeConfig, Fl
 export type FlowNodeData = {
   flowType: FlowNodeType;
   question?: string;
-  options?: { label: string; value: string }[];
+  options?: { label: string; value: string; description?: string }[];
   config?: FlowNodeConfig;
 };
 
 function reactFlowNodeType(flowType: FlowNodeType): string {
   if (flowType === 'start') return 'flowStart';
-  if (flowType === 'multiple_choice' || flowType === 'random') return 'flowChoice';
+  if (flowType === 'multiple_choice' || flowType === 'random' || flowType === 'ai_classify') return 'flowChoice';
   if (flowType === 'condition') return 'flowCondition';
   return 'flowStep';
 }
