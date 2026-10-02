@@ -5,7 +5,7 @@
  * Avisa cuando un texto se leería mal sobre su fondo (contraste WCAG < 4,5).
  */
 
-import { contrastRatio, WIDGET_SKIN_FONTS, type WidgetSkin, type WidgetSkinColorKey } from '@/lib/widget-skin';
+import { contrastRatio, WIDGET_SKIN_FONTS, WIDGET_SKIN_RANGES, type WidgetSkin, type WidgetSkinColorKey } from '@/lib/widget-skin';
 import { WidgetBuilderHint, WidgetBuilderSection } from './ui';
 
 const GROUPS: { title: string; fields: { key: WidgetSkinColorKey; label: string }[] }[] = [
@@ -42,11 +42,11 @@ export function WidgetBuilderSkinSection({
   skin: WidgetSkin;
   onChange: (skin: WidgetSkin) => void;
 }) {
-  const set = (key: keyof WidgetSkin, value: string | undefined) => {
-    const next: WidgetSkin = { ...skin };
-    if (value) (next as Record<string, string>)[key] = value;
-    else delete (next as Record<string, string>)[key];
-    onChange(next);
+  const set = (key: keyof WidgetSkin, value: string | number | boolean | undefined) => {
+    const next = { ...skin } as Record<string, unknown>;
+    if (value === undefined || value === '' || value === false) delete next[key];
+    else next[key] = value;
+    onChange(next as WidgetSkin);
   };
   const warnings = PAIRS.filter(([t, b]) => skin[t] && skin[b] && contrastRatio(skin[t]!, skin[b]!) < 4.5).map(
     ([t, b, where]) => `El texto de ${where} se lee mal sobre su fondo (contraste ${contrastRatio(skin[t]!, skin[b]!)}:1; mínimo recomendado 4,5).`,
@@ -56,8 +56,8 @@ export function WidgetBuilderSkinSection({
   return (
     <WidgetBuilderSection
       tourId="widget-builder-skin"
-      title="Colores y tipografía"
-      description="Colores por zona y fuente. Lo que dejes sin elegir usa el color principal y el tema."
+      title="Colores, tipografía y diseño"
+      description="Colores por zona, fuente, tamaños y elementos visibles. Lo que dejes sin elegir queda como siempre."
     >
       <div style={{ display: 'grid', gap: 14 }}>
         {GROUPS.map((g) => (
@@ -123,6 +123,71 @@ export function WidgetBuilderSkinSection({
               Restablecer todo
             </button>
           ) : null}
+        </div>
+
+        <div>
+          <p style={{ fontSize: 12.5, fontWeight: 600, margin: '0 0 6px' }}>Tamaño y posición</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
+            {(
+              [
+                ['chatWidth', 'Ancho del chat', 392],
+                ['chatHeight', 'Alto del chat', 540],
+                ['fabSize', 'Botón flotante (sin avatar)', 60],
+                ['edgeOffset', 'Distancia al borde', 20],
+              ] as const
+            ).map(([key, label, def]) => {
+              const [min, max] = WIDGET_SKIN_RANGES[key];
+              const v = skin[key] ?? def;
+              return (
+                <label key={key} style={{ fontSize: 12.5, display: 'grid', gap: 2 }}>
+                  <span>
+                    {label}: <strong>{v}px</strong>
+                    {skin[key] ? (
+                      <button type="button" onClick={() => set(key, undefined)} aria-label={`Restablecer ${label}`} style={{ marginLeft: 6, border: 'none', background: 'none', cursor: 'pointer', color: 'var(--muted-foreground)' }}>
+                        ✕
+                      </button>
+                    ) : null}
+                  </span>
+                  <input type="range" min={min} max={max} step={key === 'edgeOffset' ? 2 : 4} value={v} onChange={(e) => set(key, Number(e.target.value))} />
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <p style={{ fontSize: 12.5, fontWeight: 600, margin: '0 0 6px' }}>Elementos visibles</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
+            {(
+              [
+                ['hideAvatar', 'Avatar en la cabecera'],
+                ['hideOnlineDot', 'Punto verde «en línea»'],
+                ['hideTimestamps', 'Hora de los mensajes'],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key} style={{ fontSize: 12.5, display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input type="checkbox" checked={!skin[key]} onChange={(e) => set(key, !e.target.checked)} />
+                {label}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: 6 }}>
+          <p style={{ fontSize: 12.5, fontWeight: 600, margin: 0 }}>Texto propio en el pie</p>
+          <input
+            value={skin.footerNote ?? ''}
+            maxLength={120}
+            placeholder="Ej.: Atención L-V de 8 a 6 · Emergencias 321 359 8997"
+            onChange={(e) => set('footerNote', e.target.value)}
+            aria-label="Texto propio en el pie"
+          />
+          <input
+            value={skin.footerNoteUrl ?? ''}
+            placeholder="Enlace opcional (https://…)"
+            onChange={(e) => set('footerNoteUrl', e.target.value)}
+            aria-label="Enlace del texto del pie"
+          />
         </div>
 
         {warnings.map((w) => (

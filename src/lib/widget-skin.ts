@@ -11,10 +11,18 @@ export const WIDGET_SKIN_COLOR_KEYS = [
 export const WIDGET_SKIN_FONTS = ['inherit', 'Inter', 'Poppins', 'Roboto', 'Montserrat', 'Lato', 'Open Sans', 'Nunito', 'system'] as const;
 
 export type WidgetSkinColorKey = (typeof WIDGET_SKIN_COLOR_KEYS)[number];
-export type WidgetSkin = Partial<Record<WidgetSkinColorKey, string>> & {
-  fontFamily?: (typeof WIDGET_SKIN_FONTS)[number];
-  fontScale?: 'sm' | 'md' | 'lg';
-};
+export const WIDGET_SKIN_RANGES = { chatWidth: [320, 520], chatHeight: [420, 760], fabSize: [48, 80], edgeOffset: [8, 48] } as const;
+export const WIDGET_SKIN_HIDE_KEYS = ['hideAvatar', 'hideOnlineDot', 'hideTimestamps'] as const;
+
+export type WidgetSkin = Partial<Record<WidgetSkinColorKey, string>> &
+  Partial<Record<keyof typeof WIDGET_SKIN_RANGES, number>> &
+  Partial<Record<(typeof WIDGET_SKIN_HIDE_KEYS)[number], true>> & {
+    fontFamily?: (typeof WIDGET_SKIN_FONTS)[number];
+    fontScale?: 'sm' | 'md' | 'lg';
+    /** Texto propio del pie (≤ 120) y enlace https opcional. */
+    footerNote?: string;
+    footerNoteUrl?: string;
+  };
 
 function hex(v: unknown): string {
   const s = String(v ?? '').trim().toLowerCase();
@@ -34,6 +42,19 @@ export function normalizeWidgetSkin(raw: unknown): WidgetSkin {
     out.fontFamily = o.fontFamily as WidgetSkin['fontFamily'];
   }
   if (o.fontScale === 'sm' || o.fontScale === 'md' || o.fontScale === 'lg') out.fontScale = o.fontScale;
+  for (const [k, [min, max]] of Object.entries(WIDGET_SKIN_RANGES) as [keyof typeof WIDGET_SKIN_RANGES, readonly [number, number]][]) {
+    if (o[k] == null || o[k] === '') continue;
+    const n = Math.round(Number(o[k]));
+    if (Number.isFinite(n)) out[k] = Math.min(max, Math.max(min, n));
+  }
+  for (const k of WIDGET_SKIN_HIDE_KEYS) if (o[k] === true) out[k] = true;
+  if (typeof o.footerNote === 'string') {
+    const note = o.footerNote.replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    if (note) out.footerNote = note;
+  }
+  if (out.footerNote && typeof o.footerNoteUrl === 'string' && /^https:\/\/[^\s"'<>]{3,300}$/.test(o.footerNoteUrl.trim())) {
+    out.footerNoteUrl = o.footerNoteUrl.trim();
+  }
   return out;
 }
 

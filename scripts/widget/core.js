@@ -1811,6 +1811,11 @@
     styleEl.textContent = cssForRoot(rootId, cfg);
     root.appendChild(styleEl);
     // Personalización por zona (Widget.skin): capa encima del CSS base; vacía = aspecto de siempre.
+    if (typeof normalizeWidgetSkin === 'function' && cfg.skin) {
+      var skinEdge = normalizeWidgetSkin(cfg.skin).edgeOffset;
+      // Distancia al borde elegida en el panel (la geometría se aplica después de montar).
+      if (skinEdge) { cfg.edgeInset = skinEdge; cfg.offsetBottom = skinEdge; cfg.offsetTop = skinEdge; }
+    }
     if (typeof buildWidgetSkinCss === 'function' && cfg.skin) {
       var skinCss = buildWidgetSkinCss(rootId, cfg.skin);
       if (skinCss) {
@@ -2562,6 +2567,8 @@
       chat.appendChild(policyBar);
     }
 
+    var footerNoteEl = typeof widgetSkinFooterNoteEl === 'function' ? widgetSkinFooterNoteEl(cfg.skin) : null;
+    if (footerNoteEl) chat.appendChild(footerNoteEl);
     var powered = document.createElement('div');
     powered.className = 'afhub-powered';
     powered.innerHTML = 'Powered by <a href="https://botiva.space" target="_blank" rel="noopener">BOTIVA</a>';
