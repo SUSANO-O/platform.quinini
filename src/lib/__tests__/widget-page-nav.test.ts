@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   finalizeWidgetNavReply,
   isSafeSameSitePath,
+  currentViewBlock,
   pageContextLine,
   stripWidgetNavBlocks,
 } from '@/lib/widget-page-nav';
@@ -101,5 +102,26 @@ describe('finalizeWidgetNavReply', () => {
 describe('stripWidgetNavBlocks', () => {
   it('quita bloques para el streaming de tokens', () => {
     expect(stripWidgetNavBlocks('Hola ' + block({ path: '/views/logs.php' }) + ' fin')).toBe('Hola  fin'.trim());
+  });
+});
+
+describe('currentViewBlock — "¿dónde estoy?" sin adivinar', () => {
+  it('con página: la marca como única fuente de verdad e incluye el título', () => {
+    const b = currentViewBlock('http://localhost:9090/views/reportesDashboard.php?path=x', '  TRIBU · Dashboard  ');
+    expect(b).toContain('Página actual del cliente en la app: /views/reportesDashboard.php?path=x');
+    expect(b).toContain('Título de la página: TRIBU · Dashboard');
+    expect(b).toMatch(/nunca la deduzcas de mensajes anteriores/i);
+  });
+
+  it('sin página: lo dice y prohíbe adivinar por el historial', () => {
+    const b = currentViewBlock(undefined, undefined);
+    expect(b).toMatch(/VISTA ACTUAL DESCONOCIDA/);
+    expect(b).toMatch(/ya NO vale como ubicación actual/);
+  });
+
+  it('el título se limpia: sin saltos ni texto enorme', () => {
+    const b = currentViewBlock('/views/a.php', 'Hola\nmundo' + 'x'.repeat(500));
+    expect(b).toContain('Título de la página: Hola mundo');
+    expect(b.split('\n').find((l) => l.startsWith('Título'))!.length).toBeLessThanOrEqual(141);
   });
 });

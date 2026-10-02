@@ -4,7 +4,7 @@
  * Si llamamos a AIBackHub `POST /api/mcp/widget-chat`, sí se ejecuta el POST real.
  */
 
-import { pageContextLine } from '@/lib/widget-page-nav';
+import { currentViewBlock } from '@/lib/widget-page-nav';
 import { appMapContextBlock, type AppMapEntry } from '@/lib/widget-app-map';
 import { flowContextBlock } from '@/lib/flow-handoff';
 import { connectDB } from '@/lib/db/connection';
@@ -126,6 +126,8 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     visitorUserId?: string;
     visitorId?: string;
     pagePath?: string;
+    /** document.title de la página del cliente (identifica vistas fuera del mapa). */
+    pageTitle?: string;
     /** Respuestas de un flujo que pasó al agente (nodo agent_handoff). */
     flowContext?: unknown;
   };
@@ -261,7 +263,7 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   const visitorEmail =
     typeof parsed.visitorEmail === 'string' ? parsed.visitorEmail.trim().toLowerCase() : '';
   const visitorName = typeof parsed.visitorName === 'string' ? parsed.visitorName.trim() : '';
-  const pageLine = pageContextLine(parsed.pagePath);
+  const pageLine = currentViewBlock(parsed.pagePath, parsed.pageTitle);
   const appMapBlock = appMapContextBlock(params.appMap, typeof parsed.pagePath === 'string' ? parsed.pagePath : '');
   const sessionContextBlock = [
     typeof parsed.sessionContextBlock === 'string' ? parsed.sessionContextBlock.trim() : '',
