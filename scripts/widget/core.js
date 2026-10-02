@@ -40,7 +40,9 @@
         var isLocalDev = host === 'localhost' || host === '127.0.0.1';
         // Sitio del cliente (widget embebido): URL completa para contexto BotIvA
         if (host && !isBotivaHost && !isLocalDev && window.location.href) {
-          return String(window.location.href).split('#')[0];
+          // Con la pestaña (#): en vistas con pestañas es lo que dice dónde está el cliente.
+          // El servidor quita parámetros sensibles antes de pasarla al agente.
+          return String(window.location.href);
         }
         return path;
       }
@@ -217,6 +219,20 @@
         resolve(ok !== false);
       }
       function hardNav() {
+        var onlyHashChanges = false;
+        try {
+          var hi = target.indexOf('#');
+          onlyHashChanges = hi >= 0 && !isAssistInternalDashboard() &&
+            target.slice(0, hi) === window.location.pathname + window.location.search &&
+            target.slice(hi) !== window.location.hash;
+        } catch (_c) { /* noop */ }
+        if (onlyHashChanges) {
+          try {
+            window.location.hash = target.slice(target.indexOf('#'));
+            window.location.reload();
+          } catch (_r) { window.location.href = target; }
+          return; // sin finish(): el mensaje de llegada se entrega tras la recarga
+        }
         try {
           window.location.assign(target);
         } catch (_n) {
@@ -2858,7 +2874,16 @@
         noBtn.disabled = true;
         var target = resolveAssistNavPath(offer.path);
         var curPath = resolvePagePath(cfg);
-        if (normalizeAssistPathCompare(curPath) === normalizeAssistPathCompare(target)) {
+        var samePlace;
+        if (isAssistInternalDashboard()) {
+          samePlace = normalizeAssistPathCompare(curPath) === normalizeAssistPathCompare(target);
+        } else {
+          // Web del cliente: otra pestaña (#) u otro dispositivo (?k_disp=) es otro destino.
+          var here = '';
+          try { here = window.location.pathname + window.location.search + window.location.hash; } catch (_h) { /* noop */ }
+          samePlace = here === target;
+        }
+        if (samePlace) {
           if (offer.onDecline) {
             addMessage('bot', offer.onDecline, { noFeedback: true });
           } else if (offer.afterNavigate) {

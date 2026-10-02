@@ -9,15 +9,27 @@ import {
 const block = (o: Record<string, unknown>) => '```assist-nav\n' + JSON.stringify(o) + '\n```';
 
 describe('pageContextLine', () => {
-  it('describe la página actual solo con la ruta (sin query ni hash)', () => {
-    expect(pageContextLine('/views/posiciones.php?path=harold-gps&token=abc#x')).toBe(
-      'Página actual del cliente en la app: /views/posiciones.php',
+  it('conserva parámetros normales y la pestaña (#), quita los sensibles', () => {
+    expect(pageContextLine('/views/posiciones.php?path=harold-gps&token=abc&sig=zz#x')).toBe(
+      'Página actual del cliente en la app: /views/posiciones.php?path=harold-gps#x',
     );
   });
 
-  it('acepta URL absoluta y se queda con el pathname', () => {
+  it('ficha de dispositivo: dispositivo, fechas y pestaña llegan al agente', () => {
+    expect(
+      pageContextLine('https://www.tribugps.com/views/visorDisp.php?k_disp=Xch4645&desde=2026-10-02&hasta=2026-10-04#routes-day'),
+    ).toBe('Página actual del cliente en la app: /views/visorDisp.php?k_disp=Xch4645&desde=2026-10-02&hasta=2026-10-04#routes-day');
+  });
+
+  it('quita parámetros con pinta de secreto (password, session, jwt, api_key, auth…)', () => {
+    expect(
+      pageContextLine('/views/a.php?k_disp=1&password=x&session_id=y&jwt=z&api_key=w&Authorization=q&o_token=t'),
+    ).toBe('Página actual del cliente en la app: /views/a.php?k_disp=1');
+  });
+
+  it('acepta URL absoluta y se queda con ruta + parámetros + pestaña', () => {
     expect(pageContextLine('http://192.168.40.8:9090/views/geocercas.php?path=x')).toBe(
-      'Página actual del cliente en la app: /views/geocercas.php',
+      'Página actual del cliente en la app: /views/geocercas.php?path=x',
     );
   });
 
