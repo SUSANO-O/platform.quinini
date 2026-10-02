@@ -6216,6 +6216,8 @@
       try {
         var pp = resolvePagePath(cfg);
         if (pp) payload.pagePath = pp;
+        var pt = String((document && document.title) || '').replace(/\s+/g, ' ').trim();
+        if (pt) payload.pageTitle = pt.slice(0, 120);
       } catch (_pp) { /* noop */ }
       // Respuestas de un flujo que pasó la conversación al agente (nodo agent_handoff).
       if (cfg.flowContext && typeof cfg.flowContext === 'object') payload.flowContext = cfg.flowContext;

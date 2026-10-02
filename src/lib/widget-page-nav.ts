@@ -59,6 +59,24 @@ export function pageContextLine(pagePath: string | undefined | null): string {
   return `Página actual del cliente en la app: ${ref}`;
 }
 
+/**
+ * Bloque "vista actual" para el agente: la página viva (URL filtrada + título del documento) como
+ * ÚNICA fuente para responder dónde está el cliente. Sin página, lo dice para que el agente no
+ * deduzca la vista del historial (antes respondía la vista de la que se habló, no la real).
+ */
+export function currentViewBlock(pagePath: string | undefined | null, pageTitle?: string | null): string {
+  const line = pageContextLine(pagePath);
+  const title = typeof pageTitle === 'string' ? pageTitle.replace(/\s+/g, ' ').trim().slice(0, 120) : '';
+  if (!line) {
+    return '[VISTA ACTUAL DESCONOCIDA] En este mensaje NO llegó la página del cliente. El cliente puede haber cambiado de vista: lo que se dijo antes en la conversación ("ya estás en…") ya NO vale como ubicación actual. Si pregunta dónde está, responde que ahora mismo no alcanzas a ver en qué vista está y pídele que te diga qué ve en el título o en el menú; no nombres ninguna vista como actual.';
+  }
+  return [
+    line,
+    ...(title ? [`Título de la página: ${title}`] : []),
+    'Esta es la vista REAL en este momento: para decir dónde está el cliente usa solo esto (y el mapa de la app); nunca la deduzcas de mensajes anteriores. Si la ruta no está en el mapa, nómbrala por el título.',
+  ].join('\n');
+}
+
 /** Ruta relativa del mismo sitio, sin esquema ni host ni caracteres raros. */
 export function isSafeSameSitePath(path: string): boolean {
   if (typeof path !== 'string' || !path || path.length > MAX_PATH) return false;

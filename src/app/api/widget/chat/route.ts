@@ -325,6 +325,8 @@ export async function POST(req: NextRequest) {
     hub: base,
     agentId: parsedAgentId || undefined,
     tokenKind: widgetToken.startsWith('wt_') ? 'wt_' : widgetToken ? 'other' : 'none',
+    // Diagnóstico de "¿dónde estoy?": solo la ruta, sin parámetros ni dominio.
+    page: (parsedPagePath.replace(/^https?:\/\/[^/]+/i, '').split(/[?#]/)[0] || '(ninguna)').slice(0, 120),
     ...widgetMessageProbe(parsedMessage),
   });
 

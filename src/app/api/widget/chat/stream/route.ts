@@ -224,6 +224,7 @@ export async function POST(req: NextRequest) {
       message?: string;
       visitorId?: string;
       pagePath?: string;
+      pageTitle?: string;
     };
     parsedAgentId = typeof j?.agentId === 'string' ? j.agentId.trim() : '';
     parsedWidgetId = typeof j?.widgetId === 'string' ? j.widgetId.trim() : '';
@@ -233,6 +234,12 @@ export async function POST(req: NextRequest) {
     parsedPagePath = typeof j?.pagePath === 'string' ? j.pagePath : '';
     parsedVisitorId = normalizeVisitorId(j?.visitorId);
     tokenFromBody = typeof j?.token === 'string' ? j.token.trim() : '';
+    // Diagnóstico de "¿dónde estoy?": solo la ruta, sin parámetros ni dominio.
+    console.info('[widget/chat/stream] page', {
+      agentId: parsedAgentId,
+      page: (parsedPagePath.replace(/^https?:\/\/[^/]+/i, '').split(/[?#]/)[0] || '(ninguna)').slice(0, 120),
+      hasTitle: typeof j?.pageTitle === 'string' && j.pageTitle.trim() !== '',
+    });
   } catch {
     return new Response(
       sseEvent({ type: 'error', message: 'Cuerpo JSON inválido.', code: 'BAD_REQUEST' }),
