@@ -27,6 +27,7 @@ import {
   normalizeScrollHaloOpacity,
 } from '@/lib/widget-scroll-halo';
 import { normalizeThinkingIcon } from '@/lib/widget-thinking-icon';
+import { normalizeWidgetSkin } from '@/lib/widget-skin';
 import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
 import { SOLO_WIDGET_LOCKED } from '@/lib/solo-plan-limits';
 
@@ -74,6 +75,7 @@ const PATCHABLE = [
   'policyText',
   'policyLinkLabel',
   'policyUrl',
+  'skin',
   'aiBeamScope',
   'aiBeamPalette',
   'aiBeamColor',
@@ -187,6 +189,10 @@ export async function PATCH(
     if (key === 'fabAvatarSize') {
       const n = typeof v === 'number' ? v : parseInt(String(v), 10);
       if (Number.isFinite(n)) $set.fabAvatarSize = Math.min(120, Math.max(56, Math.round(n)));
+      continue;
+    }
+    if (key === 'skin') {
+      $set.skin = normalizeWidgetSkin(v);
       continue;
     }
     if (key === 'aiBeamScope') {

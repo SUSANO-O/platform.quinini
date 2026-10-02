@@ -1,5 +1,6 @@
 'use client';
 
+import { normalizeWidgetSkin } from '@/lib/widget-skin';
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/use-subscription';
@@ -357,6 +358,7 @@ export default function WidgetBuilderPage() {
               autoOpen: Boolean(widget.autoOpen),
               fabDismissible: widget.fabDismissible !== false,
               pushContent: (widget as { pushContent?: boolean }).pushContent === true,
+              skin: normalizeWidgetSkin((widget as { skin?: unknown }).skin),
               voiceEnabled: widget.voiceEnabled !== false,
               imageUploadEnabled: (widget as { imageUploadEnabled?: boolean }).imageUploadEnabled !== false,
               micEnabled: typeof (widget as { micEnabled?: boolean }).micEnabled === 'boolean'

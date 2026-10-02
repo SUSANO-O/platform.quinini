@@ -21,6 +21,7 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig = {
   autoOpen: false,
   fabDismissible: true,
   pushContent: false,
+  skin: {},
   voiceEnabled: true,
   imageUploadEnabled: true,
   micEnabled: true,

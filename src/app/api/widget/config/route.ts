@@ -10,6 +10,7 @@
  * CORS enabled for cross-origin embed (localhost PHP, sitios de clientes, etc.).
  */
 
+import { normalizeWidgetSkin } from '@/lib/widget-skin';
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { Widget, ClientAgent, User, Subscription } from '@/lib/db/models';
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
   await connectDB();
 
   const widget = await Widget.findOne({ afhubToken: token })
-    .select('_id userId agentId color title subtitle welcome welcomeEnabled fabHint avatar fabAvatarSize position theme borderRadius autoOpen fabDismissible pushContent voiceEnabled imageUploadEnabled micEnabled voiceId aiBeamScope aiBeamPalette aiBeamColor aiBeamBlur aiBeamSpeed aiBeamIntensity scrollHaloEnabled scrollHaloColorMode scrollHaloColor scrollHaloHeight scrollHaloOpacity scrollHaloBlur scrollHaloTop scrollHaloBottom thinkingIconEnabled thinkingIcon humanSupportPhone humanSupportEnabled handoffEnabled handoffNotifyMode handoffTimeout shortcuts multiAgentEnabled multiAgentMode active feedbackEnabled feedbackTitle feedbackThanks feedbackQuestions conversationIdleTimeout idleReengageEnabled idleReengageMinutes idleReengageMessage policyEnabled policyText policyLinkLabel policyUrl')
+    .select('_id userId agentId color title subtitle welcome welcomeEnabled fabHint avatar fabAvatarSize position theme borderRadius autoOpen fabDismissible pushContent skin voiceEnabled imageUploadEnabled micEnabled voiceId aiBeamScope aiBeamPalette aiBeamColor aiBeamBlur aiBeamSpeed aiBeamIntensity scrollHaloEnabled scrollHaloColorMode scrollHaloColor scrollHaloHeight scrollHaloOpacity scrollHaloBlur scrollHaloTop scrollHaloBottom thinkingIconEnabled thinkingIcon humanSupportPhone humanSupportEnabled handoffEnabled handoffNotifyMode handoffTimeout shortcuts multiAgentEnabled multiAgentMode active feedbackEnabled feedbackTitle feedbackThanks feedbackQuestions conversationIdleTimeout idleReengageEnabled idleReengageMinutes idleReengageMessage policyEnabled policyText policyLinkLabel policyUrl')
     .lean() as Record<string, unknown> | null;
 
   if (!widget) {
@@ -112,6 +113,7 @@ export async function GET(req: NextRequest) {
         autoOpen:          widget.autoOpen,
         fabDismissible:    widget.fabDismissible !== false,
         pushContent:       widget.pushContent === true,
+        skin:              normalizeWidgetSkin((widget as { skin?: unknown }).skin),
         voiceEnabled:      widget.voiceEnabled === true,
         imageUploadEnabled: (widget as { imageUploadEnabled?: boolean }).imageUploadEnabled !== false,
         micEnabled: typeof (widget as { micEnabled?: boolean }).micEnabled === 'boolean'

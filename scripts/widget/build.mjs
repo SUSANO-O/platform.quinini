@@ -12,6 +12,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '../..');
 const corePath = path.join(__dirname, 'core.js');
 const flowModePath = path.join(__dirname, 'flow-mode.js');
+const skinPath = path.join(__dirname, 'skin.js');
 const outPublic = path.join(root, 'public', 'widget.js');
 const outInternal = path.join(root, 'public', 'assist.js');
 
@@ -81,7 +82,7 @@ async function main() {
   }
 
   const flowMode = fs.readFileSync(flowModePath, 'utf8');
-  const core = flowMode + '\n' + fs.readFileSync(corePath, 'utf8');
+  const core = flowMode + '\n' + fs.readFileSync(skinPath, 'utf8') + '\n' + fs.readFileSync(corePath, 'utf8');
   const tmpDir = path.join(__dirname, '.tmp');
   fs.mkdirSync(tmpDir, { recursive: true });
 

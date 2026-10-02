@@ -3,6 +3,7 @@
  * POST /api/widgets          — create widget (unique name per user, no plan limit)
  * DELETE /api/widgets?id=xxx — delete widget
  */
+import { normalizeWidgetSkin } from '@/lib/widget-skin';
 
 import { randomBytes } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
@@ -158,6 +159,7 @@ export async function POST(req: NextRequest) {
     ),
     fabDismissible: restNormalized.fabDismissible !== false,
     pushContent: restNormalized.pushContent === true,
+    skin: normalizeWidgetSkin((restNormalized as { skin?: unknown }).skin),
     handoffEnabled: restNormalized.handoffEnabled === true,
     humanSupportEnabled: restNormalized.humanSupportEnabled === true,
     multiAgentEnabled: multiEnabled,

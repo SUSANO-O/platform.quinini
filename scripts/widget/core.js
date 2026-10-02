@@ -737,6 +737,7 @@
           'feedbackEnabled',
           'fabDismissible',
           'pushContent',
+          'skin',
           'active',
           'shortcuts',
           'feedbackQuestions',
@@ -1809,6 +1810,23 @@
     var styleEl = document.createElement('style');
     styleEl.textContent = cssForRoot(rootId, cfg);
     root.appendChild(styleEl);
+    // Personalización por zona (Widget.skin): capa encima del CSS base; vacía = aspecto de siempre.
+    if (typeof buildWidgetSkinCss === 'function' && cfg.skin) {
+      var skinCss = buildWidgetSkinCss(rootId, cfg.skin);
+      if (skinCss) {
+        var skinEl = document.createElement('style');
+        skinEl.textContent = skinCss;
+        root.appendChild(skinEl);
+        var fontUrl = widgetSkinFontUrl(normalizeWidgetSkin(cfg.skin));
+        if (fontUrl && !document.querySelector('link[data-afhub-skin-font="' + fontUrl + '"]')) {
+          var fl = document.createElement('link');
+          fl.rel = 'stylesheet';
+          fl.href = fontUrl;
+          fl.setAttribute('data-afhub-skin-font', fontUrl);
+          document.head.appendChild(fl);
+        }
+      }
+    }
 
     var launcher = document.createElement('div');
     launcher.className = 'afhub-launcher';

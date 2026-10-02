@@ -148,6 +148,8 @@ const WidgetSchema = new Schema({
   fabDismissible: { type: Boolean, default: true },
   /** Al abrir el chat como barra lateral, la página se reacomoda en vez de quedar tapada. */
   pushContent: { type: Boolean, default: false },
+  /** Colores por zona y tipografía (src/lib/widget-skin.ts). Vacío = aspecto por defecto. */
+  skin: { type: Schema.Types.Mixed, default: {} },
   /**
    * Mapa de la app donde vive el widget: [{ path, name, description?, tabs?: [{ hash, name,
    * description? }] }]. Validado con `normalizeAppMap` (src/lib/widget-app-map.ts) antes de
