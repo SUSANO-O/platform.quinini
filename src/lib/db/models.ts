@@ -712,6 +712,14 @@ const FlowConversationSchema = new Schema({
   currentNodeId:{ type: String, default: '' },
   answers:      { type: [Schema.Types.Mixed], default: [] },
   month:        { type: String, default: '' },
+  /** Lead armado al completar un flujo con "genera leads" (src/lib/flow-leads.ts). */
+  lead:         { type: Schema.Types.Mixed, default: null },
+  /** Marca de entrega única: el webhook flow.lead_captured sale una sola vez por sesión. */
+  leadCapturedAt: { type: Date, default: null },
+  /** Origen: ruta de la página y utm_* (nunca otros parámetros). */
+  source:       { type: Schema.Types.Mixed, default: null },
+  /** Si el flujo pasó la conversación a un agente (nodo agent_handoff). */
+  handedOffTo:  { type: String, default: '' },
 }, { timestamps: true });
 
 FlowConversationSchema.index({ flowId: 1, startedAt: -1 });

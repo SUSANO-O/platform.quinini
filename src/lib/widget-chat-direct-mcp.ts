@@ -6,6 +6,7 @@
 
 import { pageContextLine } from '@/lib/widget-page-nav';
 import { appMapContextBlock, type AppMapEntry } from '@/lib/widget-app-map';
+import { flowContextBlock } from '@/lib/flow-handoff';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent } from '@/lib/db/models';
 import {
@@ -125,6 +126,8 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     visitorUserId?: string;
     visitorId?: string;
     pagePath?: string;
+    /** Respuestas de un flujo que pasó al agente (nodo agent_handoff). */
+    flowContext?: unknown;
   };
   try {
     parsed = JSON.parse(rawBody) as typeof parsed;
@@ -264,6 +267,7 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     typeof parsed.sessionContextBlock === 'string' ? parsed.sessionContextBlock.trim() : '',
     pageLine,
     appMapBlock,
+    flowContextBlock(parsed.flowContext),
   ]
     .filter(Boolean)
     .join('\n');

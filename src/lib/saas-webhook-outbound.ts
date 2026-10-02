@@ -22,7 +22,8 @@ export type SaasWebhookEventType =
   | 'quota.warning'
   | 'agent.created'
   | 'agent.updated'
-  | 'faq.candidate_detected';
+  | 'faq.candidate_detected'
+  | 'flow.lead_captured';
 
 export type SaasWebhookPayload<T = unknown> = {
   event: SaasWebhookEventType;
@@ -88,7 +89,19 @@ export function dispatchSaasWebhook<T>(
   event: SaasWebhookEventType,
   data: T,
 ): void {
-  void (async () => {
+  void sendSaasWebhook(userId, event, data);
+}
+
+/**
+ * Igual que `dispatchSaasWebhook` pero devuelve la promesa: para envolverla en `after()` en
+ * serverless (Vercel puede congelar la función y perder un envío sin esperar). Nunca lanza.
+ */
+export function sendSaasWebhook<T>(
+  userId: string,
+  event: SaasWebhookEventType,
+  data: T,
+): Promise<void> {
+  return (async () => {
     try {
       await connectDB();
       if (!(await userMayReceiveOutboundWebhook(userId))) return;

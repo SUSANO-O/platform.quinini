@@ -308,7 +308,17 @@ export default function FlowDetailPage() {
                       {c.durationSec != null && c.durationSec > 0 && (
                         <span>{formatDuration(c.durationSec)}</span>
                       )}
+                      {c.handedOff ? <span>→ pasó al agente</span> : null}
+                      {c.sourcePath ? <span title="Página de origen">{c.sourcePath}</span> : null}
                     </div>
+                    {c.lead ? (
+                      <div className="flows-admin-conv-item__meta" style={{ fontWeight: 500 }}>
+                        <span>Lead:</span>
+                        {c.lead.name ? <span>{c.lead.name}</span> : null}
+                        {c.lead.email ? <a href={`mailto:${c.lead.email}`}>{c.lead.email}</a> : null}
+                        {c.lead.phone ? <a href={`tel:${c.lead.phone.replace(/[^\d+]/g, '')}`}>{c.lead.phone}</a> : null}
+                      </div>
+                    ) : null}
                   </li>
                 ))}
               </ul>

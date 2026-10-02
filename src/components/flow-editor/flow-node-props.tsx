@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Plus, X } from '@/components/ui/icons';
 import type { FlowConditionOperator, FlowNodeConfig, FlowNodeType } from '@/lib/flow-editor/types';
 import type { FlowNodeData } from '@/lib/flow-editor/serialization';
@@ -62,7 +62,36 @@ function Toggle({
   );
 }
 
+/** Widgets de la cuenta para el nodo "Pasar al agente" (el agente es el del widget). */
+function HandoffWidgetSelect({ value, onChange }: { value: string; onChange: (id: string) => void }) {
+  const [widgets, setWidgets] = useState<{ id: string; label: string }[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/widgets', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d: { widgets?: Array<{ _id: string; name?: string; agentName?: string | null; active?: boolean }> }) => {
+        if (!alive) return;
+        setWidgets(
+          (d.widgets ?? [])
+            .filter((w) => w.active !== false)
+            .map((w) => ({ id: String(w._id), label: `${w.name || 'Widget'}${w.agentName ? ` — ${w.agentName}` : ''}` })),
+        );
+      })
+      .catch(() => alive && setWidgets([]));
+    return () => { alive = false; };
+  }, []);
+  return (
+    <select id="flow-cfg-handoff" value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="">{widgets === null ? 'Cargando…' : 'Elige un widget'}</option>
+      {(widgets ?? []).map((w) => (
+        <option key={w.id} value={w.id}>{w.label}</option>
+      ))}
+    </select>
+  );
+}
+
 function questionLabel(type: FlowNodeType): string {
+  if (type === 'agent_handoff') return 'Mensaje antes de pasar al agente';
   if (type === 'end') return 'Mensaje de cierre';
   if (type === 'condition') return 'Descripción (solo editor)';
   if (type === 'message') return 'Mensaje del bot';
@@ -620,6 +649,19 @@ export function FlowNodePropsPanel({ data, onChange }: Props) {
             onChange={(v) => patchConfig({ required: v })}
           />
         </>
+      )}
+      {/* ── Pasar al agente ───────────────────────────────────────────── */}
+      {type === 'agent_handoff' && (
+        <Field
+          label="Agente que continúa"
+          htmlFor="flow-cfg-handoff"
+          hint="El agente del widget elegido sigue la conversación y recibe todas las respuestas del flujo. Si el flujo genera leads, el lead se envía en este punto."
+        >
+          <HandoffWidgetSelect
+            value={config.handoffWidgetId ?? ''}
+            onChange={(handoffWidgetId) => patchConfig({ handoffWidgetId })}
+          />
+        </Field>
       )}
     </div>
   );
