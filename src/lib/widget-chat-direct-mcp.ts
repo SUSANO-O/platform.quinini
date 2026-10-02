@@ -5,6 +5,7 @@
  */
 
 import { pageContextLine } from '@/lib/widget-page-nav';
+import { appMapContextBlock, type AppMapEntry } from '@/lib/widget-app-map';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent } from '@/lib/db/models';
 import {
@@ -80,6 +81,8 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   identityStatus?: string;
   /** Diagnóstico: Origin de la petición del navegador (qué sitio embebe el widget). */
   clientOrigin?: string;
+  /** Mapa de la app del widget (`getWidgetAppMap`); vacío = solo la línea de página actual. */
+  appMap?: AppMapEntry[];
 }): Promise<DirectMcpWidgetChatResult | null> {
   if (!params.widgetTokenStartsWithWt || !params.parsedAgentId.trim()) {
     logWidgetFlow('🚫', 'direct:skip', 'sin wt_ o agentId', { agentId: params.parsedAgentId });
@@ -256,9 +259,11 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     typeof parsed.visitorEmail === 'string' ? parsed.visitorEmail.trim().toLowerCase() : '';
   const visitorName = typeof parsed.visitorName === 'string' ? parsed.visitorName.trim() : '';
   const pageLine = pageContextLine(parsed.pagePath);
+  const appMapBlock = appMapContextBlock(params.appMap, typeof parsed.pagePath === 'string' ? parsed.pagePath : '');
   const sessionContextBlock = [
     typeof parsed.sessionContextBlock === 'string' ? parsed.sessionContextBlock.trim() : '',
     pageLine,
+    appMapBlock,
   ]
     .filter(Boolean)
     .join('\n');

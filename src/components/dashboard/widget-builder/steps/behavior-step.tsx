@@ -23,6 +23,7 @@ import {
   WidgetBuilderSwitch,
   WidgetBuilderTogglePanel,
 } from '../ui';
+import { WidgetBuilderAppMapSection } from '../app-map-section';
 
 export type WidgetBuilderBehaviorStepProps = {
   cfg: WidgetConfig;
@@ -37,6 +38,8 @@ export type WidgetBuilderBehaviorStepProps = {
   suggestingShortcuts: boolean;
   shortcutSuggestErr: string;
   onSuggestShortcuts: () => void;
+  /** Id del widget guardado (el mapa de la app se guarda aparte y requiere que exista). */
+  widgetId?: string | null;
 };
 
 export function WidgetBuilderBehaviorStep({
@@ -50,6 +53,7 @@ export function WidgetBuilderBehaviorStep({
   suggestingShortcuts,
   shortcutSuggestErr,
   onSuggestShortcuts,
+  widgetId,
 }: WidgetBuilderBehaviorStepProps) {
   return (
     <WidgetBuilderSections>
@@ -757,6 +761,7 @@ export function WidgetBuilderBehaviorStep({
           </div>
         )}
       </div>
+      <WidgetBuilderAppMapSection widgetId={widgetId} />
     </WidgetBuilderSections>
   );
 }

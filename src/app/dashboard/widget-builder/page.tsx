@@ -841,6 +841,7 @@ export default function WidgetBuilderPage() {
                 suggestingShortcuts={suggestingShortcuts}
                 shortcutSuggestErr={shortcutSuggestErr}
                 onSuggestShortcuts={() => void suggestShortcuts()}
+                widgetId={editWidgetId}
               />
             ) : null}
 
