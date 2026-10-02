@@ -664,7 +664,7 @@ export default function CompliancePage() {
                 Eventos emitidos
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                {['conversation.closed', 'conversation.escalation', 'conversation.handoff', 'quota.reached'].map((ev) => (
+                {['conversation.closed', 'conversation.escalation', 'conversation.handoff', 'quota.reached', 'flow.lead_captured'].map((ev) => (
                   <code key={ev} style={{
                     padding: '3px 8px', borderRadius: 5,
                     background: 'rgba(var(--brand-warm-rgb),0.12)', border: '1px solid rgba(var(--brand-warm-rgb),0.35)',

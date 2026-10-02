@@ -5,6 +5,7 @@ import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import type { LucideIcon } from '@/components/ui/icons';
 import {
   Calendar,
+  Bot,
   CalendarDays,
   CornerDownRight,
   Dices,
@@ -42,6 +43,7 @@ const NODE_ICONS: Record<FlowNodeType, LucideIcon> = {
   end: Flag,
   calendar_booking: Calendar,
   calendly_booking: CalendarDays,
+  agent_handoff: Bot,
 };
 
 function NodeIcon({ type }: { type: FlowNodeType }) {
@@ -83,6 +85,9 @@ function StepNode({ data, selected }: NodeProps<FlowRfNode>) {
   if (data.flowType === 'goto') {
     meta = cfg?.targetNodeId ? `→ ${cfg.targetNodeId}` : '→ Inicio';
   }
+  if (data.flowType === 'agent_handoff') {
+    meta = cfg?.handoffWidgetId ? 'Continúa el agente del widget elegido' : '⚠ Elige un widget';
+  }
 
   return (
     <div
@@ -97,7 +102,7 @@ function StepNode({ data, selected }: NodeProps<FlowRfNode>) {
       </div>
       <p className="flow-rf-node__question">{data.question ?? '…'}</p>
       {meta ? <p className="flow-rf-node__meta">{meta}</p> : null}
-      {!isEnd && data.flowType !== 'goto' && (
+      {!isEnd && data.flowType !== 'goto' && data.flowType !== 'agent_handoff' && (
         <Handle type="source" position={Position.Bottom} id="output" className="flow-rf-handle" />
       )}
     </div>

@@ -13,7 +13,8 @@ export type FlowNodeType =
   | 'condition'
   | 'end'
   | 'calendar_booking'
-  | 'calendly_booking';
+  | 'calendly_booking'
+  | 'agent_handoff';
 
 export type FlowConnectionHandle = 'output' | 'true' | 'false' | `option:${number}`;
 
@@ -64,6 +65,8 @@ export interface FlowNodeConfig {
   setValue?: string;
   /** goto: id del nodo destino (vacío = reiniciar en start) */
   targetNodeId?: string;
+  /** agent_handoff: widget (y su agente) que continúa la conversación con las respuestas */
+  handoffWidgetId?: string;
 }
 
 export interface FlowNode {
@@ -143,4 +146,10 @@ export type FlowConversationItem = {
   durationSec: number | null;
   messageCount: number;
   visitorId: string;
+  /** Lead capturado (flujo con "genera leads"). */
+  lead?: { name?: string; email?: string; phone?: string } | null;
+  /** Ruta de la página donde corrió el flujo. */
+  sourcePath?: string;
+  /** El flujo pasó la conversación a un agente. */
+  handedOff?: boolean;
 };

@@ -6,6 +6,7 @@ import type { LucideIcon } from '@/components/ui/icons';
 import {
   ArrowLeft,
   Calendar,
+  Bot,
   CalendarDays,
   CornerDownRight,
   Dices,
@@ -76,6 +77,7 @@ const PALETTE_ICONS: Record<FlowNodeType, LucideIcon> = {
   end: Flag,
   calendar_booking: Calendar,
   calendly_booking: CalendarDays,
+  agent_handoff: Bot,
 };
 
 function FlowEditorInner({ initialFlow }: { initialFlow: FlowDocument }) {

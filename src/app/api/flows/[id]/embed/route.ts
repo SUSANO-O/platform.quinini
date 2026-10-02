@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
-import { ConversationFlow } from '@/lib/db/models';
+import { ConversationFlow, Widget } from '@/lib/db/models';
+import { resolveFlowHandoffs } from '@/lib/flow-handoff';
 import { getCorsHeaders, handlePreflight, withCors } from '@/lib/cors';
 import { flowAccessDeniedMessage, resolveFlowAccessForUser } from '@/lib/flow-access';
 
@@ -40,7 +41,10 @@ export async function GET(req: NextRequest, ctx: RouteCtx) {
     return withCors(req, NextResponse.json({ error: flowAccessDeniedMessage(), code: 'FLOW_PLAN_REQUIRED' }, { status: 403 }));
   }
 
+  const handoffs = await resolveFlowHandoffs(doc.userId, (doc.nodes ?? []) as Array<Record<string, unknown>>, Widget);
+
   return withCors(req, NextResponse.json({
+    handoffs,
     flow: {
       id: String(doc._id),
       name: doc.name,

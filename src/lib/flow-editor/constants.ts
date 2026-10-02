@@ -47,6 +47,12 @@ export const NODE_PALETTE: {
       { type: 'calendly_booking', icon: '📆', name: 'Calendly', desc: 'Agenda externa' },
     ],
   },
+  {
+    section: 'Inteligencia artificial',
+    items: [
+      { type: 'agent_handoff', icon: '🤖', name: 'Pasar al agente', desc: 'La IA continúa con las respuestas' },
+    ],
+  },
 ];
 
 export const NODE_TYPE_LABELS: Record<FlowNodeType, string> = {
@@ -65,6 +71,7 @@ export const NODE_TYPE_LABELS: Record<FlowNodeType, string> = {
   end: 'Fin',
   calendar_booking: 'Calendario',
   calendly_booking: 'Calendly',
+  agent_handoff: 'Pasar al agente',
 };
 
 export const NODE_TYPE_ICONS: Record<FlowNodeType, string> = {
@@ -83,6 +90,7 @@ export const NODE_TYPE_ICONS: Record<FlowNodeType, string> = {
   end: '🏁',
   calendar_booking: '📅',
   calendly_booking: '📆',
+  agent_handoff: '🤖',
 };
 
 export function createStartNode(): FlowNode {
@@ -234,6 +242,12 @@ export function createFlowNode(type: FlowNodeType, x: number, y: number, id?: st
           buttonLabel: 'Abrir Calendly',
           variableKey: 'calendly',
         },
+      };
+    case 'agent_handoff':
+      return {
+        ...base,
+        question: 'Te paso con nuestro asistente, que ya conoce tus respuestas. ¿En qué más te ayudo?',
+        config: { required: false, handoffWidgetId: '' },
       };
     case 'text':
       return {

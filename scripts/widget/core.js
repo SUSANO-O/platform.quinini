@@ -1859,7 +1859,7 @@
       inner.appendChild(a);
       row.appendChild(inner);
       messages.appendChild(row);
-      messages.scrollTop = messages.scrollHeight;
+      messagesPinned = true; scrollMessagesToEnd();
     }
 
     var headerActions = document.createElement('div');
@@ -1966,6 +1966,40 @@
     messagesShell.className = 'afhub-messages-shell';
     var messages = document.createElement('div');
     messages.className = 'afhub-messages';
+    // Pegado al final: mientras el visitante esté abajo, se queda abajo aunque la altura cambie
+    // después (botones del flujo, Sí/No de navegación, imágenes, panel que se estrecha). Solo se
+    // despega si ÉL desplaza (rueda, dedo, teclado). El salto es instantáneo: con el
+    // scroll-behavior:smooth del CSS, saltos seguidos se cancelaban y la vista no llegaba abajo.
+    var messagesPinned = true;
+    var messagesUserScrollUntil = 0;
+    function scrollMessagesToEnd() {
+      try {
+        messages.scrollTo({ top: messages.scrollHeight, behavior: 'instant' });
+      } catch (_s) {
+        messages.scrollTop = messages.scrollHeight;
+      }
+    }
+    function pinMessagesToBottom() {
+      if (messagesPinned) scrollMessagesToEnd();
+    }
+    function markUserScroll() { messagesUserScrollUntil = Date.now() + 600; }
+    messages.addEventListener('wheel', markUserScroll, { passive: true });
+    messages.addEventListener('touchmove', markUserScroll, { passive: true });
+    messages.addEventListener('keydown', markUserScroll);
+    messages.addEventListener('scroll', function () {
+      if (Date.now() > messagesUserScrollUntil) return;
+      messagesPinned = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 48;
+    }, { passive: true });
+    messages.addEventListener('load', function () { pinMessagesToBottom(); }, true);
+    try {
+      if (typeof MutationObserver === 'function') {
+        new MutationObserver(function () { requestAnimationFrame(pinMessagesToBottom); })
+          .observe(messages, { childList: true, subtree: true, characterData: true });
+      }
+      if (typeof ResizeObserver === 'function') {
+        new ResizeObserver(function () { pinMessagesToBottom(); }).observe(messages);
+      }
+    } catch (_pinErr) { /* navegadores viejos: queda el scroll de siempre al añadir mensajes */ }
     var scrollHaloTop = document.createElement('div');
     scrollHaloTop.className = 'afhub-scroll-halo afhub-scroll-halo--top';
     scrollHaloTop.setAttribute('aria-hidden', 'true');
@@ -3178,7 +3212,8 @@
           var inner = wrap.firstChild;
           if (inner) job.bubble.insertBefore(inner, job.bubble.firstChild);
         }
-        messages.scrollTop = messages.scrollHeight;
+        // Streaming: no arrastrar al visitante si subió a leer mientras llega el texto.
+        if (messagesPinned) scrollMessagesToEnd();
       }, 48);
     }
 
@@ -3530,7 +3565,7 @@
         maybeAppendDateDivider();
         messages.appendChild(el);
       }
-      messages.scrollTop = messages.scrollHeight;
+      messagesPinned = true; scrollMessagesToEnd();
       return el;
     }
 
@@ -4024,7 +4059,7 @@
       stack.appendChild(el);
       row.appendChild(stack);
       messages.appendChild(row);
-      messages.scrollTop = messages.scrollHeight;
+      messagesPinned = true; scrollMessagesToEnd();
       startTypingTimer();
     }
 
@@ -4044,7 +4079,7 @@
         var copy = thinkingCopyFromStatus(statusLabel, statusPhase);
         if (titleEl) titleEl.textContent = copy.title;
       }
-      messages.scrollTop = messages.scrollHeight;
+      messagesPinned = true; scrollMessagesToEnd();
     }
 
     function hideTyping() {
@@ -4760,7 +4795,7 @@
       wrap.appendChild(bubble);
 
       messages.appendChild(wrap);
-      messages.scrollTop = messages.scrollHeight;
+      messagesPinned = true; scrollMessagesToEnd();
       if (mid) ackHumanRead(mid); // visto si el chat está visible
       if (!opts.silent) {
         onHumanMessageArrived();
@@ -5840,6 +5875,11 @@
     }
     function queueOrSend(textArg) {
       if (widgetDisabled) return;
+      // Flujo guiado: cada respuesta avanza un paso, así que va directa (sin agrupar mensajes).
+      if (flowCtrl && flowCtrl.capturesInput()) {
+        send(textArg);
+        return;
+      }
       var text = typeof textArg === 'string' ? textArg.trim() : input.value.trim();
       var hasAttach = !!(pendingAttachment && pendingAttachment.dataUrl);
       var hasHumanAttach = (typeof humanModeActive !== 'undefined' && humanModeActive) && pendingHumanAttachments.length > 0;
@@ -6001,6 +6041,8 @@
         var pp = resolvePagePath(cfg);
         if (pp) payload.pagePath = pp;
       } catch (_pp) { /* noop */ }
+      // Respuestas de un flujo que pasó la conversación al agente (nodo agent_handoff).
+      if (cfg.flowContext && typeof cfg.flowContext === 'object') payload.flowContext = cfg.flowContext;
       // Identidad firmada por el servidor de la empresa ({ claims, ts, sig }); la landing la verifica.
       if (cfg.identity && typeof cfg.identity === 'object' && cfg.identity.sig) {
         payload.identity = {

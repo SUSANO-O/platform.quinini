@@ -69,6 +69,9 @@ export async function listRecentFlowConversations(
       durationSec: 1,
       messageCount: 1,
       visitorId: 1,
+      lead: 1,
+      source: 1,
+      handedOffTo: 1,
     })
     .lean();
 
@@ -80,6 +83,11 @@ export async function listRecentFlowConversations(
     durationSec: r.durationSec ?? null,
     messageCount: r.messageCount ?? 0,
     visitorId: r.visitorId ?? '',
+    lead: r.lead
+      ? { name: r.lead.name, email: r.lead.email, phone: r.lead.phone }
+      : null,
+    sourcePath: typeof r.source?.pagePath === 'string' ? r.source.pagePath : '',
+    handedOff: Boolean(r.handedOffTo),
   }));
 }
 
@@ -93,12 +101,15 @@ export async function upsertFlowConversation(opts: {
   messageCount?: number;
   currentNodeId?: string;
   answers?: unknown[];
+  source?: unknown;
+  handedOffTo?: string;
 }): Promise<void> {
   const now = new Date();
   const status = opts.status ?? 'active';
   const ending = status === 'completed' || status === 'abandoned';
 
-  const existing = await FlowConversation.findOne({ sessionId: opts.sessionId }).lean();
+  // Acotado al flujo: el sessionId lo manda el navegador; no debe poder pisar la sesión de otro flujo.
+  const existing = await FlowConversation.findOne({ sessionId: opts.sessionId, flowId: opts.flowId }).lean();
   if (!existing) {
     await FlowConversation.create({
       flowId: opts.flowId,
@@ -114,21 +125,30 @@ export async function upsertFlowConversation(opts: {
       currentNodeId: opts.currentNodeId ?? '',
       answers: opts.answers ?? [],
       month: monthKey(now),
+      ...(opts.source ? { source: opts.source } : {}),
+      ...(opts.handedOffTo ? { handedOffTo: opts.handedOffTo } : {}),
     });
     return;
   }
 
+  // Los registros del navegador pueden llegar en desorden (el último paso y el "completado" salen
+  // casi a la vez): una conversación terminada no vuelve a "active".
+  const effectiveStatus =
+    status === 'active' && (existing.status === 'completed' || existing.status === 'abandoned')
+      ? (existing.status as 'completed' | 'abandoned')
+      : status;
+  const stillEnding = effectiveStatus === 'completed' || effectiveStatus === 'abandoned';
   const startedAt = existing.startedAt ?? now;
-  const endedAt = ending ? (existing.endedAt ?? now) : null;
+  const endedAt = stillEnding ? (existing.endedAt ?? now) : null;
   const durationSec = endedAt
     ? Math.max(0, Math.round((endedAt.getTime() - startedAt.getTime()) / 1000))
     : null;
 
   await FlowConversation.updateOne(
-    { sessionId: opts.sessionId },
+    { sessionId: opts.sessionId, flowId: opts.flowId },
     {
       $set: {
-        status,
+        status: effectiveStatus,
         endedAt,
         durationSec,
         messageCount: opts.messageCount ?? existing.messageCount ?? 0,
@@ -136,9 +156,27 @@ export async function upsertFlowConversation(opts: {
         ...(opts.answers ? { answers: opts.answers } : {}),
         ...(opts.widgetId ? { widgetId: opts.widgetId } : {}),
         ...(opts.visitorId ? { visitorId: opts.visitorId } : {}),
+        ...(opts.source && !existing.source ? { source: opts.source } : {}),
+        ...(opts.handedOffTo ? { handedOffTo: opts.handedOffTo } : {}),
       },
     },
   );
+}
+
+/**
+ * Guarda el lead una sola vez por sesión. true = esta llamada lo capturó (y debe avisar por
+ * webhook); false = ya estaba capturado (reintento del navegador, doble clic…).
+ */
+export async function captureFlowLeadOnce(opts: {
+  flowId: string;
+  sessionId: string;
+  lead: unknown;
+}): Promise<boolean> {
+  const r = await FlowConversation.updateOne(
+    { sessionId: opts.sessionId, flowId: opts.flowId, leadCapturedAt: null },
+    { $set: { lead: opts.lead, leadCapturedAt: new Date() } },
+  );
+  return r.modifiedCount === 1;
 }
 
 export { monthKey as flowConversationMonthKey };

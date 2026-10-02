@@ -15,6 +15,8 @@ function createFlowController(deps) {
     messageCount: 0,
     answers: [],
     started: false,
+    handoffs: {},
+    handedOff: false,
   };
 
   var flowBar = document.createElement('div');
@@ -83,6 +85,34 @@ function createFlowController(deps) {
     return '';
   }
 
+  /** {{clave}} → respuesta guardada con esa clave; {{pagina}} → ruta actual. Sin clave → vacío. */
+  function fill(text) {
+    return String(text == null ? '' : text).replace(/\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g, function (_m, key) {
+      if (key === 'pagina' || key === 'page') {
+        try { return window.location.pathname; } catch (e) { return ''; }
+      }
+      for (var i = state.answers.length - 1; i >= 0; i--) {
+        if (state.answers[i].key === key) return String(state.answers[i].label || state.answers[i].value || '');
+      }
+      return '';
+    });
+  }
+
+  /** Respuestas para el agente que continúa: pregunta + respuesta, la última por nodo. */
+  function buildFlowContext() {
+    var seen = {};
+    var out = [];
+    for (var i = state.answers.length - 1; i >= 0; i--) {
+      var a = state.answers[i];
+      if (seen[a.nodeId]) continue;
+      seen[a.nodeId] = true;
+      var n = state.graph && state.graph.nodeMap[a.nodeId];
+      if (!n || n.type === 'set_variable' || n.type === 'random') continue;
+      out.unshift({ question: fill(n.question || ''), key: a.key, value: String(a.label || a.value || '') });
+    }
+    return { flowName: (state.flow && state.flow.name) || '', answers: out };
+  }
+
   function pushAnswer(node, value, label) {
     state.answers.push({
       nodeId: node.id,
@@ -92,8 +122,10 @@ function createFlowController(deps) {
     });
   }
 
-  function record(status) {
+  function record(status, extra) {
     state.messageCount += 1;
+    var pageUrl = '';
+    try { pageUrl = String(window.location.href || ''); } catch (e) { /* noop */ }
     return fetch(host() + '/api/flows/' + encodeURIComponent(cfg.flowId) + '/conversations/record', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-flow-token': String(cfg.flowToken) },
@@ -104,6 +136,8 @@ function createFlowController(deps) {
         currentNodeId: state.currentNodeId,
         answers: state.answers,
         widgetId: cfg.widgetId || '',
+        pageUrl: pageUrl,
+        handedOffTo: (extra && extra.handedOffTo) || undefined,
       }),
     })
       .then(function (r) { return r.json(); })
@@ -333,9 +367,29 @@ function createFlowController(deps) {
       return;
     }
 
+    if (node.type === 'agent_handoff') {
+      var target = state.handoffs[String(nodeConfig(node).handoffWidgetId || '')];
+      deps.addMessage('bot', fill(node.question || '¿En qué más te puedo ayudar?'));
+      state.done = true;
+      setInputPlaceholder(defaultPlaceholder);
+      if (target && target.agentId && target.token) {
+        // Desde aquí el chat lo atiende el agente del widget elegido, con las respuestas como contexto.
+        cfg.agentId = target.agentId;
+        cfg.token = target.token;
+        cfg.widgetId = target.widgetId;
+        cfg.flowContext = buildFlowContext();
+        state.handedOff = true;
+        void record('completed', { handedOffTo: target.widgetId });
+      } else {
+        void record('completed');
+      }
+      deps.syncSendButtonState();
+      return;
+    }
+
     if (node.type === 'end') {
       var endCfg = nodeConfig(node);
-      var endMsg = node.question || state.flow.completionMessage || '¡Gracias!';
+      var endMsg = fill(node.question || state.flow.completionMessage || '¡Gracias!');
       deps.addMessage('bot', endMsg);
       state.done = true;
       setInputPlaceholder(defaultPlaceholder);
@@ -347,8 +401,8 @@ function createFlowController(deps) {
     }
 
     var c = nodeConfig(node);
-    deps.addMessage('bot', node.question || '…');
-    if (c.helpText) deps.addMessage('bot', c.helpText);
+    deps.addMessage('bot', fill(node.question || '…'));
+    if (c.helpText) deps.addMessage('bot', fill(c.helpText));
 
     if (node.type === 'multiple_choice') {
       setInputPlaceholder(defaultPlaceholder);
@@ -492,6 +546,7 @@ function createFlowController(deps) {
         }
         state.loaded = true;
         state.flow = res.d.flow;
+        state.handoffs = (res.d.handoffs && typeof res.d.handoffs === 'object') ? res.d.handoffs : {};
         state.graph = buildGraph(state.flow.nodes || [], state.flow.connections || []);
         state.started = true;
         void record('active').then(function () {
@@ -509,11 +564,20 @@ function createFlowController(deps) {
     isActive: function () {
       return Boolean(cfg.flowId && cfg.flowToken);
     },
+    /**
+     * true mientras el flujo maneja lo que escribe el visitante: cada respuesta se procesa al
+     * instante (sin la agrupación de mensajes del chat normal). Tras "Pasar al agente", false.
+     */
+    capturesInput: function () {
+      return Boolean(cfg.flowId && cfg.flowToken) && !state.handedOff && !state.failed;
+    },
     onEmptyHistory: function () {
       if (!state.started) loadAndStart();
       return true;
     },
     onSend: function (textArg) {
+      // Tras "Pasar al agente", los mensajes van al chat normal (el agente del widget elegido).
+      if (state.handedOff) return false;
       if (state.failed) return true;
       if (!state.loaded) return true;
       if (state.done) return true;
@@ -521,7 +585,10 @@ function createFlowController(deps) {
       if (!text) return true;
       deps.clearInput();
       if (handleTextInput(text)) return true;
-      return false;
+      // El paso actual espera un botón (opción, reserva…): no mandar el texto a un agente que no existe.
+      var cur = state.graph && state.currentNodeId ? state.graph.nodeMap[state.currentNodeId] : null;
+      if (cur && cur.type === 'multiple_choice') deps.addMessage('bot', 'Elige una de las opciones de abajo.');
+      return true;
     },
     reset: function () {
       state.loaded = false;
@@ -535,6 +602,9 @@ function createFlowController(deps) {
       state.messageCount = 0;
       state.answers = [];
       state.started = false;
+      state.handoffs = {};
+      state.handedOff = false;
+      cfg.flowContext = null;
       setInputPlaceholder(defaultPlaceholder);
       clearOptions();
     },
