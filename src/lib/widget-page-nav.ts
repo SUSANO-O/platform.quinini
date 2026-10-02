@@ -1,7 +1,8 @@
 /**
  * Página actual y navegación para widgets de clientes (cualquier web, no solo el panel BotIvA).
  *
- * - `pageContextLine`: le dice al agente en qué vista está el cliente (solo la ruta).
+ * - `pageContextLine`: le dice al agente en qué vista está el cliente (ruta, parámetros no
+ *   sensibles y pestaña #).
  * - `finalizeWidgetNavReply`: si el agente propone llevar al cliente a otra vista con un bloque
  *   ```assist-nav {path, onDecline, afterNavigate}```, lo convierte en `navOffer` (botones Sí/No
  *   del widget) y lo quita del texto. Solo rutas relativas del mismo sitio: nunca otro dominio.
@@ -21,25 +22,41 @@ const NAV_XML_RE = /<assist-nav[\w-]*[\s\S]*?(?:\/>|<\/assist-nav[\w-]*>)/gi;
 const MAX_PATH = 200;
 const DEFAULT_DECLINE = 'De acuerdo, puedes ir cuando quieras desde el menú.';
 
-function toPathname(raw: string): string {
+/** Parámetros que nunca deben llegar al modelo (credenciales, sesiones, firmas). */
+const SENSITIVE_PARAM_RE = /token|secret|pass|pwd|sig|session|jwt|auth|key|cookie|otp|code/i;
+const SAFE_VALUE_RE = /^[A-Za-z0-9_\-.:@ ]{0,80}$/;
+
+/**
+ * Ruta + parámetros no sensibles + pestaña (#). La pestaña y el dispositivo (p. ej.
+ * `visorDisp.php?k_disp=…#routes-day`) son justo lo que el agente necesita saber.
+ */
+function toPageRef(raw: string): string {
   const v = raw.trim();
   if (!v) return '';
-  if (/^https?:\/\//i.test(v)) {
-    try {
-      return new URL(v).pathname;
-    } catch {
-      return '';
-    }
+  let url: URL;
+  try {
+    if (/^https?:\/\//i.test(v)) url = new URL(v);
+    else if (v.startsWith('/') && !v.startsWith('//')) url = new URL(v, 'https://x.invalid');
+    else return '';
+  } catch {
+    return '';
   }
-  if (!v.startsWith('/')) return '';
-  return v.split('?')[0].split('#')[0];
+  const path = url.pathname;
+  if (!/^\/[A-Za-z0-9_\-./]*$/.test(path)) return '';
+  const params: string[] = [];
+  url.searchParams.forEach((value, key) => {
+    if (SENSITIVE_PARAM_RE.test(key) || !/^[A-Za-z0-9_\-]{1,40}$/.test(key) || !SAFE_VALUE_RE.test(value)) return;
+    params.push(`${key}=${value}`);
+  });
+  const hash = url.hash && /^#[A-Za-z0-9_\-]{1,60}$/.test(url.hash) ? url.hash : '';
+  return path + (params.length ? `?${params.join('&')}` : '') + hash;
 }
 
 /** Línea de contexto para el agente; vacía si no hay una ruta utilizable. */
 export function pageContextLine(pagePath: string | undefined | null): string {
-  const path = toPathname(String(pagePath ?? ''));
-  if (!path || path.length > MAX_PATH || !/^\/[A-Za-z0-9_\-./]*$/.test(path)) return '';
-  return `Página actual del cliente en la app: ${path}`;
+  const ref = toPageRef(String(pagePath ?? ''));
+  if (!ref || ref.length > MAX_PATH) return '';
+  return `Página actual del cliente en la app: ${ref}`;
 }
 
 /** Ruta relativa del mismo sitio, sin esquema ni host ni caracteres raros. */
