@@ -8544,23 +8544,27 @@
       '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen {' +
         'display:grid !important;' +
         'grid-template-columns:minmax(0,1fr);' +
-        'grid-template-rows:auto minmax(0,1fr) auto auto auto auto auto;' +
+        'grid-template-rows:auto minmax(0,1fr) auto auto auto auto auto auto;' +
         'grid-template-areas:' +
           '"header"' +
           '"messages"' +
           '"flow"' +
           '"attach"' +
           '"input"' +
+          '"note"' +
           '"policy"' +
           '"powered";' +
         'background:' + shellBg + ';' +
-        'box-shadow:none;border:none;' +
+        // Pantalla completa = la ventana entera: sin esquinas redondeadas (ni las del radio elegido).
+        'box-shadow:none;border:none;border-radius:0 !important;' +
       '}' +
       '@keyframes afhubCurtainReveal {' +
         'from{opacity:0;transform:translateY(10px);}' +
         'to{opacity:1;transform:none;}' +
       '}' +
       '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen::before { display:none; }' +
+      // Texto propio del pie (Widget.skin.footerNote): debajo de la caja de escribir.
+      '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen .afhub-footer-note { grid-area:note; }' +
       '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen .afhub-messages-shell,' +
       '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen .afhub-shortcuts-wrap,' +
       '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen .afhub-input-area,' +
@@ -8577,6 +8581,7 @@
           '"side flow"' +
           '"side attach"' +
           '"side input"' +
+          '"side note"' +
           '"side policy"' +
           '"side powered";' +
       '}' +
@@ -8726,6 +8731,7 @@
             '"flow"' +
             '"attach"' +
             '"input"' +
+            '"note"' +
             '"policy"' +
             '"powered";' +
         '}' +
