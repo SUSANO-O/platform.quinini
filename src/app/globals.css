@@ -113,9 +113,9 @@
   --gradient-end:   var(--brand-primary-dark);
 
   /* Tipografía — next/font (variables en <html>) */
-  --font-display: var(--font-outfit), var(--font-plus-jakarta), system-ui, sans-serif;
-  --font-body: var(--font-plus-jakarta), var(--font-outfit), system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-display: var(--font-newsreader), 'Iowan Old Style', Georgia, serif;
+  --font-body: var(--font-geist), var(--font-plus-jakarta), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* Escala tipográfica (app + landing) */
   --text-xs: 0.75rem;
@@ -326,7 +326,7 @@ label {
 
 /* ── Landing: tipografía Bewe-like (Inter + Merriweather) ── */
 .landing-page {
-  --landing-font: var(--font-inter), var(--font-plus-jakarta), system-ui, sans-serif;
+  --landing-font: var(--font-geist), var(--font-inter), system-ui, sans-serif;
   --landing-accent-font: var(--font-merriweather), Georgia, "Times New Roman", serif;
   position: relative;
   background: #ffffff;
@@ -12230,3 +12230,59 @@ button.dashboard-meta-chip:disabled {
   --mui-palette-action-disabled: rgba(255, 255, 255, 0.3);
   --mui-palette-action-disabledBackground: rgba(255, 255, 255, 0.12);
 }
+
+/* ── Tipografía y ritmo ───────────────────────────────────────────────────────────────────────────
+   Texto en Geist con interlineado amplio y tracking fino; títulos en Newsreader (serif editorial,
+   tamaño óptico automático) con peso medio y tracking negativo; números tabulares donde se comparan. */
+body {
+  font-family: var(--font-body);
+  line-height: 1.6;
+  letter-spacing: -0.006em;
+  font-feature-settings: 'kern', 'calt';
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.022em;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+h4, h5, h6 { font-family: var(--font-body); font-weight: 600; letter-spacing: -0.012em; line-height: 1.3; }
+p, li, dd { text-wrap: pretty; }
+strong, b { font-weight: 600; }
+code, kbd, pre, samp { font-family: var(--font-mono); font-feature-settings: 'calt' 0; }
+table, time, .tabular-nums, [class*='count'], [class*='stat'] { font-variant-numeric: tabular-nums; }
+label { letter-spacing: -0.003em; }
+/* En paneles compactos (estudios, menú) los títulos pequeños van en la sans: la serif luce en grande. */
+.ws :is(h2, h3), .dr :is(h2, h3), .as-body :is(h2, h3) { font-family: var(--font-body); letter-spacing: -0.012em; font-weight: 650; }
+.ws-top__title strong, .ws-inspector__head h2 { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.015em; }
+
+/* Rótulos en mayúsculas: en la sans con tracking amplio (la serif en versalitas pequeñas no se lee). */
+:is(.agent-editor-section__title, .dashboard-mobile-nav__group-title, .dashboard-builder-rail__title) {
+  font-family: var(--font-body);
+  letter-spacing: 0.1em;
+}
+
+/* ── Aire en todo el panel (no afecta al widget) ──────────────────────────────────────────────────
+   Contenedores, rejillas, tarjetas y secciones con más espacio y un ritmo vertical más amplio. */
+.dashboard-shell__inner { padding: 2.25rem 1.5rem 4rem; }
+@media (min-width: 768px) { .dashboard-shell__inner { padding: 2.75rem 2.75rem 4.5rem; } }
+.dashboard-shell__inner--wide, .dashboard-shell__inner--home { max-width: 78rem; }
+.dashboard-pool-grid { gap: 1.5rem; }
+.dashboard-pool-card { padding: 1.6rem 1.75rem; }
+.dashboard-stat-strip { gap: 1rem; margin-bottom: 2.5rem; padding: 1.35rem 1.6rem; }
+.dashboard-grid-toolbar { gap: 1.25rem; margin-bottom: 1.5rem; }
+.dashboard-section-title { margin-bottom: 0.6rem; }
+.agent-editor-section { padding: 2.75rem 0; }
+.agent-editor-section__title { margin-bottom: 1.35rem; }
+/* Etiquetas y campos: un respiro entre etiqueta, campo y el siguiente bloque. */
+.dashboard-main label + :is(input, textarea, select),
+.dashboard-main label + div > :is(input, textarea, select) { margin-top: 0.4rem; }
+.dashboard-main :is(.p-5, .p-6) { padding: 1.75rem; }
+@media (min-width: 768px) { .dashboard-main .p-6 { padding: 2rem; } }
+/* Tarjetas MUI */
+.dashboard-main .MuiCardContent-root { padding: 1.75rem; }
