@@ -143,7 +143,7 @@ export function WidgetBuilderIdentityStep({
                 <div className="relative mb-3">
                   <Search
                     size={14}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10"
                     style={{ color: 'var(--muted-foreground)' }}
                     aria-hidden
                   />
@@ -151,7 +151,7 @@ export function WidgetBuilderIdentityStep({
                     value={agentFilter}
                     onChange={(e) => setAgentFilter(e.target.value)}
                     placeholder="Buscar agente por nombre o descripción…"
-                    className="pl-9"
+                    style={{ paddingLeft: '2.25rem' }}
                     aria-label="Buscar agente"
                   />
                 </div>
@@ -161,7 +161,7 @@ export function WidgetBuilderIdentityStep({
                   Ningún agente coincide con «{agentFilter.trim()}».
                 </p>
               ) : (
-                <div className="max-h-[26rem] max-w-xl overflow-y-auto overscroll-contain pr-1">
+                <div className="widget-builder-agent-list max-h-[26rem] overflow-y-auto overscroll-contain">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                     {filteredAgents.map((a) => {
                     const agentIdForWidget = effectiveWidgetAgentId(a);
