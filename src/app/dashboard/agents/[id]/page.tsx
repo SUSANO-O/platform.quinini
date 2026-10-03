@@ -1618,7 +1618,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         sections={visibleTabs.map((t) => ({ id: t.id, label: t.label, icon: t.icon, count: t.count, hint: AGENT_TAB_TIPS[t.id as AgentDetailTabId] }))}
         activeId={tab}
         onSelect={(id) => setTab(id as AgentDetailTabId)}
-        stage={(pick) => <AgentPlayground agentId={id} agentName={name || agent.name} accent={R} onPick={pick} />}
+        side={(pick) => <AgentPlayground agentId={id} agentName={name || agent.name} onPick={pick} />}
       >
       {soloChatOnly && (
         <p className="text-xs mb-4 m-0 px-3 py-2 rounded-xl border" style={{ color: 'var(--muted-foreground)', borderColor: 'var(--border)', background: 'var(--muted)' }}>
