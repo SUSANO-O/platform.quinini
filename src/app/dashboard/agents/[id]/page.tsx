@@ -73,6 +73,7 @@ import { ModelCatalogPicker } from '@/components/dashboard/model-catalog-picker'
 import { AgentFallbackPicker } from '@/components/dashboard/agent-fallback-picker';
 import { useFallbackModelOptions } from '@/hooks/use-fallback-model-options';
 import { AgentStudio } from '@/components/dashboard/agent-studio';
+import { AgentPlayground } from '@/components/dashboard/agent-playground';
 import { type AgentDetailTabId } from '@/components/dashboard/agent-detail-tabs';
 import { BuilderRail } from '@/components/dashboard/builder-rail';
 import { AgentEditorSection } from '@/components/dashboard/agent-editor-section';
@@ -1615,6 +1616,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         sections={visibleTabs.map((t) => ({ id: t.id, label: t.label, icon: t.icon, count: t.count, hint: AGENT_TAB_TIPS[t.id as AgentDetailTabId] }))}
         activeId={tab}
         onSelect={(id) => setTab(id as AgentDetailTabId)}
+        side={<AgentPlayground agentId={id} agentName={agent.name} />}
       >
       {soloChatOnly && (
         <p className="text-xs mb-4 m-0 px-3 py-2 rounded-xl border" style={{ color: 'var(--muted-foreground)', borderColor: 'var(--border)', background: 'var(--muted)' }}>
