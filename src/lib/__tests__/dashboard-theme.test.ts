@@ -17,9 +17,10 @@ function boot(pathname: string, stored: string | null, systemDark: boolean): str
 }
 
 describe('tema del panel', () => {
-  it('preferencia desconocida o vacía = claro', () => {
-    expect(parsePreference(null)).toBe('light');
-    expect(parsePreference('azul')).toBe('light');
+  it('preferencia desconocida o vacía = sistema (automático)', () => {
+    expect(parsePreference(null)).toBe('system');
+    expect(parsePreference('azul')).toBe('system');
+    expect(parsePreference('light')).toBe('light');
     expect(parsePreference('dark')).toBe('dark');
     expect(parsePreference('system')).toBe('system');
   });
@@ -34,7 +35,9 @@ describe('tema del panel', () => {
   it('el script previo al pintado aplica lo mismo, solo en /dashboard', () => {
     expect(boot('/dashboard', 'dark', false)).toBe('dark');
     expect(boot('/dashboard/agents/1', 'system', true)).toBe('dark');
-    expect(boot('/dashboard', null, true)).toBe('light');
+    expect(boot('/dashboard', null, true)).toBe('dark');
+    expect(boot('/dashboard', null, false)).toBe('light');
+    expect(boot('/dashboard', 'light', true)).toBe('light');
     expect(boot('/', 'dark', true)).toBeNull();
     expect(boot('/pricing', 'dark', false)).toBeNull();
   });

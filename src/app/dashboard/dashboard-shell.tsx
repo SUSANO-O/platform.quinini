@@ -34,16 +34,13 @@ import { buildTrialExpiredWhatsAppUrl } from '@/lib/sales-whatsapp';
 const SIDEBAR_COLLAPSED_KEY = 'dashboard-sidebar-collapsed';
 
 
-/** Vistas siempre oscuras: configuración (área Cuenta) y estudios del agente y del widget. */
+/** Vistas de configuración (área Cuenta): fondo con el brillo de marca, en el tema que toque. */
 export const CONFIG_ROUTE_RE = /^\/dashboard\/(settings|facturas|api|compliance)(\/|$)/;
-const ALWAYS_DARK_RE = /^\/dashboard\/((settings|facturas|api|compliance)(\/|$)|widget-builder(\/|$)|agents\/(?!new(\/|$))[^/]+)/;
 
-/** Tema MUI según el tema del panel (claro / oscuro); las vistas siempre oscuras usan el oscuro. */
+/** Tema MUI según el tema del panel (claro / oscuro / sistema): igual en todas las vistas. */
 function DashboardMuiTheme({ children }: { children: React.ReactNode }) {
   const { resolved } = useDashboardTheme();
-  const pathname = usePathname();
-  const dark = resolved === 'dark' || ALWAYS_DARK_RE.test(pathname);
-  return <ThemeProvider theme={dark ? dashboardMuiThemeDark : dashboardMuiTheme}>{children}</ThemeProvider>;
+  return <ThemeProvider theme={resolved === 'dark' ? dashboardMuiThemeDark : dashboardMuiTheme}>{children}</ThemeProvider>;
 }
 
 function SubscriptionExpiryGate() {
@@ -268,7 +265,7 @@ function SidebarExpiryBadge() {
       borderRadius: '12px',
       border: 'none',
       background: 'var(--muted)',
-      boxShadow: '0 2px 12px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
+      boxShadow: 'var(--shadow-surface-sm)',
     }}>
       <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, color: 'var(--foreground)', marginBottom: '8px' }}>
         Suscripción inactiva
@@ -317,8 +314,8 @@ function JourneyProgress() {
         padding: '12px 12px 14px',
         borderRadius: '12px',
         border: 'none',
-        background: 'linear-gradient(145deg, rgba(255,255,255,0.92), rgba(241,244,248,0.65))',
-        boxShadow: '0 4px 16px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.75)',
+        background: 'linear-gradient(145deg, var(--card), color-mix(in srgb, var(--muted) 60%, var(--card)))',
+        boxShadow: 'var(--shadow-surface-sm)',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
@@ -331,9 +328,9 @@ function JourneyProgress() {
         style={{
           height: '6px',
           borderRadius: '999px',
-          background: 'linear-gradient(90deg, rgba(15,23,42,0.06), rgba(15,23,42,0.1))',
+          background: 'var(--muted)',
           overflow: 'hidden',
-          border: '1px solid rgba(15,23,42,0.06)',
+          border: '1px solid var(--border-subtle)',
         }}
       >
         <div
@@ -552,7 +549,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         {/* Main content */}
         <main
           className={isFlowEditorRoute ? 'dashboard-main dashboard-main--flow-editor' : `dashboard-main${isConfigRoute ? ' dashboard-main--config' : ''}`}
-          data-theme={isConfigRoute ? 'dark' : undefined}
         >
           <ApiOnlyDashboardGate pathname={pathname}>
             {children}

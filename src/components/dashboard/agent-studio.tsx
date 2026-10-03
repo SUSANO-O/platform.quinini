@@ -202,7 +202,6 @@ export function AgentStudio({
 
   return (
     <div
-      data-theme="dark"
       className={`ws as${side && sideOpen ? ' has-side' : ''}${dirty.has(activeId) ? ' is-dirty' : ''}`}
       style={{ ['--ws-accent' as string]: accent }}
     >

@@ -262,7 +262,7 @@ export function DashboardRail({
   );
 
   return (
-    <div ref={rootRef} data-theme="dark" className={`dr${pinned ? ' is-pinned' : ''}${flyout && !pinned ? ' is-flyout' : ''}`}>
+    <div ref={rootRef} className={`dr${pinned ? ' is-pinned' : ''}${flyout && !pinned ? ' is-flyout' : ''}`}>
       <aside className="dr-rail" aria-label="Navegación del panel">
         <Link href="/" className="dr-logo" title={BRAND_NAME}>
           <BotivaOrbLogo size={30} />

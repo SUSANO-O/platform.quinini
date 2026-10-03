@@ -10,10 +10,11 @@ export type ResolvedTheme = 'light' | 'dark';
 export const DASHBOARD_THEME_KEY = 'botiva-theme';
 
 /** Mismo cálculo que el script previo al pintado (mantener los dos iguales). */
-export const DASHBOARD_THEME_BOOT_SCRIPT = `(function(){try{if(location.pathname.indexOf('/dashboard')!==0)return;var p=localStorage.getItem('${DASHBOARD_THEME_KEY}');var d=p==='dark'||(p==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();`;
+export const DASHBOARD_THEME_BOOT_SCRIPT = `(function(){try{if(location.pathname.indexOf('/dashboard')!==0)return;var p=localStorage.getItem('${DASHBOARD_THEME_KEY}');var d=p==='dark'||(p!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();`;
 
+/** Sin preferencia guardada (o desconocida) = Sistema: el panel sigue al tema del equipo. */
 export function parsePreference(v: unknown): ThemePreference {
-  return v === 'dark' || v === 'system' ? v : 'light';
+  return v === 'dark' || v === 'light' ? v : 'system';
 }
 
 export function resolveTheme(pref: ThemePreference, systemDark: boolean): ResolvedTheme {
