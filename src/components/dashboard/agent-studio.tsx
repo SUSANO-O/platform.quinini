@@ -203,7 +203,7 @@ export function AgentStudio({
   return (
     <div
       className={`ws as${side && sideOpen ? ' has-side' : ''}${dirty.has(activeId) ? ' is-dirty' : ''}`}
-      style={{ ['--ws-accent' as string]: accent, ['--as-accent' as string]: accent }}
+      style={{ ['--ws-accent' as string]: accent }}
     >
       <header className="ws-top">
         <div className="ws-top__left">

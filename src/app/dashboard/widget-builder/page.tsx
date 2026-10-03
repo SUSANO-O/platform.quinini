@@ -823,7 +823,7 @@ export default function WidgetBuilderPage() {
   return (
     <WidgetStudio
       widgetName={cfg.name}
-      accent={cfg.color || BRAND_R}
+      accent={BRAND.primaryLight}
       sections={studioSections}
       activeId={activeStep.id}
       onSelect={(id) => {
