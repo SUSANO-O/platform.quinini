@@ -70,6 +70,7 @@ export function WidgetLivePreview({
   backdrop,
   open,
   onPick,
+  pickEnabled = true,
 }: {
   cfg: WidgetConfig;
   shortcuts: WidgetShortcut[];
@@ -78,6 +79,8 @@ export function WidgetLivePreview({
   open: boolean;
   /** Zona del widget pulsada en la vista previa (header, footer, chat, user, bot, fab). */
   onPick?: (zone: string) => void;
+  /** Modo editor: clic en una parte del widget = editarla. Apagado = se comporta como el real. */
+  pickEnabled?: boolean;
 }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const onPickRef = useRef(onPick);
@@ -109,6 +112,7 @@ export function WidgetLivePreview({
             ...cfg,
             shortcuts,
             preview: true,
+            previewPick: pickEnabled,
             previewMessages: DEMO_MESSAGES,
             agentId: cfg.agentId || 'preview',
             token: '',
@@ -122,7 +126,7 @@ export function WidgetLivePreview({
       );
     }, 120);
     return () => clearTimeout(t);
-  }, [ready, cfg, shortcuts, open, origin]);
+  }, [ready, cfg, shortcuts, open, origin, pickEnabled]);
 
   return (
     <div className={`ws-device ws-device--${device}`}>

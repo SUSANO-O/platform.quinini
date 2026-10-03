@@ -1821,12 +1821,15 @@
     styleEl.textContent = cssForRoot(rootId, cfg);
     root.appendChild(styleEl);
     // Estudio del panel: resaltar zonas al pasar el ratón y avisar al editor de la zona pulsada.
+    // `previewPick: false` (interruptor "Modo editor" del estudio) = se comporta como el widget real.
+    var previewPick = cfg.preview && cfg.previewPick !== false;
     if (cfg.preview) {
       var pickEl = document.createElement('style');
       var rp = '#' + rootId;
-      pickEl.textContent =
-        rp + ' [data-afhub-zone]{transition:outline-color .15s, outline-offset .15s;outline:2px solid transparent;outline-offset:-2px;cursor:pointer;}' +
-        rp + ' [data-afhub-zone]:hover{outline-color:rgba(124,92,255,.85);}';
+      pickEl.textContent = previewPick
+        ? rp + ' [data-afhub-zone]{transition:outline-color .15s, outline-offset .15s;outline:2px solid transparent;outline-offset:-2px;cursor:pointer;}' +
+          rp + ' [data-afhub-zone]:hover{outline-color:rgba(40,164,184,.9);}'
+        : '';
       root.appendChild(pickEl);
       var PREVIEW_ZONES = [
         ['.afhub-msg.user', 'user'], ['.afhub-msg.bot', 'bot'], ['.afhub-header', 'header'],
@@ -1834,6 +1837,7 @@
         ['.afhub-fab', 'fab'], ['.afhub-messages', 'chat']
       ];
       root.addEventListener('mouseover', function (ev) {
+        if (!previewPick) return;
         var t = ev.target;
         for (var zi = 0; zi < PREVIEW_ZONES.length; zi++) {
           var hit = t && t.closest ? t.closest(PREVIEW_ZONES[zi][0]) : null;
@@ -1850,6 +1854,7 @@
         try { window.parent.postMessage({ type: 'afhub-preview-key', redo: y || ev.shiftKey }, '*'); } catch (_k) { /* noop */ }
       });
       root.addEventListener('click', function (ev) {
+        if (!previewPick) return;
         var t = ev.target;
         if (t && t.closest && t.closest('textarea, input, .afhub-send')) return; // escribir sigue funcionando
         for (var zi = 0; zi < PREVIEW_ZONES.length; zi++) {

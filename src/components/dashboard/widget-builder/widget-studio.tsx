@@ -8,7 +8,7 @@
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeft, Check, Loader2, Redo2, Undo2 } from '@/components/ui/icons';
 import type { WidgetConfig, WidgetShortcut } from '@/lib/widget-builder';
 import { WidgetLivePreview, type PreviewBackdrop, type PreviewDevice } from './live-preview';
@@ -108,6 +108,24 @@ export function WidgetStudio({
   const [device, setDevice] = useState<PreviewDevice>('desktop');
   const [backdrop, setBackdrop] = useState<PreviewBackdrop>('site');
   const [open, setOpen] = useState(true);
+  /** Modo editor de la vista previa (clic = editar esa parte); se recuerda en este navegador. */
+  const [editMode, setEditMode] = useState(true);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('ws-edit-mode') === '0') setEditMode(false);
+    } catch {
+      /* noop */
+    }
+  }, []);
+  const toggleEditMode = () =>
+    setEditMode((v) => {
+      try {
+        localStorage.setItem('ws-edit-mode', v ? '0' : '1');
+      } catch {
+        /* noop */
+      }
+      return !v;
+    });
   const active = sections.find((s) => s.id === activeId) ?? sections[0];
 
   return (
@@ -195,9 +213,35 @@ export function WidgetStudio({
           <span />
         </div>
         <div className="ws-stage__frame">
-          <WidgetLivePreview cfg={cfg} shortcuts={shortcuts} device={device} backdrop={backdrop} open={open} onPick={onPickZone} />
+          <WidgetLivePreview
+            cfg={cfg}
+            shortcuts={shortcuts}
+            device={device}
+            backdrop={backdrop}
+            open={open}
+            onPick={onPickZone}
+            pickEnabled={editMode}
+          />
         </div>
-        <p className="ws-stage__caption">Vista previa en vivo · haz clic en una parte del widget para editarla</p>
+        <div className="ws-stage__caption">
+          <span>
+            Vista previa en vivo ·{' '}
+            {editMode ? 'haz clic en una parte del widget para editarla' : 'pruébalo como lo verá un visitante'}
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={editMode}
+            className={`ws-switch${editMode ? ' is-on' : ''}`}
+            onClick={toggleEditMode}
+            title={editMode ? 'Desactivar modo editor' : 'Activar modo editor'}
+          >
+            <span className="ws-switch__track" aria-hidden>
+              <span className="ws-switch__thumb" />
+            </span>
+            Modo editor
+          </button>
+        </div>
       </main>
 
       <aside className="ws-inspector" aria-label={`Ajustes: ${active.label}`}>
