@@ -72,7 +72,7 @@ export function DashboardPageHeader({
           <Typography
             variant={compact ? 'h5' : 'h4'}
             component="h1"
-            sx={{ m: 0, fontWeight: 800, letterSpacing: '-0.03em', textWrap: 'balance' }}
+            sx={{ m: 0, fontFamily: 'var(--font-display)', fontWeight: 600, letterSpacing: '-0.028em', textWrap: 'balance' }}
           >
             {title}
             {titleAccent ? (
