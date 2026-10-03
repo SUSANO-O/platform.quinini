@@ -7,7 +7,8 @@ import { useAuthSplashLoading } from '@/hooks/use-auth-splash-loading';
 import { SubscriptionProvider, useSubscription } from '@/hooks/use-subscription';
 import { QueryProvider } from '@/providers/query-provider';
 import { AiLoadingScreen } from '@/components/ui/ai-loading-screen';
-import { DashboardSidebar, SIDEBAR_COLLAPSED_PX } from '@/components/dashboard/dashboard-sidebar';
+import { SIDEBAR_COLLAPSED_PX } from '@/components/dashboard/dashboard-sidebar';
+import { DashboardRail } from '@/components/dashboard/dashboard-rail';
 import { DashboardMobileNav } from '@/components/dashboard/dashboard-mobile-nav';
 import { TourProvider, useTour } from '@/components/onboarding/app-tour';
 // import { initPaddleClient } from '@/lib/paddle-client'; // Paddle — comentado
@@ -516,21 +517,18 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         )}
         <div style={{ display: 'flex', flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
         {!isFlowEditorRoute && (
-        <DashboardSidebar
-          variant="desktop"
+        <DashboardRail
           pathname={pathname}
           user={user}
-          collapsed={sidebarCollapsed}
-          onToggleCollapse={toggleSidebar}
+          pinned={!sidebarCollapsed}
+          onTogglePin={toggleSidebar}
           onLogout={() => void handleLogout()}
           footer={
-            !sidebarCollapsed ? (
-              <>
-                <SidebarExpiryBadge />
-                <JourneyProgress />
-                <TourActions />
-              </>
-            ) : null
+            <>
+              <SidebarExpiryBadge />
+              <JourneyProgress />
+              <TourActions />
+            </>
           }
         />
         )}
