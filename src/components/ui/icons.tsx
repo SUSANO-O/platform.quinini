@@ -62,6 +62,7 @@ export const Bell = makeIcon('notifications', 'Bell');
 export const BookOpen = makeIcon('menu_book', 'BookOpen');
 export const Bot = makeIcon('smart_toy', 'Bot');
 export const Undo2 = makeIcon('undo', 'Undo2');
+export const MoreHorizontal = makeIcon('more_horiz', 'MoreHorizontal');
 export const Redo2 = makeIcon('redo', 'Redo2');
 export const Box = makeIcon('package_2', 'Box');
 export const Boxes = makeIcon('widgets', 'Boxes');
