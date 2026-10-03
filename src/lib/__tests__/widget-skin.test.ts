@@ -112,3 +112,10 @@ describe('fase 2 — tamaños, visibilidad y texto del pie', () => {
     expect(css).toContain('.afhub-msg-time{display:none !important;}');
   });
 });
+
+describe('guardado automático de Apariencia', () => {
+  it('incluye skin (antes los colores por zona solo se guardaban al pulsar Guardar)', async () => {
+    const { pickWidgetAppearancePatch } = await import('@/lib/widget-ai-beam');
+    expect(pickWidgetAppearancePatch({ color: '#000000', skin: { headerBg: '#ff0000' } }).skin).toEqual({ headerBg: '#ff0000' });
+  });
+});
