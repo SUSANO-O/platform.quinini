@@ -98,7 +98,11 @@ function buildWidgetSkinCss(rootId, rawSkin) {
     // Zona de escribir + franja de política y "powered by": el pie entero de un color.
     css += r + ' .afhub-input-area,' + r + ' .afhub-policy,' + r + ' .afhub-powered{background:' + s.footerBg + ' !important;}';
   }
-  if (s.inputBg) css += r + ' .afhub-input-composer{background:' + s.inputBg + ' !important;}';
+  if (s.inputBg) {
+    // La caja tiene capas internas con fondo propio: todas del color elegido.
+    css += r + ' .afhub-input-composer{background:' + s.inputBg + ' !important;}' +
+      r + ' .afhub-input-composer-inner,' + r + ' .afhub-input-wrap,' + r + ' .afhub-input{background:' + s.inputBg + ' !important;}';
+  }
   if (s.inputText) css += r + ' .afhub-input{color:' + s.inputText + ' !important;}';
   if (s.sendBg) css += r + ' .afhub-send{background:' + s.sendBg + ' !important;}';
   if (s.chatBg) css += r + ' .afhub-messages{background:' + s.chatBg + ' !important;background-image:none !important;}';

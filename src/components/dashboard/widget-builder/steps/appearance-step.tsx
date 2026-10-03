@@ -258,7 +258,7 @@ export function WidgetBuilderAppearanceStep({
             />
           </WidgetBuilderSection>
 
-          <WidgetBuilderSkinSection skin={cfg.skin ?? {}} onChange={(skin) => onChange({ skin })} />
+          <WidgetBuilderSkinSection skin={cfg.skin ?? {}} brand={cfg.color} onChange={(skin) => onChange({ skin })} />
 
           <WidgetBuilderSection
             tourId="widget-builder-ai-beam"

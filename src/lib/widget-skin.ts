@@ -70,3 +70,79 @@ export function contrastRatio(a: string, b: string): number {
   const [l1, l2] = [lum(a), lum(b)].sort((x, y) => y - x);
   return Math.round(((l1 + 0.05) / (l2 + 0.05)) * 100) / 100;
 }
+
+// ── Paleta de marca y plantillas (estudio del widget) ─────────────────────────
+
+function toRgb(h: string): [number, number, number] {
+  const c = hex(h) || '#000000';
+  return [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16)) as [number, number, number];
+}
+function toHex([r, g, b]: number[]): string {
+  return '#' + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+}
+/** Mezcla dos colores: t = 0 → a, t = 1 → b. */
+function mix(a: string, b: string, t: number): string {
+  const [x, y] = [toRgb(a), toRgb(b)];
+  return toHex(x.map((v, i) => v + (y[i] - v) * t));
+}
+
+/** Texto legible sobre un fondo: blanco o casi negro, el de más contraste. */
+export function readableOn(bg: string): '#ffffff' | '#111111' {
+  return contrastRatio('#ffffff', bg) >= contrastRatio('#111111', bg) ? '#ffffff' : '#111111';
+}
+
+/**
+ * Fondo de marca con texto legible: si ni blanco ni negro llegan a contraste 4,5 sobre él (colores
+ * de luminosidad media, p. ej. #e63312), se oscurece lo mínimo necesario. Para fondos CON texto.
+ */
+export function legibleBg(bg: string): string {
+  let c = hex(bg) || '#006b7d';
+  for (let i = 0; i < 20 && contrastRatio(readableOn(c), c) < 4.5; i++) c = mix(c, '#000000', 0.06);
+  return c;
+}
+
+/** Tonos de la marca (3 claros, la marca, 3 oscuros) + neutros para el selector de color. */
+export function brandPalette(brand: string): { brand: string[]; neutral: string[] } {
+  const b = hex(brand) || '#006b7d';
+  return {
+    brand: [mix(b, '#ffffff', 0.88), mix(b, '#ffffff', 0.6), mix(b, '#ffffff', 0.3), b, mix(b, '#000000', 0.2), mix(b, '#000000', 0.4), mix(b, '#000000', 0.6)],
+    neutral: ['#ffffff', '#f7f8fa', '#eef0f4', '#d5d9e0', '#6b7280', '#2b2f38', '#111318'],
+  };
+}
+
+export type SkinTemplate = { id: string; name: string; description: string; skin: WidgetSkin };
+
+/** Plantillas de un clic a partir del color de marca. Todos los textos cumplen contraste AA. */
+export function skinTemplates(brand: string): SkinTemplate[] {
+  const b = hex(brand) || '#006b7d';
+  const bt = legibleBg(b); // marca con texto encima (cabecera, burbuja del usuario)
+  const onB = readableOn(bt);
+  const tint = mix(b, '#ffffff', 0.92);
+  const deep = legibleBg(mix(b, '#000000', 0.55));
+  return [
+    {
+      id: 'minimal',
+      name: 'Minimal',
+      description: 'Blanco, limpio; la marca solo en los acentos',
+      skin: { headerBg: '#ffffff', headerText: '#111318', chatBg: '#ffffff', footerBg: '#ffffff', botBubbleBg: '#f3f4f6', botBubbleText: '#111318', userBubbleBg: bt, userBubbleText: onB, sendBg: b, fabBg: b, fontFamily: 'Inter' },
+    },
+    {
+      id: 'corporativo',
+      name: 'Corporativo',
+      description: 'Cabecera de marca, sobrio y profesional',
+      skin: { headerBg: bt, headerText: onB, chatBg: '#f7f8fa', footerBg: '#ffffff', botBubbleBg: '#ffffff', botBubbleText: '#1f2937', userBubbleBg: bt, userBubbleText: onB, sendBg: b, fabBg: b, fontFamily: 'Roboto' },
+    },
+    {
+      id: 'oscuro',
+      name: 'Noche',
+      description: 'Oscuro elegante con la marca brillando',
+      skin: { headerBg: '#111318', headerText: '#f3f4f6', chatBg: '#16181f', footerBg: '#111318', inputBg: '#1f222b', inputText: '#f3f4f6', botBubbleBg: '#23262f', botBubbleText: '#eef0f5', userBubbleBg: bt, userBubbleText: onB, sendBg: b, fabBg: b, fontFamily: 'Poppins' },
+    },
+    {
+      id: 'vibrante',
+      name: 'Vibrante',
+      description: 'Marca intensa y fondo teñido, con personalidad',
+      skin: { headerBg: deep, headerText: readableOn(deep), chatBg: tint, footerBg: tint, botBubbleBg: '#ffffff', botBubbleText: '#111318', userBubbleBg: bt, userBubbleText: onB, sendBg: b, fabBg: deep, fontFamily: 'Montserrat' },
+    },
+  ];
+}

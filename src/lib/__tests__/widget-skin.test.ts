@@ -60,6 +60,7 @@ describe('buildWidgetSkinCss', () => {
     for (const frag of [
       '.afhub-input-area,#r1 .afhub-policy,#r1 .afhub-powered{background:#eeeeee',
       '.afhub-input-composer{background:#ffffff',
+      '.afhub-input-composer-inner,#r1 .afhub-input-wrap,#r1 .afhub-input{background:#ffffff',
       '.afhub-input{color:#111111',
       '.afhub-send{background:#00aa00',
       '.afhub-messages{background:#fafafa',
@@ -117,5 +118,44 @@ describe('guardado automático de Apariencia', () => {
   it('incluye skin (antes los colores por zona solo se guardaban al pulsar Guardar)', async () => {
     const { pickWidgetAppearancePatch } = await import('@/lib/widget-ai-beam');
     expect(pickWidgetAppearancePatch({ color: '#000000', skin: { headerBg: '#ff0000' } }).skin).toEqual({ headerBg: '#ff0000' });
+  });
+});
+
+describe('fase 2 del estudio — paleta de marca y plantillas', () => {
+  it('brandPalette: tonos de la marca de claro a oscuro + neutros, todos hex válidos', async () => {
+    const { brandPalette } = await import('@/lib/widget-skin');
+    const pal = brandPalette('#e63312');
+    expect(pal.brand).toHaveLength(7);
+    expect(pal.brand[3]).toBe('#e63312');
+    expect(pal.neutral).toContain('#ffffff');
+    for (const c of [...pal.brand, ...pal.neutral]) expect(c).toMatch(/^#[0-9a-f]{6}$/);
+  });
+
+  it('plantillas: cada una es un skin válido y todos sus textos se leen (contraste ≥ 4,5)', async () => {
+    const { skinTemplates, normalizeWidgetSkin, contrastRatio } = await import('@/lib/widget-skin');
+    for (const brand of ['#e63312', '#006b7d', '#f5d90a', '#111111']) {
+      for (const t of skinTemplates(brand)) {
+        expect(normalizeWidgetSkin(t.skin), t.id).toEqual(t.skin);
+        for (const [text, bg] of [['headerText', 'headerBg'], ['userBubbleText', 'userBubbleBg'], ['botBubbleText', 'botBubbleBg']] as const) {
+          if (t.skin[text] && t.skin[bg]) {
+            expect(contrastRatio(t.skin[text]!, t.skin[bg]!), `${brand} ${t.id} ${text}`).toBeGreaterThanOrEqual(4.5);
+          }
+        }
+      }
+    }
+  });
+
+  it('legibleBg: oscurece lo mínimo para que el texto se lea; un color ya legible no cambia', async () => {
+    const { legibleBg, readableOn, contrastRatio } = await import('@/lib/widget-skin');
+    const fixed = legibleBg('#e63312');
+    expect(contrastRatio(readableOn(fixed), fixed)).toBeGreaterThanOrEqual(4.5);
+    expect(fixed).not.toBe('#e63312');
+    expect(legibleBg('#006b7d')).toBe('#006b7d');
+  });
+
+  it('readableOn: elige blanco o casi negro según el fondo', async () => {
+    const { readableOn } = await import('@/lib/widget-skin');
+    expect(readableOn('#f5d90a')).toBe('#111111');
+    expect(readableOn('#006b7d')).toBe('#ffffff');
   });
 });

@@ -229,7 +229,7 @@
 .ws-inspector__body code,
 .ws-inspector__body pre { background: rgba(0, 0, 0, 0.35) !important; color: #e6e8ef !important; border-color: var(--ws-line) !important; }
 /* Botones, celdas y filas de los controles existentes con fondo claro → superficies oscuras. */
-.ws-inspector__body button:not(.ws-primary):not([class*='color-preset']):not([style*='background']),
+.ws-inspector__body button:not(.ws-primary):not([class*='color-preset']):not([style*='background']):not([class^='sk']),
 .ws-inspector__body .widget-builder-ai-beam-head,
 .ws-inspector__body .widget-builder-position-grid,
 .ws-inspector__body .widget-builder-visual-toggles__row,
