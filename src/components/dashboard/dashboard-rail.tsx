@@ -53,6 +53,20 @@ function buildAreas(groups: ReturnType<typeof buildDashboardNavGroups>): Area[] 
   ];
 }
 
+/** Onda al pulsar (como el ripple de los botones del menú anterior), desde el punto del clic. */
+function ripple(e: React.PointerEvent<HTMLElement>) {
+  const el = e.currentTarget;
+  const r = el.getBoundingClientRect();
+  const size = Math.max(r.width, r.height) * 2;
+  const wave = document.createElement('span');
+  wave.className = 'dr-ripple';
+  wave.style.width = wave.style.height = `${size}px`;
+  wave.style.left = `${e.clientX - r.left - size / 2}px`;
+  wave.style.top = `${e.clientY - r.top - size / 2}px`;
+  el.appendChild(wave);
+  wave.addEventListener('animationend', () => wave.remove());
+}
+
 function areaForPath(areas: Area[], pathname: string): string {
   for (const a of areas) {
     if (a.groups.some((g) => g.items.some((i) => isActive(pathname, i.href)))) return a.id;
@@ -88,6 +102,7 @@ function RailLink({
       aria-current={active ? 'page' : undefined}
       data-tour={SIDEBAR_TOUR_KEY_BY_HREF[href]}
       onClick={onNavigate}
+      onPointerDown={ripple}
       onMouseEnter={() => onPrefetch(href)}
       onFocus={() => onPrefetch(href)}
     >
@@ -101,7 +116,7 @@ function RailLink({
 
 function EntityLink({ href, name, meta, active, onNavigate, dot }: { href: string; name: string; meta?: string; active: boolean; onNavigate: () => void; dot?: 'on' | 'off' }) {
   return (
-    <Link href={href} className={`dr-link dr-link--entity${active ? ' is-active' : ''}`} aria-current={active ? 'page' : undefined} onClick={onNavigate} title={name}>
+    <Link href={href} className={`dr-link dr-link--entity${active ? ' is-active' : ''}`} aria-current={active ? 'page' : undefined} onClick={onNavigate} onPointerDown={ripple} title={name}>
       <span className="dr-initials" aria-hidden>
         {initials(name)}
         {dot ? <i className={`dr-dot is-${dot}`} /> : null}
@@ -262,6 +277,7 @@ export function DashboardRail({
                 type="button"
                 className={`dr-area${on ? ' is-on' : ''}`}
                 aria-pressed={open && a.id === areaId}
+                onPointerDown={ripple}
                 onClick={() => {
                   if (open && a.id === areaId && !pinned) {
                     setFlyout(false);
@@ -292,6 +308,7 @@ export function DashboardRail({
           <button
             type="button"
             className="dr-area dr-area--small"
+            onPointerDown={ripple}
             title="Buscar (⌘K)"
             onClick={() => {
               if (!pinned) setFlyout(true);
@@ -303,6 +320,7 @@ export function DashboardRail({
           <button
             type="button"
             className="dr-area dr-area--small"
+            onPointerDown={ripple}
             title="Ayuda asistente"
             onClick={() => {
               window.__BIV?.show?.();
@@ -405,7 +423,7 @@ export function DashboardRail({
                 {area?.id === 'cuenta' ? (
                   <div className="dr-group">
                     <PwaInstallButton collapsed={false} />
-                    <button type="button" className="dr-link" onClick={onLogout}>
+                    <button type="button" className="dr-link" onClick={onLogout} onPointerDown={ripple}>
                       <LogOut size={16} strokeWidth={1.75} aria-hidden />
                       <span className="dr-link__label">Cerrar sesión</span>
                     </button>
@@ -436,7 +454,7 @@ export function DashboardRail({
                 </button>
                 <strong>Desbloquea Business</strong>
                 <p>Widgets multiagente, más conversaciones e integraciones avanzadas.</p>
-                <Link href="/pricing" className="dr-promo__cta">
+                <Link href="/pricing" className="dr-promo__cta" onPointerDown={ripple}>
                   Ver planes
                 </Link>
               </div>
