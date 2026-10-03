@@ -101,3 +101,12 @@
 
 .sk-input { width: 100%; font-size: 12.5px; padding: 8px 10px; }
 .sk-reset { justify-self: start; font-size: 12px; padding: 7px 12px; border-radius: 9px; cursor: pointer; color: #ff9b9b !important; }
+
+/* Zona pulsada en la vista previa: el grupo se ilumina un instante. */
+.sk-group { border-radius: 12px; transition: box-shadow 0.35s, background 0.35s; }
+.sk-group.is-flash {
+  background: color-mix(in srgb, var(--ws-accent, #7c5cff) 12%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ws-accent, #7c5cff) 70%, transparent), 0 0 24px color-mix(in srgb, var(--ws-accent, #7c5cff) 35%, transparent);
+  animation: sk-flash 1.4s ease-out;
+}
+@keyframes sk-flash { 0% { transform: scale(1.01); } 20% { transform: scale(1); } }

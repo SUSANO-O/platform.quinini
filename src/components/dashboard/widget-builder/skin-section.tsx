@@ -19,6 +19,11 @@ import {
 import { WidgetBuilderSection } from './ui';
 import './skin-section.css';
 
+/** Zona de la vista previa → grupo de controles. */
+const ZONE_GROUP: Record<string, string> = {
+  header: 'Cabecera', footer: 'Pie', chat: 'Conversación', user: 'Mensajes del usuario', bot: 'Mensajes del asistente', fab: 'Botón flotante',
+};
+
 const GROUPS: { title: string; fields: { key: WidgetSkinColorKey; label: string; on?: WidgetSkinColorKey }[] }[] = [
   { title: 'Cabecera', fields: [{ key: 'headerBg', label: 'Fondo' }, { key: 'headerText', label: 'Nombre e iconos', on: 'headerBg' }] },
   {
@@ -147,11 +152,24 @@ export function WidgetBuilderSkinSection({
   skin,
   brand,
   onChange,
+  focusZone,
 }: {
   skin: WidgetSkin;
   brand: string;
   onChange: (skin: WidgetSkin) => void;
+  focusZone?: { zone: string; n: number } | null;
 }) {
+  const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [flash, setFlash] = useState<string | null>(null);
+  useEffect(() => {
+    const title = focusZone ? ZONE_GROUP[focusZone.zone] : undefined;
+    const el = title ? groupRefs.current[title] : null;
+    if (!title || !el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setFlash(title);
+    const t = setTimeout(() => setFlash(null), 1400);
+    return () => clearTimeout(t);
+  }, [focusZone]);
   const palette = brandPalette(brand);
   const templates = skinTemplates(brand);
   const set = (key: keyof WidgetSkin, value: string | number | boolean | undefined) => {
@@ -193,7 +211,13 @@ export function WidgetBuilderSkinSection({
         </div>
 
         {GROUPS.map((g) => (
-          <div key={g.title} className="sk-group">
+          <div
+            key={g.title}
+            ref={(el) => {
+              groupRefs.current[g.title] = el;
+            }}
+            className={`sk-group${flash === g.title ? ' is-flash' : ''}`}
+          >
             <p className="sk-group__title">{g.title}</p>
             <div className="sk-grid">
               {g.fields.map((f) => (

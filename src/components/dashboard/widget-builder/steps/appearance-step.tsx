@@ -171,6 +171,7 @@ export function WidgetBuilderAppearanceStep({
   cfg,
   onChange,
   autoSave = false,
+  focusZone,
 }: {
   cfg: Pick<
     WidgetConfig,
@@ -213,6 +214,8 @@ export function WidgetBuilderAppearanceStep({
   >;
   onChange: (patch: WidgetConfigPatch) => void;
   autoSave?: boolean;
+  /** Zona pulsada en la vista previa del estudio: el inspector salta a sus controles. */
+  focusZone?: { zone: string; n: number } | null;
 }) {
   const aiBeamOn = cfg.aiBeamScope !== 'off';
 
@@ -258,7 +261,7 @@ export function WidgetBuilderAppearanceStep({
             />
           </WidgetBuilderSection>
 
-          <WidgetBuilderSkinSection skin={cfg.skin ?? {}} brand={cfg.color} onChange={(skin) => onChange({ skin })} />
+          <WidgetBuilderSkinSection skin={cfg.skin ?? {}} brand={cfg.color} onChange={(skin) => onChange({ skin })} focusZone={focusZone} />
 
           <WidgetBuilderSection
             tourId="widget-builder-ai-beam"

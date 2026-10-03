@@ -30,7 +30,7 @@
     var(--ws-bg);
   color: var(--ws-text);
   border-radius: 18px;
-  overflow: hidden;
+  overflow: clip;
   color-scheme: dark;
 }
 
@@ -178,7 +178,8 @@
 .ws-inspector {
   grid-area: inspector; display: grid; grid-template-rows: auto minmax(0, 1fr);
   background: var(--ws-panel); border: 1px solid var(--ws-line); border-radius: var(--ws-radius);
-  overflow: hidden; backdrop-filter: blur(18px);
+  /* clip (no hidden): scrollIntoView del inspector solo debe mover su cuerpo, no el encabezado. */
+  overflow: clip; backdrop-filter: blur(18px);
 }
 .ws-inspector__head { display: flex; gap: 12px; align-items: center; padding: 16px 18px; border-bottom: 1px solid var(--ws-line); }
 .ws-inspector__head h2 { margin: 0; font-size: 15px; font-weight: 650; }
@@ -282,3 +283,6 @@
   .ws-inspector { overflow: visible; }
   .ws-inspector__body { overflow: visible; }
 }
+
+.ws-top__sep { width: 1px; height: 22px; background: var(--ws-line-strong); margin: 0 2px; }
+.ws-iconbtn:disabled { opacity: 0.35; cursor: default; transform: none; }

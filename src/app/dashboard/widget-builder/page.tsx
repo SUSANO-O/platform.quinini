@@ -2,6 +2,7 @@
 
 import { normalizeWidgetSkin } from '@/lib/widget-skin';
 import { WidgetStudio, type StudioSaveState, type StudioSection } from '@/components/dashboard/widget-builder/widget-studio';
+import { emptyHistory, recordChange, redo, undo, type UndoHistory } from '@/lib/widget-builder/undo-history';
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/use-subscription';
@@ -434,11 +435,21 @@ export default function WidgetBuilderPage() {
 
   /** Indicador del estudio: Sin cambios · Cambios sin guardar · Guardando… · Guardado. */
   const [saveState, setSaveState] = useState<StudioSaveState>('idle');
+  /** Deshacer / rehacer (src/lib/widget-builder/undo-history.ts). */
+  const [undoHist, setUndoHist] = useState<UndoHistory<WidgetConfig>>(emptyHistory);
+  /** Zona pulsada en la vista previa → el inspector salta a sus controles. */
+  const [focusZone, setFocusZone] = useState<{ zone: string; n: number } | null>(null);
+  const remember = useCallback((before: WidgetConfig) => {
+    setUndoHist((h) => recordChange(h, before, Date.now()));
+  }, []);
 
   const update = useCallback((patch: Partial<WidgetConfig>) => {
-    setCfg((prev) => ({ ...prev, ...patch }));
+    setCfg((prev) => {
+      remember(prev);
+      return { ...prev, ...patch };
+    });
     setSaveState('dirty');
-  }, []);
+  }, [remember]);
 
   const appearanceSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const appearanceSaveInflight = useRef<Promise<boolean> | null>(null);
@@ -551,6 +562,7 @@ export default function WidgetBuilderPage() {
   const updateAppearance = useCallback(
     (patch: Partial<WidgetConfig>) => {
       setCfg((prev) => {
+        remember(prev);
         const next = { ...prev, ...patch };
         cfgRef.current = next;
         return next;
@@ -570,8 +582,54 @@ export default function WidgetBuilderPage() {
       }
       scheduleAppearanceSave(keys.some((key) => key === 'avatar') ? 900 : 500);
     },
-    [flushAppearanceSave, scheduleAppearanceSave],
+    [flushAppearanceSave, scheduleAppearanceSave, remember],
   );
+
+  /** Restaurar un estado del historial y guardarlo (apariencia al instante; el resto, como cambio pendiente). */
+  const restoreSnapshot = useCallback(
+    (snapshot: WidgetConfig) => {
+      setCfg(snapshot);
+      cfgRef.current = snapshot;
+      if (editWidgetIdRef.current) void flushAppearanceSave(snapshot);
+      else setSaveState('dirty');
+    },
+    [flushAppearanceSave],
+  );
+  const doUndo = useCallback(() => {
+    const r = undo(undoHist, cfgRef.current);
+    if (!r) return;
+    setUndoHist(r.history);
+    restoreSnapshot(r.state);
+  }, [undoHist, restoreSnapshot]);
+  const doRedo = useCallback(() => {
+    const r = redo(undoHist, cfgRef.current);
+    if (!r) return;
+    setUndoHist(r.history);
+    restoreSnapshot(r.state);
+  }, [undoHist, restoreSnapshot]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      // Tecla física: con Mayúsculas, e.key cambia según el teclado/sistema.
+      const isZ = e.code === 'KeyZ' || e.key.toLowerCase() === 'z';
+      const isY = e.code === 'KeyY' || e.key.toLowerCase() === 'y';
+      if (!isZ && !isY) return;
+      const el = e.target as HTMLElement | null;
+      // En un campo de texto, ⌘Z deshace lo escrito (comportamiento del navegador).
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      e.preventDefault();
+      if (isY || e.shiftKey) doRedo();
+      else doUndo();
+    };
+    // Atajos pulsados con el foco dentro de la vista previa (los reenvía live-preview.tsx).
+    const onPreviewKey = (e: Event) => ((e as CustomEvent<{ redo: boolean }>).detail?.redo ? doRedo() : doUndo());
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('afhub-studio-undo', onPreviewKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('afhub-studio-undo', onPreviewKey);
+    };
+  }, [doUndo, doRedo]);
 
   useEffect(() => {
     if (!editWidgetId) return;
@@ -784,6 +842,14 @@ export default function WidgetBuilderPage() {
       }}
       cfg={cfg}
       shortcuts={shortcuts}
+      canUndo={undoHist.past.length > 0}
+      canRedo={undoHist.future.length > 0}
+      onUndo={doUndo}
+      onRedo={doRedo}
+      onPickZone={(zone) => {
+        if (wizardStep !== 1) setWizardStep(1);
+        setFocusZone({ zone, n: Date.now() });
+      }}
     >
       {loadingInitial ? (
         <WidgetBuilderLoadingState />
@@ -808,7 +874,7 @@ export default function WidgetBuilderPage() {
           ) : null}
 
           {wizardStep === 1 ? (
-            <WidgetBuilderAppearanceStep cfg={cfg} onChange={updateAppearance} autoSave={Boolean(editWidgetId)} />
+            <WidgetBuilderAppearanceStep cfg={cfg} onChange={updateAppearance} autoSave={Boolean(editWidgetId)} focusZone={focusZone} />
           ) : null}
 
           {wizardStep === 2 ? (
