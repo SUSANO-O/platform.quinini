@@ -7503,6 +7503,8 @@ button.dashboard-meta-chip:disabled {
   max-width: 1440px;
   margin: 0 auto;
 }
+/* Con el estudio del agente, a todo el ancho (como el estudio del widget). */
+.agent-editor-page__inner:has(> .ws.as) { max-width: none; }
 
 .agent-editor-page__header {
   margin-bottom: 1.5rem;

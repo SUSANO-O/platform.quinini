@@ -1,16 +1,15 @@
 'use client';
 
 /**
- * Estudio del agente: gemelo del estudio del widget (misma barra, secciones numeradas, escenario vivo
- * en el centro e inspector a la derecha; reutiliza widget-studio.css). En el escenario va la prueba
- * del agente con el aspecto de su widget; los formularios de la página van en el inspector.
- * Solo presentación: estado, guardado y pestañas siguen en la página.
+ * Estudio del agente: mismo lenguaje que el estudio del widget (barra, secciones numeradas, paneles;
+ * reutiliza widget-studio.css), pero el centro es el editor del agente y a la derecha va la consola
+ * de prueba, que se puede ocultar. Solo presentación: estado, guardado y pestañas siguen en la página.
  */
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Bot, Check, Loader2, MoreHorizontal } from '@/components/ui/icons';
+import { ArrowLeft, Bot, Check, Loader2, MessageSquare, MoreHorizontal } from '@/components/ui/icons';
 import '@/components/dashboard/widget-builder/widget-studio.css';
 import './agent-studio.css';
 
@@ -59,7 +58,7 @@ export function AgentStudio({
   sections,
   activeId,
   onSelect,
-  stage,
+  side,
   children,
 }: {
   name: string;
@@ -79,12 +78,12 @@ export function AgentStudio({
   sections: AgentStudioSection[];
   activeId: string;
   onSelect: (id: string) => void;
-  /** Escenario: recibe `pick(zona)` para saltar al ajuste de lo que se pulsa. */
-  stage?: (pick: (zone: string) => void) => ReactNode;
+  /** Consola de prueba (derecha): recibe `pick(zona)` para saltar al ajuste de lo que se pulsa. */
+  side?: (pick: (zone: string) => void) => ReactNode;
   children: ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [wide, setWide] = useState(false);
+  const [sideOpen, setSideOpen] = useState(true);
   const [justSaved, setJustSaved] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -203,7 +202,7 @@ export function AgentStudio({
 
   return (
     <div
-      className={`ws as${wide ? ' is-wide' : ''}${dirty.has(activeId) ? ' is-dirty' : ''}`}
+      className={`ws as${side && sideOpen ? ' has-side' : ''}${dirty.has(activeId) ? ' is-dirty' : ''}`}
       style={{ ['--ws-accent' as string]: accent, ['--as-accent' as string]: accent }}
     >
       <header className="ws-top">
@@ -232,20 +231,20 @@ export function AgentStudio({
             </span>
           </span>
         </div>
-        <div className="ws-top__center">
-          <div className="ws-seg" role="group" aria-label="Distribución">
-            {[
-              { v: false, label: 'Probar' },
-              { v: true, label: 'Editar' },
-            ].map((o) => (
-              <button key={o.label} type="button" className={wide === o.v ? 'is-on' : ''} aria-pressed={wide === o.v} onClick={() => setWide(o.v)}>
-                {o.label}
-              </button>
-            ))}
-          </div>
-        </div>
         <div className="ws-top__right">
           <SaveBadge state={state} />
+          {side ? (
+            <button
+              type="button"
+              className={`as-try${sideOpen ? ' is-on' : ''}`}
+              aria-pressed={sideOpen}
+              onClick={() => setSideOpen((o) => !o)}
+              title={sideOpen ? 'Ocultar la consola de prueba' : 'Mostrar la consola de prueba'}
+            >
+              <MessageSquare size={15} />
+              Probar
+            </button>
+          ) : null}
           {primary ? (
             <button type="button" className="ws-primary" data-tour="agent-edit-save" onClick={primary} disabled={saving} title="Guardar (⌘S)">
               {saving ? <Loader2 size={14} className="ws-spin" /> : null}
@@ -297,17 +296,7 @@ export function AgentStudio({
         ))}
       </nav>
 
-      <main className="ws-stage" aria-label="Probar el agente">
-        <div className="ws-stage__aurora" aria-hidden>
-          <span />
-          <span />
-          <span />
-        </div>
-        <div className="ws-stage__frame">{stage?.(pick)}</div>
-        <p className="ws-stage__caption">Prueba en vivo · clic en el nombre o en una herramienta para editarla</p>
-      </main>
-
-      <aside className="ws-inspector" aria-label={`Ajustes: ${active?.label ?? ''}`}>
+      <main className="ws-inspector as-editor" aria-label={`Ajustes: ${active?.label ?? ''}`}>
         <div className="ws-inspector__head">
           <span className="ws-inspector__icon">{active?.icon}</span>
           <div>
@@ -318,7 +307,13 @@ export function AgentStudio({
         <div className="as-body" ref={bodyRef} onInput={markDirty} onChange={markDirty}>
           {children}
         </div>
-      </aside>
+      </main>
+
+      {side && sideOpen ? (
+        <aside className="as-side" aria-label="Probar el agente">
+          {side(pick)}
+        </aside>
+      ) : null}
     </div>
   );
 }
