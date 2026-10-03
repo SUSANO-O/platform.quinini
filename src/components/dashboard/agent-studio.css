@@ -2,23 +2,13 @@
    lo propio del agente: tema oscuro de sus formularios, inspector más ancho y el escenario de prueba. */
 
 .ws.as {
-  /* Tema oscuro para los formularios del agente (usan estas variables). */
-  --background: #0c0d12;
-  --foreground: #eef0f5;
-  --card: rgba(255, 255, 255, 0.035);
-  --card-foreground: #eef0f5;
-  --muted: rgba(255, 255, 255, 0.06);
-  --muted-foreground: #9aa0b1;
-  --border: rgba(255, 255, 255, 0.1);
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --divider-soft: rgba(255, 255, 255, 0.06);
+  /* Los colores oscuros vienen de data-theme="dark" (globals.css); aquí solo lo propio del estudio. */
   --shadow-surface-sm: none;
   --shadow-surface: none;
-  --shadow-surface-lg: 0 18px 48px rgba(0, 0, 0, 0.45);
-  --shadow-surface-hover: 0 8px 24px rgba(0, 0, 0, 0.35);
-  --as-field: rgba(255, 255, 255, 0.05);
+  --as-field: var(--field);
 
   /* Editor en el centro (ocupa todo) y consola de prueba opcional a la derecha. */
+  grid-template-rows: 56px minmax(0, 1fr);
   grid-template-columns: 244px minmax(0, 1fr);
   grid-template-areas: 'top top' 'nav editor';
 }

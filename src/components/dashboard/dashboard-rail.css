@@ -1,16 +1,17 @@
 /* Menú lateral de escritorio en dos niveles (dashboard-rail.tsx). Oscuro, con la paleta BotIvA. */
 
 .dr {
-  --dr-bg: #0b0d12;
-  --dr-panel: #12151c;
-  --dr-line: rgba(255, 255, 255, 0.07);
-  --dr-line-strong: rgba(255, 255, 255, 0.12);
-  --dr-text: #e9ecf2;
-  --dr-muted: #8f96a8;
-  --dr-faint: #626a7d;
-  --dr-accent: #28a4b8;
-  --dr-accent-deep: #006b7d;
-  --dr-accent-bright: #2dd4bf;
+  /* Siempre oscuro (data-theme="dark"): alias de las variables globales del tema oscuro. */
+  --dr-bg: var(--background);
+  --dr-panel: var(--surface-2);
+  --dr-line: var(--border-subtle);
+  --dr-line-strong: var(--border-strong);
+  --dr-text: var(--foreground);
+  --dr-muted: var(--muted-foreground);
+  --dr-faint: var(--text-faint);
+  --dr-accent: var(--accent-ui);
+  --dr-accent-deep: var(--accent-ui-deep);
+  --dr-accent-bright: var(--accent-ui-bright);
 
   position: relative;
   z-index: 40;
@@ -157,3 +158,8 @@
 @keyframes dr-ripple { to { transform: scale(1); opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) { .dr-panel { animation: none; } .dr-ripple { display: none; } }
+
+/* Selector de tema dentro del panel */
+.dr .dr-theme { display: flex; width: 100%; }
+.dr .dr-theme button { flex: 1; justify-content: center; padding: 7px 4px; font-size: 11.5px; }
+.dr .dr-theme button.is-on { color: var(--foreground); }

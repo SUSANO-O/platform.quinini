@@ -25,13 +25,20 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { LandingAccessGate } from '@/components/auth/landing-access-gate';
 import { ThemeProvider } from '@mui/material/styles';
-import { dashboardMuiTheme } from '@/theme/dashboard-mui-theme';
+import { dashboardMuiTheme, dashboardMuiThemeDark } from '@/theme/dashboard-mui-theme';
+import { DashboardThemeProvider, useDashboardTheme } from '@/hooks/use-dashboard-theme';
 
 import { CHECKOUT_UPGRADE_PLAN_IDS, PLAN_DISPLAY, effectiveProductPlan, isApiOnlyDashboardPath, isApiOnlyPlan } from '@/lib/plan-catalog';
 import { buildTrialExpiredWhatsAppUrl } from '@/lib/sales-whatsapp';
 
 const SIDEBAR_COLLAPSED_KEY = 'dashboard-sidebar-collapsed';
 
+
+/** Tema MUI según el tema del panel (claro / oscuro). */
+function DashboardMuiTheme({ children }: { children: React.ReactNode }) {
+  const { resolved } = useDashboardTheme();
+  return <ThemeProvider theme={resolved === 'dark' ? dashboardMuiThemeDark : dashboardMuiTheme}>{children}</ThemeProvider>;
+}
 
 function SubscriptionExpiryGate() {
   const { user, logout } = useAuth();
@@ -459,7 +466,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     <QueryProvider>
     <SubscriptionProvider>
       <TourProvider>
-      <ThemeProvider theme={dashboardMuiTheme}>
+      <DashboardThemeProvider>
+      <DashboardMuiTheme>
       <SubscriptionExpiryGate />
       <div
         className="dashboard-root-texture"
@@ -556,7 +564,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         )}
         </div>
       </div>
-      </ThemeProvider>
+      </DashboardMuiTheme>
+      </DashboardThemeProvider>
       </TourProvider>
     </SubscriptionProvider>
     </QueryProvider>

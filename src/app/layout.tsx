@@ -7,6 +7,7 @@ import { CardProTracker } from '@/components/landing/card-pro-tracker';
 import { MuiProvider } from '@/providers/mui-provider';
 import { BRAND_FAVICON_SRC, BRAND_LOGO_PNG_SRC, BRAND_NAME } from '@/lib/brand';
 import { appFontVariables } from '@/lib/fonts';
+import { DASHBOARD_THEME_BOOT_SCRIPT } from '@/lib/dashboard-theme';
 
 /** Evita SSG en rutas que dependen de providers cliente (auth, toasts, assist). */
 export const dynamic = 'force-dynamic';
@@ -57,6 +58,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             __html: `(function(){try{var t=localStorage.getItem('botiva-landing-theme');document.documentElement.setAttribute('data-landing-theme',t==='light'?'light':'dark');}catch(e){document.documentElement.setAttribute('data-landing-theme','dark');}})();`,
           }}
         />
+        {/* Tema del panel (Claro/Oscuro/Sistema), también antes del primer pintado; solo en /dashboard. */}
+        <script dangerouslySetInnerHTML={{ __html: DASHBOARD_THEME_BOOT_SCRIPT }} />
       </head>
       <body suppressHydrationWarning>
         <script

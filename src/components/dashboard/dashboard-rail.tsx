@@ -31,6 +31,7 @@ import {
   isSoloChatOnlyPlan,
   PLAN_ORDER,
 } from '@/lib/plan-catalog';
+import { ThemeCycleButton, ThemeSwitch } from './theme-switch';
 import { buildDashboardNavGroups, isActive, SIDEBAR_TOUR_KEY_BY_HREF, type SidebarUser } from './dashboard-sidebar';
 import './dashboard-rail.css';
 
@@ -261,7 +262,7 @@ export function DashboardRail({
   );
 
   return (
-    <div ref={rootRef} className={`dr${pinned ? ' is-pinned' : ''}${flyout && !pinned ? ' is-flyout' : ''}`}>
+    <div ref={rootRef} data-theme="dark" className={`dr${pinned ? ' is-pinned' : ''}${flyout && !pinned ? ' is-flyout' : ''}`}>
       <aside className="dr-rail" aria-label="Navegación del panel">
         <Link href="/" className="dr-logo" title={BRAND_NAME}>
           <BotivaOrbLogo size={30} />
@@ -329,6 +330,7 @@ export function DashboardRail({
           >
             <CircleHelp size={17} strokeWidth={1.75} aria-hidden />
           </button>
+          <ThemeCycleButton className="dr-area dr-area--small" />
           <Link href="/dashboard/settings" className="dr-me" title={user.displayName || user.email}>
             <UserAvatar displayName={user.displayName} email={user.email} avatarUrl={user.avatarUrl} size={32} />
           </Link>
@@ -420,6 +422,12 @@ export function DashboardRail({
                     {g.items.map(link)}
                   </div>
                 ))}
+                {area?.id === 'cuenta' ? (
+                  <div className="dr-group">
+                    <p className="dr-group__title">Apariencia</p>
+                    <ThemeSwitch className="dr-theme" />
+                  </div>
+                ) : null}
                 {area?.id === 'cuenta' ? (
                   <div className="dr-group">
                     <PwaInstallButton collapsed={false} />
