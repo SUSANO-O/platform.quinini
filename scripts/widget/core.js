@@ -697,6 +697,12 @@
       } else warnConfigFailed(tempHost, token, debug);
     }
 
+    // Vista previa del editor: la config completa llega en el init; no se pide al servidor.
+    if (localInput.preview === true) {
+      finishInit({});
+      return proxyApi;
+    }
+
     fetchWidgetConfig(tempHost, token, function (remoteCfg) {
       if (!remoteCfg) {
         var scriptHost = getScriptOrigin();
@@ -1658,12 +1664,15 @@
     var flowCtrl = null;
     var fabDrag = null;
     var history = [];
-    ensureChatOwner(cfg);
+    if (!cfg.preview) ensureChatOwner(cfg);
     var chatSessionId = getOrCreateChatSessionId(cfg);
     var isFlowEmbed = Boolean(cfg.flowId && cfg.flowToken);
-    var persistedChat = isFlowEmbed ? null : loadPersistedChatState(cfg, chatSessionId);
+    var persistedChat = isFlowEmbed || cfg.preview ? null : loadPersistedChatState(cfg, chatSessionId);
     if (persistedChat) {
       history = persistedChat.history;
+    }
+    if (cfg.preview && Array.isArray(cfg.previewMessages)) {
+      history = sanitizeHistoryEntries(cfg.previewMessages);
     }
     var historyDomReady = false;
     var resolvedAgentId = null;
@@ -1673,6 +1682,7 @@
     var lastSessionImageUrls = [];
 
     function saveChatToSession() {
+      if (cfg.preview) return; // la vista previa del editor no guarda nada
       persistChatState(cfg, chatSessionId, history, lastGeneratedImageDataUrl);
     }
 
@@ -1741,7 +1751,7 @@
     function resumePendingTurn() {
       if (pendingTurnResumed) return;
       pendingTurnResumed = true;
-      if (isFlowEmbed || widgetDisabled || isLoading) return;
+      if (isFlowEmbed || cfg.preview || widgetDisabled || isLoading) return;
       var p = readPendingTurn();
       if (!p || typeof p.text !== 'string' || !p.text) return;
       var last = history.length ? history[history.length - 1] : null;
@@ -4278,7 +4288,7 @@
     }
 
     function emitEvent(eventName, details) {
-      if (!cfg.trackEvents || !cfg.agentId) return;
+      if (!cfg.trackEvents || !cfg.agentId || cfg.preview) return;
       var endpoint = cfg.host.replace(/\/$/, '') + '/api/widget/events';
       var payload = {
         event: eventName,
@@ -6113,6 +6123,19 @@
 
     async function send(textArg, sendOpts) {
       if (widgetDisabled) return;
+      if (cfg.preview) {
+        var previewText = typeof textArg === 'string' ? textArg.trim() : input.value.trim();
+        if (!previewText) return;
+        if (!(sendOpts && sendOpts.historyPreloaded)) addMessage('user', previewText);
+        input.value = '';
+        syncSendButtonState();
+        showTyping('Pensando');
+        setTimeout(function () {
+          hideTyping();
+          addMessage('bot', 'Esto es una vista previa: aquí verás la respuesta de tu agente con este diseño.');
+        }, 700);
+        return;
+      }
       // Si el mensaje ya se mostró (ver queueOrSend: varios mensajes seguidos del
       // usuario, agrupados en una sola llamada real tras una pausa), no repetir
       // la burbuja ni el push a history — ya están puestos.

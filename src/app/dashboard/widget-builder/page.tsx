@@ -1,20 +1,16 @@
 'use client';
 
 import { normalizeWidgetSkin } from '@/lib/widget-skin';
+import { WidgetStudio, type StudioSaveState, type StudioSection } from '@/components/dashboard/widget-builder/widget-studio';
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/use-subscription';
-import { WidgetBuilderTrustBadges } from '@/components/dashboard/widget-builder-trust-badges';
 import {
   WidgetBuilderAppearanceStep,
   WidgetBuilderBehaviorStep,
-  WidgetBuilderFormActions,
-  WidgetBuilderFormHeader,
   WidgetBuilderIdentityStep,
   WidgetBuilderLoadingState,
-  WidgetBuilderMobileStepper,
   WidgetBuilderPublishStep,
-  WidgetBuilderShell,
 } from '@/components/dashboard/widget-builder';
 import {
   createDefaultPipelineConfig,
@@ -42,7 +38,6 @@ import {
   pickWidgetAppearancePatch,
   WIDGET_STEP_DESCRIPTIONS,
   WIDGET_WIZARD_STEPS,
-  WIDGET_BUILDER_UI_ACCENT,
   agentProfileFromRow,
   effectiveWidgetAgentId,
   firstSelectableWidgetAgentId,
@@ -241,24 +236,22 @@ export default function WidgetBuilderPage() {
     });
   }
 
-  async function goNextStep() {
-    if (wizardStep === 0) {
-      if (!cfg.name.trim()) { toast.error('Indica un nombre para el widget'); return; }
-      if (!cfg.agentId) { toast.error('Selecciona un agente'); return; }
-      if (pipelineConfigValidation && !pipelineConfigValidation.ok) {
-        toast.error(pipelineConfigValidation.errors[0] ?? 'Revisa la configuración del pipeline');
-        return;
-      }
-      if (pipelineSetup && !pipelineSetup.ok && !cfg.pipelineConfig) {
-        toast.error(pipelineSetup.warnings[0] ?? 'Revisa la configuración del pipeline');
-        return;
-      }
+  /** Identidad completa antes de crear/guardar: nombre, agente y pipeline válido. */
+  function validateIdentity(): boolean {
+    const fail = (msg: string) => {
+      toast.error(msg);
+      setWizardStep(0);
+      return false;
+    };
+    if (!cfg.name.trim()) return fail('Indica un nombre para el widget');
+    if (!cfg.agentId) return fail('Selecciona un agente');
+    if (pipelineConfigValidation && !pipelineConfigValidation.ok) {
+      return fail(pipelineConfigValidation.errors[0] ?? 'Revisa la configuración del pipeline');
     }
-    if (wizardStep === 1 && editWidgetId) {
-      const ok = await flushAppearanceSave();
-      if (!ok) return;
+    if (pipelineSetup && !pipelineSetup.ok && !cfg.pipelineConfig) {
+      return fail(pipelineSetup.warnings[0] ?? 'Revisa la configuración del pipeline');
     }
-    setWizardStep((s) => Math.min(WIDGET_WIZARD_STEPS.length - 1, s + 1));
+    return true;
   }
 
   useEffect(() => {
@@ -439,8 +432,12 @@ export default function WidgetBuilderPage() {
     };
   }, []);
 
+  /** Indicador del estudio: Sin cambios · Cambios sin guardar · Guardando… · Guardado. */
+  const [saveState, setSaveState] = useState<StudioSaveState>('idle');
+
   const update = useCallback((patch: Partial<WidgetConfig>) => {
     setCfg((prev) => ({ ...prev, ...patch }));
+    setSaveState('dirty');
   }, []);
 
   const appearanceSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -484,6 +481,7 @@ export default function WidgetBuilderPage() {
       const widgetId = editWidgetIdRef.current;
       if (!widgetId) return false;
       const seq = ++appearanceSaveSeq.current;
+      setSaveState('saving');
       try {
         const res = await fetch(`/api/widgets/${widgetId}`, {
           method: 'PATCH',
@@ -493,8 +491,10 @@ export default function WidgetBuilderPage() {
         if (!res.ok) {
           const err = (await res.json().catch(() => null)) as { error?: string } | null;
           toast.error(err?.error ?? 'No se pudo guardar los cambios');
+          setSaveState('error');
           return false;
         }
+        if (seq === appearanceSaveSeq.current) setSaveState('saved');
         if (options?.syncFromServer) {
           const data = (await res.json()) as { widget?: Record<string, unknown> };
           if (data.widget && seq === appearanceSaveSeq.current) {
@@ -506,6 +506,7 @@ export default function WidgetBuilderPage() {
         return true;
       } catch {
         toast.error('Error de red al guardar');
+        setSaveState('error');
         return false;
       }
     },
@@ -554,6 +555,7 @@ export default function WidgetBuilderPage() {
         cfgRef.current = next;
         return next;
       });
+      setSaveState('dirty');
       const keys = Object.keys(patch);
       const immediate = keys.some((key) => IMMEDIATE_APPEARANCE_KEYS.has(key));
       if (immediate) {
@@ -673,6 +675,7 @@ export default function WidgetBuilderPage() {
       }
     }
     setSaving(true);
+    setSaveState('saving');
     try {
       const payload = soloChatOnly
         ? { ...applySoloWidgetDefaults(plan, { ...cfg, shortcuts, feedbackQuestions } as Record<string, unknown>), shortcuts, feedbackQuestions }
@@ -690,9 +693,11 @@ export default function WidgetBuilderPage() {
             cfgRef.current = mergeWidgetAppearanceFromApi(cfgRef.current, data.widget!);
           }
           toast.success('Widget actualizado');
+          setSaveState('saved');
         } else {
           const err = (await res.json().catch(() => null)) as { error?: string } | null;
           toast.error(err?.error ?? 'No se pudo guardar el widget');
+          setSaveState('error');
         }
       } else {
         const res = await fetch('/api/widgets', {
@@ -749,19 +754,21 @@ export default function WidgetBuilderPage() {
   }
 
   const activeStep = WIDGET_WIZARD_STEPS[wizardStep];
-  const railItems = WIDGET_WIZARD_STEPS.map((s, i) => ({
+
+  const studioSections: StudioSection[] = WIDGET_WIZARD_STEPS.map((s) => ({
     id: s.id,
     label: s.label,
-    icon: <s.icon size={18} strokeWidth={1.75} aria-hidden />,
-    state: (i < wizardStep ? 'done' : i === wizardStep ? 'active' : 'pending') as 'done' | 'active' | 'pending',
+    hint: WIDGET_STEP_DESCRIPTIONS[s.id],
+    icon: <s.icon size={16} strokeWidth={1.9} aria-hidden />,
   }));
 
   return (
-    <WidgetBuilderShell
-      wizardStep={wizardStep}
-      accentColor={BRAND_R}
-      railItems={railItems}
-      onStepSelect={(id) => {
+    <WidgetStudio
+      widgetName={cfg.name}
+      accent={cfg.color || BRAND_R}
+      sections={studioSections}
+      activeId={activeStep.id}
+      onSelect={(id) => {
         const idx = WIDGET_WIZARD_STEPS.findIndex((s) => s.id === id);
         if (idx < 0) return;
         if (wizardStep === 1 && editWidgetId && idx !== 1) {
@@ -769,101 +776,74 @@ export default function WidgetBuilderPage() {
         }
         setWizardStep(idx);
       }}
+      saveState={saveState}
+      primaryLabel={editWidgetId ? 'Guardar' : 'Crear widget'}
+      primaryBusy={saving}
+      onPrimary={() => {
+        if (validateIdentity()) void saveWidget();
+      }}
+      cfg={cfg}
+      shortcuts={shortcuts}
     >
-      <WidgetBuilderMobileStepper wizardStep={wizardStep} />
+      {loadingInitial ? (
+        <WidgetBuilderLoadingState />
+      ) : (
+        <>
+          {wizardStep === 0 ? (
+            <WidgetBuilderIdentityStep
+              cfg={cfg}
+              onChange={update}
+              agents={agents}
+              orchestratorSubs={orchestratorSubs}
+              loadingInitial={loadingInitial}
+              loadingSubs={loadingSubs}
+              multiAgentEligible={multiAgentEligible}
+              selectedOrchestratorIds={selectedOrchestratorIds}
+              orchestratorOptions={orchestratorOptions}
+              pipelineSetup={pipelineSetup}
+              isOrchestratorSelected={isOrchestratorSelected}
+              onToggleOrchestrator={toggleOrchestratorAgent}
+              onToggleTeamAgent={toggleTeamAgent}
+            />
+          ) : null}
 
-      <div
-        className={`widget-builder-form-card${wizardStep === 3 ? ' widget-builder-form-card--publish' : ''}${wizardStep === 1 ? ' widget-builder-form-card--appearance' : ''}`}
-        data-tour="widget-builder-form"
-      >
-            <WidgetBuilderFormHeader
-                wizardStep={wizardStep}
-                totalSteps={WIDGET_WIZARD_STEPS.length}
-                editWidgetId={editWidgetId}
-                stepIcon={activeStep.icon}
-                stepLabel={activeStep.label}
-                stepDescription={WIDGET_STEP_DESCRIPTIONS[activeStep.id]}
-                accentColor={WIDGET_BUILDER_UI_ACCENT}
-              />
+          {wizardStep === 1 ? (
+            <WidgetBuilderAppearanceStep cfg={cfg} onChange={updateAppearance} autoSave={Boolean(editWidgetId)} />
+          ) : null}
 
-            {loadingInitial ? (
-              <WidgetBuilderLoadingState />
-            ) : (
-              <>
-            {wizardStep === 3 ? (
-              <WidgetBuilderPublishStep
-                widgetName={cfg.name}
-                snippet={generateWidgetSnippet(cfg, snippetToken)}
-                snippetToken={snippetToken}
-                copied={copied}
-                saving={saving}
-                loadingInitial={loadingInitial}
-                editWidgetId={editWidgetId}
-                onCopy={copySnippet}
-                onSave={() => void saveWidget()}
-                onBack={() => setWizardStep(2)}
-              />
-            ) : null}
+          {wizardStep === 2 ? (
+            <WidgetBuilderBehaviorStep
+              cfg={cfg}
+              onChange={update}
+              soloChatOnly={soloChatOnly}
+              shortcuts={shortcuts}
+              onShortcutsChange={setShortcuts}
+              feedbackQuestions={feedbackQuestions}
+              onFeedbackQuestionsChange={setFeedbackQuestions}
+              suggestingShortcuts={suggestingShortcuts}
+              shortcutSuggestErr={shortcutSuggestErr}
+              onSuggestShortcuts={() => void suggestShortcuts()}
+              widgetId={editWidgetId}
+            />
+          ) : null}
 
-            {wizardStep === 0 ? (
-              <WidgetBuilderIdentityStep
-                cfg={cfg}
-                onChange={update}
-                agents={agents}
-                orchestratorSubs={orchestratorSubs}
-                loadingInitial={loadingInitial}
-                loadingSubs={loadingSubs}
-                multiAgentEligible={multiAgentEligible}
-                selectedOrchestratorIds={selectedOrchestratorIds}
-                orchestratorOptions={orchestratorOptions}
-                pipelineSetup={pipelineSetup}
-                isOrchestratorSelected={isOrchestratorSelected}
-                onToggleOrchestrator={toggleOrchestratorAgent}
-                onToggleTeamAgent={toggleTeamAgent}
-              />
-            ) : null}
-
-            {wizardStep === 1 ? (
-              <WidgetBuilderAppearanceStep
-                cfg={cfg}
-                onChange={updateAppearance}
-                autoSave={Boolean(editWidgetId)}
-              />
-            ) : null}
-
-            {wizardStep === 2 ? (
-              <WidgetBuilderBehaviorStep
-                cfg={cfg}
-                onChange={update}
-                soloChatOnly={soloChatOnly}
-                shortcuts={shortcuts}
-                onShortcutsChange={setShortcuts}
-                feedbackQuestions={feedbackQuestions}
-                onFeedbackQuestionsChange={setFeedbackQuestions}
-                suggestingShortcuts={suggestingShortcuts}
-                shortcutSuggestErr={shortcutSuggestErr}
-                onSuggestShortcuts={() => void suggestShortcuts()}
-                widgetId={editWidgetId}
-              />
-            ) : null}
-
-            {wizardStep < 3 ? (
-              <WidgetBuilderFormActions
-                showBack={wizardStep > 0}
-                soloPrimary={wizardStep === 0}
-                onBack={() => {
-                  if (wizardStep === 1 && editWidgetId) void flushAppearanceSave();
-                  setWizardStep((s) => Math.max(0, s - 1));
-                }}
-                onNext={goNextStep}
-              />
-            ) : null}
-
-            {wizardStep === 0 ? <WidgetBuilderTrustBadges /> : null}
-              </>
-            )}
-      </div>
-    </WidgetBuilderShell>
+          {wizardStep === 3 ? (
+            <WidgetBuilderPublishStep
+              widgetName={cfg.name}
+              snippet={generateWidgetSnippet(cfg, snippetToken)}
+              snippetToken={snippetToken}
+              copied={copied}
+              saving={saving}
+              loadingInitial={loadingInitial}
+              editWidgetId={editWidgetId}
+              onCopy={copySnippet}
+              onSave={() => void saveWidget()}
+              onBack={() => setWizardStep(2)}
+            />
+          ) : null}
+        </>
+      )}
+    </WidgetStudio>
   );
 }
 

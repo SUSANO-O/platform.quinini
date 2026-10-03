@@ -109,6 +109,7 @@ export function aiBeamShowsMessages(scope: AiBeamScope): boolean {
 export function pickWidgetAppearancePatch(cfg: Record<string, unknown>): Record<string, unknown> {
   return {
     color: cfg.color,
+    skin: cfg.skin,
     theme: cfg.theme,
     title: cfg.title,
     subtitle: cfg.subtitle,
