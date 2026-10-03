@@ -1603,7 +1603,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       )}
 
       <AgentStudio
-        name={agent.name}
+        name={name || agent.name}
         model={model || agent.model}
         accent={R}
         isDisabled={isDisabled}
@@ -1611,12 +1611,14 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         readOnly={readOnly}
         deleting={deleting}
         saving={saving}
+        saveError={!!error}
+        saveActions={{ general: saveGeneral, rules: saveRules, faqs: saveFaqs, tools: saveTools }}
         onToggleStatus={toggleStatus}
         onDelete={() => setShowDeleteConfirm(true)}
         sections={visibleTabs.map((t) => ({ id: t.id, label: t.label, icon: t.icon, count: t.count, hint: AGENT_TAB_TIPS[t.id as AgentDetailTabId] }))}
         activeId={tab}
         onSelect={(id) => setTab(id as AgentDetailTabId)}
-        side={<AgentPlayground agentId={id} agentName={agent.name} />}
+        stage={(pick) => <AgentPlayground agentId={id} agentName={name || agent.name} accent={R} onPick={pick} />}
       >
       {soloChatOnly && (
         <p className="text-xs mb-4 m-0 px-3 py-2 rounded-xl border" style={{ color: 'var(--muted-foreground)', borderColor: 'var(--border)', background: 'var(--muted)' }}>
@@ -1644,7 +1646,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '5px' }}>Nombre</label>
-                <input className="landing-input" style={inp} value={name} onChange={(e) => setName(e.target.value)} disabled={readOnly} />
+                <input className="landing-input" style={inp} value={name} onChange={(e) => setName(e.target.value)} disabled={readOnly} data-zone="name" />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '5px' }}>Descripción</label>
@@ -1735,7 +1737,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               </span>
             </label>
             <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '10px', marginBottom: 0 }}>
-              Guarda con &quot;Guardar información&quot; para sincronizar con AIBackHub.
+              Se aplica al pulsar &quot;Guardar cambios&quot;.
             </p>
           </AgentEditorSection>
           )}
@@ -1982,7 +1984,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               </div>
             )}
             <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '10px', marginBottom: 0 }}>
-              Guarda con &quot;Guardar información&quot; para sincronizar con AIBackHub.
+              Se aplica al pulsar &quot;Guardar cambios&quot;.
             </p>
           </AgentEditorSection>
           )}
@@ -2191,6 +2193,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               className="landing-input"
               style={{ ...inp, minHeight: '160px', resize: 'vertical', fontFamily: 'inherit' }}
               value={systemPrompt}
+              data-zone="prompt"
               onChange={(e) => setSystemPrompt(e.target.value)}
               disabled={readOnly}
               readOnly={readOnly}
@@ -2198,16 +2201,18 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           </AgentEditorSection>
 
           {!readOnly && (
-          <button
-            type="button"
-            data-tour="agent-edit-save"
-            onClick={saveGeneral}
-            disabled={saving}
-            className="agent-editor-page__save"
-          >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            Guardar cambios
-          </button>
+            <div className="as-savebar">
+            <button
+              type="button"
+              data-tour="agent-edit-save"
+              onClick={saveGeneral}
+              disabled={saving}
+              className="agent-editor-page__save"
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              Guardar cambios
+            </button>
+            </div>
           )}
         </>
       )}
@@ -2405,19 +2410,21 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           )}
 
           {!readOnly && (
-            <button
-              onClick={saveRules}
-              disabled={saving}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-opacity"
-              style={{
-                ...BTN_PRIMARY,
-                cursor: saving ? 'not-allowed' : 'pointer',
-                opacity: saving ? 0.7 : 1,
-              }}
-            >
-              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-              Guardar reglas
-            </button>
+            <div className="as-savebar">
+              <button
+                onClick={saveRules}
+                disabled={saving}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-opacity"
+                style={{
+                  ...BTN_PRIMARY,
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  opacity: saving ? 0.7 : 1,
+                }}
+              >
+                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                Guardar reglas
+              </button>
+            </div>
           )}
         </>
       )}
@@ -2644,19 +2651,21 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           </AgentEditorSection>
 
           {!readOnly && (
-            <button
-              onClick={saveFaqs}
-              disabled={saving}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-opacity"
-              style={{
-                ...BTN_PRIMARY,
-                cursor: saving ? 'not-allowed' : 'pointer',
-                opacity: saving ? 0.7 : 1,
-              }}
-            >
-              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-              Guardar FAQs
-            </button>
+            <div className="as-savebar">
+              <button
+                onClick={saveFaqs}
+                disabled={saving}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-opacity"
+                style={{
+                  ...BTN_PRIMARY,
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  opacity: saving ? 0.7 : 1,
+                }}
+              >
+                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                Guardar FAQs
+              </button>
+            </div>
           )}
         </>
       )}
@@ -3484,19 +3493,21 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           })}
 
           {!readOnly && (
-          <button
-            onClick={saveTools}
-            disabled={saving}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-opacity"
-            style={{
-              ...BTN_PRIMARY,
-              cursor: saving ? 'not-allowed' : 'pointer',
-              opacity: saving ? 0.7 : 1,
-            }}
-          >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            Guardar herramientas
-          </button>
+            <div className="as-savebar">
+            <button
+              onClick={saveTools}
+              disabled={saving}
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-opacity"
+              style={{
+                ...BTN_PRIMARY,
+                cursor: saving ? 'not-allowed' : 'pointer',
+                opacity: saving ? 0.7 : 1,
+              }}
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              Guardar herramientas
+            </button>
+            </div>
           )}
         </>
       )}
@@ -3584,7 +3595,13 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       { label: 'Vectores (hub)', value: memoryStats.vectorTotal },
                       { label: 'Memorias chat', value: memoryStats.conversationMemories },
                       { label: 'Contextos widget', value: memoryStats.activeSessionContexts },
-                      { label: 'Retención (días)', value: memoryStats.historyRetentionDays },
+                      {
+                        label: 'Retención',
+                        value:
+                          typeof memoryStats.historyRetentionDays === 'number' && memoryStats.historyRetentionDays > 0
+                            ? `${memoryStats.historyRetentionDays} días`
+                            : 'Sin límite',
+                      },
                     ].map((row) => (
                       <div
                         key={row.label}
