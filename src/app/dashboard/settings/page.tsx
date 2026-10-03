@@ -728,7 +728,7 @@ export default function SettingsPage() {
         <div className="p-6">
           <h2 className="text-[15px] font-bold m-0 mb-1">Apariencia</h2>
           <p className="text-[13px] m-0 mb-4" style={{ color: 'var(--muted-foreground)', lineHeight: 1.5 }}>
-            Tema del panel. «Sistema» sigue la configuración de tu equipo. Se guarda en este navegador.
+            Tema del panel. «Sistema» sigue la configuración de tu equipo. Se guarda en este navegador. Los estudios y estas vistas de configuración se ven siempre en oscuro.
           </p>
           <ThemeSwitch />
         </div>

@@ -34,10 +34,16 @@ import { buildTrialExpiredWhatsAppUrl } from '@/lib/sales-whatsapp';
 const SIDEBAR_COLLAPSED_KEY = 'dashboard-sidebar-collapsed';
 
 
-/** Tema MUI según el tema del panel (claro / oscuro). */
+/** Vistas siempre oscuras: configuración (área Cuenta) y estudios del agente y del widget. */
+export const CONFIG_ROUTE_RE = /^\/dashboard\/(settings|facturas|api|compliance)(\/|$)/;
+const ALWAYS_DARK_RE = /^\/dashboard\/((settings|facturas|api|compliance)(\/|$)|widget-builder(\/|$)|agents\/(?!new(\/|$))[^/]+)/;
+
+/** Tema MUI según el tema del panel (claro / oscuro); las vistas siempre oscuras usan el oscuro. */
 function DashboardMuiTheme({ children }: { children: React.ReactNode }) {
   const { resolved } = useDashboardTheme();
-  return <ThemeProvider theme={resolved === 'dark' ? dashboardMuiThemeDark : dashboardMuiTheme}>{children}</ThemeProvider>;
+  const pathname = usePathname();
+  const dark = resolved === 'dark' || ALWAYS_DARK_RE.test(pathname);
+  return <ThemeProvider theme={dark ? dashboardMuiThemeDark : dashboardMuiTheme}>{children}</ThemeProvider>;
 }
 
 function SubscriptionExpiryGate() {
@@ -410,6 +416,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const router = useRouter();
   const pathname = usePathname();
   const isFlowEditorRoute = /^\/dashboard\/flows\/[^/]+\/edit$/.test(pathname);
+  /** Vistas de configuración (área Cuenta): siempre oscuras, con el fondo de los estudios. */
+  const isConfigRoute = CONFIG_ROUTE_RE.test(pathname);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
   // Siempre cerrada al montar / recargar. El usuario puede abrirla en la sesión;
@@ -542,7 +550,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         )}
 
         {/* Main content */}
-        <main className={isFlowEditorRoute ? 'dashboard-main dashboard-main--flow-editor' : 'dashboard-main'}>
+        <main
+          className={isFlowEditorRoute ? 'dashboard-main dashboard-main--flow-editor' : `dashboard-main${isConfigRoute ? ' dashboard-main--config' : ''}`}
+          data-theme={isConfigRoute ? 'dark' : undefined}
+        >
           <ApiOnlyDashboardGate pathname={pathname}>
             {children}
           </ApiOnlyDashboardGate>
