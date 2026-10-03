@@ -79,7 +79,7 @@ import { BuilderRail } from '@/components/dashboard/builder-rail';
 import { AgentEditorSection } from '@/components/dashboard/agent-editor-section';
 import { AGENT_TAB_TIPS } from '@/lib/agent-editor-tab-tips';
 
-import { R, O, B } from '@/lib/brand-colors';
+import { BRAND, R, O, B } from '@/lib/brand-colors';
 
 const SECTION_TITLE = 'agent-editor-section__title';
 const BTN_PRIMARY: CSSProperties = {
@@ -1605,7 +1605,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       <AgentStudio
         name={name || agent.name}
         model={model || agent.model}
-        accent={R}
+        accent={BRAND.primaryLight}
         isDisabled={isDisabled}
         hubSynced={agent.syncStatus === 'synced'}
         readOnly={readOnly}
