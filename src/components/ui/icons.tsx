@@ -143,6 +143,7 @@ export const Mic = makeIcon('mic', 'Mic');
 export const Microscope = makeIcon('biotech', 'Microscope');
 export const Minus = makeIcon('remove', 'Minus');
 export const Moon = makeIcon('dark_mode', 'Moon');
+export const Monitor = makeIcon('desktop_windows', 'Monitor');
 export const MoreVertical = makeIcon('more_vert', 'MoreVertical');
 export const Network = makeIcon('lan', 'Network');
 export const Paintbrush = makeIcon('brush', 'Paintbrush');

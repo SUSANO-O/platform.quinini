@@ -1,30 +1,22 @@
 /* Estudio del widget — editor oscuro con escenario vivo (ver widget-studio.tsx). */
 
 .ws {
-  --ws-bg: #0c0d12;
-  --ws-panel: rgba(22, 24, 32, 0.78);
-  --ws-panel-solid: #15171f;
-  --ws-line: rgba(255, 255, 255, 0.07);
-  --ws-line-strong: rgba(255, 255, 255, 0.12);
-  --ws-text: #eef0f5;
-  --ws-muted: #9aa0b1;
-  --ws-faint: #6b7184;
-  --ws-field: rgba(255, 255, 255, 0.05);
-  /* Paleta BotIvA (src/lib/brand-colors.ts): la interfaz del estudio siempre va con la marca. */
-  --ws-accent: #28a4b8;
-  --ws-accent-deep: #006b7d;
-  --ws-accent-bright: #2dd4bf;
+  /* Siempre oscuro (data-theme="dark" en el elemento): estas variables son alias de las globales
+     de globals.css, así el estudio usa la misma paleta que el tema oscuro del panel. */
+  --ws-bg: var(--background);
+  --ws-panel: color-mix(in srgb, var(--surface-2) 78%, transparent);
+  --ws-panel-solid: var(--surface-2);
+  --ws-line: var(--border-subtle);
+  --ws-line-strong: var(--border-strong);
+  --ws-text: var(--foreground);
+  --ws-muted: var(--muted-foreground);
+  --ws-faint: var(--text-faint);
+  --ws-field: var(--field);
+  --ws-accent: var(--accent-ui);
+  --ws-accent-deep: var(--accent-ui-deep);
+  --ws-accent-bright: var(--accent-ui-bright);
   --ws-bronze: #b0763a;
   --ws-radius: 14px;
-
-  /* Tema oscuro para los controles del editor que usan las variables de tema (tarjetas, chips…). */
-  --background: #0c0d12;
-  --foreground: #eef0f5;
-  --card: rgba(255, 255, 255, 0.035);
-  --card-foreground: #eef0f5;
-  --muted: rgba(255, 255, 255, 0.07);
-  --muted-foreground: #9aa0b1;
-  --border: rgba(255, 255, 255, 0.1);
 
   position: relative;
   display: grid;
@@ -33,18 +25,26 @@
   grid-template-areas:
     'top top top'
     'nav stage inspector';
-  gap: 10px;
-  height: calc(100dvh - 16px);
-  min-height: 620px;
-  padding: 10px;
-  margin: -8px;
+  gap: 8px;
+  /* Ocupa exactamente el área del panel (100% del alto, sin desbordar): ver reglas :has() al final. */
+  height: 100%;
+  min-height: 0;
+  padding: 8px;
+  margin: 0;
   background:
     radial-gradient(1200px 600px at 50% -10%, color-mix(in srgb, var(--ws-accent) 14%, transparent), transparent 70%),
     var(--ws-bg);
   color: var(--ws-text);
-  border-radius: 18px;
+  border-radius: 0;
   overflow: clip;
   color-scheme: dark;
+}
+
+/* En los paneles del estudio las tarjetas van translúcidas sobre el fondo (selector más específico
+   que [data-theme="dark"], para no depender del orden de carga de las hojas). */
+.ws[data-theme='dark'] {
+  --card: rgba(255, 255, 255, 0.035);
+  --muted: rgba(255, 255, 255, 0.07);
 }
 
 /* ── Barra superior ───────────────────────────────────────────── */
@@ -306,4 +306,35 @@
 }
 .ws-inspector__body .widget-builder-plan-badge {
   color: #f6c86b !important; background: rgba(246, 200, 107, 0.12) !important; border-color: rgba(246, 200, 107, 0.3) !important;
+}
+
+/* ── Estudios a pantalla completa (widget y agente) ──────────────────────────────────────────────
+   El área principal del panel no hace scroll cuando hay un estudio, y los envoltorios de la página
+   del agente no añaden relleno: el estudio llena de borde a borde y al 100% del alto. */
+@media (min-width: 1025px) {
+  .dashboard-main:has(.ws) { overflow: hidden !important; }
+  .agent-editor-page:has(.ws.as) { height: 100%; min-height: 0 !important; }
+  .agent-editor-page__inner:has(> .ws.as) { height: 100%; padding: 0 !important; }
+}
+
+/* Selector de agente en el inspector: lista de filas uniformes (no tarjetas de alturas distintas). */
+.ws-inspector__body .widget-builder-agent-list > .grid { grid-template-columns: minmax(0, 1fr) !important; gap: 4px !important; }
+.ws-inspector__body .widget-builder-agent-list button {
+  align-items: center !important; gap: 10px !important; padding: 9px 10px !important; border-radius: 10px !important;
+  background: transparent !important; border-color: transparent !important; transition: background 0.15s, border-color 0.15s;
+}
+.ws-inspector__body .widget-builder-agent-list button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.045) !important; }
+.ws-inspector__body .widget-builder-agent-list button[data-selected] {
+  background: color-mix(in srgb, var(--ws-accent) 12%, transparent) !important;
+  border-color: color-mix(in srgb, var(--ws-accent) 55%, transparent) !important;
+}
+.ws-inspector__body .widget-builder-agent-list button p:first-of-type { font-size: 13px !important; }
+/* Descripción: máximo dos líneas. */
+.ws-inspector__body .widget-builder-agent-list button p + p {
+  white-space: normal !important; display: -webkit-box !important; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden !important; font-size: 11.5px !important; line-height: 1.4 !important; color: var(--ws-muted) !important;
+}
+.ws-inspector__body .widget-builder-agent-list button span[class*='text-[8.5px]'] {
+  font-size: 10px !important; padding: 2px 6px !important; border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.06) !important; color: var(--ws-muted) !important;
 }

@@ -111,7 +111,7 @@ export function WidgetStudio({
   const active = sections.find((s) => s.id === activeId) ?? sections[0];
 
   return (
-    <div className="ws" style={{ ['--ws-accent' as string]: accent }}>
+    <div className="ws" data-theme="dark" style={{ ['--ws-accent' as string]: accent }}>
       <header className="ws-top">
         <div className="ws-top__left">
           <Link href="/dashboard/widgets" className="ws-iconbtn" aria-label="Volver a widgets">

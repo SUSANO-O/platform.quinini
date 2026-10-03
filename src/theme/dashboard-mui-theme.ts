@@ -20,6 +20,22 @@ export const dashboardMuiTheme = createTheme(botivaMuiTheme, {
     },
   },
   components: {
+    // Colores vía variables de globals.css: así siguen al tema claro/oscuro del panel.
+    MuiCssBaseline: {
+      styleOverrides: {
+        body: { backgroundColor: 'var(--background)', color: 'var(--foreground)' },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: { backgroundColor: 'var(--card)', borderColor: 'var(--border)' },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: { backgroundImage: 'none' },
+      },
+    },
     MuiButton: {
       defaultProps: { disableElevation: true },
       styleOverrides: {
@@ -43,33 +59,33 @@ export const dashboardMuiTheme = createTheme(botivaMuiTheme, {
           minHeight: 36,
         },
         containedPrimary: {
-          backgroundColor: '#ffffff',
-          color: '#111111',
-          border: '1px solid #111111',
+          backgroundColor: 'var(--card)',
+          color: 'var(--foreground)',
+          border: '1px solid var(--foreground)',
           boxShadow: 'none',
           '&:hover': {
-            backgroundColor: '#f4f4f5',
-            borderColor: '#111111',
-            boxShadow: '0 2px 12px rgba(17, 17, 17, 0.07)',
+            backgroundColor: 'var(--muted)',
+            borderColor: 'var(--foreground)',
+            boxShadow: '0 2px 12px color-mix(in srgb, var(--foreground) 7%, transparent)',
           },
           '&:active': {
-            backgroundColor: '#ececec',
+            backgroundColor: 'color-mix(in srgb, var(--foreground) 10%, transparent)',
           },
         },
         outlinedPrimary: {
-          borderColor: '#111111',
-          color: '#111111',
-          backgroundColor: '#ffffff',
+          borderColor: 'var(--foreground)',
+          color: 'var(--foreground)',
+          backgroundColor: 'var(--card)',
           '&:hover': {
-            backgroundColor: '#f4f4f5',
-            borderColor: '#111111',
-            boxShadow: '0 2px 12px rgba(17, 17, 17, 0.07)',
+            backgroundColor: 'var(--muted)',
+            borderColor: 'var(--foreground)',
+            boxShadow: '0 2px 12px color-mix(in srgb, var(--foreground) 7%, transparent)',
           },
         },
         textPrimary: {
-          color: '#111111',
+          color: 'var(--foreground)',
           '&:hover': {
-            backgroundColor: 'rgba(17, 17, 17, 0.05)',
+            backgroundColor: 'color-mix(in srgb, var(--foreground) 5%, transparent)',
           },
         },
       },
@@ -80,7 +96,7 @@ export const dashboardMuiTheme = createTheme(botivaMuiTheme, {
           borderRadius: 999,
           transition: 'background-color 0.2s ease',
           '&:hover': {
-            backgroundColor: 'rgba(17, 17, 17, 0.06)',
+            backgroundColor: 'color-mix(in srgb, var(--foreground) 6%, transparent)',
           },
         },
         sizeSmall: {
@@ -91,11 +107,24 @@ export const dashboardMuiTheme = createTheme(botivaMuiTheme, {
     MuiChip: {
       styleOverrides: {
         outlinedPrimary: {
-          borderColor: 'rgba(17, 17, 17, 0.2)',
-          color: '#111111',
+          borderColor: 'color-mix(in srgb, var(--foreground) 20%, transparent)',
+          color: 'var(--foreground)',
           fontWeight: 600,
         },
       },
     },
+  },
+});
+
+/** Variante oscura: la paleta (texto, superficies, divisores) que MUI usa por dentro. */
+export const dashboardMuiThemeDark = createTheme(dashboardMuiTheme, {
+  palette: {
+    mode: 'dark',
+    primary: { main: '#e9ecf2', dark: '#ffffff', light: '#c7ccd6', contrastText: '#0c0e13' },
+    secondary: { main: '#151921', dark: '#0c0e13', light: '#1d222b', contrastText: '#e9ecf2' },
+    background: { default: '#0c0e13', paper: '#151921' },
+    text: { primary: '#e9ecf2', secondary: 'rgba(233,236,242,0.68)', disabled: 'rgba(233,236,242,0.38)' },
+    divider: 'rgba(255,255,255,0.1)',
+    action: { hover: 'rgba(255,255,255,0.06)', selected: 'rgba(255,255,255,0.1)' },
   },
 });

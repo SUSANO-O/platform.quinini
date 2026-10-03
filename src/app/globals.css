@@ -1,16 +1,9 @@
 @layer theme, base, mui, components, utilities;
 @import "tailwindcss";
 
-/* `dark:` de Tailwind: como siempre (modo oscuro del sistema) y además dentro de los estudios
-   oscuros del panel (agente y widget), que tienen fondo oscuro aunque el sistema esté en claro. */
-@custom-variant dark {
-  @media (prefers-color-scheme: dark) {
-    @slot;
-  }
-  &:where(.as, .as *, .ws, .ws *) {
-    @slot;
-  }
-}
+/* `dark:` de Tailwind sigue al tema del panel: html[data-theme="dark"] (interruptor Claro/Oscuro/
+   Sistema) o cualquier zona marcada como oscura (estudios del agente y del widget, menú lateral). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /* Material Symbols — https://fonts.google.com/icons */
 .material-symbols-outlined {
@@ -12133,3 +12126,64 @@ button.dashboard-meta-chip:disabled {
 .widget-preview-page__copy:focus-visible .widget-preview-page__copy-icon {
   opacity: 0.6;
 }
+
+
+/* ── Tema del panel (claro / oscuro) ─────────────────────────────────────────────────────────────
+   Una sola capa de variables: valores claros en :root y oscuros en [data-theme="dark"], que puede
+   ponerse en <html> (interruptor del panel, ver src/hooks/use-dashboard-theme.tsx) o en una zona
+   que siempre es oscura (estudios, menú lateral). Los colores de marca no cambian.
+   Variables nuevas además de las de siempre (--background, --foreground, --card, --muted…):
+   --surface-2 (panel sobre el fondo), --field (campos), --border-strong, --text-faint y
+   --accent-ui / --accent-ui-deep / --accent-ui-bright (acento de interfaz legible en cada tema). */
+:root {
+  --surface-2: #ffffff;
+  --field: #ffffff;
+  --border-strong: rgba(26, 28, 30, 0.14);
+  --text-faint: #8a9096;
+  --accent-ui: var(--brand-primary);
+  --accent-ui-deep: var(--brand-primary-dark);
+  --accent-ui-bright: var(--brand-primary-light);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0c0e13;
+  --foreground: #e9ecf2;
+  --muted: rgba(255, 255, 255, 0.06);
+  --muted-foreground: #9aa0b1;
+  --border: rgba(255, 255, 255, 0.1);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --card: #151921;
+  --card-foreground: #e9ecf2;
+  --surface-2: #12151c;
+  --field: rgba(255, 255, 255, 0.05);
+  --text-faint: #6b7184;
+  /* --accent apunta a --foreground en :root; se redefine aquí para que tome el valor oscuro. */
+  --accent: #e9ecf2;
+  --accent-ui: var(--brand-primary-light);
+  --accent-ui-deep: var(--brand-primary);
+  --accent-ui-bright: var(--brand-accent-bright);
+  --shadow-surface-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-surface: 0 2px 16px rgba(0, 0, 0, 0.35);
+  --shadow-surface-lg: 0 4px 24px rgba(0, 0, 0, 0.45);
+  --shadow-surface-hover: 0 8px 28px rgba(0, 0, 0, 0.45);
+  --divider-soft: linear-gradient(90deg, transparent 0%, rgba(40, 164, 184, 0.18) 18%, rgba(40, 164, 184, 0.18) 82%, transparent 100%);
+  --state-success-bg: rgba(34, 197, 94, 0.14);
+  --state-error-bg: rgba(239, 68, 68, 0.14);
+  --state-warning-bg: rgba(245, 158, 11, 0.14);
+  --state-info: #94a3b8;
+}
+
+/* Selector de tema (src/components/dashboard/theme-switch.tsx) */
+.theme-switch {
+  display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px;
+  background: var(--muted); border: 1px solid var(--border);
+}
+.theme-switch button {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 0; border-radius: 9px; cursor: pointer;
+  font-size: 12.5px; font-weight: 600; font-family: inherit; color: var(--muted-foreground); background: transparent;
+  transition: color 0.15s, background 0.2s, box-shadow 0.2s;
+}
+.theme-switch button:hover { color: var(--foreground); }
+.theme-switch button.is-on { color: var(--foreground); background: var(--card); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }

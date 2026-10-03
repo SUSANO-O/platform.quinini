@@ -1,5 +1,6 @@
 'use client';
 
+import { ThemeSwitch } from '@/components/dashboard/theme-switch';
 import { useAuth } from '@/hooks/use-auth';
 import { fmtDateTime, fmtEpochSec, formatMb } from '@/lib/settings-view';
 import { useSubscription } from '@/hooks/use-subscription';
@@ -721,6 +722,17 @@ export default function SettingsPage() {
 
       {/* Security / 2FA */}
       <TwoFactorSection />
+
+      {/* Apariencia — tema del panel */}
+      <div id="settings-appearance" className="scroll-mt-24 rounded-2xl overflow-hidden border card-texture" style={{ borderColor: 'var(--border)' }}>
+        <div className="p-6">
+          <h2 className="text-[15px] font-bold m-0 mb-1">Apariencia</h2>
+          <p className="text-[13px] m-0 mb-4" style={{ color: 'var(--muted-foreground)', lineHeight: 1.5 }}>
+            Tema del panel. «Sistema» sigue la configuración de tu equipo. Se guarda en este navegador.
+          </p>
+          <ThemeSwitch />
+        </div>
+      </div>
 
       {/* Notificaciones — WhatsApp personal */}
       <div id="settings-notifications" className="scroll-mt-24 rounded-2xl overflow-hidden border card-texture" style={{ borderColor: 'var(--border)' }}>

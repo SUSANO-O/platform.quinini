@@ -33,6 +33,7 @@ export function WidgetBuilderAgentPickerCard({
     <button
       type="button"
       disabled={!selectable}
+      data-selected={selected ? '' : undefined}
       onClick={onSelect}
       title={
         selectable
