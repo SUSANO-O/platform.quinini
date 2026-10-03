@@ -10,7 +10,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Bot, Loader2, MoreHorizontal } from '@/components/ui/icons';
+import { ArrowLeft, Bot, Loader2, MessageSquare, MoreHorizontal } from '@/components/ui/icons';
 import './agent-studio.css';
 
 export type AgentStudioSection = { id: string; label: string; icon: ReactNode; count?: number; hint?: string };
@@ -50,6 +50,7 @@ export function AgentStudio({
   children: ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sideOpen, setSideOpen] = useState(true);
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!menuOpen) return;
@@ -66,7 +67,7 @@ export function AgentStudio({
   const active = sections.find((s) => s.id === activeId) ?? sections[0];
 
   return (
-    <div className={`as${side ? ' as--with-side' : ''}`} style={{ ['--as-accent' as string]: accent }}>
+    <div className={`as${side && sideOpen ? ' as--with-side' : ''}`} style={{ ['--as-accent' as string]: accent }}>
       <header className="as-top">
         <div className="as-top__left">
           <Link href="/dashboard/agents" className="as-iconbtn" aria-label="Volver a mis agentes">
@@ -94,6 +95,17 @@ export function AgentStudio({
             <span className="as-save">
               <Loader2 size={13} className="as-spin" /> Guardando…
             </span>
+          ) : null}
+          {side ? (
+            <button
+              type="button"
+              className={`as-try${sideOpen ? ' is-on' : ''}`}
+              aria-pressed={sideOpen}
+              onClick={() => setSideOpen((o) => !o)}
+            >
+              <MessageSquare size={15} />
+              Probar
+            </button>
           ) : null}
           {!readOnly ? (
             <div className="as-menu" ref={menuRef}>
@@ -145,7 +157,7 @@ export function AgentStudio({
         <div className="as-main__body">{children}</div>
       </main>
 
-      {side ? <aside className="as-side">{side}</aside> : null}
+      {side && sideOpen ? <aside className="as-side" aria-label="Probar el agente">{side}</aside> : null}
     </div>
   );
 }
