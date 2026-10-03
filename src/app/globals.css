@@ -2390,23 +2390,22 @@ label {
 }
 
 .dashboard-root-texture .dashboard-sidebar-tour-btn--primary {
-  border: 1px solid rgba(82, 82, 82, 0.18);
-  background: #525252;
-  color: #ffffff;
+  border: 1px solid var(--border-strong);
+  background: color-mix(in srgb, var(--foreground) 72%, var(--background));
+  color: var(--background);
 }
 
 .dashboard-root-texture .dashboard-sidebar-tour-btn--primary:hover {
-  background: #404040;
-  border-color: rgba(82, 82, 82, 0.28);
+  background: color-mix(in srgb, var(--foreground) 82%, var(--background));
 }
 
 .dashboard-root-texture .dashboard-sidebar-tour-btn--ghost {
-  background: #ffffff;
-  border-color: rgba(17, 17, 17, 0.14);
+  background: var(--card);
+  border-color: var(--border-strong);
 }
 
 .dashboard-root-texture .dashboard-sidebar-tour-btn--ghost:hover {
-  background: #f5f5f5;
+  background: var(--muted);
 }
 
 /* ── Onboarding driver.js (popover BotIvA) ───────────────────────────────── */
@@ -12188,8 +12187,8 @@ button.dashboard-meta-chip:disabled {
 .theme-switch button:hover { color: var(--foreground); }
 .theme-switch button.is-on { color: var(--foreground); background: var(--card); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
 
-/* Vistas de configuración (Ajustes, Facturas, API, Cumplimiento): siempre oscuras como los estudios.
-   El <main> lleva data-theme="dark" (dashboard-shell.tsx); aquí solo el fondo con el brillo de marca. */
+/* Vistas de configuración (Ajustes, Facturas, API, Cumplimiento): fondo con el brillo de marca;
+   los colores siguen al tema del panel como el resto. */
 .dashboard-main--config {
   color: var(--foreground);
   background:
@@ -12286,3 +12285,10 @@ label { letter-spacing: -0.003em; }
 @media (min-width: 768px) { .dashboard-main .p-6 { padding: 2rem; } }
 /* Tarjetas MUI */
 .dashboard-main .MuiCardContent-root { padding: 1.75rem; }
+
+/* Letra del panel un píxel más grande: todo lo que va en rem (Tailwind, MUI, la mayoría de clases)
+   crece de 16 a 17px base. html[data-theme] solo existe dentro de /dashboard; la landing no cambia. */
+html[data-theme] { font-size: 17px; }
+
+/* Aurora del escenario del widget en tema claro: mezcla normal y más suave (screen se pierde en claro). */
+html[data-theme='light'] .ws-stage__aurora span { mix-blend-mode: multiply; opacity: 0.45; }

@@ -22,7 +22,7 @@ function readPreference(): ThemePreference {
   try {
     return parsePreference(localStorage.getItem(DASHBOARD_THEME_KEY));
   } catch {
-    return 'light';
+    return 'system';
   }
 }
 

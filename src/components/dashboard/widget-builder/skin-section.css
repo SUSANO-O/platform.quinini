@@ -1,5 +1,5 @@
 /* Sección "Colores, tipografía y diseño" del estudio (skin-section.tsx). Pensada para el inspector oscuro. */
-.sk { display: grid; gap: 18px; --sk-line: rgba(255, 255, 255, 0.09); --sk-field: rgba(255, 255, 255, 0.045); --sk-muted: #9aa0b1; }
+.sk { display: grid; gap: 18px; --sk-line: color-mix(in srgb, var(--foreground) 9%, transparent); --sk-field: color-mix(in srgb, var(--foreground) 4.5%, transparent); --sk-muted: var(--muted-foreground); }
 
 .sk-templates { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .sk-template {
@@ -7,7 +7,7 @@
   border-radius: 12px; border: 1px solid var(--sk-line) !important; background: var(--sk-field) !important;
   transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.2s, box-shadow 0.2s;
 }
-.sk-template:hover { transform: translateY(-2px); border-color: rgba(255, 255, 255, 0.22) !important; }
+.sk-template:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--foreground) 22%, transparent) !important; }
 .sk-template.is-on {
   border-color: var(--ws-accent, #28a4b8) !important;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--ws-accent, #28a4b8) 25%, transparent);
@@ -35,9 +35,9 @@
   border-radius: 10px; border: 1px solid var(--sk-line) !important; background: var(--sk-field) !important;
   transition: border-color 0.18s, background 0.18s;
 }
-.sk-color__btn:hover { border-color: rgba(255, 255, 255, 0.2) !important; }
+.sk-color__btn:hover { border-color: color-mix(in srgb, var(--foreground) 20%, transparent) !important; }
 .sk-color__swatch {
-  flex-shrink: 0; width: 26px; height: 26px; border-radius: 8px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: 8px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--foreground) 18%, transparent);
   background: repeating-conic-gradient(#3a3d48 0 25%, #2a2c35 0 50%) 50% / 10px 10px;
 }
 .sk-color__text { display: grid; min-width: 0; flex: 1; line-height: 1.2; }
@@ -46,12 +46,12 @@
 .sk-color__btn.is-default .sk-color__value { font-family: inherit; font-style: italic; }
 
 .sk-badge { flex-shrink: 0; font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
-.sk-badge.is-ok { color: #7ee2a8; background: rgba(126, 226, 168, 0.12); }
-.sk-badge.is-warn { color: #f6c86b; background: rgba(246, 200, 107, 0.14); }
+.sk-badge.is-ok { color: var(--state-success); background: rgba(126, 226, 168, 0.12); }
+.sk-badge.is-warn { color: var(--state-warning); background: rgba(246, 200, 107, 0.14); }
 
 .sk-pop {
   position: absolute; z-index: 40; top: calc(100% + 6px); left: 0; width: 248px; padding: 12px;
-  border-radius: 14px; background: #1a1c25; border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px; background: var(--surface-2); border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55); animation: sk-pop 0.16s cubic-bezier(0.22, 1, 0.36, 1);
 }
 @keyframes sk-pop { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: none; } }
@@ -59,10 +59,10 @@
 .sk-pop__row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 10px; }
 .sk-pop__chip {
   aspect-ratio: 1; border-radius: 7px; cursor: pointer; border: 0 !important;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16); transition: transform 0.12s;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--foreground) 16%, transparent); transition: transform 0.12s;
 }
 .sk-pop__chip:hover { transform: scale(1.12); }
-.sk-pop__chip.is-on { box-shadow: 0 0 0 2px #1a1c25, 0 0 0 4px var(--ws-accent, #28a4b8); }
+.sk-pop__chip.is-on { box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 4px var(--ws-accent, #28a4b8); }
 .sk-pop__custom { display: flex; align-items: center; gap: 6px; }
 .sk-pop__custom input[type='color'] { width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; background: none; cursor: pointer; }
 .sk-pop__custom input:not([type='color']) { flex: 1; min-width: 0; font-family: ui-monospace, Menlo, monospace; font-size: 12px; padding: 6px 8px; }
@@ -77,7 +77,7 @@
 
 .sk-seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 10px; background: var(--sk-field); border: 1px solid var(--sk-line); width: fit-content; }
 .sk-seg button { border: 0 !important; background: transparent !important; font-size: 12px; padding: 6px 12px; border-radius: 8px; cursor: pointer; color: var(--sk-muted) !important; }
-.sk-seg button.is-on { background: rgba(255, 255, 255, 0.12) !important; color: #fff !important; }
+.sk-seg button.is-on { background: color-mix(in srgb, var(--foreground) 12%, transparent) !important; color: var(--foreground) !important; }
 
 .sk-ranges { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
 .sk-range { display: grid; gap: 6px; font-size: 12px; }
@@ -89,7 +89,7 @@
 .sk-switch { display: flex; align-items: center; gap: 10px; font-size: 12.5px; cursor: pointer; }
 .sk-switch input { position: absolute; opacity: 0; pointer-events: none; }
 .sk-switch__track {
-  position: relative; width: 32px; height: 18px; border-radius: 999px; background: rgba(255, 255, 255, 0.14); transition: background 0.2s; flex-shrink: 0;
+  position: relative; width: 32px; height: 18px; border-radius: 999px; background: color-mix(in srgb, var(--foreground) 14%, transparent); transition: background 0.2s; flex-shrink: 0;
 }
 .sk-switch__track::after {
   content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff;
@@ -100,7 +100,7 @@
 .sk-switch input:focus-visible + .sk-switch__track { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ws-accent, #28a4b8) 35%, transparent); }
 
 .sk-input { width: 100%; font-size: 12.5px; padding: 8px 10px; }
-.sk-reset { justify-self: start; font-size: 12px; padding: 7px 12px; border-radius: 9px; cursor: pointer; color: #ff9b9b !important; }
+.sk-reset { justify-self: start; font-size: 12px; padding: 7px 12px; border-radius: 9px; cursor: pointer; color: var(--state-error) !important; }
 
 /* Zona pulsada en la vista previa: el grupo se ilumina un instante. */
 .sk-group { border-radius: 12px; transition: box-shadow 0.35s, background 0.35s; }
