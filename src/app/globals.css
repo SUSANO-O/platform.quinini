@@ -1,6 +1,17 @@
 @layer theme, base, mui, components, utilities;
 @import "tailwindcss";
 
+/* `dark:` de Tailwind: como siempre (modo oscuro del sistema) y además dentro de los estudios
+   oscuros del panel (agente y widget), que tienen fondo oscuro aunque el sistema esté en claro. */
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    @slot;
+  }
+  &:where(.as, .as *, .ws, .ws *) {
+    @slot;
+  }
+}
+
 /* Material Symbols — https://fonts.google.com/icons */
 .material-symbols-outlined {
   font-family: "Material Symbols Outlined";

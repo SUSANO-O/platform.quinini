@@ -72,7 +72,7 @@ import { ModelSelectionSummary } from '@/components/dashboard/model-selection-su
 import { ModelCatalogPicker } from '@/components/dashboard/model-catalog-picker';
 import { AgentFallbackPicker } from '@/components/dashboard/agent-fallback-picker';
 import { useFallbackModelOptions } from '@/hooks/use-fallback-model-options';
-import { AgentDetailHeader } from '@/components/dashboard/agent-detail-header';
+import { AgentStudio } from '@/components/dashboard/agent-studio';
 import { type AgentDetailTabId } from '@/components/dashboard/agent-detail-tabs';
 import { BuilderRail } from '@/components/dashboard/builder-rail';
 import { AgentEditorSection } from '@/components/dashboard/agent-editor-section';
@@ -1581,8 +1581,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         onConfirm={() => void confirmDeleteAgent()}
         onCancel={() => { if (!deleting) setShowDeleteConfirm(false); }}
       />
-      <div className="hero-glow pointer-events-none" style={{ background: R, top: '-200px', right: '-60px' }} />
-      <div className="hero-glow pointer-events-none" style={{ background: B, top: '120px', left: '-120px' }} />
 
       <div className="agent-editor-page__inner relative px-4 sm:px-5 py-4 md:py-5">
       {agent && (
@@ -1603,42 +1601,21 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         </>
       )}
 
-      <div className="agent-editor-page__header">
-        <AgentDetailHeader
-          name={agent.name}
-          model={model || agent.model}
-          isDisabled={isDisabled}
-          hubSynced={agent.syncStatus === 'synced'}
-          ragSummary={soloChatOnly ? null : ragSummary}
-          readOnly={readOnly}
-          deleting={deleting}
-          saving={saving}
-          onToggleStatus={toggleStatus}
-          onDelete={() => setShowDeleteConfirm(true)}
-        />
-      </div>
-
-      <div className="agent-editor-page__grid">
-      <BuilderRail
-        mode="tabs"
-        ariaLabel="Secciones del agente"
-        title={activeTabLabel}
-        subtitle={`Sección ${activeTabIdx + 1} de ${visibleTabs.length}`}
-        items={visibleTabs.map((t) => ({ id: t.id, label: t.label, icon: t.icon, count: t.count }))}
+      <AgentStudio
+        name={agent.name}
+        model={model || agent.model}
+        accent={R}
+        isDisabled={isDisabled}
+        hubSynced={agent.syncStatus === 'synced'}
+        readOnly={readOnly}
+        deleting={deleting}
+        saving={saving}
+        onToggleStatus={toggleStatus}
+        onDelete={() => setShowDeleteConfirm(true)}
+        sections={visibleTabs.map((t) => ({ id: t.id, label: t.label, icon: t.icon, count: t.count, hint: AGENT_TAB_TIPS[t.id as AgentDetailTabId] }))}
         activeId={tab}
         onSelect={(id) => setTab(id as AgentDetailTabId)}
-        footer={
-          <div className="dashboard-builder-rail__tip">
-            <p className="dashboard-builder-rail__tip-label m-0">
-              <Lightbulb size={12} className="inline mr-1" aria-hidden />
-              Tip
-            </p>
-            <p className="dashboard-builder-rail__tip-text m-0">{AGENT_TAB_TIPS[tab]}</p>
-          </div>
-        }
-      />
-      <div className="agent-editor-page__main flex-1 min-w-0">
-      <div className="agent-editor-form-card" data-tour="agent-edit-form">
+      >
       {soloChatOnly && (
         <p className="text-xs mb-4 m-0 px-3 py-2 rounded-xl border" style={{ color: 'var(--muted-foreground)', borderColor: 'var(--border)', background: 'var(--muted)' }}>
           Plan <strong>Solo</strong>: chat básico. Actualiza a Basic o superior para reglas, FAQ, herramientas, almacenamiento y sub-agentes.
@@ -4327,9 +4304,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               )}
         </>
       )}
-      </div>
-      </div>
-      </div>
+      </AgentStudio>
       </div>
     </div>
   );
