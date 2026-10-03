@@ -3909,7 +3909,7 @@ button.dashboard-sidebar-link:hover {
   letter-spacing: 0.02em;
   text-transform: capitalize;
   color: var(--muted-foreground);
-  background: rgba(255, 255, 255, 0.85);
+  background: color-mix(in srgb, var(--card) 85%, transparent);
   border: 1px solid rgba(15, 23, 42, 0.06);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
@@ -4205,8 +4205,8 @@ button.dashboard-sidebar-link:hover {
 .chats-page__tag {
   font-size: 0.71875rem;
   font-weight: 600;
-  padding: 0.1rem 0.35rem;
-  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
 }
 
 .chats-page__tag--widget {
@@ -4215,23 +4215,23 @@ button.dashboard-sidebar-link:hover {
 }
 
 .chats-page__tag--escalated {
-  color: #92400e;
-  background: #fef3c7;
+  color: color-mix(in srgb, var(--state-warning) 78%, var(--foreground));
+  background: color-mix(in srgb, var(--state-warning) 14%, transparent);
 }
 
 .chats-page__tag--human {
-  color: #1e40af;
-  background: #dbeafe;
+  color: color-mix(in srgb, var(--accent-ui) 78%, var(--foreground));
+  background: color-mix(in srgb, var(--accent-ui) 14%, transparent);
 }
 
 .chats-page__tag--sentiment-pos {
-  color: #166534;
-  background: #dcfce7;
+  color: color-mix(in srgb, var(--state-success) 78%, var(--foreground));
+  background: color-mix(in srgb, var(--state-success) 14%, transparent);
 }
 
 .chats-page__tag--sentiment-neg {
-  color: #991b1b;
-  background: #fee2e2;
+  color: color-mix(in srgb, var(--state-error) 78%, var(--foreground));
+  background: color-mix(in srgb, var(--state-error) 14%, transparent);
 }
 
 .chats-page__panel {
@@ -4263,9 +4263,9 @@ button.dashboard-sidebar-link:hover {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.75rem 1rem;
+  padding: 1rem 1.35rem;
   border-bottom: 1px solid var(--border-subtle);
-  background: rgba(255, 255, 255, 0.72);
+  background: color-mix(in srgb, var(--card) 82%, transparent);
   backdrop-filter: blur(8px);
   flex-shrink: 0;
   flex-wrap: wrap;
@@ -4356,9 +4356,9 @@ button.dashboard-sidebar-link:hover {
   min-height: 2rem;
   padding: 0 0.65rem;
   border-radius: 8px;
-  border: 1px solid #fca5a5;
-  background: #fff1f2;
-  color: #dc2626;
+  border: 1px solid color-mix(in srgb, var(--state-error) 40%, transparent);
+  background: color-mix(in srgb, var(--state-error) 10%, transparent);
+  color: var(--state-error);
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
@@ -4375,7 +4375,7 @@ button.dashboard-sidebar-link:hover {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding: 0.75rem 0.5rem;
+  padding: 1.25rem 1.25rem;
 }
 
 .chats-page__messages .conversation-thread {
@@ -4388,11 +4388,11 @@ button.dashboard-sidebar-link:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
-  padding: 0.55rem 1rem;
+  padding: 0.75rem 1.35rem;
   border-top: 1px solid var(--border-subtle);
   font-size: 0.75rem;
   color: var(--muted-foreground);
-  background: rgba(255, 255, 255, 0.65);
+  background: color-mix(in srgb, var(--card) 76%, transparent);
   flex-shrink: 0;
 }
 
@@ -10835,14 +10835,14 @@ button.dashboard-meta-chip:disabled {
 }
 
 .api-docs-chip--muted {
-  color: #64748b;
+  color: var(--muted-foreground);
   background: rgba(100, 116, 139, 0.08);
   border-color: rgba(100, 116, 139, 0.16);
 }
 
 .api-docs-chip--success,
 .api-docs-chip--warning {
-  color: var(--chip-color, var(--primary));
+  color: color-mix(in srgb, var(--chip-color, var(--primary)) 70%, var(--foreground));
   background: color-mix(in srgb, var(--chip-color, var(--primary)) 10%, transparent);
   border-color: color-mix(in srgb, var(--chip-color, var(--primary)) 24%, transparent);
 }
@@ -12138,7 +12138,7 @@ button.dashboard-meta-chip:disabled {
   --surface-2: #ffffff;
   --field: #ffffff;
   --border-strong: rgba(26, 28, 30, 0.14);
-  --text-faint: #8a9096;
+  --text-faint: #6f767d;
   --accent-ui: var(--brand-primary);
   --accent-ui-deep: var(--brand-primary-dark);
   --accent-ui-bright: var(--brand-primary-light);
@@ -12160,6 +12160,9 @@ button.dashboard-meta-chip:disabled {
   --text-faint: #6b7184;
   /* --accent apunta a --foreground en :root; se redefine aquí para que tome el valor oscuro. */
   --accent: #e9ecf2;
+  /* Texto y bordes de color primario (enlaces, pestañas activas): el turquesa claro se lee en oscuro. */
+  --primary: var(--brand-primary-light);
+  --primary-light: var(--brand-accent-bright);
   --accent-ui: var(--brand-primary-light);
   --accent-ui-deep: var(--brand-primary);
   --accent-ui-bright: var(--brand-accent-bright);
@@ -12206,8 +12209,8 @@ button.dashboard-meta-chip:disabled {
 /* MUI 7 pinta con variables CSS (--mui-palette-*) que su proveedor publica en :root con la paleta
    clara. En cualquier zona oscura se redefinen aquí, para que los componentes MUI sigan al tema. */
 [data-theme="dark"] {
-  --mui-palette-primary-main: #28a4b8;
-  --mui-palette-primary-mainChannel: 40 164 184;
+  --mui-palette-primary-main: #1e8fa2;
+  --mui-palette-primary-mainChannel: 30 143 162;
   --mui-palette-primary-dark: #006b7d;
   --mui-palette-primary-light: #2dd4bf;
   --mui-palette-text-primary: #e9ecf2;
@@ -12228,6 +12231,10 @@ button.dashboard-meta-chip:disabled {
   --mui-palette-action-selectedChannel: 255 255 255;
   --mui-palette-action-disabled: rgba(255, 255, 255, 0.3);
   --mui-palette-action-disabledBackground: rgba(255, 255, 255, 0.12);
+  --mui-palette-common-background: #0c0e13;
+  --mui-palette-common-backgroundChannel: 12 14 19;
+  --mui-palette-common-onBackground: #ffffff;
+  --mui-palette-common-onBackgroundChannel: 255 255 255;
 }
 
 /* ── Tipografía y ritmo ───────────────────────────────────────────────────────────────────────────
@@ -12292,3 +12299,117 @@ html[data-theme] { font-size: 17px; }
 
 /* Aurora del escenario del widget en tema claro: mezcla normal y más suave (screen se pierde en claro). */
 html[data-theme='light'] .ws-stage__aurora span { mix-blend-mode: multiply; opacity: 0.45; }
+
+/* Letra del panel +1px también en los tamaños fijos: las clases text-[Npx] y los font-size en línea
+   (más de mil). La base en rem ya es 17px (html[data-theme]). El widget va en su iframe: no cambia. */
+.dashboard-main :is(.text-\[9px\], [style*='font-size: 9px']), .dr :is(.text-\[9px\], [style*='font-size: 9px']) { font-size: 10px !important; }
+.dashboard-main :is(.text-\[10px\], [style*='font-size: 10px']), .dr :is(.text-\[10px\], [style*='font-size: 10px']) { font-size: 11px !important; }
+.dashboard-main :is(.text-\[10\.5px\], [style*='font-size: 10.5px']), .dr :is(.text-\[10\.5px\], [style*='font-size: 10.5px']) { font-size: 11.5px !important; }
+.dashboard-main :is(.text-\[11px\], [style*='font-size: 11px']), .dr :is(.text-\[11px\], [style*='font-size: 11px']) { font-size: 12px !important; }
+.dashboard-main :is(.text-\[11\.5px\], [style*='font-size: 11.5px']), .dr :is(.text-\[11\.5px\], [style*='font-size: 11.5px']) { font-size: 12.5px !important; }
+.dashboard-main :is(.text-\[12px\], [style*='font-size: 12px']), .dr :is(.text-\[12px\], [style*='font-size: 12px']) { font-size: 13px !important; }
+.dashboard-main :is(.text-\[12\.5px\], [style*='font-size: 12.5px']), .dr :is(.text-\[12\.5px\], [style*='font-size: 12.5px']) { font-size: 13.5px !important; }
+.dashboard-main :is(.text-\[13px\], [style*='font-size: 13px']), .dr :is(.text-\[13px\], [style*='font-size: 13px']) { font-size: 14px !important; }
+.dashboard-main :is(.text-\[13\.5px\], [style*='font-size: 13.5px']), .dr :is(.text-\[13\.5px\], [style*='font-size: 13.5px']) { font-size: 14.5px !important; }
+.dashboard-main :is(.text-\[14px\], [style*='font-size: 14px']), .dr :is(.text-\[14px\], [style*='font-size: 14px']) { font-size: 15px !important; }
+.dashboard-main :is(.text-\[15px\], [style*='font-size: 15px']), .dr :is(.text-\[15px\], [style*='font-size: 15px']) { font-size: 16px !important; }
+
+/* La paleta B/N del panel (.dashboard-root-texture fija --primary/--brand-primary en #111) se invierte
+   en oscuro: lo que era negro pasa a blanco, para que enlaces, pestañas y botones primarios se lean. */
+[data-theme="dark"] .dashboard-root-texture,
+.dashboard-root-texture[data-theme="dark"] {
+  /* Lo que en claro es negro (CTA, enlaces, pestañas) en oscuro es turquesa de marca: legible como
+     texto sobre fondo oscuro y como fondo bajo texto blanco. */
+  --brand-primary-rgb: 30, 143, 162;
+  --brand-primary: #1e8fa2;
+  --brand-primary-light: #2797a9;
+  --brand-primary-dark: #156d7c;
+  --brand-cool: #5cc3d3;
+  --brand-cool-rgb: 92, 195, 211;
+  --primary: #2797a9;
+  --primary-light: #4fc1d2;
+  --primary-dark: #1e8fa2;
+  --app-brand-focus: #28a4b8;
+  --app-brand-focus-ring: rgba(40, 164, 184, 0.4);
+  --shadow-brand: 0 4px 20px rgba(0, 0, 0, 0.45);
+  --divider-soft: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 18%, rgba(255, 255, 255, 0.08) 82%, transparent 100%);
+  background-image: none;
+}
+
+/* Colores fijos en línea (style="color: …") que no se leen en un tema: se remapean al equivalente legible.
+   Solo cuando son el color del texto; fondos y bordes no cambian. */
+[data-theme='dark'] :is([style^='color: rgb(71, 85, 105)'], [style*='; color: rgb(71, 85, 105)'], [style^='color:#475569' i], [style*=';color:#475569' i]) { color: #cbd5e1 !important; }
+[data-theme='dark'] :is([style^='color: rgb(15, 118, 110)'], [style*='; color: rgb(15, 118, 110)'], [style^='color:#0f766e' i], [style*=';color:#0f766e' i]) { color: #5eead4 !important; }
+[data-theme='dark'] :is([style^='color: rgb(51, 65, 85)'], [style*='; color: rgb(51, 65, 85)'], [style^='color:#334155' i], [style*=';color:#334155' i]) { color: #e2e8f0 !important; }
+[data-theme='dark'] :is([style^='color: rgb(0, 107, 125)'], [style*='; color: rgb(0, 107, 125)'], [style^='color:#006b7d' i], [style*=';color:#006b7d' i]) { color: var(--accent-ui) !important; }
+[data-theme='dark'] :is([style^='color: rgb(0, 74, 87)'], [style*='; color: rgb(0, 74, 87)'], [style^='color:#004a57' i], [style*=';color:#004a57' i]) { color: #5cc3d3 !important; }
+[data-theme='dark'] :is([style^='color: rgb(139, 85, 30)'], [style*='; color: rgb(139, 85, 30)'], [style^='color:#8b551e' i], [style*=';color:#8b551e' i]) { color: #d39a5c !important; }
+[data-theme='dark'] :is([style^='color: rgb(124, 58, 237)'], [style*='; color: rgb(124, 58, 237)'], [style^='color:#7c3aed' i], [style*=';color:#7c3aed' i]) { color: #b197fc !important; }
+[data-theme='dark'] :is([style^='color: rgb(21, 128, 61)'], [style*='; color: rgb(21, 128, 61)'], [style^='color:#15803d' i], [style*=';color:#15803d' i]) { color: #4ade80 !important; }
+[data-theme='dark'] :is([style^='color: rgb(22, 163, 74)'], [style*='; color: rgb(22, 163, 74)'], [style^='color:#16a34a' i], [style*=';color:#16a34a' i]) { color: #4ade80 !important; }
+[data-theme='dark'] :is([style^='color: rgb(0, 0, 0)'], [style*='; color: rgb(0, 0, 0)'], [style^='color:#000' i], [style*=';color:#000' i], [style^='color:#000000' i], [style*=';color:#000000' i]) { color: var(--foreground) !important; }
+[data-theme='dark'] :is([style^='color: rgb(17, 17, 17)'], [style*='; color: rgb(17, 17, 17)'], [style^='color:#111' i], [style*=';color:#111' i], [style^='color:#111111' i], [style*=';color:#111111' i]) { color: var(--foreground) !important; }
+[data-theme='dark'] :is([style^='color: rgb(26, 28, 30)'], [style*='; color: rgb(26, 28, 30)'], [style^='color:#1a1c1e' i], [style*=';color:#1a1c1e' i]) { color: var(--foreground) !important; }
+[data-theme='dark'] :is([style^='color: rgb(97, 31, 105)'], [style*='; color: rgb(97, 31, 105)'], [style^='color:#611f69' i], [style*=';color:#611f69' i]) { color: #d39be0 !important; }
+[data-theme='dark'] :is([style^='color: rgb(146, 64, 14)'], [style*='; color: rgb(146, 64, 14)'], [style^='color:#92400e' i], [style*=';color:#92400e' i]) { color: #fbbf24 !important; }
+[data-theme='dark'] :is([style^='color: rgb(30, 64, 175)'], [style*='; color: rgb(30, 64, 175)'], [style^='color:#1e40af' i], [style*=';color:#1e40af' i]) { color: #93c5fd !important; }
+[data-theme='dark'] :is([style^='color: rgb(153, 27, 27)'], [style*='; color: rgb(153, 27, 27)'], [style^='color:#991b1b' i], [style*=';color:#991b1b' i]) { color: #fca5a5 !important; }
+[data-theme='dark'] :is([style^='color: rgb(180, 83, 9)'], [style*='; color: rgb(180, 83, 9)'], [style^='color:#b45309' i], [style*=';color:#b45309' i]) { color: #fbbf24 !important; }
+[data-theme='dark'] :is([style^='color: rgb(217, 119, 6)'], [style*='; color: rgb(217, 119, 6)'], [style^='color:#d97706' i], [style*=';color:#d97706' i]) { color: #fbbf24 !important; }
+[data-theme='dark'] :is([style^='color: rgb(220, 38, 38)'], [style*='; color: rgb(220, 38, 38)'], [style^='color:#dc2626' i], [style*=';color:#dc2626' i]) { color: #f87171 !important; }
+html[data-theme='light'] .dashboard-root-texture :is([style^='color: rgb(34, 197, 94)'], [style*='; color: rgb(34, 197, 94)'], [style^='color:#22c55e' i], [style*=';color:#22c55e' i]) { color: #15803d !important; }
+html[data-theme='light'] .dashboard-root-texture :is([style^='color: rgb(245, 158, 11)'], [style*='; color: rgb(245, 158, 11)'], [style^='color:#f59e0b' i], [style*=';color:#f59e0b' i]) { color: #b45309 !important; }
+html[data-theme='light'] .dashboard-root-texture :is([style^='color: rgb(37, 211, 102)'], [style*='; color: rgb(37, 211, 102)'], [style^='color:#25d366' i], [style*=';color:#25d366' i]) { color: #128c4a !important; }
+html[data-theme='light'] .dashboard-root-texture :is([style^='color: rgb(22, 163, 74)'], [style*='; color: rgb(22, 163, 74)'], [style^='color:#16a34a' i], [style*=';color:#16a34a' i]) { color: #15803d !important; }
+html[data-theme='light'] .dashboard-root-texture :is([style^='color: rgb(40, 164, 184)'], [style*='; color: rgb(40, 164, 184)'], [style^='color:#28a4b8' i], [style*=';color:#28a4b8' i]) { color: #157a8a !important; }
+/* Estados en claro: tonos más profundos para que el texto de estado se lea sobre blanco. */
+html[data-theme='light'] {
+  --state-success: #15803d;
+  --state-warning: #b45309;
+  --state-error: #dc2626;
+}
+/* Cualquier título en mayúsculas (rótulo) va en la sans con tracking: la serif en versalitas no se lee. */
+:is(h1, h2, h3, h4):is([style*='text-transform: uppercase'], [style*='text-transform:uppercase'], .uppercase) {
+  font-family: var(--font-body) !important;
+  letter-spacing: 0.08em;
+}
+
+/* Avatares (paleta fija de panel-identity.ts: pastel + texto oscuro). En oscuro: tinte translúcido;
+   el texto se remapea con las reglas de colores fijos de más abajo. */
+[data-theme='dark'] :is([style*='background: rgb(230, 242, 244)'], [style*='background:#e6f2f4' i]) { background: rgba(40, 164, 184, 0.18) !important; border-color: color-mix(in srgb, rgba(40, 164, 184, 0.18) 100%, transparent) !important; }
+[data-theme='dark'] :is([style*='background: rgb(238, 242, 246)'], [style*='background:#eef2f6' i]) { background: rgba(148, 163, 184, 0.16) !important; border-color: color-mix(in srgb, rgba(148, 163, 184, 0.16) 100%, transparent) !important; }
+[data-theme='dark'] :is([style*='background: rgb(230, 242, 241)'], [style*='background:#e6f2f1' i]) { background: rgba(20, 184, 166, 0.17) !important; border-color: color-mix(in srgb, rgba(20, 184, 166, 0.17) 100%, transparent) !important; }
+[data-theme='dark'] :is([style*='background: rgb(237, 242, 247)'], [style*='background:#edf2f7' i]) { background: rgba(100, 116, 139, 0.22) !important; border-color: color-mix(in srgb, rgba(100, 116, 139, 0.22) 100%, transparent) !important; }
+/* Fondos fijos en línea con texto blanco que no se lee: tono más profundo, en los dos temas. */
+.dashboard-root-texture :is([style*='background: rgb(40, 164, 184)'], [style*='background:#28a4b8' i], [style*='background: #28a4b8' i]) { background: #1e8fa2 !important; }
+.dashboard-root-texture :is([style*='background: rgb(37, 211, 102)'], [style*='background:#25d366' i], [style*='background: #25d366' i]) { background: #179848 !important; }
+/* Botón "Copiar snippet" sobre el código (siempre oscuro): no heredar el estilo de botones del inspector. */
+.ws-inspector__body button.widget-builder-publish__copy-btn:not(#_):not(#__) {
+  color: #e2e8f0 !important; background-color: rgba(255, 255, 255, 0.08) !important; border-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+/* ── AUTO: equivalentes oscuros de reglas del panel con colores claros fijos (generado por darkgen.py).
+   Fondos blancos → var(--card), texto negro → var(--foreground), bordes negros translúcidos → var(--border-strong). */
+[data-theme="dark"] .dashboard-root-texture .dashboard-btn--primary { color: var(--foreground); background: var(--card); }
+[data-theme="dark"] .dashboard-root-texture .dashboard-btn--primary:hover:not(:disabled) { background: var(--muted); }
+[data-theme="dark"] .dashboard-root-texture .dashboard-btn--secondary { color: var(--foreground); background: var(--card); }
+[data-theme="dark"] .dashboard-root-texture .dashboard-btn--secondary:hover:not(:disabled) { background: var(--muted); }
+[data-theme="dark"] .dashboard-root-texture .dashboard-btn--icon { color: var(--foreground); background: var(--card); border: 1px solid var(--border-strong); }
+[data-theme="dark"] .dashboard-root-texture .dashboard-btn--icon:hover:not(:disabled) { background: var(--muted); }
+[data-theme="dark"] .dashboard-root-texture .resource-card__footer .resource-card__btn.MuiButton-root, [data-theme="dark"] .dashboard-root-texture .resource-card__footer .MuiButton-root.resource-card__btn, [data-theme="dark"] .dashboard-root-texture .widget-card__footer .widget-card__btn.MuiButton-root, [data-theme="dark"] .dashboard-root-texture .widget-card__footer .MuiButton-root.widget-card__btn { color: var(--foreground) !important; background: var(--card) !important; }
+[data-theme="dark"] .dashboard-root-texture .resource-card__footer .resource-card__btn--muted.MuiButton-root, [data-theme="dark"] .dashboard-root-texture .resource-card__footer .MuiButton-root.resource-card__btn--muted, [data-theme="dark"] .dashboard-root-texture .widget-card__footer .widget-card__btn--muted.MuiButton-root { background: var(--card) !important; }
+[data-theme="dark"] .dashboard-root-texture .resource-card__footer .resource-card__btn.MuiButton-root:hover, [data-theme="dark"] .dashboard-root-texture .resource-card__footer .MuiButton-root.resource-card__btn:hover, [data-theme="dark"] .dashboard-root-texture .widget-card__footer .widget-card__btn.MuiButton-root:hover, [data-theme="dark"] .dashboard-root-texture .widget-card__footer .MuiButton-root.widget-card__btn:hover { background: var(--muted) !important; }
+[data-theme="dark"] .inbox-thread__date span { border: 1px solid var(--border-strong); }
+[data-theme="dark"] .inbox-thread__scroll-btn { border: 1px solid var(--border-strong); }
+[data-theme="dark"] .resource-card__tag, [data-theme="dark"] .widget-card__tag { background: var(--card); color: var(--muted-foreground); }
+[data-theme="dark"] .resource-card__btn--muted.MuiButton-root, [data-theme="dark"] .MuiButton-root.resource-card__btn--muted { background: var(--card) !important; color: var(--foreground) !important; }
+[data-theme="dark"] .dashboard-btn--primary { color: var(--foreground); background: var(--card); }
+[data-theme="dark"] .dashboard-btn--primary:hover:not(:disabled) { background: var(--muted); }
+[data-theme="dark"] .dashboard-btn--secondary { color: var(--foreground); background: var(--card); }
+[data-theme="dark"] .dashboard-btn--secondary:hover:not(:disabled) { background: var(--muted); }
+[data-theme="dark"] .dashboard-embed__hint { color: var(--muted-foreground); }
+[data-theme="dark"] .widget-builder-input:hover { border-color: var(--border-strong); }
+[data-theme="dark"] .widget-builder-publish__editor { border: 1px solid var(--border-strong); }
+[data-theme="dark"] .home-agent-link { border-bottom: 1px solid var(--border-strong); }
+[data-theme="dark"] .home-cta-band .home-btn--primary { color: var(--foreground); }
+[data-theme="dark"] .api-docs-panel__body { background: var(--card); }

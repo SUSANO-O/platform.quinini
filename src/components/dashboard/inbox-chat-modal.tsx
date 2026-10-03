@@ -283,10 +283,12 @@ export function ConversationThread({
           const label = isUser ? 'Visitante' : isHuman ? 'Tú · Agente' : 'Bot';
           const onDark = isHuman;
           const bubble: React.CSSProperties = isUser
-            ? { background: '#fff', color: 'var(--foreground)', boxShadow: '0 1px 3px rgba(15,23,42,0.06)' }
+            ? // Visitante: superficie neutra del tema
+              { background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-surface-sm)' }
             : isHuman
-              ? { background: 'var(--brand-primary)', color: '#fff' }
-              : { background: 'rgba(255,255,255,0.92)', color: 'var(--foreground)', boxShadow: '0 1px 3px rgba(15,23,42,0.05)' };
+              ? { background: 'var(--accent-ui-deep)', color: '#fff' }
+              : // Bot: tinte del acento, legible en claro y oscuro
+                { background: 'color-mix(in srgb, var(--accent-ui) 11%, var(--card))', color: 'var(--foreground)', border: '1px solid color-mix(in srgb, var(--accent-ui) 18%, transparent)' };
           const showDelete = canDelete && isHuman && m.id && onDelete;
 
           return (
@@ -319,11 +321,11 @@ export function ConversationThread({
                 </div>
               )}
               <div
-                className="max-w-[88%] px-3.5 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap break-words"
+                className="max-w-[78%] px-4 py-3 text-[13px] leading-relaxed whitespace-pre-wrap break-words"
                 style={{
-                  borderRadius: row.grouped ? (right ? '12px 12px 5px 12px' : '12px 12px 12px 5px') : 16,
-                  borderBottomRightRadius: right ? 5 : row.grouped ? 12 : 16,
-                  borderBottomLeftRadius: right ? (row.grouped ? 12 : 16) : 5,
+                  borderRadius: row.grouped ? (right ? '14px 14px 6px 14px' : '14px 14px 14px 6px') : 18,
+                  borderBottomRightRadius: right ? 6 : row.grouped ? 14 : 18,
+                  borderBottomLeftRadius: right ? (row.grouped ? 14 : 18) : 6,
                   ...bubble,
                 }}
               >
