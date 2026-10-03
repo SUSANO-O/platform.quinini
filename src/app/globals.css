@@ -12187,3 +12187,46 @@ button.dashboard-meta-chip:disabled {
 }
 .theme-switch button:hover { color: var(--foreground); }
 .theme-switch button.is-on { color: var(--foreground); background: var(--card); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
+
+/* Vistas de configuración (Ajustes, Facturas, API, Cumplimiento): siempre oscuras como los estudios.
+   El <main> lleva data-theme="dark" (dashboard-shell.tsx); aquí solo el fondo con el brillo de marca. */
+.dashboard-main--config {
+  color: var(--foreground);
+  background:
+    radial-gradient(1100px 520px at 50% -12%, color-mix(in srgb, var(--accent-ui) 16%, transparent), transparent 70%),
+    radial-gradient(800px 420px at 100% 110%, color-mix(in srgb, var(--accent-ui-bright) 8%, transparent), transparent 70%),
+    var(--background);
+}
+/* Títulos de las tarjetas de configuración a escala (la regla global h2 los dejaba en 40px). */
+.dashboard-main--config .card-texture h2,
+.dashboard-main--config section h2 { font-size: 17px; letter-spacing: -0.01em; }
+/* Enlaces de acento: en oscuro, el turquesa claro de la marca (el oscuro no se lee). */
+[data-theme="dark"] .landing-link-accent { color: var(--accent-ui); }
+[data-theme="dark"] .landing-link-accent:hover { color: var(--accent-ui-bright); }
+
+/* MUI 7 pinta con variables CSS (--mui-palette-*) que su proveedor publica en :root con la paleta
+   clara. En cualquier zona oscura se redefinen aquí, para que los componentes MUI sigan al tema. */
+[data-theme="dark"] {
+  --mui-palette-primary-main: #28a4b8;
+  --mui-palette-primary-mainChannel: 40 164 184;
+  --mui-palette-primary-dark: #006b7d;
+  --mui-palette-primary-light: #2dd4bf;
+  --mui-palette-text-primary: #e9ecf2;
+  --mui-palette-text-primaryChannel: 233 236 242;
+  --mui-palette-text-secondary: rgba(233, 236, 242, 0.68);
+  --mui-palette-text-secondaryChannel: 233 236 242;
+  --mui-palette-text-disabled: rgba(233, 236, 242, 0.38);
+  --mui-palette-background-default: #0c0e13;
+  --mui-palette-background-defaultChannel: 12 14 19;
+  --mui-palette-background-paper: #151921;
+  --mui-palette-background-paperChannel: 21 25 33;
+  --mui-palette-divider: rgba(255, 255, 255, 0.1);
+  --mui-palette-dividerChannel: 255 255 255;
+  --mui-palette-action-active: #e9ecf2;
+  --mui-palette-action-activeChannel: 233 236 242;
+  --mui-palette-action-hover: rgba(255, 255, 255, 0.06);
+  --mui-palette-action-selected: rgba(255, 255, 255, 0.1);
+  --mui-palette-action-selectedChannel: 255 255 255;
+  --mui-palette-action-disabled: rgba(255, 255, 255, 0.3);
+  --mui-palette-action-disabledBackground: rgba(255, 255, 255, 0.12);
+}
