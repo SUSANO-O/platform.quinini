@@ -9,7 +9,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
-import { ArrowLeft, Check, Loader2 } from '@/components/ui/icons';
+import { ArrowLeft, Check, Loader2, Redo2, Undo2 } from '@/components/ui/icons';
 import type { WidgetConfig, WidgetShortcut } from '@/lib/widget-builder';
 import { WidgetLivePreview, type PreviewBackdrop, type PreviewDevice } from './live-preview';
 import './widget-studio.css';
@@ -81,7 +81,17 @@ export function WidgetStudio({
   cfg,
   shortcuts,
   children,
+  onPickZone,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
 }: {
+  onPickZone?: (zone: string) => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
   widgetName: string;
   accent: string;
   sections: StudioSection[];
@@ -107,6 +117,13 @@ export function WidgetStudio({
           <Link href="/dashboard/widgets" className="ws-iconbtn" aria-label="Volver a widgets">
             <ArrowLeft size={16} />
           </Link>
+          <span className="ws-top__sep" aria-hidden />
+          <button type="button" className="ws-iconbtn" onClick={onUndo} disabled={!canUndo} aria-label="Deshacer" title="Deshacer (⌘Z)">
+            <Undo2 size={15} />
+          </button>
+          <button type="button" className="ws-iconbtn" onClick={onRedo} disabled={!canRedo} aria-label="Rehacer" title="Rehacer (⇧⌘Z)">
+            <Redo2 size={15} />
+          </button>
           <div className="ws-top__title">
             <span className="ws-top__eyebrow">Estudio del widget</span>
             <strong>{widgetName || 'Widget sin nombre'}</strong>
@@ -178,9 +195,9 @@ export function WidgetStudio({
           <span />
         </div>
         <div className="ws-stage__frame">
-          <WidgetLivePreview cfg={cfg} shortcuts={shortcuts} device={device} backdrop={backdrop} open={open} />
+          <WidgetLivePreview cfg={cfg} shortcuts={shortcuts} device={device} backdrop={backdrop} open={open} onPick={onPickZone} />
         </div>
-        <p className="ws-stage__caption">Vista previa en vivo · es el widget real, con tus cambios al instante</p>
+        <p className="ws-stage__caption">Vista previa en vivo · haz clic en una parte del widget para editarla</p>
       </main>
 
       <aside className="ws-inspector" aria-label={`Ajustes: ${active.label}`}>

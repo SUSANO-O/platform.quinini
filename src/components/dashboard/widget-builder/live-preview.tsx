@@ -69,14 +69,19 @@ export function WidgetLivePreview({
   device,
   backdrop,
   open,
+  onPick,
 }: {
   cfg: WidgetConfig;
   shortcuts: WidgetShortcut[];
   device: PreviewDevice;
   backdrop: PreviewBackdrop;
   open: boolean;
+  /** Zona del widget pulsada en la vista previa (header, footer, chat, user, bot, fab). */
+  onPick?: (zone: string) => void;
 }) {
   const frame = useRef<HTMLIFrameElement>(null);
+  const onPickRef = useRef(onPick);
+  onPickRef.current = onPick;
   const [ready, setReady] = useState(false);
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const doc = useMemo(() => (origin ? srcDoc(origin, backdrop) : ''), [origin, backdrop]);
@@ -84,7 +89,10 @@ export function WidgetLivePreview({
   useEffect(() => {
     setReady(false);
     const onMsg = (ev: MessageEvent) => {
-      if (ev.source === frame.current?.contentWindow && ev.data?.type === 'afhub-preview-ready') setReady(true);
+      if (ev.source !== frame.current?.contentWindow) return;
+      if (ev.data?.type === 'afhub-preview-ready') setReady(true);
+      if (ev.data?.type === 'afhub-preview-pick' && typeof ev.data.zone === 'string') onPickRef.current?.(ev.data.zone);
+      if (ev.data?.type === 'afhub-preview-key') window.dispatchEvent(new CustomEvent('afhub-studio-undo', { detail: { redo: !!ev.data.redo } }));
     };
     window.addEventListener('message', onMsg);
     return () => window.removeEventListener('message', onMsg);

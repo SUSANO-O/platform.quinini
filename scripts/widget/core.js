@@ -1820,6 +1820,48 @@
     var styleEl = document.createElement('style');
     styleEl.textContent = cssForRoot(rootId, cfg);
     root.appendChild(styleEl);
+    // Estudio del panel: resaltar zonas al pasar el ratón y avisar al editor de la zona pulsada.
+    if (cfg.preview) {
+      var pickEl = document.createElement('style');
+      var rp = '#' + rootId;
+      pickEl.textContent =
+        rp + ' [data-afhub-zone]{transition:outline-color .15s, outline-offset .15s;outline:2px solid transparent;outline-offset:-2px;cursor:pointer;}' +
+        rp + ' [data-afhub-zone]:hover{outline-color:rgba(124,92,255,.85);}';
+      root.appendChild(pickEl);
+      var PREVIEW_ZONES = [
+        ['.afhub-msg.user', 'user'], ['.afhub-msg.bot', 'bot'], ['.afhub-header', 'header'],
+        ['.afhub-input-area, .afhub-policy, .afhub-powered, .afhub-footer-note', 'footer'],
+        ['.afhub-fab', 'fab'], ['.afhub-messages', 'chat']
+      ];
+      root.addEventListener('mouseover', function (ev) {
+        var t = ev.target;
+        for (var zi = 0; zi < PREVIEW_ZONES.length; zi++) {
+          var hit = t && t.closest ? t.closest(PREVIEW_ZONES[zi][0]) : null;
+          if (hit) { if (!hit.hasAttribute('data-afhub-zone')) hit.setAttribute('data-afhub-zone', PREVIEW_ZONES[zi][1]); return; }
+        }
+      });
+      // ⌘Z / ⇧⌘Z / ⌘Y pulsados con el foco en la vista previa: los maneja el editor.
+      document.addEventListener('keydown', function (ev) {
+        if (!(ev.metaKey || ev.ctrlKey)) return;
+        var z = ev.code === 'KeyZ', y = ev.code === 'KeyY';
+        if (!z && !y) return;
+        if (ev.target && /^(TEXTAREA|INPUT)$/.test(ev.target.tagName) && String(ev.target.value || '')) return;
+        ev.preventDefault();
+        try { window.parent.postMessage({ type: 'afhub-preview-key', redo: y || ev.shiftKey }, '*'); } catch (_k) { /* noop */ }
+      });
+      root.addEventListener('click', function (ev) {
+        var t = ev.target;
+        if (t && t.closest && t.closest('textarea, input, .afhub-send')) return; // escribir sigue funcionando
+        for (var zi = 0; zi < PREVIEW_ZONES.length; zi++) {
+          if (t && t.closest && t.closest(PREVIEW_ZONES[zi][0])) {
+            if (PREVIEW_ZONES[zi][1] !== 'fab') { ev.preventDefault(); ev.stopPropagation(); }
+            try { window.parent.postMessage({ type: 'afhub-preview-pick', zone: PREVIEW_ZONES[zi][1] }, '*'); } catch (_pm) { /* noop */ }
+            return;
+          }
+        }
+      }, true);
+    }
+
     // Personalización por zona (Widget.skin): capa encima del CSS base; vacía = aspecto de siempre.
     if (typeof normalizeWidgetSkin === 'function' && cfg.skin) {
       var skinEdge = normalizeWidgetSkin(cfg.skin).edgeOffset;
@@ -5658,7 +5700,7 @@
       checkIdleFeedback();
       startIdleReengageTimer();
       Object.keys(humanShownIds).forEach(function (id) { ackHumanRead(id); });
-      if (!widgetDisabled) input.focus();
+      if (!widgetDisabled && !cfg.preview) input.focus(); // en el estudio no robar el foco al editor
       persistChatUiOpen(cfg, true);
       notify('onOpen');
       emitEvent('widget_opened');
