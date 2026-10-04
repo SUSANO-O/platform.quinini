@@ -12293,26 +12293,26 @@ label { letter-spacing: -0.003em; }
 /* Tarjetas MUI */
 .dashboard-main .MuiCardContent-root { padding: 1.75rem; }
 
-/* Letra del panel un píxel más grande: todo lo que va en rem (Tailwind, MUI, la mayoría de clases)
-   crece de 16 a 17px base. html[data-theme] solo existe dentro de /dashboard; la landing no cambia. */
-html[data-theme] { font-size: 17px; }
+/* Letra del panel un píxel más grande en escritorio (≥768px; en móvil se queda como estaba): lo que va
+   en rem crece de 16 a 17px base. html[data-theme] solo existe dentro de /dashboard; la landing no cambia. */
+@media (min-width: 768px) { html[data-theme] { font-size: 17px; } }
 
 /* Aurora del escenario del widget en tema claro: mezcla normal y más suave (screen se pierde en claro). */
 html[data-theme='light'] .ws-stage__aurora span { mix-blend-mode: multiply; opacity: 0.45; }
 
 /* Letra del panel +1px también en los tamaños fijos: las clases text-[Npx] y los font-size en línea
    (más de mil). La base en rem ya es 17px (html[data-theme]). El widget va en su iframe: no cambia. */
-.dashboard-main :is(.text-\[9px\], [style*='font-size: 9px']), .dr :is(.text-\[9px\], [style*='font-size: 9px']) { font-size: 10px !important; }
-.dashboard-main :is(.text-\[10px\], [style*='font-size: 10px']), .dr :is(.text-\[10px\], [style*='font-size: 10px']) { font-size: 11px !important; }
-.dashboard-main :is(.text-\[10\.5px\], [style*='font-size: 10.5px']), .dr :is(.text-\[10\.5px\], [style*='font-size: 10.5px']) { font-size: 11.5px !important; }
-.dashboard-main :is(.text-\[11px\], [style*='font-size: 11px']), .dr :is(.text-\[11px\], [style*='font-size: 11px']) { font-size: 12px !important; }
-.dashboard-main :is(.text-\[11\.5px\], [style*='font-size: 11.5px']), .dr :is(.text-\[11\.5px\], [style*='font-size: 11.5px']) { font-size: 12.5px !important; }
-.dashboard-main :is(.text-\[12px\], [style*='font-size: 12px']), .dr :is(.text-\[12px\], [style*='font-size: 12px']) { font-size: 13px !important; }
-.dashboard-main :is(.text-\[12\.5px\], [style*='font-size: 12.5px']), .dr :is(.text-\[12\.5px\], [style*='font-size: 12.5px']) { font-size: 13.5px !important; }
-.dashboard-main :is(.text-\[13px\], [style*='font-size: 13px']), .dr :is(.text-\[13px\], [style*='font-size: 13px']) { font-size: 14px !important; }
-.dashboard-main :is(.text-\[13\.5px\], [style*='font-size: 13.5px']), .dr :is(.text-\[13\.5px\], [style*='font-size: 13.5px']) { font-size: 14.5px !important; }
-.dashboard-main :is(.text-\[14px\], [style*='font-size: 14px']), .dr :is(.text-\[14px\], [style*='font-size: 14px']) { font-size: 15px !important; }
-.dashboard-main :is(.text-\[15px\], [style*='font-size: 15px']), .dr :is(.text-\[15px\], [style*='font-size: 15px']) { font-size: 16px !important; }
+@media (min-width: 768px) { .dashboard-main :is(.text-\[9px\], [style*='font-size: 9px']), .dr :is(.text-\[9px\], [style*='font-size: 9px']) { font-size: 10px !important; } }
+@media (min-width: 768px) { .dashboard-main :is(.text-\[10px\], [style*='font-size: 10px']), .dr :is(.text-\[10px\], [style*='font-size: 10px']) { font-size: 11px !important; } }
+@media (min-width: 768px) { .dashboard-main :is(.text-\[10\.5px\], [style*='font-size: 10.5px']), .dr :is(.text-\[10\.5px\], [style*='font-size: 10.5px']) { font-size: 11.5px !important; } }
+@media (min-width: 768px) { .dashboard-main :is(.text-\[11px\], [style*='font-size: 11px']), .dr :is(.text-\[11px\], [style*='font-size: 11px']) { font-size: 12px !important; } }
+@media (min-width: 768px) { .dashboard-main :is(.text-\[11\.5px\], [style*='font-size: 11.5px']), .dr :is(.text-\[11\.5px\], [style*='font-size: 11.5px']) { font-size: 12.5px !important; } }
+@media (min-width: 768px) { .dashboard-main :is(.text-\[12px\], [style*='font-size: 12px']), .dr :is(.text-\[12px\], [style*='font-size: 12px']) { font-size: 13px !important; } }
+@media (min-width: 768px) { .dashboard-main :is(.text-\[12\.5px\], [style*='font-size: 12.5px']), .dr :is(.text-\[12\.5px\], [style*='font-size: 12.5px']) { font-size: 13.5px !important; } }
+@media (min-width: 768px) { .dashboard-main :is(.text-\[13px\], [style*='font-size: 13px']), .dr :is(.text-\[13px\], [style*='font-size: 13px']) { font-size: 14px !important; } }
+@media (min-width: 768px) { .dashboard-main :is(.text-\[13\.5px\], [style*='font-size: 13.5px']), .dr :is(.text-\[13\.5px\], [style*='font-size: 13.5px']) { font-size: 14.5px !important; } }
+@media (min-width: 768px) { .dashboard-main :is(.text-\[14px\], [style*='font-size: 14px']), .dr :is(.text-\[14px\], [style*='font-size: 14px']) { font-size: 15px !important; } }
+@media (min-width: 768px) { .dashboard-main :is(.text-\[15px\], [style*='font-size: 15px']), .dr :is(.text-\[15px\], [style*='font-size: 15px']) { font-size: 16px !important; } }
 
 /* La paleta B/N del panel (.dashboard-root-texture fija --primary/--brand-primary en #111) se invierte
    en oscuro: lo que era negro pasa a blanco, para que enlaces, pestañas y botones primarios se lean. */

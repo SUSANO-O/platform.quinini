@@ -376,3 +376,21 @@
 .ws-switch.is-on:active .ws-switch__thumb { transform: translateX(9px); }
 .ws-switch:focus-visible { outline: 2px solid var(--ws-accent); outline-offset: 3px; border-radius: 6px; }
 @media (prefers-reduced-motion: reduce) { .ws-switch__thumb, .ws-switch__track { transition: none; } }
+
+/* Móvil: sin el píxel extra de letra (solo escritorio la lleva). */
+@media (max-width: 767px) {
+  .ws-top__title strong { font-size: 14px; }
+  .ws-top__eyebrow { font-size: 10.5px; }
+  .ws-seg button { font-size: 12px; }
+  .ws-save { font-size: 12px; }
+  .ws-primary { font-size: 13px; }
+  .ws-nav__label { font-size: 13px; }
+  .ws-nav__hint { font-size: 11.5px; }
+  .ws-stage__caption { font-size: 11.5px; }
+  .ws-inspector__head h2 { font-size: 15px; }
+  .ws-inspector__head p { font-size: 12px; }
+  .ws-inspector__body .widget-builder-agent-list button p:first-of-type { font-size: 13px !important; }
+  .ws-inspector__body .widget-builder-agent-list button p + p { font-size: 11.5px !important; }
+  .ws-inspector__body .widget-builder-agent-list button span[class*='text-[8.5px]'] { font-size: 10px !important; }
+  .ws-switch { font-size: 11.5px; }
+}
