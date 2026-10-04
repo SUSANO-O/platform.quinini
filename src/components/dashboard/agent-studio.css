@@ -195,3 +195,26 @@
 /* Títulos de las secciones viejas: a escala del editor. */
 .as-body h1, .as-body h2 { font-size: 19px !important; line-height: 1.3 !important; letter-spacing: -0.01em; }
 .as-body h3 { font-size: 16px !important; }
+
+/* Móvil: sin el píxel extra de letra (solo escritorio la lleva). */
+@media (max-width: 767px) {
+  .as-try { font-size: 13px; }
+  .as-chip { font-size: 11px; }
+  .as-menu__pop button { font-size: 13px; }
+  .as-nav__count { font-size: 11px; }
+  .pg-head strong { font-size: 14px; }
+  .pg-head span { font-size: 11.5px; }
+  .pg-chip { font-size: 11.5px; }
+  .pg-as label { font-size: 11.5px; }
+  .pg-as input { font-size: 12.5px; }
+  .pg-as p { font-size: 11px; }
+  .pg-empty p { font-size: 12.5px; }
+  .pg-sugs button { font-size: 12.5px; }
+  .pg-bubble { font-size: 13px; }
+  .pg-trace__tool { font-size: 10.5px; }
+  .pg-trace__nav { font-size: 10.5px; }
+  .pg-trace__ms { font-size: 10.5px; }
+  .pg-input textarea { font-size: 13px; }
+  .as-body h1, .as-body h2 { font-size: 18px !important; }
+  .as-body h3 { font-size: 15px !important; }
+}
