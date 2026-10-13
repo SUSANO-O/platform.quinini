@@ -26,6 +26,25 @@ const SATURATED_INPUT = {
 };
 
 describe('widget-latency-insights', () => {
+  it('agrupa las fases de preparación de la ruta sin streaming como Auth / enrich', () => {
+    const insights = analyzeWidgetLatencyInsights({
+      totalRequests: 40,
+      avgTotalMs: 20000,
+      byPath: [{ path: 'non-stream-direct-mcp', requests: 40, avgTotalMs: 20000 }],
+      byPhase: [
+        { phase: 'direct_mcp', avgMs: 9000, samples: 40 },
+        { phase: 'ticket_deflection', avgMs: 3000, samples: 40 },
+        { phase: 'enrich', avgMs: 1000, samples: 40 },
+        { phase: 'quota', avgMs: 500, samples: 40 },
+        { phase: 'app_map', avgMs: 200, samples: 40 },
+      ],
+    });
+
+    const auth = insights.phaseGroups.find((g) => g.key === 'auth');
+    expect(auth).toBeDefined();
+    expect(insights.phaseGroups.find((g) => g.key === 'other')).toBeUndefined();
+  });
+
   it('detecta hub como cuello dominante por path', () => {
     const insights = analyzeWidgetLatencyInsights({
       totalRequests: 100,

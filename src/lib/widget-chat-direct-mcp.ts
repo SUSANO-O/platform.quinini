@@ -47,11 +47,36 @@ function clientAgentWantsHubspotWidgetAutoCapture(ca: {
   return HUBSPOT_WIDGET_AUTO_TOOL_IDS.every((id) => ids.includes(id));
 }
 
+/** Tokens reales que reporta el motor (suma de todas las llamadas al modelo del turno). */
+export type HubModelUsage = {
+  model: string;
+  provider: string;
+  inputTokens: number;
+  outputTokens: number;
+};
+
 export type DirectMcpWidgetChatResult = {
   reply: string;
   toolsUsed?: string[];
   toolRounds?: number;
+  usage?: HubModelUsage;
 };
+
+/** Valida `usage` del motor; undefined si falta o viene malformado (motor viejo → se estima como antes). */
+export function parseHubModelUsage(raw: unknown): HubModelUsage | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const u = raw as Record<string, unknown>;
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : null);
+  const inputTokens = num(u.inputTokens);
+  const outputTokens = num(u.outputTokens);
+  if (inputTokens === null || outputTokens === null) return undefined;
+  return {
+    model: typeof u.model === 'string' ? u.model.slice(0, 120) : '',
+    provider: typeof u.provider === 'string' ? u.provider.slice(0, 60) : '',
+    inputTokens,
+    outputTokens,
+  };
+}
 
 /**
  * Intenta responder vía MCP del hub (ejecución real de webhook). Devuelve null si no aplica o falla.
@@ -354,6 +379,7 @@ export async function tryServeWidgetChatViaHubMcp(params: {
           reply?: string;
           toolsUsed?: string[];
           toolRounds?: number;
+          usage?: unknown;
           code?: string;
         };
         try {
@@ -368,6 +394,7 @@ export async function tryServeWidgetChatViaHubMcp(params: {
             reply: evt.reply,
             toolsUsed: evt.toolsUsed,
             toolRounds: evt.toolRounds,
+            usage: parseHubModelUsage(evt.usage),
           };
         } else if (evt.type === 'error') {
           logWidgetFlow('❌', 'direct:hubStream', 'error SSE del hub', {
@@ -406,7 +433,7 @@ export async function tryServeWidgetChatViaHubMcp(params: {
 
   let json: {
     success?: boolean;
-    data?: { text?: string; toolsUsed?: string[]; toolRounds?: number };
+    data?: { text?: string; toolsUsed?: string[]; toolRounds?: number; usage?: unknown };
   };
   try {
     json = JSON.parse(rawText) as typeof json;
@@ -433,5 +460,6 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     reply: data.text,
     toolsUsed: data.toolsUsed,
     toolRounds: data.toolRounds,
+    usage: parseHubModelUsage(data.usage),
   };
 }

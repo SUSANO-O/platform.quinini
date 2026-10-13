@@ -3,6 +3,7 @@ import {
   canReuseMongoConnection,
   isVercelRuntime,
   markMongoConnectFailed,
+  MONGO_MAX_IDLE_MS,
   mongoServerlessOptions,
 } from '../db/connection';
 
@@ -29,6 +30,20 @@ describe('mongoServerlessOptions', () => {
     const opts = mongoServerlessOptions();
     expect(opts.maxPoolSize).toBeGreaterThan(1);
     expect(opts.bufferCommands).toBe(false);
+  });
+});
+
+describe('mongoServerlessOptions — sockets ociosos', () => {
+  it('descarta sockets ociosos (evita colgarse en uno muerto tras congelar la función)', () => {
+    for (const vercel of ['1', undefined]) {
+      if (vercel) process.env.VERCEL = vercel;
+      else delete process.env.VERCEL;
+      const opts = mongoServerlessOptions();
+      expect(opts.maxIdleTimeMS).toBe(MONGO_MAX_IDLE_MS);
+      // Debe ser menor que el hueco de inactividad que disparaba el cuelgue (≥5 min).
+      expect(opts.maxIdleTimeMS).toBeLessThan(5 * 60_000);
+      expect(opts.maxIdleTimeMS).toBeGreaterThan(0);
+    }
   });
 });
 
