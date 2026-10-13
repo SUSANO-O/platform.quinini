@@ -102,6 +102,22 @@ function classifyPath(path: string): PathGroupKey {
   return 'other';
 }
 
+/** Preparación previa al LLM (Mongo, enrich, identidad, cuota…): todo cuenta como "Auth / enrich". */
+const PREP_PHASES = new Set([
+  'auth',
+  'enrich',
+  'identity',
+  'vision_ctx',
+  'human_guard',
+  'assist_ctx',
+  'quota',
+  'plan_check',
+  'ticket_deflection',
+  'app_map',
+  'strict_purpose',
+  'ab_variant',
+]);
+
 function classifyPhase(phase: string): PhaseGroupKey {
   const p = phase.toLowerCase();
   if (p === 'hub' || p === 'hints' || p === 'resolve') return 'hub';
@@ -110,7 +126,7 @@ function classifyPhase(phase: string): PhaseGroupKey {
   }
   if (p === 'direct_mcp' || p === 'mcp' || p === 'tools') return 'direct_mcp';
   if (p === 'infer_direct' || p === 'model' || p === 'skills' || p === 'rag') return 'infer_direct';
-  if (p === 'auth' || p === 'human_guard' || p === 'enrich' || p === 'strict_purpose' || p === 'ab_variant') {
+  if (PREP_PHASES.has(p)) {
     return 'auth';
   }
   if (p === 'reveal') return 'reveal';

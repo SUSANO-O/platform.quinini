@@ -384,6 +384,7 @@ export async function POST(req: NextRequest) {
           );
         }
         faqTrackOwnerId = w.userId;
+        latencyTrace.mark('auth');
 
         try {
           rawBody = await enrichWidgetChatBody({
@@ -400,6 +401,7 @@ export async function POST(req: NextRequest) {
         } catch (enrichErr) {
           console.warn('[widget/chat] enrich body skipped:', enrichErr);
         }
+        latencyTrace.mark('enrich');
 
         const identityResult = await resolveVerifiedWidgetIdentity({
           widgetId: w.id,
@@ -410,6 +412,7 @@ export async function POST(req: NextRequest) {
         });
         verifiedIdentity = identityResult.claims;
         identityStatus = identityResult.status;
+        latencyTrace.mark('identity');
 
         const visionWidgetId = resolvedWidgetId || w.id;
         if (imageEnrichment && visionWidgetId && parsedSessionId) {
@@ -462,6 +465,7 @@ export async function POST(req: NextRequest) {
             console.warn('[widget/chat] vision context finalize skipped:', visionErr);
           }
         }
+        latencyTrace.mark('vision_ctx');
 
         // ── Guard modo humano (defensa server-side) ──────────────────────────
         // Si un agente humano está atendiendo esta sesión, NO ejecutar el AI:
@@ -502,6 +506,7 @@ export async function POST(req: NextRequest) {
             console.warn('[widget/chat] human-mode guard skipped:', hmErr);
           }
         }
+        latencyTrace.mark('human_guard');
 
         try {
           const agentOr = [
@@ -560,6 +565,7 @@ export async function POST(req: NextRequest) {
         } catch (mergeErr) {
           console.warn('[widget/chat] merge hubspotAutoCaptureContacts skipped:', mergeErr);
         }
+        latencyTrace.mark('assist_ctx');
 
         // ── Quota check ──────────────────────────────────────────────────
         try {
@@ -595,6 +601,7 @@ export async function POST(req: NextRequest) {
           // pero loggeamos para que las alertas de infraestructura lo detecten
           console.error('[widget/chat] quota check failed (fail-open):', quotaErr);
         }
+        latencyTrace.mark('quota');
 
         // ── Sub-agent limit check ─────────────────────────────────────────
         try {
@@ -649,6 +656,7 @@ export async function POST(req: NextRequest) {
         } catch {
           /* fail-open: si no podemos verificar, dejamos pasar */
         }
+        latencyTrace.mark('plan_check');
 
         // ── Formulario de ticket + encuesta de deflection, por código ──────
         // Lógica de decisión centralizada en ticket-deflection-flow.ts (ver
@@ -664,6 +672,7 @@ export async function POST(req: NextRequest) {
           traceId,
           logPrefix: 'chat',
         });
+        latencyTrace.mark('ticket_deflection');
 
         if (ticketDeflection.intercepted) {
           const text = ticketDeflection.text;
@@ -912,7 +921,9 @@ export async function POST(req: NextRequest) {
             agentId: parsedAgentId,
           });
           const directStartedAt = Date.now();
-          const widgetAppMap = w.id ? await getWidgetAppMap(w.id) : [];
+          const widgetAppMap = w.id
+            ? await latencyTrace.span('app_map', () => getWidgetAppMap(w.id))
+            : [];
           const direct = await latencyTrace.span('direct_mcp', () =>
             tryServeWidgetChatViaHubMcp({
               widgetTokenStartsWithWt: true,
@@ -970,8 +981,11 @@ export async function POST(req: NextRequest) {
               latencyMs: Date.now() - directStartedAt,
               toolRounds: direct.toolRounds ?? 0,
               toolsUsed: direct.toolsUsed ?? [],
-              outputTokens: estimateTokens(direct.reply || ''),
-              inputTokens: estimateTokens(parsedMessage || ''),
+              model: direct.usage?.model,
+              provider: direct.usage?.provider,
+              // Tokens reales del motor; si es un motor viejo sin `usage`, se estima como antes.
+              outputTokens: direct.usage?.outputTokens ?? estimateTokens(direct.reply || ''),
+              inputTokens: direct.usage?.inputTokens ?? estimateTokens(parsedMessage || ''),
               ok: true,
             });
             finishNonStreamTrace(latencyTrace, 'non-stream-direct-mcp', {

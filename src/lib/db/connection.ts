@@ -30,12 +30,23 @@ export function isVercelRuntime(): boolean {
   return process.env.VERCEL === '1';
 }
 
+/**
+ * Sockets ociosos más viejos que esto se descartan al pedirlos del pool y se abre
+ * uno nuevo. Sin esto, tras congelarse la función (Vercel entre requests, Cloud Run
+ * con CPU throttled) la red olvida la conexión TCP pero el driver la sigue creyendo
+ * viva: el primer request después de ≥5 min quieto se colgaba ~7,8 s en la fase
+ * `auth` (medido en prod: 100 % de esos turnos). Reconectar en la misma región
+ * cuesta cientos de ms.
+ */
+export const MONGO_MAX_IDLE_MS = 30_000;
+
 export function mongoServerlessOptions() {
   const onVercel = isVercelRuntime();
   return {
     bufferCommands: false,
     maxPoolSize: onVercel ? 1 : 10,
     minPoolSize: 0,
+    maxIdleTimeMS: MONGO_MAX_IDLE_MS,
     serverSelectionTimeoutMS: 5000,
     socketTimeoutMS: 45000,
   } as const;

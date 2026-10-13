@@ -98,6 +98,8 @@ function logStreamOpsMetric(p: {
   reply: string;
   toolsUsed?: string[];
   model?: string;
+  provider?: string;
+  latencyMs?: number;
   inputTokens?: number | null;
   outputTokens?: number | null;
 }): void {
@@ -113,6 +115,8 @@ function logStreamOpsMetric(p: {
     toolsUsed: tools,
     toolRounds: tools.length ? 1 : 0,
     model: p.model,
+    provider: p.provider,
+    latencyMs: p.latencyMs,
     outputTokens: p.outputTokens ?? estimateTokens(p.reply || ''),
     inputTokens: p.inputTokens ?? null,
     ok: true,
@@ -870,6 +874,7 @@ export async function POST(req: NextRequest) {
         if (widgetToken.startsWith('wt_') && faqTrackOwnerId && parsedAgentIdLocal) {
           try {
             const widgetAppMap = resolvedWidgetId ? await getWidgetAppMap(resolvedWidgetId) : [];
+            const directMcpStartedAt = Date.now();
             const directMcp = await latencyTrace.span('direct_mcp', () =>
               tryServeWidgetChatViaHubMcp({
                 widgetTokenStartsWithWt: true,
@@ -952,11 +957,17 @@ export async function POST(req: NextRequest) {
                 path: 'stream-direct-mcp',
                 reply: directMcp.reply,
                 toolsUsed: directMcp.toolsUsed,
+                latencyMs: Date.now() - directMcpStartedAt,
+                model: directMcp.usage?.model,
+                provider: directMcp.usage?.provider,
+                inputTokens: directMcp.usage?.inputTokens ?? null,
+                outputTokens: directMcp.usage?.outputTokens ?? null,
               });
               finalizeWidgetChatTrace(latencyTrace, {
                 ok: true,
                 replyLen: directMcp.reply.length,
                 toolsUsed: directMcp.toolsUsed,
+                inputTokens: directMcp.usage?.inputTokens ?? null,
               });
               return;
             }
