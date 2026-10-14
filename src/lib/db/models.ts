@@ -3,7 +3,7 @@ import mongoose, { Schema } from 'mongoose';
 // ── USERS ────────────────────────────────────────────────────────────────────
 
 const UserSchema = new Schema({
-  email:             { type: String, required: true, unique: true, lowercase: true, trim: true },
+  email:             { type: String, required: true, lowercase: true, trim: true },
   passwordHash:      { type: String, required: true },
   hashVersion:       { type: String, enum: ['v1-sha256', 'v2-bcrypt'], default: 'v1-sha256' },
   displayName:       { type: String, default: null },
@@ -67,6 +67,13 @@ const UserSchema = new Schema({
 // Password reset and email verify token lookups — sparse so null docs are excluded
 UserSchema.index({ resetToken: 1 }, { sparse: true });
 UserSchema.index({ verifyToken: 1 }, { sparse: true });
+// Email único solo entre docs que lo tienen: la colección `users` es compartida con otra app
+// (LifeOS: `username`, sin `email`) y con `unique` a secas sus docs chocaban como "sin email"
+// y el índice nunca llegaba a crearse en prod.
+UserSchema.index(
+  { email: 1 },
+  { unique: true, partialFilterExpression: { email: { $type: 'string' } } },
+);
 
 // ── SUBSCRIPTIONS ────────────────────────────────────────────────────────────
 

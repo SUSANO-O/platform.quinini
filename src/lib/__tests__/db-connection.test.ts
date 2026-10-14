@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   canReuseMongoConnection,
+  isManagedProdRuntime,
   isVercelRuntime,
   markMongoConnectFailed,
   MONGO_MAX_IDLE_MS,
@@ -63,5 +64,44 @@ describe('markMongoConnectFailed', () => {
     markMongoConnectFailed(cache);
     expect(cache.conn).toBeNull();
     expect(cache.promise).toBeNull();
+  });
+});
+
+describe('mongoServerlessOptions — sin crear colecciones/índices al arrancar en prod', () => {
+  const original = { VERCEL: process.env.VERCEL, K_SERVICE: process.env.K_SERVICE };
+
+  afterEach(() => {
+    for (const [k, v] of Object.entries(original)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  });
+
+  it('en Vercel: autoIndex y autoCreate apagados (no encolar 138 órdenes delante del chat)', () => {
+    process.env.VERCEL = '1';
+    delete process.env.K_SERVICE;
+    expect(isManagedProdRuntime()).toBe(true);
+    const opts = mongoServerlessOptions();
+    expect(opts.autoIndex).toBe(false);
+    expect(opts.autoCreate).toBe(false);
+  });
+
+  it('en Cloud Run (K_SERVICE): también apagados', () => {
+    delete process.env.VERCEL;
+    process.env.K_SERVICE = 'platform-quinini';
+    expect(isManagedProdRuntime()).toBe(true);
+    const opts = mongoServerlessOptions();
+    expect(opts.autoIndex).toBe(false);
+    expect(opts.autoCreate).toBe(false);
+    expect(opts.maxPoolSize).toBeGreaterThan(1);
+  });
+
+  it('en local/Docker: se mantienen (el Mongo local crea sus índices solo)', () => {
+    delete process.env.VERCEL;
+    delete process.env.K_SERVICE;
+    expect(isManagedProdRuntime()).toBe(false);
+    const opts = mongoServerlessOptions();
+    expect(opts.autoIndex).toBe(true);
+    expect(opts.autoCreate).toBe(true);
   });
 });

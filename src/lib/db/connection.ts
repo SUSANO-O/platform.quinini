@@ -40,8 +40,21 @@ export function isVercelRuntime(): boolean {
  */
 export const MONGO_MAX_IDLE_MS = 30_000;
 
+/** Vercel o Cloud Run (`K_SERVICE` lo define Cloud Run). Docker/dev local: false. */
+export function isManagedProdRuntime(): boolean {
+  return isVercelRuntime() || Boolean(process.env.K_SERVICE);
+}
+
+/**
+ * En prod Mongoose NO crea colecciones ni índices al arrancar. Con `autoCreate`/`autoIndex`
+ * cada instancia nueva mandaba 36 `create` + 102 `createIndexes` (ya existentes) y, con el
+ * pool de 1 socket de Vercel, las queries del chat esperaban detrás: ~8-9 s de preparación
+ * en cada arranque en frío (medido con `npm run bench:db-cold`: 18,7 s → 0,6 s en 8 queries).
+ * Índice nuevo en un schema → crearlo con `npm run db:indexes`.
+ */
 export function mongoServerlessOptions() {
   const onVercel = isVercelRuntime();
+  const managed = isManagedProdRuntime();
   return {
     bufferCommands: false,
     maxPoolSize: onVercel ? 1 : 10,
@@ -49,6 +62,8 @@ export function mongoServerlessOptions() {
     maxIdleTimeMS: MONGO_MAX_IDLE_MS,
     serverSelectionTimeoutMS: 5000,
     socketTimeoutMS: 45000,
+    autoIndex: !managed,
+    autoCreate: !managed,
   } as const;
 }
 

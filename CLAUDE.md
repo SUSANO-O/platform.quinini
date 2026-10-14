@@ -32,6 +32,10 @@ Stack local completo (con AIBackHub + API REST): `../scripts/botiva-local-up.sh`
   `public/assist.js` ni `public/sdk/**` a mano — están minificados y se regeneran.
 - **Mongo**: modelos en `src/lib/db/models.ts` (colección `agentflowhub_landing`, la misma
   que usan AgentFlowhub, API-REST y cron). `connectDB()` desde `src/lib/db/connection.ts`.
+- **En prod Mongoose no crea índices ni colecciones** (`autoIndex`/`autoCreate` apagados en
+  Vercel y Cloud Run: encolaban 138 órdenes delante del chat en cada arranque en frío, ~8 s).
+  **Índice nuevo en un schema → `npm run db:indexes`** (`-- --check` para solo mirar).
+  `npm run bench:db-cold` mide frío vs caliente; si vuelve a alertar, algo se encola al arrancar.
 - **Auth de dashboard**: cookie `afhub_session` → `verifySessionToken(token)` de `src/lib/auth.ts`.
   Auth de widgets: token `wt_…` en el campo `afhubToken` del `Widget`.
 - **Chat del widget**: `/api/widget/chat` reenvía a AgentFlowhub (`AGENTFLOWHUB_URL`),
