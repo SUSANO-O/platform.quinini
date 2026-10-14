@@ -362,6 +362,12 @@ const ClientAgentSchema = new Schema({
   strictPurposeOnly: { type: Boolean, default: true },
   /** Tras cada turno del widget: buscar/crear contacto en HubSpot si hay nombre + email o tel. CO (requiere tools HubSpot). */
   hubspotAutoCaptureContacts: { type: Boolean, default: false },
+  /**
+   * `false` → el chat de este agente no ofrece ni ejecuta sus tareas programadas (cron_list/cron_run);
+   * siguen corriendo y se gestionan desde el panel. Para widgets públicos cuyas tareas son del dueño.
+   * Sin valor = comportamiento de siempre. Lo lee matias-backend (landing-cron-config.ts).
+   */
+  chatCronTools: { type: Boolean },
   /** IDs habilitados (derivado de skillsConfig al guardar; compat legacy). */
   skills:          { type: [String], default: [] },
   /** Fuente de verdad runtime: prompt/tools/settings por skill (catálogo agent-skills-catalog.ts). */
