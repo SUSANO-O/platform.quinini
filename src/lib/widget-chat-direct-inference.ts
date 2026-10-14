@@ -275,9 +275,8 @@ export async function tryServeWidgetChatViaDirectInference(params: {
   if (!skipHeavy && (skills.length > 0 || skillsConfig.length > 0)) {
     params.onStatus?.(
       'skills',
-      skills.length === 1
-        ? `Aplicando habilidad: ${skills[0]}…`
-        : `Aplicando ${skills.length} habilidades del agente…`,
+      // Sin ids internos de habilidades en el SSE (el visitante los vería en la red).
+      'Pensando la respuesta…',
     );
     try {
       const skillRes = await hubFetch(

@@ -3812,31 +3812,33 @@
     }
 
     /** Alineado con widget-chat-status.ts — fallback cuando aún no llegó evt.message. */
-    function widgetStatusCaptionForPhase(phase, detail) {
-      var p = String(phase || '').trim();
-      var d = typeof detail === 'string' ? detail.trim() : '';
-      switch (p) {
-        case 'prepare': return 'Preparando tu solicitud…';
-        case 'validate': return 'Verificando sesión…';
-        case 'vision': return 'Analizando captura…';
-        case 'enrich': return 'Cargando contexto de conversación…';
-        case 'resolve': return 'Identificando agente…';
+    /**
+     * Texto sencillo para el visitante según la fase. NUNCA usa el texto del servidor ni nombres
+     * de tools/integraciones (Slack, MySQL, Mongo…) ni jerga ("agente", "tools", "RAG").
+     */
+    function widgetStatusCaptionForPhase(phase) {
+      switch (String(phase || '').trim()) {
+        case 'prepare': return 'Leyendo tu mensaje…';
+        case 'vision': return 'Mirando tu imagen…';
+        case 'enrich': return 'Revisando la conversación…';
+        case 'validate':
+        case 'resolve':
         case 'skills':
-        case 'skill': return d ? 'Aplicando habilidad: ' + d + '…' : 'Aplicando habilidades del agente…';
-        case 'rag': return 'Consultando documentos indexados…';
-        case 'tools': return d ? 'Usando ' + d + '…' : 'Ejecutando herramientas…';
-        case 'mcp': return 'Conectando con integraciones…';
-        case 'model': return 'Generando respuesta…';
-        case 'hub': return 'Consultando al asistente…';
-        case 'triage': return 'Analizando tu consulta…';
-        case 'handoff': return d ? 'Conectando con ' + d + '…' : 'Derivando a un especialista…';
-        case 'parallel': return 'Consultando especialistas en paralelo…';
-        case 'pipeline': return 'Recopilando información…';
-        case 'content': return 'Recopilando información del producto…';
-        case 'creative': return d ? 'Generando creativo con ' + d + '…' : 'Generando creativo…';
-        case 'synthesize': return 'Preparando respuesta unificada…';
+        case 'skill':
+        case 'hub': return 'Pensando la respuesta…';
+        case 'triage': return 'Entendiendo tu pregunta…';
+        case 'rag': return 'Buscando la información…';
+        case 'tools':
+        case 'mcp': return 'Consultando la información…';
+        case 'handoff': return 'Consultando con un especialista…';
+        case 'parallel': return 'Consultando con especialistas…';
+        case 'pipeline':
+        case 'content': return 'Reuniendo la información…';
+        case 'creative': return 'Creando…';
+        case 'synthesize':
+        case 'model':
         case 'start':
-        default: return 'Generando respuesta…';
+        default: return 'Escribiendo la respuesta…';
       }
     }
 
@@ -3857,59 +3859,25 @@
       return widgetStatusCaptionForPhase(phase, detail);
     }
 
+    /** Modo debug: mismo título que ve el visitante (una sola tabla de textos). */
     function thinkingCopyFromStatus(statusLabel, statusPhase) {
-      var s = sanitizeThinkingStatusText(statusLabel);
-      var phase = String(statusPhase || '').trim();
-      if (phase === 'prepare') return { title: 'Preparando…', sub: s || 'Organizando tu solicitud' };
-      if (phase === 'enrich') return { title: 'Cargando contexto…', sub: s || 'Recuperando la conversación' };
-      if (phase === 'vision') return { title: 'Analizando imagen…', sub: s || 'Procesando la captura' };
-      if (phase === 'resolve') return { title: 'Identificando agente…', sub: s || 'Conectando con tu asistente' };
-      if (phase === 'skills' || phase === 'skill') return { title: 'Aplicando habilidades…', sub: s || 'Configurando el agente' };
-      if (phase === 'rag') return { title: 'Consultando documentos…', sub: s || 'Buscando en la base de conocimiento' };
-      if (phase === 'mcp' || phase === 'tools') return { title: 'Usando integraciones…', sub: s || 'Ejecutando herramientas conectadas' };
-      if (phase === 'model') return { title: 'Generando respuesta…', sub: s || 'El modelo está redactando' };
-      if (phase === 'hub') return { title: 'Consultando al asistente…', sub: s || 'Procesando en el servidor' };
-      if (phase === 'triage') return { title: 'Analizando tu consulta…', sub: s || 'Determinando el mejor enfoque' };
-      if (phase === 'handoff') return { title: 'Derivando a especialista…', sub: s || 'Transfiriendo la consulta' };
-      if (phase === 'parallel') return { title: 'Consultando especialistas…', sub: s || 'Varios agentes en paralelo' };
-      if (phase === 'pipeline' || phase === 'content') return { title: 'Recopilando información…', sub: s || 'Pipeline multiagente' };
-      if (phase === 'creative') return { title: 'Generando creativo…', sub: s || 'Agente creativo en acción' };
-      if (phase === 'synthesize') return { title: 'Unificando respuesta…', sub: s || 'Sintetizando resultados' };
-      if (!s && !phase) return { title: widgetStatusCaptionForPhase('start'), sub: '' };
-      if (!s) return { title: widgetStatusCaptionForPhase(phase), sub: '' };
-      var lower = s.toLowerCase();
-      if (lower.indexOf('subiendo') >= 0) return { title: 'Subiendo archivo…', sub: s };
-      if (lower.indexOf('captura') >= 0 || lower.indexOf('analizando captura') >= 0) return { title: 'Analizando imagen…', sub: s };
-      if (lower.indexOf('habilidad') >= 0 || lower.indexOf('skills') >= 0) return { title: 'Aplicando habilidades…', sub: s };
-      if (lower.indexOf('documentos') >= 0 || lower.indexOf('indexados') >= 0) return { title: 'Consultando documentos…', sub: s };
-      if (lower.indexOf('integraciones') >= 0 || lower.indexOf('herramienta') >= 0) return { title: 'Usando integraciones…', sub: s };
-      if (lower.indexOf('especialist') >= 0 || lower.indexOf('paralelo') >= 0) return { title: 'Consultando especialistas…', sub: s };
-      if (lower.indexOf('recopil') >= 0) return { title: 'Recopilando información…', sub: s };
-      if (lower.indexOf('consultando al asistente') >= 0) return { title: 'Consultando al asistente…', sub: s };
-      if (lower.indexOf('analizando tu consulta') >= 0) return { title: 'Analizando tu consulta…', sub: s };
-      if (lower.indexOf('derivando') >= 0 || lower.indexOf('conectando con') >= 0) return { title: 'Derivando a especialista…', sub: s };
-      if (lower.indexOf('unificada') >= 0 || lower.indexOf('síntesis') >= 0 || lower.indexOf('sintesis') >= 0) return { title: 'Redactando respuesta…', sub: s };
-      if (lower.indexOf('preparando') >= 0) return { title: 'Preparando…', sub: s };
-      if (lower.indexOf('contexto') >= 0) return { title: 'Cargando contexto…', sub: s };
-      if (lower.indexOf('generando') >= 0) return { title: 'Generando respuesta…', sub: s };
-      return { title: s, sub: '' };
+      return { title: resolveThinkingDisplay(statusLabel, statusPhase).caption, sub: '' };
     }
 
     /** Líneas que rotan en el footer gris (detalle SSE + copy de espera). */
-    function thinkingRotationLines(phase, serverMsg) {
-      var base = sanitizeThinkingStatusText(serverMsg) || widgetStatusCaptionForPhase(phase);
+    /** Líneas que rotan en el footer gris: siempre copy propio (el texto del servidor puede traer nombres técnicos). */
+    function thinkingRotationLines(phase) {
+      var base = widgetStatusCaptionForPhase(phase);
       var extras = {
-        prepare: ['Organizando tu mensaje…', 'Un momento…'],
-        enrich: ['Revisando lo que ya hablamos…', 'Ordenando el hilo…'],
-        validate: ['Confirmando la sesión…'],
-        resolve: ['Conectando con tu asistente…'],
-        hub: ['Pensando la respuesta…', 'Procesando tu mensaje…', 'Ya casi…'],
-        model: ['Redactando…', 'Afinando la respuesta…', 'Casi listo…'],
-        rag: ['Buscando en la base de conocimiento…', 'Revisando documentos…'],
-        tools: ['Consultando datos…', 'Un segundo más…'],
-        mcp: ['Consultando integraciones…', 'Recuperando información…'],
-        triage: ['Viendo cómo ayudarte mejor…', 'Un momento…'],
-        start: ['Pensando la respuesta…', 'Ya casi…'],
+        prepare: ['Un momento…'],
+        enrich: ['Un momento…'],
+        hub: ['Un momento…', 'Ya casi…'],
+        model: ['Preparando la respuesta…', 'Casi listo…'],
+        rag: ['Revisando la información…', 'Un segundo más…'],
+        tools: ['Revisando los datos…', 'Un segundo más…'],
+        mcp: ['Revisando los datos…', 'Un segundo más…'],
+        triage: ['Un momento…'],
+        start: ['Un momento…', 'Ya casi…'],
       };
       var more = extras[phase] || extras.hub;
       var lines = [base];
@@ -3957,14 +3925,17 @@
       if (!el) return;
       var capEl = el.querySelector('.afhub-thinking-caption');
       if (!capEl || capEl.getAttribute('data-slow') === '1') return;
+      // Mostrando un proceso concreto ("Creando tu ticket…"): no rotar encima.
+      if (el.getAttribute('data-process')) return;
       var elapsed = Date.now() - typingStartedAt;
       var rotElapsed = Date.now() - (thinkingRotateStartedAt || typingStartedAt);
       var rawPhase = el.getAttribute('data-phase') || '';
       var phase = visualThinkingPhase(rawPhase, elapsed);
       var server = capEl.getAttribute('data-server') || '';
       if (phase !== rawPhase) server = widgetStatusCaptionForPhase(phase);
-      var lines = thinkingRotationLines(phase, server);
-      var idx = Math.floor(rotElapsed / 1100) % lines.length;
+      var lines = thinkingRotationLines(phase);
+      // 2.8 s por línea: a 1.1 s el texto cambiaba tan seguido que se percibía como parpadeo.
+      var idx = Math.floor(rotElapsed / 2800) % lines.length;
       var rotKey = String(idx) + ':' + phase;
       if (capEl.getAttribute('data-rot') === rotKey) return;
       capEl.setAttribute('data-rot', rotKey);
@@ -3988,36 +3959,74 @@
       pulseThinkingCard(el, before, capEl.textContent);
     }
 
+    /** Título corto (negrita) de la tarjeta: pocas palabras, humanas, sin jerga técnica. */
     function thinkingFooterState(statusPhase) {
-      var phase = String(statusPhase || '').trim();
-      if (phase === 'rag') return 'Consultando docs';
-      if (phase === 'tools') return 'Ejecutando tools';
-      if (phase === 'mcp') return 'Integraciones';
-      if (phase === 'model') return 'Generando';
-      if (phase === 'parallel') return 'Especialistas';
-      if (phase === 'handoff') return 'Delegando';
-      if (phase === 'pipeline' || phase === 'content') return 'Recopilando';
-      if (phase === 'creative') return 'Creativo';
-      if (phase === 'synthesize') return 'Unificando';
-      if (phase === 'vision') return 'Analizando imagen';
-      if (phase === 'skills' || phase === 'skill') return 'Habilidades';
-      if (phase === 'hub' || phase === 'resolve') return 'Conectando';
-      if (phase === 'prepare' || phase === 'enrich') return 'Preparando';
-      if (phase === 'triage') return 'Analizando';
-      if (phase === 'validate') return 'Validando';
-      return '';
+      switch (String(statusPhase || '').trim()) {
+        case 'vision': return 'Mirando tu imagen';
+        case 'rag':
+        case 'tools':
+        case 'mcp':
+        case 'pipeline':
+        case 'content': return 'Buscando información';
+        case 'model':
+        case 'synthesize': return 'Escribiendo';
+        case 'handoff':
+        case 'parallel': return 'Consultando a un especialista';
+        case 'creative': return 'Creando';
+        case 'prepare':
+        case 'enrich':
+        case 'validate':
+        case 'resolve':
+        case 'skills':
+        case 'skill':
+        case 'hub':
+        case 'triage': return 'Pensando';
+        default: return '';
+      }
     }
 
     /** Caption negra = etapa corta; footer gris = mensaje SSE (detalle). */
+    /**
+     * Frases de "qué estoy haciendo" que el servidor puede mandar en la fase tools (espejo de
+     * describeToolProcessForWidget en matias-backend). Solo se muestran si están en esta lista:
+     * así nunca se cuela un nombre técnico (Slack, MySQL, Mongo…).
+     */
+    var WIDGET_PROCESS_PHRASES = [
+      'Guardando tus datos de contacto…', 'Creando tu ticket de soporte…', 'Revisando el estado de tu ticket…',
+      'Agregando tu comentario al ticket…', 'Actualizando tu ticket…', 'Revisando el inventario…',
+      'Enviando tu solicitud…', 'Ejecutando la tarea…', 'Revisando las tareas programadas…',
+      'Revisando tu información…', 'Contando tus registros…', 'Buscando tu registro…', 'Registrando tus datos…',
+      'Enviando el correo…', 'Revisando el correo…', 'Agendando tu cita…', 'Actualizando la agenda…',
+      'Revisando la agenda…', 'Buscando en internet…', 'Leyendo la página…', 'Recordando lo que hablamos…',
+      'Guardando lo que me contaste…', 'Preparando la navegación…', 'Buscando la ubicación…', 'Consultando el clima…',
+      'Revisando tu cuenta…', 'Consultando la información…', 'Revisando tus alertas…', 'Contando tus alertas…',
+      'Revisando tus recorridos…', 'Contando tus recorridos…', 'Buscando dónde está tu vehículo…',
+      'Revisando tus vehículos…', 'Contando tus vehículos…', 'Revisando tus casos de soporte…',
+      'Contando tus casos de soporte…', 'Revisando tus pedidos y pagos…', 'Contando tus pedidos…',
+      'Revisando tu plan…', 'Revisando tus conversaciones…', 'Contando tus conversaciones…', 'Revisando tus agentes…',
+      'Contando tus agentes…', 'Revisando tus widgets…', 'Contando tus widgets…', 'Revisando el catálogo…',
+      'Contando productos…', 'Revisando los datos de tu cuenta…', 'Contando registros de tu cuenta…',
+    ];
+
+    function processPhraseFor(statusLabel, phase) {
+      if (phase !== 'tools' && phase !== 'mcp') return '';
+      var t = String(statusLabel || '').trim();
+      return WIDGET_PROCESS_PHRASES.indexOf(t) >= 0 ? t : '';
+    }
+
+    /** Caption negra = etapa corta; footer gris = detalle. Ignora el texto del servidor (puede nombrar tools). */
     function resolveThinkingDisplay(statusLabel, statusPhase) {
-      var server = sanitizeThinkingStatusText(statusLabel);
       var phase = String(statusPhase || '').trim();
-      var detail = server || widgetStatusCaptionForPhase(phase);
+      var proc = processPhraseFor(statusLabel, phase);
+      if (proc) {
+        return { caption: proc.replace(/…$/, ''), sub: '', footer: 'Un momento…', detail: proc, process: proc };
+      }
+      var detail = widgetStatusCaptionForPhase(phase);
       var stage = thinkingFooterState(phase);
       if (stage) {
-        return { caption: stage, sub: '', footer: detail, detail: detail };
+        return { caption: stage, sub: '', footer: detail, detail: detail, process: '' };
       }
-      return { caption: detail, sub: '', footer: '', detail: detail };
+      return { caption: detail, sub: '', footer: '', detail: detail, process: '' };
     }
 
     /** @deprecated use resolveThinkingDisplay */
@@ -4090,6 +4099,8 @@
     function applyThinkingDisplay(el, statusLabel, statusPhase) {
       if (!el) return;
       var display = resolveThinkingDisplay(statusLabel, statusPhase);
+      if (display.process) el.setAttribute('data-process', display.process);
+      else el.removeAttribute('data-process');
       var capEl = el.querySelector('.afhub-thinking-caption');
       var subEl = el.querySelector('.afhub-thinking-sub');
       var footerEl = el.querySelector('.afhub-thinking-footer');
@@ -4240,6 +4251,7 @@
 
     function renderThinkingCard(el, statusLabel, statusPhase) {
       var display = resolveThinkingDisplay(statusLabel, statusPhase);
+      if (display.process) el.setAttribute('data-process', display.process);
       // El glyph vive junto al bloque de los DOS textos (no solo la caption) para
       // que "align-items:center" de .afhub-thinking-row lo centre verticalmente
       // entre caption y footer, en vez de quedar pegado arriba solo con la caption.
@@ -4261,14 +4273,33 @@
         '</div>';
     }
 
+    /**
+     * Las fases llegan muy seguidas (preparar → pensar → buscar en <1 s) y cada una cambiaba el
+     * título: parpadeo. El título se mantiene al menos THINKING_MIN_TITLE_MS; la última fase
+     * pendiente se aplica al cumplirse.
+     */
+    var THINKING_MIN_TITLE_MS = 1200;
+    var thinkingTitleShownAt = 0;
+    var thinkingPendingTimer = null;
+
     function setThinkingCaption(el, statusLabel, statusPhase) {
       if (!el) return;
       var capEl = el.querySelector('.afhub-thinking-caption');
       if (capEl && capEl.getAttribute('data-slow') === '1') return;
+      var wait = THINKING_MIN_TITLE_MS - (Date.now() - thinkingTitleShownAt);
+      if (thinkingTitleShownAt && wait > 0) {
+        if (thinkingPendingTimer) clearTimeout(thinkingPendingTimer);
+        thinkingPendingTimer = setTimeout(function () {
+          thinkingPendingTimer = null;
+          if (el.isConnected) setThinkingCaption(el, statusLabel, el.getAttribute('data-phase') || statusPhase);
+        }, wait);
+        return;
+      }
       var before = capEl ? capEl.textContent : '';
       applyThinkingDisplay(el, statusLabel, statusPhase);
       var after = el.querySelector('.afhub-thinking-caption');
       var afterText = after ? after.textContent : '';
+      if (afterText !== before) thinkingTitleShownAt = Date.now();
       pulseThinkingCard(el, before, afterText);
     }
 
@@ -4289,6 +4320,7 @@
       el.setAttribute('aria-busy', 'true');
       if (statusPhase) el.setAttribute('data-phase', String(statusPhase));
       renderThinkingCard(el, statusLabel, statusPhase);
+      thinkingTitleShownAt = Date.now();
       stack.appendChild(el);
       row.appendChild(stack);
       messages.appendChild(row);
@@ -4317,6 +4349,8 @@
 
     function hideTyping() {
       clearTypingTimer();
+      if (thinkingPendingTimer) { clearTimeout(thinkingPendingTimer); thinkingPendingTimer = null; }
+      thinkingTitleShownAt = 0;
       setInputAgentBusy(false);
       var row = document.getElementById(typingRowId);
       if (row) {
@@ -8297,6 +8331,8 @@
     } else {
       msgBubbleBg = 'rgba(255,255,255,.82)';
     }
+    /** Tarjeta "pensando": en tema claro casi opaca (al 82 % se transparentaba el gris del chat). */
+    var thinkingInnerBg = /^rgba\(38,38,48/.test(msgBubbleBg) ? msgBubbleBg : 'rgba(255,255,255,.97)';
     var rainbowBeam = conicBeamGradient(cfg, brandHex, false);
     var rainbowBeamVivid = conicBeamGradient(cfg, brandHex, true);
     var beamBlurPx = beamCfg.blur;
@@ -8954,7 +8990,7 @@
       '#' + rootId + ' .afhub-msg-row--typing .afhub-msg-stack { flex:0 1 auto; min-width:0; width:auto; max-width:100%; }' +
       '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen .afhub-msg-row--typing .afhub-msg-stack { flex:0 1 auto; width:auto; max-width:100%; }' +
       '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen .afhub-msg.bot.afhub-thinking-card { width:212px !important; max-width:100% !important; }' +
-      '#' + rootId + ' .afhub-thinking-inner { position:relative; z-index:2; display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; gap:4px; padding:10px 12px; border-radius:13px; background:' + msgBubbleBg + '; border:' + msgBubbleBorder + '; box-shadow:' + msgBubbleShadow + '; min-width:0; width:100%; min-height:62px; box-sizing:border-box; overflow:visible; }' +
+      '#' + rootId + ' .afhub-thinking-inner { position:relative; z-index:2; display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; gap:4px; padding:10px 12px; border-radius:13px; background:' + thinkingInnerBg + '; border:' + msgBubbleBorder + '; box-shadow:' + msgBubbleShadow + '; min-width:0; width:100%; min-height:62px; box-sizing:border-box; overflow:visible; }' +
       '#' + rootId + ' .afhub-thinking-body { display:flex; flex-direction:column; gap:4px; min-width:0; }' +
       '#' + rootId + ' .afhub-thinking-row { display:flex; align-items:center; gap:8px; min-width:0; overflow:visible; }' +
       '#' + rootId + ' .afhub-thinking-glyph { flex:none; width:22px; height:22px; display:flex; align-items:center; justify-content:center; perspective:64px; overflow:visible; transform-style:preserve-3d; }' +

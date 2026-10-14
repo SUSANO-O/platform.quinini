@@ -81,7 +81,8 @@ export function widgetChatStatusMessage(
     case 'rag':
       return 'Consultando documentos indexados…';
     case 'tools':
-      return d ? `Usando ${d}…` : 'Ejecutando herramientas…';
+      // Nunca el nombre de la tool/integración (Slack, MySQL, Mongo…): viaja visible en el SSE.
+      return 'Consultando la información…';
     case 'mcp':
       return 'Conectando con integraciones…';
     case 'model':
