@@ -45,6 +45,8 @@
     "enable:model-catalog": "node --env-file=.env scripts/enable-model-catalog.mjs",
     "sync:huggingface-catalog": "node --env-file=.env scripts/sync-huggingface-catalog.mjs",
     "inspect:widget": "node --env-file=.env scripts/inspect-widget.mjs",
+    "db:indexes": "node --no-warnings --env-file=.env scripts/db/ensure-indexes.mjs",
+    "bench:db-cold": "node --no-warnings --env-file=.env scripts/db/bench-cold-start.mjs",
     "ensure:prod-lab": "npx tsx --env-file=.env scripts/ensure-prod-sales-and-lab.mts",
     "ensure:prod-sales": "npx tsx --env-file=.env scripts/ensure-prod-sales-agent.mts",
     "ensure:prod-taller-repuestos": "npx tsx --env-file=.env scripts/ensure-prod-taller-repuestos.mts",
