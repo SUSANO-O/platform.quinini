@@ -4,7 +4,7 @@
  * Mantener APP_VERSION en sync con package.json.
  */
 
-export const APP_VERSION = '1.3.0';
+export const APP_VERSION = '1.4.0';
 
 export type ReleaseNoteItem = {
   title: string;
@@ -23,6 +23,109 @@ export type AppRelease = {
 };
 
 export const APP_RELEASES: AppRelease[] = [
+  {
+    version: '1.4.0',
+    date: '2026-10-15',
+    title: 'Auditor de agentes, «Diseñar con IA» y Gemini 4 Argon',
+    summary:
+      'La IA ahora revisa tus agentes con conversaciones reales y te propone mejoras concretas, puede diseñar un agente completo a partir de unas preguntas sobre tu negocio, y el chat responde más rápido y con mensajes de estado más claros.',
+    features: [
+      {
+        audience: 'all',
+        title: 'Auditor de agentes (plan Team o superior)',
+        description:
+          'Nueva pestaña «Auditoría» en cada agente: la IA revisa el prompt, las FAQ, las reglas, las herramientas y las conversaciones reales de los últimos 90 días, y te muestra qué falla con ejemplos. Aplicas cada propuesta con un clic (FAQ, reglas, quitar herramientas o un prompt nuevo, con opción de volver al anterior). Los correos y teléfonos de tus clientes se ocultan antes del análisis.',
+      },
+      {
+        audience: 'all',
+        title: 'Diseñar un agente con IA',
+        description:
+          'Al crear un agente, pulsa «Diseñar con IA», responde unas preguntas sobre tu negocio y obtén el agente completo: prompt, preguntas frecuentes, reglas, skills e integración recomendada. Lo revisas y editas antes de crearlo; los datos que falten quedan marcados para que los completes.',
+      },
+      {
+        audience: 'all',
+        title: 'Gemini 4 Argon y nuevos modelos Gemini',
+        description:
+          'Ya puedes elegir Gemini 4 Argon, Gemini 3.8 Flash, 3.7 Flash, 3.6 Flash y 3.5 Flash Lite para tus agentes. Los modelos antiguos quedan marcados como obsoletos con su reemplazo sugerido.',
+      },
+      {
+        audience: 'all',
+        title: 'Sugerencias con IA más completas',
+        description:
+          'Las sugerencias de prompt, FAQ y reglas del editor de agentes usan ahora Gemini 4 Argon.',
+      },
+      {
+        audience: 'all',
+        title: 'El chat te dice qué está haciendo',
+        description:
+          'Mientras el agente piensa, el widget muestra lo que está haciendo en palabras sencillas («Buscando información…», «Revisando tus vehículos…») sin nombres técnicos ni parpadeos, sobre una tarjeta más clara.',
+      },
+      {
+        audience: 'all',
+        title: 'Respuestas más rápidas',
+        description:
+          'El primer mensaje tras un rato sin uso ya no espera varios segundos de arranque, y la redacción final de cada respuesta es más ágil.',
+      },
+      {
+        audience: 'all',
+        title: 'Widget más compacto',
+        description:
+          'Chat un poco más estrecho, botón de enviar más grande y alineado con el campo de texto.',
+      },
+      {
+        audience: 'all',
+        title: 'Panel «Construir» más claro',
+        description:
+          'Nombres completos de agentes y widgets, el modelo en una segunda línea, avatares de colores, botón «+» para crear y solo lo más reciente (el resto, con «Ver todos» o el buscador ⌘K).',
+      },
+      {
+        audience: 'all',
+        title: 'Mejor uso de tus documentos',
+        description:
+          'Los documentos del almacén se dividen respetando sus secciones, así el agente encuentra la respuesta correcta con más frecuencia.',
+      },
+      {
+        audience: 'internal',
+        title: 'Endpoints del auditor y del diseñador',
+        description:
+          'AIBackHub: POST /api/ai-assist/audit-agent (Argon, thinking low; high por AGENT_AUDIT_REASONING) y POST /api/ai-assist/design-agent. Landing: /api/agents/[id]/audit (GET/POST/PATCH, colección agentaudits, Team+ u override agent_audit) y /api/ai/design-agent.',
+      },
+      {
+        audience: 'internal',
+        title: 'Arranque en frío de Mongo',
+        description: 'autoIndex/autoCreate apagados en Vercel y Cloud Run; índices con npm run db:indexes. Preparación del chat de ~9 s a ~0,3 s.',
+      },
+    ],
+    fixes: [
+      {
+        audience: 'all',
+        title: 'El agente ya no olvida la conversación tras pedir tus datos',
+        description:
+          'Después de registrar un contacto o usar una herramienta, el agente a veces volvía a preguntar desde cero. Ahora mantiene el hilo de la conversación.',
+      },
+      {
+        audience: 'all',
+        title: 'Detección de peticiones de contacto',
+        description: 'El agente reconoce mejor frases como «me puede llamar», «agéndame» o «contáctenme».',
+      },
+      {
+        audience: 'all',
+        title: 'Explorador de la API',
+        description: 'Se corrigió el error 401 al usar el explorador de la API REST desde el panel.',
+      },
+      {
+        audience: 'internal',
+        title: 'Seguridad del chat público',
+        description:
+          'visitorUserId/visitorPlan del navegador se ignoran (solo desde la cookie de sesión); el chat público nunca ofrece las tools de Slack; tareas programadas fuera del chat con chatCronTools=false.',
+      },
+      {
+        audience: 'internal',
+        title: 'Webhook de leads de Navi',
+        description: 'La URL temporal de webhook.site había caducado (404 desde el 8-sep); reemplazada el 2026-10-15.',
+      },
+    ],
+  },
   {
     version: '1.3.0',
     date: '2026-08-25',
