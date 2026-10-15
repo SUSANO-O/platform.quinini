@@ -50,9 +50,15 @@ import {
   Image as ImageIcon, File, Link2, AlignLeft, CheckCircle2,
   AlertCircle, X, KeyRound, RefreshCw, Sparkles, HelpCircle,
   Phone, MessageCircle, Check,
-  Copy, Eye, Search, Clock, Lightbulb, ChevronDown, ChevronUp,
+  Copy, Eye, Search, Clock, Lightbulb, ChevronDown, ChevronUp, Stethoscope,
 } from '@/components/ui/icons';
 import ScheduledTasksTab from '@/components/agents/ScheduledTasksTab';
+import AgentAuditTab from '@/components/agents/AgentAuditTab';
+import {
+  mergeSystemPromptWithManagedBlocks,
+  stripManagedRulesPrompt,
+  type BehaviorRule,
+} from '@/lib/agent-managed-prompt';
 import WhatsAppTab from '@/components/agents/WhatsAppTab';
 import { GoogleSheetEntryCard } from '@/components/agents/google-sheet-entry-card';
 import {
@@ -227,22 +233,7 @@ interface SubAgent {
   tools: ToolConfig[];
 }
 
-interface BehaviorRule {
-  id: string;
-  title: string;
-  enabled: boolean;
-  priority: number;
-  category: string;
-  tone: string;
-  shortAnswers: boolean;
-  complaintPolicy: string;
-  unknownAnswerPolicy: string;
-  interpretedRule: string;
-  notes: string;
-}
 
-const RULES_PROMPT_START = '### [AFHUB_RULES_START]';
-const RULES_PROMPT_END = '### [AFHUB_RULES_END]';
 
 function createEmptyRule(): BehaviorRule {
   return {
@@ -258,49 +249,6 @@ function createEmptyRule(): BehaviorRule {
     interpretedRule: '',
     notes: '',
   };
-}
-
-function stripManagedRulesPrompt(raw: string): string {
-  const s = raw || '';
-  const start = s.indexOf(RULES_PROMPT_START);
-  const end = s.indexOf(RULES_PROMPT_END);
-  if (start === -1 || end === -1 || end < start) return s.trim();
-  const before = s.slice(0, start).trimEnd();
-  const after = s.slice(end + RULES_PROMPT_END.length).trimStart();
-  return [before, after].filter(Boolean).join('\n\n').trim();
-}
-
-function buildRulesPrompt(rules: BehaviorRule[]): string {
-  const active = rules
-    .filter((r) => r.enabled)
-    .sort((a, b) => a.priority - b.priority);
-  if (active.length === 0) return '';
-  const lines = active.map((r, idx) => {
-    const extras: string[] = [];
-    extras.push(`categoria=${r.category}`);
-    extras.push(`tono=${r.tone}`);
-    if (r.shortAnswers) extras.push('respuesta_corta=si');
-    if (r.complaintPolicy.trim()) extras.push(`quejas=${r.complaintPolicy.trim()}`);
-    if (r.unknownAnswerPolicy.trim()) extras.push(`si_no_sabe=${r.unknownAnswerPolicy.trim()}`);
-    const body = r.interpretedRule.trim() || r.notes.trim() || 'Aplicar esta regla de forma consistente.';
-    return `${idx + 1}. ${r.title.trim()} [${extras.join(' | ')}]\n   - ${body}`;
-  });
-  return `${RULES_PROMPT_START}
-Reglas operativas configuradas por el cliente (aplícalas de mayor prioridad a menor prioridad):
-${lines.join('\n')}
-${RULES_PROMPT_END}`;
-}
-
-function mergeSystemPromptWithManagedBlocks(
-  basePrompt: string,
-  rules: BehaviorRule[],
-  faqs: AgentFaqRow[],
-  candidates: FaqCandidateRow[],
-): string {
-  const base = stripManagedFaqPrompt(stripManagedRulesPrompt(basePrompt));
-  const rulesBlock = buildRulesPrompt(rules);
-  const faqBlock = buildFaqPromptBlock(faqs, candidates);
-  return [base, rulesBlock, faqBlock].filter(Boolean).join('\n\n').trim();
 }
 
 function createEmptyFaq(): AgentFaqRow {
@@ -330,7 +278,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const visibleTabIds = useMemo((): AgentDetailTabId[] => {
     if (soloChatOnly) return ['general'];
     const ids: AgentDetailTabId[] = [
-      'general', 'rules', 'faqs', 'tools', 'rag', 'subagents', 'scheduled-tasks',
+      'general', 'rules', 'faqs', 'tools', 'rag', 'subagents', 'scheduled-tasks', 'audit',
     ];
     if (whatsappAllowed) ids.push('whatsapp');
     return ids;
@@ -643,6 +591,21 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   }, [id, router]);
 
   const onOpenToolsTab = useCallback(() => setTab('tools'), [setTab]);
+  /**
+   * Las propuestas del auditor cambian el agente en el servidor. Al salir de la pestaña
+   * Auditoría se recarga la página (la pestaña nueva queda en el hash) para que el editor
+   * muestre lo aplicado y un "Guardar" posterior no lo pise.
+   */
+  const auditChangedRef = useRef(false);
+  const reloadAgentAfterAudit = useCallback(async () => {
+    auditChangedRef.current = true;
+  }, []);
+  useEffect(() => {
+    if (tab !== 'audit' && auditChangedRef.current) {
+      auditChangedRef.current = false;
+      window.location.reload();
+    }
+  }, [tab]);
 
   const loadMcp = useCallback(() => {
     if (!id) return;
@@ -1556,6 +1519,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     { id: 'rag' as const, label: 'Almacén', icon: <Zap size={14} />, count: ragN },
     { id: 'subagents' as const, label: 'Sub-agentes', icon: <Network size={14} />, count: subAgents.length },
     { id: 'scheduled-tasks' as const, label: 'Tareas', icon: <Clock size={14} />, count: scheduledTaskCount },
+    { id: 'audit' as const, label: 'Auditoría', icon: <Stethoscope size={14} /> },
     { id: 'whatsapp' as const, label: 'WhatsApp', icon: <MessageCircle size={14} /> },
   ];
   const visibleTabs = soloChatOnly
@@ -4172,6 +4136,10 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       {/* ── SUB-AGENTS TAB ───────────────────────────────────────────────────── */}
       {tab === 'scheduled-tasks' && (
         <ScheduledTasksTab agentId={String(agent._id)} plan={plan} readOnly={readOnly} onTaskCountChange={setScheduledTaskCount} />
+      )}
+
+      {tab === 'audit' && (
+        <AgentAuditTab agentId={String(agent._id)} readOnly={readOnly} onApplied={() => { void reloadAgentAfterAudit(); }} />
       )}
 
       {tab === 'whatsapp' && whatsappAllowed && (

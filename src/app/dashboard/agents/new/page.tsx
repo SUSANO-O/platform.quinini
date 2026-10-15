@@ -13,6 +13,8 @@ import { McpConnectModal } from '@/components/mcp/mcp-connect-modal';
 import type { McpCatalogRow } from '@/lib/mcp-catalog-types';
 import { Bot, ChevronLeft, Loader2, KeyRound, Plug, Sparkles, X } from '@/components/ui/icons';
 import { AIInputButton } from '@/components/ui/AIInputButton';
+import { AgentDesignWizard, type AcceptedDesign } from '@/components/agents/AgentDesignWizard';
+import { normalizeAgentSkillsState, skillsConfigForSave, type AgentSkillCatalogEntry } from '@/lib/agent-skills-catalog';
 import Link from 'next/link';
 import { ModelCatalogPicker } from '@/components/dashboard/model-catalog-picker';
 import { isSoloChatOnlyPlan } from '@/lib/plan-catalog';
@@ -84,6 +86,41 @@ export default function NewAgentPage() {
   const [suggestRulesAdded, setSuggestRulesAdded] = useState<Set<number>>(new Set());
   const [pendingFaqs, setPendingFaqs] = useState<Array<{ question: string; answer: string }>>([]);
   const [pendingRules, setPendingRules] = useState<Array<{ title: string; description: string }>>([]);
+  /** Asistente "Diseñar con IA": skills elegidas que se guardan justo después de crear el agente. */
+  const [showDesign, setShowDesign] = useState(false);
+  const [pendingSkillIds, setPendingSkillIds] = useState<string[]>([]);
+  const [designWelcome, setDesignWelcome] = useState('');
+
+  function applyDesign(d: AcceptedDesign) {
+    setName(d.name);
+    setDescription(d.description);
+    setSystemPrompt(d.systemPrompt);
+    setPendingFaqs(d.faqs);
+    setPendingRules(d.rules);
+    setPendingSkillIds(d.skillIds);
+    setDesignWelcome(d.welcomeMessage);
+    setPendingMcp(d.integrationKey ? { key: d.integrationKey, name: d.integrationKey } : null);
+    setAiSuggestions(null);
+    setShowDesign(false);
+  }
+
+  /** Mismo guardado que el editor del agente (PUT skills + skillsConfig hidratados del catálogo). */
+  async function saveDesignSkills(agentId: string) {
+    if (pendingSkillIds.length === 0) return;
+    try {
+      const cat = (await fetch('/api/skills/catalog').then((r) => r.json())) as { catalog?: AgentSkillCatalogEntry[] };
+      const catalog = Array.isArray(cat.catalog) ? cat.catalog : [];
+      const saved = skillsConfigForSave(catalog, normalizeAgentSkillsState(catalog, pendingSkillIds, []));
+      if (saved.skillIds.length === 0) return;
+      await fetch(`/api/agents/${agentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skills: saved.skillIds, skillsConfig: saved.skillsConfig }),
+      });
+    } catch {
+      // Las skills se pueden activar después en la ficha; el agente ya está creado.
+    }
+  }
 
   async function handleSuggestAgent() {
     if (!name.trim()) return;
@@ -211,6 +248,7 @@ export default function NewAgentPage() {
       setError(data.error ?? 'Error al crear el agente.');
       return;
     }
+    await saveDesignSkills(String(data.agent._id));
     const qs = pendingMcp ? `?openMcp=${encodeURIComponent(pendingMcp.key)}` : '';
     router.push(`${agentDetailPath(data.agent._id, 'tools')}${qs}`);
   }
@@ -284,7 +322,32 @@ export default function NewAgentPage() {
           </div>
         </div>
 
+        {showDesign && <AgentDesignWizard onClose={() => setShowDesign(false)} onAccept={applyDesign} />}
         <form onSubmit={handleSubmit} className="flex flex-col gap-0">
+          {!soloChatOnly && (
+            <div
+              className="flex items-center justify-between gap-3 flex-wrap px-4 py-3 rounded-xl border mb-4"
+              style={{ borderColor: 'rgba(99,102,241,0.35)', background: 'rgba(99,102,241,0.06)' }}
+            >
+              <div style={{ minWidth: 220, flex: 1 }}>
+                <p className="text-sm font-bold m-0 flex items-center gap-1.5" style={{ color: '#6366f1' }}>
+                  <Sparkles size={14} /> Diseñar con IA
+                </p>
+                <p className="text-xs m-0" style={{ color: 'var(--muted-foreground)' }}>
+                  {pendingSkillIds.length > 0 || designWelcome
+                    ? `Diseño aplicado: ${pendingFaqs.length} FAQ, ${pendingRules.length} reglas y ${pendingSkillIds.length} skills se guardarán al crear el agente. Revisa el formulario y pulsa «Crear agente».`
+                    : 'Responde unas preguntas sobre tu negocio y la IA arma el agente completo: prompt, preguntas frecuentes, reglas y skills.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDesign(true)}
+                style={{ background: '#6366f1', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+              >
+                {pendingSkillIds.length > 0 || designWelcome ? 'Volver a diseñar' : 'Empezar'}
+              </button>
+            </div>
+          )}
           {pendingMcp && (
             <div
               className="flex items-center gap-2.5 flex-wrap px-3.5 py-2.5 rounded-xl border mb-4 text-xs"

@@ -8,5 +8,6 @@ export const AGENT_TAB_TIPS: Record<AgentDetailTabId, string> = {
   rag: 'Sube documentos o URLs para que el agente consulte tu conocimiento.',
   subagents: 'Delega subtareas a agentes especializados vinculados.',
   'scheduled-tasks': 'Programa recordatorios y ejecuciones automáticas con cron.',
+  audit: 'La IA revisa configuración y conversaciones reales y propone mejoras (plan Team o superior).',
   whatsapp: 'Conecta WhatsApp Business para atender por ese canal.',
 };

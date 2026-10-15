@@ -10,6 +10,7 @@ export type AgentDetailTabId =
   | 'rag'
   | 'subagents'
   | 'scheduled-tasks'
+  | 'audit'
   | 'whatsapp';
 
 export type AgentDetailTab = {
