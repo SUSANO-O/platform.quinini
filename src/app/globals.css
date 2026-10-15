@@ -12503,3 +12503,12 @@ html[data-theme='light'] {
   box-shadow: none;
   color: #5eead4;
 }
+
+/* Títulos de ventajas del widget: MUI les ponía el color de texto del tema claro (casi negro)
+   y en la landing oscura no se veían. */
+.landing-page--saas .landing-widget-benefit__title {
+  color: var(--foreground);
+}
+[data-landing-theme="dark"] .landing-page--saas .landing-widget-benefit__title {
+  color: #f1f5f9;
+}

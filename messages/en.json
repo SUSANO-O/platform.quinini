@@ -107,11 +107,11 @@
       "chatSampleTitle": "Sample conversation",
       "assistantName": "BotIvA Assistant",
       "available": "Available now",
-      "msg1": "Hi! I'm your assistant. Looking for plan info or a demo?",
-      "msg2": "Yes, what's included in Growth?",
-      "msg3": "Growth includes more agents, file/URL storage, and advanced analytics. <strong>Pick the plan you need</strong> and publish the widget today.",
+      "msg1": "Hi! I'm your assistant. Want to know what each plan includes?",
+      "msg2": "Yes, what's included in Plus?",
+      "msg3": "Plus ($50/mo) includes 3,000 conversations a month, unlimited agents and conversation flows. <strong>Pick the plan you need</strong> and publish the widget today.",
       "inputPlaceholder": "Type your message…",
-      "socialProof": "<red>+320 teams</red> use BotIvA to turn visits into useful conversations"
+      "socialProof": "<red>No lock-in:</red> change or cancel your plan anytime"
     },
     "embed": {
       "badge": "2 lines of code",
