@@ -28,6 +28,7 @@ import { HowStepMock } from '@/components/landing/how-step-mock';
 import type { LandingIconName } from '@/lib/landing-icons';
 import { BRAND } from '@/lib/brand-colors';
 import {
+  buildContactWhatsAppUrl,
   buildTrainingWhatsAppUrl,
   SALES_WHATSAPP_LINK_PROPS,
 } from '@/lib/sales-whatsapp';
@@ -124,8 +125,9 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
               </Button>
               <Button
                 className="landing-btn landing-btn--ghost-on-dark"
-                component={Link}
-                href="/demos"
+                component="a"
+                href={buildContactWhatsAppUrl()}
+                {...SALES_WHATSAPP_LINK_PROPS}
                 variant="outlined"
                 size="large"
                 color="inherit"
@@ -140,18 +142,10 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
             </div>
 
             <ul className="landing-hero__trust">
-              {[
-                { v: copy.stats.trialValue, h: copy.stats.trialHint, k: copy.stats.trial, d: '' },
-                { v: copy.stats.setupValue, h: '', k: copy.stats.setup, d: copy.stats.setupHint },
-                { v: copy.stats.modelsValue, h: '', k: copy.stats.models, d: copy.stats.modelsHint },
-              ].map((s) => (
-                <li key={s.k} className="landing-hero__trust-item">
-                  <span className="landing-hero__trust-value">
-                    {s.v}
-                    {s.h ? <em className="landing-hero__trust-unit">{s.h}</em> : null}
-                  </span>
-                  <span className="landing-hero__trust-label">{s.k}</span>
-                  {s.d ? <span className="landing-hero__trust-hint">{s.d}</span> : null}
+              {/* Una frase corta por dato: «< 10 min» con etiqueta diminuta no se entendía. */}
+              {[copy.stats.trialValue, copy.stats.setupValue, copy.stats.modelsValue].map((text) => (
+                <li key={text} className="landing-hero__trust-item">
+                  <span className="landing-hero__trust-value landing-hero__trust-value--phrase">{text}</span>
                 </li>
               ))}
             </ul>
@@ -194,29 +188,19 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
       {/* HOW + imagen editorial */}
       <section className="landing-section landing-section--soft landing-how-section">
         <Container maxWidth="lg" sx={{ px: { xs: 3, sm: 4, md: 5 } }}>
-          <div className="landing-split" style={{ marginBottom: '2.75rem' }}>
-            <div>
-              <span className="landing-eyebrow">{copy.how.badge}</span>
-              <h2 className="landing-section-title" style={{ margin: '1rem 0 0.85rem' }}>
-                {copy.how.title}
-              </h2>
-              <p className="landing-lead" style={{ margin: 0 }}>
-                {copy.how.subtitle}
-              </p>
-            </div>
-            <div className="landing-split__media">
-              <Image
-                src="/landing/team.jpg"
-                alt="Colaboración con BotIvA"
-                fill
-                sizes="(max-width: 900px) 100vw, 520px"
-                style={{ objectFit: 'cover' }}
-              />
-            </div>
+          {/* Encabezado centrado, sin foto de stock: más limpio y con aire antes de los pasos. */}
+          <div className="landing-how-intro">
+            <span className="landing-eyebrow">{copy.how.badge}</span>
+            <h2 className="landing-section-title" style={{ margin: '1rem 0 0.85rem' }}>
+              {copy.how.title}
+            </h2>
+            <p className="landing-lead" style={{ margin: '0 auto' }}>
+              {copy.how.subtitle}
+            </p>
           </div>
 
           <div className="landing-how-grid-wrap">
-            <Grid container spacing={1.5}>
+            <Grid container spacing={{ xs: 2.5, md: 3 }}>
             {copy.how.steps.map((s, idx) => (
               <Grid key={s.title} size={{ xs: 12, sm: 6, lg: 4 }}>
                 <article
@@ -232,12 +216,7 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
                     <h3 className="landing-card-title landing-how-card__title">
                       {s.title}
                     </h3>
-                    <span className="landing-how-card__hint" aria-hidden>
-                      +
-                    </span>
-                    <div className="landing-how-card__tooltip" role="tooltip">
-                      <p>{s.desc}</p>
-                    </div>
+                    <p className="landing-how-card__desc">{s.desc}</p>
                   </div>
                 </article>
               </Grid>
