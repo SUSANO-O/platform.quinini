@@ -9,7 +9,7 @@
     "solutions": "Soluciones",
     "docs": "Documentación",
     "signIn": "Iniciar sesión",
-    "startFree": "Pruébalo gratis",
+    "startFree": "Ver planes",
     "dashboard": "Dashboard →"
   },
   "footer": {
@@ -32,18 +32,18 @@
       "title1": "Transforma visitas en ingresos con",
       "title2": "Agentes de IA hiper-entrenados",
       "description": "Entrena con tu conocimiento (RAG), publica el widget en tu web y atiende 24/7. Ventas, soporte y operaciones — sin montar infraestructura ni reinventar prompts.",
-      "ctaPrimary": "Pruébalo gratis",
-      "ctaAccount": "Ver demo en vivo"
+      "ctaPrimary": "Ver planes y precios",
+      "ctaAccount": "Hablar con un asesor"
     },
     "stats": {
-      "trialValue": "$7",
-      "trial": "Desde Solo",
+      "trialValue": "Desde $7/mes",
+      "trial": "Desde el plan Solo",
       "trialHint": "/mes",
-      "setupValue": "< 10 min",
-      "setup": "De cuenta a widget en vivo",
+      "setupValue": "Tu agente listo en 10 minutos",
+      "setup": "De la cuenta al widget publicado",
       "setupHint": "Multi-agente incluido",
-      "modelsValue": "30+",
-      "models": "Modelos de IA",
+      "modelsValue": "25+ modelos de IA",
+      "models": "Modelos de IA, incluido Gemini 4",
       "modelsHint": "Gemini, Claude, GPT y más"
     },
     "how": {
@@ -92,7 +92,7 @@
       "subtitle": "Publica el chat en tu sitio en minutos. Responde con tu conocimiento, califica leads y deriva a humano cuando hace falta.",
       "windowTitle": "BotIvA — Widget",
       "live": "En vivo",
-      "startFree": "Pruébalo gratis →",
+      "startFree": "Ver planes →",
       "whyTitle": "Por qué equipos de ventas lo eligen",
       "b1Title": "Responde al instante",
       "b1Desc": "El visitante obtiene respuesta inmediata, con el tono de tu marca.",
@@ -284,7 +284,7 @@
       "step3Title": "Deploy a producción",
       "step3Desc": "Acompañamiento hasta publicar el widget y validar respuestas con tráfico real.",
       "step4Title": "Caso de uso de tu industria",
-      "step4Desc": "Demo en vivo con un escenario concreto de tu vertical, para ver valor desde el día uno.",
+      "step4Desc": "Sesión guiada con un caso real de tu sector, para ver valor desde el primer día.",
       "included": "Incluido en todos los planes de pago",
       "cta": "Hablar con un humano"
     },
@@ -297,13 +297,13 @@
     },
     "productStrip": {
       "agents": "Agentes",
-      "agentsDesc": "Hiper-entrenados con tu conocimiento",
+      "agentsDesc": "Entrenados con tu información",
       "widget": "Widget",
       "widgetDesc": "En tu web en minutos",
       "panel": "Panel",
-      "panelDesc": "Inbox, analítica y control",
+      "panelDesc": "Conversaciones y métricas",
       "api": "API",
-      "apiDesc": "Integraciones Team+ con afapi_"
+      "apiDesc": "Conecta tus sistemas"
     }
   }
 }

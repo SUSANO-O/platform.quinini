@@ -691,6 +691,18 @@ label {
   letter-spacing: -0.005em;
 }
 
+/* Variante en frase: un solo texto por dato, más sobrio que cifra + etiqueta. */
+.landing-hero__trust-value--phrase {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+  text-align: center;
+}
+.landing-stage-dark .landing-hero__trust-value--phrase {
+  color: rgba(226, 232, 240, 0.82);
+}
+
 /* En movil, envolver dejaba "30+" solo en una tercera fila. Rejilla de tres
    columnas: se mantiene la lectura de un vistazo y no crece a lo alto. */
 @media (max-width: 560px) {
@@ -837,6 +849,43 @@ label {
   font-size: 0.8125rem;
   line-height: 1.45;
   color: #64748b;
+}
+
+/* Franja de producto minimalista: sin tarjetas ni cuadros de icono; columnas con separador. */
+.landing-page--saas .landing-strip {
+  gap: 0;
+}
+.landing-page--saas .landing-strip__item {
+  align-items: center;
+  padding: 0.5rem 1.5rem;
+  border: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.landing-page--saas .landing-strip__item:hover {
+  transform: none;
+  box-shadow: none;
+}
+.landing-page--saas .landing-strip__item:hover .landing-strip__k {
+  color: var(--brand-primary);
+}
+@media (min-width: 960px) {
+  .landing-page--saas .landing-strip__item + .landing-strip__item {
+    border-left: 1px solid rgba(148, 163, 184, 0.16);
+  }
+}
+.landing-page--saas .landing-strip__icon {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.landing-page--saas .landing-strip__d {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .landing-section {
@@ -1360,41 +1409,56 @@ label {
 }
 
 .landing-how-grid-wrap {
-  max-width: 52rem;
+  max-width: 68rem;
   margin: 0 auto;
-  padding: 0.25rem 1rem 0;
+  padding: 0.25rem 0 0;
+}
+
+/* Encabezado de «cómo funciona»: centrado, estrecho y bien separado de la grilla de pasos. */
+.landing-how-intro {
+  max-width: 40rem;
+  margin: 0 auto clamp(3.5rem, 7vw, 5.5rem);
+  text-align: center;
 }
 
 @media (min-width: 900px) {
   .landing-how-grid-wrap {
-    padding: 0.25rem 1.75rem 0;
+    padding: 0.25rem 0 0;
   }
 }
 
 .landing-how-card--compact {
   border-radius: 16px;
-  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.035);
+  box-shadow: none;
 }
 
 .landing-how-card--compact .how-step-visual {
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 16 / 9;
 }
 
 .landing-how-card--compact .landing-how-card__body {
-  padding: 0.85rem 1rem 1rem;
+  padding: 1.25rem 1.4rem 1.5rem;
   min-height: 0;
+  gap: 0.4rem;
 }
 
 .landing-how-card--compact .landing-how-card__n {
-  margin-bottom: 0.35rem;
-  font-size: 0.58rem;
+  margin-bottom: 0.15rem;
+  font-size: 0.68rem;
 }
 
 .landing-how-card--compact .landing-how-card__title {
-  font-size: 0.9375rem;
+  font-size: 1.05rem;
   margin: 0 !important;
-  padding-right: 1.75rem;
   line-height: 1.35;
+}
+
+/* Descripción del paso, visible (antes solo en un tooltip tras el «+»). */
+.landing-how-card__desc {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--muted-foreground, #64748b);
 }
 
 .landing-how-card__title {
@@ -11851,6 +11915,10 @@ button.dashboard-meta-chip:disabled {
 [data-landing-theme="dark"] .landing-page--saas .landing-body-sm,
 [data-landing-theme="dark"] .landing-page--saas .landing-label,
 [data-landing-theme="dark"] .landing-page--saas .landing-strip__d,
+[data-landing-theme="dark"] .landing-page--saas .landing-how-card__desc {
+  color: rgba(203, 213, 225, 0.78);
+}
+
 [data-landing-theme="dark"] .landing-page--saas .landing-how-card__tooltip p {
   color: rgba(226, 232, 240, 0.72);
 }
@@ -12418,3 +12486,20 @@ html[data-theme='light'] {
 [data-theme="dark"] .home-agent-link { border-bottom: 1px solid var(--border-strong); }
 [data-theme="dark"] .home-cta-band .home-btn--primary { color: var(--foreground); }
 [data-theme="dark"] .api-docs-panel__body { background: var(--card); }
+
+/* Franja de producto minimalista también en oscuro (las reglas de tema le ponían tarjeta). */
+[data-landing-theme="dark"] .landing-page--saas .landing-strip__item {
+  background: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+@media (min-width: 960px) {
+  [data-landing-theme="dark"] .landing-page--saas .landing-strip__item + .landing-strip__item {
+    border-left-color: rgba(148, 163, 184, 0.16);
+  }
+}
+[data-landing-theme="dark"] .landing-page--saas .landing-strip__icon {
+  background: none;
+  box-shadow: none;
+  color: #5eead4;
+}

@@ -9,7 +9,7 @@
     "solutions": "Solutions",
     "docs": "Documentation",
     "signIn": "Sign in",
-    "startFree": "Try for free",
+    "startFree": "See plans",
     "dashboard": "Dashboard →"
   },
   "footer": {
@@ -32,18 +32,18 @@
       "title1": "Turn visits into revenue with",
       "title2": "hyper-trained AI agents",
       "description": "Train on your knowledge (RAG), publish the widget on your site, and serve customers 24/7. Sales, support, and ops — without standing up infrastructure.",
-      "ctaPrimary": "Try for free",
-      "ctaAccount": "See live demo"
+      "ctaPrimary": "See plans & pricing",
+      "ctaAccount": "Talk to sales"
     },
     "stats": {
-      "trialValue": "$7",
-      "trial": "From Solo",
+      "trialValue": "From $7/mo",
+      "trial": "From the Solo plan",
       "trialHint": "/mo",
-      "setupValue": "< 10 min",
-      "setup": "From account to live widget",
+      "setupValue": "Your agent live in 10 minutes",
+      "setup": "From account to published widget",
       "setupHint": "Multi-agent included",
-      "modelsValue": "30+",
-      "models": "AI models",
+      "modelsValue": "25+ AI models",
+      "models": "AI models, Gemini 4 included",
       "modelsHint": "Gemini, Claude, GPT & more"
     },
     "how": {
@@ -92,7 +92,7 @@
       "subtitle": "Publish chat on your site in minutes. Answer with your knowledge, qualify leads, and hand off to a human when needed.",
       "windowTitle": "BotIvA — Widget",
       "live": "Live",
-      "startFree": "Try for free →",
+      "startFree": "See plans →",
       "whyTitle": "Why sales teams choose it",
       "b1Title": "Responds instantly",
       "b1Desc": "Visitors get an immediate reply in your brand voice.",
@@ -284,7 +284,7 @@
       "step3Title": "Deploy to production",
       "step3Desc": "Accompaniment until the widget is live and validated with real traffic.",
       "step4Title": "Industry use case",
-      "step4Desc": "Live demo with a concrete scenario from your vertical, so you see value from day one.",
+      "step4Desc": "Guided session with a real case from your industry, so you see value from day one.",
       "included": "Included in all paid plans",
       "cta": "Talk to a human"
     },
@@ -297,13 +297,13 @@
     },
     "productStrip": {
       "agents": "Agents",
-      "agentsDesc": "Hyper-trained on your knowledge",
+      "agentsDesc": "Trained on your content",
       "widget": "Widget",
       "widgetDesc": "On your site in minutes",
       "panel": "Dashboard",
-      "panelDesc": "Inbox, analytics, and control",
+      "panelDesc": "Conversations and metrics",
       "api": "API",
-      "apiDesc": "Team+ integrations with afapi_"
+      "apiDesc": "Connect your systems"
     }
   }
 }
