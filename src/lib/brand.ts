@@ -12,6 +12,8 @@ export const BRAND_ICON_VERSION = 'filoia1';
 export const BRAND_LOGO_SRC = `/assets/marketing/botiva-logo.png?v=${BRAND_ICON_VERSION}`;
 export const BRAND_LOGO_PNG_SRC = BRAND_LOGO_SRC;
 export const BRAND_LOGO_PNG_2X_SRC = `/assets/marketing/botiva-logo@2x.png?v=${BRAND_ICON_VERSION}`;
+/** Variante clara del logo para fondos oscuros (barra de la landing en modo oscuro). */
+export const BRAND_LOGO_ON_DARK_SRC = `/assets/marketing/botiva-logo-on-dark.png?v=${BRAND_ICON_VERSION}`;
 export const BRAND_FAVICON_SRC = `/assets/marketing/botiva-logo-32.png?v=${BRAND_ICON_VERSION}`;
 
 /** Orbe 3D cian — solo FAB / avatar de widgets de atención (assist). */
