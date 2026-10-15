@@ -353,7 +353,7 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
                       <Stack direction="row" spacing={1.75} alignItems="flex-start">
                         <CheckCircleOutlineIcon size={20} style={{ color: b.color, marginTop: 3, flexShrink: 0 }} />
                         <Box>
-                          <Typography sx={{ fontWeight: 650, fontSize: '0.9375rem', letterSpacing: '-0.02em', lineHeight: 1.35, mb: 0.35 }}>
+                          <Typography className="landing-widget-benefit__title" sx={{ fontWeight: 650, fontSize: '0.9375rem', letterSpacing: '-0.02em', lineHeight: 1.35, mb: 0.35 }}>
                             {b.title}
                           </Typography>
                           <Typography className="landing-body-sm" sx={{ lineHeight: 1.65 }}>
