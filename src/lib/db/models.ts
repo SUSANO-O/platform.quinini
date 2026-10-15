@@ -1272,3 +1272,27 @@ WidgetPageVisitSchema.index({ widgetId: 1, visits: -1 });
 
 export const WidgetPageVisit =
   mongoose.models.WidgetPageVisit || mongoose.model('WidgetPageVisit', WidgetPageVisitSchema);
+
+/**
+ * Auditorías de agentes (Gemini 4 Argon): informe con hallazgos y cambios propuestos.
+ * Las crea POST /api/agents/[id]/audit; se ejecutan en segundo plano (status running → done/error).
+ * `applied` registra qué propuestas aceptó el dueño (y el prompt previo para deshacer).
+ */
+const AgentAuditSchema = new Schema({
+  agentId:   { type: String, required: true },
+  userId:    { type: String, required: true }, // dueño del agente
+  status:    { type: String, enum: ['running', 'done', 'error'], default: 'running' },
+  report:    { type: Schema.Types.Mixed, default: null },
+  error:     { type: String, default: '' },
+  model:     { type: String, default: '' },
+  latencyMs: { type: Number, default: 0 },
+  conversationsCount: { type: Number, default: 0 },
+  applied:   { type: [Schema.Types.Mixed], default: [] },
+  finishedAt: { type: Date, default: null },
+}, { timestamps: true, collection: 'agentaudits' });
+
+AgentAuditSchema.index({ agentId: 1, createdAt: -1 });
+AgentAuditSchema.index({ userId: 1, createdAt: -1 });
+
+export const AgentAudit =
+  mongoose.models.AgentAudit || mongoose.model('AgentAudit', AgentAuditSchema);

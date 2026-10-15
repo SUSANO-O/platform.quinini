@@ -17,6 +17,8 @@ export const AGENT_TAB_HASH_ALIASES: Record<string, AgentDetailTabId> = {
   subagents: 'subagents',
   tareas: 'scheduled-tasks',
   'scheduled-tasks': 'scheduled-tasks',
+  auditoria: 'audit',
+  audit: 'audit',
   whatsapp: 'whatsapp',
 };
 

@@ -425,6 +425,10 @@ export const OUTBOUND_SAAS_WEBHOOK_MIN_PLAN: PlanId = 'plus';
 /** Plan mínimo para avisar en Slack al escalar (Incoming Webhook en Cumplimiento). */
 export const ESCALATION_SLACK_MIN_PLAN: PlanId = 'team';
 
+/** Plan mínimo para el auditor de agentes (Gemini 4 Argon) — decisión 2026-10-15. */
+export const AGENT_AUDIT_MIN_PLAN: PlanId = 'team';
+export const AGENT_AUDIT_FEATURE = 'agent_audit';
+
 /**
  * Plan mínimo con API REST incluida (decisión 2026-08-26 — ver canUseApiAccess).
  * Se mantiene como "ADDON_ELIGIBLE" por compatibilidad de nombre con
@@ -546,6 +550,12 @@ export function planHasAgentWebhookFeature(planId: PlanId): boolean {
 
 export function planHasOutboundWebhookFeature(planId: PlanId): boolean {
   return planRank(planId) >= planRank(OUTBOUND_SAAS_WEBHOOK_MIN_PLAN);
+}
+
+/** Auditor de agentes — Team+ con suscripción activa, o por override de admin. */
+export function canUseAgentAudit(plan: string, status: string, subscriptionFeatures?: string[] | null): boolean {
+  if (hasFeatureOverride(subscriptionFeatures, AGENT_AUDIT_FEATURE)) return true;
+  return planRank(effectiveProductPlan(plan, status)) >= planRank(AGENT_AUDIT_MIN_PLAN);
 }
 
 export function planHasEscalationSlackFeature(planId: PlanId): boolean {

@@ -33,6 +33,7 @@ export const PURGE_CHILDREN: readonly PurgeTarget[] = [
   { model: 'ConversationSession',  match: ['userId', 'agentId', 'widgetId'] },
   { model: 'WidgetFeedback',       match: ['userId', 'agentId', 'widgetId'] },
   { model: 'WidgetPageVisit',      match: ['userId', 'widgetId'] },
+  { model: 'AgentAudit',           match: ['userId', 'agentId'] },
   { model: 'WidgetShare',          match: ['userId', 'widgetId'] },
   { model: 'FlowConversation',     match: ['userId', 'widgetId'] },
   { model: 'ConversationFlow',     match: ['userId'] },
