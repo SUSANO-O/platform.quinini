@@ -90,16 +90,19 @@ export function verifyWidgetIdentity(
 
 /**
  * Separa la identidad del cuerpo del chat. Siempre elimina `verifiedIdentity` (solo el
- * servidor puede ponerla) e `identity` (se verifica aparte). Devuelve el cuerpo limpio.
+ * servidor puede ponerla), `visitorUserId`/`visitorPlan` (salen de la cookie de sesión) e
+ * `identity` (se verifica aparte). Devuelve el cuerpo limpio.
  */
 export function extractIdentityFromChatBody(rawBody: string): { body: string; identity: unknown } {
   try {
     const j = JSON.parse(rawBody) as Record<string, unknown>;
     if (!j || typeof j !== 'object') return { body: rawBody, identity: undefined };
     const identity = j.identity;
-    if (!('identity' in j) && !('verifiedIdentity' in j)) return { body: rawBody, identity: undefined };
-    delete j.identity;
-    delete j.verifiedIdentity;
+    // `visitorUserId`/`visitorPlan` solo los pone el servidor desde la cookie de sesión
+    // (assist): si los manda el navegador, `botiva_api_request` actuaría como ese usuario.
+    const spoofable = ['identity', 'verifiedIdentity', 'visitorUserId', 'visitorPlan'];
+    if (!spoofable.some((k) => k in j)) return { body: rawBody, identity: undefined };
+    for (const k of spoofable) delete j[k];
     return { body: JSON.stringify(j), identity };
   } catch {
     return { body: rawBody, identity: undefined };
