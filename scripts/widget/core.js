@@ -8,7 +8,7 @@
 
   if (window.AgentFlowhub && window.AgentFlowhub.version) return;
 
-  var VERSION = '1.6.164';
+  var VERSION = '1.6.165';
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
@@ -9327,7 +9327,7 @@
       '#' + rootId + ' .afhub-input::-webkit-scrollbar { display:none; width:0; height:0; }' +
       '#' + rootId + ' .afhub-input::placeholder { color:#94a3b8; opacity:1; font-weight:400; }' +
       '#' + rootId + ' .afhub-input:focus { box-shadow:none; }' +
-      '#' + rootId + ' .afhub-send { width:34px; height:34px; border-radius:50%; border:none; cursor:pointer; background:' + brandHex + '; color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; position:relative; z-index:2; transition:background .14s,opacity .14s,transform .14s ' + macSpring + '; box-shadow:0 1px 2px rgba(15,23,42,.12), 0 4px 10px -4px ' + colorRgba(brandHex, 0.45) + '; }' +
+      '#' + rootId + ' .afhub-send { width:34px; height:34px; margin-bottom:8px; border-radius:50%; border:none; cursor:pointer; background:' + brandHex + '; color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; position:relative; z-index:2; transition:background .14s,opacity .14s,transform .14s ' + macSpring + '; box-shadow:0 1px 2px rgba(15,23,42,.12), 0 4px 10px -4px ' + colorRgba(brandHex, 0.45) + '; }' +
       '#' + rootId + ' .afhub-send:not(:disabled):hover { filter:none; background:#000000; transform:none; box-shadow:0 3px 12px rgba(0,0,0,.2); }' +
       '#' + rootId + ' .afhub-send:not(:disabled):active { filter:brightness(.94); box-shadow:inset 0 1px 2px rgba(0,0,0,.12); transform:scale(.96); }' +
       '#' + rootId + ' .afhub-send:disabled { opacity:1; cursor:default; background:#c7c7cc; color:rgba(255,255,255,.95); box-shadow:none; }' +
