@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  BRAND_LOGO_ON_DARK_SRC,
   BRAND_LOGO_PNG_2X_SRC,
   BRAND_LOGO_PNG_SRC,
   BRAND_NAME,
@@ -12,15 +13,17 @@ type BotivaOrbLogoProps = {
   title?: string;
   style?: React.CSSProperties;
   variant?: 'auto' | 'compact' | 'detailed';
+  /** Fondo oscuro: usa la versión clara del logo (la normal es negra y no se ve). */
+  onDark?: boolean;
 };
 
 /** Logo BotIvA (marca). */
-export function BotivaOrbLogo({ size = 32, className, title, style }: BotivaOrbLogoProps) {
+export function BotivaOrbLogo({ size = 32, className, title, style, onDark = false }: BotivaOrbLogoProps) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={BRAND_LOGO_PNG_SRC}
-      srcSet={`${BRAND_LOGO_PNG_SRC} 1x, ${BRAND_LOGO_PNG_2X_SRC} 2x`}
+      src={onDark ? BRAND_LOGO_ON_DARK_SRC : BRAND_LOGO_PNG_SRC}
+      srcSet={onDark ? undefined : `${BRAND_LOGO_PNG_SRC} 1x, ${BRAND_LOGO_PNG_2X_SRC} 2x`}
       alt={title ?? BRAND_NAME}
       width={size}
       height={size}

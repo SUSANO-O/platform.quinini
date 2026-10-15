@@ -70,7 +70,8 @@ export function LandingNavbar({
         className={isDark ? 'landing-nav landing-nav--dark' : 'landing-nav'}
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
-          bgcolor: isDark ? 'rgba(8, 15, 28, 0.72)' : 'rgba(255,255,255,0.78)',
+          // Bastante opaca: con 0.72 el texto blanco de las secciones asomaba al pasar por debajo.
+          bgcolor: isDark ? 'rgba(8, 15, 28, 0.88)' : 'rgba(255,255,255,0.88)',
           color: isDark ? '#e2e8f0' : 'text.primary',
           backdropFilter: 'blur(14px)',
           borderBottom: isDark
@@ -95,7 +96,7 @@ export function LandingNavbar({
                 fontFamily: '"Inter", system-ui, sans-serif',
               }}
             >
-              <BotivaOrbLogo size={32} className="shrink-0" />
+              <BotivaOrbLogo size={32} className="shrink-0" onDark={isDark} />
               <Box component="span" sx={{ fontWeight: 700, letterSpacing: '-0.03em', display: { xs: 'none', sm: 'inline' } }}>
                 {BRAND_NAME}
               </Box>

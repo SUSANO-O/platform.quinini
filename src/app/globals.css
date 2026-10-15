@@ -1131,6 +1131,11 @@ label {
   position: relative;
   z-index: 1;
 }
+/* La barra fija vive dentro del bloque oscuro del hero: con el mismo z-index que las
+   secciones, las que vienen después se pintaban encima de ella al hacer scroll. */
+.landing-page > .landing-stage-dark {
+  z-index: 10;
+}
 
 .ai-mesh--full {
   mask-image: none;
