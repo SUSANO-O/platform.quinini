@@ -163,3 +163,26 @@
 .dr .dr-theme { display: flex; width: 100%; }
 .dr .dr-theme button { flex: 1; justify-content: center; padding: 7px 4px; font-size: 12.5px; }
 .dr .dr-theme button.is-on { color: var(--foreground); }
+
+/* Construir: nombre completo arriba y el modelo (o el agente del widget) debajo, sin cortar. */
+.dr-link--entity { align-items: center; min-height: 44px; padding-top: 6px; padding-bottom: 6px; }
+.dr-entity__text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.dr-entity__meta { font-size: 11.5px; font-weight: 500; color: var(--dr-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dr-link--entity .dr-initials { width: 26px; height: 26px; border-radius: 8px; font-size: 11px; }
+.dr-initials[style*='--dr-hue'] {
+  color: hsl(var(--dr-hue) 55% 30%);
+  background: hsl(var(--dr-hue) 60% 88%);
+}
+[data-theme='dark'] .dr-initials[style*='--dr-hue'] {
+  color: hsl(var(--dr-hue) 70% 82%);
+  background: hsl(var(--dr-hue) 35% 26%);
+}
+.dr-initials__img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.dr-group__title--entity { align-items: center; }
+.dr-group__link { display: flex; gap: 6px; color: inherit; text-decoration: none; }
+.dr-group__link:hover { color: var(--dr-text); }
+.dr-group__add {
+  display: grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; color: var(--dr-muted);
+  text-decoration: none; transition: color 0.15s, background 0.15s;
+}
+.dr-group__add:hover { color: var(--dr-text); background: color-mix(in srgb, var(--foreground) 7%, transparent); }

@@ -12,7 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LucideIcon } from '@/components/ui/icons';
-import { Bot, CircleHelp, LayoutDashboard, LogOut, Pin, Search, Settings, X } from '@/components/ui/icons';
+import { Bot, CircleHelp, LayoutDashboard, LogOut, Pin, Plus, Search, Settings, X } from '@/components/ui/icons';
 import { BotivaOrbLogo } from '@/components/brand/botiva-orb-logo';
 import { BRAND_NAME } from '@/lib/brand';
 import { UserAvatar } from '@/components/shared/user-avatar';
@@ -39,6 +39,11 @@ type NavItem = { href: string; label: string; icon: LucideIcon; tag?: 'BETA' };
 type Area = { id: string; label: string; icon: LucideIcon; groups: { title: string; items: NavItem[] }[] };
 
 const PROMO_KEY = 'dashboard-rail-promo-dismissed';
+/** En el panel solo los más recientes; el resto, en «Ver los N» o con el buscador (⌘K). */
+const RECENT_AGENTS = 6;
+const RECENT_WIDGETS = 5;
+/** Estos dos ya son las secciones de arriba del panel Construir: no se repiten en Herramientas. */
+const CONSTRUIR_LIST_HREFS = new Set(['/dashboard/agents', '/dashboard/widgets']);
 
 /** Las tres áreas del riel a partir de los grupos del menú (respeta lo que el plan muestra). */
 function buildAreas(groups: ReturnType<typeof buildDashboardNavGroups>): Area[] {
@@ -49,7 +54,12 @@ function buildAreas(groups: ReturnType<typeof buildDashboardNavGroups>): Area[] 
   }
   return [
     { id: 'inicio', label: 'Inicio', icon: LayoutDashboard, groups: [{ title: 'Panel', items: byTitle.get('Panel') ?? [] }] },
-    { id: 'construir', label: 'Construir', icon: Bot, groups: [{ title: 'Herramientas', items: byTitle.get('Agentes y widgets') ?? [] }] },
+    {
+      id: 'construir',
+      label: 'Construir',
+      icon: Bot,
+      groups: [{ title: 'Herramientas', items: (byTitle.get('Agentes y widgets') ?? []).filter((i) => !CONSTRUIR_LIST_HREFS.has(i.href)) }],
+    },
     { id: 'cuenta', label: 'Cuenta', icon: Settings, groups: [{ title: 'Cuenta', items: byTitle.get('Cuenta') ?? [] }] },
   ];
 }
@@ -85,6 +95,23 @@ function initials(name: string): string {
   return ((w[0]?.[0] ?? '?') + (w[1]?.[0] ?? '')).toUpperCase();
 }
 
+/** Tono estable por nombre: dos agentes «AA» dejan de verse iguales. */
+function hueOf(name: string): number {
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 360;
+  return h;
+}
+
+/** Más recientes primero (última modificación; si no hay, la creación). */
+function byRecent<T extends Record<string, unknown>>(list: T[]): T[] {
+  const t = (x: T) => Date.parse(String(x.updatedAt ?? x.createdAt ?? '')) || 0;
+  return [...list].sort((a, b) => t(b) - t(a));
+}
+
+function shortModel(model: unknown): string | undefined {
+  return typeof model === 'string' && model ? model.replace(/^.*\//, '').replace(/-preview.*$/, '') : undefined;
+}
+
 function RailLink({
   href,
   label,
@@ -115,16 +142,32 @@ function RailLink({
   );
 }
 
-function EntityLink({ href, name, meta, active, onNavigate, dot }: { href: string; name: string; meta?: string; active: boolean; onNavigate: () => void; dot?: 'on' | 'off' }) {
+function EntityLink({ href, name, meta, active, onNavigate, dot, avatar }: { href: string; name: string; meta?: string; active: boolean; onNavigate: () => void; dot?: 'on' | 'off'; avatar?: string }) {
   return (
-    <Link href={href} className={`dr-link dr-link--entity${active ? ' is-active' : ''}`} aria-current={active ? 'page' : undefined} onClick={onNavigate} onPointerDown={ripple} title={name}>
-      <span className="dr-initials" aria-hidden>
-        {initials(name)}
+    <Link href={href} className={`dr-link dr-link--entity${active ? ' is-active' : ''}`} aria-current={active ? 'page' : undefined} onClick={onNavigate} onPointerDown={ripple} title={meta ? `${name} · ${meta}` : name}>
+      <span className="dr-initials" aria-hidden style={avatar ? undefined : ({ '--dr-hue': hueOf(name) } as React.CSSProperties)}>
+        {avatar ? <img src={avatar} alt="" className="dr-initials__img" /> : initials(name)}
         {dot ? <i className={`dr-dot is-${dot}`} /> : null}
       </span>
-      <span className="dr-link__label">{name}</span>
-      {meta ? <span className="dr-count">{meta}</span> : null}
+      <span className="dr-entity__text">
+        <span className="dr-link__label">{name}</span>
+        {meta ? <span className="dr-entity__meta">{meta}</span> : null}
+      </span>
     </Link>
+  );
+}
+
+/** Título de sección con contador que abre la lista completa y botón «+» para crear. */
+function EntityGroupTitle({ label, count, listHref, newHref, newLabel, onNavigate }: { label: string; count: number; listHref: string; newHref: string; newLabel: string; onNavigate: () => void }) {
+  return (
+    <div className="dr-group__title dr-group__title--entity">
+      <Link href={listHref} onClick={onNavigate} className="dr-group__link" data-tour={SIDEBAR_TOUR_KEY_BY_HREF[listHref]}>
+        {label} {count ? <span>{count}</span> : null}
+      </Link>
+      <Link href={newHref} onClick={onNavigate} className="dr-group__add" aria-label={newLabel} title={newLabel}>
+        <Plus size={14} strokeWidth={2} aria-hidden />
+      </Link>
+    </div>
   );
 }
 
@@ -211,8 +254,8 @@ export function DashboardRail({
   const showEntities = !apiOnly;
   const agentsQ = useQuery({ queryKey: dashboardKeys.agents(), queryFn: fetchAgentsList, enabled: showEntities && open, staleTime: 60_000 });
   const widgetsQ = useQuery({ queryKey: dashboardKeys.widgets(), queryFn: fetchWidgetsList, enabled: showEntities && open, staleTime: 60_000 });
-  const agents = useMemo(() => (agentsQ.data ?? []).filter((a) => !a.isPlatform), [agentsQ.data]);
-  const widgets = widgetsQ.data ?? [];
+  const agents = useMemo(() => byRecent((agentsQ.data ?? []).filter((a) => !a.isPlatform)), [agentsQ.data]);
+  const widgets = useMemo(() => byRecent(widgetsQ.data ?? []), [widgetsQ.data]);
 
   const closeFlyout = () => setFlyout(false);
   const area = areas.find((a) => a.id === areaId) ?? areas[0];
@@ -246,7 +289,7 @@ export function DashboardRail({
       name={a.name || 'Sin nombre'}
       active={isActive(pathname, `/dashboard/agents/${idOf(a)}`)}
       dot={a.status === 'disabled' || a.status === 'inactive' ? 'off' : 'on'}
-      meta={typeof a.model === 'string' ? a.model.replace(/^.*\//, '').replace(/-preview.*$/, '') : undefined}
+      meta={shortModel(a.model)}
       onNavigate={closeFlyout}
     />
   );
@@ -257,6 +300,8 @@ export function DashboardRail({
       name={w.name || 'Sin nombre'}
       active={false}
       dot={w.active === false ? 'off' : 'on'}
+      avatar={typeof w.avatar === 'string' && /^(https:|data:image\/)/.test(w.avatar) ? w.avatar : undefined}
+      meta={typeof w.agentName === 'string' && w.agentName ? w.agentName : undefined}
       onNavigate={closeFlyout}
     />
   );
@@ -295,9 +340,11 @@ export function DashboardRail({
                 <span className="dr-area__label">{a.label}</span>
                 {/* Con el panel cerrado, el tour guiado señala el área de cada página. */}
                 {!open
-                  ? a.groups
-                      .flatMap((g) => g.items)
-                      .map((i) => SIDEBAR_TOUR_KEY_BY_HREF[i.href])
+                  ? [
+                      ...a.groups.flatMap((g) => g.items).map((i) => i.href),
+                      ...(a.id === 'construir' ? [...CONSTRUIR_LIST_HREFS] : []),
+                    ]
+                      .map((href) => SIDEBAR_TOUR_KEY_BY_HREF[href])
                       .filter(Boolean)
                       .map((key) => <span key={key} className="dr-tour-anchor" data-tour={key} aria-hidden />)
                   : null}
@@ -391,11 +438,9 @@ export function DashboardRail({
                 {area?.id === 'construir' && showEntities ? (
                   <>
                     <div className="dr-group">
-                      <p className="dr-group__title">
-                        Mis agentes <span>{agents.length || ''}</span>
-                      </p>
-                      {agentsQ.isLoading ? <p className="dr-empty">Cargando…</p> : agents.slice(0, 12).map(agentLink)}
-                      {agents.length > 12 ? (
+                      <EntityGroupTitle label="Mis agentes" count={agents.length} listHref="/dashboard/agents" newHref="/dashboard/agents/new" newLabel="Nuevo agente" onNavigate={closeFlyout} />
+                      {agentsQ.isLoading ? <p className="dr-empty">Cargando…</p> : agents.slice(0, RECENT_AGENTS).map(agentLink)}
+                      {agents.length > RECENT_AGENTS ? (
                         <Link href="/dashboard/agents" className="dr-more" onClick={closeFlyout}>
                           Ver los {agents.length}
                         </Link>
@@ -408,10 +453,13 @@ export function DashboardRail({
                     </div>
                     {widgets.length ? (
                       <div className="dr-group">
-                        <p className="dr-group__title">
-                          Mis widgets <span>{widgets.length}</span>
-                        </p>
-                        {widgets.slice(0, 8).map(widgetLink)}
+                        <EntityGroupTitle label="Mis widgets" count={widgets.length} listHref="/dashboard/widgets" newHref="/dashboard/widget-builder" newLabel="Nuevo widget" onNavigate={closeFlyout} />
+                        {widgets.slice(0, RECENT_WIDGETS).map(widgetLink)}
+                        {widgets.length > RECENT_WIDGETS ? (
+                          <Link href="/dashboard/widgets" className="dr-more" onClick={closeFlyout}>
+                            Ver los {widgets.length}
+                          </Link>
+                        ) : null}
                       </div>
                     ) : null}
                   </>
