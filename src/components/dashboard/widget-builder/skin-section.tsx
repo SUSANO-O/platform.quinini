@@ -263,7 +263,7 @@ export function WidgetBuilderSkinSection({
           <div className="sk-ranges">
             {(
               [
-                ['chatWidth', 'Ancho del chat', 392],
+                ['chatWidth', 'Ancho del chat', 372],
                 ['chatHeight', 'Alto del chat', 540],
                 ['fabSize', 'Botón flotante', 60],
                 ['edgeOffset', 'Distancia al borde', 20],
