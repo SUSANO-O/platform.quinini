@@ -2942,6 +2942,22 @@ svg.lucide.lucide-code-xml {
   color: var(--muted-foreground);
 }
 
+/* Modo oscuro: el turquesa de marca (#006B7D) casi no se ve sobre fondo negro. */
+[data-theme="dark"] .ai-loader__dot {
+  background:
+    radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.7) 0%, transparent 40%),
+    radial-gradient(circle at 50% 58%, #99f6e4 0%, #2dd4bf 50%, #0d9488 100%);
+  box-shadow:
+    0 0 10px rgba(45, 212, 191, 0.45),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.18);
+}
+[data-theme="dark"] .ai-loader__dot-shadow {
+  background: rgba(45, 212, 191, 0.35);
+}
+[data-theme="dark"] .ai-loader__label {
+  color: rgba(226, 232, 240, 0.7);
+}
+
 @keyframes ai-dot-wave {
   0%, 100% {
     transform: translateY(0) scale(1.02, 0.98);
