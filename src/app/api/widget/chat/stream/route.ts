@@ -872,8 +872,10 @@ export async function POST(req: NextRequest) {
 
         // Misma cadena que /api/widget/chat: MCP directo → inferencia directa → hub (último recurso).
         if (widgetToken.startsWith('wt_') && faqTrackOwnerId && parsedAgentIdLocal) {
+          let widgetAppMap: Awaited<ReturnType<typeof getWidgetAppMap>> = [];
+          const directMcpOutcome: { noMcpTools?: boolean } = {};
           try {
-            const widgetAppMap = resolvedWidgetId ? await getWidgetAppMap(resolvedWidgetId) : [];
+            widgetAppMap = resolvedWidgetId ? await getWidgetAppMap(resolvedWidgetId) : [];
             const directMcpStartedAt = Date.now();
             const directMcp = await latencyTrace.span('direct_mcp', () =>
               tryServeWidgetChatViaHubMcp({
@@ -887,6 +889,7 @@ export async function POST(req: NextRequest) {
                 identityStatus,
                 clientOrigin: origin,
                 appMap: widgetAppMap,
+                outcome: directMcpOutcome,
                 onStatus: (phase, message) => {
                   enqueue({ type: 'status', phase, message });
                 },
@@ -981,6 +984,8 @@ export async function POST(req: NextRequest) {
                 parsedAgentId: parsedAgentIdLocal,
                 rawBody: hubBody,
                 ownerUserId: faqTrackOwnerId,
+                allowWithoutMcp: directMcpOutcome.noMcpTools === true,
+                appMap: widgetAppMap,
                 onStatus: (phase, message) => {
                   enqueue({ type: 'status', phase, message });
                 },

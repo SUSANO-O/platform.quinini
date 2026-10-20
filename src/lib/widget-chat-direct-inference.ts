@@ -27,6 +27,8 @@ import {
 } from '@/lib/widget-conversation-recall';
 import { retrieveRagContextBlock } from '@/lib/rag-embeddings-index';
 import { widgetChatStatusForUserMessage } from '@/lib/widget-chat-status';
+import { currentViewBlock } from '@/lib/widget-page-nav';
+import { appMapContextBlock, type AppMapEntry } from '@/lib/widget-app-map';
 
 export type DirectInferenceResult = {
   reply: string;
@@ -151,6 +153,13 @@ export async function tryServeWidgetChatViaDirectInference(params: {
   agentHubId?: string;
   /** SSE stream: notifica fases (skills, model) al widget. */
   onStatus?: (phase: string, message: string) => void;
+  /**
+   * El MCP directo ya respondió que el agente no tiene ninguna tool disponible (integración
+   * caída): responder igual por aquí en vez de caer al hub, que no conoce la página actual.
+   */
+  allowWithoutMcp?: boolean;
+  /** Mapa de la app del widget: con la página actual, permite proponer navegación. */
+  appMap?: AppMapEntry[];
 }): Promise<DirectInferenceResult | null> {
   if (!getAibackhubBaseUrl() || !params.parsedAgentId.trim()) return null;
 
@@ -161,6 +170,8 @@ export async function tryServeWidgetChatViaDirectInference(params: {
     systemPromptOverride?: string;
     sessionId?: string;
     visitorId?: string;
+    pagePath?: string;
+    pageTitle?: string;
   };
   try {
     parsed = JSON.parse(params.rawBody) as typeof parsed;
@@ -199,7 +210,7 @@ export async function tryServeWidgetChatViaDirectInference(params: {
   const skipHeavy = shouldSkipHeavyWidgetPath(message, parsed.history);
   const cheapGreeting = shouldUseCheapGreetingModel(message, parsed.history);
 
-  if (!trivial && (await agentNeedsMcpWidgetChat(ca))) {
+  if (!trivial && !params.allowWithoutMcp && (await agentNeedsMcpWidgetChat(ca))) {
     logWidgetFlow('⏭️', 'infer:skip', 'agente con MCP/skills-tools — requiere /api/mcp/widget-chat', {
       agentId: id,
       agentHubId: ca.agentHubId,
@@ -346,6 +357,16 @@ export async function tryServeWidgetChatViaDirectInference(params: {
 
   let contextBlock =
     typeof parsed.sessionContextBlock === 'string' ? parsed.sessionContextBlock : '';
+
+  // Página actual + mapa de la app (igual que el MCP directo): sin esto el agente no sabe
+  // dónde está el cliente ni puede proponer el botón para llevarlo a otra vista.
+  const pagePath = typeof parsed.pagePath === 'string' ? parsed.pagePath : '';
+  if (pagePath.trim()) {
+    const pageBlock = [currentViewBlock(pagePath, parsed.pageTitle), appMapContextBlock(params.appMap, pagePath)]
+      .filter(Boolean)
+      .join('\n');
+    contextBlock = mergeContextBlocks(contextBlock, pageBlock);
+  }
 
   if (shouldRecallConversationMemory({
     trivial,
