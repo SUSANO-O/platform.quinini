@@ -91,6 +91,9 @@ function sanitizeVerifiedIdentity(raw: unknown): Record<string, string> | undefi
   return Object.keys(out).length ? out : undefined;
 }
 
+/** Código con el que el hub rechaza un turno cuando el agente no tiene ninguna tool disponible. */
+export const NO_MCP_TOOLS_CODE = 'NO_MCP_TOOLS';
+
 export async function tryServeWidgetChatViaHubMcp(params: {
   widgetTokenStartsWithWt: boolean;
   parsedAgentId: string;
@@ -109,6 +112,12 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   clientOrigin?: string;
   /** Mapa de la app del widget (`getWidgetAppMap`); vacío = solo la línea de página actual. */
   appMap?: AppMapEntry[];
+  /**
+   * Se marca `noMcpTools` si el hub rechazó el turno porque el agente no tiene ninguna tool
+   * disponible (p. ej. su única integración está caída). El que llama puede seguir por la
+   * inferencia directa sin perder la página actual ni la navegación.
+   */
+  outcome?: { noMcpTools?: boolean };
 }): Promise<DirectMcpWidgetChatResult | null> {
   if (!params.widgetTokenStartsWithWt || !params.parsedAgentId.trim()) {
     logWidgetFlow('🚫', 'direct:skip', 'sin wt_ o agentId', { agentId: params.parsedAgentId });
@@ -397,6 +406,9 @@ export async function tryServeWidgetChatViaHubMcp(params: {
             usage: parseHubModelUsage(evt.usage),
           };
         } else if (evt.type === 'error') {
+          if (typeof evt.message === 'string' && evt.message.includes(NO_MCP_TOOLS_CODE) && params.outcome) {
+            params.outcome.noMcpTools = true;
+          }
           logWidgetFlow('❌', 'direct:hubStream', 'error SSE del hub', {
             code: evt.code,
             message: evt.message,
@@ -423,6 +435,7 @@ export async function tryServeWidgetChatViaHubMcp(params: {
 
   const rawText = await res.text();
   if (!res.ok) {
+    if (rawText.includes(NO_MCP_TOOLS_CODE) && params.outcome) params.outcome.noMcpTools = true;
     logWidgetFlow('❌', 'direct:hubHttp', 'AIBackHub respondió error', {
       status: res.status,
       bodyHead: rawText.slice(0, 200),

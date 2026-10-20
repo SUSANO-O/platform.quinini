@@ -914,6 +914,8 @@ export async function POST(req: NextRequest) {
         headers[SIGNATURE_HEADER] = signRequest(bodyToForward, secret);
         headers['x-hub-sync-secret'] = secret;
 
+        let widgetAppMap: Awaited<ReturnType<typeof getWidgetAppMap>> = [];
+        const directMcpOutcome: { noMcpTools?: boolean } = {};
         /** Webhook builtin: AgentFlowhub a veces no usa MCP → solo JSON en texto. Ir directo a AIBackHub ejecuta el POST real. */
         try {
           logWidgetFlow('🔀', 'chat:directTry', 'intentando AIBackHub /api/mcp/widget-chat (agente con webhook en Mongo)', {
@@ -921,7 +923,7 @@ export async function POST(req: NextRequest) {
             agentId: parsedAgentId,
           });
           const directStartedAt = Date.now();
-          const widgetAppMap = w.id
+          widgetAppMap = w.id
             ? await latencyTrace.span('app_map', () => getWidgetAppMap(w.id))
             : [];
           const direct = await latencyTrace.span('direct_mcp', () =>
@@ -936,6 +938,7 @@ export async function POST(req: NextRequest) {
               identityStatus,
               clientOrigin: origin,
               appMap: widgetAppMap,
+              outcome: directMcpOutcome,
             }),
           );
           if (!direct) {
@@ -1045,6 +1048,8 @@ export async function POST(req: NextRequest) {
               parsedAgentId,
               rawBody: bodyToForward,
               ownerUserId: w.userId,
+              allowWithoutMcp: directMcpOutcome.noMcpTools === true,
+              appMap: widgetAppMap,
             }),
           );
           if (inferred) {
