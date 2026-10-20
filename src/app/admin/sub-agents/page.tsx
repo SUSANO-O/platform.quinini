@@ -415,7 +415,7 @@ export default function AdminSubAgentsPage() {
                         <td
                           style={{
                             padding: '10px 12px',
-                            fontFamily: 'ui-monospace, monospace',
+                            fontFamily: 'var(--font-mono)',
                             fontSize: '10px',
                             maxWidth: '140px',
                             overflow: 'hidden',
@@ -425,7 +425,7 @@ export default function AdminSubAgentsPage() {
                         >
                           {s.hubSlug ?? '—'}
                         </td>
-                        <td style={{ padding: '10px 12px', fontFamily: 'ui-monospace, monospace', fontSize: '10px' }}>{s.syncStatus}</td>
+                        <td style={{ padding: '10px 12px', fontFamily: 'var(--font-mono)', fontSize: '10px' }}>{s.syncStatus}</td>
                         <td style={{ padding: '10px 12px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>
                           {s.updatedAt ? new Date(s.updatedAt).toLocaleString('es') : '—'}
                         </td>

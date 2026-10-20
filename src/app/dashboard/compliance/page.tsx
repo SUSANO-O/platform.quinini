@@ -668,7 +668,7 @@ export default function CompliancePage() {
                   <code key={ev} style={{
                     padding: '3px 8px', borderRadius: 5,
                     background: 'rgba(var(--brand-warm-rgb),0.12)', border: '1px solid rgba(var(--brand-warm-rgb),0.35)',
-                    fontFamily: 'ui-monospace, SFMono-Regular, monospace',
+                    fontFamily: 'var(--font-mono)',
                     fontSize: 11, color: '#b45300', fontWeight: 600,
                   }}>
                     {ev}
@@ -689,14 +689,14 @@ export default function CompliancePage() {
                   <code key={f} style={{
                     padding: '2px 6px', borderRadius: 4, fontSize: 11,
                     background: 'var(--muted)', color: 'var(--muted-foreground)',
-                    fontFamily: 'ui-monospace, SFMono-Regular, monospace',
+                    fontFamily: 'var(--font-mono)',
                     border: '1px solid var(--border)',
                   }}>
                     {f}
                   </code>
                 ))}
               </div>
-              <p style={{ margin: 0, fontSize: 10, color: 'var(--muted-foreground)', opacity: 0.6, fontFamily: 'ui-monospace, monospace' }}>
+              <p style={{ margin: 0, fontSize: 10, color: 'var(--muted-foreground)', opacity: 0.6, fontFamily: 'var(--font-mono)' }}>
                 X-BotIvA-Signature: sha256=…
               </p>
             </div>
@@ -751,7 +751,7 @@ export default function CompliancePage() {
                       Secreto HMAC-SHA256
                     </p>
                     <code style={{
-                      fontSize: 13, fontFamily: 'ui-monospace, SFMono-Regular, monospace',
+                      fontSize: 13, fontFamily: 'var(--font-mono)',
                       color: 'var(--foreground)', letterSpacing: '0.04em',
                     }}>
                       {whSecretPreview}
@@ -1176,7 +1176,7 @@ export default function CompliancePage() {
                             padding: '2px 7px', borderRadius: 5, fontSize: 10.5,
                             background: 'var(--muted)', border: '1px solid var(--border)',
                             color: 'var(--muted-foreground)', flexShrink: 0,
-                            fontFamily: 'ui-monospace, SFMono-Regular, monospace',
+                            fontFamily: 'var(--font-mono)',
                           }}>
                             {g.ip}
                           </code>

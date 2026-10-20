@@ -117,14 +117,14 @@ export const botivaMuiTheme = createTheme({
       fontFamily: 'var(--font-body)',
     },
     caption: {
-      fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
+      fontFamily: 'var(--font-body)',
       fontWeight: 500,
       fontSize: '0.78rem',
       lineHeight: 1.45,
       letterSpacing: '0.01em',
     },
     overline: {
-      fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
+      fontFamily: 'var(--font-body)',
       fontWeight: 700,
       fontSize: '0.7rem',
       lineHeight: 1.4,

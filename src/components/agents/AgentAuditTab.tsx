@@ -409,7 +409,7 @@ export default function AgentAuditTab({ agentId, readOnly, onApplied }: { agentI
                   disabled={isApplied('prompt', 0) || readOnly}
                   rows={16}
                   className="w-full text-xs rounded-lg px-2.5 py-2 mb-2"
-                  style={{ border: '1px solid var(--border)', background: 'transparent', fontFamily: 'ui-monospace, monospace', resize: 'vertical' }}
+                  style={{ border: '1px solid var(--border)', background: 'transparent', fontFamily: 'var(--font-mono)', resize: 'vertical' }}
                 />
               )}
               {!readOnly && (

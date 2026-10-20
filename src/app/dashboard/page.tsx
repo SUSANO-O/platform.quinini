@@ -364,7 +364,7 @@ export default function DashboardPage() {
                           <span className="text-[12px] font-semibold" style={{ color: 'var(--muted-foreground)' }}>Satisfacción</span>
                           <p
                             className="m-0 mt-1.5 flex items-center gap-2"
-                            style={{ fontFamily: '"Outfit", "Plus Jakarta Sans", system-ui, sans-serif', fontSize: 30, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.03em' }}
+                            style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.03em' }}
                           >
                             {widgetAnalytics.satisfaction.avgScore != null
                               ? `${widgetAnalytics.satisfaction.avgScore.toFixed(1)} / 5`
@@ -399,7 +399,7 @@ export default function DashboardPage() {
                           Ver por hora
                         </button>
                       </div>
-                      <p className="m-0" style={{ fontFamily: '"Outfit", "Plus Jakarta Sans", system-ui, sans-serif', fontSize: 30, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.03em', color: 'var(--foreground)' }}>
+                      <p className="m-0" style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.03em', color: 'var(--foreground)' }}>
                         {formatHourLabel(widgetAnalytics.peakHour)}
                       </p>
                       <p className="text-[12.5px] m-0 mt-1.5" style={{ color: 'var(--muted-foreground)' }}>
@@ -653,7 +653,7 @@ function AnalyticTile({
       <p
         className="m-0"
         style={{
-          fontFamily: '"Outfit", "Plus Jakarta Sans", system-ui, sans-serif',
+          fontFamily: 'var(--font-display)',
           fontSize: 30, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.03em',
           color: 'var(--foreground)',
         }}

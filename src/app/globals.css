@@ -113,9 +113,9 @@
   --gradient-end:   var(--brand-primary-dark);
 
   /* Tipografía — next/font (variables en <html>) */
-  --font-display: var(--font-newsreader), 'Iowan Old Style', Georgia, serif;
-  --font-body: var(--font-geist), var(--font-plus-jakarta), system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-display: var(--font-geist), system-ui, sans-serif;
+  --font-body: var(--font-geist), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* Escala tipográfica (app + landing) */
   --text-xs: 0.75rem;
@@ -324,10 +324,10 @@ label {
   box-shadow: var(--shadow-surface);
 }
 
-/* ── Landing: tipografía Bewe-like (Inter + Merriweather) ── */
+/* ── Landing: misma tipografía que la plataforma (Geist) ── */
 .landing-page {
-  --landing-font: var(--font-geist), var(--font-inter), system-ui, sans-serif;
-  --landing-accent-font: var(--font-merriweather), Georgia, "Times New Roman", serif;
+  --landing-font: var(--font-body);
+  --landing-accent-font: var(--font-body);
   position: relative;
   background: #ffffff;
   color: var(--foreground);
@@ -5046,7 +5046,7 @@ button.dashboard-sidebar-link:hover {
 .resource-card__title,
 .widget-card__title {
   margin: 0;
-  font-family: var(--font-display), "Outfit", system-ui, sans-serif;
+  font-family: var(--font-display);
   font-size: 0.9375rem !important;
   font-weight: 700;
   line-height: 1.3;
@@ -7395,7 +7395,7 @@ button.dashboard-meta-chip:disabled {
   line-height: 1.7;
   color: #e2e8f0;
   overflow-x: auto;
-  font-family: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+  font-family: var(--font-mono);
   tab-size: 2;
 }
 
@@ -7826,7 +7826,7 @@ button.dashboard-meta-chip:disabled {
 .agent-editor-form-card h1,
 .agent-editor-form-card h2,
 .agent-detail-header h1 {
-  font-family: var(--font-display), "Outfit", system-ui, sans-serif;
+  font-family: var(--font-display);
   line-height: 1.25;
   letter-spacing: -0.02em;
 }
@@ -10212,7 +10212,7 @@ button.dashboard-meta-chip:disabled {
   font-size: 0.6875rem;
   font-weight: 600;
   color: #94a3b8;
-  font-family: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+  font-family: var(--font-mono);
 }
 
 .widget-builder-publish__copy-btn {
@@ -10243,7 +10243,7 @@ button.dashboard-meta-chip:disabled {
   line-height: 1.6;
   color: #a5f3fc;
   background: #0d1117;
-  font-family: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+  font-family: var(--font-mono);
 }
 
 .widget-builder-publish__code code {
@@ -10279,7 +10279,7 @@ button.dashboard-meta-chip:disabled {
   font-size: 0.625rem;
   color: #cbd5e1;
   word-break: break-all;
-  font-family: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+  font-family: var(--font-mono);
 }
 
 .widget-builder-publish__token-copy {
@@ -11206,7 +11206,7 @@ button.dashboard-meta-chip:disabled {
   border-radius: 10px;
   border: 1px solid var(--border);
   background: #f8fafc;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--foreground);
 }
@@ -11357,7 +11357,7 @@ button.dashboard-meta-chip:disabled {
 }
 
 .api-explorer__input--mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
 }
 
 .api-explorer__hint {
@@ -11404,7 +11404,7 @@ button.dashboard-meta-chip:disabled {
   padding: 0.75rem;
   border-radius: 12px;
   border: 1px solid var(--border);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   line-height: 1.5;
   resize: vertical;
@@ -11567,7 +11567,7 @@ button.dashboard-meta-chip:disabled {
   border-radius: 12px;
   border: 1px solid var(--border);
   background: #fff;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   line-height: 1.5;
   white-space: pre-wrap;
@@ -11729,7 +11729,7 @@ button.dashboard-meta-chip:disabled {
 
 .api-docs-tip-card__title {
   margin: 0 0 0.3rem;
-  font-family: var(--font-display), "Outfit", system-ui, sans-serif;
+  font-family: var(--font-display);
   font-size: 0.8125rem !important;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -12181,7 +12181,7 @@ button.dashboard-meta-chip:disabled {
 }
 
 .widget-preview-page__row-value--mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.6875rem;
 }
 
@@ -12328,8 +12328,8 @@ button.dashboard-meta-chip:disabled {
 }
 
 /* ── Tipografía y ritmo ───────────────────────────────────────────────────────────────────────────
-   Texto en Geist con interlineado amplio y tracking fino; títulos en Newsreader (serif editorial,
-   tamaño óptico automático) con peso medio y tracking negativo; números tabulares donde se comparan. */
+   Una sola familia: Geist en texto y títulos (títulos en semibold con tracking negativo);
+   Geist Mono para código; números tabulares donde se comparan. */
 body {
   font-family: var(--font-body);
   line-height: 1.6;
@@ -12342,7 +12342,7 @@ body {
 }
 h1, h2, h3 {
   font-family: var(--font-display);
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: -0.022em;
   line-height: 1.12;
   text-wrap: balance;

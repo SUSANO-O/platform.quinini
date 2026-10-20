@@ -370,7 +370,7 @@ export default function AdminSkillsPage() {
                         <span style={{ fontSize: 10, color: 'var(--muted-foreground)' }}>Oculta</span>
                       ) : null}
                     </div>
-                    <p style={{ margin: '0 0 4px', fontSize: 11, color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{skill.id}</p>
+                    <p style={{ margin: '0 0 4px', fontSize: 11, color: 'var(--muted-foreground)', fontFamily: 'var(--font-mono)' }}>{skill.id}</p>
                     <p style={{ margin: 0, fontSize: 12, color: 'var(--muted-foreground)', lineHeight: 1.45 }}>{skill.description}</p>
                     {Array.isArray(skill.tags) && skill.tags.length > 0 ? (
                       <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--muted-foreground)' }}>
@@ -490,7 +490,7 @@ export default function AdminSkillsPage() {
                 Tools MCP a activar (una por línea) — se unen al set del agente
                 <textarea
                   className="landing-input"
-                  style={{ ...inp, minHeight: 72, resize: 'vertical', fontFamily: 'monospace', fontSize: 11 }}
+                  style={{ ...inp, minHeight: 72, resize: 'vertical', fontFamily: 'var(--font-mono)', fontSize: 11 }}
                   value={form.active_tools}
                   onChange={(e) => setForm((f) => ({ ...f, active_tools: e.target.value }))}
                   placeholder="mcp:webSearch:web_search"

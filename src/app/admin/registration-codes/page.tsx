@@ -181,7 +181,7 @@ export default function RegistrationCodesPage() {
                 Código (vacío = auto)
               </label>
               <input
-                style={{ ...inputStyle, fontFamily: 'monospace', textTransform: 'uppercase' }}
+                style={{ ...inputStyle, fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}
                 placeholder="ej. BETA2025"
                 value={formCode}
                 onChange={(e) => setFormCode(e.target.value.toUpperCase().replace(/[^A-Z0-9\-_]/g, ''))}
@@ -297,7 +297,7 @@ export default function RegistrationCodesPage() {
                 {/* Code */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                   <span style={{
-                    fontFamily: 'monospace', fontSize: '14px', fontWeight: 700, letterSpacing: '0.08em',
+                    fontFamily: 'var(--font-mono)', fontSize: '14px', fontWeight: 700, letterSpacing: '0.08em',
                     color: c.active ? '#6366f1' : 'var(--muted-foreground)',
                   }}>{c.code}</span>
                   <button
@@ -407,7 +407,7 @@ export default function RegistrationCodesPage() {
                     {c.uses.map((u, j) => (
                       <div key={j} style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '12px' }}>
                         <span style={{ fontWeight: 600, minWidth: 220 }}>{u.email}</span>
-                        <span style={{ color: 'var(--muted-foreground)', fontFamily: 'monospace', fontSize: '11px' }}>{u.userId}</span>
+                        <span style={{ color: 'var(--muted-foreground)', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>{u.userId}</span>
                         <span style={{ color: 'var(--muted-foreground)', marginLeft: 'auto' }}>
                           {new Date(u.usedAt).toLocaleString('es', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </span>

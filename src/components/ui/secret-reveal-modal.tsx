@@ -116,7 +116,7 @@ export function SecretRevealModal({
               display: 'block',
               fontSize: 13,
               wordBreak: 'break-all',
-              fontFamily: 'ui-monospace, monospace',
+              fontFamily: 'var(--font-mono)',
               color: 'var(--foreground)',
             }}
           >

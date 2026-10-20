@@ -185,7 +185,7 @@ export default function SharesPage() {
           <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
             <input readOnly value={newShare.url}
               onClick={e => (e.target as HTMLInputElement).select()}
-              style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--muted)', color: 'var(--foreground)', fontSize: 12, fontFamily: 'monospace', outline: 'none' }} />
+              style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--muted)', color: 'var(--foreground)', fontSize: 12, fontFamily: 'var(--font-mono)', outline: 'none' }} />
             <button type="button" onClick={() => copy(newShare.url, 'new-url')}
               style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--foreground)', whiteSpace: 'nowrap' }}>
               {copiedField === 'new-url' ? <><Check size={13} /> Copiado</> : <><Copy size={13} /> Copiar</>}
@@ -196,7 +196,7 @@ export default function SharesPage() {
           <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
             <input readOnly value={newShare.password}
               onClick={e => (e.target as HTMLInputElement).select()}
-              style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--muted)', color: 'var(--foreground)', fontSize: 14, fontFamily: 'monospace', letterSpacing: '0.1em', outline: 'none' }} />
+              style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--muted)', color: 'var(--foreground)', fontSize: 14, fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', outline: 'none' }} />
             <button type="button" onClick={() => copy(newShare.password, 'new-pw')}
               style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--foreground)', whiteSpace: 'nowrap' }}>
               {copiedField === 'new-pw' ? <><Check size={13} /> Copiado</> : <><Copy size={13} /> Copiar</>}
@@ -322,7 +322,7 @@ export default function SharesPage() {
                 <div style={{ display: 'flex', gap: 6 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, padding: '7px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--muted)', overflow: 'hidden' }}>
                     <Globe size={11} style={{ color: 'var(--muted-foreground)', flexShrink: 0 }} />
-                    <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--muted-foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted-foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {shareUrl}
                     </span>
                   </div>

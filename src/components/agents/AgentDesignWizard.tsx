@@ -203,7 +203,7 @@ export function AgentDesignWizard({ onClose, onAccept }: { onClose: () => void; 
 
             <div>
               <label style={label}>Prompt del sistema</label>
-              <textarea style={{ ...field, fontFamily: 'ui-monospace, monospace', fontSize: 12, borderColor: promptNeeds ? '#d97706' : 'var(--border)' }} rows={12} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+              <textarea style={{ ...field, fontFamily: 'var(--font-mono)', fontSize: 12, borderColor: promptNeeds ? '#d97706' : 'var(--border)' }} rows={12} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
             </div>
 
             {faqs.length > 0 && (

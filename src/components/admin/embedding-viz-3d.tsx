@@ -544,7 +544,7 @@ export default function AdminEmbeddingViz3D() {
                 <div style={{ marginTop: '8px', fontSize: '11px', opacity: 0.75 }}>
                   <div>agent: {hover.agentId}</div>
                   {hover.sourceFile ? <div>archivo: {hover.sourceFile}</div> : null}
-                  <div style={{ marginTop: '4px', fontFamily: 'ui-monospace, monospace', fontSize: '10px' }}>
+                  <div style={{ marginTop: '4px', fontFamily: 'var(--font-mono)', fontSize: '10px' }}>
                     {hover.entryId}
                   </div>
                 </div>
