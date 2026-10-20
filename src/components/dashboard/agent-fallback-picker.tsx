@@ -119,7 +119,7 @@ export function AgentFallbackPicker({
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--foreground)' }}>
                     {info?.name ?? mid}
                   </p>
-                  <p style={{ margin: '2px 0 0', fontSize: 10, fontFamily: 'ui-monospace, monospace', color: 'var(--muted-foreground)', wordBreak: 'break-all' }}>
+                  <p style={{ margin: '2px 0 0', fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--muted-foreground)', wordBreak: 'break-all' }}>
                     {mid}
                   </p>
                 </div>

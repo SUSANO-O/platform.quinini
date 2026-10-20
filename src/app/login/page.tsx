@@ -137,7 +137,7 @@ function LoginForm() {
                   required
                   autoFocus
                   className="landing-input"
-                  style={{ letterSpacing: '0.3em', textAlign: 'center', fontSize: '22px', fontFamily: 'monospace' }}
+                  style={{ letterSpacing: '0.3em', textAlign: 'center', fontSize: '22px', fontFamily: 'var(--font-mono)' }}
                   autoComplete="one-time-code"
                 />
               </div>

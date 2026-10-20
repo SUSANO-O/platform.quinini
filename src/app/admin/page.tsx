@@ -470,7 +470,7 @@ export default function AdminPage() {
                               {s.status}
                             </span>
                           </td>
-                          <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: '10px' }}>{s.syncStatus}</td>
+                          <td style={{ padding: '10px 16px', fontFamily: 'var(--font-mono)', fontSize: '10px' }}>{s.syncStatus}</td>
                           <td style={{ padding: '10px 16px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>
                             {s.updatedAt ? new Date(s.updatedAt).toLocaleString('es') : '—'}
                           </td>

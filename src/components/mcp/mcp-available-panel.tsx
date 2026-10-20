@@ -150,7 +150,7 @@ export function McpAvailablePanel({ compact, onConnectRequest }: Props) {
                   )}
                 </p>
                 <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.45 }}>{row.description}</p>
-                <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: '6px 0 0', fontFamily: 'ui-monospace, monospace' }}>
+                <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: '6px 0 0', fontFamily: 'var(--font-mono)' }}>
                   key: <code>{row.key}</code> · tools: <code>{row.toolIdPrefix}*</code>
                 </p>
                 {row.authMethods && row.authMethods.length > 0 && !compact && (

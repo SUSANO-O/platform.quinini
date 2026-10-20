@@ -69,7 +69,7 @@ export function AdminLandingAccessLockControl({
                 borderRadius: 6,
                 border: '1px solid var(--border)',
                 background: 'var(--background)',
-                fontFamily: 'ui-monospace, monospace',
+                fontFamily: 'var(--font-mono)',
                 fontSize: 12,
                 letterSpacing: '0.08em',
               }}

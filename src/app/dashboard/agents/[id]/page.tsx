@@ -2052,7 +2052,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       <p style={{ margin: '8px 0 6px', fontSize: 11, color: 'var(--muted-foreground)', lineHeight: 1.45 }}>
                         {skill.description}
                       </p>
-                      <p style={{ margin: '0 0 8px', fontSize: 10, color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>
+                      <p style={{ margin: '0 0 8px', fontSize: 10, color: 'var(--muted-foreground)', fontFamily: 'var(--font-mono)' }}>
                         {skill.id}
                       </p>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -4110,7 +4110,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                             background: 'var(--muted)',
                             border: '1px solid var(--border)',
                             margin: 0,
-                            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                            fontFamily: 'var(--font-mono)',
                           }}
                         >
                           {ragPreview.snippet}

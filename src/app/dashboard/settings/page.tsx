@@ -1248,7 +1248,7 @@ function TwoFactorSection() {
             <code
               style={{
                 fontSize: 15,
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                fontFamily: 'var(--font-mono)',
                 letterSpacing: '0.12em',
                 background: 'var(--muted)',
                 padding: '8px 12px',
@@ -1268,7 +1268,7 @@ function TwoFactorSection() {
                 type="text" inputMode="numeric" maxLength={6} pattern="\d{6}"
                 value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
                 placeholder="000000" required autoFocus
-                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 18, fontFamily: 'monospace', letterSpacing: '0.2em', textAlign: 'center', background: 'var(--background)' }}
+                style={{ width: 120, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 18, fontFamily: 'var(--font-mono)', letterSpacing: '0.2em', textAlign: 'center', background: 'var(--background)' }}
               />
               <button type="submit" disabled={busy || code.length < 6}
                 style={{ padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: 'var(--brand-primary)', color: '#fff', border: 'none', cursor: busy ? 'wait' : 'pointer' }}>

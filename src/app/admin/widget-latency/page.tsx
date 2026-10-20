@@ -518,7 +518,7 @@ export default function WidgetLatencyPage() {
                   <tbody>
                     {data.byAgent.map((row) => (
                       <tr key={row.agentId}>
-                        <td style={{ padding: '6px 0', fontFamily: 'monospace', fontSize: 10 }}>
+                        <td style={{ padding: '6px 0', fontFamily: 'var(--font-mono)', fontSize: 10 }}>
                           {row.agentId.slice(0, 20)}
                           {row.agentId.length > 20 ? '…' : ''}
                         </td>
@@ -526,7 +526,7 @@ export default function WidgetLatencyPage() {
                         <td style={{ fontWeight: 700, color: row.avgTotalMs >= 15000 ? HL : undefined }}>
                           {fmtMs(row.avgTotalMs)}
                         </td>
-                        <td style={{ fontFamily: 'monospace', fontSize: 10 }}>{row.topPath || '—'}</td>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: 10 }}>{row.topPath || '—'}</td>
                         <td>
                           <button
                             type="button"
@@ -571,7 +571,7 @@ export default function WidgetLatencyPage() {
                   <tbody>
                     {data.byPath.map((row) => (
                       <tr key={row.path}>
-                        <td style={{ padding: '5px 0', fontFamily: 'monospace' }}>{row.path}</td>
+                        <td style={{ padding: '5px 0', fontFamily: 'var(--font-mono)' }}>{row.path}</td>
                         <td>{row.requests}</td>
                         <td>{fmtMs(row.avgTotalMs)}</td>
                       </tr>
@@ -594,7 +594,7 @@ export default function WidgetLatencyPage() {
                 ) : (
                   data.byPhase.map((row) => (
                     <div key={row.phase} style={{ marginBottom: 6, fontSize: 11 }}>
-                      <span style={{ fontFamily: 'monospace' }}>{row.phase}</span>
+                      <span style={{ fontFamily: 'var(--font-mono)' }}>{row.phase}</span>
                       <span style={{ color: 'var(--muted-foreground)' }}>
                         {' '}
                         — {fmtMs(row.avgMs)} · n={row.samples}
@@ -655,7 +655,7 @@ export default function WidgetLatencyPage() {
                         borderRadius: 8,
                         background: 'var(--muted)',
                         fontSize: 11,
-                        fontFamily: 'monospace',
+                        fontFamily: 'var(--font-mono)',
                       }}
                     >
                       <div>

@@ -167,7 +167,7 @@ function WidgetTable({
             {/* Col 1: name */}
             <span style={{ fontWeight: 600, color: 'var(--foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {w.widgetName ?? w.widgetId.slice(-8)}
-              <span style={{ fontFamily: 'monospace', fontSize: 10, opacity: 0.45, marginLeft: 5 }}>({w.widgetId.slice(-6)})</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, opacity: 0.45, marginLeft: 5 }}>({w.widgetId.slice(-6)})</span>
               {w.lastMonth && (
                 <span style={{ fontSize: 10, color: 'var(--muted-foreground)', fontWeight: 400, marginLeft: 8 }}>{monthLabel(w.lastMonth)}</span>
               )}
@@ -467,7 +467,7 @@ export default function ModelStatsPage() {
                       {u.displayName && (
                         <div style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 1 }}>{u.displayName}</div>
                       )}
-                      <div style={{ fontFamily: 'monospace', fontSize: 10, color: 'var(--muted-foreground)', opacity: 0.6, marginTop: 1 }}>{u.id}</div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted-foreground)', opacity: 0.6, marginTop: 1 }}>{u.id}</div>
                     </button>
                   ))}
                 </div>
@@ -717,7 +717,7 @@ export default function ModelStatsPage() {
                           {row.lastWidgetName}
                         </button>
                         {row.lastWidgetId && (
-                          <span style={{ fontFamily: 'monospace', fontSize: 10, opacity: 0.5 }}>({row.lastWidgetId.slice(-6)})</span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, opacity: 0.5 }}>({row.lastWidgetId.slice(-6)})</span>
                         )}
                       </div>
                     )}

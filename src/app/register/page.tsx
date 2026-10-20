@@ -159,7 +159,7 @@ export default function RegisterPage() {
                 autoCapitalize="characters"
                 spellCheck={false}
                 className="landing-input"
-                style={{ letterSpacing: '0.08em', fontFamily: 'monospace' }}
+                style={{ letterSpacing: '0.08em', fontFamily: 'var(--font-mono)' }}
               />
             </div>
             <div>

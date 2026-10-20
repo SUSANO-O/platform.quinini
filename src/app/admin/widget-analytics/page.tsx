@@ -367,7 +367,7 @@ export default function AdminWidgetAnalyticsPage() {
                 ) : (
                   data.topByMonth.map((t) => (
                     <tr key={t.widgetId} style={{ borderTop: '1px solid var(--border)' }}>
-                      <td style={{ padding: '10px 12px', fontFamily: 'ui-monospace, monospace', fontSize: '11px' }}>{t.widgetId}</td>
+                      <td style={{ padding: '10px 12px', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>{t.widgetId}</td>
                       <td style={{ padding: '10px 12px', fontWeight: 700 }}>{t.requestsThisMonth}</td>
                       <td style={{ padding: '10px 12px' }}>{t.requestsLastMonth}</td>
                     </tr>
@@ -403,7 +403,7 @@ export default function AdminWidgetAnalyticsPage() {
                     <td
                       style={{
                         padding: '10px 10px',
-                        fontFamily: 'ui-monospace, monospace',
+                        fontFamily: 'var(--font-mono)',
                         fontSize: '11px',
                         maxWidth: '160px',
                         overflow: 'hidden',

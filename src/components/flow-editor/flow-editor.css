@@ -586,7 +586,7 @@
 }
 
 .flow-editor-node-id {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
   color: var(--brand-primary-dark);

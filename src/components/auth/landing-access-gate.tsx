@@ -98,7 +98,7 @@ export function LandingAccessGate({ onVerified, mode, tempToken }: Props) {
             autoComplete="off"
             autoFocus
             className="landing-input"
-            style={{ fontFamily: 'ui-monospace, monospace', letterSpacing: '0.12em', textAlign: 'center' }}
+            style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.12em', textAlign: 'center' }}
           />
           {error && (
             <p style={{ margin: 0, fontSize: 12, color: '#dc2626' }}>{error}</p>

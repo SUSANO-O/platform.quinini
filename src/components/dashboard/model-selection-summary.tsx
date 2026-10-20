@@ -77,7 +77,7 @@ export function ModelSelectionSummary({
               {primary.deprecated && <span style={{ fontSize: 10, fontWeight: 700, color: '#d97706' }}>Deprecado</span>}
             </div>
             <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--foreground)', lineHeight: 1.3 }}>{primary.name}</p>
-            <p style={{ margin: '4px 0 0', fontSize: 11, fontFamily: 'ui-monospace, monospace', color: 'var(--muted-foreground)', wordBreak: 'break-all' }}>{primary.id}</p>
+            <p style={{ margin: '4px 0 0', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted-foreground)', wordBreak: 'break-all' }}>{primary.id}</p>
           </div>
 
           {/* Respaldos */}
@@ -111,7 +111,7 @@ export function ModelSelectionSummary({
                       {fb.unknown && <span style={{ fontSize: 10, fontWeight: 700, color: '#d97706' }}>Fuera del catálogo</span>}
                     </div>
                     <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--foreground)' }}>{fb.name}</p>
-                    <p style={{ margin: '2px 0 0', fontSize: 10, fontFamily: 'ui-monospace, monospace', color: 'var(--muted-foreground)', wordBreak: 'break-all' }}>{fb.id}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--muted-foreground)', wordBreak: 'break-all' }}>{fb.id}</p>
                   </div>
                 ))}
               </div>
@@ -163,7 +163,7 @@ export function ModelSelectionSummary({
                   onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--background)'; }}
                 >
                   <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--foreground)' }}>{m.name ?? m.id}</span>
-                  <span style={{ fontSize: 10, fontFamily: 'ui-monospace, monospace', color: 'var(--muted-foreground)' }}>{m.id}</span>
+                  <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--muted-foreground)' }}>{m.id}</span>
                 </button>
               ))}
             </div>

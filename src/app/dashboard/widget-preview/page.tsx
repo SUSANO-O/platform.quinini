@@ -1363,7 +1363,7 @@ function SubAgentList({
                     </p>
                   )}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4, fontSize: 10, color: 'var(--muted-foreground)' }}>
-                    {modelLabel && <span style={{ fontFamily: 'monospace' }}>{modelLabel}</span>}
+                    {modelLabel && <span style={{ fontFamily: 'var(--font-mono)' }}>{modelLabel}</span>}
                     {typeof sub.toolsCount === 'number' && <span>{sub.toolsCount} tools</span>}
                     {sub.ragEnabled && <span>RAG</span>}
                   </div>

@@ -55,7 +55,7 @@ export function LandingNavbar({
   const isDark = variant === 'dark';
 
   const navBtnSx = {
-    fontFamily: '"Inter", system-ui, sans-serif',
+    fontFamily: 'var(--font-body)',
     fontWeight: 500,
     letterSpacing: '-0.015em',
     textTransform: 'none' as const,
@@ -93,7 +93,7 @@ export function LandingNavbar({
                 textDecoration: 'none',
                 color: isDark ? '#f8fafc' : 'text.primary',
                 mr: 'auto',
-                fontFamily: '"Inter", system-ui, sans-serif',
+                fontFamily: 'var(--font-body)',
               }}
             >
               <BotivaOrbLogo size={32} className="shrink-0" onDark={isDark} />

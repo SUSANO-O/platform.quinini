@@ -478,7 +478,7 @@ export default function AiConfigPage() {
                       )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-                      <span style={{ fontSize: 11, color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>
+                      <span style={{ fontSize: 11, color: 'var(--muted-foreground)', fontFamily: 'var(--font-mono)' }}>
                         {model.modelId}
                       </span>
                       {model.maxTokens && (
@@ -720,7 +720,7 @@ export default function AiConfigPage() {
                         </span>
                       )}
                     </div>
-                    <p style={{ margin: '2px 0 0', fontSize: 11, fontFamily: 'ui-monospace, monospace', color: 'var(--muted-foreground)', wordBreak: 'break-all' }}>
+                    <p style={{ margin: '2px 0 0', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted-foreground)', wordBreak: 'break-all' }}>
                       {m.modelId}
                     </p>
                     {m.description && (

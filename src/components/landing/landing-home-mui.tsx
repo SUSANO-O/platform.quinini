@@ -333,7 +333,7 @@ export function LandingHomeMui({ copy }: { copy: LandingCopy }) {
               <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#ef4444' }} />
               <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#f59e0b' }} />
               <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#22c55e' }} />
-              <Typography variant="caption" color="text.secondary" sx={{ ml: 1, fontFamily: 'monospace' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ ml: 1, fontFamily: 'var(--font-mono)' }}>
                 {copy.widget.windowTitle}
               </Typography>
               <Box sx={{ flex: 1 }} />
