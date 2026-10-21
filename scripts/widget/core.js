@@ -6453,6 +6453,7 @@
                 } else {
                   updateStreamBubble(streamBubble, streamReply);
                 }
+                ttsPrefetchFromStream(botReplyForDisplay(streamReply));
               } else if (evt.type === 'done') {
                 streamDoneEvt = evt;
                 hideTyping();
@@ -6910,6 +6911,65 @@
       });
     }
 
+    /**
+     * Prefetch durante el streaming: en cuanto llega la primera frase completa se pide su audio,
+     * así al terminar la respuesta empieza a sonar sin esperar otra ida y vuelta.
+     * Clave normalizada (solo letras/números) porque el texto final sale del DOM y puede
+     * diferir en espacios o puntuación del texto que llegó por tokens.
+     */
+    var ttsPrefetched = { key: '', audio: null };
+    function ttsPrefetchKey(sentence) {
+      return String(sentence || '').toLowerCase().replace(/[^a-z0-9áéíóúñü]+/g, '');
+    }
+    function ttsPrefetchFromStream(partialText) {
+      if (!(voiceActive || ttsMode) || !elevenLabsTtsCapable()) return;
+      var sentences = ttsSplitIntoSentences(ttsCleanText(partialText));
+      if (sentences.length < 2) return; // la primera frase todavía no terminó
+      var key = ttsPrefetchKey(sentences[0]);
+      if (!key || key === ttsPrefetched.key) return;
+      var audio = ttsFetchSentenceAudio(sentences[0]);
+      audio.catch(function() { /* si falla, ttsSpeakElevenLabs lo vuelve a pedir */ });
+      ttsPrefetched = { key: key, audio: audio };
+    }
+    function ttsTakePrefetched(sentence) {
+      var key = ttsPrefetchKey(sentence);
+      if (!key || key !== ttsPrefetched.key || !ttsPrefetched.audio) return null;
+      var audio = ttsPrefetched.audio;
+      ttsPrefetched = { key: '', audio: null };
+      return audio;
+    }
+
+    /** Despierta la función de voz (arranque en frío de varios segundos) al activar la lectura. */
+    var ttsWarmedAt = 0;
+    function ttsWarmUp() {
+      if (!elevenLabsTtsCapable() || Date.now() - ttsWarmedAt < 5 * 60 * 1000) return;
+      ttsWarmedAt = Date.now();
+      try {
+        fetch(elevenLabsVoiceUrl('/api/widget/voice/tts'), {
+          method: 'POST',
+          headers: elevenLabsHeaders(),
+          body: JSON.stringify(elevenLabsRequestBody({ warm: true })),
+        }).catch(function() { /* noop */ });
+      } catch (_w) { /* noop */ }
+    }
+
+    /** La voz no pudo sonar (ni ElevenLabs ni la del navegador): avisar en vez de quedarse callado. */
+    function ttsNotifyFailure() {
+      log(cfg, 'warn', '[TTS] no se pudo leer en voz alta');
+      if (voiceActive && voiceBar) {
+        var label = voiceBar.querySelector('.afhub-voice-label');
+        if (label) label.textContent = 'No se pudo leer en voz alta';
+      }
+      if (headerSpeakerBtn) {
+        headerSpeakerBtn.classList.add('afhub-tts-failed');
+        headerSpeakerBtn.title = 'No se pudo leer en voz alta en este navegador';
+        setTimeout(function() {
+          headerSpeakerBtn.classList.remove('afhub-tts-failed');
+          syncSpeakerMenuItem();
+        }, 4000);
+      }
+    }
+
     function ttsSpeakElevenLabs(text, onEnd) {
       var session = ++ttsSessionId;
       var sentences = ttsSplitIntoSentences(text);
@@ -6917,7 +6977,7 @@
 
       var pending = {}; // idx -> Promise<dataUrl>, cacheado para no re-pedir el prefetch
       function audioFor(idx) {
-        if (!pending[idx]) pending[idx] = ttsFetchSentenceAudio(sentences[idx]);
+        if (!pending[idx]) pending[idx] = (idx === 0 && ttsTakePrefetched(sentences[0])) || ttsFetchSentenceAudio(sentences[idx]);
         return pending[idx];
       }
 
@@ -6972,7 +7032,7 @@
       var cleaned = ttsCleanText(text);
       if (!cleaned) { if (onEnd) onEnd(); return; }
 
-      if (!window.speechSynthesis) { if (onEnd) onEnd(); return; }
+      if (!window.speechSynthesis) { ttsNotifyFailure(); if (onEnd) onEnd(); return; }
 
       if (window.speechSynthesis.paused) window.speechSynthesis.resume();
       window.speechSynthesis.cancel();
@@ -6981,6 +7041,7 @@
       var chunks = ttsSplitIntoChunks(cleaned, 180);
       var session = ++ttsSessionId;
       var idx = 0;
+      var failureNotified = false;
 
       log(cfg, 'debug', '[TTS] Speaking', { chars: cleaned.length, chunks: chunks.length });
 
@@ -7005,8 +7066,14 @@
           if (window.speechSynthesis.paused) window.speechSynthesis.resume();
           speakNext();
         };
-        utt.onerror = function() {
+        utt.onerror = function(ev) {
           if (session !== ttsSessionId) return;
+          var code = ev && ev.error;
+          // interrupted/canceled = lo paramos nosotros (otra respuesta, stop); el resto es un fallo real.
+          if (code && code !== 'interrupted' && code !== 'canceled' && !failureNotified) {
+            failureNotified = true;
+            ttsNotifyFailure();
+          }
           speakNext();
         };
         ttsUtterance = utt;
@@ -7337,6 +7404,7 @@
         if (!isOpen) open();
         startListening();
         syncSpeakerMenuItem();
+        ttsWarmUp();
       }
     }
 
@@ -7374,6 +7442,7 @@
       ttsMode = !ttsMode;
       syncSpeakerMenuItem();
       if (!ttsMode) ttsStop();
+      else ttsWarmUp();
     }
 
     if (headerSpeakerBtn) {
@@ -9381,6 +9450,8 @@
       '#' + rootId + ' .afhub-voice-dot--thinking { background:#f59e0b; animation:afhub-dot-pulse .6s ease-in-out infinite; }' +
       '#' + rootId + ' .afhub-voice-dot--speaking { background:#22c55e; animation:afhub-dot-pulse .8s ease-in-out infinite; }' +
       '#' + rootId + ' .afhub-voice-label { font-size:12px; color:#6366f1; font-weight:600; flex:1; letter-spacing:.02em; }' +
+      '#' + rootId + ' .afhub-tts-failed { color:#dc2626 !important; animation:afhub-tts-failed-pulse 1.2s ease 2; }' +
+      '@keyframes afhub-tts-failed-pulse { 50% { opacity:.45; } }' +
       '#' + rootId + ' .afhub-voice-stop { background:none; border:1px solid rgba(239,68,68,.3); color:#ef4444; font-size:11px; padding:3px 10px; border-radius:20px; cursor:pointer; font-weight:600; transition:background .15s; }' +
       '#' + rootId + ' .afhub-voice-stop:hover { background:rgba(239,68,68,.08); }' +
       '@keyframes afhub-bounce { to { transform:translateY(-6px); opacity:.4; } }' +
