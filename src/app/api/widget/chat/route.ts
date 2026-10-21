@@ -51,6 +51,7 @@ import {
 import { respondAndPersist, type PersistTranscriptInput } from '@/lib/widget-transcript';
 import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-enrich';
 import { logInferenceMetric, estimateTokens } from '@/lib/inference-metrics';
+import { sanitizeHubReplyBody } from '@/lib/widget-reply-tool-leak';
 import { normalizeVisitorId } from '@/lib/widget-visitor';
 import { checkAndBuildTicketDeflectionReply } from '@/lib/ticket-deflection-flow';
 import {
@@ -1159,7 +1160,8 @@ export async function POST(req: NextRequest) {
       ok: res.ok,
     });
 
-    const data = await res.text();
+    // Nunca mostrar al visitante una llamada a herramienta escrita como texto (JSON con SQL, etc.).
+    const data = res.ok ? sanitizeHubReplyBody(await res.text()) : await res.text();
 
     if (
       !res.ok &&

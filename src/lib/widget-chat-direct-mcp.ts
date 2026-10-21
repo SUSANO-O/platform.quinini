@@ -4,6 +4,7 @@
  * Si llamamos a AIBackHub `POST /api/mcp/widget-chat`, sí se ejecuta el POST real.
  */
 
+import { stripLeakedToolCalls } from '@/lib/widget-reply-tool-leak';
 import { currentViewBlock } from '@/lib/widget-page-nav';
 import { appMapContextBlock, type AppMapEntry } from '@/lib/widget-app-map';
 import { flowContextBlock } from '@/lib/flow-handoff';
@@ -400,7 +401,7 @@ export async function tryServeWidgetChatViaHubMcp(params: {
           params.onStatus(typeof evt.phase === 'string' ? evt.phase : 'hub', evt.message);
         } else if (evt.type === 'done' && typeof evt.reply === 'string') {
           donePayload = {
-            reply: evt.reply,
+            reply: stripLeakedToolCalls(evt.reply).text,
             toolsUsed: evt.toolsUsed,
             toolRounds: evt.toolRounds,
             usage: parseHubModelUsage(evt.usage),
@@ -470,7 +471,7 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   });
 
   return {
-    reply: data.text,
+    reply: stripLeakedToolCalls(data.text ?? '').text,
     toolsUsed: data.toolsUsed,
     toolRounds: data.toolRounds,
     usage: parseHubModelUsage(data.usage),
