@@ -5763,13 +5763,17 @@
     var pushClosing = false;
     function closeImpl() {
       if (!isOpen) return;
-      if (chat.classList.contains('afhub-chat--push') && chat.classList.contains('visible') && !pushClosing) {
+      // Barra lateral (con o sin empujar la página): primero se oculta en su sitio y solo después
+      // vuelve al diseño flotante. Al revés, el panel saltaba de golpe al recuadro flotante
+      // (opaco) y se desvanecía ahí.
+      var closingDocked = chat.classList.contains('afhub-chat--push') || chatLayout === 'sidebar';
+      if (closingDocked && chat.classList.contains('visible') && !pushClosing) {
         pushClosing = true;
         chat.classList.remove('visible');
         setTimeout(function () {
           pushClosing = false;
           closeImpl();
-        }, 240);
+        }, chat.classList.contains('afhub-chat--push') ? 240 : 290);
         return;
       }
       if (pushClosing) return;
