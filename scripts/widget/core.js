@@ -3421,7 +3421,8 @@
       var opts = finalizeFn && finalizeFn.opts;
       var bubble = addMessage('bot', fullText, opts);
       if (finalizeFn) finalizeFn(bubble, fullText);
-      speakBotReplyIfEnabled(fullText, bubble);
+      // La lectura en voz alta la dispara addMessage (addMessageWithTTS); llamarla aquí también
+      // la arrancaba dos veces: la segunda cancelaba la primera y duplicaba las peticiones de audio.
     }
 
     var _streamPaintTimer = null;
@@ -6875,8 +6876,19 @@
           out.push(p);
         }
       }
-      return out;
+      // La primera frase va sola (arranca a sonar antes); el resto se agrupa en tandas de
+      // ~200 caracteres: menos peticiones y sin pausas entre frases cortas.
+      var grouped = [];
+      for (var k = 0; k < out.length; k++) {
+        var last = grouped.length > 1 ? grouped[grouped.length - 1] : null;
+        if (last !== null && last.length + out[k].length + 1 <= 200) grouped[grouped.length - 1] = last + ' ' + out[k];
+        else grouped.push(out[k]);
+      }
+      return grouped;
     }
+
+    /** Si el primer audio de ElevenLabs no llega en este tiempo, se lee con la voz del navegador. */
+    var TTS_FIRST_AUDIO_TIMEOUT_MS = 4000;
 
     function ttsFetchSentenceAudio(sentence) {
       return fetch(elevenLabsVoiceUrl('/api/widget/voice/tts'), {
@@ -6916,7 +6928,16 @@
         if (idx >= sentences.length) { ttsAudio = null; if (onEnd) onEnd(); return; }
         // Prefetch adelantado: mientras suena idx, ya se está pidiendo idx+1.
         if (idx + 1 < sentences.length) audioFor(idx + 1);
+        var settled = false;
+        var slowTimer = idx === 0 ? setTimeout(function() {
+          if (settled || session !== ttsSessionId) return;
+          settled = true;
+          fallbackFrom(0, 'primer audio tardó más de ' + TTS_FIRST_AUDIO_TIMEOUT_MS + ' ms');
+        }, TTS_FIRST_AUDIO_TIMEOUT_MS) : null;
         audioFor(idx).then(function(dataUrl) {
+          if (settled) return;
+          settled = true;
+          if (slowTimer) clearTimeout(slowTimer);
           if (session !== ttsSessionId) return;
           var audio = new Audio(dataUrl);
           ttsAudio = audio;
@@ -6926,6 +6947,9 @@
             if (session === ttsSessionId) fallbackFrom(idx, err && err.message);
           });
         }).catch(function(err) {
+          if (settled) return;
+          settled = true;
+          if (slowTimer) clearTimeout(slowTimer);
           if (session === ttsSessionId) fallbackFrom(idx, err && err.message);
         });
       }

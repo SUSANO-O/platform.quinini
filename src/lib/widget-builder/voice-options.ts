@@ -1,6 +1,6 @@
 /**
  * Voces de ElevenLabs curadas para elegir por widget (voice_id → Widget.voiceId,
- * ver src/lib/voice/). Todas usan el mismo modelo (eleven_multilingual_v2), así
+ * ver src/lib/voice/). Todas usan el mismo modelo (eleven_flash_v2_5), así
  * que el costo por carácter es el mismo sin importar cuál se elija — la curación
  * es solo por calidad/tono en español, no por precio entre ellas.
  */
