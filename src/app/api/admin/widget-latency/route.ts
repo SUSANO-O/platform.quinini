@@ -43,6 +43,8 @@ export async function GET(req: NextRequest) {
   const baseMatch: Record<string, unknown> = { createdAt: { $gte: from, $lte: to } };
   if (filterAgentId) baseMatch.agentId = filterAgentId;
   if (filterPath) baseMatch.path = filterPath;
+  // La sonda horaria (sesiones hourly_*) no es un visitante esperando: fuera por defecto; ?probes=1 la incluye.
+  if (url.searchParams.get('probes') !== '1') baseMatch.sessionId = { $not: /^hourly_/ };
 
   const [summary, byPath, byDay, byPhase, byAgent, slowSamples] = await Promise.all([
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

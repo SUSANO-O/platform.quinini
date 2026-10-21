@@ -149,6 +149,11 @@ export class WidgetChatTrace {
     this.promptChars = Math.max(0, Math.floor(chars));
   }
 
+  /** Milisegundos desde que empezó el turno (para métricas de caminos sin cronómetro propio). */
+  elapsedMs(): number {
+    return Date.now() - this.startedAt;
+  }
+
   setInputTokens(tokens: number | null | undefined): void {
     if (tokens == null || !Number.isFinite(tokens)) return;
     this.inputTokens = Math.max(0, Math.floor(tokens));

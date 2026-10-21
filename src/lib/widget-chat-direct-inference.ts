@@ -33,6 +33,8 @@ import { appMapContextBlock, type AppMapEntry } from '@/lib/widget-app-map';
 export type DirectInferenceResult = {
   reply: string;
   usedModel?: string;
+  /** /api/models no devuelve tokens: estimación (≈4 caracteres/token) de prompt + sistema + historial. */
+  inputTokensEst?: number;
 };
 
 function inferProvider(model: string): string {
@@ -463,7 +465,9 @@ export async function tryServeWidgetChatViaDirectInference(params: {
           : storedModel;
 
     logWidgetFlow('✅', 'infer:ok', 'respuesta directa', { replyLen: reply.length, usedModel });
-    return { reply, usedModel };
+    const inputChars =
+      String(promptForModel || '').length + String(resolvedSystemPrompt || '').length + JSON.stringify(history || []).length;
+    return { reply, usedModel, inputTokensEst: Math.ceil(inputChars / 4) };
   } catch (err) {
     logWidgetFlow('❌', 'infer:err', err instanceof Error ? err.message : String(err));
     return null;

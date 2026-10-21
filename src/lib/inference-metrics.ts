@@ -7,6 +7,20 @@
  */
 
 import { InferenceMetric } from '@/lib/db/models';
+import { usdFromTokenCounts } from '@/lib/llm-cost';
+
+/** Sesiones de la sonda horaria (demo Asesor Ventas/Taller): tráfico sintético, no de visitantes. */
+export function isProbeSessionId(sessionId: string | null | undefined): boolean {
+  return typeof sessionId === 'string' && sessionId.startsWith('hourly_');
+}
+
+/** Coste estimado con la tabla de precios del modelo; null si falta el modelo o los tokens de salida. */
+export function metricCostUsd(m: Pick<MetricInput, 'costUsd' | 'model' | 'inputTokens' | 'outputTokens'>): number | null {
+  if (typeof m.costUsd === 'number') return m.costUsd;
+  const model = (m.model || '').trim();
+  if (!model || m.outputTokens == null) return null;
+  return usdFromTokenCounts(model, m.inputTokens ?? 0, m.outputTokens);
+}
 
 export interface MetricInput {
   userId: string;
@@ -58,7 +72,8 @@ export function logInferenceMetric(m: MetricInput): void {
         ragChars: m.ragChars ?? 0,
         toolRounds: m.toolRounds ?? 0,
         toolsUsed: Array.isArray(m.toolsUsed) ? m.toolsUsed.slice(0, 20) : [],
-        costUsd: m.costUsd ?? null,
+        costUsd: metricCostUsd(m),
+        isProbe: isProbeSessionId(m.sessionId),
         latencyMs: m.latencyMs ?? 0,
         ok: m.ok !== false,
         errorCode: m.errorCode ?? null,
