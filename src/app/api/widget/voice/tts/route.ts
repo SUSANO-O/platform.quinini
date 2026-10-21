@@ -49,11 +49,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { text?: string; voiceId?: string; sessionId?: string; widgetId?: string; agentId?: string; token?: string };
+  let body: { text?: string; voiceId?: string; sessionId?: string; widgetId?: string; agentId?: string; token?: string; warm?: boolean };
   try {
     body = await req.json();
   } catch {
     return withCors(req, NextResponse.json({ error: 'JSON inválido.' }, { status: 400 }));
+  }
+
+  // El widget despierta la función al activar la voz (evita el arranque en frío en la primera frase).
+  if (body.warm === true) {
+    await connectDB().catch(() => {});
+    return withCors(req, new NextResponse(null, { status: 204 }));
   }
 
   const text = typeof body.text === 'string' ? body.text.trim() : '';
