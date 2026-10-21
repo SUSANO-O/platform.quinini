@@ -1310,6 +1310,7 @@
   }
 
   function persistChatUiOpen(cfg, open) {
+    if (cfg.preview) return; // el estudio decide abierto/cerrado con su selector, no la sesión
     try {
       var key = chatUiOpenStorageKey(cfg);
       if (open) sessionStorage.setItem(key, '1');
@@ -1320,6 +1321,7 @@
   }
 
   function shouldRestoreChatUiOpen(cfg) {
+    if (cfg.preview) return false;
     try {
       return sessionStorage.getItem(chatUiOpenStorageKey(cfg)) === '1';
     } catch (_e) {
