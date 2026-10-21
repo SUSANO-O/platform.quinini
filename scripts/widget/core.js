@@ -3091,8 +3091,24 @@
       return out;
     }
 
+    /**
+     * Llamada a herramienta escrita como texto (```json {"tool_call": …}```): no se muestra ni
+     * mientras llega por streaming. El servidor ya la quita de la respuesta final; esto cubre
+     * los tokens en vivo, incluido el bloque todavía sin cerrar.
+     */
+    var TOOL_LEAK_KEY_RE = /"(?:tool_calls?|function_call|functionCall)"\s*:|"name"\s*:\s*"[^"]+"\s*,\s*"(?:arguments|args|parameters)"\s*:/;
+    function stripStreamingToolLeak(text) {
+      if (!TOOL_LEAK_KEY_RE.test(text)) return text;
+      return text
+        .replace(/```[a-zA-Z]*\s*([\s\S]*?)(?:```|$)/g, function (block, inner) {
+          return TOOL_LEAK_KEY_RE.test(inner) ? '' : block;
+        })
+        .replace(/\{\s*"(?:tool_calls?|function_call|functionCall)"[\s\S]*$/, '')
+        .trim();
+    }
+
     function botReplyForDisplay(raw) {
-      var t = stripVisibleMetaInstructionLeak(stripHandoffPrefix(stripAssistNavBlock(String(raw || ''))));
+      var t = stripStreamingToolLeak(stripVisibleMetaInstructionLeak(stripHandoffPrefix(stripAssistNavBlock(String(raw || '')))));
       return cfg.showMcpUi ? t : stripHubSpotProducerNotes(t);
     }
 

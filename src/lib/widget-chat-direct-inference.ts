@@ -3,6 +3,7 @@
  * Evita fallos cuando AgentFlowhub usa VERTEX_GEMINI_MODEL / orquestador obsoleto.
  */
 
+import { stripLeakedToolCalls } from '@/lib/widget-reply-tool-leak';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent } from '@/lib/db/models';
 import { Types } from 'mongoose';
@@ -450,7 +451,7 @@ export async function tryServeWidgetChatViaDirectInference(params: {
       return null;
     }
 
-    const reply = softenJsonOnlyReply(extractReply(json));
+    const reply = stripLeakedToolCalls(softenJsonOnlyReply(extractReply(json))).text;
     if (!reply) {
       logWidgetFlow('❌', 'infer:empty', 'respuesta vacía');
       return null;

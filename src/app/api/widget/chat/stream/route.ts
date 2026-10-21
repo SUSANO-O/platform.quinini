@@ -81,6 +81,7 @@ import { attachAssistNavToPayload, buildAssistNavCtx } from '@/lib/assist-chat-r
 import { stripWidgetNavBlocks } from '@/lib/widget-page-nav';
 import { isLocalDevLimitsBypass } from '@/lib/dev-limits';
 import { logInferenceMetric, estimateTokens } from '@/lib/inference-metrics';
+import { stripLeakedToolCalls } from '@/lib/widget-reply-tool-leak';
 import { checkAndBuildTicketDeflectionReply } from '@/lib/ticket-deflection-flow';
 
 export const maxDuration = 60; // Vercel: allow up to 60s for LLM + streaming
@@ -1233,7 +1234,8 @@ export async function POST(req: NextRequest) {
           return;
         }
 
-        let fullReply = json.reply || json.response || json.text || '';
+        // Nunca mostrar al visitante una llamada a herramienta escrita como texto (JSON con SQL, etc.).
+        let fullReply = stripLeakedToolCalls(json.reply || json.response || json.text || '').text;
         if (multiAgentMeta?.handoff && fullReply) {
           const prefix = buildHandoffPrefix(orchestratorName, multiAgentMeta.routedAgentName);
           if (!fullReply.startsWith(prefix)) fullReply = prefix + fullReply;
