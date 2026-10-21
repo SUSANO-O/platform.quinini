@@ -30,7 +30,7 @@ export async function OPTIONS(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
-  const rl = await checkRateLimitAsync('widget-voice-tts', ip, 20, 60_000);
+  const rl = await checkRateLimitAsync('widget-voice-tts', ip, 60, 60_000) // el widget pide un audio por tanda de frases;
   if (!rl.success) {
     return withCors(
       req,

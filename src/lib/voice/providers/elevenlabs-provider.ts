@@ -9,7 +9,12 @@ import type { SynthesizeSpeechResult, TranscribeAudioResult, VoiceProvider } fro
 import { VoiceProviderNotConfiguredError } from '@/lib/voice/types';
 
 const ELEVENLABS_API_BASE = 'https://api.elevenlabs.io/v1';
-const TTS_MODEL_ID = 'eleven_multilingual_v2';
+/**
+ * Flash v2.5: el modelo de baja latencia de ElevenLabs (multilingüe, mismas voces). Con
+ * multilingual_v2 cada frase tardaba 2–5 s y el widget se quedaba callado antes de leer.
+ * Se puede volver a otro modelo con ELEVENLABS_TTS_MODEL sin desplegar código.
+ */
+const DEFAULT_TTS_MODEL_ID = 'eleven_flash_v2_5';
 const STT_MODEL_ID = 'scribe_v1';
 
 /** Límite generoso para una respuesta de chat leída en voz alta. */
@@ -31,6 +36,10 @@ export class ElevenLabsVoiceProvider implements VoiceProvider {
     return process.env.ELEVENLABS_VOICE_ID?.trim() || '';
   }
 
+  private ttsModelId(): string {
+    return process.env.ELEVENLABS_TTS_MODEL?.trim() || DEFAULT_TTS_MODEL_ID;
+  }
+
   isConfigured(): boolean {
     return Boolean(this.apiKey());
   }
@@ -46,7 +55,7 @@ export class ElevenLabsVoiceProvider implements VoiceProvider {
     const res = await fetch(`${ELEVENLABS_API_BASE}/text-to-speech/${encodeURIComponent(vId)}`, {
       method: 'POST',
       headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: clipped, model_id: TTS_MODEL_ID }),
+      body: JSON.stringify({ text: clipped, model_id: this.ttsModelId() }),
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
