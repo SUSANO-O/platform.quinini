@@ -50,6 +50,8 @@ export async function GET(req: NextRequest) {
   if (filterUserId) baseMatch.userId = filterUserId;
   if (filterAgentId) baseMatch.agentId = filterAgentId;
   if (filterPath) baseMatch.path = filterPath;
+  // La sonda horaria (sesiones hourly_*) es tráfico sintético: fuera por defecto; ?probes=1 la incluye.
+  if (url.searchParams.get('probes') !== '1') baseMatch.isProbe = { $ne: true };
 
   const [summary, byDay, byPath, byAgentRaw, topToolsRaw] = await Promise.all([
     // $percentile (MongoDB 7+) no está en los tipos de Mongoose — usamos pipeline as any

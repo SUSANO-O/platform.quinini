@@ -702,6 +702,7 @@ export async function POST(req: NextRequest) {
                 sessionId: parsedSessionId || traceId,
                 traceId,
                 path: 'stream-pipeline',
+                latencyMs: latencyTrace.elapsedMs(),
                 reply: pipeline.reply,
               });
               finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: pipeline.reply.length });
@@ -781,6 +782,7 @@ export async function POST(req: NextRequest) {
                 sessionId: parsedSessionId || traceId,
                 traceId,
                 path: 'stream-parallel',
+                latencyMs: latencyTrace.elapsedMs(),
                 reply: parallel.reply,
               });
               finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: parallel.reply.length });
@@ -1054,6 +1056,9 @@ export async function POST(req: NextRequest) {
                 traceId,
                 path: 'stream-infer-direct',
                 reply: inferredEarly.reply,
+                latencyMs: latencyTrace.elapsedMs(),
+                model: inferredEarly.usedModel,
+                inputTokens: inferredEarly.inputTokensEst ?? null,
               });
               finalizeWidgetChatTrace(latencyTrace, {
                 ok: true,
@@ -1167,6 +1172,9 @@ export async function POST(req: NextRequest) {
                 traceId,
                 path: 'stream-infer-direct',
                 reply: inferred.reply,
+                latencyMs: latencyTrace.elapsedMs(),
+                model: inferred.usedModel,
+                inputTokens: inferred.inputTokensEst ?? null,
               });
               finalizeWidgetChatTrace(latencyTrace, { ok: true, replyLen: inferred.reply.length });
               return;
@@ -1292,6 +1300,7 @@ export async function POST(req: NextRequest) {
           traceId,
           path: 'stream-hub',
           reply: fullReply,
+          latencyMs: latencyTrace.elapsedMs(),
           toolsUsed: json.toolsUsed,
           model: usedModel,
           inputTokens: json.usage?.inputTokens ?? null,

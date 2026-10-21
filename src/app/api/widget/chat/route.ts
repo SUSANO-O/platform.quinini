@@ -1076,6 +1076,19 @@ export async function POST(req: NextRequest) {
               agentResponse: inferred.reply,
               routingMeta: multiAgentMeta,
             });
+            logInferenceMetric({
+              userId: w.userId,
+              agentId: parsedAgentId,
+              widgetId: resolvedWidgetId || w.id,
+              sessionId: parsedSessionId || traceId,
+              traceId,
+              path: 'non-stream-infer-direct',
+              latencyMs: latencyTrace.elapsedMs(),
+              model: inferred.usedModel,
+              inputTokens: inferred.inputTokensEst ?? null,
+              outputTokens: estimateTokens(inferred.reply),
+              ok: true,
+            });
             finishNonStreamTrace(latencyTrace, 'non-stream-infer-direct', {
               ok: true,
               replyLen: inferred.reply.length,
@@ -1184,6 +1197,21 @@ export async function POST(req: NextRequest) {
             agentResponse: inferred.reply,
             routingMeta: multiAgentMeta,
           });
+          if (faqTrackOwnerId) {
+            logInferenceMetric({
+              userId: faqTrackOwnerId,
+              agentId: parsedAgentId,
+              widgetId: resolvedWidgetId || null,
+              sessionId: parsedSessionId || traceId,
+              traceId,
+              path: 'non-stream-infer-direct',
+              latencyMs: latencyTrace.elapsedMs(),
+              model: inferred.usedModel,
+              inputTokens: inferred.inputTokensEst ?? null,
+              outputTokens: estimateTokens(inferred.reply),
+              ok: true,
+            });
+          }
           finishNonStreamTrace(latencyTrace, 'non-stream-infer-direct', {
             ok: true,
             replyLen: inferred.reply.length,
@@ -1282,10 +1310,32 @@ export async function POST(req: NextRequest) {
 
     if (res.ok) {
       let replyLen = 0;
+      let hubReplyUsage: { inputTokens?: number; outputTokens?: number; model?: string } | undefined;
       try {
-        const parsed = JSON.parse(data) as { reply?: string; text?: string; response?: string };
+        const parsed = JSON.parse(data) as {
+          reply?: string;
+          text?: string;
+          response?: string;
+          usage?: { inputTokens?: number; outputTokens?: number; model?: string };
+        };
         replyLen = (parsed.reply || parsed.text || parsed.response || '').length;
+        hubReplyUsage = parsed.usage;
       } catch { /* ignore */ }
+      if (faqTrackOwnerId) {
+        logInferenceMetric({
+          userId: faqTrackOwnerId,
+          agentId: parsedAgentId,
+          widgetId: resolvedWidgetId || null,
+          sessionId: parsedSessionId || traceId,
+          traceId,
+          path: 'non-stream-hub',
+          latencyMs: latencyTrace.elapsedMs(),
+          model: hubReplyUsage?.model,
+          inputTokens: hubReplyUsage?.inputTokens ?? null,
+          outputTokens: hubReplyUsage?.outputTokens ?? Math.ceil(replyLen / 4),
+          ok: true,
+        });
+      }
       finishNonStreamTrace(latencyTrace, 'non-stream-hub', { ok: true, replyLen });
     } else {
       finishNonStreamTrace(latencyTrace, 'non-stream-error', { ok: false, errorCode: `HTTP_${res.status}` });

@@ -1011,6 +1011,8 @@ const InferenceMetricSchema = new Schema({
   errorCode:        { type: String, default: null },
   // Path: 'direct-mcp' | 'stream-proxy' | 'non-stream-proxy' | 'inference-direct'
   path:             { type: String, default: '' },
+  /** Sonda horaria (sesiones `hourly_*`): excluir de latencia/UX; sí cuenta como gasto real. */
+  isProbe:          { type: Boolean, default: false },
   createdAt:        { type: Date, default: Date.now, expires: 90 * 24 * 60 * 60 }, // TTL 90 días
 }, { timestamps: false });
 
