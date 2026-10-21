@@ -6470,6 +6470,16 @@
                   updateStreamBubble(streamBubble, streamReply);
                 }
                 ttsPrefetchFromStream(botReplyForDisplay(streamReply));
+              } else if (evt.type === 'token_reset') {
+                // El texto que llegaba era provisional (el agente pasó a usar una herramienta):
+                // se borra y vuelve el indicador de "pensando" hasta que llegue la respuesta real.
+                streamReply = '';
+                streamMaybeMarker = true;
+                if (streamBubble) {
+                  try { streamBubble.remove(); } catch (_rmErr) { /* noop */ }
+                  streamBubble = null;
+                }
+                if (!document.getElementById(typingId)) showTyping();
               } else if (evt.type === 'done') {
                 streamDoneEvt = evt;
                 hideTyping();

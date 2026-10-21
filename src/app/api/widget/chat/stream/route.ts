@@ -880,6 +880,8 @@ export async function POST(req: NextRequest) {
           try {
             widgetAppMap = resolvedWidgetId ? await getWidgetAppMap(resolvedWidgetId) : [];
             const directMcpStartedAt = Date.now();
+            /** Caracteres ya enviados al widget en vivo (streaming real desde el hub). */
+            let liveTokenChars = 0;
             const directMcp = await latencyTrace.span('direct_mcp', () =>
               tryServeWidgetChatViaHubMcp({
                 widgetTokenStartsWithWt: true,
@@ -896,15 +898,33 @@ export async function POST(req: NextRequest) {
                 onStatus: (phase, message) => {
                   enqueue({ type: 'status', phase, message });
                 },
+                onToken: (delta) => {
+                  if (liveTokenChars === 0) latencyTrace.mark('direct_mcp_first_token');
+                  liveTokenChars += delta.length;
+                  enqueue({ type: 'token', text: delta });
+                },
+                onTokenReset: () => {
+                  if (liveTokenChars === 0) return;
+                  liveTokenChars = 0;
+                  enqueue({ type: 'token_reset' });
+                },
               }),
             );
+            // El MCP falló después de mostrar texto provisional: borrarlo antes del respaldo.
+            if (!directMcp?.reply && liveTokenChars > 0) {
+              liveTokenChars = 0;
+              enqueue({ type: 'token_reset' });
+            }
             if (directMcp?.reply) {
               logWidgetFlow('✅', 'stream:directMcpOk', 'respuesta AIBackHub MCP', {
                 traceId,
                 replyLen: directMcp.reply.length,
                 toolsUsed: directMcp.toolsUsed ?? [],
               });
-              await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, stripWidgetNavBlocks(directMcp.reply)));
+              // Si ya llegó por streaming real no se vuelve a "escribir": `done` trae el texto final.
+              if (liveTokenChars === 0) {
+                await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, stripWidgetNavBlocks(directMcp.reply)));
+              }
               void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true, undefined, meteringInput).catch(() => {});
               if (faqTrackOwnerId) {
                 void trackWidgetUserMessageForFaqCandidates({

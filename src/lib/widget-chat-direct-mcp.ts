@@ -105,6 +105,10 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   strictPurposeSuffix?: string;
   /** Si se pasa, usa SSE del hub y emite fases reales durante la ejecución. */
   onStatus?: (phase: string, message: string) => void;
+  /** Streaming real: trozos de la respuesta según los escribe el modelo (requiere `onStatus`). */
+  onToken?: (delta: string) => void;
+  /** El texto ya emitido era provisional (el hub lo descartó): el widget debe borrarlo. */
+  onTokenReset?: () => void;
   /** Claims ya verificados por `resolveVerifiedWidgetIdentity`. Nunca se leen del cuerpo. */
   verifiedIdentity?: Record<string, string>;
   /** Diagnóstico: estado de la identidad en este mensaje (sin valores); el hub lo registra. */
@@ -387,6 +391,7 @@ export async function tryServeWidgetChatViaHubMcp(params: {
           phase?: string;
           message?: string;
           reply?: string;
+          text?: string;
           toolsUsed?: string[];
           toolRounds?: number;
           usage?: unknown;
@@ -399,6 +404,11 @@ export async function tryServeWidgetChatViaHubMcp(params: {
         }
         if (evt.type === 'status' && typeof evt.message === 'string') {
           params.onStatus(typeof evt.phase === 'string' ? evt.phase : 'hub', evt.message);
+        } else if (evt.type === 'token' && typeof evt.text === 'string') {
+          // Streaming real del hub (ya saneado allí); `done` sigue trayendo la respuesta final.
+          if (evt.text) params.onToken?.(evt.text);
+        } else if (evt.type === 'token_reset') {
+          params.onTokenReset?.();
         } else if (evt.type === 'done' && typeof evt.reply === 'string') {
           donePayload = {
             reply: stripLeakedToolCalls(evt.reply).text,
