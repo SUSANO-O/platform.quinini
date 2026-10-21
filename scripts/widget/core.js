@@ -8709,6 +8709,11 @@
       '#' + rootId + ' .afhub-fab.afhub-fab--avatar:active { transform:scale(1.01); }' +
       '#' + rootId + ' .afhub-fab.afhub-fab--avatar.afhub-fab--dragging { box-shadow:none; }' +
       '@media (prefers-reduced-motion:reduce){ #' + rootId + ' .afhub-orb-wave { animation:none; opacity:.35; transform:scale(1.15); } }' +
+      /* Reducir movimiento (ajuste del sistema): barra lateral, fundidos, pulsos y escritura sin animar.
+         Duración casi cero (no "none") para que transitionend/animationend sigan disparándose. */
+      '@media (prefers-reduced-motion:reduce){ #' + rootId + ', #' + rootId + ' *, #' + rootId + ' *::before, #' + rootId + ' *::after {' +
+        ' animation-duration:.01ms !important; animation-iteration-count:1 !important; animation-delay:0s !important;' +
+        ' transition-duration:.01ms !important; transition-delay:0s !important; scroll-behavior:auto !important; } }' +
       '#' + rootId + '[data-afhub-h="right"] .afhub-chat { transform-origin:100% 100%; }' +
       '#' + rootId + '[data-afhub-h="left"] .afhub-chat { transform-origin:0% 100%; }' +
       '#' + rootId + '[data-afhub-h="center"] .afhub-chat { transform-origin:50% 100%; }' +
