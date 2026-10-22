@@ -3,6 +3,7 @@
  * Mirrors AgentFlowhub's BACKEND_URL normalization (localhost → 127.0.0.1 on Windows).
  */
 
+import { createHash } from 'node:crypto';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent } from '@/lib/db/models';
 
@@ -470,8 +471,29 @@ type LandingAgentDocLike = {
  * PUT catálogo en AIBackHub desde un ClientAgent ya persistido en Mongo (PATCH, RAG, etc.).
  * Devuelve false si no hay `agentHubId`, sin BACKEND_URL, o falla la petición.
  */
+/**
+ * Última sincronización correcta por agente (huella del cuerpo del PUT). El chat sincronizaba el
+ * catálogo en CADA mensaje y esperaba la respuesta (0,2–0,4 s en el hub) aunque nada cambiara.
+ * Con `skipIfUnchanged` se omite si el cuerpo es idéntico al último enviado con éxito hace menos
+ * de `CATALOG_SYNC_TTL_MS`; cualquier cambio del agente cambia la huella y vuelve a sincronizar.
+ * El TTL acota cuánto tarda la landing en volver a imponer su versión si el hub se editó aparte.
+ */
+const CATALOG_SYNC_TTL_MS = 5 * 60_000;
+const CATALOG_SYNC_MAX_ENTRIES = 500;
+const lastCatalogSync = new Map<string, { fingerprint: string; at: number }>();
+
+function catalogPayloadFingerprint(payload: unknown): string {
+  return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+}
+
+/** Solo tests. */
+export function resetCatalogSyncMemoForTests(): void {
+  lastCatalogSync.clear();
+}
+
 export async function syncHubCatalogFromLandingAgentDoc(
   agent: LandingAgentDocLike,
+  opts?: { skipIfUnchanged?: boolean },
 ): Promise<boolean> {
   if (!canAttemptHubSync()) return false;
   const hubId = typeof agent.agentHubId === 'string' ? agent.agentHubId.trim() : '';
@@ -538,7 +560,23 @@ export async function syncHubCatalogFromLandingAgentDoc(
   if (Array.isArray(agent.fallbackModels)) {
     payload.fallbackModels = agent.fallbackModels;
   }
-  return pushClientAgentToHubCatalog(payload);
+  const fingerprint = catalogPayloadFingerprint(payload);
+  if (opts?.skipIfUnchanged) {
+    const prev = lastCatalogSync.get(hubId);
+    if (prev && prev.fingerprint === fingerprint && Date.now() - prev.at < CATALOG_SYNC_TTL_MS) return true;
+  }
+  const ok = await pushClientAgentToHubCatalog(payload);
+  if (ok) {
+    lastCatalogSync.delete(hubId);
+    lastCatalogSync.set(hubId, { fingerprint, at: Date.now() });
+    if (lastCatalogSync.size > CATALOG_SYNC_MAX_ENTRIES) {
+      const oldest = lastCatalogSync.keys().next().value;
+      if (oldest !== undefined) lastCatalogSync.delete(oldest);
+    }
+  } else {
+    lastCatalogSync.delete(hubId);
+  }
+  return ok;
 }
 
 /** Cuerpo para `POST /api/agents` en AIBackHub (alta desde landing). */

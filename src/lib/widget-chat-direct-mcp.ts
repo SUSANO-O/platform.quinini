@@ -273,6 +273,7 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   if (hubId) {
     await syncHubCatalogFromLandingAgentDoc(
       ca as Parameters<typeof syncHubCatalogFromLandingAgentDoc>[0],
+      { skipIfUnchanged: true },
     );
   }
 
