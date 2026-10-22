@@ -8960,6 +8960,9 @@
       '@media (max-width:820px){' +
         '#' + rootId + ' .afhub-chat.afhub-chat--fullscreen.afhub-chat--has-shortcuts {' +
           'grid-template-columns:minmax(0,1fr);' +
+          // Con "side" arriba, la fila elástica es la 3.ª (mensajes); si no, el hueco sobrante
+          // se lo llevaba la fila de los accesos y los mensajes quedaban en ~60px.
+          'grid-template-rows:auto auto minmax(0,1fr) auto auto auto auto auto auto;' +
           'grid-template-areas:' +
             '"header"' +
             '"side"' +
