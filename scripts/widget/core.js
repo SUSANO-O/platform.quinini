@@ -8788,6 +8788,8 @@
         dp + '.afhub-msg.user { background:' + userBubbleBg + '; color:' + userBubbleColor + '; border:' + userBubbleBorder + '; box-shadow:' + userBubbleShadow + '; }' +
         dp + '.afhub-msg.user .afhub-msg-link { color:#fff; text-decoration:underline; }' +
         dp + '.afhub-msg-time { color:#8b8b98; }' +
+        // Etiqueta de fecha ("Hoy"): en oscuro heredaba la píldora blanca translúcida del claro y no se leía.
+        dp + '.afhub-date-divider span,' + dp + '.afhub-chat.afhub-chat--fullscreen .afhub-date-divider span { color:#c4c4cf; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.08); box-shadow:none; }' +
         dp + '.afhub-thinking-inner { background:' + msgBubbleBg + '; border:' + msgBubbleBorder + '; box-shadow:' + msgBubbleShadow + '; }' +
         dp + '.afhub-thinking-caption { color:#ececf1; text-decoration:none; background:transparent; -webkit-text-fill-color:currentColor; }' +
         dp + '.afhub-thinking-sub { color:#9ca3af; text-decoration:none; background:transparent; -webkit-text-fill-color:currentColor; }' +
