@@ -74,6 +74,121 @@
     return HOST_THEME || pageThemeSignal() || (systemPrefersDark() ? 'dark' : 'light');
   }
 
+  /**
+   * "Leer la pantalla" (Widget.screenContextEnabled): estructura de la página para que el agente
+   * sepa dónde está el usuario y qué opciones ve. Solo título, migas, encabezados, menús/pestañas
+   * y lo marcado como activo; nunca tablas, campos, contenido editable ni el propio widget.
+   */
+  var SCREEN_CTX_MAX = 1500;
+  var SCREEN_NAV_CONTAINERS = 'nav, [role="navigation"], [role="tablist"], [role="menubar"], aside, [class*="sidebar"], [class*="side-nav"], [class*="sidenav"], [class*="menu"], [class*="tabs"]';
+  var SCREEN_NAV_ITEMS = 'a, button, [role="tab"], [role="menuitem"], [role="link"]';
+  var SCREEN_ACTIVE = '[aria-current]:not([aria-current="false"]), [aria-selected="true"], .active, .is-active, .selected, .current, [class*="--active"]';
+
+  function screenRedact(t) {
+    return t
+      .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '[correo]')
+      .replace(/\d[\d\s.,-]{5,}\d/g, '[número]');
+  }
+
+  function screenText(el) {
+    var t = String(el.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!t) t = String(el.getAttribute('aria-label') || el.getAttribute('title') || '').trim();
+    t = screenRedact(t);
+    return t.length > 60 ? t.slice(0, 60) + '…' : t;
+  }
+
+  /** Fuera de la lectura: el widget, tablas, campos y lo oculto (hasta 8 niveles hacia arriba). */
+  function screenSkippable(el) {
+    if (!el || !el.closest) return true;
+    if (el.closest('[id^="afhub-widget-root"], [data-afhub-theme], table, form [contenteditable], [hidden], [aria-hidden="true"], input, textarea, select')) return true;
+    // Controles de mapas embebidos (Google Maps, Leaflet, Mapbox): no son menús de la app.
+    if (el.closest('.gm-style, .leaflet-container, .leaflet-control-container, .mapboxgl-map, .maplibregl-map')) return true;
+    var cur = el;
+    for (var i = 0; cur && cur !== document.body && i < 8; i++, cur = cur.parentElement) {
+      try {
+        var cs = window.getComputedStyle(cur);
+        if (cs.display === 'none' || cs.visibility === 'hidden') return true;
+      } catch (_cs) { return false; }
+    }
+    return false;
+  }
+
+  function screenWhere(el) {
+    try {
+      var r = el.getBoundingClientRect();
+      var vw = window.innerWidth || 0;
+      var vh = window.innerHeight || 0;
+      if (!r || !r.width || !vw || !vh) return '';
+      if (r.top < 160 && r.width > vw * 0.45) return 'arriba';
+      if (r.left < vw * 0.35 && r.height > vh * 0.35) return 'a la izquierda';
+      if (r.left > vw * 0.6 && r.height > vh * 0.35) return 'a la derecha';
+    } catch (_r) { /* sin geometría */ }
+    return '';
+  }
+
+  function uniqTexts(els, max) {
+    var out = [];
+    var seen = {};
+    for (var i = 0; i < els.length && out.length < max; i++) {
+      if (screenSkippable(els[i])) continue;
+      var t = screenText(els[i]);
+      if (!t || t.length < 2 || seen[t.toLowerCase()]) continue;
+      seen[t.toLowerCase()] = true;
+      out.push(t);
+    }
+    return out;
+  }
+
+  function buildScreenContext() {
+    if (typeof document === 'undefined' || !document.body) return '';
+    var lines = [];
+    var title = screenRedact(String(document.title || '').replace(/\s+/g, ' ').trim()).slice(0, 120);
+    if (title) lines.push('Título de la pestaña: ' + title);
+
+    var crumbs = uniqTexts(document.querySelectorAll('nav[aria-label*="readcrumb"], .breadcrumb, [class*="breadcrumb"]'), 2);
+    if (crumbs.length) lines.push('Ruta de navegación: ' + crumbs.join(' | '));
+
+    var heads = uniqTexts(document.querySelectorAll('h1, h2, h3, [role="heading"]'), 8);
+    if (heads.length) lines.push('Encabezados visibles: ' + heads.join(' · '));
+
+    // Solo lo que se pulsa (enlace, botón, pestaña, ítem de lista): un panel de contenido también
+    // puede llevar la clase "active" y no es "dónde está" el usuario.
+    var activeEls = Array.prototype.filter.call(document.querySelectorAll(SCREEN_ACTIVE), function (el) {
+      if (!el.matches(SCREEN_NAV_ITEMS + ', li')) return false;
+      return String(el.textContent || '').replace(/\s+/g, ' ').trim().length <= 40;
+    });
+    var active = uniqTexts(activeEls, 6);
+    if (active.length) lines.push('Seleccionado/activo ahora: ' + active.join(' · '));
+
+    // Menús y pestañas: cada opción va con su contenedor de navegación más cercano (barra superior,
+    // menú lateral, pestañas…), con la posición de ese contenedor en pantalla si se sabe.
+    var groups = [];
+    var navItems = document.querySelectorAll(SCREEN_NAV_ITEMS);
+    for (var ni = 0; ni < navItems.length; ni++) {
+      // Lo oculto (desplegables cerrados, etc.) fuera antes de agrupar: si no, gasta el cupo de grupos.
+      if (screenSkippable(navItems[ni])) continue;
+      var box = navItems[ni].closest(SCREEN_NAV_CONTAINERS);
+      if (!box) continue;
+      var g = null;
+      for (var gi = 0; gi < groups.length; gi++) { if (groups[gi].box === box) { g = groups[gi]; break; } }
+      if (!g) {
+        if (groups.length >= 8) continue;
+        g = { box: box, els: [] };
+        groups.push(g);
+      }
+      g.els.push(navItems[ni]);
+    }
+    for (var k = 0; k < groups.length; k++) {
+      var items = uniqTexts(groups[k].els, 30);
+      if (items.length < 2) continue;
+      var where = screenWhere(groups[k].box);
+      lines.push('Menú' + (where ? ' (' + where + ')' : '') + ': ' + items.join(' · '));
+    }
+
+    var out = lines.join('\n');
+    return out.length > SCREEN_CTX_MAX ? out.slice(0, SCREEN_CTX_MAX) + '…' : out;
+  }
+
   /** AgentFlowhub.setTheme('dark' | 'light' | 'auto'): 'auto' devuelve el control a la página. */
   function setHostTheme(theme) {
     var v = normalizeThemeValue(theme);
@@ -818,6 +933,7 @@
           'feedbackEnabled',
           'fabDismissible',
           'pushContent',
+          'screenContextEnabled',
           'skin',
           'active',
           'shortcuts',
@@ -963,6 +1079,7 @@
       ? Boolean(input.trackEvents)
       : true;
     merged.autoOpen = Boolean(merged.autoOpen);
+    merged.screenContextEnabled = merged.screenContextEnabled === true;
     merged.debug = Boolean(merged.debug);
     // Preferencia del dueño (claro, oscuro o automático). `theme` es siempre el tema efectivo
     // ('light' | 'dark'); con 'auto' se resuelve al montar y se recalcula si la página cambia.
@@ -6507,6 +6624,12 @@
         var pt = String((document && document.title) || '').replace(/\s+/g, ' ').trim();
         if (pt) payload.pageTitle = pt.slice(0, 120);
       } catch (_pp) { /* noop */ }
+      if (cfg.screenContextEnabled) {
+        try {
+          var sc = buildScreenContext();
+          if (sc) payload.screenContext = sc;
+        } catch (_sc) { /* sin lectura de pantalla: el chat sigue igual */ }
+      }
       // Respuestas de un flujo que pasó la conversación al agente (nodo agent_handoff).
       if (cfg.flowContext && typeof cfg.flowContext === 'object') payload.flowContext = cfg.flowContext;
       // Identidad firmada por el servidor de la empresa ({ claims, ts, sig }); la landing la verifica.

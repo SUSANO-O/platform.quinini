@@ -30,6 +30,7 @@ import { retrieveRagContextBlock } from '@/lib/rag-embeddings-index';
 import { widgetChatStatusForUserMessage } from '@/lib/widget-chat-status';
 import { currentViewBlock } from '@/lib/widget-page-nav';
 import { appMapContextBlock, type AppMapEntry } from '@/lib/widget-app-map';
+import { screenContextBlock } from '@/lib/widget-screen-context';
 
 export type DirectInferenceResult = {
   reply: string;
@@ -163,6 +164,8 @@ export async function tryServeWidgetChatViaDirectInference(params: {
   allowWithoutMcp?: boolean;
   /** Mapa de la app del widget: con la página actual, permite proponer navegación. */
   appMap?: AppMapEntry[];
+  /** "Leer la pantalla" activado en el widget (servidor): solo entonces se usa `screenContext` del cuerpo. */
+  screenContextEnabled?: boolean;
 }): Promise<DirectInferenceResult | null> {
   if (!getAibackhubBaseUrl() || !params.parsedAgentId.trim()) return null;
 
@@ -175,6 +178,7 @@ export async function tryServeWidgetChatViaDirectInference(params: {
     visitorId?: string;
     pagePath?: string;
     pageTitle?: string;
+    screenContext?: unknown;
   };
   try {
     parsed = JSON.parse(params.rawBody) as typeof parsed;
@@ -370,6 +374,8 @@ export async function tryServeWidgetChatViaDirectInference(params: {
       .join('\n');
     contextBlock = mergeContextBlocks(contextBlock, pageBlock);
   }
+  const screenBlock = params.screenContextEnabled ? screenContextBlock(parsed.screenContext) : '';
+  if (screenBlock) contextBlock = mergeContextBlocks(contextBlock, screenBlock);
 
   if (shouldRecallConversationMemory({
     trivial,

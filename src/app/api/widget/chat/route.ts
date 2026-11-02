@@ -9,7 +9,7 @@ import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAgentflowhubBaseUrl } from '@/lib/aibackhub-sync';
 import { tryServeWidgetChatViaHubMcp } from '@/lib/widget-chat-direct-mcp';
-import { getWidgetAppMap, scheduleWidgetPageVisit } from '@/lib/widget-page-visits';
+import { getWidgetAppMap, getWidgetScreenContextEnabled, scheduleWidgetPageVisit } from '@/lib/widget-page-visits';
 import { attachAssistNavToPayload, buildAssistNavCtx } from '@/lib/assist-chat-reply';
 import {
   hubResponseNeedsDirectInference,
@@ -916,6 +916,7 @@ export async function POST(req: NextRequest) {
         headers['x-hub-sync-secret'] = secret;
 
         let widgetAppMap: Awaited<ReturnType<typeof getWidgetAppMap>> = [];
+        let widgetScreenContext = false;
         const directMcpOutcome: { noMcpTools?: boolean } = {};
         /** Webhook builtin: AgentFlowhub a veces no usa MCP → solo JSON en texto. Ir directo a AIBackHub ejecuta el POST real. */
         try {
@@ -927,6 +928,7 @@ export async function POST(req: NextRequest) {
           widgetAppMap = w.id
             ? await latencyTrace.span('app_map', () => getWidgetAppMap(w.id))
             : [];
+          widgetScreenContext = w.id ? await getWidgetScreenContextEnabled(w.id) : false;
           const direct = await latencyTrace.span('direct_mcp', () =>
             tryServeWidgetChatViaHubMcp({
               widgetTokenStartsWithWt: true,
@@ -939,6 +941,7 @@ export async function POST(req: NextRequest) {
               identityStatus,
               clientOrigin: origin,
               appMap: widgetAppMap,
+              screenContextEnabled: widgetScreenContext,
               outcome: directMcpOutcome,
             }),
           );
@@ -1051,6 +1054,7 @@ export async function POST(req: NextRequest) {
               ownerUserId: w.userId,
               allowWithoutMcp: directMcpOutcome.noMcpTools === true,
               appMap: widgetAppMap,
+              screenContextEnabled: widgetScreenContext,
             }),
           );
           if (inferred) {

@@ -7,6 +7,7 @@
 import { stripLeakedToolCalls } from '@/lib/widget-reply-tool-leak';
 import { currentViewBlock } from '@/lib/widget-page-nav';
 import { appMapContextBlock, type AppMapEntry } from '@/lib/widget-app-map';
+import { screenContextBlock } from '@/lib/widget-screen-context';
 import { flowContextBlock } from '@/lib/flow-handoff';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent } from '@/lib/db/models';
@@ -117,6 +118,8 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   clientOrigin?: string;
   /** Mapa de la app del widget (`getWidgetAppMap`); vacío = solo la línea de página actual. */
   appMap?: AppMapEntry[];
+  /** "Leer la pantalla" activado en el widget (servidor): solo entonces se usa `screenContext` del cuerpo. */
+  screenContextEnabled?: boolean;
   /**
    * Se marca `noMcpTools` si el hub rechazó el turno porque el agente no tiene ninguna tool
    * disponible (p. ej. su única integración está caída). El que llama puede seguir por la
@@ -167,6 +170,8 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     pagePath?: string;
     /** document.title de la página del cliente (identifica vistas fuera del mapa). */
     pageTitle?: string;
+    /** Estructura de la pantalla del cliente (ver widget-screen-context). */
+    screenContext?: unknown;
     /** Respuestas de un flujo que pasó al agente (nodo agent_handoff). */
     flowContext?: unknown;
   };
@@ -305,10 +310,12 @@ export async function tryServeWidgetChatViaHubMcp(params: {
   const visitorName = typeof parsed.visitorName === 'string' ? parsed.visitorName.trim() : '';
   const pageLine = currentViewBlock(parsed.pagePath, parsed.pageTitle);
   const appMapBlock = appMapContextBlock(params.appMap, typeof parsed.pagePath === 'string' ? parsed.pagePath : '');
+  const screenBlock = params.screenContextEnabled ? screenContextBlock(parsed.screenContext) : '';
   const sessionContextBlock = [
     typeof parsed.sessionContextBlock === 'string' ? parsed.sessionContextBlock.trim() : '',
     pageLine,
     appMapBlock,
+    screenBlock,
     flowContextBlock(parsed.flowContext),
   ]
     .filter(Boolean)

@@ -60,6 +60,8 @@ export interface WidgetConfig {
   fabDismissible: boolean;
   /** Barra lateral que reacomoda la página en vez de taparla (por defecto false). */
   pushContent: boolean;
+  /** Leer la pantalla: el agente ve títulos, menú y sección activa de la página (no datos). */
+  screenContextEnabled: boolean;
   /** Colores por zona y tipografía; {} = aspecto por defecto (src/lib/widget-skin.ts). */
   skin: WidgetSkin;
   voiceEnabled: boolean;
