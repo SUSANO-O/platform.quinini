@@ -164,7 +164,7 @@ export async function PATCH(
       continue;
     }
     if (key === 'theme') {
-      if (v === 'light' || v === 'dark') $set.theme = v;
+      if (v === 'light' || v === 'dark' || v === 'auto') $set.theme = v;
       continue;
     }
     if (key === 'handoffNotifyMode') {

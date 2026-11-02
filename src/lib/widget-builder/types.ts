@@ -53,7 +53,8 @@ export interface WidgetConfig {
   avatar: string;
   fabAvatarSize: number;
   position: string;
-  theme: 'light' | 'dark';
+  /** 'auto' = sigue el modo claro/oscuro de la página o app que incrusta el widget. */
+  theme: 'light' | 'dark' | 'auto';
   borderRadius: string;
   autoOpen: boolean;
   fabDismissible: boolean;

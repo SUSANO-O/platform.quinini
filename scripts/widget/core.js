@@ -12,6 +12,73 @@
   var INSTANCES = {};
   var INSTANCE_COUNT = 0;
 
+  /**
+   * Tema "auto": el widget sigue el modo claro/oscuro de la página que lo incrusta.
+   * Prioridad: lo que diga la app con AgentFlowhub.setTheme() → señales de la página
+   * (clase dark/light, data-theme, data-bs-theme, color-scheme) → modo del sistema.
+   * Los widgets con tema fijo (claro u oscuro) no cambian.
+   */
+  var HOST_THEME = null; // 'dark' | 'light' | null (la app no ha dicho nada)
+  var THEME_ATTRS = ['data-theme', 'data-bs-theme', 'data-mode', 'data-color-scheme', 'data-color-mode'];
+  var DARK_CLASS_RE = /(^|\s)(dark|dark-mode|theme-dark|dark-theme)(\s|$)/i;
+  var LIGHT_CLASS_RE = /(^|\s)(light|light-mode|theme-light|light-theme)(\s|$)/i;
+
+  function normalizeThemeValue(v) {
+    var t = String(v == null ? '' : v).trim().toLowerCase();
+    return t === 'dark' || t === 'light' || t === 'auto' ? t : '';
+  }
+
+  function themeFromElement(el) {
+    if (!el || typeof el.getAttribute !== 'function') return null;
+    var cls = el.getAttribute('class') || '';
+    if (DARK_CLASS_RE.test(cls)) return 'dark';
+    if (LIGHT_CLASS_RE.test(cls)) return 'light';
+    for (var i = 0; i < THEME_ATTRS.length; i++) {
+      var a = String(el.getAttribute(THEME_ATTRS[i]) || '').toLowerCase();
+      if (a.indexOf('dark') !== -1) return 'dark';
+      if (a.indexOf('light') !== -1) return 'light';
+    }
+    return null;
+  }
+
+  function pageThemeSignal() {
+    var doc = document.documentElement;
+    var t = themeFromElement(doc) || themeFromElement(document.body);
+    if (t) return t;
+    try {
+      // `light dark` (la página admite ambos) no es una señal: se decide por el sistema.
+      var cs = String((doc.style && doc.style.colorScheme) || window.getComputedStyle(doc).colorScheme || '')
+        .trim().toLowerCase();
+      if (cs === 'dark' || cs === 'only dark') return 'dark';
+      if (cs === 'light' || cs === 'only light') return 'light';
+    } catch (_csErr) { /* navegadores viejos */ }
+    return null;
+  }
+
+  function systemPrefersDark() {
+    try {
+      return Boolean(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    } catch (_mqErr) {
+      return false;
+    }
+  }
+
+  function resolveEffectiveTheme(preference) {
+    if (preference === 'dark' || preference === 'light') return preference;
+    return HOST_THEME || pageThemeSignal() || (systemPrefersDark() ? 'dark' : 'light');
+  }
+
+  /** AgentFlowhub.setTheme('dark' | 'light' | 'auto'): 'auto' devuelve el control a la página. */
+  function setHostTheme(theme) {
+    var v = normalizeThemeValue(theme);
+    HOST_THEME = v === 'dark' || v === 'light' ? v : null;
+    for (var k in INSTANCES) {
+      if (!Object.prototype.hasOwnProperty.call(INSTANCES, k)) continue;
+      var inst = INSTANCES[k];
+      if (inst && typeof inst.refreshTheme === 'function') inst.refreshTheme();
+    }
+  }
+
   var FRIENDLY_CHAT_ERRORS = {
     AGENT_HUB_SYNC_REQUIRED: 'Estoy reconectando con el asistente. Recarga la página e inténtalo de nuevo.',
     WIDGET_TOKEN_INVALID: 'No pude validar el chat. Recarga la página (Cmd+Shift+R) e inicia sesión si persiste.',
@@ -671,6 +738,8 @@
       close:    function ()  { if (resolvedApi) resolvedApi.close();   else enqueue(['close']); },
       send:     function (m) { if (resolvedApi) resolvedApi.send(m);   else enqueue(['send', m]); },
       newConversation: function () { if (resolvedApi) resolvedApi.newConversation(); else enqueue(['newConversation']); },
+      // Global: vale aunque el widget aún no haya terminado de cargar.
+      setTheme: setHostTheme,
       destroy:  function ()  { if (resolvedApi) resolvedApi.destroy(); },
       getState: function ()  { return resolvedApi ? resolvedApi.getState() : { isOpen: false, isLoading: false }; }
     };
@@ -889,7 +958,10 @@
       : true;
     merged.autoOpen = Boolean(merged.autoOpen);
     merged.debug = Boolean(merged.debug);
-    merged.theme = merged.theme === 'dark' ? 'dark' : 'light';
+    // Preferencia del dueño (claro, oscuro o automático). `theme` es siempre el tema efectivo
+    // ('light' | 'dark'); con 'auto' se resuelve al montar y se recalcula si la página cambia.
+    merged.themePreference = normalizeThemeValue(merged.theme) || 'light';
+    merged.theme = merged.themePreference === 'dark' ? 'dark' : 'light';
     merged.fabHint = String(merged.fabHint == null ? '' : merged.fabHint).trim().substring(0, 200);
     merged.fabAvatarSize = Number(merged.fabAvatarSize);
     if (!Number.isFinite(merged.fabAvatarSize)) merged.fabAvatarSize = 86;
@@ -1815,6 +1887,8 @@
     root.style.zIndex = String(2147483000 + INSTANCE_COUNT);
     root.style.fontFamily = AFHUB_FONT_STACK;
     root.style.background = 'transparent';
+    if (!cfg.themePreference) cfg.themePreference = normalizeThemeValue(cfg.theme) || 'light';
+    cfg.theme = resolveEffectiveTheme(cfg.themePreference);
     root.setAttribute('data-afhub-theme', cfg.theme);
     root.classList.add('afhub-ai-beam-scope-' + String(cfg.aiBeamScope || 'both'));
     if (cfg.debug) root.classList.add('afhub-widget--debug');
@@ -1822,6 +1896,49 @@
     var styleEl = document.createElement('style');
     styleEl.textContent = cssForRoot(rootId, cfg);
     root.appendChild(styleEl);
+
+    // Tema automático: si la página cambia de modo, regenerar el CSS del widget en vivo
+    // (sin remontar: el chat abierto y la conversación siguen igual).
+    var themeWatchers = [];
+    var themeRefreshPending = false;
+    function refreshTheme() {
+      if (cfg.themePreference !== 'auto') return;
+      var next = resolveEffectiveTheme('auto');
+      if (next === cfg.theme) return;
+      cfg.theme = next;
+      root.setAttribute('data-afhub-theme', next);
+      styleEl.textContent = cssForRoot(rootId, cfg);
+    }
+    function scheduleThemeRefresh() {
+      if (themeRefreshPending) return;
+      themeRefreshPending = true;
+      var run = function () { themeRefreshPending = false; refreshTheme(); };
+      if (typeof requestAnimationFrame === 'function') requestAnimationFrame(run);
+      else setTimeout(run, 16);
+    }
+    if (cfg.themePreference === 'auto') {
+      try {
+        if (typeof MutationObserver === 'function') {
+          var themeObserver = new MutationObserver(scheduleThemeRefresh);
+          var themeAttrFilter = ['class', 'style'].concat(THEME_ATTRS);
+          themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: themeAttrFilter });
+          if (document.body) {
+            themeObserver.observe(document.body, { attributes: true, attributeFilter: themeAttrFilter });
+          }
+          themeWatchers.push(function () { themeObserver.disconnect(); });
+        }
+        if (window.matchMedia) {
+          var themeMq = window.matchMedia('(prefers-color-scheme: dark)');
+          if (themeMq && typeof themeMq.addEventListener === 'function') {
+            themeMq.addEventListener('change', scheduleThemeRefresh);
+            themeWatchers.push(function () { themeMq.removeEventListener('change', scheduleThemeRefresh); });
+          } else if (themeMq && typeof themeMq.addListener === 'function') {
+            themeMq.addListener(scheduleThemeRefresh);
+            themeWatchers.push(function () { themeMq.removeListener(scheduleThemeRefresh); });
+          }
+        }
+      } catch (_themeWatchErr) { /* sin observadores: se queda el tema resuelto al montar */ }
+    }
     // Estudio del panel: resaltar zonas al pasar el ratón y avisar al editor de la zona pulsada.
     // `previewPick: false` (interruptor "Modo editor" del estudio) = se comporta como el widget real.
     var previewPick = cfg.preview && cfg.previewPick !== false;
@@ -5869,6 +5986,10 @@
       if (humanPollTimer) { clearInterval(humanPollTimer); humanPollTimer = null; }
       if (inboxWatchTimer) { clearInterval(inboxWatchTimer); inboxWatchTimer = null; }
       if (humanModeTimer) { clearTimeout(humanModeTimer); humanModeTimer = null; }
+      for (var twi = 0; twi < themeWatchers.length; twi++) {
+        try { themeWatchers[twi](); } catch (_twErr) { /* ya desconectado */ }
+      }
+      themeWatchers = [];
       root.remove();
       delete INSTANCES[id];
     }
@@ -7935,6 +8056,8 @@
       updatePagePath: function (path) {
         cfg.pagePath = path != null ? String(path).trim() : '';
       },
+      /** Modo de la app anfitriona ('dark' | 'light' | 'auto'); solo afecta a widgets en automático. */
+      setTheme: setHostTheme,
       destroy: destroy,
       getState: function () {
         return {
@@ -7943,12 +8066,14 @@
           launcherHidden: root.classList.contains('afhub-launcher-hidden'),
           agentId: cfg.agentId,
           resolvedAgentId: resolvedAgentId,
-          sessionId: chatSessionId
+          sessionId: chatSessionId,
+          theme: cfg.theme,
+          themePreference: cfg.themePreference
         };
       }
     };
 
-    return { api: api };
+    return { api: api, refreshTheme: refreshTheme };
   }
 
   async function fetchJsonWithRetry(url, payload, cfg) {
@@ -9573,6 +9698,7 @@
   var hubApi = window.AgentFlowhub || {};
   hubApi.version = VERSION;
   hubApi.init = init;
+  hubApi.setTheme = setHostTheme;
   hubApi.updatePagePath = function (path) {
     var k;
     for (k in INSTANCES) {

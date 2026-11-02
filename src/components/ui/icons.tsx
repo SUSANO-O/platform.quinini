@@ -189,6 +189,7 @@ export const Sprout = makeIcon('potted_plant', 'Sprout');
 export const Star = makeIcon('star', 'Star');
 export const Stethoscope = makeIcon('stethoscope', 'Stethoscope');
 export const Sun = makeIcon('light_mode', 'Sun');
+export const ThemeAuto = makeIcon('brightness_auto', 'ThemeAuto');
 export const Target = makeIcon('target', 'Target');
 export const Terminal = makeIcon('terminal', 'Terminal');
 export const Ticket = makeIcon('confirmation_number', 'Ticket');

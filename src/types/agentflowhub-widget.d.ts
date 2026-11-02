@@ -6,6 +6,8 @@ declare global {
       init: (cfg: Record<string, unknown>) => { destroy?: () => void; showLauncher?: () => void; hideLauncher?: () => void } | void;
       showLauncher?: () => void;
       isLauncherHidden?: () => boolean;
+      /** Modo de la app anfitriona; solo afecta a widgets con tema "auto" ('auto' devuelve el control a la página). */
+      setTheme?: (theme: 'light' | 'dark' | 'auto') => void;
       version?: string;
     };
     __BIV?: {

@@ -283,7 +283,7 @@ export default function WidgetPreviewPage() {
             voiceEnabled: w.voiceEnabled === true,
             micEnabled: typeof w.micEnabled === 'boolean' ? w.micEnabled === true : w.voiceEnabled === true,
             position:  w.position || 'bottom-right',
-            theme:     w.theme === 'dark' ? 'dark' : 'light',
+            theme:     w.theme === 'dark' || w.theme === 'auto' ? w.theme : 'light',
             borderRadius: parseBorderRadius(w.borderRadius),
             autoOpen:  true,
             showMcpUi: true,

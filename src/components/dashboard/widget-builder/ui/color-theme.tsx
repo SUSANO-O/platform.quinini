@@ -1,7 +1,7 @@
 'use client';
 
 import type { CSSProperties } from 'react';
-import { Moon, Sun } from '@/components/ui/icons';
+import { Moon, Sun, ThemeAuto } from '@/components/ui/icons';
 import { WidgetBuilderField, WidgetBuilderLabel } from './field';
 import { WidgetBuilderInput } from './input';
 
@@ -43,15 +43,15 @@ export function WidgetBuilderThemeToggle({
   accentColor,
   onChange,
 }: {
-  value: 'light' | 'dark';
+  value: 'light' | 'dark' | 'auto';
   accentColor: string;
-  onChange: (theme: 'light' | 'dark') => void;
+  onChange: (theme: 'light' | 'dark' | 'auto') => void;
 }) {
   return (
     <WidgetBuilderField>
       <WidgetBuilderLabel>Tema</WidgetBuilderLabel>
       <div className="widget-builder-theme-toggle" role="group" aria-label="Tema del widget">
-        {(['light', 'dark'] as const).map((t) => {
+        {(['light', 'dark', 'auto'] as const).map((t) => {
           const active = value === t;
           return (
             <button
@@ -60,9 +60,10 @@ export function WidgetBuilderThemeToggle({
               className={`widget-builder-theme-toggle__btn${active ? ' is-active' : ''}`}
               onClick={() => onChange(t)}
               style={active ? ({ '--wb-accent': accentColor } as CSSProperties) : undefined}
+              title={t === 'auto' ? 'Sigue el modo claro u oscuro de la web o app donde está el widget' : undefined}
             >
-              {t === 'light' ? <Sun size={15} aria-hidden /> : <Moon size={15} aria-hidden />}
-              {t === 'light' ? 'Claro' : 'Oscuro'}
+              {t === 'light' ? <Sun size={15} aria-hidden /> : t === 'dark' ? <Moon size={15} aria-hidden /> : <ThemeAuto size={15} aria-hidden />}
+              {t === 'light' ? 'Claro' : t === 'dark' ? 'Oscuro' : 'Automático'}
             </button>
           );
         })}
