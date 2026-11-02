@@ -250,10 +250,12 @@
   border-color: var(--ws-line-strong) !important;
   color: var(--ws-text) !important;
 }
-.ws-inspector__body button[aria-pressed='true'],
-.ws-inspector__body button.is-active,
-.ws-inspector__body button[class*='--active'],
-.ws-inspector__body button[class*='is-selected'] {
+/* Seleccionado: misma cadena de :not() que la regla de arriba + la marca de selección, para
+   ganarle en especificidad (con solo `button.is-active` perdía y no se veía cuál estaba elegido). */
+.ws-inspector__body button:not(.ws-primary):not([class*='color-preset']):not([style*='background']):not([class^='sk'])[aria-pressed='true'],
+.ws-inspector__body button:not(.ws-primary):not([class*='color-preset']):not([style*='background']):not([class^='sk']).is-active,
+.ws-inspector__body button:not(.ws-primary):not([class*='color-preset']):not([style*='background']):not([class^='sk'])[class*='--active'],
+.ws-inspector__body button:not(.ws-primary):not([class*='color-preset']):not([style*='background']):not([class^='sk'])[class*='is-selected'] {
   background-color: color-mix(in srgb, var(--ws-accent) 22%, transparent) !important;
   border-color: color-mix(in srgb, var(--ws-accent) 65%, transparent) !important;
 }
