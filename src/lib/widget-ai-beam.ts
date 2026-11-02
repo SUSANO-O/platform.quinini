@@ -141,7 +141,7 @@ export function mergeWidgetAppearanceFromApi<T extends WidgetConfig>(
   return {
     ...prev,
     color: String(widget.color ?? prev.color),
-    theme: widget.theme === 'dark' ? 'dark' : 'light',
+    theme: widget.theme === 'dark' || widget.theme === 'auto' ? widget.theme : 'light',
     title: String(widget.title ?? prev.title),
     subtitle: String(widget.subtitle ?? prev.subtitle),
     welcome: String(widget.welcome ?? prev.welcome),

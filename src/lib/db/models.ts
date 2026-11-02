@@ -148,7 +148,8 @@ const WidgetSchema = new Schema({
   /** Tamaño del botón FAB cuando hay avatar (px). Sin avatar se usa el orbe fijo. */
   fabAvatarSize: { type: Number, default: 86 },
   position:     { type: String, default: 'bottom-right' },
-  theme:        { type: String, enum: ['light', 'dark'], default: 'light' },
+  /** 'auto' = sigue el modo claro/oscuro de la página o app que incrusta el widget. */
+  theme:        { type: String, enum: ['light', 'dark', 'auto'], default: 'light' },
   borderRadius: { type: String, default: '16px' },
   autoOpen:     { type: Boolean, default: false },
   /** Si false, no muestra la X para ocultar el launcher. */

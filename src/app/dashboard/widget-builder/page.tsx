@@ -308,7 +308,7 @@ export default function WidgetBuilderPage() {
                 ? widget.afhubToken
                 : 'YOUR_TOKEN';
             setSnippetToken(tok);
-            const th = widget.theme === 'dark' ? 'dark' : 'light';
+            const th = widget.theme === 'dark' || widget.theme === 'auto' ? widget.theme : 'light';
             const rawAgent = String(widget.agentId ?? '');
             setCfg({
               name: String(widget.name ?? DEFAULT_WIDGET_CONFIG.name),
