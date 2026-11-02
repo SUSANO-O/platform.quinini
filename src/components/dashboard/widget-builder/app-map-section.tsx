@@ -17,6 +17,8 @@ type DiscoveredPage = {
   path: string;
   paramKeys: string[];
   hashes: string[];
+  /** #hash → nombre aprendido de "Leer la pantalla" (si el widget lo tiene activo). */
+  sections?: Record<string, string>;
   visits: number;
   lastSeenAt: string | null;
   inMap: boolean;
@@ -131,11 +133,14 @@ export function WidgetBuilderAppMapSection({ widgetId }: { widgetId: string | nu
   function addFromDiscovered(p: DiscoveredPage) {
     const idx = map.findIndex((e) => e.path === p.path);
     if (idx >= 0) {
-      const tabs = [...(map[idx].tabs ?? []), ...p.missingTabs.map((h) => ({ hash: h, name: h }))];
+      const tabs = [...(map[idx].tabs ?? []), ...p.missingTabs.map((h) => ({ hash: h, name: p.sections?.[h] || h }))];
       edit(idx, { tabs });
       setOpen((o) => ({ ...o, [idx]: true }));
     } else {
-      setMap((m) => [...m, { path: p.path, name: suggestName(p.path), tabs: p.hashes.map((h) => ({ hash: h, name: h })) }]);
+      setMap((m) => [
+        ...m,
+        { path: p.path, name: suggestName(p.path), tabs: p.hashes.map((h) => ({ hash: h, name: p.sections?.[h] || h })) },
+      ]);
       setDirty(true);
       setOpen((o) => ({ ...o, [map.length]: true }));
     }
@@ -239,7 +244,7 @@ export function WidgetBuilderAppMapSection({ widgetId }: { widgetId: string | nu
         <div style={{ display: 'grid', gap: 6 }}>
           <WidgetBuilderHint>
             Páginas que visitan tus usuarios con el widget cargado. Solo se guarda la ruta, el nombre de los parámetros y
-            la pestaña (#) — nunca valores ni datos personales.
+            la pestaña (#) — con su nombre si el widget tiene «Leer la pantalla» — nunca valores ni datos personales.
           </WidgetBuilderHint>
           {!discovered.length ? <p style={muted}>Aún no hay visitas registradas.</p> : null}
           {discovered.map((p) => (
@@ -249,7 +254,9 @@ export function WidgetBuilderAppMapSection({ widgetId }: { widgetId: string | nu
                 <div style={muted}>
                   {p.visits} visitas
                   {p.paramKeys.length ? ` · parámetros: ${p.paramKeys.join(', ')}` : ''}
-                  {p.hashes.length ? ` · pestañas: ${p.hashes.map((h) => `#${h}`).join(' ')}` : ''}
+                  {p.hashes.length
+                    ? ` · pestañas: ${p.hashes.map((h) => (p.sections?.[h] ? `#${h} (${p.sections[h]})` : `#${h}`)).join(' ')}`
+                    : ''}
                 </div>
               </div>
               {!p.inMap ? (

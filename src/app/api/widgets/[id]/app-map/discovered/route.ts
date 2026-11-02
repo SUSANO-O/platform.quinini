@@ -18,6 +18,8 @@ type VisitRow = {
   path: string;
   paramKeys?: string[];
   hashes?: string[];
+  /** #hash → nombre aprendido de "Leer la pantalla". */
+  sections?: Record<string, string>;
   visits?: number;
   firstSeenAt?: Date;
   lastSeenAt?: Date;
@@ -39,7 +41,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   const rows = (await WidgetPageVisit.find({ widgetId: id, userId })
     .sort({ visits: -1 })
     .limit(MAX_DISCOVERED_PATHS)
-    .select({ _id: 0, path: 1, paramKeys: 1, hashes: 1, visits: 1, firstSeenAt: 1, lastSeenAt: 1 })
+    .select({ _id: 0, path: 1, paramKeys: 1, hashes: 1, sections: 1, visits: 1, firstSeenAt: 1, lastSeenAt: 1 })
     .lean()) as VisitRow[];
 
   const pages = rows.map((r) => {
@@ -49,6 +51,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       path: r.path,
       paramKeys: r.paramKeys ?? [],
       hashes: r.hashes ?? [],
+      sections: r.sections ?? {},
       visits: r.visits ?? 0,
       firstSeenAt: r.firstSeenAt ?? null,
       lastSeenAt: r.lastSeenAt ?? null,

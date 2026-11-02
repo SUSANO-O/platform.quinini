@@ -213,6 +213,7 @@ export async function POST(req: NextRequest) {
   let parsedSessionId = '';
   let parsedMessage = '';
   let parsedPagePath = '';
+  let parsedScreenContext = '';
   let parsedVisitorId: string | null = null;
   let tokenFromBody = '';
   try {
@@ -225,6 +226,7 @@ export async function POST(req: NextRequest) {
       visitorId?: string;
       pagePath?: string;
       pageTitle?: string;
+      screenContext?: string;
     };
     parsedAgentId = typeof j?.agentId === 'string' ? j.agentId.trim() : '';
     parsedWidgetId = typeof j?.widgetId === 'string' ? j.widgetId.trim() : '';
@@ -232,6 +234,7 @@ export async function POST(req: NextRequest) {
     parsedSessionId = typeof j?.sessionId === 'string' ? j.sessionId.trim() : '';
     parsedMessage = typeof j?.message === 'string' ? j.message : '';
     parsedPagePath = typeof j?.pagePath === 'string' ? j.pagePath : '';
+    parsedScreenContext = typeof j?.screenContext === 'string' ? j.screenContext.slice(0, 4000) : '';
     parsedVisitorId = normalizeVisitorId(j?.visitorId);
     tokenFromBody = typeof j?.token === 'string' ? j.token.trim() : '';
     // Diagnóstico de "¿dónde estoy?": solo la ruta, sin parámetros ni dominio.
@@ -269,7 +272,12 @@ export async function POST(req: NextRequest) {
       const w = await findWidgetForWtToken(widgetToken, parsedWidgetId || undefined);
       if (w) {
         if (w.id && w.userId && isWidgetActive(w)) {
-          scheduleWidgetPageVisit({ widgetId: w.id, userId: w.userId, pagePath: parsedPagePath });
+          scheduleWidgetPageVisit({
+            widgetId: w.id,
+            userId: w.userId,
+            pagePath: parsedPagePath,
+            screenContext: parsedScreenContext,
+          });
         }
         if (!resolvedWidgetId && w.id) resolvedWidgetId = w.id;
         if (!isWidgetActive(w)) {

@@ -8,7 +8,14 @@
 
 import { after } from 'next/server';
 import { Widget, WidgetPageVisit } from '@/lib/db/models';
-import { normalizeAppMap, pageVisitFromPagePath, type AppMapEntry } from '@/lib/widget-app-map';
+import {
+  learnedSectionFromScreen,
+  normalizeAppMap,
+  pageVisitFromPagePath,
+  withLearnedSections,
+  type AppMapEntry,
+  type LearnedScreenRow,
+} from '@/lib/widget-app-map';
 
 export const MAX_DISCOVERED_PATHS = 500;
 const MAX_HASHES = 60;
@@ -18,6 +25,8 @@ export async function recordWidgetPageVisit(params: {
   widgetId: string;
   userId: string;
   pagePath: unknown;
+  /** "Leer la pantalla": de aquí se aprende el nombre de la sección (#hash) en la que está. */
+  screenContext?: unknown;
 }): Promise<void> {
   try {
     const visit = pageVisitFromPagePath(params.pagePath);
@@ -46,6 +55,14 @@ export async function recordWidgetPageVisit(params: {
         { $addToSet: { hashes: visit.hash } },
       );
     }
+    // Nombre de la sección: solo para hashes ya registrados (tope 60) y widgets con "Leer la pantalla".
+    const learned = visit.hash ? learnedSectionFromScreen(params.pagePath, params.screenContext) : null;
+    if (learned && (await getWidgetScreenContextEnabled(params.widgetId))) {
+      await WidgetPageVisit.updateOne(
+        { ...key, hashes: learned.hash },
+        { $set: { [`sections.${learned.hash}`]: learned.name } },
+      );
+    }
     if (visit.paramKeys.length) {
       await WidgetPageVisit.updateOne(
         { ...key, [`paramKeys.${MAX_PARAM_KEYS - 1}`]: { $exists: false } },
@@ -58,7 +75,12 @@ export async function recordWidgetPageVisit(params: {
 }
 
 /** Registra la visita después de responder (after() garantiza que termine en serverless). */
-export function scheduleWidgetPageVisit(params: { widgetId: string; userId: string; pagePath: unknown }): void {
+export function scheduleWidgetPageVisit(params: {
+  widgetId: string;
+  userId: string;
+  pagePath: unknown;
+  screenContext?: unknown;
+}): void {
   if (!params.widgetId || !params.userId || !params.pagePath) return;
   const run = () => recordWidgetPageVisit(params);
   try {
@@ -80,12 +102,29 @@ export async function getWidgetAppMap(widgetId: string): Promise<AppMapEntry[]> 
       appMap?: unknown;
       screenContextEnabled?: boolean;
     } | null;
-    const map = normalizeAppMap(w?.appMap ?? []).map;
-    cache.set(widgetId, { at: Date.now(), map, screen: w?.screenContextEnabled === true });
+    const screen = w?.screenContextEnabled === true;
+    let map = normalizeAppMap(w?.appMap ?? []).map;
+    if (screen) map = withLearnedSections(map, await readLearnedScreens(widgetId));
+    cache.set(widgetId, { at: Date.now(), map, screen });
     return map;
   } catch (err) {
     console.warn('[widget-app-map] read skipped:', err);
     return hit?.map ?? [];
+  }
+}
+
+/** Secciones aprendidas por ruta (fallo = sin aprendido: el mapa del dueño sigue igual). */
+async function readLearnedScreens(widgetId: string): Promise<LearnedScreenRow[]> {
+  try {
+    const rows = (await WidgetPageVisit.find({ widgetId, sections: { $exists: true } })
+      .sort({ visits: -1 })
+      .limit(MAX_DISCOVERED_PATHS)
+      .select({ _id: 0, path: 1, visits: 1, sections: 1 })
+      .lean()) as Array<{ path: string; visits?: number; sections?: Record<string, string> }>;
+    return rows.map((r) => ({ path: r.path, visits: r.visits ?? 0, sections: r.sections ?? {} }));
+  } catch (err) {
+    console.warn('[widget-app-map] learned read skipped:', err);
+    return [];
   }
 }
 

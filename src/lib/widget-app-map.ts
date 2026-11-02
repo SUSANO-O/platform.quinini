@@ -253,3 +253,93 @@ export function pageVisitFromPagePath(pagePath: unknown): PageVisit | null {
   } catch { /* noop */ }
   return { path, paramKeys: keys, hash: hashOf(raw) };
 }
+
+// ── Aprendido de "Leer la pantalla" ───────────────────────────────────────────
+
+/** Visitas mínimas para que una ruta que no está en el mapa entre como "aprendida". */
+export const LEARNED_VIEW_MIN_VISITS = 3;
+const LEARNED_NAME_MAX = 60;
+const LEARNED_TAG = 'aprendida de la pantalla';
+
+/** Etiqueta del navegador → texto plano corto (es dato no confiable: sin bloques ni marcadores). */
+function cleanLearnedLabel(s: string): string {
+  return s
+    .replace(/[[\]{}<>`]/g, ' ')
+    .replace(/assist-nav/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, LEARNED_NAME_MAX);
+}
+
+function screenListAfter(line: string): string[] {
+  return line
+    .slice(line.indexOf(':') + 1)
+    .split(' · ')
+    .map(cleanLearnedLabel)
+    .filter((t) => t.length >= 2 && !t.endsWith('…'));
+}
+
+/**
+ * Nombre de la sección en la que está el cliente: el `#hash` de su URL + lo que la pantalla marca
+ * como seleccionado. Solo se acepta si ese nombre también está en un menú visible (así un cuerpo
+ * inventado no puede ponerle a una pestaña un nombre cualquiera).
+ */
+export function learnedSectionFromScreen(
+  pagePath: unknown,
+  screenContext: unknown,
+): { path: string; hash: string; name: string } | null {
+  if (typeof screenContext !== 'string' || !screenContext.trim()) return null;
+  const raw = typeof pagePath === 'string' ? pagePath.trim() : '';
+  const path = appMapPathname(raw);
+  const hash = hashOf(raw);
+  if (!path || !hash) return null;
+  const lines = screenContext.split('\n').map((l) => l.trim());
+  const activeLine = lines.find((l) => l.startsWith('Seleccionado/activo ahora:'));
+  if (!activeLine) return null;
+  const menu = new Set(
+    lines.filter((l) => /^Menú( \([^)]{1,30}\))?:/.test(l)).flatMap(screenListAfter).map((t) => t.toLowerCase()),
+  );
+  const name = screenListAfter(activeLine).find((a) => menu.has(a.toLowerCase()));
+  return name ? { path, hash, name } : null;
+}
+
+export type LearnedScreenRow = { path: string; visits: number; sections: Record<string, string> };
+
+function suggestViewName(path: string): string {
+  const last = path.split('/').filter(Boolean).pop() ?? path;
+  return last.replace(/\.[a-z0-9]+$/i, '') || path;
+}
+
+/**
+ * Mapa del turno = mapa del dueño + lo aprendido. Lo del dueño manda siempre: a sus vistas solo se
+ * les añaden pestañas que no tengan; las rutas que no están en su mapa entran como vistas
+ * "aprendidas, sin revisar" si se visitaron al menos LEARNED_VIEW_MIN_VISITS veces.
+ */
+export function withLearnedSections(map: AppMapEntry[], learned: LearnedScreenRow[]): AppMapEntry[] {
+  if (!learned.length) return map;
+  const out: AppMapEntry[] = map.map((e) => ({ ...e, ...(e.tabs ? { tabs: [...e.tabs] } : {}) }));
+  const byPath = new Map(out.map((e) => [e.path, e]));
+  for (const row of learned) {
+    if (!PATH_RE.test(row.path)) continue;
+    const sections = Object.entries(row.sections ?? {})
+      .filter(([h, n]) => HASH_RE.test(h) && typeof n === 'string' && cleanLearnedLabel(n).length >= 2)
+      .map(([hash, n]) => ({ hash, name: cleanLearnedLabel(n), description: LEARNED_TAG }));
+    if (!sections.length) continue;
+    const entry = byPath.get(row.path);
+    if (entry) {
+      const known = new Set((entry.tabs ?? []).map((t) => t.hash));
+      const add = sections.filter((s) => !known.has(s.hash));
+      if (add.length) entry.tabs = [...(entry.tabs ?? []), ...add].slice(0, APP_MAP_MAX_TABS);
+    } else if (row.visits >= LEARNED_VIEW_MIN_VISITS && out.length < APP_MAP_MAX_ENTRIES) {
+      const e: AppMapEntry = {
+        path: row.path,
+        name: suggestViewName(row.path),
+        description: `Vista ${LEARNED_TAG} (sin revisar por el dueño)`,
+        tabs: sections.slice(0, APP_MAP_MAX_TABS),
+      };
+      out.push(e);
+      byPath.set(row.path, e);
+    }
+  }
+  return out;
+}
