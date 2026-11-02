@@ -10,9 +10,12 @@ Por orden de prioridad:
 
 1. **Lo que diga la app** con `AgentFlowhub.setTheme(...)` (lo más fiable).
 2. **Señales de la página**, en `<html>` o `<body>`:
-   - clase `dark`, `dark-mode`, `theme-dark` o `dark-theme` (y sus equivalentes `light…`);
-   - atributo `data-theme`, `data-bs-theme` (Bootstrap 5.3), `data-mode`, `data-color-scheme`
-     o `data-color-mode` con un valor que contenga `dark` / `light`;
+   - clase `dark`, `dark-mode`, `theme-dark`, `dark-theme`, `oscuro`, `modo-oscuro`, `tema-oscuro`
+     (y sus equivalentes claros);
+   - cualquier atributo `data-…` cuyo nombre contenga *theme, tema, mode, modo* o *scheme*
+     (`data-theme`, `data-bs-theme`, `data-color-mode`, `data-tema-ui`…) con un valor que diga
+     `dark` / `oscuro` / `night` o `light` / `claro` / `day`. Ejemplo real: la plataforma de Tribu
+     usa `<html data-tema-ui="oscuro">` y el widget la sigue sin tocar nada;
    - `color-scheme: dark` / `light` en `<html>` (`light dark` no cuenta: decide el sistema).
 3. **El modo del sistema** del dispositivo (`prefers-color-scheme`).
 

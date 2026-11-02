@@ -19,9 +19,13 @@
    * Los widgets con tema fijo (claro u oscuro) no cambian.
    */
   var HOST_THEME = null; // 'dark' | 'light' | null (la app no ha dicho nada)
-  var THEME_ATTRS = ['data-theme', 'data-bs-theme', 'data-mode', 'data-color-scheme', 'data-color-mode'];
-  var DARK_CLASS_RE = /(^|\s)(dark|dark-mode|theme-dark|dark-theme)(\s|$)/i;
-  var LIGHT_CLASS_RE = /(^|\s)(light|light-mode|theme-light|light-theme)(\s|$)/i;
+  // Cualquier data-* cuyo nombre hable de tema/modo: data-theme, data-bs-theme, data-mode,
+  // data-color-scheme… y también los propios de cada app (p. ej. Tribu: data-tema-ui="oscuro").
+  var THEME_ATTR_NAME_RE = /^data-(?:[\w-]*-)?(theme|tema|mode|modo|scheme)(?:-[\w-]*)?$/i;
+  var DARK_VALUE_RE = /dark|oscur|night|noche/i;
+  var LIGHT_VALUE_RE = /light|clar|day|d[ií]a/i;
+  var DARK_CLASS_RE = /(^|\s)(dark|dark-mode|theme-dark|dark-theme|oscuro|modo-oscuro|tema-oscuro)(\s|$)/i;
+  var LIGHT_CLASS_RE = /(^|\s)(light|light-mode|theme-light|light-theme|claro|modo-claro|tema-claro)(\s|$)/i;
 
   function normalizeThemeValue(v) {
     var t = String(v == null ? '' : v).trim().toLowerCase();
@@ -33,10 +37,12 @@
     var cls = el.getAttribute('class') || '';
     if (DARK_CLASS_RE.test(cls)) return 'dark';
     if (LIGHT_CLASS_RE.test(cls)) return 'light';
-    for (var i = 0; i < THEME_ATTRS.length; i++) {
-      var a = String(el.getAttribute(THEME_ATTRS[i]) || '').toLowerCase();
-      if (a.indexOf('dark') !== -1) return 'dark';
-      if (a.indexOf('light') !== -1) return 'light';
+    var attrs = el.attributes || [];
+    for (var i = 0; i < attrs.length; i++) {
+      if (!THEME_ATTR_NAME_RE.test(attrs[i].name)) continue;
+      var a = String(attrs[i].value || '');
+      if (DARK_VALUE_RE.test(a)) return 'dark';
+      if (LIGHT_VALUE_RE.test(a)) return 'light';
     }
     return null;
   }
@@ -1919,12 +1925,11 @@
     if (cfg.themePreference === 'auto') {
       try {
         if (typeof MutationObserver === 'function') {
+          // Todos los atributos de <html>/<body>: cada app marca el modo a su manera (y a veces solo
+          // cambia su CSS, que se relee con color-scheme). Coalescido a un frame: es barato.
           var themeObserver = new MutationObserver(scheduleThemeRefresh);
-          var themeAttrFilter = ['class', 'style'].concat(THEME_ATTRS);
-          themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: themeAttrFilter });
-          if (document.body) {
-            themeObserver.observe(document.body, { attributes: true, attributeFilter: themeAttrFilter });
-          }
+          themeObserver.observe(document.documentElement, { attributes: true });
+          if (document.body) themeObserver.observe(document.body, { attributes: true });
           themeWatchers.push(function () { themeObserver.disconnect(); });
         }
         if (window.matchMedia) {
