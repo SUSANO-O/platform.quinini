@@ -21,6 +21,14 @@ Por orden de prioridad:
 
 Si la app ya usa una de las señales del punto 2, no hay que hacer nada.
 
+## Piel personalizada y tema automático
+
+Con tema Automático, los colores **de superficie** de la piel (fondo del chat, pie, caja de
+escribir y burbuja del bot, con sus textos) solo se aplican en el modo que encajan: unos oscuros
+solo en oscuro y unos claros solo en claro. En el otro modo se usan los del tema base. Los colores
+**de marca** (cabecera, botón de enviar, burbuja del usuario, botón flotante), la fuente, los
+tamaños y las opciones de ocultar se aplican siempre. Con tema fijo la piel se aplica tal cual.
+
 ## Si la app usa otro mecanismo
 
 Llamar a `setTheme` cada vez que el usuario cambie de modo (se puede llamar antes de que el widget

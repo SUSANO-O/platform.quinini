@@ -82,6 +82,46 @@ function widgetSkinFontUrl(skin) {
   return 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(f).replace(/%20/g, '+') + ':wght@400;500;600;700&display=swap';
 }
 
+/** Colores de superficie: dependen del modo claro/oscuro (los de marca valen en los dos). */
+var WIDGET_SKIN_SURFACE_BG_KEYS = ['chatBg', 'footerBg', 'inputBg', 'botBubbleBg'];
+var WIDGET_SKIN_SURFACE_TEXT_KEYS = ['inputText', 'botBubbleText'];
+
+function widgetSkinIsDarkHex(hex) {
+  var h = widgetSkinHex(hex);
+  if (!h) return false;
+  var ch = [1, 3, 5].map(function (i) {
+    var c = parseInt(h.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2] < 0.35;
+}
+
+/**
+ * Piel efectiva para el tema en uso. Con tema fijo se usa tal cual (como siempre). Con tema
+ * "auto", un fondo de superficie oscuro solo se aplica en modo oscuro (y uno claro en claro), y
+ * un color de texto de superficie solo si contrasta con ese modo; si no, manda el tema base.
+ * Cabecera, enviar, burbuja del usuario, botón flotante, fuente y tamaños se aplican siempre.
+ */
+function widgetSkinForTheme(rawSkin, theme, preference) {
+  if (preference !== 'auto' || !rawSkin || typeof rawSkin !== 'object') return rawSkin;
+  var dark = theme === 'dark';
+  var out = {};
+  for (var k in rawSkin) {
+    if (Object.prototype.hasOwnProperty.call(rawSkin, k)) out[k] = rawSkin[k];
+  }
+  var i;
+  for (i = 0; i < WIDGET_SKIN_SURFACE_BG_KEYS.length; i++) {
+    var bg = WIDGET_SKIN_SURFACE_BG_KEYS[i];
+    if (widgetSkinHex(out[bg]) && widgetSkinIsDarkHex(out[bg]) !== dark) delete out[bg];
+  }
+  for (i = 0; i < WIDGET_SKIN_SURFACE_TEXT_KEYS.length; i++) {
+    var tx = WIDGET_SKIN_SURFACE_TEXT_KEYS[i];
+    // Texto claro sobre modo oscuro, texto oscuro sobre modo claro.
+    if (widgetSkinHex(out[tx]) && widgetSkinIsDarkHex(out[tx]) === dark) delete out[tx];
+  }
+  return out;
+}
+
 function buildWidgetSkinCss(rootId, rawSkin) {
   var s = normalizeWidgetSkin(rawSkin);
   var r = '#' + rootId;

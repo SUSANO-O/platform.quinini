@@ -1907,6 +1907,14 @@
     // (sin remontar: el chat abierto y la conversación siguen igual).
     var themeWatchers = [];
     var themeRefreshPending = false;
+    var skinEl = null;
+    function currentSkinCss() {
+      if (typeof buildWidgetSkinCss !== 'function' || !cfg.skin) return '';
+      var skin = typeof widgetSkinForTheme === 'function'
+        ? widgetSkinForTheme(cfg.skin, cfg.theme, cfg.themePreference)
+        : cfg.skin;
+      return buildWidgetSkinCss(rootId, skin);
+    }
     function refreshTheme() {
       if (cfg.themePreference !== 'auto') return;
       var next = resolveEffectiveTheme('auto');
@@ -1914,6 +1922,7 @@
       cfg.theme = next;
       root.setAttribute('data-afhub-theme', next);
       styleEl.textContent = cssForRoot(rootId, cfg);
+      if (skinEl) skinEl.textContent = currentSkinCss();
     }
     function scheduleThemeRefresh() {
       if (themeRefreshPending) return;
@@ -1998,10 +2007,11 @@
       if (skinEdge) { cfg.edgeInset = skinEdge; cfg.offsetBottom = skinEdge; cfg.offsetTop = skinEdge; }
     }
     if (typeof buildWidgetSkinCss === 'function' && cfg.skin) {
-      var skinCss = buildWidgetSkinCss(rootId, cfg.skin);
-      if (skinCss) {
-        var skinEl = document.createElement('style');
-        skinEl.textContent = skinCss;
+      // Con tema automático la piel se filtra según el modo en uso (ver widgetSkinForTheme) y se
+      // regenera al cambiar; por eso el <style> se crea aunque ahora mismo quede vacío.
+      if (buildWidgetSkinCss(rootId, cfg.skin)) {
+        skinEl = document.createElement('style');
+        skinEl.textContent = currentSkinCss();
         root.appendChild(skinEl);
         var fontUrl = widgetSkinFontUrl(normalizeWidgetSkin(cfg.skin));
         if (fontUrl && !document.querySelector('link[data-afhub-skin-font="' + fontUrl + '"]')) {
