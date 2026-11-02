@@ -1267,6 +1267,8 @@ const WidgetPageVisitSchema = new Schema({
   path:        { type: String, required: true },
   paramKeys:   { type: [String], default: [] },
   hashes:      { type: [String], default: [] },
+  /** Nombre de cada #hash aprendido de "Leer la pantalla" (solo hashes ya registrados arriba). */
+  sections:    { type: Map, of: String, default: undefined },
   visits:      { type: Number, default: 0 },
   firstSeenAt: { type: Date, default: Date.now },
   lastSeenAt:  { type: Date, default: Date.now },

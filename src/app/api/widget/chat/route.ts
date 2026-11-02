@@ -282,6 +282,7 @@ export async function POST(req: NextRequest) {
   let tokenFromBody = '';
   let parsedMessage = '';
   let parsedPagePath = '';
+  let parsedScreenContext = '';
   let parsedSessionId = '';
   let parsedVisitorId: string | null = null;
   try {
@@ -293,12 +294,14 @@ export async function POST(req: NextRequest) {
       sessionId?: string;
       visitorId?: string;
       pagePath?: string;
+      screenContext?: string;
     };
     parsedAgentId = typeof j?.agentId === 'string' ? j.agentId.trim() : '';
     parsedWidgetId = typeof j?.widgetId === 'string' ? j.widgetId.trim() : '';
     tokenFromBody = typeof j?.token === 'string' ? j.token.trim() : '';
     parsedMessage = typeof j?.message === 'string' ? j.message : '';
     parsedPagePath = typeof j?.pagePath === 'string' ? j.pagePath : '';
+    parsedScreenContext = typeof j?.screenContext === 'string' ? j.screenContext.slice(0, 4000) : '';
     parsedSessionId = typeof j?.sessionId === 'string' ? j.sessionId.trim() : '';
     parsedVisitorId = normalizeVisitorId(j?.visitorId);
   } catch {
@@ -344,7 +347,12 @@ export async function POST(req: NextRequest) {
       const w = await findWidgetForWtToken(widgetToken, parsedWidgetId || undefined);
       if (w) {
         if (w.id && w.userId && isWidgetActive(w)) {
-          scheduleWidgetPageVisit({ widgetId: w.id, userId: w.userId, pagePath: parsedPagePath });
+          scheduleWidgetPageVisit({
+            widgetId: w.id,
+            userId: w.userId,
+            pagePath: parsedPagePath,
+            screenContext: parsedScreenContext,
+          });
         }
         if (w.id && !resolvedWidgetId) resolvedWidgetId = w.id;
         else if (w.id) resolvedWidgetId = w.id;
