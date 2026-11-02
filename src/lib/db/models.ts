@@ -156,6 +156,8 @@ const WidgetSchema = new Schema({
   fabDismissible: { type: Boolean, default: true },
   /** Al abrir el chat como barra lateral, la página se reacomoda en vez de quedar tapada. */
   pushContent: { type: Boolean, default: false },
+  /** El widget manda al agente la estructura de la pantalla actual (títulos, menú, sección activa; no datos). */
+  screenContextEnabled: { type: Boolean, default: false },
   /** Colores por zona y tipografía (src/lib/widget-skin.ts). Vacío = aspecto por defecto. */
   skin: { type: Schema.Types.Mixed, default: {} },
   /**

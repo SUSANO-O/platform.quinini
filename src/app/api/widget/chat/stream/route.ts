@@ -61,7 +61,7 @@ import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-
 import { emitDoneAndPersist } from '@/lib/widget-transcript';
 import { tryServeWidgetChatViaDirectInference } from '@/lib/widget-chat-direct-inference';
 import { tryServeWidgetChatViaHubMcp } from '@/lib/widget-chat-direct-mcp';
-import { getWidgetAppMap, scheduleWidgetPageVisit } from '@/lib/widget-page-visits';
+import { getWidgetAppMap, getWidgetScreenContextEnabled, scheduleWidgetPageVisit } from '@/lib/widget-page-visits';
 import { extractIdentityFromChatBody } from '@/lib/widget-identity';
 import { resolveVerifiedWidgetIdentity, type WidgetIdentityStatus } from '@/lib/widget-identity-verify';
 import { normalizeVisitorId } from '@/lib/widget-visitor';
@@ -876,9 +876,11 @@ export async function POST(req: NextRequest) {
         // Misma cadena que /api/widget/chat: MCP directo → inferencia directa → hub (último recurso).
         if (widgetToken.startsWith('wt_') && faqTrackOwnerId && parsedAgentIdLocal) {
           let widgetAppMap: Awaited<ReturnType<typeof getWidgetAppMap>> = [];
+          let widgetScreenContext = false;
           const directMcpOutcome: { noMcpTools?: boolean } = {};
           try {
             widgetAppMap = resolvedWidgetId ? await getWidgetAppMap(resolvedWidgetId) : [];
+            widgetScreenContext = resolvedWidgetId ? await getWidgetScreenContextEnabled(resolvedWidgetId) : false;
             const directMcpStartedAt = Date.now();
             /** Caracteres ya enviados al widget en vivo (streaming real desde el hub). */
             let liveTokenChars = 0;
@@ -894,6 +896,7 @@ export async function POST(req: NextRequest) {
                 identityStatus,
                 clientOrigin: origin,
                 appMap: widgetAppMap,
+                screenContextEnabled: widgetScreenContext,
                 outcome: directMcpOutcome,
                 onStatus: (phase, message) => {
                   enqueue({ type: 'status', phase, message });
@@ -1009,6 +1012,7 @@ export async function POST(req: NextRequest) {
                 ownerUserId: faqTrackOwnerId,
                 allowWithoutMcp: directMcpOutcome.noMcpTools === true,
                 appMap: widgetAppMap,
+                screenContextEnabled: widgetScreenContext,
                 onStatus: (phase, message) => {
                   enqueue({ type: 'status', phase, message });
                 },

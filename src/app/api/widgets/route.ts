@@ -159,6 +159,7 @@ export async function POST(req: NextRequest) {
     ),
     fabDismissible: restNormalized.fabDismissible !== false,
     pushContent: restNormalized.pushContent === true,
+    screenContextEnabled: restNormalized.screenContextEnabled === true,
     skin: normalizeWidgetSkin((restNormalized as { skin?: unknown }).skin),
     handoffEnabled: restNormalized.handoffEnabled === true,
     humanSupportEnabled: restNormalized.humanSupportEnabled === true,

@@ -68,7 +68,7 @@ export function scheduleWidgetPageVisit(params: { widgetId: string; userId: stri
   }
 }
 
-const cache = new Map<string, { at: number; map: AppMapEntry[] }>();
+const cache = new Map<string, { at: number; map: AppMapEntry[]; screen: boolean }>();
 const CACHE_TTL_MS = 60_000;
 
 export async function getWidgetAppMap(widgetId: string): Promise<AppMapEntry[]> {
@@ -76,14 +76,26 @@ export async function getWidgetAppMap(widgetId: string): Promise<AppMapEntry[]> 
   const hit = cache.get(widgetId);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.map;
   try {
-    const w = (await Widget.findById(widgetId).select('+appMap').lean()) as { appMap?: unknown } | null;
+    const w = (await Widget.findById(widgetId).select('+appMap screenContextEnabled').lean()) as {
+      appMap?: unknown;
+      screenContextEnabled?: boolean;
+    } | null;
     const map = normalizeAppMap(w?.appMap ?? []).map;
-    cache.set(widgetId, { at: Date.now(), map });
+    cache.set(widgetId, { at: Date.now(), map, screen: w?.screenContextEnabled === true });
     return map;
   } catch (err) {
     console.warn('[widget-app-map] read skipped:', err);
     return hit?.map ?? [];
   }
+}
+
+/** "Leer la pantalla" del widget (misma lectura y caché que el mapa: sin consulta extra). */
+export async function getWidgetScreenContextEnabled(widgetId: string): Promise<boolean> {
+  if (!widgetId) return false;
+  const hit = cache.get(widgetId);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.screen;
+  await getWidgetAppMap(widgetId);
+  return cache.get(widgetId)?.screen === true;
 }
 
 /** Tras guardar en el panel: que esta instancia no sirva el mapa viejo. */

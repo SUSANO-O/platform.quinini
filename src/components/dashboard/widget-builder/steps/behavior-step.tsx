@@ -539,6 +539,21 @@ export function WidgetBuilderBehaviorStep({
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <WidgetBuilderSwitch
+              checked={cfg.screenContextEnabled}
+              accentColor={WIDGET_BUILDER_UI_ACCENT}
+              onChange={(screenContextEnabled) => onChange({ screenContextEnabled })}
+              ariaLabel="Leer la pantalla donde está el usuario"
+            />
+            <label
+              style={{ fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+              onClick={() => onChange({ screenContextEnabled: !cfg.screenContextEnabled })}
+              title="Con cada mensaje el agente ve la estructura de la página: título, encabezados, menú y sección activa. No lee tablas, campos ni otros datos."
+            >
+              Leer la pantalla (el agente sabe en qué vista y sección está el usuario)
+            </label>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <WidgetBuilderSwitch
               checked={cfg.imageUploadEnabled}
               accentColor={WIDGET_BUILDER_UI_ACCENT}
               onChange={(imageUploadEnabled) => onChange({ imageUploadEnabled })}
