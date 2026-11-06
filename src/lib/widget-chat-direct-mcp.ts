@@ -126,6 +126,11 @@ export async function tryServeWidgetChatViaHubMcp(params: {
    * inferencia directa sin perder la página actual ni la navegación.
    */
   outcome?: { noMcpTools?: boolean };
+  /**
+   * Banco de pruebas (scripts/eval): el hub responde igual pero simula las herramientas que
+   * escriben (tickets, webhooks, contactos) y no captura leads. Nunca lo activa el widget.
+   */
+  sandbox?: boolean;
 }): Promise<DirectMcpWidgetChatResult | null> {
   if (!params.widgetTokenStartsWithWt || !params.parsedAgentId.trim()) {
     logWidgetFlow('🚫', 'direct:skip', 'sin wt_ o agentId', { agentId: params.parsedAgentId });
@@ -362,6 +367,8 @@ export async function tryServeWidgetChatViaHubMcp(params: {
     ...(visitorUserId ? { visitorUserId } : {}),
     ...(visitorId ? { visitorId } : {}),
     ...(verifiedIdentity ? { verifiedIdentity } : {}),
+    // Banco de pruebas: el hub simula las herramientas que escriben y no captura leads.
+    ...(params.sandbox === true ? { sandbox: true } : {}),
     ...(params.identityStatus ? { identityStatus: params.identityStatus } : {}),
     ...(params.clientOrigin ? { clientOrigin: params.clientOrigin.slice(0, 200) } : {}),
   };
