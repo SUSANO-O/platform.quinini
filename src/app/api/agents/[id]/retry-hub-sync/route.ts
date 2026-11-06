@@ -30,14 +30,14 @@ export async function POST(_req: NextRequest, { params }: Params) {
 
   if (agent.isPlatform) {
     return NextResponse.json(
-      { error: 'Los agentes de plataforma se sincronizan desde AgentFlowHub.' },
+      { error: 'Los agentes de plataforma los gestiona el equipo de BotIvA.' },
       { status: 403 },
     );
   }
 
   if (!canAttemptHubSync()) {
     return NextResponse.json(
-      { error: 'BACKEND_URL no configurada; no se puede contactar AIBackHub.' },
+      { error: 'El servicio no está disponible en este momento. Inténtalo de nuevo en unos minutos.' },
       { status: 503 },
     );
   }
@@ -52,7 +52,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
       syncStatus: agent.syncStatus,
       agentHubId: hubId,
       mode: 'put' as const,
-      ...(ok ? {} : { error: 'No se pudo actualizar el catálogo en el hub (revisa API key y que el agente exista).' }),
+      ...(ok ? {} : { error: 'No se pudo activar la última versión del agente. Inténtalo de nuevo en unos minutos.' }),
     });
   }
 
@@ -79,6 +79,6 @@ export async function POST(_req: NextRequest, { params }: Params) {
     hubSync: false,
     syncStatus: 'failed',
     mode: 'post' as const,
-    error: 'AIBackHub rechazó la creación del agente (¿duplicado en catálogo o datos inválidos?).',
+    error: 'No se pudo activar el agente. Revisa sus datos e inténtalo de nuevo.',
   });
 }

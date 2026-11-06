@@ -232,7 +232,7 @@ export async function POST(req: NextRequest) {
   const widgetPublicToken = rawWt || null;
 
   if (!name?.trim()) return NextResponse.json({ error: 'El nombre es requerido.' }, { status: 400 });
-  if (!systemPrompt?.trim()) return NextResponse.json({ error: 'El system prompt es requerido.' }, { status: 400 });
+  if (!systemPrompt?.trim()) return NextResponse.json({ error: 'Las instrucciones del agente son obligatorias.' }, { status: 400 });
   if (!model) return NextResponse.json({ error: 'El modelo es requerido.' }, { status: 400 });
 
   if (isSoloChatOnlyPlan(plan) && type === 'sub-agent') {
@@ -281,7 +281,7 @@ export async function POST(req: NextRequest) {
     if (!parent) return NextResponse.json({ error: 'Agente padre no encontrado.' }, { status: 404 });
     if ((parent as { isPlatform?: boolean }).isPlatform) {
       return NextResponse.json(
-        { error: 'Los sub-agentes bajo un agente de plataforma solo se gestionan en AgentFlowHub.' },
+        { error: 'Los sub-agentes de un agente de plataforma solo los gestiona el equipo de BotIvA.' },
         { status: 403 },
       );
     }

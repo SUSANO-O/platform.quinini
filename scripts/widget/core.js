@@ -912,10 +912,9 @@
     function warnConfigFailed(host, tok, dbg) {
       if (!dbg) return;
       console.warn(
-        '[AgentFlowhub Widget] No se pudo obtener configuración remota. ' +
+        '[BotIvA Widget] No se pudo obtener la configuración del widget. ' +
         'host=' + host + ' token=' + tok + '. ' +
-        'Comprueba: (1) host apunta a la landing (ej. http://localhost:3201), no a AIBackHub (:9003); ' +
-        '(2) CORS en el servidor; (3) token wt_ válido; (4) timeout — en dev la 1ª petición puede tardar ~20s (recarga la página).'
+        'Comprueba que el host sea tu dominio de BotIvA y que el token del widget sea el de Mis widgets.'
       );
     }
 
@@ -991,7 +990,7 @@
       var cfg = normalizeConfig(mergedInput);
       var errors = validateConfig(cfg);
       if (errors.length) {
-        if (debug) console.error('[AgentFlowhub Widget]', errors.join(' '));
+        if (debug) console.error('[BotIvA Widget]', errors.join(' '));
         return;
       }
       var instance = createWidgetInstance(instanceId, cfg);
@@ -1035,7 +1034,7 @@
     merged.host = merged.host || getScriptOrigin() || window.location.origin;
     merged.host = String(merged.host).replace(/\/$/, '');
     if (/:(9003)(\/|$)/.test(merged.host)) {
-      log(merged, 'warn', 'host apunta a AIBackHub (:9003). Usa la URL de la landing (ej. http://localhost:3201 o tu dominio BotIvA).');
+      log(merged, 'warn', 'El host no es el de BotIvA. Usa tu dominio de BotIvA.');
     }
     var pos = String(merged.position || 'bottom-right').toLowerCase();
     if (VALID_POSITIONS.indexOf(pos) === -1) {
@@ -1175,21 +1174,21 @@
     var errors = [];
     var isFlowEmbed = Boolean(cfg.flowId && cfg.flowToken);
     if (!isFlowEmbed && (!cfg.agentId || !String(cfg.agentId).trim())) {
-      errors.push('[AgentFlowhub Widget] "agentId" es requerido.');
+      errors.push('[BotIvA Widget] "agentId" es requerido.');
     }
     if (!isHexColor(cfg.color)) {
-      errors.push('[AgentFlowhub Widget] "color" debe ser HEX (ej: #6366f1).');
+      errors.push('[BotIvA Widget] "color" debe ser HEX (ej: #6366f1).');
     }
     if (!/^https?:\/\//.test(cfg.host)) {
-      errors.push('[AgentFlowhub Widget] "host" debe iniciar con http:// o https://');
+      errors.push('[BotIvA Widget] "host" debe iniciar con http:// o https://');
     }
     var ol = cfg.orbLight;
     var od = cfg.orbDeep;
     if (ol || od) {
       if (!ol || !od) {
-        errors.push('[AgentFlowhub Widget] "orbLight" y "orbDeep" deben definirse juntos (o ninguno).');
+        errors.push('[BotIvA Widget] "orbLight" y "orbDeep" deben definirse juntos (o ninguno).');
       } else if (!isHexColor(ol) || !isHexColor(od)) {
-        errors.push('[AgentFlowhub Widget] "orbLight" y "orbDeep" deben ser HEX (#rrggbb).');
+        errors.push('[BotIvA Widget] "orbLight" y "orbDeep" deben ser HEX (#rrggbb).');
       }
     }
     return errors;
@@ -8304,12 +8303,12 @@
       policyUrl: attr(script, 'data-policy-url', DEFAULTS.policyUrl)
     };
     if (hasFlow && !hasToken) {
-      log({ debug: true }, 'warn', '[AgentFlowhub] Flujo embebido sin data-token del widget; añade data-token="wt_..." al script.');
+      log({ debug: true }, 'warn', '[BotIvA Widget] Flujo embebido sin data-token: añade al script el token del widget (Mis widgets).');
     }
     try {
       init(config);
     } catch (e) {
-      console.error('[AgentFlowhub Widget]', e);
+      console.error('[BotIvA Widget]', e);
     }
   }
 
@@ -9829,7 +9828,7 @@
   function log(cfg, level) {
     if (!cfg || !cfg.debug) return;
     var args = Array.prototype.slice.call(arguments, 2);
-    var prefix = '[AgentFlowhub Widget]';
+    var prefix = '[BotIvA Widget]';
     if (level === 'error') console.error.apply(console, [prefix].concat(args));
     else if (level === 'warn') console.warn.apply(console, [prefix].concat(args));
     else console.log.apply(console, [prefix].concat(args));

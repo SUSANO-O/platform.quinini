@@ -9,7 +9,7 @@ export async function GET() {
   const base = getAibackhubBaseUrl();
   if (!base) {
     return NextResponse.json(
-      { success: false, error: 'BACKEND_URL no configurado en el servidor.' },
+      { success: false, error: 'El servicio no está disponible en este momento.' },
       { status: 503 },
     );
   }

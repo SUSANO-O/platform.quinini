@@ -698,14 +698,14 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     );
     const j = await r.json().catch(() => ({}));
     if (!r.ok) {
-      setError(j?.error ?? 'No se pudo sincronizar la conexión MCP.');
+      setError(j?.error ?? 'No se pudo actualizar la integración.');
       return;
     }
     loadMcp();
   }
 
   async function deleteMcpConnection(connectionId: string) {
-    if (!confirm('¿Quitar esta conexión MCP de este agente? Las credenciales dejarán de aplicarse.')) return;
+    if (!confirm('¿Quitar esta integración de este agente? Sus credenciales dejarán de usarse.')) return;
     setError('');
     const r = await fetch(
       `/api/mcp/connections/${encodeURIComponent(connectionId)}?landingAgentId=${encodeURIComponent(id)}`,
@@ -1356,12 +1356,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     const data = await res.json().catch(() => ({}));
     setRagRetryHubBusy(false);
     if (!res.ok) {
-      setUploadErr(typeof data.error === 'string' ? data.error : 'No se pudo sincronizar el catálogo con el hub.');
+      setUploadErr(typeof data.error === 'string' ? data.error : 'No se pudieron actualizar los documentos del agente.');
       return;
     }
     const ar = await fetch(`/api/agents/${id}`).then((x) => x.json());
     if (ar.agent) setAgent(ar.agent);
-    setUploadMsg('Catálogo del hub sincronizado.');
+    setUploadMsg('Documentos del agente actualizados.');
     setTimeout(() => setUploadMsg(''), 4000);
   }
 
@@ -1503,12 +1503,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       return { label: 'Solo local', bg: 'rgba(107,114,128,0.15)', color: '#6b7280' };
     }
     if (agent.syncStatus === 'synced') {
-      return { label: 'Sync OK', bg: 'rgba(34,197,94,0.12)', color: '#22c55e' };
+      return { label: 'Actualizado', bg: 'rgba(34,197,94,0.12)', color: '#22c55e' };
     }
     if (agent.syncStatus === 'failed') {
-      return { label: 'Sync error', bg: 'rgba(239,68,68,0.12)', color: '#ef4444' };
+      return { label: 'Error al actualizar', bg: 'rgba(239,68,68,0.12)', color: '#ef4444' };
     }
-    return { label: 'Sync pendiente', bg: 'rgba(217,119,6,0.12)', color: '#d97706' };
+    return { label: 'Actualización pendiente', bg: 'rgba(217,119,6,0.12)', color: '#d97706' };
   })();
 
   const TABS = [
@@ -1633,7 +1633,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               <KeyRound size={14} style={{ opacity: 0.85 }} /> Token público del widget <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 'normal', color: 'var(--muted-foreground)' }}>(opcional)</span>
             </p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
-              Mismo comportamiento que en AgentFlowHub: el SDK usa <code style={{ fontSize: '11px', background: 'var(--background)', padding: '2px 6px', borderRadius: '6px' }}>token</code> y el hub valida <code style={{ fontSize: '11px', background: 'var(--background)', padding: '2px 6px', borderRadius: '6px' }}>X-Widget-Token</code>. Vacío si solo usas tokens <code style={{ fontSize: '11px' }}>wt_…</code> de Mis widgets.
+              Solo hace falta si integras el widget con tu propio código y quieres una clave fija. Si usas los widgets de <strong>Mis widgets</strong>, déjalo vacío.
             </p>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'stretch' }}>
               <input
@@ -1666,8 +1666,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           <AgentEditorSection>
             <p className={SECTION_TITLE}>Solo propósito del agente</p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
-              Si está activo, el motor en AIBackHub refuerza en el system prompt que el agente{' '}
-              <strong>no responda temas fuera de su rol</strong>: solo lo definido en instrucciones, FAQs, reglas y lo que permitan herramientas MCP, skills y almacenamiento. Útil para un vendedor o soporte que no debe improvisar en otros dominios.
+              Si está activo, el agente{' '}
+              <strong>no responde temas fuera de su rol</strong>: solo lo que cubren sus instrucciones, FAQs, reglas, integraciones, habilidades y documentos. Útil para un vendedor o soporte que no debe improvisar en otros dominios.
             </p>
             <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: readOnly ? 'default' : 'pointer' }}>
               <div
@@ -1721,7 +1721,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   background: conversationSyncBadge.bg,
                   color: conversationSyncBadge.color,
                 }}
-                title="Estado de sincronización de esta configuración con AgentFlowHub/AIBackHub"
+                title="Si los últimos cambios de este agente ya están activos"
               >
                 {conversationSyncBadge.label}
               </span>
@@ -1778,7 +1778,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             )}
             {mainModelUnknown && (
               <p style={{ fontSize: '12px', color: '#d97706', marginBottom: '10px', lineHeight: 1.45 }}>
-                El modelo guardado (<code style={{ fontSize: '11px' }}>{model}</code>) no está en el catálogo actual o no cumple tu plan. Elige uno de la lista o ajústalo en AgentFlowHub.
+                El modelo guardado (<code style={{ fontSize: '11px' }}>{model}</code>) no está en el catálogo actual o no cumple tu plan. Elige uno de la lista.
               </p>
             )}
             <ModelCatalogPicker
@@ -1958,7 +1958,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           <AgentEditorSection bar="cool">
             <p className={SECTION_TITLE}>Skills</p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
-              Capas que se suman: system prompt + skills + RAG + MCP. Las skills activan tools; el motor las une.
+              Capas que se suman: instrucciones + habilidades + documentos + integraciones. Las habilidades activan herramientas; el agente las combina.
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14, alignItems: 'center' }}>
               <span style={{
@@ -2028,7 +2028,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         </p>
                         <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--muted-foreground)', lineHeight: 1.4 }}>
                           {categoryLabel(skill.category || 'general')}
-                          {mcpCount > 0 ? ` · ${mcpCount} MCP` : ' · sin MCP'}
+                          {mcpCount > 0 ? ` · ${mcpCount} integraciones` : ' · sin integraciones'}
                         </p>
                       </div>
                       <button
@@ -2135,7 +2135,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                             color: 'var(--muted-foreground)',
                             lineHeight: 1.35,
                           }}>
-                            {mcpCount > 0 ? `${mcpCount} tools MCP` : 'Solo prompt'}
+                            {mcpCount > 0 ? `${mcpCount} herramientas` : 'Solo instrucciones'}
                           </span>
                         </button>
                       );
@@ -2187,7 +2187,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           <AgentEditorSection>
             <p className={SECTION_TITLE}>Reglas de comportamiento y flujo</p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
-              Configura políticas del agente (prioridad, tono, reclamos, respuestas cortas y qué hacer cuando no sabe). Al guardar, estas reglas se integran automáticamente al system prompt.
+              Configura políticas del agente (prioridad, tono, reclamos, respuestas cortas y qué hacer cuando no sabe). Al guardar, estas reglas se integran automáticamente a las instrucciones del agente.
             </p>
             {!readOnly && (
               <button
@@ -2400,7 +2400,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             <p className={SECTION_TITLE}>Preguntas frecuentes</p>
             <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginBottom: '12px', lineHeight: 1.45 }}>
               Define pares pregunta–respuesta para que el modelo las use cuando la consulta sea equivalente. Al guardar,
-              se integran al system prompt y se sincronizan. El widget registra preguntas repetidas que
+              se integran a las instrucciones del agente. El widget registra preguntas repetidas que
               aún no tienen FAQ: aparecen abajo como candidatas (≥3 veces) para que las conviertas en FAQ formal.
             </p>
             {!readOnly && (
@@ -2658,7 +2658,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 padding: '12px 14px',
               }}
             >
-              <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: R }}>1 · Cuentas MCP conectadas</p>
+              <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: R }}>1 · Cuentas conectadas</p>
               <p style={{ margin: '6px 0 0', fontSize: 11, lineHeight: 1.45, color: 'var(--muted-foreground)' }}>
                 Gmail, HubSpot, Slack y otras que piden iniciar sesión o una clave.
               </p>
@@ -2693,13 +2693,13 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           {mcpLoading ? (
             <AgentEditorSection innerStyle={{ textAlign: 'center', padding: '28px 16px' }}>
               <Loader2 size={22} className="animate-spin mx-auto mb-2 block" style={{ color: R }} />
-              <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', margin: 0 }}>Cargando integraciones MCP...</p>
+              <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', margin: 0 }}>Cargando integraciones…</p>
             </AgentEditorSection>
           ) : accountMcpServers.length > 0 ? (
             <>
               <AgentEditorSection>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                  <p className={SECTION_TITLE} style={{ margin: 0 }}>1 · Cuentas MCP conectadas</p>
+                  <p className={SECTION_TITLE} style={{ margin: 0 }}>1 · Cuentas conectadas</p>
                   <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
                     {mcpToolIds.length} tool{mcpToolIds.length !== 1 ? 's' : ''} activa{mcpToolIds.length !== 1 ? 's' : ''}
                   </span>
@@ -2835,7 +2835,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                             <>
                               <button
                                 type="button"
-                                title="Volver a sincronizar con el servidor MCP"
+                                title="Volver a conectar la integración"
                                 onClick={() => resyncMcpConnection(srv.connectionId)}
                                 style={{
                                   display: 'flex', alignItems: 'center', gap: '4px',
@@ -3055,7 +3055,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 })}
               </div>
               <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '10px 0 0', lineHeight: 1.5 }}>
-                Reintenta la sincronización aquí o revisa las credenciales. También puedes gestionar conexiones en AgentFlowHub.
+                Reintenta la conexión aquí o revisa las credenciales.
               </p>
             </AgentEditorSection>
           )}
@@ -3112,12 +3112,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               return (
                 <AgentEditorSection key={t.toolId} bar="cool">
                   <p className={SECTION_TITLE} style={{ margin: '0 0 6px' }}>
-                    {def?.icon} {def?.name ?? t.toolId} — cuenta MCP
+                    {def?.icon} {def?.name ?? t.toolId} — cuenta conectada
                   </p>
                   <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: 'var(--muted-foreground)' }}>
                     {mcpTwin
                       ? `Conéctalo en el paso 1 con «${mcpTwin.name}». No hace falta pegar otra clave aquí.`
-                      : 'Conéctalo en el paso 1 (cuentas MCP). No hace falta pegar otra clave aquí.'}
+                      : 'Conéctalo en el paso 1 (cuentas conectadas). No hace falta pegar otra clave aquí.'}
                   </p>
                   {!readOnly && (
                     <button
@@ -3161,7 +3161,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                     )}
                   </div>
                   <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '0 0 14px', lineHeight: 1.5 }}>
-                    Configura webhooks y elige el <strong>evento de disparo</strong>. Los eventos marcados como activos ya tienen pipeline en el motor;
+                    Configura webhooks y elige el <strong>evento de disparo</strong>. Los eventos marcados como activos ya funcionan;
                     los demás se guardan como contrato para próximas versiones. También puedes dejar <strong>Decisión del agente</strong> (sin evento fijo).
                   </p>
 
@@ -3340,7 +3340,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   </div>
                   <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '0 0 14px', lineHeight: 1.5 }}>
                     Pega el enlace del archivo, <strong>elige la pestaña</strong> y describe qué debe buscar el agente.
-                    Activa <strong>sync 3 AM</strong> en Plus+ para consultas instantáneas desde Mongo. Archivo <strong>público</strong>.
+                    Activa la <strong>copia nocturna (3 AM)</strong> en Plus+ para consultas instantáneas. Archivo <strong>público</strong>.
                   </p>
 
                   {sheetSyncAvailable ? (
@@ -3359,9 +3359,9 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       }}
                     >
                       <div>
-                        <div style={{ fontSize: 11, fontWeight: 700 }}>Facturación almacenamiento sync</div>
+                        <div style={{ fontSize: 11, fontWeight: 700 }}>Facturación de la copia nocturna</div>
                         <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: '4px 0 0', lineHeight: 1.45 }}>
-                          ${SHEET_SYNC_USD_PER_GB}/GB · sync diario 3:00 AM (Bogotá) ·{' '}
+                          ${SHEET_SYNC_USD_PER_GB}/GB · copia diaria 3:00 AM (Bogotá) ·{' '}
                           {sheetSyncMeta ? `${sheetSyncMeta.gbStored} GB almacenados` : 'cargando uso…'}
                           {sheetSyncMeta && sheetSyncMeta.estimatedUsd > 0 ? ` · ~$${sheetSyncMeta.estimatedUsd.toFixed(2)}/mes` : ''}
                         </p>
@@ -3397,7 +3397,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                     </div>
                   ) : (
                     <p style={{ fontSize: 11, color: '#d97706', margin: '0 0 14px' }}>
-                      Sync nocturno Sheets → Mongo disponible en <strong>Plus</strong> o superior.
+                      Copia nocturna de la hoja disponible en <strong>Plus</strong> o superior.
                     </p>
                   )}
 
@@ -3555,8 +3555,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                     }}
                   >
                     {[
-                      { label: 'Fuentes RAG', value: memoryStats.ragSources },
-                      { label: 'Vectores (hub)', value: memoryStats.vectorTotal },
+                      { label: 'Documentos', value: memoryStats.ragSources },
+                      { label: 'Fragmentos indexados', value: memoryStats.vectorTotal },
                       { label: 'Memorias chat', value: memoryStats.conversationMemories },
                       { label: 'Contextos widget', value: memoryStats.activeSessionContexts },
                       {
@@ -3588,7 +3588,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 )}
                 {!memoryStatsLoading && !memoryStats && (
                   <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: 0 }}>
-                    No hay datos de memoria disponibles (sincroniza el agente con el hub si aplica).
+                    Todavía no hay datos de memoria para este agente.
                   </p>
                 )}
               </AgentEditorSection>
@@ -3754,7 +3754,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       }}
                     >
                       <p style={{ margin: 0, fontSize: '12px', color: '#ef4444', fontWeight: 600 }}>
-                        El catálogo en el hub no se actualizó tras el último cambio. El widget puede servir datos antiguos hasta que se sincronice.
+                        Los documentos no se actualizaron tras el último cambio. El widget puede usar la versión anterior hasta que se actualicen.
                       </p>
                       {!readOnly && (
                         <button
@@ -3769,7 +3769,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                           }}
                         >
                           {ragRetryHubBusy ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-                          Reintentar sync hub
+                          Reintentar
                         </button>
                       )}
                     </div>
@@ -3785,17 +3785,17 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                           </p>
                           {agent?.agentHubId ? (
                             <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: '4px 0 0' }}>
-                              Hub catálogo:{' '}
+                              Documentos:{' '}
                               <span style={{
                                 fontWeight: 700,
                                 color: agent.syncStatus === 'synced' ? '#22c55e' : agent.syncStatus === 'failed' ? '#ef4444' : '#d97706',
                               }}>
-                                {agent.syncStatus === 'synced' ? 'sincronizado' : agent.syncStatus === 'failed' ? 'error' : 'pendiente'}
+                                {agent.syncStatus === 'synced' ? 'actualizados' : agent.syncStatus === 'failed' ? 'error' : 'pendiente'}
                               </span>
                             </p>
                           ) : (
                             <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', margin: '4px 0 0' }}>
-                              Sin ID de hub aún; se creará al sincronizar.
+                              Se activarán al guardar el agente.
                             </p>
                           )}
                         </div>
@@ -4205,10 +4205,10 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       >
                         <strong>Crear</strong> se habilita cuando hay{' '}
                         {!subName.trim() && !subPrompt.trim()
-                          ? 'nombre y system prompt'
+                          ? 'nombre e instrucciones'
                           : !subName.trim()
                             ? 'nombre del sub-agente'
-                            : 'system prompt (texto no vacío)'}
+                            : 'instrucciones (texto no vacío)'}
                         . Ambos son obligatorios para evitar sub-agentes sin instrucciones.
                       </p>
                     )}
@@ -4219,7 +4219,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         disabled={creatingSubAgent || !subName.trim() || !subPrompt.trim()}
                         title={
                           !subName.trim() || !subPrompt.trim()
-                            ? 'Completa nombre y system prompt'
+                            ? 'Completa nombre e instrucciones'
                             : undefined
                         }
                         className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs transition-opacity"

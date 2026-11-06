@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
   const base = getAibackhubBaseUrl();
   if (!base) {
-    return NextResponse.json({ error: 'BACKEND_URL no configurada.', catalog: [] }, { status: 503 });
+    return NextResponse.json({ error: 'El servicio de integraciones no está disponible en este momento.', catalog: [] }, { status: 503 });
   }
 
   try {

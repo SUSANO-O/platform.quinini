@@ -119,7 +119,7 @@ const STAGE_META: Record<
     sidebarTour: 'sidebar-agentes',
   },
   mcp: {
-    label: 'Integraciones MCP',
+    label: 'Integraciones',
     path: '/dashboard/mcp',
     match: (p) => p === '/dashboard/mcp',
     sidebarTour: 'sidebar-mcp',
@@ -387,8 +387,8 @@ function journeyStepsFor(stage: JourneyStageId, counts: TourCountsState): AfhubD
       ];
     case 'mcp':
       return [
-        intro('Integraciones MCP', 'Conecta capacidades externas estándar MCP y mantén credenciales alineadas con el hub.'),
-        mk(s('mcp-catalog'), 'Catálogo MCP', 'Explora integraciones disponibles y enlaces al hub para conexiones avanzadas.', 'bottom', 'start'),
+        intro('Integraciones', 'Conecta tus cuentas (Gmail, HubSpot, Calendar…) para que tus agentes trabajen con ellas.'),
+        mk(s('mcp-catalog'), 'Catálogo de integraciones', 'Explora las integraciones disponibles para tus agentes.', 'bottom', 'start'),
       ];
     case 'widget-builder':
       return [

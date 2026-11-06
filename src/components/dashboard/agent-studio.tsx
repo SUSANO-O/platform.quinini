@@ -226,7 +226,7 @@ export function AgentStudio({
             <button type="button" className="as-chip as-chip--btn" onClick={() => pick('model')} title="Cambiar modelo">
               {model}
             </button>
-            <span className={`as-chip ${hubSynced ? 'is-ok' : 'is-warn'}`} title={hubSynced ? 'Sincronizado con el hub' : 'Pendiente de sincronizar con el hub'}>
+            <span className={`as-chip ${hubSynced ? 'is-ok' : 'is-warn'}`} title={hubSynced ? 'Últimos cambios activos' : 'Activando los últimos cambios'}>
               {hubSynced ? 'Sincronizado' : 'Sin sincronizar'}
             </span>
           </span>

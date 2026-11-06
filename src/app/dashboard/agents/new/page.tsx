@@ -193,7 +193,7 @@ export default function NewAgentPage() {
       return;
     }
     if (!systemPrompt.trim()) {
-      setError('El system prompt es requerido.');
+      setError('Las instrucciones del agente son obligatorias.');
       return;
     }
     setLoading(true);
@@ -268,7 +268,7 @@ export default function NewAgentPage() {
               className="text-[12px] leading-relaxed m-0 mb-3"
               style={{ color: 'var(--foreground)' }}
             >
-              Las credenciales MCP se guardan <strong>por agente</strong>. Completa el formulario de arriba y pulsa{' '}
+              Las credenciales de la integración se guardan <strong>por agente</strong>. Completa el formulario de arriba y pulsa{' '}
               <strong>Crear agente</strong>: te llevaremos a la ficha y se abrirá el formulario de conexión para{' '}
               <strong>{mcpInfoModal.name}</strong> (podrás introducir usuario, tokens, etc.).
             </p>
@@ -335,8 +335,8 @@ export default function NewAgentPage() {
                 </p>
                 <p className="text-xs m-0" style={{ color: 'var(--muted-foreground)' }}>
                   {pendingSkillIds.length > 0 || designWelcome
-                    ? `Diseño aplicado: ${pendingFaqs.length} FAQ, ${pendingRules.length} reglas y ${pendingSkillIds.length} skills se guardarán al crear el agente. Revisa el formulario y pulsa «Crear agente».`
-                    : 'Responde unas preguntas sobre tu negocio y la IA arma el agente completo: prompt, preguntas frecuentes, reglas y skills.'}
+                    ? `Diseño aplicado: ${pendingFaqs.length} FAQ, ${pendingRules.length} reglas y ${pendingSkillIds.length} habilidades se guardarán al crear el agente. Revisa el formulario y pulsa «Crear agente».`
+                    : 'Responde unas preguntas sobre tu negocio y la IA arma el agente completo: instrucciones, preguntas frecuentes, reglas y habilidades.'}
                 </p>
               </div>
               <button
@@ -374,7 +374,7 @@ export default function NewAgentPage() {
 
           {SHOW_PLATFORM_CATALOG_AGENT_UI ? (
             <FormSection bar="bo">
-              <h2 style={sectionTitle}>Catálogo hub · agente de plataforma</h2>
+              <h2 style={sectionTitle}>Agente de plataforma</h2>
               <label
                 className="flex items-start gap-2.5 rounded-xl border p-3.5 cursor-pointer transition-colors card-hover"
                 style={{
@@ -400,7 +400,7 @@ export default function NewAgentPage() {
                   </strong>
                   <br />
                   <span style={{ color: 'var(--muted-foreground)' }}>
-                    Visible para todos los usuarios autenticados, sincronizado con AIBackHub como el resto de agentes. Solo cuentas con rol{' '}
+                    Visible para todos los usuarios con sesión iniciada. Solo cuentas con rol{' '}
                     <strong>administrador</strong> pueden activar esta opción.
                   </span>
                   {!isAdmin && (
@@ -493,7 +493,7 @@ export default function NewAgentPage() {
             </div>
             {!name.trim() && !aiSuggestions && (
               <p className="text-xs m-0" style={{ color: 'var(--muted-foreground)' }}>
-                Llena el nombre del agente para activar las sugerencias de system prompt, FAQs y reglas.
+                Llena el nombre del agente para activar las sugerencias de instrucciones, FAQs y reglas.
               </p>
             )}
             {aiSuggestions && (
@@ -688,15 +688,7 @@ export default function NewAgentPage() {
               </span>
             </h2>
             <p className="text-xs m-0 mb-3 leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
-              Si lo defines, queda guardado en el catálogo (AIBackHub) como en AgentFlowHub. El SDK debe enviar el mismo valor en{' '}
-              <code className="text-[11px] px-1.5 py-0.5 rounded-md" style={{ background: 'var(--muted)' }}>
-                token
-              </code>{' '}
-              y la API lo valida con la cabecera{' '}
-              <code className="text-[11px] px-1.5 py-0.5 rounded-md" style={{ background: 'var(--muted)' }}>
-                X-Widget-Token
-              </code>
-              . Si solo usas <strong>Mis widgets</strong> con un token <code className="text-[11px]">wt_…</code>, puedes dejarlo vacío.
+              Solo hace falta si integras el widget con tu propio código y quieres una clave fija. Si usas los widgets de <strong>Mis widgets</strong>, déjalo vacío.
             </p>
             <div className="flex gap-2 flex-wrap items-stretch">
               <input
@@ -704,7 +696,7 @@ export default function NewAgentPage() {
                 style={{ ...inp, flex: '1 1 220px', minWidth: 0 }}
                 value={widgetPublicToken}
                 onChange={(e) => setWidgetPublicToken(e.target.value)}
-                placeholder="Ej: afhub_pub_… o el que uses en AgentFlowHub"
+                placeholder="Ej: afhub_pub_…"
                 autoComplete="off"
                 spellCheck={false}
               />
@@ -752,7 +744,7 @@ export default function NewAgentPage() {
           <FormSection>
             <h2 style={sectionTitle}>Solo propósito</h2>
             <p className="text-xs m-0 mb-3 leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
-              Limita las respuestas del agente a su rol y a lo que permitan herramientas, skills y almacenamiento. Rechaza temas ajenos (por ejemplo un agente de ventas no responde recetas de cocina).
+              Limita las respuestas del agente a su rol y a lo que cubren sus integraciones, habilidades y documentos. Rechaza temas ajenos (por ejemplo un agente de ventas no responde recetas de cocina).
             </p>
             <label
               className="flex items-start gap-2.5 rounded-xl border p-3.5 cursor-pointer transition-colors card-hover"
@@ -768,7 +760,7 @@ export default function NewAgentPage() {
                 <strong style={{ color: 'var(--foreground)' }}>Activar modo solo propósito</strong>
                 <br />
                 <span style={{ color: 'var(--muted-foreground)' }}>
-                  Se aplica en AIBackHub al generar respuestas del widget. Puedes cambiarlo después en la ficha del agente.
+                  Se aplica a todas las respuestas del widget. Puedes cambiarlo después en la ficha del agente.
                 </span>
               </span>
             </label>
@@ -779,22 +771,21 @@ export default function NewAgentPage() {
           <FormSection bar="bo">
             <div className="flex items-center gap-2 mb-2.5">
               <Plug size={16} style={{ color: R, flexShrink: 0 }} />
-              <h2 style={{ ...sectionTitle, marginBottom: 0 }}>Integraciones MCP (proximamente)</h2>
+              <h2 style={{ ...sectionTitle, marginBottom: 0 }}>Integraciones (próximamente)</h2>
             </div>
             <div className="text-xs mb-3.5 leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
               <p className="m-0 mb-2.5">
                 <strong style={{ color: 'var(--foreground)' }}>Pulsa una integración</strong> para indicar que quieres conectarla después de crear el agente (se abrirá un aviso y el formulario de credenciales en la ficha).
               </p>
               <p className="m-0 mb-2 font-bold text-[11px]" style={{ color: 'var(--foreground)' }}>
-                Cómo conectar MCP a este agente (credenciales por agente)
+                Cómo conectar integraciones a este agente (credenciales por agente)
               </p>
               <ol className="m-0 pl-[18px]">
                 <li className="mb-1.5">
-                  (Opcional) Elige una integración abajo y luego pulsa <strong>Crear agente</strong>. Tras el sync con el hub tendrás{' '}
-                  <code className="text-[11px]">agentHubId</code> y el modal de credenciales.
+                  (Opcional) Elige una integración abajo y luego pulsa <strong>Crear agente</strong>. Después se abrirá el formulario de credenciales.
                 </li>
                 <li>
-                  En la ficha → <strong>Herramientas</strong> marca qué tools MCP usa el agente (y el widget) y guarda.
+                  En la ficha → <strong>Herramientas</strong> marca qué herramientas usa el agente (y el widget) y guarda.
                 </li>
               </ol>
             </div>

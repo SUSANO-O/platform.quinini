@@ -366,7 +366,7 @@ export default function WidgetPreviewPage() {
         setHubRetryHint(
           typeof data.error === 'string' && data.error.trim()
             ? data.error
-            : 'El hub no aceptó la sincronización.',
+            : 'No se pudo activar la última versión del agente.',
         );
       } else {
         setHubRetryHint('');
@@ -444,7 +444,7 @@ export default function WidgetPreviewPage() {
     { id: 'card-capabilities', label: 'Capacidades', icon: <Layers size={15} /> },
     { id: 'card-model', label: 'Modelo', icon: <Cpu size={15} /> },
     ...(totalMcpTools > 0
-      ? [{ id: 'card-mcp', label: 'MCP Tools', icon: <Wrench size={15} />, count: totalMcpTools } as BuilderRailItem]
+      ? [{ id: 'card-mcp', label: 'Integraciones', icon: <Wrench size={15} />, count: totalMcpTools } as BuilderRailItem]
       : []),
     { id: 'card-embed', label: 'Embed', icon: <Globe size={15} /> },
   ];
@@ -488,12 +488,12 @@ export default function WidgetPreviewPage() {
           ) : (
             <TypeBadge label={agent.status || 'Inactivo'} tone="warn" />
           )}
-          <TypeBadge label={`${totalMcpTools} MCP`} tone="neutral" />
+          <TypeBadge label={`${totalMcpTools} herramientas`} tone="neutral" />
           {(agent.tools?.length ?? 0) > 0 && (
             <TypeBadge label={`${agent.tools!.length} herramientas`} tone="neutral" />
           )}
           {agent.ragEnabled && (
-            <TypeBadge label={`RAG · ${agent.ragSources?.length ?? 0}`} tone="neutral" />
+            <TypeBadge label={`Documentos · ${agent.ragSources?.length ?? 0}`} tone="neutral" />
           )}
         </div>
       )}
@@ -524,7 +524,7 @@ export default function WidgetPreviewPage() {
 
       {!loading && widget && !widget.agentId?.trim() && (
         <p style={{ color: '#f59e0b', fontSize: 13 }}>
-          Este widget no tiene agente asignado. Edítalo en el Widget Builder y elige un agente sincronizado con el hub.
+          Este widget no tiene agente asignado. Edítalo en el Widget Builder y elige un agente.
         </p>
       )}
 
@@ -699,7 +699,7 @@ export default function WidgetPreviewPage() {
                     fontSize: 12,
                   }}
                 >
-                  <span style={{ color: 'var(--muted-foreground)', minWidth: 90 }}>Sync</span>
+                  <span style={{ color: 'var(--muted-foreground)', minWidth: 90 }}>Estado</span>
                   <span
                     style={{
                       display: 'inline-flex',
@@ -717,7 +717,7 @@ export default function WidgetPreviewPage() {
                           type="button"
                           disabled={hubRetryLoading}
                           onClick={() => void retryCatalogHubSync()}
-                          title="Reintentar sincronización con AIBackHub (catálogo)"
+                          title="Reintentar activar la última versión del agente"
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -793,7 +793,7 @@ export default function WidgetPreviewPage() {
                   />
                 )}
                 {(agent.enabledMcpToolIds?.length ?? 0) > 0 && (
-                  <Row label="MCP habilitadas" value={`${agent.enabledMcpToolIds!.length} tools`} />
+                  <Row label="Herramientas habilitadas" value={`${agent.enabledMcpToolIds!.length}`} />
                 )}
                 {agent.isPlatform && (
                   <Row label="Origen" value={<span style={{ color: '#6366f1' }}>Catálogo plataforma</span>} />
@@ -866,11 +866,11 @@ export default function WidgetPreviewPage() {
           {!isMultiAgentWidget && agent && (
             <InfoCard id="card-single" title="Agente único" icon={<Sparkles size={15} />}>
               <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '0 0 8px', lineHeight: 1.45 }}>
-                Este widget responde con un solo agente. No hay triaje ni delegación a sub-agentes.
+                Este widget responde con un solo agente. No reparte mensajes entre sub-agentes.
               </p>
               <Row label="Modelo" value={agent.model || 'gemini-2.5-flash'} mono />
               <Row label="Proveedor" value={inferProvider(agent.model || '')} />
-              <Row label="MCP conectadas" value={`${syncedServers.length}/${mcpServers.length} servidores · ${totalMcpTools} tools`} />
+              <Row label="Integraciones conectadas" value={`${syncedServers.length}/${mcpServers.length} · ${totalMcpTools} herramientas`} />
               <Row label="Built-in" value={builtInTools.length > 0 ? builtInTools.map((t) => t.toolId).join(', ') : '—'} />
               {(agent.skills?.length ?? 0) > 0 && (
                 <Row label="Skills" value={agent.skills!.join(', ')} />
@@ -886,9 +886,9 @@ export default function WidgetPreviewPage() {
                 items={[
                   { label: 'Tipo', value: agentRoleLabel },
                   { label: 'Modelo', value: agent.model || 'gemini-2.5-flash' },
-                  { label: 'MCP tools', value: String(totalMcpTools) },
+                  { label: 'Herramientas', value: String(totalMcpTools) },
                   { label: 'Built-in', value: String(builtInTools.length) },
-                  { label: 'RAG', value: agent.ragEnabled ? `Sí (${agent.ragSources?.length ?? 0})` : 'No' },
+                  { label: 'Documentos', value: agent.ragEnabled ? `Sí (${agent.ragSources?.length ?? 0})` : 'No' },
                   { label: 'Vision', value: visionSummary },
                   { label: 'Skills', value: String(agent.skills?.length ?? 0) },
                   { label: 'Sub-agentes', value: String(subAgentCount) },
@@ -915,12 +915,12 @@ export default function WidgetPreviewPage() {
           {/* MCP Tools Card */}
           <InfoCard
               id="card-mcp"
-              title={`MCP Tools (${totalMcpTools})`}
+              title={`Integraciones (${totalMcpTools} herramientas)`}
             icon={<Wrench size={15} />}
           >
             {mcpServers.length === 0 && (
               <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: '6px 0' }}>
-                Sin conexiones MCP configuradas.
+                Sin integraciones configuradas.
               </p>
             )}
             {mcpServers.map((srv) => (
@@ -931,7 +931,7 @@ export default function WidgetPreviewPage() {
                 </div>
                 {srv.tools.length === 0 ? (
                   <p style={{ fontSize: 11, color: 'var(--muted-foreground)', marginLeft: 12 }}>
-                    Sin tools descubiertas.
+                    Sin herramientas disponibles.
                   </p>
                 ) : (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginLeft: 12 }}>
@@ -960,7 +960,7 @@ export default function WidgetPreviewPage() {
             ))}
             {builtInTools.length > 0 && (
               <div style={{ marginTop: 8 }}>
-                <span style={{ fontWeight: 700, fontSize: 12 }}>Built-in tools</span>
+                <span style={{ fontWeight: 700, fontSize: 12 }}>Herramientas incluidas</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4, marginLeft: 12 }}>
                   {builtInTools.map((t) => (
                     <span
@@ -1270,7 +1270,7 @@ function formatMultiAgentMode(mode?: string): string {
 function describeRoutingFlow(widget: WidgetDoc, subAgentCount: number): string {
   if (widget.multiAgentEnabled) {
     if (widget.multiAgentMode === 'pipeline') {
-      return 'El mensaje pasa por etapas: un orquestador genera contenido y otro lo refina o adapta (pipeline).';
+      return 'El mensaje pasa por etapas: un orquestador genera contenido y otro lo refina o adapta (en cadena).';
     }
     if (widget.multiAgentMode === 'parallel') {
       return 'Varios agentes responden en paralelo; un orquestador sintetiza la mejor respuesta final.';
@@ -1364,8 +1364,8 @@ function SubAgentList({
                   )}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4, fontSize: 10, color: 'var(--muted-foreground)' }}>
                     {modelLabel && <span style={{ fontFamily: 'var(--font-mono)' }}>{modelLabel}</span>}
-                    {typeof sub.toolsCount === 'number' && <span>{sub.toolsCount} tools</span>}
-                    {sub.ragEnabled && <span>RAG</span>}
+                    {typeof sub.toolsCount === 'number' && <span>{sub.toolsCount} herramientas</span>}
+                    {sub.ragEnabled && <span>Documentos</span>}
                   </div>
                 </div>
                 {/^[a-f0-9]{24}$/i.test(sub._id) && (
@@ -1421,7 +1421,7 @@ function resolveAgentRoleLabel(
 ): string {
   if (agent.type === 'sub-agent') return 'Sub-agente';
   if (widget.multiAgentEnabled) return 'Orquestador (multi-agente avanzado)';
-  if ((agent.subAgentIds?.length ?? 0) > 0) return 'Orquestador (triaje automático)';
+  if ((agent.subAgentIds?.length ?? 0) > 0) return 'Orquestador (reparto automático)';
   return 'Agente';
 }
 

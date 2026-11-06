@@ -32,7 +32,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
   const base = getAibackhubBaseUrl();
   if (!base) {
-    return NextResponse.json({ error: 'BACKEND_URL no configurada.' }, { status: 503 });
+    return NextResponse.json({ error: 'El servicio de integraciones no está disponible en este momento.' }, { status: 503 });
   }
 
   try {
@@ -79,7 +79,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const base = getAibackhubBaseUrl();
   if (!base) {
-    return NextResponse.json({ error: 'BACKEND_URL no configurada.' }, { status: 503 });
+    return NextResponse.json({ error: 'El servicio de integraciones no está disponible en este momento.' }, { status: 503 });
   }
 
   try {

@@ -43,7 +43,7 @@ const SECTORS: SectorCase[] = [
       'Equipos saturados revisando señales de dispositivos y formularios a mano; se pierden patrones entre turnos.',
     outcome:
       'Priorización automática de casos según reglas clínicas y contexto, con explicación clara para el profesional.',
-    result: 'Menos tiempo en triage repetitivo y respuesta más rápida ante riesgo.',
+    result: 'Menos tiempo clasificando casos repetitivos y respuesta más rápida ante riesgo.',
   },
   {
     icon: Droplets,
