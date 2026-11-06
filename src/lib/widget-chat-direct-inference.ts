@@ -297,6 +297,40 @@ export async function tryServeWidgetChatViaDirectInference(params: {
   let resolvedMaxTokens =
     typeof ca.inferenceMaxTokens === 'number' ? ca.inferenceMaxTokens : undefined;
 
+  // Memoria y documentos no dependen de las habilidades ni entre sí: arrancan ya, en paralelo con
+  // la resolución de habilidades (antes iban en fila: habilidades → memoria → documentos → modelo).
+  const memoryPromise: Promise<string> = shouldRecallConversationMemory({
+    trivial,
+    sessionId: chatSessionId,
+    message,
+    visitorId,
+  })
+    ? recallConversationContextBlock({
+        /** Mismo id con el que afterWidgetChatSuccess escribe este turno. */
+        agentId: params.parsedAgentId,
+        query: message,
+        sessionId: chatSessionId,
+        visitorId,
+      }).catch(() => '')
+    : Promise.resolve('');
+
+  /**
+   * Documentos del agente: misma regla que el chat con herramientas del backend
+   * (mcpConnections.ts). Con los documentos activados se busca siempre; antes aquí solo se buscaba
+   * si la pregunta tenía vocabulario comercial (precio/catálogo), así que una pregunta técnica se
+   * respondía sin mirar los documentos cuando el agente caía por este camino.
+   */
+  const hubIdForRag = typeof ca.agentHubId === 'string' ? ca.agentHubId.trim() : '';
+  const wantsRag =
+    !trivial && Boolean(hubIdForRag) && (ca.ragEnabled === true || needsKnowledgeLookup(message));
+  const ragPromise: Promise<string> = wantsRag
+    ? retrieveRagContextBlock({
+        agentHubId: hubIdForRag,
+        query: message,
+        sourcesFallback: Array.isArray(ca.ragSources) ? ca.ragSources : undefined,
+      }).catch(() => '')
+    : Promise.resolve('');
+
   if (!skipHeavy && (skills.length > 0 || skillsConfig.length > 0)) {
     params.onStatus?.(
       'skills',
@@ -384,19 +418,8 @@ export async function tryServeWidgetChatViaDirectInference(params: {
   const screenBlock = params.screenContextEnabled ? screenContextBlock(parsed.screenContext) : '';
   if (screenBlock) contextBlock = mergeContextBlocks(contextBlock, screenBlock);
 
-  if (shouldRecallConversationMemory({
-    trivial,
-    sessionId: chatSessionId,
-    message,
-    visitorId,
-  })) {
-    const memoryBlock = await recallConversationContextBlock({
-      /** Mismo id con el que afterWidgetChatSuccess escribe este turno. */
-      agentId: params.parsedAgentId,
-      query: message,
-      sessionId: chatSessionId,
-      visitorId,
-    });
+  {
+    const memoryBlock = await memoryPromise;
     if (memoryBlock) {
       contextBlock = mergeContextBlocks(contextBlock, memoryBlock);
       logWidgetFlow('🧠', 'infer:recall', 'memoria conversacional recuperada', {
@@ -405,15 +428,9 @@ export async function tryServeWidgetChatViaDirectInference(params: {
     }
   }
 
-  /** Documentos del panel: solo si el turno pide inventario, precio o ficha. */
-  const hubIdForRag = typeof ca.agentHubId === 'string' ? ca.agentHubId.trim() : '';
-  if (needsKnowledgeLookup(message) && ca.ragEnabled === true && hubIdForRag) {
+  if (wantsRag) {
     params.onStatus?.('rag', widgetChatStatusForUserMessage(message, 'rag'));
-    const ragBlock = await retrieveRagContextBlock({
-      agentHubId: hubIdForRag,
-      query: message,
-      sourcesFallback: Array.isArray(ca.ragSources) ? ca.ragSources : undefined,
-    });
+    const ragBlock = await ragPromise;
     if (ragBlock) {
       contextBlock = mergeContextBlocks(contextBlock, ragBlock);
       logWidgetFlow('📚', 'infer:rag', 'contexto de documentos recuperado', {
