@@ -5,7 +5,7 @@ import { BRAND_LOGO_PNG_SRC } from '@/lib/brand';
 
 const LOADING_HINTS = [
   'Despertando a tus agentes…',
-  'Sincronizando con el hub…',
+  'Preparando tus agentes…',
   'Puliendo colores y textos…',
   'Enchufando la magia del widget…',
   'Casi listo para brillar…',

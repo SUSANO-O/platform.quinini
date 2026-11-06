@@ -186,7 +186,7 @@ export function McpLandingConnectForm({
         const r = await fetch('/api/mcp/catalog', { credentials: 'include' });
         const j = await r.json().catch(() => ({}));
         if (!r.ok) {
-          throw new Error(j?.error || 'No se pudo cargar el catálogo MCP');
+          throw new Error(j?.error || 'No se pudo cargar el catálogo de integraciones');
         }
         const list = (j?.data?.catalog ?? j?.catalog ?? []) as CatalogEntry[];
         if (!cancelled) {
@@ -320,7 +320,7 @@ export function McpLandingConnectForm({
       }
       const data = j?.data ?? j;
       const url = typeof data?.authorizeUrl === 'string' ? data.authorizeUrl : '';
-      if (!url) throw new Error('El hub no devolvió authorizeUrl.');
+      if (!url) throw new Error('No se pudo iniciar la autorización. Inténtalo de nuevo.');
       window.location.assign(normalizeHubspotAuthorizeUrl(url));
     } catch (e) {
       setHubspotOauthStarting(false);
@@ -342,7 +342,7 @@ export function McpLandingConnectForm({
       setErr(null);
       setStdPreview({ kind: 'loading' });
     } else if (!url) {
-      setErr('Indica la URL del servidor MCP o elige un servidor de la lista.');
+      setErr('Indica la URL del servidor o elige uno de la lista.');
       return;
     } else {
       setErr(null);
@@ -367,7 +367,7 @@ export function McpLandingConnectForm({
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) {
-        let msg = 'Error al conectar con el servidor MCP';
+        let msg = 'No se pudo conectar con el servidor';
         if (j?.error && typeof j.error === 'object' && j.error !== null && 'message' in j.error) {
           msg = String((j.error as { message: string }).message);
         } else if (typeof j?.error === 'string') {
@@ -516,7 +516,7 @@ export function McpLandingConnectForm({
           } else {
             setHubspotOauthConnectionId(String(connId));
             setOk(
-              'Conexión guardada. Pulsa «Autorizar con HubSpot» para conceder acceso; al volver se sincronizará en el hub.',
+              'Conexión guardada. Pulsa «Autorizar con HubSpot» para conceder acceso; al volver quedará activa.',
             );
             setLabel('');
             setCreds({});
@@ -625,7 +625,7 @@ export function McpLandingConnectForm({
         role="status"
         aria-live="polite"
       >
-        Cargando catálogo MCP…
+        Cargando integraciones…
       </div>
     );
   }
@@ -636,7 +636,7 @@ export function McpLandingConnectForm({
         className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
         role="alert"
       >
-        No hay integraciones MCP disponibles en el hub. Comprueba severback esté en marcha.
+        No hay integraciones disponibles en este momento. Inténtalo de nuevo en unos minutos.
       </div>
     );
   }
@@ -646,7 +646,7 @@ export function McpLandingConnectForm({
       <div className="space-y-4 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900/40">
         <div>
           <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            Paso 1 — Conectar una cuenta (MCP)
+            Paso 1 — Conectar una cuenta
           </h3>
           <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
             Gmail, HubSpot, Slack, Calendar, MongoDB y similares se conectan aquí (OAuth o clave).
@@ -665,7 +665,7 @@ export function McpLandingConnectForm({
           </div>
         ) : (
           <p className="text-xs text-zinc-500">
-            No hay cuentas MCP en el catálogo (solo tools sin login, como el clima).
+            No hay cuentas para conectar (solo herramientas sin inicio de sesión, como el clima).
           </p>
         )}
 
@@ -879,8 +879,8 @@ export function McpLandingConnectForm({
           >
             <p className="font-semibold">Siguiente paso: autorizar en HubSpot</p>
             <p className="mt-1 leading-relaxed">
-              Se abrirá la página de consentimiento de HubSpot. Tras aceptar, volverás al dashboard y se
-              guardarán refresh y access token en el hub.
+              Se abrirá la página de consentimiento de HubSpot. Tras aceptar, volverás al dashboard y la
+              conexión quedará guardada de forma segura.
             </p>
             <button
               type="button"
@@ -905,9 +905,9 @@ export function McpLandingConnectForm({
           <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">Probar antes de guardar</p>
 
           {hasStandardPresets && entry?.standardPresets && (
-            <div role="radiogroup" aria-label="Servidores MCP disponibles en el hub" className="space-y-2">
+            <div role="radiogroup" aria-label="Servidores disponibles" className="space-y-2">
               <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
-                Elige un servidor habilitado por el backend. Solo se listan los definidos en la configuración del hub.
+                Elige uno de los servidores disponibles.
               </p>
               <div className="grid gap-2 sm:grid-cols-2">
                 {entry.standardPresets.map((p) => {
@@ -1058,7 +1058,7 @@ export function McpLandingConnectForm({
       {entry && DATA_SOURCE_INTEGRATION_KEYS.has(entry.key) && (
         <div className="flex flex-col gap-2 rounded-md border border-zinc-200 bg-zinc-50/80 p-3 dark:border-zinc-700 dark:bg-zinc-900/40">
           <p className="text-xs text-zinc-600 dark:text-zinc-400">
-            Prueba conectividad desde esta app (no guarda credenciales). La ejecución de tools la hace AIBackHub.
+            Prueba la conexión (no guarda credenciales).
           </p>
           <button
             type="button"

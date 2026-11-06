@@ -62,6 +62,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(json, { status: resp.status });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Error desconocido';
-    return NextResponse.json({ error: 'Error al conectar con el hub.', detail: msg }, { status: 503 });
+    return NextResponse.json({ error: 'El asistente de IA no está disponible en este momento.', detail: msg }, { status: 503 });
   }
 }

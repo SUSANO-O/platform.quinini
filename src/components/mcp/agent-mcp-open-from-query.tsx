@@ -41,7 +41,7 @@ function AgentMcpOpenFromQueryInner({
   if (!showModal) return null;
 
   return (
-    <McpConnectModal open title="Conectar integración MCP" onClose={close}>
+    <McpConnectModal open title="Conectar integración" onClose={close}>
       <McpLandingConnectForm
         landingAgentId={agentId}
         plan={plan}

@@ -76,7 +76,7 @@ export async function PATCH(req: NextRequest) {
   const plan = effectiveProductPlan(sub?.plan ?? 'free', sub?.status ?? 'free');
   if (!sheetNightlySyncEnabled(plan, sub?.features)) {
     return NextResponse.json(
-      { error: 'Sync nocturno Sheets requiere plan Plus o superior.' },
+      { error: 'La copia nocturna de hojas requiere plan Plus o superior.' },
       { status: 403 },
     );
   }

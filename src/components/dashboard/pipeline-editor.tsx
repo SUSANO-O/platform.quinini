@@ -96,7 +96,7 @@ export function PipelineEditor({
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Sparkles size={16} style={{ color: '#6366f1' }} />
-            <h3 className="text-sm font-bold m-0">Editor de pipeline</h3>
+            <h3 className="text-sm font-bold m-0">Editor de la cadena</h3>
             <span
               className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
               style={{ background: 'rgba(99,102,241,0.15)', color: '#6366f1' }}

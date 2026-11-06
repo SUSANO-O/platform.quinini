@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       100_000,
     );
     const json = await resp.json().catch(() => null);
-    return NextResponse.json(json ?? { error: 'Respuesta inválida del hub.' }, { status: json ? resp.status : 502 });
+    return NextResponse.json(json ?? { error: 'El asistente de IA no devolvió una respuesta válida.' }, { status: json ? resp.status : 502 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Error desconocido';
     return NextResponse.json({ error: 'El asistente tardó demasiado o no está disponible. Intenta de nuevo.', detail: msg }, { status: 503 });

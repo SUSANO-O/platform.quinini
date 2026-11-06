@@ -98,7 +98,7 @@ export function WidgetBuilderIdentityStep({
           badge="Business · Enterprise"
           description={
             cfg.multiAgentEnabled
-              ? 'Selecciona varios agentes en la grilla de abajo. Cada uno aporta su equipo al triaje.'
+              ? 'Selecciona varios agentes en la grilla de abajo. Cada uno aporta su equipo al reparto automático.'
               : 'Sin activar esto, un solo agente en la grilla; sus sub-agentes se enrutan solos si existen.'
           }
           onToggle={(multiAgentEnabled) =>
@@ -127,7 +127,7 @@ export function WidgetBuilderIdentityStep({
           </WidgetBuilderLabel>
           {cfg.multiAgentEnabled ? (
             <WidgetBuilderHint>
-              Selecciona uno o más agentes. Cada uno aporta su equipo de sub-agentes al triaje.
+              Selecciona uno o más agentes. Cada uno aporta su equipo de sub-agentes al reparto automático.
             </WidgetBuilderHint>
           ) : null}
           {agents.length === 0 ? (
@@ -201,19 +201,17 @@ export function WidgetBuilderIdentityStep({
           )}
           {!loadingInitial && agents.some((a) => !effectiveWidgetAgentId(a)) && (
             <WidgetBuilderHint>
-              Los agentes atenuados no tienen un <code style={{ fontSize: '10px' }}>_id</code> Mongo válido (24 hex) ni{' '}
-              <code style={{ fontSize: '10px' }}>agentHubId</code>. Si acabas de crear el agente, abre{' '}
+              Los agentes atenuados todavía no están listos. Si acabas de crear el agente, abre{' '}
               <Link href="/dashboard/agents" className="font-semibold landing-link-accent text-[11px]">
                 Mis agentes
               </Link>{' '}
-              y pulsa sincronizar con el hub, o espera a que pase de estado pendiente a sincronizado.
+              y pulsa reintentar, o espera a que pase de pendiente a actualizado.
             </WidgetBuilderHint>
           )}
           {!loadingInitial && agents.length > 0 && (
             <WidgetBuilderHint>
-              El snippet usará el <strong>ID de este agente en la landing</strong> (misma clave que en la URL al
-              editarlo). El chat y el MCP del hub siguen resolviendo al catálogo vía{' '}
-              <code style={{ fontSize: '10px' }}>landingClientAgentId</code>.
+              El código de instalación usa el <strong>ID de este agente</strong> (el mismo que ves en la URL al
+              editarlo).
             </WidgetBuilderHint>
           )}
           {!cfg.multiAgentEnabled && orchestratorSubs.length > 0 ? (
@@ -230,7 +228,7 @@ export function WidgetBuilderIdentityStep({
               }}
             >
               Este agente tiene {orchestratorSubs.length} sub-agente{orchestratorSubs.length !== 1 ? 's' : ''}. El
-              chat los usará automáticamente (triaje) sin activar el modo multiagente avanzado.
+              chat los usará automáticamente (reparto automático) sin activar el modo multiagente avanzado.
             </p>
           ) : null}
         </WidgetBuilderField>
@@ -328,7 +326,7 @@ export function WidgetBuilderIdentityStep({
               }}
             >
               <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: 'rgb(180,83,9)' }}>
-                Selecciona al menos 2 agentes orquestadores para configurar el pipeline.
+                Selecciona al menos 2 agentes orquestadores para configurar la cadena.
               </p>
               {pipelineSetup.warnings.length > 0 ? (
                 <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 11, lineHeight: 1.45 }}>
@@ -347,7 +345,7 @@ export function WidgetBuilderIdentityStep({
               <Link href={`/dashboard/agents/${cfg.agentId}`} className="font-semibold landing-link-accent">
                 Configura sub-agentes
               </Link>{' '}
-              para activar el triaje.
+              para activar el reparto automático.
             </p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

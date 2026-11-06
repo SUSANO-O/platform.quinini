@@ -247,10 +247,10 @@ export default function WidgetBuilderPage() {
     if (!cfg.name.trim()) return fail('Indica un nombre para el widget');
     if (!cfg.agentId) return fail('Selecciona un agente');
     if (pipelineConfigValidation && !pipelineConfigValidation.ok) {
-      return fail(pipelineConfigValidation.errors[0] ?? 'Revisa la configuración del pipeline');
+      return fail(pipelineConfigValidation.errors[0] ?? 'Revisa la configuración de la cadena');
     }
     if (pipelineSetup && !pipelineSetup.ok && !cfg.pipelineConfig) {
-      return fail(pipelineSetup.warnings[0] ?? 'Revisa la configuración del pipeline');
+      return fail(pipelineSetup.warnings[0] ?? 'Revisa la configuración de la cadena');
     }
     return true;
   }
@@ -730,7 +730,7 @@ export default function WidgetBuilderPage() {
         resolveAgentProfileByWidgetId(agents, id),
       );
       if (!check.ok) {
-        toast.error(check.errors[0] ?? 'Configura el pipeline con dos pasos y agentes distintos');
+        toast.error(check.errors[0] ?? 'Configura la cadena con dos pasos y agentes distintos');
         return;
       }
     }

@@ -8,7 +8,7 @@ import { NextResponse } from 'next/server';
 
 export async function POST() {
   return NextResponse.json(
-    { error: 'sync-checkout no disponible. La suscripción se activa automáticamente via webhook.' },
+    { error: 'La suscripción se activa automáticamente al completar el pago.' },
     { status: 410 },
   );
 }

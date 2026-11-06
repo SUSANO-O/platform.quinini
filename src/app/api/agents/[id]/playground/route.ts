@@ -56,7 +56,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     clientOrigin: 'panel:playground',
   });
   if (!result) {
-    return NextResponse.json({ error: 'El agente no respondió. Revisa que esté activo y sincronizado con el hub.' }, { status: 502 });
+    return NextResponse.json({ error: 'El agente no respondió. Revisa que esté activo y sincronizado, e inténtalo de nuevo.' }, { status: 502 });
   }
   const { reply, navOffer } = finalizeWidgetNavReply(result.reply);
   return NextResponse.json({ reply, toolsUsed: result.toolsUsed ?? [], sessionId, ...(navOffer ? { navOffer } : {}) });

@@ -56,7 +56,7 @@ export function AgentListCard({
   const { chips, overflow } = agentCardChips(agent, getModelLabel);
   const meta = [
     formatUpdatedLabel(agent.createdAt),
-    agent.syncStatus === 'synced' ? 'Sincronizado con el hub' : null,
+    agent.syncStatus === 'synced' ? 'Activo' : null,
     isPlatform ? 'Agente de plataforma' : null,
   ].filter(Boolean).join(' · ');
 

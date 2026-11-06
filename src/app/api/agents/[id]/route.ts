@@ -472,7 +472,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if ('skills' in body) {
     const raw = body.skills;
     if (!Array.isArray(raw)) {
-      return NextResponse.json({ error: 'skills debe ser un array de strings.' }, { status: 400 });
+      return NextResponse.json({ error: 'Las habilidades enviadas no son válidas.' }, { status: 400 });
     }
     const cleaned = raw
       .filter((x: unknown): x is string => typeof x === 'string' && x.trim().length > 0)
@@ -780,7 +780,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (sync.errors.length) {
       return NextResponse.json({
         agent,
-        warning: `Guardado, pero no se indexó para búsqueda: ${sync.errors.join(' | ')}`,
+        warning: 'Guardado, pero los documentos aún no se pudieron preparar para búsqueda. Se reintentará automáticamente.',
       });
     }
   }

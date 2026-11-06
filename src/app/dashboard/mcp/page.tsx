@@ -4,8 +4,6 @@ import Link from 'next/link';
 import { ChevronLeft, Plug } from '@/components/ui/icons';
 import { McpAvailablePanel } from '@/components/mcp/mcp-available-panel';
 
-const hubUiBase = (process.env.NEXT_PUBLIC_AGENTFLOWHUB_URL || 'http://127.0.0.1:9010').replace(/\/$/, '');
-
 export default function DashboardMcpPage() {
   return (
     <div style={{ padding: '32px', maxWidth: '800px' }}>
@@ -39,10 +37,9 @@ export default function DashboardMcpPage() {
           <Plug size={22} style={{ color: '#6366f1' }} />
         </div>
         <div>
-          <h1 style={{ fontSize: '22px', fontWeight: 800, margin: 0, color: 'var(--foreground)' }}>Integraciones MCP disponibles</h1>
+          <h1 style={{ fontSize: '22px', fontWeight: 800, margin: 0, color: 'var(--foreground)' }}>Integraciones disponibles</h1>
           <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', margin: '4px 0 0', lineHeight: 1.5 }}>
-            Catálogo servido por <strong>AIBackHub</strong> (<code style={{ fontSize: '12px' }}>BACKEND_URL</code>). Las credenciales se
-            asocian por agente al crear una conexión y sincronizar (AgentFlowHub o API del hub).
+            Las credenciales se guardan por agente: conectas una cuenta desde la ficha del agente y solo ese agente la usa.
           </p>
         </div>
       </div>
@@ -68,28 +65,6 @@ export default function DashboardMcpPage() {
           marginTop: '20px',
           padding: '14px 16px',
           borderRadius: '10px',
-          background: 'rgba(99,102,241,0.06)',
-          border: '1px solid rgba(99,102,241,0.2)',
-          fontSize: '12px',
-          color: 'var(--foreground)',
-          lineHeight: 1.55,
-        }}
-      >
-        <strong>AgentFlowHub — integraciones y credenciales</strong>
-        <p style={{ margin: '8px 0 0' }}>
-          Para gestionar conexiones MCP por agente desde el hub, abre{' '}
-          <a href={`${hubUiBase}/mcp`} target="_blank" rel="noopener noreferrer" style={{ color: '#6366f1', fontWeight: 700 }}>
-            {hubUiBase}/mcp
-          </a>
-          . Tras sincronizar el agente, las mismas conexiones aplican al agente enlazado en AIBackHub.
-        </p>
-      </div>
-
-      <div
-        style={{
-          marginTop: '20px',
-          padding: '14px 16px',
-          borderRadius: '10px',
           background: 'rgba(13,148,136,0.06)',
           border: '1px solid rgba(13,148,136,0.2)',
           fontSize: '12px',
@@ -99,9 +74,9 @@ export default function DashboardMcpPage() {
       >
         <strong>¿Cómo conectar Gmail, HubSpot, etc.?</strong>
         <ol style={{ margin: '8px 0 0', paddingLeft: '18px' }}>
-          <li>Crea o edita un agente en esta landing y sincronízalo con el catálogo del hub (se crea el agente en AIBackHub).</li>
-          <li>En la ficha del agente, pestaña <strong>Integraciones</strong>, verás conexiones MCP y podrás enlazar con AgentFlowHub si lo usas.</li>
-          <li>Las herramientas concretas (<code style={{ fontSize: '11px' }}>mcp:gmail:…</code>) se habilitan cuando la conexión queda en sync correcto.</li>
+          <li>Crea o edita un agente.</li>
+          <li>En la ficha del agente, pestaña <strong>Integraciones</strong>, conecta la cuenta.</li>
+          <li>Cuando la conexión quede activa, elige qué herramientas puede usar el agente.</li>
         </ol>
       </div>
     </div>

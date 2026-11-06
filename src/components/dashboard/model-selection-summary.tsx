@@ -99,7 +99,7 @@ export function ModelSelectionSummary({
 
             {fallbacks.length === 0 ? (
               <p style={{ margin: 0, fontSize: 11, color: 'var(--muted-foreground)' }}>
-                {canAddFallback ? 'Sin modelo de respaldo. Usa el botón para asignar uno.' : 'Ninguno configurado. Elige uno abajo — solo modelos hf/ del hub.'}
+                {canAddFallback ? 'Sin modelo de respaldo. Usa el botón para asignar uno.' : 'Ninguno configurado. Elige uno abajo.'}
               </p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

@@ -114,7 +114,7 @@ export default function QuickStartPage() {
       }
       if (data.hubSynced === false) {
         toast.warning(
-          'El agente no se sincronizó con el motor de IA. El chat puede fallar hasta que arranques AgentFlowhub/AIBackHub o reintentes la sync.',
+          'El agente todavía no está listo. El chat puede fallar unos minutos; si sigue así, reintenta desde la ficha del agente.',
           { duration: 8000 },
         );
       }
@@ -289,9 +289,7 @@ export default function QuickStartPage() {
                 color: 'var(--foreground)',
               }}
             >
-              El agente no se sincronizó con el motor de IA. El chat fallará hasta que arranques{' '}
-              <strong>AgentFlowhub</strong> (puerto <strong>9002</strong>) y <strong>AIBackHub</strong>, y revises{' '}
-              <code style={{ fontSize: 11 }}>AGENTFLOWHUB_URL=http://127.0.0.1:9002</code> en tu <code>.env</code>.
+              El agente todavía no está listo. El chat puede fallar unos minutos; si sigue así, reintenta desde la ficha del agente.
             </div>
           )}
 
