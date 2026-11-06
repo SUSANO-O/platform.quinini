@@ -166,6 +166,13 @@ export async function tryServeWidgetChatViaDirectInference(params: {
   appMap?: AppMapEntry[];
   /** "Leer la pantalla" activado en el widget (servidor): solo entonces se usa `screenContext` del cuerpo. */
   screenContextEnabled?: boolean;
+  /**
+   * Streaming real: trozos de la respuesta según los escribe el modelo (`/api/models/stream`).
+   * La respuesta devuelta sigue siendo la final y es la que manda.
+   */
+  onToken?: (delta: string) => void;
+  /** Lo ya emitido por `onToken` se descarta (el saneado lo reescribió o el stream falló). */
+  onTokenReset?: () => void;
 }): Promise<DirectInferenceResult | null> {
   if (!getAibackhubBaseUrl() || !params.parsedAgentId.trim()) return null;
 
@@ -425,33 +432,49 @@ export async function tryServeWidgetChatViaDirectInference(params: {
   params.onStatus?.('model', widgetChatStatusForUserMessage(message, 'model'));
 
   try {
-    const res = await hubFetch(
-      '/api/models',
-      {
-        method: 'POST',
-        headers: {
-          ...hubCreateHeaders(),
-          'x-agent-name': agentName,
-          'x-widget-output-sanitize': 'true',
-        },
-        body: JSON.stringify({
-          prompt: promptForModel,
-          systemPrompt: resolvedSystemPrompt,
-          provider: effProvider,
-          model: effModel,
-          taskType: 'chat',
-          history,
-          ...(typeof resolvedTemperature === 'number' ? { temperature: resolvedTemperature } : {}),
-          ...(typeof resolvedMaxTokens === 'number' ? { maxTokens: resolvedMaxTokens } : {}),
-        }),
+    const modelInit: RequestInit = {
+      method: 'POST',
+      headers: {
+        ...hubCreateHeaders(),
+        'x-agent-name': agentName,
+        'x-widget-output-sanitize': 'true',
       },
-      120_000,
-    );
+      body: JSON.stringify({
+        prompt: promptForModel,
+        systemPrompt: resolvedSystemPrompt,
+        provider: effProvider,
+        model: effModel,
+        taskType: 'chat',
+        history,
+        ...(typeof resolvedTemperature === 'number' ? { temperature: resolvedTemperature } : {}),
+        ...(typeof resolvedMaxTokens === 'number' ? { maxTokens: resolvedMaxTokens } : {}),
+      }),
+    };
 
-    const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    if (!res.ok) {
+    let json: Record<string, unknown> | null = null;
+    let resOk = false;
+    let resStatus = 0;
+    if (params.onToken && effProvider && effModel) {
+      const streamed = await streamDirectModelReply(modelInit, params.onToken, params.onTokenReset);
+      if (streamed.kind === 'done') {
+        json = streamed.json;
+        resOk = true;
+      } else if (streamed.kind === 'failed') {
+        // Ya pudo haber texto en pantalla: el que llama sigue por otro camino, como con un error HTTP.
+        logWidgetFlow('❌', 'infer:stream', 'stream de /api/models falló', { reason: streamed.reason });
+        return null;
+      }
+      // 'unsupported' (hub sin /api/models/stream todavía): sin texto emitido, POST normal.
+    }
+    if (!json) {
+      const res = await hubFetch('/api/models', modelInit, 120_000);
+      json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      resOk = res.ok;
+      resStatus = res.status;
+    }
+    if (!resOk) {
       logWidgetFlow('❌', 'infer:http', 'AIBackHub /api/models error', {
-        status: res.status,
+        status: resStatus,
         error: typeof json.error === 'string' ? json.error : undefined,
       });
       return null;
@@ -479,6 +502,81 @@ export async function tryServeWidgetChatViaDirectInference(params: {
     logWidgetFlow('❌', 'infer:err', err instanceof Error ? err.message : String(err));
     return null;
   }
+}
+
+type StreamedModelReply =
+  | { kind: 'done'; json: Record<string, unknown> }
+  | { kind: 'unsupported' }
+  | { kind: 'failed'; reason: string };
+
+/**
+ * POST /api/models/stream del hub: reenvía `token`/`token_reset` y devuelve el `done` con la misma
+ * forma que POST /api/models. Si el hub no tiene el endpoint (404/400 antes de emitir nada) se
+ * devuelve `unsupported` para usar el POST normal. Si falla tras emitir texto, se resetea.
+ */
+async function streamDirectModelReply(
+  init: RequestInit,
+  onToken: (delta: string) => void,
+  onTokenReset?: () => void,
+): Promise<StreamedModelReply> {
+  let emitted = 0;
+  const fail = (reason: string): StreamedModelReply => {
+    if (emitted > 0) onTokenReset?.();
+    return { kind: 'failed', reason };
+  };
+  let res: Response;
+  try {
+    res = await hubFetch('/api/models/stream', init, 120_000);
+  } catch (err) {
+    return { kind: 'unsupported' };
+  }
+  const isSse = (res.headers.get('content-type') ?? '').includes('text/event-stream');
+  if (!res.ok || !isSse || !res.body) {
+    await res.body?.cancel().catch(() => {});
+    return { kind: 'unsupported' };
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      buf += decoder.decode(chunk.value, { stream: true });
+      const parts = buf.split('\n\n');
+      buf = parts.pop() ?? '';
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith('data:')) continue;
+        let evt: Record<string, unknown>;
+        try {
+          evt = JSON.parse(line.slice(5).trim()) as Record<string, unknown>;
+        } catch {
+          continue;
+        }
+        if (evt.type === 'token' && typeof evt.text === 'string' && evt.text) {
+          emitted += evt.text.length;
+          onToken(evt.text);
+        } else if (evt.type === 'token_reset') {
+          if (emitted > 0) {
+            emitted = 0;
+            onTokenReset?.();
+          }
+        } else if (evt.type === 'done') {
+          await reader.cancel().catch(() => {});
+          const { type: _type, ...data } = evt;
+          return { kind: 'done', json: { success: true, data, modelUsed: data.modelUsed } };
+        } else if (evt.type === 'error') {
+          await reader.cancel().catch(() => {});
+          return fail(typeof evt.message === 'string' ? evt.message : 'error');
+        }
+      }
+    }
+  } catch (err) {
+    return fail(err instanceof Error ? err.message : String(err));
+  }
+  return fail('stream sin done');
 }
 
 /** True si la respuesta del hub indica modelo obsoleto u otro fallo recuperable. */
