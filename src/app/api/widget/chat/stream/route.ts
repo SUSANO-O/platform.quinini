@@ -60,7 +60,8 @@ import {
 import { afterWidgetChatSuccess, enrichWidgetChatBody } from '@/lib/widget-chat-enrich';
 import { emitDoneAndPersist } from '@/lib/widget-transcript';
 import { tryServeWidgetChatViaDirectInference } from '@/lib/widget-chat-direct-inference';
-import { tryServeWidgetChatViaHubMcp } from '@/lib/widget-chat-direct-mcp';
+import { tryServeWidgetChatViaHubMcpMemo } from '@/lib/widget-no-mcp-tools-memo';
+import { createInferTokenRelay } from '@/lib/widget-infer-token-relay';
 import { getWidgetAppMap, getWidgetScreenContextEnabled, scheduleWidgetPageVisit } from '@/lib/widget-page-visits';
 import { extractIdentityFromChatBody } from '@/lib/widget-identity';
 import { resolveVerifiedWidgetIdentity, type WidgetIdentityStatus } from '@/lib/widget-identity-verify';
@@ -893,7 +894,7 @@ export async function POST(req: NextRequest) {
             /** Caracteres ya enviados al widget en vivo (streaming real desde el hub). */
             let liveTokenChars = 0;
             const directMcp = await latencyTrace.span('direct_mcp', () =>
-              tryServeWidgetChatViaHubMcp({
+              tryServeWidgetChatViaHubMcpMemo({
                 widgetTokenStartsWithWt: true,
                 parsedAgentId: parsedAgentIdLocal,
                 rawBody: hubBody,
@@ -1013,6 +1014,7 @@ export async function POST(req: NextRequest) {
           }
 
           try {
+            const inferEarlyTokens = createInferTokenRelay(enqueue, latencyTrace);
             const inferredEarly = await latencyTrace.span('infer_direct', () =>
               tryServeWidgetChatViaDirectInference({
                 parsedAgentId: parsedAgentIdLocal,
@@ -1024,15 +1026,21 @@ export async function POST(req: NextRequest) {
                 onStatus: (phase, message) => {
                   enqueue({ type: 'status', phase, message });
                 },
+                onToken: inferEarlyTokens.onToken,
+                onTokenReset: inferEarlyTokens.onTokenReset,
               }),
             );
+            if (!inferredEarly?.reply) inferEarlyTokens.clear();
             if (inferredEarly?.reply) {
               logWidgetFlow('✅', 'stream:inferOkEarly', 'respuesta directa /api/models', {
                 traceId,
                 replyLen: inferredEarly.reply.length,
                 usedModel: inferredEarly.usedModel,
               });
-              await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, stripWidgetNavBlocks(inferredEarly.reply)));
+              // Si ya llegó por streaming real no se vuelve a "escribir": `done` trae el texto final.
+              if (!inferEarlyTokens.streamed()) {
+                await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, stripWidgetNavBlocks(inferredEarly.reply)));
+              }
               void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true, undefined, meteringInput).catch(() => {});
               if (faqTrackOwnerId) {
                 void trackWidgetUserMessageForFaqCandidates({
@@ -1132,6 +1140,7 @@ export async function POST(req: NextRequest) {
 
         if (widgetToken.startsWith('wt_') && faqTrackOwnerId && parsedAgentIdLocal) {
           try {
+            const inferTokens = createInferTokenRelay(enqueue, latencyTrace);
             const inferred = await latencyTrace.span('infer_direct', () =>
               tryServeWidgetChatViaDirectInference({
               parsedAgentId: parsedAgentIdLocal,
@@ -1140,15 +1149,20 @@ export async function POST(req: NextRequest) {
               onStatus: (phase, message) => {
                 enqueue({ type: 'status', phase, message });
               },
+              onToken: inferTokens.onToken,
+              onTokenReset: inferTokens.onTokenReset,
             }),
             );
+            if (!inferred?.reply) inferTokens.clear();
             if (inferred?.reply) {
               logWidgetFlow('✅', 'stream:inferOk', 'respuesta directa /api/models', {
                 traceId,
                 replyLen: inferred.reply.length,
                 usedModel: inferred.usedModel,
               });
-              await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, stripWidgetNavBlocks(inferred.reply)));
+              if (!inferTokens.streamed()) {
+                await latencyTrace.span('reveal', () => emitStreamTokensFromText(enqueue, stripWidgetNavBlocks(inferred.reply)));
+              }
               void trackWidgetChatUsage(widgetToken, parsedAgentIdLocal, true, undefined, meteringInput).catch(() => {});
               if (faqTrackOwnerId) {
                 void trackWidgetUserMessageForFaqCandidates({

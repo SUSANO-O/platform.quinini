@@ -8,7 +8,7 @@ import { STRICT_PURPOSE_SUFFIX } from '@/lib/widget-strict-purpose';
 import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAgentflowhubBaseUrl } from '@/lib/aibackhub-sync';
-import { tryServeWidgetChatViaHubMcp } from '@/lib/widget-chat-direct-mcp';
+import { tryServeWidgetChatViaHubMcpMemo } from '@/lib/widget-no-mcp-tools-memo';
 import { getWidgetAppMap, getWidgetScreenContextEnabled, scheduleWidgetPageVisit } from '@/lib/widget-page-visits';
 import { attachAssistNavToPayload, buildAssistNavCtx } from '@/lib/assist-chat-reply';
 import {
@@ -938,7 +938,7 @@ export async function POST(req: NextRequest) {
             : [];
           widgetScreenContext = w.id ? await getWidgetScreenContextEnabled(w.id) : false;
           const direct = await latencyTrace.span('direct_mcp', () =>
-            tryServeWidgetChatViaHubMcp({
+            tryServeWidgetChatViaHubMcpMemo({
               widgetTokenStartsWithWt: true,
               parsedAgentId,
               rawBody: bodyToForward,
