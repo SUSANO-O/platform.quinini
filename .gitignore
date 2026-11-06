@@ -38,3 +38,4 @@ scripts/lab-widget.generated.json
 /playwright/.cache/
 
 # Keep BotIvA Cursor skill/rules trackable
+evals/results/

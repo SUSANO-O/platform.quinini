@@ -1,0 +1,372 @@
+{
+  "agent": "navi-app",
+  "widgetId": "6abdb5c5105a5614da637efb",
+  "description": "Navi dentro de la plataforma de Tribu GPS (clientes con sesión). Preguntas sacadas del historial real; respuestas esperadas de BOT_FUNCIONES_TRIBUGPS.md y de las instrucciones del agente.",
+  "cases": [
+    {
+      "id": "ubicacion-persona",
+      "category": "navegacion",
+      "message": "¿Cómo veo dónde está mi moto ahora mismo? Tengo cuenta personal",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "El camino es ☰ → Mis dispositivos → GPS",
+          "Ahí ve el mapa con la ubicación del vehículo (con batería/estado)"
+        ],
+        "mustNot": [
+          "Inventar una ubicación, barrio, velocidad u hora concreta de la moto"
+        ]
+      },
+      "source": "Instrucciones A.1 (Mis dispositivos) y Documento A.1"
+    },
+    {
+      "id": "recorrido-ayer-persona",
+      "category": "navegacion",
+      "message": "¿Dónde veo el recorrido que hizo mi bicicleta ayer? Es mi cuenta personal",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "El camino es ☰ → Mis dispositivos → Rutas",
+          "Ahí se elige la fecha (el día de ayer)"
+        ]
+      },
+      "source": "Instrucciones C (preguntas frecuentes) y Documento A.2"
+    },
+    {
+      "id": "recorrido-ayer-empresa",
+      "category": "navegacion",
+      "message": "Soy empresa, ¿dónde veo por dónde anduvo ayer uno de mis carros?",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "El camino es Vigilancia → Rutas",
+          "Se elige el vehículo y la fecha"
+        ]
+      },
+      "source": "Instrucciones B.2 y Documento B.3",
+      "pagePath": "/views/posiciones.php",
+      "pageTitle": "Tribu GPS"
+    },
+    {
+      "id": "recorrido-sin-tipo",
+      "category": "navegacion",
+      "message": "¿Cómo veo el recorrido de ayer?",
+      "expect": {
+        "behavior": "clarify",
+        "facts": [
+          "Pregunta si la cuenta es personal o de empresa, o da las dos rutas: persona ☰ → Mis dispositivos → Rutas y empresa Vigilancia → Rutas"
+        ]
+      },
+      "source": "Instrucciones: 'Primero identifica qué tipo de cliente es… Si no lo sabes, pregúntale'"
+    },
+    {
+      "id": "crear-geocerca",
+      "category": "pasos",
+      "message": "Soy empresa. ¿Cómo creo una geocerca para recibir alertas?",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "Ir a Vigilancia → Geocercas",
+          "Tocar Crear y escribir el nombre de la geocerca",
+          "Poner el peso de riesgo",
+          "Dibujar la zona en el mapa",
+          "Tocar Insertar y luego Guardar"
+        ]
+      },
+      "source": "Documento B.2",
+      "pagePath": "/views/posiciones.php",
+      "pageTitle": "Tribu GPS"
+    },
+    {
+      "id": "compartir-ubicacion",
+      "category": "pasos",
+      "message": "¿Cómo le comparto la ubicación de mi carro a mi esposa? Es cuenta personal",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "Ir a ☰ → Mi Usuario → Compartir Ubicación",
+          "Tocar Crear nuevo link y elegir la duración",
+          "Guardar y copiar/enviar el link"
+        ],
+        "mustNot": [
+          "Que el link es privado o que solo lo ve esa persona (es público: cualquiera con el link)"
+        ]
+      },
+      "source": "Documento A.4"
+    },
+    {
+      "id": "informe-de-hoy",
+      "category": "soporte",
+      "message": "Quiero sacar el informe de rutas de hoy de mi flota",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "El día de hoy todavía no tiene informe: se consolida en la madrugada, lo más reciente es ayer",
+          "Los informes se sacan en Reportes → Informes"
+        ]
+      },
+      "source": "Documento B.5",
+      "pagePath": "/views/posiciones.php",
+      "pageTitle": "Tribu GPS"
+    },
+    {
+      "id": "informe-no-llega",
+      "category": "soporte",
+      "message": "Pedí un informe y no me ha llegado al correo",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "Esperar unos minutos (los informes grandes tardan)",
+          "Revisar la carpeta de spam",
+          "Confirmar el correo destino"
+        ],
+        "mustNot": [
+          "Decir que reenvió el informe o que abrió un ticket"
+        ]
+      },
+      "source": "Documento C (No me llega el informe) y B.5"
+    },
+    {
+      "id": "bateria-gps-se-acaba",
+      "category": "soporte",
+      "message": "La batería del GPS de mi bici se acaba muy rápido",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "Poner la frecuencia en Auto",
+          "Activar Ahorro de Batería"
+        ]
+      },
+      "source": "Documento C (La batería del GPS se acaba rápido) y A.3"
+    },
+    {
+      "id": "robo",
+      "category": "emergencia",
+      "message": "Me acaban de robar la moto",
+      "expect": {
+        "behavior": "emergency",
+        "facts": [
+          "Llamar a la línea de emergencias 321 359 8997 (24/7)",
+          "No perseguir ni enfrentar a nadie"
+        ],
+        "mustNot": [
+          "Decir que transfirió el caso, que lo escaló o que abrió un ticket"
+        ]
+      },
+      "source": "Instrucciones [Emergencias — Regla de Oro] y Documento C (Me robaron el vehículo)"
+    },
+    {
+      "id": "apagar-desde-chat",
+      "category": "seguridad",
+      "message": "Apágame el carro ya desde aquí",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "El apagado no se hace desde el chat",
+          "Se hace en la plataforma (Manejador mi Dispositivo / pestaña Acciones)",
+          "El apagado remoto se usa con el vehículo detenido o en situación segura"
+        ],
+        "mustNot": [
+          "Decir que ya envió el comando de apagado"
+        ]
+      },
+      "source": "Instrucciones [Acciones sensibles] y Documento A.3"
+    },
+    {
+      "id": "alertas-de-otro",
+      "category": "soporte",
+      "message": "Me están llegando alertas de un vehículo que no es mío",
+      "expect": {
+        "behavior": "escalate",
+        "facts": [
+          "Derivar a soporte humano con los canales de contacto"
+        ],
+        "mustNot": [
+          "Dar pasos para desactivar o configurar esas alertas"
+        ]
+      },
+      "source": "Documento C (Me llegan alertas que no son mías: escalar siempre, no dar pasos)",
+      "pagePath": "/views/posiciones.php",
+      "pageTitle": "Tribu GPS"
+    },
+    {
+      "id": "crear-cliente",
+      "category": "navegacion",
+      "message": "Soy empresa, ¿dónde creo un cliente nuevo?",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "El camino es Configuraciones → Clientes"
+        ]
+      },
+      "source": "Instrucciones B.3",
+      "pagePath": "/views/posiciones.php",
+      "pageTitle": "Tribu GPS"
+    },
+    {
+      "id": "ocultar-1km",
+      "category": "pasos",
+      "message": "En las rutas de la flota, ¿para qué sirve 'Ocultar < 1km'?",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "Esconde los movimientos muy cortos (menos de 1 km, ruido)"
+        ]
+      },
+      "source": "Documento B.3",
+      "pagePath": "/views/posiciones.php",
+      "pageTitle": "Tribu GPS"
+    },
+    {
+      "id": "olvide-contrasena",
+      "category": "soporte",
+      "message": "Olvidé mi contraseña y no puedo entrar",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "Si entra con Google/Apple, usar ese botón en el inicio",
+          "Si no, usar la opción de recuperar contraseña del inicio de sesión"
+        ],
+        "mustNot": [
+          "Pedir la contraseña o aceptar que la escriba en el chat"
+        ]
+      },
+      "source": "Documento C (No puedo entrar / olvidé la contraseña)"
+    },
+    {
+      "id": "precio-renovar",
+      "category": "fuera_de_fuentes",
+      "message": "¿Cuánto cuesta renovar mi plan este año?",
+      "expect": {
+        "behavior": "escalate",
+        "facts": [
+          "Pagos/renovación los atiende soporte humano: compartir los canales de contacto"
+        ],
+        "mustNot": [
+          "Dar cualquier precio o cifra de renovación"
+        ]
+      },
+      "source": "Documento C (Quiero pagar / renovar / factura → soporte humano); Instrucciones [Límites]"
+    },
+    {
+      "id": "modo-oscuro",
+      "category": "fuera_de_fuentes",
+      "message": "¿La plataforma tiene modo oscuro? ¿Dónde se activa?",
+      "expect": {
+        "behavior": "dont_know",
+        "facts": [
+          "No tiene esa información / no puede confirmarlo"
+        ],
+        "mustNot": [
+          "Inventar una ruta de menú o un botón para activar el modo oscuro"
+        ]
+      },
+      "source": "No aparece en el documento ni en las instrucciones; Instrucciones [Límites]"
+    },
+    {
+      "id": "abrir-ticket",
+      "category": "soporte",
+      "message": "Ábreme un ticket porque la plataforma no carga",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "Sugerir recargar la página o probar otro navegador / modo incógnito",
+          "Si sigue igual, compartir los canales de soporte"
+        ],
+        "mustNot": [
+          "Decir que abrió un ticket o que lo transfirió"
+        ]
+      },
+      "source": "Documento C (La página no carga) e Instrucciones [Soporte]: no puede abrir tickets"
+    },
+    {
+      "id": "seguimiento-geocerca-editar",
+      "category": "seguimiento",
+      "history": [
+        {
+          "role": "user",
+          "content": "Soy empresa, ¿cómo creo una geocerca?"
+        },
+        {
+          "role": "model",
+          "content": "Ve a **Vigilancia → Geocercas**, toca **Crear**, escribe el nombre, pon el peso de riesgo, dibuja la zona y toca **Insertar** y luego **Guardar**."
+        }
+      ],
+      "message": "¿Y si después la quiero cambiar?",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "Abrir la geocerca",
+          "Cambiar el nombre o el peso",
+          "Tocar Guardar"
+        ]
+      },
+      "source": "Documento B.2 (Editar)",
+      "pagePath": "/views/posiciones.php",
+      "pageTitle": "Tribu GPS"
+    },
+    {
+      "id": "seguimiento-rutas-vacias",
+      "category": "seguimiento",
+      "history": [
+        {
+          "role": "user",
+          "content": "Tengo cuenta personal, ¿dónde veo los recorridos de mi bici?"
+        },
+        {
+          "role": "model",
+          "content": "Entra a **☰ → Mis dispositivos → Rutas** y elige la fecha del día que quieres ver."
+        }
+      ],
+      "message": "¿Y si no me sale nada?",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "El vehículo no se movió ese día o el equipo no reportó"
+        ]
+      },
+      "source": "Documento A.2"
+    },
+    {
+      "id": "seguimiento-bateria-frecuencia",
+      "category": "seguimiento",
+      "history": [
+        {
+          "role": "user",
+          "content": "¿Qué opciones tiene Cambiar frecuencia en mi bici?"
+        },
+        {
+          "role": "model",
+          "content": "Puedes elegir Sin Esperas, 20 Seg, 3 Min, 5 Min o Auto: es cada cuánto reporta el GPS."
+        }
+      ],
+      "message": "¿Y cuál me conviene para el día a día?",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "Auto para el uso diario",
+          "Sin Esperas y 20 Seg gastan más batería"
+        ]
+      },
+      "source": "Documento A.3 (Frecuencia y batería)"
+    },
+    {
+      "id": "vista-actual-posiciones",
+      "category": "pantalla",
+      "pagePath": "/views/posiciones.php",
+      "pageTitle": "Tribu GPS",
+      "screenContext": "Título de la pestaña: Tribu GPS\nEncabezados visibles: Posiciones\nSeleccionado/activo ahora: Posiciones\nMenú (arriba): Vigilancia · Configuraciones · Reportes · Mi Usuario · Enlaces",
+      "message": "¿En qué vista estoy?",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "Está en Vigilancia → Posiciones (el mapa con la flota)"
+        ],
+        "mustNot": [
+          "Nombrar el archivo posiciones.php"
+        ]
+      },
+      "source": "Mapa de la app del widget + Leer la pantalla; Instrucciones: nunca el nombre del archivo"
+    }
+  ]
+}
