@@ -314,6 +314,9 @@ export async function loadWidgetTeam(
           .lean()
       : [];
 
+    // Un solo agente: no hay equipo que enrutar (los que llaman descartan equipos de ≤1).
+    if (orderedOrchs.length + specialists.length <= 1) return null;
+
     const specById = new Map(specialists.map((s) => [String(s._id), s]));
     const allAgentIds = [...orderedOrchs.map((o) => String(o._id)), ...specialists.map((s) => String(s._id))];
 
@@ -387,6 +390,9 @@ export async function loadWidgetTeam(
   });
   if (!built) return [];
   const { members, docById, skillCatalog, cronsByAgent } = built;
+  // Agente solo (sin especialistas ni otro orquestador): todos los que llaman descartan un
+  // equipo de 1, así que no se paga la sincronización ni la consulta al hub (~0,6 s por turno).
+  if (members.length <= 1) return members;
 
   // Sospechoso #1: hydrateTeamHubIds sincroniza hubId por miembro EN SERIE
   // (un `for` con `await` adentro), no en paralelo.
