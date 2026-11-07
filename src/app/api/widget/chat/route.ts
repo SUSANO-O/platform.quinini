@@ -341,6 +341,7 @@ export async function POST(req: NextRequest) {
   };
   if (widgetToken) headers['X-Widget-Token'] = widgetToken;
 
+  let widgetAuthError = false;
   if (widgetToken.startsWith('wt_') && parsedAgentId) {
     try {
       await connectDB();
@@ -1141,9 +1142,20 @@ export async function POST(req: NextRequest) {
         }
         latencyTrace.mark('auth');
       }
-    } catch {
-      /* sin DB: el hub intentará validación remota si está configurada */
+    } catch (authErr) {
+      widgetAuthError = true;
+      console.error('[widget/chat] validación del widget falló:', authErr);
     }
+  }
+
+  // Sin widget validado no hay chat (antes la petición seguía al hub sin token o con uno inválido).
+  if (!faqTrackOwnerId) {
+    return NextResponse.json(
+      widgetAuthError
+        ? { error: 'No pudimos verificar el widget. Intentá de nuevo en un momento.', code: 'WIDGET_AUTH_UNAVAILABLE' }
+        : { error: 'Token de widget inválido.', code: 'WIDGET_TOKEN_INVALID' },
+      { status: widgetAuthError ? 503 : 401, headers: cors(origin) },
+    );
   }
 
   const init: RequestInit = {

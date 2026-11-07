@@ -100,3 +100,25 @@ describe('POST /api/agents/[id]/ab-tests/metrics', () => {
     expect(record).toHaveBeenCalledWith('agent1', { variantId: 'v1' });
   });
 });
+
+describe('verifySessionToken caduca', () => {
+  it('acepta un token reciente y rechaza uno de más de 12 h o del futuro', async () => {
+    process.env.JWT_SECRET = 'x'.repeat(40);
+    const { createSessionToken, verifySessionToken, SESSION_MAX_AGE_MS } = await import('@/lib/auth');
+    const realNow = Date.now;
+    try {
+      const t0 = 1_800_000_000_000;
+      Date.now = () => t0;
+      const tok = createSessionToken('user_1');
+      expect(verifySessionToken(tok)).toBe('user_1');
+      Date.now = () => t0 + SESSION_MAX_AGE_MS - 1000;
+      expect(verifySessionToken(tok)).toBe('user_1');
+      Date.now = () => t0 + SESSION_MAX_AGE_MS + 1000;
+      expect(verifySessionToken(tok)).toBeNull();
+      Date.now = () => t0 - 60 * 60 * 1000;
+      expect(verifySessionToken(tok)).toBeNull();
+    } finally {
+      Date.now = realNow;
+    }
+  });
+});

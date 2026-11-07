@@ -67,6 +67,14 @@ function getSessionSecret(): string {
   return secret.trim();
 }
 
+/**
+ * Vida máxima de un token de sesión: la misma que la cookie (12 h). Antes la marca de tiempo del
+ * token no se comprobaba y una cookie copiada servía para siempre.
+ */
+export const SESSION_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+/** Tolerancia de reloj entre instancias. */
+const SESSION_CLOCK_SKEW_MS = 5 * 60 * 1000;
+
 /** Simple session token: base64url(userId:timestamp:hmac) */
 export function createSessionToken(userId: string): string {
   const secret = getSessionSecret();
@@ -90,6 +98,12 @@ export function verifySessionToken(token: string): string | null {
     if (hmac.length !== expected.length) return null;
     const valid = crypto.timingSafeEqual(Buffer.from(hmac, 'hex'), Buffer.from(expected, 'hex'));
     if (!valid) return null;
+
+    const issuedAt = Number(parts[parts.length - 2]);
+    const now = Date.now();
+    if (!Number.isFinite(issuedAt)) return null;
+    if (issuedAt > now + SESSION_CLOCK_SKEW_MS) return null;
+    if (now - issuedAt > SESSION_MAX_AGE_MS) return null;
 
     return parts[0]; // userId
   } catch {
