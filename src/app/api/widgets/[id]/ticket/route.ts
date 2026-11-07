@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { Widget } from '@/lib/db/models';
 import { getCorsHeaders, handlePreflight, withCors } from '@/lib/cors';
+import { checkWidgetPublicRateLimit, WIDGET_PUBLIC_RATE_LIMIT_MESSAGE } from '@/lib/widget-public-rate-limit';
 import { getAibackhubBaseUrl, hubCreateHeaders, hubFetch } from '@/lib/aibackhub-sync';
 
 export async function OPTIONS(req: NextRequest) {
@@ -66,6 +67,14 @@ export async function POST(
     (typeof body.token === 'string' ? body.token.trim() : '');
   if (!wtToken || !wtToken.startsWith('wt_') || wtToken !== widget.afhubToken) {
     return withCors(req, NextResponse.json({ error: 'Token de widget inválido.' }, { status: 403 }));
+  }
+
+  const rl = await checkWidgetPublicRateLimit(req, 'ticket', String(id));
+  if (!rl.ok) {
+    return withCors(
+      req,
+      NextResponse.json({ error: WIDGET_PUBLIC_RATE_LIMIT_MESSAGE }, { status: 429, headers: { 'Retry-After': String(rl.retryAfter || 60) } }),
+    );
   }
 
   const agentId = typeof body.agentId === 'string' ? body.agentId.trim() : '';

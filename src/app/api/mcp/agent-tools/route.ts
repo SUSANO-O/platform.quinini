@@ -14,7 +14,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { getAibackhubBaseUrl, hubCreateHeaders } from '@/lib/aibackhub-sync';
 import { connectDB } from '@/lib/db/connection';
-import { ClientAgent } from '@/lib/db/models';
+import { ClientAgent, User } from '@/lib/db/models';
+import { getSessionUserId } from '@/lib/mcp-landing-auth';
+import { agentToolsAccess } from '@/lib/mcp-agent-tools-access';
 
 /** ObjectId Mongo de 24 hex (evita tratar slugs como id válido). */
 function isHexObjectId(id: string): boolean {
@@ -24,13 +26,13 @@ function isHexObjectId(id: string): boolean {
 async function resolveLandingAgentLean(landingAgentId: string) {
   if (isHexObjectId(landingAgentId)) {
     const byId = await ClientAgent.findById(landingAgentId)
-      .select('agentHubId syncStatus')
+      .select('agentHubId syncStatus userId isPlatform')
       .lean()
       .catch(() => null);
     if (byId) return byId;
   }
   return ClientAgent.findOne({ agentHubId: landingAgentId })
-    .select('agentHubId syncStatus')
+    .select('agentHubId syncStatus userId isPlatform')
     .lean()
     .catch(() => null);
 }
@@ -97,7 +99,10 @@ type LandingAgentLean = {
   _id: mongoose.Types.ObjectId | string;
   agentHubId?: string;
   syncStatus?: string;
+  userId?: unknown;
+  isPlatform?: boolean;
 } | null;
+
 
 async function resolveHubAgentIds(
   landingId: string,
@@ -149,15 +154,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'agentId required' }, { status: 400 });
   }
 
+  const userId = await getSessionUserId(req);
+  if (!userId) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
+
+  await connectDB();
+  const landingRow = (await resolveLandingAgentLean(landingAgentId)) as LandingAgentLean;
+  const me = (await User.findById(userId).select({ role: 1 }).lean().catch(() => null)) as { role?: string } | null;
+  const access = agentToolsAccess(landingRow, userId, me?.role === 'admin');
+  if (access === 'denied') {
+    return NextResponse.json({ error: 'Agente no encontrado.' }, { status: 404 });
+  }
+  const showCredentials = access === 'owner' || access === 'admin';
+
   const backendBase = getAibackhubBaseUrl();
   if (!backendBase) {
     return NextResponse.json({ servers: [], note: 'BACKEND_URL not configured' });
   }
 
-  await connectDB();
   const headers = hubCreateHeaders();
-
-  const landingRow = await resolveLandingAgentLean(landingAgentId);
   const hubIdRaw =
     landingRow && typeof (landingRow as { agentHubId?: string }).agentHubId === 'string'
       ? (landingRow as { agentHubId: string }).agentHubId.trim()
@@ -259,7 +273,7 @@ export async function GET(req: NextRequest) {
       connectionId: conn.id,
       tools,
       credentialFields: meta?.credentialFields ?? [],
-      credentialsMask: conn.credentials && typeof conn.credentials === 'object' ? conn.credentials : {},
+      credentialsMask: showCredentials && conn.credentials && typeof conn.credentials === 'object' ? conn.credentials : {},
       lastSyncAt: typeof conn.lastSyncAt === 'string' ? conn.lastSyncAt : undefined,
       lastSyncError: typeof conn.lastSyncError === 'string' ? conn.lastSyncError : undefined,
     });
