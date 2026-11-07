@@ -19,6 +19,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { Widget, User, Subscription } from '@/lib/db/models';
 import { getCorsHeaders, handlePreflight, withCors } from '@/lib/cors';
+import { checkWidgetPublicRateLimit, WIDGET_PUBLIC_RATE_LIMIT_MESSAGE } from '@/lib/widget-public-rate-limit';
 import { sendEmail } from '@/lib/email';
 
 const SUPPORT_TO =
@@ -61,8 +62,18 @@ export async function POST(
   if (!widget) {
     return withCors(req, NextResponse.json({ error: 'Widget no encontrado.' }, { status: 404 }));
   }
-  if (widget.afhubToken && token && widget.afhubToken !== token) {
+  // El widget siempre manda su token: sin él (o sin token guardado) no hay forma de saber que la
+  // petición viene del widget, y cada una manda un email a soporte.
+  if (!token || !widget.afhubToken || widget.afhubToken !== token) {
     return withCors(req, NextResponse.json({ error: 'Token inválido.' }, { status: 401 }));
+  }
+
+  const rl = await checkWidgetPublicRateLimit(req, 'support-contact', String(id));
+  if (!rl.ok) {
+    return withCors(
+      req,
+      NextResponse.json({ error: WIDGET_PUBLIC_RATE_LIMIT_MESSAGE }, { status: 429, headers: { 'Retry-After': String(rl.retryAfter || 60) } }),
+    );
   }
 
   const message = String(body.message || '').trim().slice(0, 2000);

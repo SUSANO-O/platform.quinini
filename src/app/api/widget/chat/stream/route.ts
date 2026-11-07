@@ -84,6 +84,7 @@ import { isLocalDevLimitsBypass } from '@/lib/dev-limits';
 import { logInferenceMetric, estimateTokens } from '@/lib/inference-metrics';
 import { stripLeakedToolCalls } from '@/lib/widget-reply-tool-leak';
 import { checkAndBuildTicketDeflectionReply } from '@/lib/ticket-deflection-flow';
+import { recordAbVariantMetrics } from '@/lib/ab-test-metrics';
 
 export const maxDuration = 60; // Vercel: allow up to 60s for LLM + streaming
 
@@ -1377,14 +1378,7 @@ export async function POST(req: NextRequest) {
 
         // A/B metrics: record session for the variant (single message = 1 session unit)
         if (activeVariantId && parsedAgentIdLocal) {
-          void fetch(
-            `${process.env.NEXT_PUBLIC_APP_URL || ''}/api/agents/${parsedAgentIdLocal}/ab-tests/metrics`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ variantId: activeVariantId }),
-            },
-          ).catch(() => {});
+          void recordAbVariantMetrics(parsedAgentIdLocal, { variantId: activeVariantId }).catch(() => {});
         }
       } catch (err) {
         const formatted = formatHubFetchError(err, base);

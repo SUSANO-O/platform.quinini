@@ -17,6 +17,7 @@ import { createEscalationTicket } from '@/lib/escalation-tickets';
 import { notifySlackOnEscalation } from '@/lib/escalation-slack';
 import { prepareHandoffInboxSession } from '@/lib/inbox-handoff';
 import { getCorsHeaders, handlePreflight, withCors } from '@/lib/cors';
+import { checkWidgetPublicRateLimit, WIDGET_PUBLIC_RATE_LIMIT_MESSAGE } from '@/lib/widget-public-rate-limit';
 import {
   normalizeHandoffNotifyMode,
   shouldDispatchHandoffSlack,
@@ -84,6 +85,14 @@ export async function POST(
     (typeof body.token === 'string' ? body.token.trim() : '');
   if (!wtToken || !wtToken.startsWith('wt_') || wtToken !== widget.afhubToken) {
     return withCors(req, NextResponse.json({ error: 'Token de widget inválido.' }, { status: 403 }));
+  }
+
+  const rl = await checkWidgetPublicRateLimit(req, 'handoff', String(id));
+  if (!rl.ok) {
+    return withCors(
+      req,
+      NextResponse.json({ error: WIDGET_PUBLIC_RATE_LIMIT_MESSAGE }, { status: 429, headers: { 'Retry-After': String(rl.retryAfter || 60) } }),
+    );
   }
 
   const uid = String(widget.userId).trim();
