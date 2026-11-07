@@ -86,15 +86,14 @@ export function getWhatsAppAppSecret(cfg: WhatsAppAgentConfig | null | undefined
 
 /**
  * Verifica la firma X-Hub-Signature-256 del webhook con el app secret.
- * Si no hay app secret configurado, devuelve true (Meta lo permite, pero
- * recomendamos configurarlo).
+ * Sin app secret devuelve false: un webhook que no se puede verificar no se procesa.
  */
 export function verifyWebhookSignature(
   appSecret: string,
   rawBody: string,
   signatureHeader: string | null,
 ): boolean {
-  if (!appSecret) return true; // sin secret: no podemos verificar, aceptamos
+  if (!appSecret) return false; // sin secret no se puede verificar: se rechaza (antes se aceptaba)
   if (!signatureHeader || !signatureHeader.startsWith('sha256=')) return false;
   const expected = crypto.createHmac('sha256', appSecret).update(rawBody, 'utf8').digest('hex');
   const given = signatureHeader.slice('sha256='.length);

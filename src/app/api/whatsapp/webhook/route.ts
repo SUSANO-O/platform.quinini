@@ -11,6 +11,7 @@
  *        chat del agente (MCP), y envía la respuesta de vuelta por WhatsApp.
  */
 
+import { authenticateWhatsAppChange } from '@/lib/whatsapp-webhook-auth';
 import { signRequest, SIGNATURE_HEADER } from '@/lib/hub-signature';
 import { NextRequest, after } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
@@ -143,6 +144,23 @@ async function processIncomingMessages(rawBody: string, signatureHeader: string 
       const phoneNumberId = value.metadata?.phone_number_id?.trim();
       const messages = value.messages || [];
       const statuses = value.statuses || [];
+
+      // Nada se procesa sin la firma de Meta con el app secret del agente dueño del número.
+      const auth = await authenticateWhatsAppChange({
+        phoneNumberId,
+        rawBody,
+        signatureHeader,
+        findAgentConfig: async (id) => {
+          const row = (await ClientAgent.findOne({ 'whatsapp.phoneNumberId': id })
+            .select({ whatsapp: 1 })
+            .lean()) as { whatsapp?: WhatsAppAgentConfig } | null;
+          return row?.whatsapp ?? null;
+        },
+      });
+      if (!auth.ok) {
+        console.warn('[whatsapp/webhook] cambio rechazado', { phoneNumberId, reason: auth.reason });
+        continue;
+      }
 
       // ── Estados de entrega (failed/delivered) — Meta avisa si el mensaje no llegó ──
       for (const st of statuses) {
@@ -314,9 +332,9 @@ async function processIncomingMessages(rawBody: string, signatureHeader: string 
         continue;
       }
 
-      // Validar firma si hay app secret configurado
+      // Firma ya verificada arriba; se repite por si el agente activo usa otro secreto.
       const appSecret = getWhatsAppAppSecret(agentDoc.whatsapp);
-      if (appSecret && !verifyWebhookSignature(appSecret, rawBody, signatureHeader)) {
+      if (!appSecret || !verifyWebhookSignature(appSecret, rawBody, signatureHeader)) {
         console.warn('[whatsapp/webhook] firma inválida', { phoneNumberId });
         continue;
       }

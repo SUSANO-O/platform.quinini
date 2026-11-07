@@ -317,9 +317,14 @@ export default function WhatsAppTab({
 
           <div>
             <Label>
-              App Secret (opcional, para validar firma del webhook)
-              {info.hasAppSecret && <span style={{ marginLeft: 6, color: '#22c55e', fontSize: 10 }}>✓ ya configurado</span>}
+              App Secret (obligatorio: sin él no se procesan los mensajes)
+              {info.hasAppSecret
+                ? <span style={{ marginLeft: 6, color: '#22c55e', fontSize: 10 }}>✓ ya configurado</span>
+                : <span style={{ marginLeft: 6, color: '#ef4444', fontSize: 10 }}>falta — WhatsApp no responderá</span>}
             </Label>
+            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: '2px 0 6px' }}>
+              Meta → tu app → Configuración → Básica → Clave secreta de la app.
+            </p>
             <input type="password" value={appSecret} onChange={(e) => setAppSecret(e.target.value)} disabled={readOnly}
               placeholder={info.hasAppSecret ? '••••••••••••• (dejar vacío para no cambiar)' : 'abc123...'}
               style={input} autoComplete="off" />
