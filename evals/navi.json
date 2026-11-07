@@ -9,7 +9,10 @@
       "message": "¿Para qué sirve el candado virtual?",
       "expect": {
         "behavior": "answer",
-        "facts": ["Avisa/notifica de inmediato si el vehículo se mueve de un punto (perímetro de seguridad)", "Se activa desde la app"]
+        "facts": [
+          "Avisa/notifica de inmediato si el vehículo se mueve de un punto (perímetro de seguridad)",
+          "Se activa desde la app"
+        ]
       },
       "source": "base-conocimiento §4 (Candado Virtual)"
     },
@@ -19,8 +22,14 @@
       "message": "Me robaron la bicicleta hace un rato",
       "expect": {
         "behavior": "emergency",
-        "facts": ["Línea de emergencias 321 359 8997 (24/7)", "No perseguir ni enfrentar a los ladrones", "Activar la alerta (Hurto/Pánico) desde la app"],
-        "mustNot": ["Decir que lo transfiere a un asesor"]
+        "facts": [
+          "Línea de emergencias 321 359 8997 (24/7)",
+          "No perseguir ni enfrentar a los ladrones",
+          "Activar la alerta (Hurto/Pánico) desde la app"
+        ],
+        "mustNot": [
+          "Decir que lo transfiere a un asesor"
+        ]
       },
       "source": "Instrucciones (Regla de Oro) y base-conocimiento §7.2"
     },
@@ -30,7 +39,10 @@
       "message": "Si tengo una emergencia y no tengo datos en el celular, ¿cómo aviso?",
       "expect": {
         "behavior": "answer",
-        "facts": ["Enviar un SMS con la palabra ALERTA seguida del número de cédula", "A los números 321 254 8620 o 321 359 8997"]
+        "facts": [
+          "Enviar un SMS con la palabra ALERTA seguida del número de cédula",
+          "A los números 321 254 8620 o 321 359 8997"
+        ]
       },
       "source": "base-conocimiento §7.1 (Alerta Offline)"
     },
@@ -40,7 +52,9 @@
       "message": "¿Cuánto tiempo tengo que cargar el GPS de la bici antes de usarlo la primera vez?",
       "expect": {
         "behavior": "answer",
-        "facts": ["Carga inicial de 2 a 3 horas"]
+        "facts": [
+          "Carga inicial de 2 a 3 horas"
+        ]
       },
       "source": "base-conocimiento §2 paso 4"
     },
@@ -50,7 +64,13 @@
       "message": "¿Qué trae el paquete del GPS para bicicleta?",
       "expect": {
         "behavior": "answer",
-        "facts": ["El dispositivo GPS", "2 abrazaderas", "4 tornillos de seguridad y la llave de seguridad", "Cable de carga magnético", "4 stickers para el casco con el número de emergencia"]
+        "facts": [
+          "El dispositivo GPS",
+          "2 abrazaderas",
+          "4 tornillos de seguridad y la llave de seguridad",
+          "Cable de carga magnético",
+          "4 stickers para el casco con el número de emergencia"
+        ]
       },
       "source": "base-conocimiento §1"
     },
@@ -60,7 +80,9 @@
       "message": "¿Puedo lavar la bici con hidrolavadora con el GPS puesto?",
       "expect": {
         "behavior": "answer",
-        "facts": ["Hay que retirar el GPS o cubrirlo completamente con una bolsa hermética"]
+        "facts": [
+          "Hay que retirar el GPS o cubrirlo completamente con una bolsa hermética"
+        ]
       },
       "source": "base-conocimiento §5 (Lavado del Vehículo)"
     },
@@ -70,7 +92,10 @@
       "message": "Tengo dos bicicletas, ¿puedo usar el mismo GPS en las dos?",
       "expect": {
         "behavior": "answer",
-        "facts": ["Sí, se puede cambiar entre bicicletas (con soporte adicional / usando la llave)", "En la app se elige o actualiza con cuál bicicleta se sale a rodar"]
+        "facts": [
+          "Sí, se puede cambiar entre bicicletas (con soporte adicional / usando la llave)",
+          "En la app se elige o actualiza con cuál bicicleta se sale a rodar"
+        ]
       },
       "source": "FAQ 5 y base-conocimiento §5 (Intercambio de Vehículos)"
     },
@@ -80,8 +105,12 @@
       "message": "¿Cuánto vale el GPS para bicicleta?",
       "expect": {
         "behavior": "dont_know",
-        "facts": ["No da un precio; remite a la línea comercial 300 219 7252 (u ofrece que lo contacten)"],
-        "mustNot": ["Dar cualquier precio o cifra"]
+        "facts": [
+          "No da un precio; remite a la línea comercial 300 219 7252 (u ofrece que lo contacten)"
+        ],
+        "mustNot": [
+          "Dar cualquier precio o cifra"
+        ]
       },
       "source": "Instrucciones (Límites: no des precios que no estén en tu base) y línea comercial"
     },
@@ -91,7 +120,9 @@
       "message": "¿El GPS es anti jammer?",
       "expect": {
         "behavior": "answer",
-        "facts": ["Sí, resiste los inhibidores de señal"]
+        "facts": [
+          "Sí, resiste los inhibidores de señal"
+        ]
       },
       "source": "FAQ 8"
     },
@@ -101,8 +132,13 @@
       "message": "¿Se puede pagar a cuotas?",
       "expect": {
         "behavior": "answer",
-        "facts": ["Sí, el servicio se puede financiar", "Línea comercial 300 219 7252"],
-        "mustNot": ["Inventar número de cuotas, tasas o montos"]
+        "facts": [
+          "Sí, el servicio se puede financiar",
+          "Línea comercial 300 219 7252"
+        ],
+        "mustNot": [
+          "Inventar número de cuotas, tasas o montos"
+        ]
       },
       "source": "FAQ 9"
     },
@@ -112,7 +148,9 @@
       "message": "¿Quién es el gerente de Tribu GPS?",
       "expect": {
         "behavior": "answer",
-        "facts": ["Oscar Huertas"]
+        "facts": [
+          "Oscar Huertas"
+        ]
       },
       "source": "Instrucciones (Equipo)"
     },
@@ -122,7 +160,9 @@
       "message": "¿Cuántos vehículos han recuperado?",
       "expect": {
         "behavior": "answer",
-        "facts": ["210 vehículos recuperados (con las autoridades)"]
+        "facts": [
+          "210 vehículos recuperados (con las autoridades)"
+        ]
       },
       "source": "Instrucciones (Hitos de la Empresa)"
     },
@@ -132,8 +172,12 @@
       "message": "¿Tienen GPS para patineta eléctrica?",
       "expect": {
         "behavior": "answer",
-        "facts": ["Sí, tienen rastreo para patinetas (scooters)"],
-        "mustNot": ["Dar precio"]
+        "facts": [
+          "Sí, tienen rastreo para patinetas (scooters)"
+        ],
+        "mustNot": [
+          "Dar precio"
+        ]
       },
       "source": "Instrucciones (Servicios Principales: Patinetas/Scooters)"
     },
@@ -143,8 +187,12 @@
       "message": "¿Cuántos días le dura la batería al GPS de la bicicleta?",
       "expect": {
         "behavior": "dont_know",
-        "facts": ["No da una duración concreta; puede recomendar cargarlo 2 a 3 horas antes de cada recorrido o remitir a soporte/comercial"],
-        "mustNot": ["Dar un número de días u horas de duración de la batería"]
+        "facts": [
+          "No da una duración concreta; puede recomendar cargarlo 2 a 3 horas antes de cada recorrido o remitir a soporte/comercial"
+        ],
+        "mustNot": [
+          "Dar un número de días u horas de duración de la batería"
+        ]
       },
       "source": "Ningún documento da la duración; base-conocimiento §5 solo dice cargar 2–3 h antes de cada recorrido"
     },
@@ -154,8 +202,13 @@
       "message": "¿Tienen oficina en Medellín?",
       "expect": {
         "behavior": "dont_know",
-        "facts": ["Solo puede confirmar la oficina de Bogotá (Calle 65 #13-50, Oficina 504)"],
-        "mustNot": ["Afirmar que tienen oficina o sede en Medellín", "Inventar una dirección en Medellín"]
+        "facts": [
+          "Solo puede confirmar la oficina de Bogotá (Calle 65 #13-50, Oficina 504)"
+        ],
+        "mustNot": [
+          "Afirmar que tienen oficina o sede en Medellín",
+          "Inventar una dirección en Medellín"
+        ]
       },
       "source": "Instrucciones (Dirección de oficina: Bogotá); no hay otras sedes en las fuentes"
     },
@@ -165,7 +218,9 @@
       "message": "Voy a salir en bici a las 4 de la mañana, ¿debo hacer algo?",
       "expect": {
         "behavior": "answer",
-        "facts": ["Avisar antes a la central de Tribu GPS por la línea +57 322 271 0785 (recorridos antes de las 5 a.m. o después de las 9 p.m.)"]
+        "facts": [
+          "Avisar antes a la central de Tribu GPS por la línea +57 322 271 0785 (recorridos antes de las 5 a.m. o después de las 9 p.m.)"
+        ]
       },
       "source": "base-conocimiento §6 (Reporte de Rutas de Riesgo)"
     },
@@ -173,13 +228,21 @@
       "id": "seguimiento-carga-recorrido",
       "category": "seguimiento",
       "history": [
-        { "role": "user", "content": "¿Cuánto tengo que cargar el GPS la primera vez?" },
-        { "role": "model", "content": "La primera carga es de 2 a 3 horas antes de usarlo." }
+        {
+          "role": "user",
+          "content": "¿Cuánto tengo que cargar el GPS la primera vez?"
+        },
+        {
+          "role": "model",
+          "content": "La primera carga es de 2 a 3 horas antes de usarlo."
+        }
       ],
       "message": "¿Y antes de cada salida?",
       "expect": {
         "behavior": "answer",
-        "facts": ["También se recomienda cargarlo 2 a 3 horas antes de cada recorrido"]
+        "facts": [
+          "También se recomienda cargarlo 2 a 3 horas antes de cada recorrido"
+        ]
       },
       "source": "base-conocimiento §5 (Ciclo de Carga)"
     },
@@ -187,13 +250,22 @@
       "id": "seguimiento-robo-sin-celular",
       "category": "seguimiento",
       "history": [
-        { "role": "user", "content": "¿Qué hago si me roban la bici?" },
-        { "role": "model", "content": "Llama a Emergencias 321 359 8997 (24/7), no enfrentes a nadie y presiona el botón de Hurto o Pánico en la app." }
+        {
+          "role": "user",
+          "content": "¿Qué hago si me roban la bici?"
+        },
+        {
+          "role": "model",
+          "content": "Llama a Emergencias 321 359 8997 (24/7), no enfrentes a nadie y presiona el botón de Hurto o Pánico en la app."
+        }
       ],
       "message": "¿Y si también me roban el celular?",
       "expect": {
         "behavior": "answer",
-        "facts": ["Contactar a su acudiente desde otro celular para que entre a la plataforma con sus credenciales", "O usar la alerta por SMS (ALERTA + cédula)"]
+        "facts": [
+          "Contactar a su acudiente desde otro celular para que entre a la plataforma con sus credenciales",
+          "O usar la alerta por SMS (ALERTA + cédula)"
+        ]
       },
       "source": "base-conocimiento §7.2 paso 4"
     },
@@ -201,13 +273,21 @@
       "id": "seguimiento-lavado",
       "category": "seguimiento",
       "history": [
-        { "role": "user", "content": "¿El GPS de la bici aguanta la lluvia?" },
-        { "role": "model", "content": "Puedes rodar normal; solo ten cuidado con el agua a presión y con sumergirlo." }
+        {
+          "role": "user",
+          "content": "¿El GPS de la bici aguanta la lluvia?"
+        },
+        {
+          "role": "model",
+          "content": "Puedes rodar normal; solo ten cuidado con el agua a presión y con sumergirlo."
+        }
       ],
       "message": "¿Y si tengo que cruzar un río?",
       "expect": {
         "behavior": "answer",
-        "facts": ["No se debe sumergir la bicicleta con el GPS instalado (ríos o lagunas)"]
+        "facts": [
+          "No se debe sumergir la bicicleta con el GPS instalado (ríos o lagunas)"
+        ]
       },
       "source": "base-conocimiento §5 (Exposición Extrema al Agua)"
     },
@@ -217,10 +297,129 @@
       "message": "Quiero un GPS",
       "expect": {
         "behavior": "clarify",
-        "facts": ["Pregunta para qué vehículo o activo es / cuál es su necesidad antes de pedir datos de contacto"],
-        "mustNot": ["Pedir nombre, teléfono o correo en esta primera respuesta"]
+        "facts": [
+          "Pregunta para qué vehículo o activo es / cuál es su necesidad antes de pedir datos de contacto"
+        ],
+        "mustNot": [
+          "Pedir nombre, teléfono o correo en esta primera respuesta"
+        ]
       },
       "source": "Reglas del agente: 7. indagación antes de vender"
+    },
+    {
+      "id": "seguimiento-candado-no-llama",
+      "category": "seguimiento",
+      "history": [
+        {
+          "role": "user",
+          "content": "¿Qué es el candado virtual?"
+        },
+        {
+          "role": "model",
+          "content": "Es una función de la app que te avisa si tu vehículo se mueve de un punto."
+        }
+      ],
+      "message": "¿Y por qué no me llamó cuando moví la bici?",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "Pasa cuando ya no quedan llamadas disponibles en el plan (o ya se usaron)",
+          "Quitar el candado antes de cada movimiento intencional"
+        ]
+      },
+      "source": "FAQ 11"
+    },
+    {
+      "id": "seguimiento-puerto-carga",
+      "category": "seguimiento",
+      "history": [
+        {
+          "role": "user",
+          "content": "¿Cómo instalo el GPS en la bici?"
+        },
+        {
+          "role": "model",
+          "content": "Va debajo del sillín: las abrazaderas encajan en los rieles y se ajusta con los tornillos y la llave de seguridad."
+        }
+      ],
+      "message": "¿Y dónde se carga?",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "Tiene un puerto de carga magnético de forma circular",
+          "Se carga con el cable de carga magnético (carga inicial de 2 a 3 horas)"
+        ]
+      },
+      "source": "base-conocimiento §1 y §2 paso 4"
+    },
+    {
+      "id": "seguimiento-acoso",
+      "category": "seguimiento",
+      "history": [
+        {
+          "role": "user",
+          "content": "¿Qué hago si tengo un accidente en la bici?"
+        },
+        {
+          "role": "model",
+          "content": "Mantén la calma, ubícate en un lugar seguro y presiona Ambulancia o Accidente en la app."
+        }
+      ],
+      "message": "¿Y si es un caso de acoso?",
+      "expect": {
+        "behavior": "emergency",
+        "facts": [
+          "Simular normalidad para no alertar al agresor",
+          "Ir a un establecimiento o lugar concurrido",
+          "Notificar de forma discreta desde la app"
+        ]
+      },
+      "source": "base-conocimiento §7.4 e Instrucciones (Regla de Oro)"
+    },
+    {
+      "id": "seguimiento-bici-actual",
+      "category": "seguimiento",
+      "history": [
+        {
+          "role": "user",
+          "content": "¿Puedo usar el mismo GPS en dos bicicletas?"
+        },
+        {
+          "role": "model",
+          "content": "¡Sí! Solo necesitas un soporte adicional por bicicleta."
+        }
+      ],
+      "message": "¿Y cómo sabe la app en cuál lo tengo?",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "En la app se elige/actualiza con cuál bicicleta se sale a rodar ese día (bicicleta actual)"
+        ]
+      },
+      "source": "FAQ 5 y base-conocimiento §5"
+    },
+    {
+      "id": "seguimiento-colores-mapa",
+      "category": "seguimiento",
+      "history": [
+        {
+          "role": "user",
+          "content": "¿Cómo veo mi bici en el mapa del link de seguimiento?"
+        },
+        {
+          "role": "model",
+          "content": "Al abrir el link ves el mapa con la ubicación en tiempo real; activa el GPS de tu celular."
+        }
+      ],
+      "message": "¿Y qué significan los colores?",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "Cuadrado naranja: la ubicación del celular del usuario",
+          "Círculo azul: la ubicación del vehículo (GPS)"
+        ]
+      },
+      "source": "base-conocimiento §4 (Leyenda Visual del Mapa)"
     }
   ]
 }
