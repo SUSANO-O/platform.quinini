@@ -19,7 +19,7 @@ import {
   LANDING_UNLOCK_COOKIE,
   landingUnlockMatchesUser,
 } from '@/lib/auth';
-import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
+import { checkRateLimit, checkRateLimitAsync, getClientIp } from '@/lib/rate-limit';
 import { sendVerificationEmail } from '@/lib/email';
 import { recordAudit } from '@/lib/audit-log';
 import { resolveEnvRegistrationCode } from '@/lib/registration-codes-env';
@@ -259,8 +259,9 @@ export async function POST(req: NextRequest) {
         return noCache(NextResponse.json({ error: 'Verificación de seguridad fallida. Recarga e intenta de nuevo.' }, { status: 400 }));
       }
 
-      // Rate limit: 10 attempts per 15 minutes per IP
-      const rl = checkRateLimit('login', ip, 10, 15 * 60 * 1000);
+      // Rate limit: 10 attempts per 15 minutes per IP. En Redis (compartido entre instancias): en
+      // memoria cada instancia contaba aparte y un ataque repartido tenía 10 intentos por instancia.
+      const rl = await checkRateLimitAsync('login', ip, 10, 15 * 60 * 1000);
       if (!rl.success) {
         return noCache(NextResponse.json(
           { error: `Demasiados intentos. Intenta en ${rl.retryAfter}s.` },
@@ -269,7 +270,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Also rate limit by email to prevent targeted attacks
-      const emailRl = checkRateLimit('login-email', normalizedEmail, 10, 15 * 60 * 1000);
+      const emailRl = await checkRateLimitAsync('login-email', normalizedEmail, 10, 15 * 60 * 1000);
       if (!emailRl.success) {
         return noCache(NextResponse.json(
           { error: `Demasiados intentos para esta cuenta. Intenta en ${emailRl.retryAfter}s.` },
