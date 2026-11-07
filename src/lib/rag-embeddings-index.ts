@@ -188,10 +188,18 @@ export function buildLexicalRagContextFromSources(
  * contexto es peor respuesta, no un fallo del chat.
  * Si el índice está vacío y hay `sourcesFallback`, lee el texto guardado.
  */
+/** Fragmentos que se piden al hub: los mismos que usa el chat con herramientas del backend. */
+export const RAG_TOP_K = 8;
+
+/** Turnos de conversación que se envían al hub para entender preguntas de seguimiento. */
+export const RAG_HISTORY_TURNS = 6;
+
 export async function retrieveRagContextBlock(params: {
   agentHubId: string;
   query: string;
   sourcesFallback?: RagSourceLike[] | null;
+  /** Conversación previa: el hub reescribe las preguntas de seguimiento antes de buscar (Fase 2). */
+  history?: Array<{ role: string; content: string }>;
 }): Promise<string> {
   const agentId = params.agentHubId.trim();
   const query = params.query.trim();
@@ -205,7 +213,15 @@ export async function retrieveRagContextBlock(params: {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...hubUploadHeaders() },
-        body: JSON.stringify({ agentId, query, topK: 4, threshold: 0.35 }),
+        body: JSON.stringify({
+          agentId,
+          query,
+          // Igual que el chat con herramientas del backend (decisión 2026-08-26 en rag-service): con 4,
+          // las secciones vecinas dejaban fuera el fragmento exacto y el agente rellenaba.
+          topK: RAG_TOP_K,
+          threshold: 0.35,
+          ...(params.history?.length ? { history: params.history.slice(-RAG_HISTORY_TURNS) } : {}),
+        }),
       },
       RECALL_TIMEOUT_MS,
     );

@@ -367,6 +367,130 @@
         ]
       },
       "source": "Mapa de la app del widget + Leer la pantalla; Instrucciones: nunca el nombre del archivo"
+    },
+    {
+      "id": "seguimiento-link-duracion",
+      "category": "seguimiento",
+      "history": [
+        {
+          "role": "user",
+          "content": "Cuenta personal: ¿cómo comparto la ubicación?"
+        },
+        {
+          "role": "model",
+          "content": "Ve a **☰ → Mi Usuario → Compartir Ubicación** y toca **Crear nuevo link**."
+        }
+      ],
+      "message": "¿Y cuánto tiempo dura el link?",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "Se elige la duración: 30 min, 1 hora, 3 horas, 1 día, 1 mes, 3 meses, 1 año o Indefinido",
+          "Recomienda no usar Indefinido salvo que sea necesario"
+        ]
+      },
+      "source": "Documento A.4"
+    },
+    {
+      "id": "seguimiento-informe-no-llega",
+      "category": "seguimiento",
+      "pagePath": "/views/posiciones.php",
+      "pageTitle": "Tribu GPS",
+      "history": [
+        {
+          "role": "user",
+          "content": "Soy empresa, ¿cómo saco un informe de rutas?"
+        },
+        {
+          "role": "model",
+          "content": "Ve a **Reportes → Informes**, elige la empresa, las fechas y el correo destino."
+        }
+      ],
+      "message": "¿Y si no me llega?",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "Esperar unos minutos (los grandes tardan)",
+          "Revisar spam",
+          "Confirmar el correo destino",
+          "Si no llega en 30 minutos, soporte humano"
+        ]
+      },
+      "source": "Documento C (No me llega el informe) y B.5"
+    },
+    {
+      "id": "seguimiento-peso-geocerca",
+      "category": "seguimiento",
+      "pagePath": "/views/posiciones.php",
+      "pageTitle": "Tribu GPS",
+      "history": [
+        {
+          "role": "user",
+          "content": "Soy empresa, ¿cómo creo una geocerca?"
+        },
+        {
+          "role": "model",
+          "content": "Ve a **Vigilancia → Geocercas**, toca **Crear**, pon el nombre y el **Peso de riesgo para score**, dibuja la zona y guarda."
+        }
+      ],
+      "message": "¿Y lo del peso para qué es?",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "Indica qué tan riesgosa es esa zona (peso de riesgo para el score)"
+        ]
+      },
+      "source": "Documento B.2 paso 3"
+    },
+    {
+      "id": "seguimiento-buscar-alerta",
+      "category": "seguimiento",
+      "pagePath": "/views/posiciones.php",
+      "pageTitle": "Tribu GPS",
+      "history": [
+        {
+          "role": "user",
+          "content": "Soy empresa, ¿dónde veo las alertas de la flota?"
+        },
+        {
+          "role": "model",
+          "content": "En **Vigilancia → Notificaciones** ves las alertas de la flota."
+        }
+      ],
+      "message": "¿Y cómo busco las de una placa?",
+      "expect": {
+        "behavior": "answer",
+        "facts": [
+          "Usar Buscar por columna y Término de búsqueda (p. ej. la placa)",
+          "Se puede filtrar por Rango de fechas"
+        ]
+      },
+      "source": "Documento B.4"
+    },
+    {
+      "id": "seguimiento-apagado-error",
+      "category": "seguimiento",
+      "history": [
+        {
+          "role": "user",
+          "content": "Cuenta personal, ¿cómo apago mi carro a distancia?"
+        },
+        {
+          "role": "model",
+          "content": "En **☰ → Mi Usuario → Manejador mi Dispositivo** está el botón **Apagar** (úsalo con el vehículo detenido)."
+        }
+      ],
+      "message": "¿Y si me sale error?",
+      "expect": {
+        "behavior": "escalate",
+        "facts": [
+          "Escalar a soporte humano de inmediato (canales de soporte)"
+        ],
+        "mustNot": [
+          "Sugerir reintentar el comando muchas veces"
+        ]
+      },
+      "source": "Documento A.3 (Apagado del vehículo)"
     }
   ]
 }

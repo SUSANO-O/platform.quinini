@@ -328,6 +328,8 @@ export async function tryServeWidgetChatViaDirectInference(params: {
         agentHubId: hubIdForRag,
         query: message,
         sourcesFallback: Array.isArray(ca.ragSources) ? ca.ragSources : undefined,
+        // Fase 2: el hub reescribe las preguntas de seguimiento con la conversación antes de buscar.
+        history: history ?? [],
       }).catch(() => '')
     : Promise.resolve('');
 
