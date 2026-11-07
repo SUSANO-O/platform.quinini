@@ -27,6 +27,7 @@ import {
   shouldRecallConversationMemory,
 } from '@/lib/widget-conversation-recall';
 import { retrieveRagContextBlock } from '@/lib/rag-embeddings-index';
+import { hardenRetrievedContext } from '@/lib/security/rag-content-guard';
 import { widgetChatStatusForUserMessage } from '@/lib/widget-chat-status';
 import { currentViewBlock } from '@/lib/widget-page-nav';
 import { appMapContextBlock, type AppMapEntry } from '@/lib/widget-app-map';
@@ -434,9 +435,13 @@ export async function tryServeWidgetChatViaDirectInference(params: {
     params.onStatus?.('rag', widgetChatStatusForUserMessage(message, 'rag'));
     const ragBlock = await ragPromise;
     if (ragBlock) {
-      contextBlock = mergeContextBlocks(contextBlock, ragBlock);
+      // Blindaje anti-inyección indirecta: el contenido recuperado es DATOS, nunca instrucciones.
+      // Idempotente: si el backend ya lo blindó, no lo re-envuelve.
+      const hardened = hardenRetrievedContext(ragBlock);
+      contextBlock = mergeContextBlocks(contextBlock, hardened.block);
       logWidgetFlow('📚', 'infer:rag', 'contexto de documentos recuperado', {
-        chars: ragBlock.length,
+        chars: hardened.block.length,
+        inyeccionesNeutralizadas: hardened.neutralized,
       });
     }
   }
