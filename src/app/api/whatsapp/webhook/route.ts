@@ -11,6 +11,7 @@
  *        chat del agente (MCP), y envía la respuesta de vuelta por WhatsApp.
  */
 
+import { signRequest, SIGNATURE_HEADER } from '@/lib/hub-signature';
 import { NextRequest, after } from 'next/server';
 import { connectDB } from '@/lib/db/connection';
 import { ClientAgent } from '@/lib/db/models';
@@ -531,9 +532,16 @@ async function generateAgentReply(params: {
     try {
       const hubBase = getAgentflowhubBaseUrl();
       const hubUrl = `${hubBase.replace(/\/$/, '')}/api/widget/chat`;
+      // El hub exige la firma de la landing (o un token de widget): WhatsApp no tiene token.
+      const hubSecret = process.env.HUB_TO_LANDING_SECRET?.trim() ?? '';
+      const hubHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (hubSecret) {
+        hubHeaders['X-Landing-Wt-Valid'] = '1';
+        hubHeaders[SIGNATURE_HEADER] = signRequest(params.chatBody, hubSecret);
+      }
       const hubRes = await fetch(hubUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: hubHeaders,
         body: params.chatBody,
         signal: AbortSignal.timeout(60_000),
       });

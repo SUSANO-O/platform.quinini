@@ -267,6 +267,8 @@ export async function POST(req: NextRequest) {
     plan: string;
   } | null = null;
 
+  let widgetAuthError = false;
+
   // Validate wt_ token and quota
   if (widgetToken.startsWith('wt_') && parsedAgentId) {
     try {
@@ -493,9 +495,25 @@ export async function POST(req: NextRequest) {
         }
       }
       latencyTrace.mark('auth');
-    } catch {
-      /* fail-open */
+    } catch (authErr) {
+      widgetAuthError = true;
+      console.error('[widget/chat/stream] validación del widget falló:', authErr);
     }
+  }
+
+  // Sin widget validado no hay chat. Antes, sin token o con un token inventado (`wt_…`), la
+  // petición seguía hasta el hub, y la landing le firmaba "token válido": cualquiera podía usar el
+  // agente de cualquier cliente (con sus herramientas, sin cuota ni límite de dominio).
+  if (!faqTrackOwnerId) {
+    finalizeWidgetChatTrace(latencyTrace, { ok: false, errorCode: widgetAuthError ? 'WIDGET_AUTH_UNAVAILABLE' : 'WIDGET_TOKEN_INVALID' });
+    return new Response(
+      sseEvent(
+        widgetAuthError
+          ? { type: 'error', message: 'No pudimos verificar el widget. Intentá de nuevo en un momento.', code: 'WIDGET_AUTH_UNAVAILABLE' }
+          : { type: 'error', message: 'Token de widget inválido.', code: 'WIDGET_TOKEN_INVALID' },
+      ),
+      { status: widgetAuthError ? 503 : 401, headers: { 'Content-Type': 'text/event-stream', ...corsHeaders(origin) } },
+    );
   }
 
   // ── Guard modo humano (defensa server-side, también en stream) ─────────────
@@ -1133,7 +1151,8 @@ export async function POST(req: NextRequest) {
           parsedAgentIdLocal = hubAgentResolve.hubAgentId;
         }
 
-        if (hubSecret && widgetToken.startsWith('wt_')) {
+        // Solo con el widget validado arriba (antes bastaba con que el token empezara por `wt_`).
+        if (hubSecret && faqTrackOwnerId) {
           headers['X-Landing-Wt-Valid'] = '1';
           headers[SIGNATURE_HEADER] = signRequest(hubBody, hubSecret);
           headers['x-hub-sync-secret'] = hubSecret;
