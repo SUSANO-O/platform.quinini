@@ -30,6 +30,16 @@ const CLOCK_SKEW_SEC = 300;
 const MAX_CLAIMS = 10;
 const CLAIM_KEY_RE = /^[A-Za-z][A-Za-z0-9_]{0,31}$/;
 const MAX_CLAIM_VALUE_LEN = 128;
+/**
+ * Claims secretas: credenciales del visitante (p. ej. `tribu_token`, el JWT de sesión que el hub usa como
+ * Bearer hacia el MCP de la empresa). Pueden ser largas; el hub nunca se las muestra al modelo.
+ * Misma regla que `isSecretClaim` en matias-backend.
+ */
+const SECRET_CLAIM_RE = /(^|_)(token|jwt|secret)$/i;
+const MAX_SECRET_CLAIM_VALUE_LEN = 4096;
+export function isSecretClaim(name: string): boolean {
+  return SECRET_CLAIM_RE.test(name);
+}
 
 /** Igual que PHP `rawurlencode` (RFC 3986: solo A-Z a-z 0-9 - _ . ~ sin codificar). */
 export function rawUrlEncode(value: string): string {
@@ -71,7 +81,8 @@ export function verifyWidgetIdentity(
   const clean: Record<string, string> = {};
   for (const [k, v] of entries) {
     if (!CLAIM_KEY_RE.test(k)) return { ok: false, reason: 'claims' };
-    if (typeof v !== 'string' || !v.trim() || v.length > MAX_CLAIM_VALUE_LEN) return { ok: false, reason: 'claims' };
+    const maxLen = isSecretClaim(k) ? MAX_SECRET_CLAIM_VALUE_LEN : MAX_CLAIM_VALUE_LEN;
+    if (typeof v !== 'string' || !v.trim() || v.length > maxLen) return { ok: false, reason: 'claims' };
     clean[k] = v;
   }
 
