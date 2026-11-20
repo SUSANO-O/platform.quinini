@@ -9,6 +9,8 @@
  */
 
 import { useState, useCallback } from 'react';
+import { MySqlPolicyEditor } from '@/components/mcp/mysql-policy-editor';
+import type { RowError, SchemaTable } from '@/lib/mcp/mysql-policy-editor';
 
 export type EditableMcpConnection = {
   connectionId: string;
@@ -47,8 +49,27 @@ export function McpConnectionEditModal({ connection, landingAgentId, onClose, on
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const [policyErrors, setPolicyErrors] = useState<RowError[]>([]);
+  const hasPolicyField = connection.credentialFields.some((f) => f.key === 'accessPolicy');
+  const loadSchema = useCallback(async (): Promise<SchemaTable[]> => {
+    const r = await fetch(
+      `/api/mcp/connections/${encodeURIComponent(connection.connectionId)}/mysql-schema?landingAgentId=${encodeURIComponent(landingAgentId)}`,
+      { method: 'POST', credentials: 'include' },
+    );
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j?.error?.message ?? j?.error ?? 'No se pudo leer la base.');
+    return ((j?.data ?? j)?.tables ?? []) as SchemaTable[];
+  }, [connection.connectionId, landingAgentId]);
+  const onPolicyChange = useCallback((json: string, errors: RowError[]) => {
+    setCreds((c) => ({ ...c, accessPolicy: json }));
+    setPolicyErrors(errors);
+  }, []);
 
   const save = useCallback(async () => {
+    if (policyErrors.length) {
+      setErr('Corrige los errores de la política antes de guardar.');
+      return;
+    }
     const changed = connection.credentialFields.some((f) => String(creds[f.key] ?? '').trim());
     if (!changed) {
       setErr('Escribe al menos un campo para actualizar (los vacíos se dejan como están).');
@@ -83,28 +104,26 @@ export function McpConnectionEditModal({ connection, landingAgentId, onClose, on
       setErr('Error de red al guardar.');
       setSaving(false);
     }
-  }, [connection, creds, landingAgentId, onSaved, onClose]);
+  }, [connection, creds, landingAgentId, onSaved, onClose, policyErrors]);
 
   return (
     <div style={overlay} onClick={() => !saving && onClose()}>
-      <div style={modal} onClick={(e) => e.stopPropagation()}>
+      <div style={{ ...modal, maxWidth: hasPolicyField ? 760 : 440, maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
         <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Editar integración</h2>
         <p style={{ fontSize: 13, color: 'var(--muted-foreground)', margin: '4px 0 16px' }}>
           {connection.serverName} — corrige las credenciales y guarda; se reintenta la conexión automáticamente.
         </p>
 
         {connection.credentialFields.map((f) => (
-          <label key={f.key} style={{ display: 'block', marginBottom: 12 }}>
+          <FieldWrap key={f.key} isPolicy={f.key === 'accessPolicy'}>
             <span style={lbl}>
               {f.label}
             </span>
             {f.key === 'accessPolicy' ? (
-              <textarea
-                value={creds[f.key] ?? ''}
-                onChange={(e) => setCreds((c) => ({ ...c, [f.key]: e.target.value }))}
-                placeholder="Vacío = deja la política actual. Pega el JSON completo para reemplazarla."
-                rows={5}
-                style={{ ...input, fontFamily: 'monospace', resize: 'vertical' }}
+              <MySqlPolicyEditor
+                initialJson={creds.accessPolicy ?? ''}
+                onChange={onPolicyChange}
+                loadSchema={connection.integrationKey === 'mysql' ? loadSchema : undefined}
               />
             ) : (
               <input
@@ -120,7 +139,7 @@ export function McpConnectionEditModal({ connection, landingAgentId, onClose, on
                 style={input}
               />
             )}
-          </label>
+          </FieldWrap>
         ))}
         <p style={{ fontSize: 12, color: 'var(--muted-foreground)', margin: '0 0 4px' }}>
           Solo se actualizan los campos que escribas; el resto queda igual.
@@ -130,13 +149,19 @@ export function McpConnectionEditModal({ connection, landingAgentId, onClose, on
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>
           <button type="button" onClick={onClose} disabled={saving} style={btnGhost}>Cancelar</button>
-          <button type="button" onClick={save} disabled={saving} style={btnPrimary}>
+          <button type="button" onClick={save} disabled={saving || policyErrors.length > 0} style={{ ...btnPrimary, opacity: policyErrors.length ? 0.5 : 1 }}>
             {saving ? 'Guardando…' : 'Guardar y reintentar'}
           </button>
         </div>
       </div>
     </div>
   );
+}
+
+/** Campo simple → <label> (accesible); la política (editor con muchos controles) → <div>. */
+function FieldWrap({ isPolicy, children }: { isPolicy: boolean; children: React.ReactNode }) {
+  const style: React.CSSProperties = { display: 'block', marginBottom: 12 };
+  return isPolicy ? <div style={style}>{children}</div> : <label style={style}>{children}</label>;
 }
 
 const overlay: React.CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 80, padding: 16 };

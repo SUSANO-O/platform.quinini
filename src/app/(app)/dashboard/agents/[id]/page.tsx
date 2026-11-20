@@ -71,6 +71,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { McpLandingConnectForm } from '@/components/mcp/mcp-landing-connect-form';
 import { MySqlTablesPanel, type MySqlCatalogForUi } from '@/components/mcp/mysql-tables-panel';
+import { MySqlProbe } from '@/components/mcp/mysql-probe';
 import { McpConnectionEditModal } from '@/components/mcp/mcp-connection-edit-modal';
 import { AgentMcpOpenFromQuery } from '@/components/mcp/agent-mcp-open-from-query';
 import { AgentHubspotOauthReturn } from '@/components/mcp/agent-hubspot-oauth-return';
@@ -2910,6 +2911,9 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         {!isCollapsed && srv.integrationKey === 'mysql' && (
                           <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
                             <MySqlTablesPanel catalog={srv.mysqlCatalog} />
+                            {!readOnly && srv.mysqlCatalog?.ok && (
+                              <MySqlProbe connectionId={srv.connectionId} landingAgentId={id} />
+                            )}
                           </div>
                         )}
 

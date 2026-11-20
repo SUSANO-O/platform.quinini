@@ -3799,6 +3799,33 @@
       return row;
     }
 
+    /**
+     * Quita un mensaje del bot con su fila completa (avatar, copiar, hora). `addMessage` devuelve solo
+     * el globo: borrar solo el globo dejaba una fila vacía con hora (burbuja "fantasma" del stream).
+     */
+    function removeBotMessage(el) {
+      if (!el) return;
+      var row = el.closest ? el.closest('.afhub-msg-row') : null;
+      try { (row || el).remove(); } catch (_e) { /* noop */ }
+    }
+
+    /**
+     * Separa eventos SSE completos ("data: {...}" + línea en blanco) del buffer. Con flush=true (al
+     * cerrarse el stream) también procesa el último bloque aunque no traiga la línea en blanco final:
+     * antes ese bloque se descartaba y podía perderse el "done".
+     */
+    function takeSseEvents(buf, flush) {
+      var parts = String(buf || '').split('\n\n');
+      var rest = flush ? '' : (parts.pop() || '');
+      var events = [];
+      for (var i = 0; i < parts.length; i++) {
+        var line = parts[i].trim();
+        if (line.indexOf('data:') !== 0) continue;
+        try { events.push(JSON.parse(line.slice(5).trim())); } catch (_e) { /* bloque incompleto */ }
+      }
+      return { events: events, rest: rest };
+    }
+
     // ── Quick-replies: el agente puede terminar un mensaje con [opciones: A | B] o [sí/no] y el
     //    widget pinta botones tocables. Aditivo: sin marcador, no cambia nada. ──
     function parseQuickReplies(raw) {
@@ -6743,30 +6770,20 @@
           var TICKET_MARKER = '[[OPEN_TICKET_FORM]]';
           var streamMaybeMarker = true; // mientras streamReply sea prefijo del marcador, no renderizamos aún
 
-          while (!streamErrorEvt) {
-            var chunk = await streamReader.read();
-            if (chunk.done) break;
-            streamBuf += streamDecoder.decode(chunk.value, { stream: true });
-            var lines = streamBuf.split('\n\n');
-            streamBuf = lines.pop() || '';
-            for (var li = 0; li < lines.length; li++) {
-              var line = lines[li].trim();
-              if (!line.startsWith('data:')) continue;
-              var rawJson = line.slice(5).trim();
-              var evt;
-              try { evt = JSON.parse(rawJson); } catch { continue; }
+          var handleStreamEvt = function (evt) {
+              if (!evt || typeof evt !== 'object') return;
               if (evt.type === 'status' && typeof evt.message === 'string') {
                 var stPhase = typeof evt.phase === 'string' ? evt.phase : '';
                 if (!document.getElementById(typingId)) showTyping(evt.message, stPhase);
                 else updateTypingStatus(evt.message, stPhase);
                 notify('onStatus', { phase: stPhase, message: evt.message });
-                continue;
+                return;
               }
               if (evt.type === 'token') {
                 streamReply += typeof evt.text === 'string' ? evt.text : '';
                 if (streamMaybeMarker) {
                   if (TICKET_MARKER.indexOf(streamReply.trim()) === 0 && streamReply.trim().length > 0) {
-                    continue; // sigue pareciendo el marcador — no renderizar todavía
+                    return; // sigue pareciendo el marcador — no renderizar todavía
                   }
                   streamMaybeMarker = false; // divergió: es texto normal, mostramos todo lo acumulado
                 }
@@ -6783,7 +6800,7 @@
                 streamReply = '';
                 streamMaybeMarker = true;
                 if (streamBubble) {
-                  try { streamBubble.remove(); } catch (_rmErr) { /* noop */ }
+                  removeBotMessage(streamBubble);
                   streamBubble = null;
                 }
                 if (!document.getElementById(typingId)) showTyping();
@@ -6804,7 +6821,38 @@
                 addMessage('bot', errMsg, streamErrorOpts);
                 notify('onError', { message: errMsg, code: evt.code });
               }
+          };
+
+          while (!streamErrorEvt) {
+            var chunk = await streamReader.read();
+            if (chunk.done) break;
+            streamBuf += streamDecoder.decode(chunk.value, { stream: true });
+            var taken = takeSseEvents(streamBuf, false);
+            streamBuf = taken.rest;
+            for (var li = 0; li < taken.events.length; li++) handleStreamEvt(taken.events[li]);
+          }
+          // Último bloque sin línea en blanco final (p. ej. el "done" pegado al cierre).
+          if (!streamErrorEvt) {
+            streamBuf += streamDecoder.decode();
+            if (streamBuf.trim()) {
+              var tail = takeSseEvents(streamBuf, true);
+              for (var ti = 0; ti < tail.events.length; ti++) handleStreamEvt(tail.events[ti]);
             }
+          }
+
+          // El stream se cerró sin "done" ni "error" (conexión cortada a mitad). El servidor suele
+          // terminar y guardar la respuesta igual: se recupera de ahí en vez de dejar una burbuja
+          // vacía y el "Escribiendo…" pegado.
+          if (!streamDoneEvt && !streamErrorEvt) {
+            log(cfg, 'warn', 'Stream sin "done": recuperando la respuesta guardada', { partialLen: streamReply.length });
+            if (streamBubble) {
+              removeBotMessage(streamBubble);
+              streamBubble = null;
+            }
+            if (!cfg.token) throw new Error('stream_ended_without_done');
+            newChatBtn.disabled = false;
+            recoverPendingReply(readPendingTurn() || { state: 'inflight', text: text, at: Date.now() - 60000 });
+            return;
           }
 
           if (streamDoneEvt) {
@@ -6841,7 +6889,7 @@
             // burbuja (por tokens del marcador ya pintados en pantalla), se
             // saca en vez de dejarla vacía.
             if (streamBubble && !finalReply) {
-              try { streamBubble.remove(); } catch (_e) { /* noop */ }
+              removeBotMessage(streamBubble);
               streamBubble = null;
             }
             if (streamBubble) {
