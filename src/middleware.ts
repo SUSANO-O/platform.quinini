@@ -9,6 +9,12 @@ const LANDING_PATHS = new Set(['/', '/es', '/en']);
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Servicio "solo landing": no sirve la app. /dashboard y /admin se van a la plataforma.
+  if (process.env.LANDING_ONLY === '1' && (pathname.startsWith('/dashboard') || pathname.startsWith('/admin'))) {
+    const appBase = (process.env.APP_PUBLIC_URL || 'https://app.botiva.space').replace(/\/$/, '');
+    return NextResponse.redirect(`${appBase}${pathname}${request.nextUrl.search}`);
+  }
+
   // Auth protection — runs before i18n
   if (pathname.startsWith('/dashboard') || pathname.startsWith('/admin')) {
     const token = request.cookies.get('afhub_session')?.value;

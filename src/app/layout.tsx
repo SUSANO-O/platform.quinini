@@ -4,6 +4,7 @@ import { AuthProvider } from '@/hooks/use-auth';
 import { AppToasterLoader } from '@/components/ui/app-toaster-loader';
 import { LandingWidgetScript } from '@/components/landing/landing-widget-script';
 import { CardProTracker } from '@/components/landing/card-pro-tracker';
+import ChunkErrorReload from '@/components/chunk-error-reload';
 import { MuiProvider } from '@/providers/mui-provider';
 import { BRAND_FAVICON_SRC, BRAND_LOGO_PNG_SRC, BRAND_NAME } from '@/lib/brand';
 import { appFontVariables } from '@/lib/fonts';
@@ -74,6 +75,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <MuiProvider>
           <AuthProvider>
+            <ChunkErrorReload />
             {children}
             <CardProTracker />
             <LandingWidgetScript />

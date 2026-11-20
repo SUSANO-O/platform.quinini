@@ -1303,3 +1303,40 @@ AgentAuditSchema.index({ userId: 1, createdAt: -1 });
 
 export const AgentAudit =
   mongoose.models.AgentAudit || mongoose.model('AgentAudit', AgentAuditSchema);
+
+// ── LEADS ─────────────────────────────────────────────────────────────────────
+/**
+ * Lead captado por el onboarding anónimo (/crear). Cada quiz completado genera un
+ * lead con los datos del negocio, el agente que se le armó y un estado de seguimiento
+ * comercial. No requiere cuenta: es la entrada del embudo que cierra por WhatsApp.
+ */
+const LeadSchema = new Schema({
+  source:       { type: String, default: 'onboarding-quiz' },
+  status:       { type: String, enum: ['new', 'contacted', 'qualified', 'converted', 'discarded'], default: 'new' },
+  // Datos del negocio (respuestas del quiz)
+  businessName: { type: String, default: '' },
+  businessType: { type: String, default: '' },
+  goal:         { type: String, default: '' },
+  tone:         { type: String, default: '' },
+  language:     { type: String, default: '' },
+  collectFields:{ type: [String], default: [] },
+  website:      { type: String, default: '' },
+  /** Número de contacto que dejó (WhatsApp del negocio). */
+  whatsapp:     { type: String, default: '' },
+  /** Snapshot del agente generado para el lead. */
+  agentName:    { type: String, default: '' },
+  answers:      { type: Schema.Types.Mixed, default: {} },
+  // Seguimiento comercial
+  notes:        [{ text: { type: String, default: '' }, at: { type: Date, default: Date.now } }],
+  contactedAt:  { type: Date, default: null },
+  convertedAt:  { type: Date, default: null },
+  /** Metadatos técnicos de la captura. */
+  userAgent:    { type: String, default: '' },
+}, { timestamps: true, collection: 'leads' });
+
+LeadSchema.index({ status: 1, createdAt: -1 });
+LeadSchema.index({ whatsapp: 1 });
+LeadSchema.index({ createdAt: -1 });
+
+export const Lead =
+  mongoose.models.Lead || mongoose.model('Lead', LeadSchema);

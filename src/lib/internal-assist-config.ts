@@ -113,9 +113,26 @@ export function resolveInternalAssistBoot(
   };
 }
 
+/**
+ * Devuelve el origin público si es válido, o '' si es interno/inservible.
+ * En Cloud Run el host del servidor puede resolver a `0.0.0.0:8080` (bind interno del contenedor);
+ * esa URL rompe en el navegador y la CSP la bloquea. En ese caso usamos ruta relativa (same-origin).
+ */
+function publicOriginOrEmpty(origin: string): string {
+  try {
+    const u = new URL(origin);
+    if (/^(0\.0\.0\.0|localhost|127\.0\.0\.1|\[?::1\]?)$/i.test(u.hostname)) return '';
+    return u.origin;
+  } catch {
+    return '';
+  }
+}
+
 export function resolveAssistScriptUrl(origin: string): string {
   const override = process.env.NEXT_PUBLIC_ASSIST_SCRIPT_URL?.trim();
-  const base = override || `${origin.replace(/\/$/, '')}/assist.js`;
+  const clean = publicOriginOrEmpty(origin);
+  // Origin interno/malo → ruta relativa `/assist.js` (same-origin, la CSP lo permite con 'self').
+  const base = override || (clean ? `${clean}/assist.js` : '/assist.js');
   const sep = base.includes('?') ? '&' : '?';
   return `${base}${sep}v=${WIDGET_SDK_VERSION}`;
 }

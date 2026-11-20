@@ -10,6 +10,7 @@
  *   3. Landing agent _id directly (fallback)
  */
 
+import type { MySqlCatalogForUi } from '@/components/mcp/mysql-tables-panel';
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { getAibackhubBaseUrl, hubCreateHeaders } from '@/lib/aibackhub-sync';
@@ -44,6 +45,8 @@ interface McpConnection {
   syncStatus: 'pending' | 'ok' | 'error';
   lastSyncAt?: string;
   lastSyncError?: string;
+  /** Catálogo MySQL ya interpretado por el hub (tablas, descripción, filtros). */
+  mysqlCatalog?: MySqlCatalogForUi;
   /** IDs de tools descubiertas durante la sincronización MCP. */
   toolsSnapshot?: string[];
   /** En hub vienen enmascaradas (no son los valores reales). */
@@ -82,6 +85,8 @@ export interface McpServerGroup {
   tools: { id: string; name: string; description: string }[];
   credentialFields: McpCatalogField[];
   credentialsMask: Record<string, string>;
+  /** Solo MySQL: lo que el agente puede leer (para la vista de solo lectura). */
+  mysqlCatalog?: MySqlCatalogForUi;
   /** ISO: última comprobación hub ↔ servidor MCP remoto. */
   lastSyncAt?: string;
   lastSyncError?: string;
@@ -276,6 +281,7 @@ export async function GET(req: NextRequest) {
       credentialsMask: showCredentials && conn.credentials && typeof conn.credentials === 'object' ? conn.credentials : {},
       lastSyncAt: typeof conn.lastSyncAt === 'string' ? conn.lastSyncAt : undefined,
       lastSyncError: typeof conn.lastSyncError === 'string' ? conn.lastSyncError : undefined,
+      ...(conn.mysqlCatalog ? { mysqlCatalog: conn.mysqlCatalog } : {}),
     });
   }
 

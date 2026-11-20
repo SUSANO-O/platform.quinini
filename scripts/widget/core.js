@@ -239,12 +239,18 @@
   }
 
   var ASSIST_NAV_BLOCK_RE = /```assist-nav\s*\n([\s\S]*?)\n```/i;
+  // Limpieza tolerante: quita el bloque ```assist-nav aunque el modelo lo deje SIN CERRAR o truncado
+  // (hasta el próximo cierre ``` o fin de texto), y también la variante sin fence (assist-nav + JSON).
+  var ASSIST_NAV_STRIP_RE = /```+[ \t]*assist-nav\b[\s\S]*?(?:```+|$)/gi;
+  var ASSIST_NAV_BARE_RE = /(?:^|\n)[ \t]*assist-nav[ \t]*\n?\s*\{[\s\S]*?\}\s*/gi;
   var ASSIST_NAV_XML_RE = /<assist-nav[\w-]*[\s\S]*?(?:\/>|<\/assist-nav[\w-]*>)/gi;
   var ASSIST_NAV_XML_TAG_RE = /<\/?assist-nav[\w-]*(?:\s[^>]*)?\/?>/gi;
 
   function stripAssistNavBlock(raw) {
     return String(raw || '')
       .replace(ASSIST_NAV_BLOCK_RE, '')
+      .replace(ASSIST_NAV_STRIP_RE, '')
+      .replace(ASSIST_NAV_BARE_RE, '')
       .replace(ASSIST_NAV_XML_RE, '')
       .replace(ASSIST_NAV_XML_TAG_RE, '')
       .replace(/\s+$/, '')
@@ -2957,11 +2963,12 @@
         if (dockLeft) {
           chat.style.left = '0';
           chat.style.right = 'auto';
-          chat.style.borderRadius = '0 ' + br + 'px ' + br + 'px 0';
+          // Modo ampliado (barra): sin esquinas redondeadas, en todos sus tamaños.
+          chat.style.borderRadius = '0';
         } else {
           chat.style.right = '0';
           chat.style.left = 'auto';
-          chat.style.borderRadius = br + 'px 0 0 ' + br + 'px';
+          chat.style.borderRadius = '0';
         }
 
         if (sidebarSize === 'compact') {
@@ -3792,7 +3799,46 @@
       return row;
     }
 
+    // ── Quick-replies: el agente puede terminar un mensaje con [opciones: A | B] o [sí/no] y el
+    //    widget pinta botones tocables. Aditivo: sin marcador, no cambia nada. ──
+    function parseQuickReplies(raw) {
+      var input = typeof raw === 'string' ? raw : '';
+      var yesno = input.match(/\n?\s*\[\s*s[ií]\s*\/\s*no\s*\]\s*$/i);
+      if (yesno) {
+        return { text: input.replace(yesno[0], '').replace(/\s+$/, ''), buttons: ['Sí', 'No'] };
+      }
+      var m = input.match(/\n?\s*\[(?:opciones|botones|options|buttons)\s*:\s*([^\]\n]+)\]\s*$/i);
+      if (!m) return { text: input, buttons: [] };
+      var labels = m[1].split('|').map(function (s) { return s.trim(); })
+        .filter(function (s) { return s.length > 0 && s.length <= 48; }).slice(0, 6);
+      if (!labels.length) return { text: input, buttons: [] };
+      return { text: input.replace(m[0], '').replace(/\s+$/, ''), buttons: labels };
+    }
+
+    function attachQuickRepliesToBubble(bubbleEl, buttons) {
+      if (!bubbleEl || !buttons || !buttons.length) return;
+      if (bubbleEl.querySelector('.afhub-quick-replies')) return; // no duplicar
+      var row = document.createElement('div');
+      row.className = 'afhub-nav-actions afhub-quick-replies';
+      buttons.forEach(function (label, i) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'afhub-action-btn' + (i > 0 ? ' afhub-action-btn--ghost' : '');
+        btn.textContent = label;
+        btn.addEventListener('click', function () {
+          // Al tocar: deshabilita la fila (evita doble envío) y manda el label como mensaje.
+          try { row.querySelectorAll('button').forEach(function (b) { b.disabled = true; }); } catch (_e) { /* noop */ }
+          row.classList.add('afhub-quick-replies--used');
+          try { send(label); } catch (_e) { /* noop */ }
+        });
+        row.appendChild(btn);
+      });
+      bubbleEl.appendChild(row);
+    }
+
     function addMessage(type, text, imgOpts) {
+      var __qr = type === 'bot' ? parseQuickReplies(text) : { text: text, buttons: [] };
+      if (type === 'bot') text = __qr.text;
       if (imgOpts && imgOpts.error) {
         log(cfg, 'debug', 'addMessage error', { type, textLen: String(text).length, imgOpts: JSON.stringify(imgOpts) });
       }
@@ -4060,6 +4106,9 @@
         if (navOffer && botRow) {
           var navStack = botRow.querySelector('.afhub-msg-stack');
           appendAssistNavOffer(navStack, navOffer);
+        }
+        if (__qr.buttons.length && botRow) {
+          attachQuickRepliesToBubble(botRow.querySelector('.afhub-msg-stack') || el, __qr.buttons);
         }
       } else {
         maybeAppendDateDivider();
@@ -6768,6 +6817,8 @@
             }
             var streamSurveyStrip = stripSurveyMarker(finalReply);
             finalReply = streamSurveyStrip.text;
+            var streamQr = parseQuickReplies(finalReply);
+            finalReply = streamQr.text;
             var stTools = doneEvt.toolsUsed;
             if ((!stTools || !stTools.length) && doneEvt.data && doneEvt.data.toolsUsed && doneEvt.data.toolsUsed.length) {
               stTools = doneEvt.data.toolsUsed;
@@ -6801,6 +6852,10 @@
               var streamNavOffer = resolveNavOfferForAssistant(doneEvt, finalRaw, lastAssistUserMessage);
               if (streamNavOffer) {
                 attachNavOfferToBubble(streamBubble, streamNavOffer);
+              }
+              if (streamQr.buttons.length) {
+                var qrStack = streamBubble.querySelector('.afhub-msg-stack') || streamBubble;
+                attachQuickRepliesToBubble(qrStack, streamQr.buttons);
               }
               if (streamSurveyStrip.hasSurvey) attachDeflectionSurveyToBubble(streamBubble);
               appendMultiAgentBadge(streamBubble, doneEvt.multiAgent);

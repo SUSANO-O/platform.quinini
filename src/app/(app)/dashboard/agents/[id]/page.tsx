@@ -49,7 +49,7 @@ import {
   Zap, Wrench, Settings, Lock, CircleOff, Upload, FileText,
   Image as ImageIcon, File, Link2, AlignLeft, CheckCircle2,
   AlertCircle, X, KeyRound, RefreshCw, Sparkles, HelpCircle,
-  Phone, MessageCircle, Check,
+  Phone, MessageCircle, Check, Pencil,
   Copy, Eye, Search, Clock, Lightbulb, ChevronDown, ChevronUp, Stethoscope,
 } from '@/components/ui/icons';
 import ScheduledTasksTab from '@/components/agents/ScheduledTasksTab';
@@ -70,6 +70,8 @@ import {
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { McpLandingConnectForm } from '@/components/mcp/mcp-landing-connect-form';
+import { MySqlTablesPanel, type MySqlCatalogForUi } from '@/components/mcp/mysql-tables-panel';
+import { McpConnectionEditModal } from '@/components/mcp/mcp-connection-edit-modal';
 import { AgentMcpOpenFromQuery } from '@/components/mcp/agent-mcp-open-from-query';
 import { AgentHubspotOauthReturn } from '@/components/mcp/agent-hubspot-oauth-return';
 import { AiLoadingInline } from '@/components/ui/ai-loading-screen';
@@ -133,6 +135,7 @@ interface McpServerGroup {
   tools: { id: string; name: string; description: string }[];
   credentialFields: { key: string; label: string; secret: boolean; required: boolean }[];
   credentialsMask: Record<string, string>;
+  mysqlCatalog?: MySqlCatalogForUi;
   lastSyncAt?: string;
   lastSyncError?: string;
 }
@@ -372,6 +375,9 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const [subPrompt, setSubPrompt] = useState('');
   const [subModel, setSubModel] = useState('gemini-2.5-flash');
   const [creatingSubAgent, setCreatingSubAgent] = useState(false);
+  // Edición de una integración MCP (fix de credenciales sin borrar+recrear). La lógica vive en
+  // <McpConnectionEditModal/>; aquí solo controlamos cuál está abierta.
+  const [editingConn, setEditingConn] = useState<McpServerGroup | null>(null);
 
   const { models: clientModels, hubError: modelsHubError } = useClientModels(plan);
   const {
@@ -2847,6 +2853,22 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                               >
                                 <RefreshCw size={12} /> Actualizar
                               </button>
+                              {srv.credentialFields.length > 0 && (
+                                <button
+                                  type="button"
+                                  title="Editar credenciales / política de la integración"
+                                  onClick={() => setEditingConn(srv)}
+                                  style={{
+                                    display: 'flex', alignItems: 'center', gap: '4px',
+                                    fontSize: '11px', fontWeight: 600, padding: '4px 10px',
+                                    borderRadius: '6px', border: '1px solid var(--border)',
+                                    background: 'transparent', color: 'var(--muted-foreground)',
+                                    cursor: 'pointer', whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  <Pencil size={12} /> Editar
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 title="Quitar conexión de este agente"
@@ -2884,6 +2906,12 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                             </>
                           )}
                         </div>
+
+                        {!isCollapsed && srv.integrationKey === 'mysql' && (
+                          <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
+                            <MySqlTablesPanel catalog={srv.mysqlCatalog} />
+                          </div>
+                        )}
 
                         {/* Tools list */}
                         {!isCollapsed && (
@@ -3034,6 +3062,19 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                             }}
                           >
                             <RefreshCw size={12} /> Reintentar
+                          </button>
+                          <button
+                            type="button"
+                            title="Editar credenciales de la integración"
+                            onClick={() => setEditingConn(srv)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '4px',
+                              fontSize: '11px', fontWeight: 600, padding: '4px 10px',
+                              borderRadius: '6px', border: '1px solid var(--border)',
+                              background: 'transparent', cursor: 'pointer', color: 'var(--muted-foreground)',
+                            }}
+                          >
+                            <Pencil size={12} /> Editar
                           </button>
                           <button
                             type="button"
@@ -4292,6 +4333,14 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         </>
       )}
       </AgentStudio>
+      {editingConn && (
+        <McpConnectionEditModal
+          connection={editingConn}
+          landingAgentId={id}
+          onClose={() => setEditingConn(null)}
+          onSaved={() => { setEditingConn(null); loadMcp(); }}
+        />
+      )}
       </div>
     </div>
   );

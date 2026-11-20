@@ -10,6 +10,7 @@ import { TurnstileWidget } from '@/components/ui/turnstile-widget';
 import type { TurnstileInstance } from '@marsidev/react-turnstile';
 import { ShieldCheck } from '@/components/ui/icons';
 import { LandingAccessGate } from '@/components/auth/landing-access-gate';
+import { MacLoadingBar } from '@/components/ui/mac-loading-bar';
 
 const CAPTCHA_ENABLED = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
@@ -46,20 +47,23 @@ function LoginForm() {
 
     setLoading(true);
     const result = await login(email, password, cfToken || undefined);
-    setLoading(false);
 
     if (result.error) {
+      setLoading(false);
       setError(result.error);
       setErrorCode(result.code || '');
       turnstileRef.current?.reset();
       setCfToken('');
     } else if (result.requires2FA && result.tempToken) {
+      setLoading(false);
       setTempToken(result.tempToken);
       setTwoFAStep(true);
     } else if (result.requiresLandingAccessCode && result.tempToken) {
+      setLoading(false);
       setTempToken(result.tempToken);
       setLandingAccessStep(true);
     } else {
+      // Éxito: mantenemos `loading` para que la barra siga mientras carga el dashboard.
       const destination = result.user?.role === 'admin' ? '/admin' : from;
       router.push(destination);
     }
@@ -234,6 +238,12 @@ function LoginForm() {
             <button type="submit" disabled={loading} className="landing-btn-primary">
               {loading ? 'Iniciando...' : 'Iniciar sesión'}
             </button>
+
+            {loading && (
+              <div className="mt-1">
+                <MacLoadingBar label="Cargando tus datos…" />
+              </div>
+            )}
           </form>
         </div>
 

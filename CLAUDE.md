@@ -21,12 +21,13 @@ Stack local completo (con AIBackHub + API REST): `../scripts/botiva-local-up.sh`
   en `src/lib/__tests__/` se arreglaron). Si lo rompés, no mergea.
 - **Runtime: Node 24** (`.nvmrc`, `engines`, `Dockerfile`, CI). Node 20 quedó EOL el
   2026-04-30. Antes de tocar versiones leé `../docs/RUNTIME-UPGRADES.md`.
-- **Deploy doble**: un `git push` a `main` despliega **en paralelo** a Vercel (botiva.space)
-  y a Cloud Run (`platform-quinini`). Secretos en Secret Manager como `platform-quinini-<nombre>`.
-  **Hay que mirar los dos.** Que botiva.space dé 200 no prueba que el
-  deploy fue bien: Vercel usa `npm install` (tolerante) y Cloud Run `npm ci` (estricto),
-  así que Cloud Run puede llevar builds fallando mientras el dominio responde. Comprobá
-  `gh run list` **y** `gcloud builds list`.
+- **Deploy: SOLO GCP / Cloud Run (Vercel DESACTIVADO desde 2026-11).** Ya no hay deploy a Vercel.
+  Dos servicios Cloud Run desde el mismo código (`europe-west1`): **`platform-landing`** (botiva.space,
+  solo landing + `/crear`; flag env `LANDING_ONLY=1` redirige /dashboard y /admin a `app.botiva.space`)
+  y **`platform-quinini`** (app.botiva.space, dashboard + admin + todo). Secretos en Secret Manager como
+  `platform-quinini-<nombre>`. Deploy manual: `gcloud run deploy <svc> --source . --region=europe-west1`
+  (platform-quinini preserva su config sin env-file; la landing usa `env-landing.yaml` con `LANDING_ONLY`
+  + `APP_PUBLIC_URL`). `botiva.space`/`app.botiva.space` ya apuntan a Cloud Run (DNS en Cloudflare, gris).
 - **Widget SDK**: se edita en **`scripts/widget/core.js`** (+ `flow-mode.js`) y se compila
   a `public/widget.js` con `npm run build:widget`. **Nunca** edites `public/widget.js`,
   `public/assist.js` ni `public/sdk/**` a mano — están minificados y se regeneran.

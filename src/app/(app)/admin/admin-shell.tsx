@@ -11,6 +11,7 @@ import { LayoutDashboard, Users, LogOut, Shield, UserPlus, BarChart3, Wallet, Bo
 
 const NAV: Array<{ href: string; label: string; icon: typeof LayoutDashboard; highlight?: boolean }> = [
   { href: '/admin', label: 'Resumen', icon: LayoutDashboard },
+  { href: '/admin/leads', label: 'Leads', icon: UserPlus, highlight: true },
   { href: '/admin/landing-assist', label: 'Math / Math-ais', icon: Bot, highlight: true },
   { href: '/admin/skills', label: 'Skills globales', icon: Sparkles, highlight: true },
   { href: '/admin/inference-metrics', label: 'Tokens & Costo LLM', icon: Zap, highlight: true },
