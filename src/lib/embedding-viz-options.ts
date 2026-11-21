@@ -28,3 +28,25 @@ export function formatExplainedVariance(ev: unknown): string | null {
   const pct = total * 100;
   return `${pct < 10 ? pct.toFixed(1) : Math.round(pct)}%`;
 }
+
+/**
+ * Selección de tipos en la leyenda. Conjunto vacío = se ven todos.
+ * Clic en un tipo: si no estaba elegido, se añade (se ven solo los elegidos); si estaba, se quita.
+ * Si al quitar queda vacío, se vuelve a ver todo.
+ */
+export function toggleTypeSelection(selected: ReadonlySet<string>, type: string): Set<string> {
+  const next = new Set(selected);
+  if (next.has(type)) next.delete(type);
+  else next.add(type);
+  return next;
+}
+
+/** ¿Se dibuja este tipo con la selección actual? */
+export function isTypeVisible(selected: ReadonlySet<string>, type: string): boolean {
+  return selected.size === 0 || selected.has(type);
+}
+
+/** Cuántos puntos quedan visibles con la selección. */
+export function visibleCount(counts: Record<string, number>, selected: ReadonlySet<string>): number {
+  return Object.entries(counts).reduce((s, [t, n]) => (isTypeVisible(selected, t) ? s + n : s), 0);
+}

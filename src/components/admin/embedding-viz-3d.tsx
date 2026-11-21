@@ -9,7 +9,10 @@ import {
   EMBEDDING_VIZ_DEFAULT_LIMIT,
   EMBEDDING_VIZ_LIMITS,
   formatExplainedVariance,
+  isTypeVisible,
   sphereSegmentsFor,
+  toggleTypeSelection,
+  visibleCount,
 } from '@/lib/embedding-viz-options';
 
 export type VizPoint = {
@@ -189,10 +192,12 @@ function groupByType(laidOut: LaidOut[]): { typeKey: string; items: LaidOut[] }[
 function MultiTypeScatter({
   points,
   pointSize,
+  selectedTypes,
   onHover,
 }: {
   points: VizPoint[];
   pointSize: number;
+  selectedTypes: ReadonlySet<string>;
   onHover: (p: VizPoint | null) => void;
 }) {
   const laidOut = useMemo(() => layoutAllPoints(points), [points]);
@@ -209,7 +214,8 @@ function MultiTypeScatter({
 
   return (
     <>
-      {groups.map(({ typeKey, items }) => (
+      {/* La caja se calcula con TODOS los puntos: al filtrar, los visibles no se mueven. */}
+      {groups.filter(({ typeKey }) => isTypeVisible(selectedTypes, typeKey)).map(({ typeKey, items }) => (
         <InstancedTypeCloud
           key={typeKey}
           geometry={geometry}
@@ -226,10 +232,12 @@ function MultiTypeScatter({
 function EmbeddingScene({
   points,
   pointSize,
+  selectedTypes,
   onHover,
 }: {
   points: VizPoint[];
   pointSize: number;
+  selectedTypes: ReadonlySet<string>;
   onHover: (p: VizPoint | null) => void;
 }) {
   const axes = useMemo(() => new THREE.AxesHelper(1.12), []);
@@ -265,7 +273,7 @@ function EmbeddingScene({
         sectionThickness={1.15}
       />
 
-      <MultiTypeScatter points={points} pointSize={pointSize} onHover={onHover} />
+      <MultiTypeScatter points={points} pointSize={pointSize} selectedTypes={selectedTypes} onHover={onHover} />
 
       <primitive object={axes} />
 
@@ -295,10 +303,25 @@ const TYPE_OPTIONS = ['', 'document', 'chunk', 'conversation', 'knowledge', 'pre
 function typeCounts(points: VizPoint[]): Record<string, number> {
   const m: Record<string, number> = {};
   for (const p of points) {
-    const t = p.type || 'otro';
+    const t = typeKeyForPoint(p);
     m[t] = (m[t] ?? 0) + 1;
   }
   return m;
+}
+
+function legendChipStyle(active: boolean): React.CSSProperties {
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '4px 10px',
+    borderRadius: '999px',
+    border: `1px solid ${active ? '#6366f1' : 'var(--border)'}`,
+    background: active ? 'rgba(99,102,241,0.16)' : 'transparent',
+    color: active ? 'var(--foreground)' : 'var(--muted-foreground)',
+    fontSize: '12px',
+    cursor: 'pointer',
+  };
 }
 
 export default function AdminEmbeddingViz3D() {
@@ -314,6 +337,8 @@ export default function AdminEmbeddingViz3D() {
   const [type, setType] = useState<string>('');
   const [pointSize, setPointSize] = useState(0.9);
   const [hover, setHover] = useState<VizPoint | null>(null);
+  /** Tipos elegidos en la leyenda; vacío = todos. */
+  const [selectedTypes, setSelectedTypes] = useState<Set<string>>(() => new Set());
 
   const load = useCallback(() => {
     setLoading(true);
@@ -353,6 +378,15 @@ export default function AdminEmbeddingViz3D() {
   }, [load]);
 
   const counts = useMemo(() => typeCounts(points), [points]);
+  const shown = visibleCount(counts, selectedTypes);
+
+  // Si al recargar un tipo elegido ya no existe, se quita de la selección.
+  useEffect(() => {
+    setSelectedTypes((prev) => {
+      const kept = new Set([...prev].filter((t) => (counts[t] ?? 0) > 0));
+      return kept.size === prev.size ? prev : kept;
+    });
+  }, [counts]);
 
   return (
     <div>
@@ -483,27 +517,53 @@ export default function AdminEmbeddingViz3D() {
             color: 'var(--muted-foreground)',
           }}
         >
+          <span style={{ alignSelf: 'center' }}>Ver solo:</span>
+          <button
+            type="button"
+            onClick={() => setSelectedTypes(new Set())}
+            aria-pressed={selectedTypes.size === 0}
+            style={legendChipStyle(selectedTypes.size === 0)}
+          >
+            Todos ({points.length.toLocaleString('es')})
+          </button>
           {Object.entries(counts)
             .sort((a, b) => b[1] - a[1])
             .map(([t, n]) => {
               const rgb = TYPE_PALETTE[t] ?? [0.58, 0.6, 0.66];
               const css = `rgb(${Math.round(rgb[0]! * 255)},${Math.round(rgb[1]! * 255)},${Math.round(rgb[2]! * 255)})`;
               const label = TYPE_LABELS[t] ?? t;
+              const active = selectedTypes.has(t);
+              const dimmed = !isTypeVisible(selectedTypes, t);
               return (
-                <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => {
+                    setHover(null);
+                    setSelectedTypes((prev) => toggleTypeSelection(prev, t));
+                  }}
+                  aria-pressed={active}
+                  title={active ? 'Quitar de la selección' : 'Ver solo este tipo (puedes sumar varios)'}
+                  style={{ ...legendChipStyle(active), opacity: dimmed ? 0.45 : 1 }}
+                >
                   <span
                     style={{
                       width: 10,
                       height: 10,
                       borderRadius: '50%',
                       background: css,
-                      boxShadow: `0 0 8px ${css}`,
+                      boxShadow: dimmed ? 'none' : `0 0 8px ${css}`,
                     }}
                   />
-                  {label} ({n})
-                </span>
+                  {label} ({n.toLocaleString('es')})
+                </button>
               );
             })}
+          {selectedTypes.size > 0 && (
+            <span style={{ alignSelf: 'center' }}>
+              · mostrando {shown.toLocaleString('es')} de {points.length.toLocaleString('es')}
+            </span>
+          )}
         </div>
       )}
 
@@ -529,7 +589,7 @@ export default function AdminEmbeddingViz3D() {
                 gl.setClearColor('#06060d', 1);
               }}
             >
-              <EmbeddingScene points={points} pointSize={pointSize} onHover={setHover} />
+              <EmbeddingScene points={points} pointSize={pointSize} selectedTypes={selectedTypes} onHover={setHover} />
             </Canvas>
             {hover && (
               <div
