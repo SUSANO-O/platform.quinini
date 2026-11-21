@@ -5,6 +5,12 @@ import { OrbitControls, Grid, Stars, GizmoHelper, GizmoViewport } from '@react-t
 import * as THREE from 'three';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { RefreshCw } from '@/components/ui/icons';
+import {
+  EMBEDDING_VIZ_DEFAULT_LIMIT,
+  EMBEDDING_VIZ_LIMITS,
+  formatExplainedVariance,
+  sphereSegmentsFor,
+} from '@/lib/embedding-viz-options';
 
 export type VizPoint = {
   x: number;
@@ -24,6 +30,7 @@ type VizPayload = {
   points?: VizPoint[];
   message?: string;
   error?: string;
+  explainedVariance?: number[];
 };
 
 const TYPE_PALETTE: Record<string, [number, number, number]> = {
@@ -190,7 +197,8 @@ function MultiTypeScatter({
 }) {
   const laidOut = useMemo(() => layoutAllPoints(points), [points]);
   const groups = useMemo(() => groupByType(laidOut), [laidOut]);
-  const geometry = useMemo(() => new THREE.SphereGeometry(1, 18, 18), []);
+  const segments = sphereSegmentsFor(points.length);
+  const geometry = useMemo(() => new THREE.SphereGeometry(1, segments, segments), [segments]);
   const baseR = sphereBaseRadius(points.length) * pointSize;
 
   useEffect(() => {
@@ -300,7 +308,8 @@ export default function AdminEmbeddingViz3D() {
   const [message, setMessage] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [limit, setLimit] = useState(500);
+  const [limit, setLimit] = useState<number>(EMBEDDING_VIZ_DEFAULT_LIMIT);
+  const [explained, setExplained] = useState<string | null>(null);
   const [agentId, setAgentId] = useState('');
   const [type, setType] = useState<string>('');
   const [pointSize, setPointSize] = useState(0.9);
@@ -323,12 +332,14 @@ export default function AdminEmbeddingViz3D() {
           setPoints([]);
           setDim(null);
           setCount(0);
+          setExplained(null);
           return;
         }
         setPoints(Array.isArray(j.points) ? j.points : []);
         setDim(typeof j.dim === 'number' ? j.dim : null);
         setCount(typeof j.count === 'number' ? j.count : (j.points?.length ?? 0));
         setMessage(typeof j.message === 'string' ? j.message : null);
+        setExplained(formatExplainedVariance(j.explainedVariance));
       })
       .catch((e: unknown) => {
         setErr(e instanceof Error ? e.message : 'Error de red');
@@ -368,9 +379,9 @@ export default function AdminEmbeddingViz3D() {
               minWidth: '120px',
             }}
           >
-            {[200, 400, 600, 800, 1000, 1500].map((n) => (
+            {EMBEDDING_VIZ_LIMITS.map((n) => (
               <option key={n} value={n}>
-                {n}
+                {n.toLocaleString('es')}
               </option>
             ))}
           </select>
@@ -456,7 +467,8 @@ export default function AdminEmbeddingViz3D() {
       )}
       {dim != null && count > 0 && (
         <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', marginBottom: '10px' }}>
-          {count} vectores · dimensión original {dim} · PCA 3D · esferas coloreadas por tipo · arrastra / zoom · cursor sobre una esfera
+          {count.toLocaleString('es')} vectores · dimensión original {dim} · PCA 3D
+          {explained ? ` · conserva ${explained} de la información` : ''} · esferas coloreadas por tipo · arrastra / zoom · cursor sobre una esfera
         </p>
       )}
 
@@ -562,7 +574,7 @@ export default function AdminEmbeddingViz3D() {
               fontSize: '14px',
             }}
           >
-            {loading ? 'Cargando…' : 'Sin puntos para mostrar.'}
+            {loading ? `Calculando hasta ${limit.toLocaleString('es')} puntos…` : 'Sin puntos para mostrar.'}
           </div>
         )}
       </div>
