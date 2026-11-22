@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { getHubUiBase } from '@/lib/hub-ui-url';
 import Link from 'next/link';
 import { Download, ExternalLink, Network, RefreshCw } from '@/components/ui/icons';
 
@@ -41,7 +42,7 @@ export default function AdminSubAgentsPage() {
   const [q, setQ] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
-  const hubUiBase = (process.env.NEXT_PUBLIC_AGENTFLOWHUB_URL || 'http://127.0.0.1:9010').replace(/\/$/, '');
+  const hubUiBase = getHubUiBase();
 
   const load = () => {
     setLoading(true);

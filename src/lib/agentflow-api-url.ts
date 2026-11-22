@@ -88,8 +88,15 @@ export function getAgentflowApiDocsUrl(): string {
   return `${getAgentflowApiUrl()}/docs/`;
 }
 
-export function getAgentflowApiOriginsForCsp(): string[] {
-  const origins = new Set<string>(AGENTFLOW_API_ORIGINS.map((u) => new URL(u).origin));
+/**
+ * Orígenes del API para la CSP. En producción no se incluyen los de localhost: una página
+ * servida desde botiva.space no tiene por qué hablar con un servicio en la máquina del visitante.
+ */
+export function getAgentflowApiOriginsForCsp(
+  opts: { production?: boolean } = { production: process.env.NODE_ENV === 'production' },
+): string[] {
+  const base = opts.production ? AGENTFLOW_API_ORIGINS.filter((u) => !isLocalApiUrl(u)) : AGENTFLOW_API_ORIGINS;
+  const origins = new Set<string>(base.map((u) => new URL(u).origin));
   const explicit = explicitAgentflowApiUrl();
   if (explicit && !isLocalApiUrl(explicit)) {
     try {

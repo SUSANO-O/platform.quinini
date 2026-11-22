@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { getHubUiBase } from '@/lib/hub-ui-url';
 import { BRAND, STATE, PLAN_ACCENTS, METRIC } from '@/lib/brand-colors';
 import Link from 'next/link';
 import { Users, Boxes, TrendingUp, Clock, XCircle, CheckCircle, AlertTriangle, Ban, Activity, ShoppingBag, LayoutDashboard, Database, Cpu, Network, HardDrive } from '@/components/ui/icons';
@@ -164,7 +165,7 @@ export default function AdminPage() {
   }, []);
 
   /** Misma base que dashboard MCP; enlaces del panel Admin solo exponen vars NEXT_PUBLIC_* en el cliente. */
-  const hubUiBase = (process.env.NEXT_PUBLIC_AGENTFLOWHUB_URL || 'http://127.0.0.1:9010').replace(/\/$/, '');
+  const hubUiBase = getHubUiBase();
 
   const metricCards = stats ? [
     { label: 'Usuarios totales',       value: stats.totalUsers,         icon: Users,         color: METRIC.neutral },

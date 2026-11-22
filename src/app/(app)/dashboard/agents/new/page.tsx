@@ -152,10 +152,6 @@ export default function NewAgentPage() {
     adminRestricted: hfAdminRestricted,
     planHasFallbacks: hfPlanHasFallbacks,
   } = useFallbackModelOptions(fallbackModels);
-  const hubUiBase = (process.env.NEXT_PUBLIC_AGENTFLOWHUB_URL || 'http://127.0.0.1:9010').replace(
-    /\/$/,
-    '',
-  );
 
   const inp: CSSProperties = {
     width: '100%',
