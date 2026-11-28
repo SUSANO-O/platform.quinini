@@ -1520,6 +1520,32 @@
     }
   }
 
+  /** Modo voz entre vistas: 'mic' (conversación por voz), 'tts' (solo lectura) o nada. */
+  function voiceModeStorageKey(cfg) {
+    return chatSessionStorageKey(cfg) + ':voice';
+  }
+
+  function persistVoiceMode(cfg, mode) {
+    if (cfg.preview) return;
+    try {
+      var key = voiceModeStorageKey(cfg);
+      if (mode === 'mic' || mode === 'tts') sessionStorage.setItem(key, mode);
+      else sessionStorage.removeItem(key);
+    } catch (_e) {
+      /* noop */
+    }
+  }
+
+  function storedVoiceMode(cfg) {
+    if (cfg.preview) return '';
+    try {
+      var v = sessionStorage.getItem(voiceModeStorageKey(cfg));
+      return v === 'mic' || v === 'tts' ? v : '';
+    } catch (_e) {
+      return '';
+    }
+  }
+
   function shouldRestoreChatUiOpen(cfg) {
     if (cfg.preview) return false;
     try {
@@ -7408,20 +7434,25 @@
       var spoken = '';
       var active = false;
       var diverged = false;
-      function cutPoint(rest, minLen) {
-        var re = /[.!?…:;](?=\s)/g;
-        var m;
-        var cut = -1;
-        while ((m = re.exec(rest))) { if (m.index + 1 >= minLen) cut = m.index + 1; }
+      // Solo se adelanta la PRIMERA frase completa (termina en . ! ? … y la sigue otra que empieza
+      // en mayúscula/número) y solo cuando ya llegó texto después (señal de que no va a cambiar).
+      // El resto se lee del texto final. Antes se cortaba también en ":"/";" y en trozos de 20
+      // caracteres: a veces se leía algo que luego cambiaba en la respuesta final.
+      function cutPoint(rest) {
+        var m = /[.!?…](?=\s+[A-ZÁÉÍÓÚÑ¿¡0-9])/.exec(rest);
+        if (!m) return -1;
+        var cut = m.index + 1;
+        if (cut < 20) return -1;
+        if (rest.length - cut < 20) return -1;
         return cut;
       }
       return {
         feed: function(partialText) {
-          if (diverged) return;
+          if (diverged || active) return;
           var cleaned = clean(partialText);
           if (cleaned.indexOf(spoken) !== 0) { diverged = true; return; }
           var rest = cleaned.slice(spoken.length);
-          var cut = cutPoint(rest, spoken ? 60 : 20);
+          var cut = cutPoint(rest);
           if (cut <= 0) return;
           var piece = rest.slice(0, cut).trim();
           spoken = cleaned.slice(0, spoken.length + cut);
@@ -7496,7 +7527,16 @@
           audio.onended = function() { if (session === ttsSessionId) playIdx(idx + 1); };
           audio.onerror = function() { if (session === ttsSessionId) fallbackFrom(idx, 'playback error'); };
           audio.play().catch(function(err) {
-            if (session === ttsSessionId) fallbackFrom(idx, err && err.message);
+            if (session !== ttsSessionId) return;
+            if (err && err.name === 'NotAllowedError') {
+              // Página recién abierta sin toque: el navegador bloquea el audio. No se pierde.
+              ttsAudio = null;
+              ttsBlockedText = (ttsBlockedText ? ttsBlockedText + ' ' : '') + sentences.slice(idx).join(' ');
+              armResumeOnGesture();
+              if (onEnd) onEnd();
+              return;
+            }
+            fallbackFrom(idx, err && err.message);
           });
         }).catch(function(err) {
           if (settled) return;
@@ -8059,6 +8099,25 @@
       };
     }
 
+    /**
+     * ¿La frase quedó claramente a medias? Termina en palabra de enlace ("el", "que", "es", "de"…),
+     * en guion/corte, o en un código solo de letras ("XCH", "Xch") al que le faltan los números.
+     * En voz la gente hace pausa justo ahí (sobre todo al dictar placas y códigos): se espera más.
+     */
+    function looksIncompleteUtterance(text) {
+      var t = String(text || '').trim();
+      if (!t) return false;
+      if (/[-–—]$|\.\.\.$|…$|,$/.test(t)) return true;
+      var last = t.replace(/[.!?¿¡]+$/, '').split(/\s+/).pop() || '';
+      var w = last.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      var connectors = ['el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'que', 'es', 'y', 'o', 'a', 'al',
+        'en', 'con', 'por', 'para', 'mi', 'su', 'codigo', 'placa', 'numero', 'como', 'pero', 'porque', 'cual', 'era', 'sea'];
+      if (connectors.indexOf(w) !== -1) return true;
+      // Código de 2–4 letras sin dígitos al final (p. ej. "XCH" de "Xch6820").
+      if (/^[a-z]{2,4}$/i.test(last) && last === last.toUpperCase()) return true;
+      return /^xch$/i.test(last);
+    }
+
     /** Pausa / reanuda la voz del agente sin perder por dónde iba (interrupción a confirmar). */
     function ttsPausePlayback() {
       try { if (ttsAudio && !ttsAudio.paused) ttsAudio.pause(); } catch (_) {}
@@ -8137,10 +8196,13 @@
           setVoiceState('listening');
         }
 
-        var vad = createVoiceActivityDetector({
-          startMs: 200,
-          endMs: 1100,
+        var incompleteWaited = false;
+        var incompleteTimer = null;
+        function vadOnEnd() { vadHandlers.onEnd(); }
+        var vadHandlers = {
           onStart: function() {
+            if (incompleteTimer) { clearTimeout(incompleteTimer); incompleteTimer = null; }
+            incompleteWaited = false;
             // Habla encima del agente: pausar YA y confirmar con las palabras (o reanudar si era eco/ruido).
             if (ttsReplyQueue && ttsReplyQueue.busy() && echoPauses < 2 && !bargeTimer) {
               ttsPausePlayback();
@@ -8156,6 +8218,18 @@
             // Calló: pedir a ElevenLabs que cierre ya lo dicho (sin esperar a su detector).
             if (!lastPartial && !turnText) return; // ruido sin palabras
             if (ttsReplyQueue && ttsReplyQueue.busy() && !bargeTimer) return; // eco mientras habla el agente
+            var soFar = (turnText + ' ' + lastPartial).trim();
+            if (!incompleteWaited && looksIncompleteUtterance(soFar)) {
+              // Frase a medias ("el código es XCH…"): dar más tiempo; si vuelve a hablar, sigue el turno.
+              incompleteWaited = true;
+              if (incompleteTimer) clearTimeout(incompleteTimer);
+              incompleteTimer = setTimeout(function() {
+                incompleteTimer = null;
+                if (!r.closed && !vad.speaking()) vadOnEnd();
+              }, 1200);
+              return;
+            }
+            incompleteWaited = false;
             awaitingCommit = true;
             sendChunk(new Int16Array(160), true);
             // Si el cierre no llega, se envía lo último que se transcribió: nunca queda colgado.
@@ -8165,7 +8239,8 @@
               if (awaitingCommit) finishTurn(lastPartial);
             }, 1500);
           },
-        });
+        };
+        var vad = createVoiceActivityDetector({ startMs: 200, endMs: 1100, onStart: vadHandlers.onStart, onEnd: vadHandlers.onEnd });
 
         var source = ctx.createMediaStreamSource(stream);
         var node = ctx.createScriptProcessor(4096, 1, 1);
@@ -8184,7 +8259,22 @@
         mute.gain.value = 0;
         node.connect(mute);
         mute.connect(ctx.destination);
-        if (ctx.state === 'suspended' && ctx.resume) ctx.resume();
+        if (ctx.state === 'suspended' && ctx.resume) {
+          ctx.resume();
+          // Recién llegado de otra vista: el navegador no deja oír el micrófono hasta un toque.
+          setTimeout(function() {
+            if (r.closed || ctx.state !== 'suspended') return;
+            armResumeOnGesture();
+            var label = voiceBar && voiceBar.querySelector('.afhub-voice-label');
+            if (label) {
+              var prev = label.textContent;
+              label.textContent = 'Toca la pantalla para seguir hablando';
+              ctx.addEventListener && ctx.addEventListener('statechange', function onSc() {
+                if (ctx.state === 'running') { label.textContent = prev; ctx.removeEventListener('statechange', onSc); }
+              });
+            }
+          }, 400);
+        }
 
         ws.onmessage = function(e) {
           if (r.closed) return;
@@ -8248,6 +8338,7 @@
           else realtimeFallbackToNative('websocket cerrado al conectar');
         };
         r.cleanup = function() {
+          if (incompleteTimer) { clearTimeout(incompleteTimer); incompleteTimer = null; }
           if (bargeTimer) { clearTimeout(bargeTimer); bargeTimer = null; }
           if (commitFallback) { clearTimeout(commitFallback); commitFallback = null; }
         };
@@ -8287,6 +8378,7 @@
     }
 
     function stopVoice() {
+      persistVoiceMode(cfg, ttsMode ? 'tts' : '');
       voiceShouldBeActive = false;
       voiceActive = false;
       voiceState = 'idle';
@@ -8311,6 +8403,7 @@
         startListening();
         syncSpeakerMenuItem();
         ttsWarmUp();
+        persistVoiceMode(cfg, 'mic');
       }
     }
 
@@ -8349,6 +8442,38 @@
       syncSpeakerMenuItem();
       if (!ttsMode) ttsStop();
       else ttsWarmUp();
+      persistVoiceMode(cfg, voiceActive ? 'mic' : (ttsMode ? 'tts' : ''));
+    }
+
+    // ── La voz sigue al cambiar de vista ───────────────────────────────────────
+    // En webs multipágina (app de Tribu) cada vista recarga el widget. Se restaura el modo voz;
+    // el navegador no deja sonar audio ni abrir el micrófono "en caliente" hasta que la persona
+    // toca la página, así que lo que no pudo sonar se guarda y se lee en ese primer toque.
+    var ttsBlockedText = '';
+    var gestureHookArmed = false;
+    function armResumeOnGesture() {
+      if (gestureHookArmed) return;
+      gestureHookArmed = true;
+      var resume = function() {
+        document.removeEventListener('pointerdown', resume, true);
+        document.removeEventListener('keydown', resume, true);
+        gestureHookArmed = false;
+        try { if (rtStt && rtStt.ctx && rtStt.ctx.state === 'suspended') rtStt.ctx.resume(); } catch (_) {}
+        if (ttsBlockedText && (voiceActive || ttsMode)) {
+          var pending = ttsBlockedText;
+          ttsBlockedText = '';
+          ttsReplyQueue.enqueue(pending);
+        }
+      };
+      document.addEventListener('pointerdown', resume, true);
+      document.addEventListener('keydown', resume, true);
+    }
+    function restoreVoiceModeAfterNavigation() {
+      var mode = storedVoiceMode(cfg);
+      if (!mode || !voiceMenuAvailable) return;
+      if (!ttsMode && mode === 'tts') toggleTtsMode();
+      if (mode === 'mic' && !voiceActive) toggleVoice();
+      armResumeOnGesture();
     }
 
     if (headerSpeakerBtn) {
@@ -8796,6 +8921,8 @@
     if (shouldRestoreChatUiOpen(cfg)) open({ instant: true });
     else if (cfg.autoOpen) setTimeout(open, 80);
     else setTimeout(function () { checkHumanModeOnOpen({ skipReconnectBanner: true }); }, 400);
+    // La voz que estaba activa en la vista anterior sigue activa en esta.
+    setTimeout(restoreVoiceModeAfterNavigation, 300);
     inboxWatchTimer = setInterval(watchInboxTakeover, 3500);
     setTimeout(consumeAssistPostNavFollowUp, 600);
     emitEvent('widget_loaded', { pagePath: resolvePagePath(cfg) });

@@ -91,8 +91,9 @@ describe('lectura mientras llega la respuesta', () => {
       ['Tu camioneta ', 'está en Bogotá. ', 'Recorrió 42 km ', 'hoy y está detenida. ', '¿Quieres ver la ruta?'],
       final,
     );
-    // Sale con el fragmento siguiente al punto (espera el espacio: no corta "3.5"), bastante antes del final.
-    expect(firstAt).toBeLessThanOrEqual(2);
+    // Sale cuando ya llegó texto después de la primera frase (estable), antes del final.
+    expect(firstAt).toBeLessThanOrEqual(3);
+    expect(pieces.length).toBe(1); // solo la primera frase se adelanta; el resto, del texto final
     expect(pieces[0]).toBe('Tu camioneta está en Bogotá.');
     const all = [...pieces, rest].join(' ').replace(/\s+/g, ' ').trim();
     expect(all).toBe(ttsCleanText(final));
@@ -222,5 +223,55 @@ describe('detector de voz local', () => {
     feed(v, 0.3, 85);
     feed(v, 0.002, 500);
     expect(ev).toEqual([]);
+  });
+});
+
+describe('frase a medias: esperar más antes de enviar', () => {
+  const looksIncomplete = load<(t: string) => boolean>(['looksIncompleteUtterance'], 'looksIncompleteUtterance');
+  it('casos reales de Navi App (2026-11-28) se reconocen como incompletos', () => {
+    expect(looksIncomplete('Sí, sí, el código es, el código es el siguiente: XCH')).toBe(true);
+    expect(looksIncomplete('Oye, quiero arreglar otro vehículo, el')).toBe(true);
+    expect(looksIncomplete('Gracias. Oye, quisiera saber el estado de un vehículo. Creo que-')).toBe(true);
+    expect(looksIncomplete('Bueno, quiero saber el estado de un')).toBe(true);
+    expect(looksIncomplete('la placa es')).toBe(true);
+  });
+  it('frases completas no esperan de más', () => {
+    expect(looksIncomplete('¿Dónde está mi vehículo?')).toBe(false);
+    expect(looksIncomplete('El código es Xch6820')).toBe(false);
+    expect(looksIncomplete('Okey, muchas gracias.')).toBe(false);
+    expect(looksIncomplete('llévame a posiciones')).toBe(false);
+    expect(looksIncomplete('')).toBe(false);
+  });
+});
+
+describe('lectura anticipada prudente', () => {
+  const mk = () => {
+    const pieces: string[] = [];
+    return { pieces, f: createStreamSpeechFeeder(ttsCleanText, (p) => pieces.push(p)) };
+  };
+  it('no corta en ":" ni en frases cortas', () => {
+    const { pieces, f } = mk();
+    f.feed('Estos son tus vehículos: Apache 160 placa XVR86E y Chevrolet NPR placa GUU584 en Bogotá');
+    f.feed('Ok. Tu camioneta está bien y sigue en el mismo lugar de siempre');
+    expect(pieces).toEqual([]);
+  });
+  it('espera a que llegue texto después de la primera frase', () => {
+    const { pieces, f } = mk();
+    f.feed('Tu camioneta está parqueada en Bogotá desde hace una hora. ');
+    expect(pieces).toEqual([]);
+    f.feed('Tu camioneta está parqueada en Bogotá desde hace una hora. Tiene la batería al 100 %');
+    expect(pieces).toEqual(['Tu camioneta está parqueada en Bogotá desde hace una hora.']);
+  });
+});
+
+describe('core.js: la voz sigue entre vistas', () => {
+  it('guarda el modo y lo restaura al cargar la vista', () => {
+    expect(core).toContain("persistVoiceMode(cfg, 'mic')");
+    expect(fnSource('toggleTtsMode')).toContain('persistVoiceMode(cfg');
+    expect(core).toContain('setTimeout(restoreVoiceModeAfterNavigation, 300)');
+  });
+  it('si el navegador bloquea el audio, lo guarda y lo lee al primer toque', () => {
+    expect(fnSource('ttsSpeakElevenLabs')).toMatch(/NotAllowedError[\s\S]*ttsBlockedText[\s\S]*armResumeOnGesture\(\)/);
+    expect(fnSource('armResumeOnGesture')).toContain('ttsReplyQueue.enqueue(pending)');
   });
 });
