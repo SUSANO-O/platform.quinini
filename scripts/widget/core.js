@@ -6502,7 +6502,8 @@
       if (queuedTextWhileLoading && !isLoading) {
         var q = queuedTextWhileLoading;
         queuedTextWhileLoading = null;
-        send(q, { historyPreloaded: true });
+        // fromQueue: lo dijo mientras el agente pensaba; no cortar la lectura de esa respuesta.
+        send(q, { historyPreloaded: true, fromQueue: true });
       }
     }
     function queueOrSend(textArg) {
@@ -6575,7 +6576,8 @@
       // la burbuja ni el push a history — ya están puestos.
       var historyPreloaded = !!(sendOpts && sendOpts.historyPreloaded);
       // El usuario ya escribió otra cosa: la lectura en curso deja de tener sentido (y no se mezcla).
-      if ((ttsReplyQueue && ttsReplyQueue.busy()) || activeMsgSpeakBtn) ttsStop();
+      if (!(sendOpts && sendOpts.fromQueue) && ((ttsReplyQueue && ttsReplyQueue.busy()) || activeMsgSpeakBtn)) ttsStop();
+      if (ttsStreamFeeder) ttsStreamFeeder.reset(); // turno nuevo: nada pendiente del anterior
       var text = typeof textArg === 'string' ? textArg.trim() : input.value.trim();
       var humanActive = (typeof humanModeActive !== 'undefined' && humanModeActive);
       var hasAttach = !!(pendingAttachment && pendingAttachment.dataUrl);
@@ -6797,12 +6799,13 @@
                 } else {
                   updateStreamBubble(streamBubble, streamReply);
                 }
-                ttsPrefetchFromStream(botReplyForDisplay(streamReply));
+                if (voiceActive || ttsMode) ttsStreamFeeder.feed(botReplyForDisplay(streamReply));
               } else if (evt.type === 'token_reset') {
                 // El texto que llegaba era provisional (el agente pasó a usar una herramienta):
                 // se borra y vuelve el indicador de "pensando" hasta que llegue la respuesta real.
                 streamReply = '';
                 streamMaybeMarker = true;
+                ttsStreamFeeder.reset(); // lo provisional ya dicho no cuenta: la respuesta real se lee entera
                 if (streamBubble) {
                   removeBotMessage(streamBubble);
                   streamBubble = null;
@@ -7394,6 +7397,52 @@
       };
     }
 
+    /**
+     * Lectura mientras la respuesta llega: cada vez que el texto del stream completa una frase, se
+     * encola para leer (la primera arranca enseguida); al terminar el stream se encola el resto.
+     * `clean` normaliza el texto como lo leerá la voz; `enqueue` lo manda a la cola de lectura.
+     */
+    function createStreamSpeechFeeder(clean, enqueue) {
+      var spoken = '';
+      var active = false;
+      var diverged = false;
+      function cutPoint(rest, minLen) {
+        var re = /[.!?…:;](?=\s)/g;
+        var m;
+        var cut = -1;
+        while ((m = re.exec(rest))) { if (m.index + 1 >= minLen) cut = m.index + 1; }
+        return cut;
+      }
+      return {
+        feed: function(partialText) {
+          if (diverged) return;
+          var cleaned = clean(partialText);
+          if (cleaned.indexOf(spoken) !== 0) { diverged = true; return; }
+          var rest = cleaned.slice(spoken.length);
+          var cut = cutPoint(rest, spoken ? 60 : 20);
+          if (cut <= 0) return;
+          var piece = rest.slice(0, cut).trim();
+          spoken = cleaned.slice(0, spoken.length + cut);
+          if (piece) { active = true; enqueue(piece); }
+        },
+        /** Devuelve lo que falta leer del texto final ('' si ya se leyó todo). */
+        finish: function(finalText) {
+          var cleaned = clean(finalText);
+          var already = spoken;
+          var was = active;
+          spoken = ''; active = false; diverged = false;
+          if (!was) return cleaned;
+          if (cleaned.indexOf(already) === 0) return cleaned.slice(already.length).trim();
+          var L = 0;
+          while (L < already.length && L < cleaned.length && already[L] === cleaned[L]) L++;
+          var ws = cleaned.lastIndexOf(' ', L);
+          return cleaned.slice(ws > 0 ? ws : 0).trim();
+        },
+        reset: function() { spoken = ''; active = false; diverged = false; },
+        active: function() { return active; },
+      };
+    }
+
     /** Detiene cualquier voz que esté sonando (ElevenLabs y nativa), sin tocar la cola. */
     function ttsHaltPlayback() {
       if (window.speechSynthesis) {
@@ -7556,13 +7605,24 @@
       ttsHaltPlayback();
     }
 
+    var ttsStreamFeeder = createStreamSpeechFeeder(ttsCleanText, function(piece) {
+      if (!(voiceActive || ttsMode)) return;
+      if (activeMsgSpeakBtn) ttsStop();
+      if (ttsReplyQueue.busy()) ttsPrefetchFromStream(piece); // que el audio esté listo al llegar su turno
+      ttsReplyQueue.enqueue(piece);
+    });
+
     /** Respuestas del bot para leer en voz alta, una tras otra y completas. */
     var ttsReplyQueue = createTtsQueue(
       function(text, done) {
         if (voiceActive || ttsMode) setVoiceState('speaking');
+        ttsSpokenText = text;
         ttsSpeak(text, done);
       },
       function() {
+        ttsLastSpokenText = ttsSpokenText;
+        ttsSpeechEndedAt = Date.now();
+        ttsSpokenText = '';
         if (voiceActive && voiceShouldBeActive) {
           setTimeout(startListening, 300);
           setVoiceState('listening');
@@ -7579,6 +7639,13 @@
         var domText = ttsTextFromMessageBubble(bubble);
         if (domText.length > ttsText.length) ttsText = domText;
       }
+      // Si ya se fue leyendo mientras llegaba (stream), solo falta el resto.
+      if (ttsStreamFeeder.active()) {
+        ttsText = ttsStreamFeeder.finish(ttsText);
+        if (!ttsText) return;
+      } else {
+        ttsStreamFeeder.reset();
+      }
       if (!ttsText) return;
       // Si sonaba la lectura manual (botón 🔊 de un mensaje), la respuesta nueva tiene prioridad.
       if (activeMsgSpeakBtn && !ttsReplyQueue.busy()) {
@@ -7592,6 +7659,10 @@
       ttsReplyQueue.enqueue(ttsText);
     }
 
+    /** Dictado del navegador: silencio que cierra el turno (mismo criterio que el de tiempo real). */
+    var NATIVE_TURN_SILENCE_MS = 1300;
+    var nativeTurnTimer = null;
+
     function _doStartRecognition() {
       var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (recognitionRef) { try { recognitionRef.abort(); } catch(_) {} }
@@ -7604,25 +7675,27 @@
       rec.maxAlternatives = 1;
       rec.continuous = true;
 
+      // Antes se enviaba en el primer "final" del navegador: una pausa corta para pensar mandaba
+      // media frase. Ahora se junta todo lo dicho y se envía tras NATIVE_TURN_SILENCE_MS sin voz.
+      var turnSent = false;
       rec.onresult = function(event) {
-        var interim = '';
-        var final = '';
-        for (var i = 0; i < event.results.length; i++) {
-          if (event.results[i].isFinal) final += event.results[i][0].transcript;
-          else interim += event.results[i][0].transcript;
-        }
-        if (interim) input.value = interim;
-        if (final) {
-          final = final.trim();
-          input.value = final;
-          if (final) {
-            setVoiceState('thinking');
-            sendBtn.disabled = false;
-            send(final);
-          } else if (voiceShouldBeActive) {
-            setTimeout(startListening, 200);
-          }
-        }
+        if (turnSent) return;
+        var heard = '';
+        for (var i = 0; i < event.results.length; i++) heard += event.results[i][0].transcript;
+        heard = heard.replace(/\s+/g, ' ').trim();
+        if (!heard) return;
+        input.value = heard;
+        syncSendButtonState();
+        if (nativeTurnTimer) clearTimeout(nativeTurnTimer);
+        nativeTurnTimer = setTimeout(function() {
+          nativeTurnTimer = null;
+          if (turnSent || !voiceShouldBeActive) return;
+          turnSent = true;
+          var text = String(input.value || '').trim();
+          try { rec.abort(); } catch (_) {}
+          if (!text) { if (voiceShouldBeActive) setTimeout(startListening, 200); return; }
+          sendVoiceTurn(text);
+        }, NATIVE_TURN_SILENCE_MS);
       };
 
       rec.onerror = function(event) {
@@ -7642,6 +7715,8 @@
       };
 
       rec.onend = function() {
+        // Si hay un turno esperando su silencio, lo envía el temporizador (no reiniciar y perderlo).
+        if (nativeTurnTimer && !turnSent) return;
         if (voiceShouldBeActive && voiceState === 'listening') {
           setTimeout(startListening, 150);
         }
@@ -7828,7 +7903,248 @@
       });
     }
 
+    // ── Dictado en tiempo real (ElevenLabs Scribe v2 Realtime) ──────────────────
+    // El micrófono queda abierto toda la conversación y el audio va directo a ElevenLabs por
+    // WebSocket (token de un solo uso emitido por nuestro servidor; la API key nunca llega acá).
+    // Se ve el texto mientras se habla y el turno se cierra tras ~1 s de silencio real, no en cada
+    // pausa corta. Si el usuario habla mientras el agente lee, la voz se corta (como en una llamada).
+    // Cualquier fallo cae al dictado del navegador.
+    var realtimeSttUnavailable = false;
+    var rtStt = null; // { ws, ctx, stream, node, source, closed }
+    var ttsSpokenText = ''; // lo que se está leyendo ahora (para no confundir el eco con el usuario)
+    var ttsLastSpokenText = '';
+    var ttsSpeechEndedAt = 0;
+
+    /** Texto contra el que comparar el eco: lo que suena ahora o lo que terminó hace < 3 s. */
+    function echoReferenceText() {
+      if (ttsReplyQueue && ttsReplyQueue.busy()) return ttsSpokenText;
+      return Date.now() - ttsSpeechEndedAt < 3000 ? ttsLastSpokenText : '';
+    }
+
+    function realtimeSttCapable() {
+      return !realtimeSttUnavailable &&
+        typeof window !== 'undefined' && typeof window.WebSocket !== 'undefined' &&
+        !!(window.AudioContext || window.webkitAudioContext) &&
+        !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    }
+
+    /** Float32 del micrófono (a la frecuencia del dispositivo) → PCM 16 bits a `outRate`. */
+    function downsampleToPcm16(input, inRate, outRate) {
+      if (!input || !input.length) return new Int16Array(0);
+      var ratio = inRate / outRate;
+      if (!(ratio >= 1)) ratio = 1;
+      var outLen = Math.floor(input.length / ratio);
+      var out = new Int16Array(outLen);
+      for (var i = 0; i < outLen; i++) {
+        // Promedio del tramo (filtro simple anti-aliasing).
+        var start = Math.floor(i * ratio);
+        var end = Math.min(input.length, Math.floor((i + 1) * ratio));
+        var sum = 0;
+        var n = 0;
+        for (var j = start; j < end; j++) { sum += input[j]; n++; }
+        var v = n ? sum / n : input[start] || 0;
+        if (v > 1) v = 1; else if (v < -1) v = -1;
+        out[i] = v < 0 ? v * 0x8000 : v * 0x7fff;
+      }
+      return out;
+    }
+
+    function int16ToBase64(pcm) {
+      var bytes = new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength);
+      var bin = '';
+      var CH = 0x8000;
+      for (var i = 0; i < bytes.length; i += CH) {
+        bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+      }
+      return btoa(bin);
+    }
+
+    /**
+     * ¿Lo que "oyó" el micrófono es la propia voz del agente (eco por parlantes)? Si todas sus
+     * palabras aparecen en lo que se está leyendo, se trata como eco y no interrumpe.
+     */
+    function isLikelyEcho(heard, spoken) {
+      function words(t) {
+        return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+          .replace(/[^a-z0-9ñ\s]/g, ' ').split(/\s+/).filter(Boolean);
+      }
+      var h = words(heard);
+      if (!h.length) return true;
+      var sp = words(spoken);
+      if (!sp.length) return false;
+      var set = {};
+      for (var i = 0; i < sp.length; i++) set[sp[i]] = true;
+      var hits = 0;
+      for (var k = 0; k < h.length; k++) if (set[h[k]]) hits++;
+      return hits / h.length >= 0.8;
+    }
+
+    /** ¿El usuario está hablando de verdad encima del agente? (≥2 palabras y no es eco). */
+    function shouldBargeIn(heard, spoken) {
+      var n = String(heard || '').trim().split(/\s+/).filter(Boolean).length;
+      return n >= 2 && !isLikelyEcho(heard, spoken);
+    }
+
+    /**
+     * Envía lo dictado. Si el agente todavía está respondiendo, no se pierde: queda en cola y sale
+     * apenas termine (queueOrSend). Sin espera de agrupado: en voz el silencio ya marcó el fin.
+     */
+    function sendVoiceTurn(text) {
+      text = String(text || '').trim();
+      if (!text) return;
+      setVoiceState('thinking');
+      if (isLoading) { queueOrSend(text); return; }
+      input.value = text;
+      sendBtn.disabled = false;
+      send(text);
+    }
+
+    function stopRealtimeStt() {
+      var r = rtStt;
+      rtStt = null;
+      if (!r) return;
+      r.closed = true;
+      try { if (r.node) { r.node.onaudioprocess = null; r.node.disconnect(); } } catch (_) {}
+      try { if (r.source) r.source.disconnect(); } catch (_) {}
+      try { if (r.stream) r.stream.getTracks().forEach(function(t) { t.stop(); }); } catch (_) {}
+      try { if (r.ctx) r.ctx.close(); } catch (_) {}
+      try { if (r.ws && r.ws.readyState <= 1) r.ws.close(); } catch (_) {}
+    }
+
+    function realtimeFallbackToNative(reason) {
+      log(cfg, 'warn', '[STT] tiempo real no disponible — dictado del navegador:', reason);
+      realtimeSttUnavailable = true;
+      stopRealtimeStt();
+      if (voiceShouldBeActive) startListening();
+    }
+
+    function startListeningRealtime() {
+      voiceShouldBeActive = true;
+      if (rtStt) { // ya abierto: el micrófono sigue escuchando
+        if (!(ttsReplyQueue && ttsReplyQueue.busy()) && !isLoading) setVoiceState('listening');
+        return;
+      }
+      var r = { ws: null, ctx: null, stream: null, node: null, source: null, closed: false, ready: false };
+      rtStt = r;
+      setVoiceState('listening');
+      var lang = cfg.voiceLang || navigator.language || 'es-ES';
+      var tokenReq = fetch(elevenLabsVoiceUrl('/api/widget/voice/realtime-token'), {
+        method: 'POST',
+        headers: elevenLabsHeaders(),
+        body: JSON.stringify(elevenLabsRequestBody({ lang: lang })),
+        signal: AbortSignal.timeout(10000),
+      }).then(function(res) {
+        if (res.status === 503 || res.status === 404) throw new Error('no disponible (' + res.status + ')');
+        if (!res.ok) throw new Error('token http ' + res.status);
+        return res.json();
+      });
+      var micReq = navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+      });
+
+      Promise.all([tokenReq, micReq]).then(function(both) {
+        var info = both[0];
+        var stream = both[1];
+        if (r.closed) { stream.getTracks().forEach(function(t) { t.stop(); }); return; }
+        r.stream = stream;
+        if (!info || !info.ok || !info.url) throw new Error('respuesta sin url');
+        var outRate = Number(info.sampleRate) || 16000;
+        var AC = window.AudioContext || window.webkitAudioContext;
+        var ctx = new AC();
+        r.ctx = ctx;
+        var ws = new WebSocket(info.url);
+        r.ws = ws;
+        var pendingChunks = [];
+        var source = ctx.createMediaStreamSource(stream);
+        var node = ctx.createScriptProcessor(4096, 1, 1);
+        r.source = source;
+        r.node = node;
+        node.onaudioprocess = function(ev) {
+          if (r.closed) return;
+          var pcm = downsampleToPcm16(ev.inputBuffer.getChannelData(0), ctx.sampleRate, outRate);
+          if (!pcm.length) return;
+          var msg = JSON.stringify({ message_type: 'input_audio_chunk', audio_base_64: int16ToBase64(pcm), commit: false, sample_rate: outRate });
+          if (r.ready && ws.readyState === 1) ws.send(msg);
+          else if (pendingChunks.length < 40) pendingChunks.push(msg); // ~4 s mientras conecta
+        };
+        source.connect(node);
+        // ScriptProcessor necesita salida para procesar; ganancia 0 para no oírse a sí mismo.
+        var mute = ctx.createGain();
+        mute.gain.value = 0;
+        node.connect(mute);
+        mute.connect(ctx.destination);
+        if (ctx.state === 'suspended' && ctx.resume) ctx.resume();
+
+        ws.onmessage = function(e) {
+          if (r.closed) return;
+          var m;
+          try { m = JSON.parse(String(e.data)); } catch (_) { return; }
+          var type = m && m.message_type;
+          if (type === 'session_started') {
+            r.ready = true;
+            while (pendingChunks.length) ws.send(pendingChunks.shift());
+            return;
+          }
+          if (type === 'partial_transcript') {
+            var partial = String(m.text || '').trim();
+            if (!partial) return;
+            var speaking = ttsReplyQueue && ttsReplyQueue.busy();
+            var ref = echoReferenceText();
+            // Mientras habla, interrumpir exige ≥2 palabras que no sean eco; justo después, basta
+            // con que no sea eco (un "sí" corto tiene que poder pasar).
+            if (speaking ? !shouldBargeIn(partial, ref) : (ref && isLikelyEcho(partial, ref))) return;
+            if (speaking) {
+              log(cfg, 'debug', '[voz] el usuario interrumpió al agente');
+              ttsStop();
+              setVoiceState('listening');
+            }
+            input.value = partial;
+            syncSendButtonState();
+            return;
+          }
+          if (type === 'committed_transcript') {
+            var text = String(m.text || '').trim();
+            if (!text) return;
+            var refC = echoReferenceText();
+            var busyC = ttsReplyQueue && ttsReplyQueue.busy();
+            // Eco: no se manda como si fuera del usuario (si no, el agente se respondería a sí mismo).
+            if (busyC ? !shouldBargeIn(text, refC) : (refC && isLikelyEcho(text, refC))) return;
+            if (busyC) ttsStop();
+            sendVoiceTurn(text);
+            return;
+          }
+          if (m && m.error) {
+            log(cfg, 'warn', '[STT] tiempo real:', type, m.error);
+            if (type === 'auth_error' || type === 'quota_exceeded' || type === 'unaccepted_terms' || type === 'resource_exhausted') {
+              realtimeFallbackToNative(type);
+            }
+          }
+        };
+        ws.onerror = function() {
+          if (!r.closed && !r.ready) realtimeFallbackToNative('websocket error');
+        };
+        ws.onclose = function() {
+          if (r.closed) return;
+          var wasReady = r.ready;
+          stopRealtimeStt();
+          // Fin normal de sesión (tope de tiempo) → otra sesión nueva; si nunca abrió → nativo.
+          if (!voiceShouldBeActive) return;
+          if (wasReady) setTimeout(function() { if (voiceShouldBeActive) startListeningRealtime(); }, 200);
+          else realtimeFallbackToNative('websocket cerrado al conectar');
+        };
+      }).catch(function(err) {
+        var msg = (err && err.message) || String(err);
+        if (err && (err.name === 'NotAllowedError' || err.name === 'SecurityError')) {
+          stopRealtimeStt();
+          micPermissionDeniedUI();
+          return;
+        }
+        realtimeFallbackToNative(msg);
+      });
+    }
+
     function startListening() {
+      if (realtimeSttCapable()) { startListeningRealtime(); return; }
       if (elevenLabsSttCapable()) { startListeningElevenLabs(); return; }
       if (!hasSpeechAPI) { stopVoice(); return; }
       var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -7857,6 +8173,8 @@
       voiceState = 'idle';
       syncVoiceBeamUI('idle');
       if (recognitionRef) { try { recognitionRef.abort(); } catch(_) {} recognitionRef = null; }
+      if (nativeTurnTimer) { clearTimeout(nativeTurnTimer); nativeTurnTimer = null; }
+      stopRealtimeStt();
       ttsStop();
       if (voiceBar) voiceBar.classList.remove('afhub-voice-bar--active');
       if (micBtn) { micBtn.innerHTML = ICON_MIC; micBtn.classList.remove('afhub-mic--active'); }
