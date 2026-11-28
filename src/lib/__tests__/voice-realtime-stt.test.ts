@@ -21,14 +21,14 @@ describe('dictado en tiempo real (servidor)', () => {
     expect(languageCodeFrom('??')).toBe('');
   });
 
-  it('URL con modelo, PCM 16 kHz, corte por silencio ~1 s e idioma; la key nunca va', () => {
+  it('URL con modelo, PCM 16 kHz, cierre manual de turno e idioma; la key nunca va', () => {
     const u = new URL(buildRealtimeSttUrl({ token: 'sutkn_x', language: 'es-CO' }));
     expect(u.origin + u.pathname).toBe('wss://api.elevenlabs.io/v1/speech-to-text/realtime');
     expect(u.searchParams.get('model_id')).toBe('scribe_v2_realtime');
     expect(u.searchParams.get('token')).toBe('sutkn_x');
     expect(u.searchParams.get('audio_format')).toBe('pcm_16000');
-    expect(u.searchParams.get('commit_strategy')).toBe('vad');
-    expect(u.searchParams.get('vad_silence_threshold_secs')).toBe('1');
+    // El fin de turno lo decide el widget (detector local) y manda commit: true.
+    expect(u.searchParams.get('commit_strategy')).toBe('manual');
     expect(u.searchParams.get('language_code')).toBe('es');
     expect(u.toString()).not.toMatch(/xi-api-key|api_key/);
   });

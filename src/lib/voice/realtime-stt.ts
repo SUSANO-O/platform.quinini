@@ -10,8 +10,11 @@
 export const REALTIME_STT_MODEL_ID = 'scribe_v2_realtime';
 export const REALTIME_STT_WS_BASE = 'wss://api.elevenlabs.io/v1/speech-to-text/realtime';
 export const REALTIME_STT_SAMPLE_RATE = 16_000;
-/** Silencio que cierra un turno: ~1 s, para no cortar a quien hace una pausa corta al hablar. */
-export const REALTIME_STT_SILENCE_SECS = 1.0;
+/**
+ * El fin de turno lo decide el WIDGET (detector de voz local con piso de ruido adaptativo) y manda
+ * `commit: true`: el detector de ElevenLabs con ruido de fondo no veía el silencio (turno colgado),
+ * con voz baja no veía la voz y con pausas cortas cortaba la frase. Por eso commit_strategy=manual.
+ */
 /** Tope de una sesión de dictado (el widget pide otro token al volver a hablar). */
 export const REALTIME_STT_MAX_SESSION_SECS = 600;
 
@@ -26,13 +29,12 @@ export function languageCodeFrom(lang: string | undefined | null): string {
   return m ? m[1]! : '';
 }
 
-export function buildRealtimeSttUrl(opts: { token: string; language?: string; silenceSecs?: number }): string {
+export function buildRealtimeSttUrl(opts: { token: string; language?: string }): string {
   const q = new URLSearchParams({
     model_id: REALTIME_STT_MODEL_ID,
     token: opts.token,
     audio_format: `pcm_${REALTIME_STT_SAMPLE_RATE}`,
-    commit_strategy: 'vad',
-    vad_silence_threshold_secs: String(opts.silenceSecs ?? REALTIME_STT_SILENCE_SECS),
+    commit_strategy: 'manual',
   });
   const lc = languageCodeFrom(opts.language);
   if (lc) q.set('language_code', lc);

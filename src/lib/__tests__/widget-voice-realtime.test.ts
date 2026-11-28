@@ -145,3 +145,82 @@ describe('core.js: cableado', () => {
     expect(src).not.toMatch(/if \(event\.results\[i\]\.isFinal\) final \+=/);
   });
 });
+
+describe('core.js: no cortar al que habla y no "borrar" la respuesta', () => {
+  it('el widget cierra el turno: commit manual al callar y respaldo si ElevenLabs no responde', () => {
+    const src = fnSource('startListeningRealtime');
+    expect(src).toContain('createVoiceActivityDetector(');
+    expect(src).toMatch(/onEnd: function\(\) \{[\s\S]*sendChunk\(new Int16Array\(160\), true\)/);
+    expect(src).toMatch(/commitFallback = setTimeout\([\s\S]*finishTurn\(lastPartial\)/);
+  });
+
+  it('hablar encima del agente lo pausa ya; si era eco/ruido, reanuda', () => {
+    const src = fnSource('startListeningRealtime');
+    expect(src).toMatch(/onStart: function\(\) \{[\s\S]*ttsPausePlayback\(\)[\s\S]*ttsResumePlayback\(\)/);
+    expect(src).toContain('confirmBargeIn()');
+  });
+
+  it('token_reset ya no borra la burbuja: la atenúa y la respuesta real la reemplaza', () => {
+    const i = core.indexOf("evt.type === 'token_reset'");
+    const block = core.slice(i, core.indexOf("evt.type === 'done'", i));
+    expect(block).toContain("classList.add('afhub-msg--superseded')");
+    expect(block).not.toContain('removeBotMessage(streamBubble)');
+    expect(core).toContain("streamBubble.classList.remove('afhub-msg--superseded');");
+  });
+});
+
+describe('detector de voz local', () => {
+  const createVAD = load<(o: { startMs?: number; endMs?: number; onStart?: () => void; onEnd?: () => void }) => {
+    push: (s: Float32Array, ms: number) => { speaking: boolean };
+    speaking: () => boolean;
+  }>(['createVoiceActivityDetector'], 'createVoiceActivityDetector');
+  const frame = (amp: number, seed = 1) => {
+    const a = new Float32Array(1024);
+    let x = seed;
+    for (let i = 0; i < a.length; i++) { x = (x * 16807) % 2147483647; a[i] = amp * ((x / 2147483647) * 2 - 1); }
+    return a;
+  };
+  function feed(v: ReturnType<typeof createVAD>, amp: number, ms: number) {
+    for (let t = 0; t < ms; t += 85) v.push(frame(amp, t + 7), 85);
+  }
+
+  it('voz normal: empieza y termina tras ~1,1 s de silencio', () => {
+    const ev: string[] = [];
+    const v = createVAD({ onStart: () => ev.push('start'), onEnd: () => ev.push('end') });
+    feed(v, 0.002, 1000); // ambiente silencioso
+    feed(v, 0.15, 1500);  // habla
+    expect(ev).toEqual(['start']);
+    feed(v, 0.002, 600);  // pausa corta para pensar: NO corta
+    expect(ev).toEqual(['start']);
+    feed(v, 0.15, 800);
+    feed(v, 0.002, 1300);
+    expect(ev).toEqual(['start', 'end']);
+  });
+
+  it('voz baja (relajada) también cuenta como voz', () => {
+    const ev: string[] = [];
+    const v = createVAD({ onStart: () => ev.push('start') });
+    feed(v, 0.002, 1000);
+    feed(v, 0.02, 600);
+    expect(ev).toEqual(['start']);
+  });
+
+  it('con ruido de fondo constante: detecta el fin del turno igual (antes quedaba colgado)', () => {
+    const ev: string[] = [];
+    const v = createVAD({ onStart: () => ev.push('start'), onEnd: () => ev.push('end') });
+    feed(v, 0.03, 3000);  // ventilador / calle
+    expect(ev).toEqual([]);
+    feed(v, 0.25, 1500);  // habla por encima del ruido
+    feed(v, 0.03, 1500);  // vuelve solo el ruido
+    expect(ev).toEqual(['start', 'end']);
+  });
+
+  it('un golpe corto no es voz', () => {
+    const ev: string[] = [];
+    const v = createVAD({ onStart: () => ev.push('start') });
+    feed(v, 0.002, 1000);
+    feed(v, 0.3, 85);
+    feed(v, 0.002, 500);
+    expect(ev).toEqual([]);
+  });
+});

@@ -6797,6 +6797,7 @@
                 if (!streamBubble) {
                   streamBubble = addMessage('bot', botReplyForDisplay(streamReply), { streaming: true });
                 } else {
+                  if (streamReply.trim()) streamBubble.classList.remove('afhub-msg--superseded');
                   updateStreamBubble(streamBubble, streamReply);
                 }
                 if (voiceActive || ttsMode) ttsStreamFeeder.feed(botReplyForDisplay(streamReply));
@@ -6806,11 +6807,11 @@
                 streamReply = '';
                 streamMaybeMarker = true;
                 ttsStreamFeeder.reset(); // lo provisional ya dicho no cuenta: la respuesta real se lee entera
-                if (streamBubble) {
-                  removeBotMessage(streamBubble);
-                  streamBubble = null;
-                }
-                if (!document.getElementById(typingId)) showTyping();
+                // Antes se BORRABA la burbuja y volvía "pensando": el texto aparecía y desaparecía y
+                // parecía que algo había fallado. Ahora queda atenuada mientras el agente sigue
+                // trabajando y la respuesta real la reemplaza en el mismo lugar.
+                if (streamBubble) streamBubble.classList.add('afhub-msg--superseded');
+                else if (!document.getElementById(typingId)) showTyping();
               } else if (evt.type === 'done') {
                 streamDoneEvt = evt;
                 hideTyping();
@@ -6904,6 +6905,7 @@
               var te2 = streamBubble.querySelector('.afhub-msg-text');
               if (te2) te2.innerHTML = formatBotHtml(finalReply);
               streamBubble.classList.remove('afhub-msg--streaming');
+              streamBubble.classList.remove('afhub-msg--superseded');
               var streamNavOffer = resolveNavOfferForAssistant(doneEvt, finalRaw, lastAssistUserMessage);
               if (streamNavOffer) {
                 attachNavOfferToBubble(streamBubble, streamNavOffer);
@@ -8004,6 +8006,7 @@
       rtStt = null;
       if (!r) return;
       r.closed = true;
+      try { if (r.cleanup) r.cleanup(); } catch (_) {}
       try { if (r.node) { r.node.onaudioprocess = null; r.node.disconnect(); } } catch (_) {}
       try { if (r.source) r.source.disconnect(); } catch (_) {}
       try { if (r.stream) r.stream.getTracks().forEach(function(t) { t.stop(); }); } catch (_) {}
@@ -8016,6 +8019,54 @@
       realtimeSttUnavailable = true;
       stopRealtimeStt();
       if (voiceShouldBeActive) startListening();
+    }
+
+    /**
+     * Detector de voz LOCAL (volumen del micrófono con piso de ruido adaptativo). No depende del
+     * detector de ElevenLabs: con ruido de fondo aquel no veía el silencio (el turno quedaba
+     * colgado) y con voz baja no veía la voz. `onStart` = empezó a hablar (≥ VOICE_START_MS);
+     * `onEnd` = calló durante END_SILENCE_MS después de hablar.
+     */
+    function createVoiceActivityDetector(opts) {
+      var startMs = opts.startMs || 200;
+      var endMs = opts.endMs || 1100;
+      var floor = 0;
+      var voiceMs = 0;
+      var silenceMs = 0;
+      var speaking = false;
+      return {
+        push: function(samples, frameMs) {
+          var sum = 0;
+          for (var i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
+          var rms = Math.sqrt(sum / (samples.length || 1));
+          // Piso de ruido: baja rápido, sube muy lento (la voz no lo arrastra).
+          if (!floor) floor = rms;
+          else floor = rms < floor ? floor * 0.85 + rms * 0.15 : floor * 0.997 + rms * 0.003;
+          if (floor < 0.0015) floor = 0.0015;
+          var isVoice = rms > Math.max(floor * 2.6, 0.006);
+          if (isVoice) {
+            voiceMs += frameMs;
+            silenceMs = 0;
+            if (!speaking && voiceMs >= startMs) { speaking = true; if (opts.onStart) opts.onStart(); }
+          } else {
+            silenceMs += frameMs;
+            voiceMs = Math.max(0, voiceMs - frameMs);
+            if (speaking && silenceMs >= endMs) { speaking = false; if (opts.onEnd) opts.onEnd(); }
+          }
+          return { rms: rms, floor: floor, speaking: speaking };
+        },
+        speaking: function() { return speaking; },
+      };
+    }
+
+    /** Pausa / reanuda la voz del agente sin perder por dónde iba (interrupción a confirmar). */
+    function ttsPausePlayback() {
+      try { if (ttsAudio && !ttsAudio.paused) ttsAudio.pause(); } catch (_) {}
+      try { if (window.speechSynthesis && window.speechSynthesis.speaking) window.speechSynthesis.pause(); } catch (_) {}
+    }
+    function ttsResumePlayback() {
+      try { if (ttsAudio && ttsAudio.paused) { var pr = ttsAudio.play(); if (pr && pr.catch) pr.catch(function() {}); } } catch (_) {}
+      try { if (window.speechSynthesis && window.speechSynthesis.paused) window.speechSynthesis.resume(); } catch (_) {}
     }
 
     function startListeningRealtime() {
@@ -8055,17 +8106,77 @@
         var ws = new WebSocket(info.url);
         r.ws = ws;
         var pendingChunks = [];
+        var lastPartial = '';
+        var turnText = '';        // tramos ya cerrados de este turno
+        var awaitingCommit = false;
+        var commitFallback = null;
+        var bargeTimer = null;    // pausa por interrupción pendiente de confirmar
+        var echoPauses = 0;       // pausas que resultaron eco en esta respuesta
+
+        function sendChunk(pcm, commit) {
+          var msg = JSON.stringify({ message_type: 'input_audio_chunk', audio_base_64: int16ToBase64(pcm), commit: !!commit, sample_rate: outRate });
+          if (r.ready && ws.readyState === 1) ws.send(msg);
+          else if (!commit && pendingChunks.length < 40) pendingChunks.push(msg); // ~4 s mientras conecta
+        }
+
+        function finishTurn(extra) {
+          if (commitFallback) { clearTimeout(commitFallback); commitFallback = null; }
+          awaitingCommit = false;
+          var full = (turnText + ' ' + (extra || '')).replace(/\s+/g, ' ').trim();
+          turnText = '';
+          lastPartial = '';
+          if (!full || r.closed || !voiceShouldBeActive) return;
+          sendVoiceTurn(full);
+        }
+
+        function confirmBargeIn() {
+          if (bargeTimer) { clearTimeout(bargeTimer); bargeTimer = null; }
+          echoPauses = 0;
+          log(cfg, 'debug', '[voz] el usuario interrumpió al agente');
+          ttsStop();
+          setVoiceState('listening');
+        }
+
+        var vad = createVoiceActivityDetector({
+          startMs: 200,
+          endMs: 1100,
+          onStart: function() {
+            // Habla encima del agente: pausar YA y confirmar con las palabras (o reanudar si era eco/ruido).
+            if (ttsReplyQueue && ttsReplyQueue.busy() && echoPauses < 2 && !bargeTimer) {
+              ttsPausePlayback();
+              bargeTimer = setTimeout(function() {
+                bargeTimer = null;
+                if (r.closed) return;
+                echoPauses++;
+                ttsResumePlayback();
+              }, 2200);
+            }
+          },
+          onEnd: function() {
+            // Calló: pedir a ElevenLabs que cierre ya lo dicho (sin esperar a su detector).
+            if (!lastPartial && !turnText) return; // ruido sin palabras
+            if (ttsReplyQueue && ttsReplyQueue.busy() && !bargeTimer) return; // eco mientras habla el agente
+            awaitingCommit = true;
+            sendChunk(new Int16Array(160), true);
+            // Si el cierre no llega, se envía lo último que se transcribió: nunca queda colgado.
+            if (commitFallback) clearTimeout(commitFallback);
+            commitFallback = setTimeout(function() {
+              commitFallback = null;
+              if (awaitingCommit) finishTurn(lastPartial);
+            }, 1500);
+          },
+        });
+
         var source = ctx.createMediaStreamSource(stream);
         var node = ctx.createScriptProcessor(4096, 1, 1);
         r.source = source;
         r.node = node;
         node.onaudioprocess = function(ev) {
           if (r.closed) return;
-          var pcm = downsampleToPcm16(ev.inputBuffer.getChannelData(0), ctx.sampleRate, outRate);
-          if (!pcm.length) return;
-          var msg = JSON.stringify({ message_type: 'input_audio_chunk', audio_base_64: int16ToBase64(pcm), commit: false, sample_rate: outRate });
-          if (r.ready && ws.readyState === 1) ws.send(msg);
-          else if (pendingChunks.length < 40) pendingChunks.push(msg); // ~4 s mientras conecta
+          var data = ev.inputBuffer.getChannelData(0);
+          vad.push(data, (data.length / ctx.sampleRate) * 1000);
+          var pcm = downsampleToPcm16(data, ctx.sampleRate, outRate);
+          if (pcm.length) sendChunk(pcm, false);
         };
         source.connect(node);
         // ScriptProcessor necesita salida para procesar; ganancia 0 para no oírse a sí mismo.
@@ -8090,33 +8201,36 @@
             if (!partial) return;
             var speaking = ttsReplyQueue && ttsReplyQueue.busy();
             var ref = echoReferenceText();
-            // Mientras habla, interrumpir exige ≥2 palabras que no sean eco; justo después, basta
-            // con que no sea eco (un "sí" corto tiene que poder pasar).
-            if (speaking ? !shouldBargeIn(partial, ref) : (ref && isLikelyEcho(partial, ref))) return;
             if (speaking) {
-              log(cfg, 'debug', '[voz] el usuario interrumpió al agente');
-              ttsStop();
-              setVoiceState('listening');
+              // Mientras habla el agente: palabras propias (no eco) confirman la interrupción.
+              // Con la voz ya pausada basta una palabra propia; sin pausa (eco frecuente) se piden 2.
+              if (bargeTimer ? isLikelyEcho(partial, ref) : !shouldBargeIn(partial, ref)) return;
+              confirmBargeIn();
+            } else if (ref && isLikelyEcho(partial, ref)) {
+              return; // cola de eco justo al terminar de hablar
             }
-            input.value = partial;
+            lastPartial = partial;
+            input.value = (turnText ? turnText + ' ' : '') + partial;
             syncSendButtonState();
             return;
           }
-          if (type === 'committed_transcript') {
-            var text = String(m.text || '').trim();
-            if (!text) return;
+          if (type === 'committed_transcript' || type === 'committed_transcript_with_timestamps') {
+            if (type === 'committed_transcript_with_timestamps') return; // el texto ya vino en committed_transcript
+            var seg = String(m.text || '').trim();
             var refC = echoReferenceText();
-            var busyC = ttsReplyQueue && ttsReplyQueue.busy();
-            // Eco: no se manda como si fuera del usuario (si no, el agente se respondería a sí mismo).
-            if (busyC ? !shouldBargeIn(text, refC) : (refC && isLikelyEcho(text, refC))) return;
-            if (busyC) ttsStop();
-            sendVoiceTurn(text);
+            if (seg && refC && isLikelyEcho(seg, refC)) seg = '';
+            if (seg) turnText = turnText ? turnText + ' ' + seg : seg;
+            lastPartial = '';
+            if (awaitingCommit && !vad.speaking()) finishTurn('');
+            else if (turnText) { input.value = turnText; syncSendButtonState(); }
             return;
           }
           if (m && m.error) {
             log(cfg, 'warn', '[STT] tiempo real:', type, m.error);
             if (type === 'auth_error' || type === 'quota_exceeded' || type === 'unaccepted_terms' || type === 'resource_exhausted') {
               realtimeFallbackToNative(type);
+            } else if (awaitingCommit) {
+              finishTurn(lastPartial);
             }
           }
         };
@@ -8126,11 +8240,16 @@
         ws.onclose = function() {
           if (r.closed) return;
           var wasReady = r.ready;
+          if (awaitingCommit || lastPartial || turnText) finishTurn(lastPartial);
           stopRealtimeStt();
           // Fin normal de sesión (tope de tiempo) → otra sesión nueva; si nunca abrió → nativo.
           if (!voiceShouldBeActive) return;
           if (wasReady) setTimeout(function() { if (voiceShouldBeActive) startListeningRealtime(); }, 200);
           else realtimeFallbackToNative('websocket cerrado al conectar');
+        };
+        r.cleanup = function() {
+          if (bargeTimer) { clearTimeout(bargeTimer); bargeTimer = null; }
+          if (commitFallback) { clearTimeout(commitFallback); commitFallback = null; }
         };
       }).catch(function(err) {
         var msg = (err && err.message) || String(err);
@@ -9813,6 +9932,7 @@
       '#' + rootId + ' .afhub-date-divider span { display:inline-block; font-size:10px; font-weight:600; letter-spacing:.03em; text-transform:capitalize; color:#94a3b8; background:rgba(255,255,255,.42); padding:4px 11px; border-radius:999px; border:none; box-shadow:0 1px 4px rgba(15,23,42,.04); }' +
       '#' + rootId + ' .afhub-msg { max-width:86%; padding:11px 15px; border-radius:18px; font-size:14.5px; line-height:1.58; letter-spacing:-.012em; word-wrap:break-word; animation:afhub-msg-fade-in .28s ' + macSpring + ' both; position:relative; -webkit-backdrop-filter:none; backdrop-filter:none; }' +
       '#' + rootId + ' .afhub-msg--streaming { animation:none !important; opacity:1 !important; transform:none !important; }' +
+      '#' + rootId + ' .afhub-msg--streaming.afhub-msg--superseded .afhub-msg-text { opacity:.5; transition:opacity .25s ease; }' +
       '#' + rootId + ' .afhub-msg.user { white-space:pre-wrap; background:' + userBubbleBg + '; color:' + userBubbleColor + '; align-self:flex-end; border-radius:18px 18px 6px 18px; border:' + userBubbleBorder + '; box-shadow:' + userBubbleShadow + '; }' +
       '#' + rootId + ' .afhub-msg-rich { white-space:normal; }' +
       '#' + rootId + ' .afhub-msg--streaming .afhub-msg-text::after { content:""; display:inline-block; width:2px; height:.95em; margin-left:2px; vertical-align:text-bottom; background:currentColor; opacity:.45; animation:afhub-stream-cursor 1.05s step-end infinite; }' +
