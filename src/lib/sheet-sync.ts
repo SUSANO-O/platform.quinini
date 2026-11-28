@@ -9,7 +9,6 @@ import {
   extractSpreadsheetId,
   extractAgentSheets,
   parseGvizCsvChunk,
-  splitSheetRowsForMongo,
   SHEET_GVIZ_DEFAULT_MAX_COL,
   type SheetEntry,
 } from '@/lib/agent-sheets';
@@ -20,6 +19,7 @@ import {
   effectiveProductPlan,
 } from '@/lib/plan-catalog';
 import { connectDB } from '@/lib/db/connection';
+import { estimateSheetBytes, streamSheetToChunks } from '@/lib/sheet-sync-stream';
 import { ClientAgent, SheetSnapshot, SheetSyncUsage, Subscription } from '@/lib/db/models';
 
 const SYNC_CHUNK_ROWS = 800;
@@ -56,60 +56,10 @@ async function fetchGvizChunk(
   return parseGvizCsvChunk(text, includeHeader);
 }
 
-async function persistSnapshotChunks(params: {
-  userId: string;
-  agentId: string;
-  entry: SheetEntry;
-  spreadsheetId: string;
-  gid: string;
-  header: string[];
-  rows: string[][];
-  byteSize: number;
-  rowCount: number;
-  complete: boolean;
-}): Promise<void> {
-  const col = SheetSnapshot.collection;
-  try {
-    await col.dropIndex('agentId_1_sheetEntryId_1');
-  } catch {
-    /* índice viejo ya no existe */
-  }
-  await SheetSnapshot.deleteMany({
-    agentId: params.agentId,
-    sheetEntryId: params.entry.id,
-  });
-  const now = new Date();
-  const parts = splitSheetRowsForMongo(params.rows, MONGO_CHUNK_ROWS);
-  const docs = parts.map((part, chunkIndex) => ({
-    userId: params.userId,
-    agentId: params.agentId,
-    sheetEntryId: params.entry.id,
-    sheetName: params.entry.name,
-    spreadsheetId: params.spreadsheetId,
-    tabGid: params.gid,
-    tabTitle: params.entry.tabTitle || '',
-    header: params.header,
-    rows: part,
-    byteSize: estimateByteSize(params.header, part),
-    rowCount: part.length,
-    totalRows: params.rowCount,
-    chunkIndex,
-    complete: params.complete,
-    syncedAt: now,
-    syncError: null,
-  }));
-  if (docs.length) await SheetSnapshot.insertMany(docs);
-}
-
-function estimateByteSize(header: string[], rows: string[][]): number {
-  let n = 0;
-  for (const h of header) n += Buffer.byteLength(h, 'utf8');
-  for (const row of rows) {
-    for (const cell of row) n += Buffer.byteLength(cell, 'utf8') + 1;
-  }
-  return n;
-}
-
+/**
+ * Sincroniza una hoja escribiendo por bloques (memoria acotada) y sin borrar antes el snapshot anterior.
+ * Ver `streamSheetToChunks` en sheet-sync-stream.ts.
+ */
 async function syncOneSheet(params: {
   userId: string;
   agentId: string;
@@ -122,58 +72,72 @@ async function syncOneSheet(params: {
   const gid = params.entry.tabGid || extractGid(params.entry.url) || '0';
   const sheetName = params.entry.tabTitle?.trim() || undefined;
   const maxCol = SHEET_GVIZ_DEFAULT_MAX_COL;
+  const key = { agentId: params.agentId, sheetEntryId: params.entry.id };
+  const syncedAt = new Date();
 
-  let header: string[] = [];
-  const allRows: string[][] = [];
-  let from = 1;
-  let hitEnd = false;
-
-  while (allRows.length < MAX_SYNC_ROWS) {
-    const take = Math.min(SYNC_CHUNK_ROWS, MAX_SYNC_ROWS - allRows.length);
-    const to = from + take - 1;
-    const range = `A${from}:${maxCol}${to}`;
-    const chunk = await fetchGvizChunk(spreadsheetId, gid, sheetName, range, from === 1);
-    if (!chunk || chunk.lineCount === 0) {
-      hitEnd = true;
-      break;
-    }
-    if (from === 1 && chunk.header.length) header = chunk.header;
-    if (!chunk.rows.length) {
-      hitEnd = true;
-      break;
-    }
-    allRows.push(...chunk.rows);
-    from = to + 1;
-    if (chunk.lineCount < take) {
-      hitEnd = true;
-      break;
+  if (!params.dryRun) {
+    try {
+      await SheetSnapshot.collection.dropIndex('agentId_1_sheetEntryId_1');
+    } catch {
+      /* índice viejo ya no existe */
     }
   }
 
-  if (!header.length && !allRows.length) {
+  const r = await streamSheetToChunks({
+    fetchRows: SYNC_CHUNK_ROWS,
+    chunkRows: MONGO_CHUNK_ROWS,
+    maxRows: MAX_SYNC_ROWS,
+    dryRun: params.dryRun,
+    fetchChunk: (from, take, includeHeader) =>
+      fetchGvizChunk(spreadsheetId, gid, sheetName, `A${from}:${maxCol}${from + take - 1}`, includeHeader),
+    writeChunk: async ({ chunkIndex, header, rows }) => {
+      await SheetSnapshot.replaceOne(
+        { ...key, chunkIndex },
+        {
+          userId: params.userId,
+          ...key,
+          sheetName: params.entry.name,
+          spreadsheetId,
+          tabGid: gid,
+          tabTitle: params.entry.tabTitle || '',
+          header,
+          rows,
+          byteSize: estimateSheetBytes(header, rows),
+          rowCount: rows.length,
+          totalRows: 0,
+          chunkIndex,
+          complete: false,
+          syncedAt,
+          syncError: null,
+        },
+        { upsert: true },
+      );
+    },
+  });
+
+  if (!r.header.length && !r.rowCount) {
     return { ok: false, byteSize: 0, rowCount: 0, error: 'Sin datos o sheet no accesible' };
   }
 
-  const complete = hitEnd && allRows.length < MAX_SYNC_ROWS;
-  const byteSize = estimateByteSize(header, allRows);
-  const rowCount = allRows.length;
-
   if (!params.dryRun) {
-    await persistSnapshotChunks({
-      userId: params.userId,
-      agentId: params.agentId,
-      entry: params.entry,
-      spreadsheetId,
-      gid,
-      header,
-      rows: allRows,
-      byteSize,
-      rowCount,
-      complete,
-    });
+    if (r.chunks === 0) {
+      // Hoja con encabezado pero sin filas: un bloque vacío para conservar el encabezado.
+      await SheetSnapshot.replaceOne(
+        { ...key, chunkIndex: 0 },
+        {
+          userId: params.userId, ...key, sheetName: params.entry.name, spreadsheetId, tabGid: gid,
+          tabTitle: params.entry.tabTitle || '', header: r.header, rows: [], byteSize: r.byteSize,
+          rowCount: 0, totalRows: 0, chunkIndex: 0, complete: r.complete, syncedAt, syncError: null,
+        },
+        { upsert: true },
+      );
+    }
+    // Solo ahora, con todo escrito: quitar bloques sobrantes del snapshot anterior y marcar el total.
+    await SheetSnapshot.deleteMany({ ...key, chunkIndex: { $gte: Math.max(1, r.chunks) } });
+    await SheetSnapshot.updateMany(key, { $set: { totalRows: r.rowCount, complete: r.complete } });
   }
 
-  return { ok: true, byteSize, rowCount };
+  return { ok: true, byteSize: r.byteSize, rowCount: r.rowCount };
 }
 
 async function updateUserBillingMeter(userId: string, totalBytes: number): Promise<void> {
