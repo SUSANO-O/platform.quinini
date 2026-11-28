@@ -4027,6 +4027,8 @@
               reset(speakBtn);
               activeMsgSpeakBtn = null;
             }
+            // En modo voz, al terminar la lectura manual vuelve a escuchar (ttsStop vació la cola).
+            if (voiceActive && voiceShouldBeActive) setTimeout(startListening, 300);
           });
         });
       }
@@ -6572,6 +6574,8 @@
       // usuario, agrupados en una sola llamada real tras una pausa), no repetir
       // la burbuja ni el push a history — ya están puestos.
       var historyPreloaded = !!(sendOpts && sendOpts.historyPreloaded);
+      // El usuario ya escribió otra cosa: la lectura en curso deja de tener sentido (y no se mezcla).
+      if ((ttsReplyQueue && ttsReplyQueue.busy()) || activeMsgSpeakBtn) ttsStop();
       var text = typeof textArg === 'string' ? textArg.trim() : input.value.trim();
       var humanActive = (typeof humanModeActive !== 'undefined' && humanModeActive);
       var hasAttach = !!(pendingAttachment && pendingAttachment.dataUrl);
@@ -7125,7 +7129,7 @@
         .replace(/\n+/g, '. ')
         .replace(/\s+/g, ' ')
         .trim()
-        .slice(0, 5000);
+        .slice(0, 20000); // antes 5000: respuestas largas se cortaban a mitad de la lectura
     }
 
     /** Chrome trunca utterances largos; partir en trozos cortos y encolarlos. */
@@ -7357,7 +7361,53 @@
       }
     }
 
+    /**
+     * Cola de lectura: cada mensaje se lee COMPLETO y recién entonces el siguiente (antes, un mensaje
+     * nuevo arrancaba encima del anterior y sonaban los dos). `play(text, done)` reproduce uno;
+     * `onIdle` corre cuando la cola queda vacía. `clear()` corta todo (stop, nuevo mensaje del usuario).
+     */
+    function createTtsQueue(play, onIdle) {
+      var items = [];
+      var busy = false;
+      var token = 0;
+      function next() {
+        var item = items.shift();
+        if (!item) { busy = false; if (onIdle) onIdle(); return; }
+        busy = true;
+        var my = token;
+        var finished = false;
+        play(item, function done() {
+          if (finished || my !== token) return;
+          finished = true;
+          next();
+        });
+      }
+      return {
+        enqueue: function(text) {
+          if (!text) return;
+          items.push(text);
+          if (!busy) next();
+        },
+        clear: function() { token++; items = []; busy = false; },
+        busy: function() { return busy; },
+        size: function() { return items.length; },
+      };
+    }
+
+    /** Detiene cualquier voz que esté sonando (ElevenLabs y nativa), sin tocar la cola. */
+    function ttsHaltPlayback() {
+      if (window.speechSynthesis) {
+        try { window.speechSynthesis.cancel(); } catch (_) {}
+      }
+      if (ttsAudio) {
+        try { ttsAudio.onended = null; ttsAudio.onerror = null; ttsAudio.pause(); } catch (_) {}
+        ttsAudio = null;
+      }
+      ttsUtterance = null;
+    }
+
     function ttsSpeakElevenLabs(text, onEnd) {
+      ttsHaltPlayback();
       var session = ++ttsSessionId;
       var sentences = ttsSplitIntoSentences(text);
       if (!sentences.length) { if (onEnd) onEnd(); return; }
@@ -7422,7 +7472,7 @@
       if (!window.speechSynthesis) { ttsNotifyFailure(); if (onEnd) onEnd(); return; }
 
       if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-      window.speechSynthesis.cancel();
+      ttsHaltPlayback();
 
       var lang = cfg.voiceLang || navigator.language || 'es-ES';
       var chunks = ttsSplitIntoChunks(cleaned, 180);
@@ -7447,11 +7497,29 @@
         var voice = ttsBestVoice(lang);
         if (voice) utt.voice = voice;
 
+        var advanced = false;
+        var watchdog = null;
+        function advance() {
+          if (advanced) return;
+          advanced = true;
+          if (watchdog) clearInterval(watchdog);
+          if (session !== ttsSessionId) return;
+          speakNext();
+        }
+        // Algunos navegadores (Chrome, Safari iOS) a veces no disparan onend: sin esto la lectura
+        // quedaba cortada a mitad. Si ya no está hablando ni tiene nada pendiente, se sigue.
+        var startedAt = Date.now();
+        watchdog = setInterval(function() {
+          if (session !== ttsSessionId) { clearInterval(watchdog); return; }
+          if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+          var idleTooLong = !window.speechSynthesis.speaking && !window.speechSynthesis.pending && Date.now() - startedAt > 1500;
+          if (idleTooLong || Date.now() - startedAt > 30000 + chunk.length * 150) advance();
+        }, 1000);
         utt.onend = function() {
           if (session !== ttsSessionId) return;
           // Chrome a veces pausa la cola entre chunks
           if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-          speakNext();
+          advance();
         };
         utt.onerror = function(ev) {
           if (session !== ttsSessionId) return;
@@ -7461,7 +7529,7 @@
             failureNotified = true;
             ttsNotifyFailure();
           }
-          speakNext();
+          advance();
         };
         ttsUtterance = utt;
         window.speechSynthesis.speak(utt);
@@ -7484,10 +7552,25 @@
 
     function ttsStop() {
       ttsSessionId++;
-      if (window.speechSynthesis) window.speechSynthesis.cancel();
-      if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; }
-      ttsUtterance = null;
+      if (ttsReplyQueue) ttsReplyQueue.clear();
+      ttsHaltPlayback();
     }
+
+    /** Respuestas del bot para leer en voz alta, una tras otra y completas. */
+    var ttsReplyQueue = createTtsQueue(
+      function(text, done) {
+        if (voiceActive || ttsMode) setVoiceState('speaking');
+        ttsSpeak(text, done);
+      },
+      function() {
+        if (voiceActive && voiceShouldBeActive) {
+          setTimeout(startListening, 300);
+          setVoiceState('listening');
+        } else {
+          setVoiceState('idle');
+        }
+      }
+    );
 
     function speakBotReplyIfEnabled(text, bubble) {
       if (!(voiceActive || ttsMode)) return;
@@ -7497,17 +7580,16 @@
         if (domText.length > ttsText.length) ttsText = domText;
       }
       if (!ttsText) return;
-      if (voiceActive) setVoiceState('speaking');
-      else if (ttsMode) setVoiceState('speaking');
-      log(cfg, 'debug', '[TTS] Speaking reply', { length: ttsText.length, preview: ttsText.substring(0, 120) });
-      ttsSpeak(ttsText, function() {
-        if (voiceActive && voiceShouldBeActive) {
-          setTimeout(startListening, 300);
-          setVoiceState('listening');
-        } else {
-          setVoiceState('idle');
-        }
-      });
+      // Si sonaba la lectura manual (botón 🔊 de un mensaje), la respuesta nueva tiene prioridad.
+      if (activeMsgSpeakBtn && !ttsReplyQueue.busy()) {
+        ttsStop();
+        activeMsgSpeakBtn.innerHTML = ICON_VOLUME_ON;
+        activeMsgSpeakBtn.classList.remove('active');
+        activeMsgSpeakBtn.setAttribute('aria-label', 'Escuchar mensaje');
+        activeMsgSpeakBtn = null;
+      }
+      log(cfg, 'debug', '[TTS] Speaking reply', { length: ttsText.length, queued: ttsReplyQueue.size(), preview: ttsText.substring(0, 120) });
+      ttsReplyQueue.enqueue(ttsText);
     }
 
     function _doStartRecognition() {
