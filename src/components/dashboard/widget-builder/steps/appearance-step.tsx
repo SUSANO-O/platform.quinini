@@ -1,5 +1,6 @@
 'use client';
 
+import { FlowsBetaBadge } from '@/components/flows/flows-beta-badge';
 import { useRef, useState, type CSSProperties } from 'react';
 import { AvatarEditor } from '@/components/ui/AvatarEditor';
 import { Loader2, Pause, Play, Sparkles } from '@/components/ui/icons';
@@ -64,6 +65,7 @@ const VISUAL_TOGGLES = [
     key: 'micEnabled' as const,
     label: 'Micrófono',
     hint: 'Dictado por voz (STT)',
+    beta: true,
   },
   {
     key: 'autoOpen' as const,
@@ -597,7 +599,10 @@ export function WidgetBuilderAppearanceStep({
               {VISUAL_TOGGLES.map((toggle) => (
                 <div key={toggle.key} className="widget-builder-visual-toggles__row">
                   <div className="min-w-0 flex-1">
-                    <p className="widget-builder-visual-toggles__label">{toggle.label}</p>
+                    <p className="widget-builder-visual-toggles__label">
+                      {toggle.label}
+                      {'beta' in toggle && toggle.beta ? <FlowsBetaBadge style={{ marginLeft: 6 }} /> : null}
+                    </p>
                     <p className="widget-builder-visual-toggles__hint">{toggle.hint}</p>
                   </div>
                   <WidgetBuilderSwitch

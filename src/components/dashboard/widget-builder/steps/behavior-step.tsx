@@ -1,5 +1,6 @@
 'use client';
 
+import { FlowsBetaBadge } from '@/components/flows/flows-beta-badge';
 import Link from 'next/link';
 import { Loader2, Plus, Sparkles, Trash2 } from '@/components/ui/icons';
 import type { HandoffNotifyMode } from '@/lib/handoff-notify';
@@ -606,6 +607,7 @@ export function WidgetBuilderBehaviorStep({
                 <line x1="12" x2="12" y1="19" y2="22" />
               </svg>
               Mostrar botón micrófono
+              <FlowsBetaBadge />
             </label>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
